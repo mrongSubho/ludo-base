@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Turbopack needs this to be empty to stop complaining
+  // Turbopack needs this to stay quiet
   turbopack: {},
 
   webpack: (config) => {
@@ -12,10 +12,12 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
-  // In Next 16, these are moved or handled differently, 
-  // but keeping them inside the object usually works if --webpack flag is used
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
+
+  // Next 16 might still want these here if using --webpack, 
+  // but if the warning persists, you can remove the eslint block entirely.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
