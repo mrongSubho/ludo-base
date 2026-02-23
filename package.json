@@ -28,4 +28,3 @@
     "typescript": "^5"
   }
 }
-## This is a basic package.json file for a Next.js project with React and TypeScript. It includes dependencies for React, Next.js, and some additional libraries like @coinbase/onchainkit, @tanstack/react-query, viem, and wagmi. The devDependencies include ESLint and TypeScript for development purposes. You can customize the dependencies and scripts as needed for your specific project requirements.
