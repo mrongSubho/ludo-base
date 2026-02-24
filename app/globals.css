@@ -553,11 +553,98 @@ a {
   overflow: hidden;
 }
 
+/* ─── Board Outer (positions player cards around the board) ─── */
+.board-outer {
+  position: relative;
+  width: 100%;
+  max-width: min(92vw, 92vh - 120px);
+}
+
+/* ─── Player Cards ─── */
+.player-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 5px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.player-card.top-left {
+  top: -14px;
+  left: 0;
+}
+
+.player-card.top-right {
+  top: -14px;
+  right: 0;
+}
+
+.player-card.bottom-left {
+  bottom: -14px;
+  left: 0;
+}
+
+.player-card.bottom-right {
+  bottom: -14px;
+  right: 0;
+}
+
+.player-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.player-avatar.green {
+  background: rgba(126, 200, 160, 0.25);
+}
+
+.player-avatar.red {
+  background: rgba(212, 132, 122, 0.25);
+}
+
+.player-avatar.yellow {
+  background: rgba(232, 197, 103, 0.25);
+}
+
+.player-avatar.blue {
+  background: rgba(123, 175, 212, 0.25);
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.player-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ludo-text);
+}
+
+.player-level {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-ludo-faint);
+}
+
 /* ─── Ludo Board ─── */
 .board-wrapper {
   width: 100%;
-  max-width: min(92vw, 92vh - 120px);
-  padding: 10px;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -565,6 +652,8 @@ a {
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.06),
     0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .board-grid {
@@ -580,7 +669,7 @@ a {
   border: 1.5px solid var(--color-ludo-border);
 }
 
-/* ── Home Blocks ── */
+/* ── Home Blocks — muted modern colors ── */
 .board-home {
   display: flex;
   align-items: center;
@@ -588,19 +677,19 @@ a {
 }
 
 .board-home.green {
-  background: #4CAF50;
-}
-
-.board-home.blue {
-  background: #42A5F5;
-}
-
-.board-home.yellow {
-  background: #FFCA28;
+  background: #7EC8A0;
 }
 
 .board-home.red {
-  background: #EF5350;
+  background: #D4847A;
+}
+
+.board-home.yellow {
+  background: #E8C567;
+}
+
+.board-home.blue {
+  background: #7BAFD4;
 }
 
 .home-pad {
@@ -612,36 +701,36 @@ a {
   grid-template-columns: 1fr 1fr;
   padding: 14%;
   gap: 10%;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .token-dot {
   aspect-ratio: 1;
   border-radius: 50%;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .green .token-dot {
-  background: #4CAF50;
-}
-
-.blue .token-dot {
-  background: #42A5F5;
-}
-
-.yellow .token-dot {
-  background: #FFCA28;
+  background: #7EC8A0;
 }
 
 .red .token-dot {
-  background: #EF5350;
+  background: #D4847A;
 }
 
-/* ── Path Cells — clean, stylish ── */
+.yellow .token-dot {
+  background: #E8C567;
+}
+
+.blue .token-dot {
+  background: #7BAFD4;
+}
+
+/* ── Path Cells ── */
 .board-cell {
   background: #FFFFFF;
   position: relative;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .board-cell::after {
@@ -649,28 +738,28 @@ a {
   position: absolute;
   inset: 0;
   border-radius: 1px;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.03);
   pointer-events: none;
 }
 
-/* ── Finish Lanes — vibrant tinted paths ── */
+/* ── Finish Lanes — soft tints ── */
 .lane-green {
-  background: #C8E6C9 !important;
-}
-
-.lane-blue {
-  background: #BBDEFB !important;
+  background: #D7F0E3 !important;
 }
 
 .lane-red {
-  background: #FFCDD2 !important;
+  background: #F5DBD6 !important;
+}
+
+.lane-blue {
+  background: #D6E9F5 !important;
 }
 
 .lane-yellow {
-  background: #FFF9C4 !important;
+  background: #F9EDCC !important;
 }
 
-/* ── Star / Safe Cells — bold and visible ── */
+/* ── Star / Safe Cells ── */
 .star-cell {
   display: flex;
   align-items: center;
@@ -679,13 +768,13 @@ a {
 }
 
 .star-svg {
-  width: 60%;
-  height: 60%;
-  color: #FFB300;
-  filter: drop-shadow(0 1px 2px rgba(255, 179, 0, 0.4));
+  width: 58%;
+  height: 58%;
+  color: #E0A83A;
+  filter: drop-shadow(0 1px 2px rgba(224, 168, 58, 0.35));
 }
 
-/* ── Center Finish Zone ── */
+/* ── Center Finish Zone — muted triangles ── */
 .finish-center {
   position: relative;
   overflow: hidden;
@@ -697,30 +786,50 @@ a {
 }
 
 .tri-top {
-  background: #4CAF50;
+  background: #7EC8A0;
   clip-path: polygon(0 0, 100% 0, 50% 50%);
 }
 
 .tri-right {
-  background: #42A5F5;
+  background: #D4847A;
   clip-path: polygon(100% 0, 100% 100%, 50% 50%);
 }
 
 .tri-bottom {
-  background: #EF5350;
+  background: #7BAFD4;
   clip-path: polygon(0 100%, 100% 100%, 50% 50%);
 }
 
 .tri-left {
-  background: #FFCA28;
+  background: #E8C567;
   clip-path: polygon(0 0, 0 100%, 50% 50%);
 }
 
 /* Board responsive */
 @media (max-width: 400px) {
   .board-wrapper {
-    max-width: 100%;
     padding: 6px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+  }
+
+  .player-card {
+    padding: 4px 8px 4px 4px;
+    gap: 6px;
+  }
+
+  .player-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .player-name {
+    font-size: 11px;
+  }
+
+  .player-level {
+    font-size: 9px;
   }
 }
 
