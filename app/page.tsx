@@ -20,29 +20,6 @@ const TokenIcon = () => (
   </svg>
 );
 
-const DiceIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="3" />
-    <circle cx="8" cy="8" r="1.2" fill="currentColor" />
-    <circle cx="16" cy="8" r="1.2" fill="currentColor" />
-    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
-    <circle cx="8" cy="16" r="1.2" fill="currentColor" />
-    <circle cx="16" cy="16" r="1.2" fill="currentColor" />
-  </svg>
-);
-
-const BoltIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </svg>
-);
-
-const ChevronRight = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
-
 // ─── Footer Nav Icons ────────────────────────────────────────────────────────
 
 const HomeIcon = () => (
@@ -88,8 +65,6 @@ const ShopIcon = () => (
 
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedPlayers, setSelectedPlayers] = useState<string>('2');
-  const [selectedBet, setSelectedBet] = useState<string>('50');
 
   useEffect(() => {
     setIsMounted(true);
@@ -102,9 +77,6 @@ export default function Page() {
       </div>
     );
   }
-
-  const playerOptions = ['2', '4', '2v2'];
-  const betOptions = ['10', '25', '50', '100', '250'];
 
   return (
     <div className="app-shell">
@@ -122,100 +94,9 @@ export default function Page() {
         </div>
       </header>
 
-      {/* ── Main Content ───────────────────────────────────── */}
-      <main className="main-content">
-
-        {/* Game Modes */}
-        <section className="animate-in">
-          <p className="section-label">Game Modes</p>
-          <div className="game-modes">
-            <div className="game-card classic">
-              <div className="card-icon classic">
-                <DiceIcon />
-              </div>
-              <div className="card-text">
-                <h3>Classic</h3>
-                <p>Traditional rules, pure strategy</p>
-              </div>
-              <span className="card-arrow">
-                <ChevronRight />
-              </span>
-            </div>
-            <div className="game-card power">
-              <div className="card-icon power">
-                <BoltIcon />
-              </div>
-              <div className="card-text">
-                <h3>Power</h3>
-                <p>Power-ups, shields &amp; wild cards</p>
-              </div>
-              <span className="card-arrow">
-                <ChevronRight />
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Board Preview */}
-        <section className="animate-in">
-          <p className="section-label">Board</p>
-          <Board />
-        </section>
-
-        {/* Betting / Selection */}
-        <section className="betting-section animate-in">
-          <span className="betting-title">Select Players</span>
-          <div className="player-pills">
-            {playerOptions.map((opt) => (
-              <button
-                key={opt}
-                className={`player-pill${selectedPlayers === opt ? ' active' : ''}`}
-                onClick={() => setSelectedPlayers(opt)}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-
-          <div className="bet-amount-section">
-            <span className="bet-label">Bet Amount</span>
-            <div className="bet-chips">
-              {betOptions.map((amt) => (
-                <button
-                  key={amt}
-                  className={`bet-chip${selectedBet === amt ? ' active' : ''}`}
-                  onClick={() => setSelectedBet(amt)}
-                >
-                  {amt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button className="play-button">
-            Play Now
-          </button>
-        </section>
-
-        {/* Quick Stats */}
-        <section className="animate-in">
-          <p className="section-label">Your Stats</p>
-          <div className="quick-stats">
-            <div className="stat-card">
-              <span className="stat-value">42</span>
-              <span className="stat-label">Wins</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">78%</span>
-              <span className="stat-label">Win Rate</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">3</span>
-              <span className="stat-label">Streak</span>
-            </div>
-          </div>
-        </section>
-
+      {/* ── Board (full-screen) ────────────────────────────── */}
+      <main className="board-main">
+        <Board />
       </main>
 
       {/* ── Footer Navigation ──────────────────────────────── */}

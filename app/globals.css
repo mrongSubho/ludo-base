@@ -542,17 +542,29 @@ a {
   }
 }
 
+/* ─── Board-Focused Layout ─── */
+.board-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  padding-bottom: calc(12px + 60px);
+  overflow: hidden;
+}
+
 /* ─── Ludo Board ─── */
 .board-wrapper {
   width: 100%;
-  max-width: 380px;
-  margin: 0 auto;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  max-width: min(92vw, 92vh - 120px);
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .board-grid {
@@ -561,110 +573,119 @@ a {
   grid-template-rows: repeat(15, 1fr);
   aspect-ratio: 1;
   width: 100%;
+  gap: 1px;
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--color-ludo-border);
-  background: var(--color-ludo-card);
+  background: var(--color-ludo-border);
+  border: 1.5px solid var(--color-ludo-border);
 }
 
-/* Home blocks */
+/* ── Home Blocks ── */
 .board-home {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.board-home.sage {
-  background: var(--color-ludo-sage);
+.board-home.green {
+  background: #4CAF50;
 }
 
-.board-home.sky {
-  background: var(--color-ludo-sky);
+.board-home.blue {
+  background: #42A5F5;
 }
 
-.board-home.amber {
-  background: var(--color-ludo-amber);
+.board-home.yellow {
+  background: #FFCA28;
 }
 
-.board-home.rose {
-  background: var(--color-ludo-rose);
+.board-home.red {
+  background: #EF5350;
 }
 
 .home-pad {
-  width: 65%;
+  width: 62%;
   aspect-ratio: 1;
-  background: var(--color-ludo-card);
+  background: rgba(255, 255, 255, 0.85);
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  padding: 15%;
+  padding: 14%;
   gap: 10%;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .token-dot {
   aspect-ratio: 1;
   border-radius: 50%;
-  opacity: 0.4;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.sage .token-dot {
-  background: #5eb991;
+.green .token-dot {
+  background: #4CAF50;
 }
 
-.sky .token-dot {
-  background: #7dc4ca;
+.blue .token-dot {
+  background: #42A5F5;
 }
 
-.amber .token-dot {
-  background: #d4b85a;
+.yellow .token-dot {
+  background: #FFCA28;
 }
 
-.rose .token-dot {
-  background: #d49a82;
+.red .token-dot {
+  background: #EF5350;
 }
 
-/* Path cells */
+/* ── Path Cells — clean, stylish ── */
 .board-cell {
-  background: var(--color-ludo-card);
-  border: 0.5px solid var(--color-ludo-slate);
-  transition: background 0.15s ease;
-}
-
-/* Finish lanes */
-.lane-sage {
-  background: color-mix(in srgb, var(--color-ludo-sage) 25%, white);
-}
-
-.lane-sky {
-  background: color-mix(in srgb, var(--color-ludo-sky) 25%, white);
-}
-
-.lane-rose {
-  background: color-mix(in srgb, var(--color-ludo-rose) 25%, white);
-}
-
-.lane-amber {
-  background: color-mix(in srgb, var(--color-ludo-amber) 25%, white);
-}
-
-/* Star / safe cells */
-.star-cell {
+  background: #FFFFFF;
   position: relative;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.star-cell::after {
-  content: '★';
+.board-cell::after {
+  content: '';
   position: absolute;
   inset: 0;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  pointer-events: none;
+}
+
+/* ── Finish Lanes — vibrant tinted paths ── */
+.lane-green {
+  background: #C8E6C9 !important;
+}
+
+.lane-blue {
+  background: #BBDEFB !important;
+}
+
+.lane-red {
+  background: #FFCDD2 !important;
+}
+
+.lane-yellow {
+  background: #FFF9C4 !important;
+}
+
+/* ── Star / Safe Cells — bold and visible ── */
+.star-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.5em;
-  color: var(--color-ludo-faint);
-  opacity: 0.5;
+  background: #FAFAFA !important;
 }
 
-/* Center finish zone */
+.star-svg {
+  width: 60%;
+  height: 60%;
+  color: #FFB300;
+  filter: drop-shadow(0 1px 2px rgba(255, 179, 0, 0.4));
+}
+
+/* ── Center Finish Zone ── */
 .finish-center {
   position: relative;
   overflow: hidden;
@@ -676,32 +697,33 @@ a {
 }
 
 .tri-top {
-  background: var(--color-ludo-sage);
+  background: #4CAF50;
   clip-path: polygon(0 0, 100% 0, 50% 50%);
 }
 
 .tri-right {
-  background: var(--color-ludo-sky);
+  background: #42A5F5;
   clip-path: polygon(100% 0, 100% 100%, 50% 50%);
 }
 
 .tri-bottom {
-  background: var(--color-ludo-rose);
+  background: #EF5350;
   clip-path: polygon(0 100%, 100% 100%, 50% 50%);
 }
 
 .tri-left {
-  background: var(--color-ludo-amber);
+  background: #FFCA28;
   clip-path: polygon(0 0, 0 100%, 50% 50%);
 }
 
-/* Board responsive adjustments */
+/* Board responsive */
 @media (max-width: 400px) {
   .board-wrapper {
     max-width: 100%;
-    padding: 8px;
+    padding: 6px;
   }
 }
+
 
 /* ─── Entrance Animations ─── */
 @keyframes fadeUp {
