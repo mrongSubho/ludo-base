@@ -542,6 +542,167 @@ a {
   }
 }
 
+/* ─── Ludo Board ─── */
+.board-wrapper {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-ludo-border);
+  background: var(--color-ludo-card);
+}
+
+/* Home blocks */
+.board-home {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-home.sage {
+  background: var(--color-ludo-sage);
+}
+
+.board-home.sky {
+  background: var(--color-ludo-sky);
+}
+
+.board-home.amber {
+  background: var(--color-ludo-amber);
+}
+
+.board-home.rose {
+  background: var(--color-ludo-rose);
+}
+
+.home-pad {
+  width: 65%;
+  aspect-ratio: 1;
+  background: var(--color-ludo-card);
+  border-radius: var(--radius-md);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 15%;
+  gap: 10%;
+}
+
+.token-dot {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0.4;
+}
+
+.sage .token-dot {
+  background: #5eb991;
+}
+
+.sky .token-dot {
+  background: #7dc4ca;
+}
+
+.amber .token-dot {
+  background: #d4b85a;
+}
+
+.rose .token-dot {
+  background: #d49a82;
+}
+
+/* Path cells */
+.board-cell {
+  background: var(--color-ludo-card);
+  border: 0.5px solid var(--color-ludo-slate);
+  transition: background 0.15s ease;
+}
+
+/* Finish lanes */
+.lane-sage {
+  background: color-mix(in srgb, var(--color-ludo-sage) 25%, white);
+}
+
+.lane-sky {
+  background: color-mix(in srgb, var(--color-ludo-sky) 25%, white);
+}
+
+.lane-rose {
+  background: color-mix(in srgb, var(--color-ludo-rose) 25%, white);
+}
+
+.lane-amber {
+  background: color-mix(in srgb, var(--color-ludo-amber) 25%, white);
+}
+
+/* Star / safe cells */
+.star-cell {
+  position: relative;
+}
+
+.star-cell::after {
+  content: '★';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.5em;
+  color: var(--color-ludo-faint);
+  opacity: 0.5;
+}
+
+/* Center finish zone */
+.finish-center {
+  position: relative;
+  overflow: hidden;
+}
+
+.tri {
+  position: absolute;
+  inset: 0;
+}
+
+.tri-top {
+  background: var(--color-ludo-sage);
+  clip-path: polygon(0 0, 100% 0, 50% 50%);
+}
+
+.tri-right {
+  background: var(--color-ludo-sky);
+  clip-path: polygon(100% 0, 100% 100%, 50% 50%);
+}
+
+.tri-bottom {
+  background: var(--color-ludo-rose);
+  clip-path: polygon(0 100%, 100% 100%, 50% 50%);
+}
+
+.tri-left {
+  background: var(--color-ludo-amber);
+  clip-path: polygon(0 0, 0 100%, 50% 50%);
+}
+
+/* Board responsive adjustments */
+@media (max-width: 400px) {
+  .board-wrapper {
+    max-width: 100%;
+    padding: 8px;
+  }
+}
+
 /* ─── Entrance Animations ─── */
 @keyframes fadeUp {
   from {

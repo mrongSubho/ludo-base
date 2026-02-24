@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Board from './components/Board';
 
 // ─── Inline SVG Icon Components ──────────────────────────────────────────────
 
@@ -153,6 +154,12 @@ export default function Page() {
               </span>
             </div>
           </div>
+        </section>
+
+        {/* Board Preview */}
+        <section className="animate-in">
+          <p className="section-label">Board</p>
+          <Board />
         </section>
 
         {/* Betting / Selection */}
