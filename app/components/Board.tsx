@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
+import Leaderboard from './Leaderboard';
 import { useAudio } from '../hooks/useAudio';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
@@ -238,6 +239,7 @@ export default function Board() {
         winners: [] as Player['color'][],
         invalidMove: false,
         isThinking: false,
+        showLeaderboard: false,
     });
 
     const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
@@ -260,7 +262,31 @@ export default function Board() {
             winners: [],
             invalidMove: false,
             isThinking: false,
+            showLeaderboard: false,
         });
+    }, []);
+
+    const recordWin = useCallback((winnerColor: Player['color']) => {
+        const player = PLAYERS.find(p => p.color === winnerColor);
+        if (!player) return;
+
+        const data = localStorage.getItem('ludo-leaderboard');
+        const stats = data ? JSON.parse(data) : {};
+
+        if (!stats[player.name]) {
+            stats[player.name] = {
+                name: player.name,
+                color: player.color,
+                wins: 0,
+                lastWin: 0
+            };
+        }
+
+        stats[player.name].wins += 1;
+        stats[player.name].lastWin = Date.now();
+        stats[player.name].color = player.color; // Update color in case alex plays different color
+
+        localStorage.setItem('ludo-leaderboard', JSON.stringify(stats));
     }, []);
 
     const triggerWinConfetti = useCallback(() => {
@@ -358,6 +384,7 @@ export default function Board() {
                 newWinners.push(color);
                 playWin();
                 if (newWinners.length === 1) {
+                    recordWin(color);
                     triggerWinConfetti();
                 }
             }
@@ -647,7 +674,7 @@ export default function Board() {
                         className="winner-card"
                     >
                         <span className="celebration-emoji">🏆</span>
-                        <h2 style={{ textTransform: 'capitalize' }}>{gameState.winner} Wins!</h2>
+                        <h2 style={{ textTransform: 'capitalize' }}>{gameState.winner} Fits the Crown!</h2>
                         <p>A minimalist masterclass!</p>
                         <div className="match-summary">
                             <div className="summary-stat">
@@ -664,6 +691,18 @@ export default function Board() {
                     </motion.div>
                 </div>
             )}
+
+            <button
+                className="leaderboard-toggle"
+                onClick={() => setGameState(s => ({ ...s, showLeaderboard: true }))}
+            >
+                🏆
+            </button>
+
+            <Leaderboard
+                isOpen={gameState.showLeaderboard}
+                onClose={() => setGameState(s => ({ ...s, showLeaderboard: false }))}
+            />
         </div>
     );
 }
