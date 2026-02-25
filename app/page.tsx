@@ -91,8 +91,6 @@ export default function Page() {
           <span className="app-title">Ludo Base</span>
         </div>
         <div className="header-right">
-          <AudioToggle />
-          <ThemeSwitcher />
           <div className="token-pill">
             <TokenIcon />
             <span>1,250</span>

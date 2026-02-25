@@ -691,38 +691,6 @@ export default function Board() {
                 </AnimatePresence>
             </div>
 
-            {/* Multiplayer UI Bar */}
-            <div className="multiplayer-bar">
-                <div className="peer-info">
-                    <span className="label">My ID:</span>
-                    <span className="id-code" onClick={() => {
-                        navigator.clipboard.writeText(peerId);
-                        alert('ID Copied!');
-                    }}>{peerId || '...'}</span>
-                </div>
-                {status === 'idle' && (
-                    <div className="join-gate">
-                        <input
-                            placeholder="Join with ID"
-                            value={gameState.multiplayer.targetId}
-                            onChange={(e) => setGameState(s => ({
-                                ...s,
-                                multiplayer: { ...s.multiplayer, targetId: e.target.value }
-                            }))}
-                        />
-                        <button onClick={() => connectToPeer(gameState.multiplayer.targetId)}>
-                            Join
-                        </button>
-                    </div>
-                )}
-                {status !== 'idle' && (
-                    <div className="conn-status">
-                        <span className={`dot connected`} />
-                        {status === 'host' ? 'Hosting' : 'Connected'}
-                    </div>
-                )}
-            </div>
-
             {/* --- Celebration Overlay --- */}
             <AnimatePresence>
                 {gameState.winner && (
