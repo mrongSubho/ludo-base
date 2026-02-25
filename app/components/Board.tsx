@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
+import { useAudio } from '../hooks/useAudio';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
 // Diagonal-opposite pairs:  Green ↔ Blue  |  Red ↔ Yellow
@@ -220,6 +221,7 @@ function PlayerCard({ player }: { player: Player }) {
 // ─── Main Board ──────────────────────────────────────────────────────────────
 
 export default function Board() {
+    const { playMove, playCapture, playWin } = useAudio();
     const [gameState, setGameState] = useState({
         positions: {
             green: [-1, -1, -1, -1],
@@ -312,6 +314,7 @@ export default function Board() {
             if (nextPos === currentPos) return prev; // No move made
 
             newPositions[color][tokenIndex] = nextPos;
+            playMove();
 
             // --- CAPTURE LOGIC ---
             let captured = false;
@@ -334,6 +337,7 @@ export default function Board() {
                                         captured = true;
                                         playerCaptured = true;
                                         capturedColor = otherColor;
+                                        playCapture();
                                         return -1; // Reset to Home
                                     }
                                 }
@@ -349,6 +353,7 @@ export default function Board() {
             const newWinners = [...prev.winners];
             if (hasWon && !newWinners.includes(color)) {
                 newWinners.push(color);
+                playWin();
                 if (newWinners.length === 1) {
                     triggerWinConfetti();
                 }
