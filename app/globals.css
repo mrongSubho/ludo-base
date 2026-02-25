@@ -386,9 +386,40 @@ a {
   box-shadow: 0 6px 24px rgba(0, 82, 255, 0.4);
 }
 
-.play-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 82, 255, 0.3);
+.player-wrapper.active-turn {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(168, 230, 207, 0.3);
+}
+
+.ai-thinking-tag {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-ludo-slate);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: pulse 1.5s infinite;
+  white-space: nowrap;
+  z-index: 20;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
 }
 
 /* ─── Quick Stats ─── */

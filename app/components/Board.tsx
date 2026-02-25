@@ -25,13 +25,14 @@ interface Player {
     avatar: string;          // emoji or initials
     color: 'green' | 'red' | 'yellow' | 'blue';
     position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    isAi?: boolean;
 }
 
 const PLAYERS: Player[] = [
-    { name: 'Alex', level: 12, avatar: '🟢', color: 'green', position: 'top-left' },
-    { name: 'Maya', level: 8, avatar: '🔴', color: 'red', position: 'top-right' },
-    { name: 'Jordan', level: 15, avatar: '🟡', color: 'yellow', position: 'bottom-left' },
-    { name: 'Kai', level: 10, avatar: '🔵', color: 'blue', position: 'bottom-right' },
+    { name: 'Alex', level: 12, avatar: '🟢', color: 'green', position: 'top-left', isAi: false },
+    { name: 'Gemini (AI)', level: 8, avatar: '🤖', color: 'red', position: 'top-right', isAi: true },
+    { name: 'Deep (AI)', level: 15, avatar: '💾', color: 'yellow', position: 'bottom-left', isAi: true },
+    { name: 'Core (AI)', level: 10, avatar: '⚙️', color: 'blue', position: 'bottom-right', isAi: true },
 ];
 
 // ─── Path Constants ──────────────────────────────────────────────────────────
@@ -236,6 +237,7 @@ export default function Board() {
         captureMessage: null as string | null,
         winners: [] as Player['color'][],
         invalidMove: false,
+        isThinking: false,
     });
 
     const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
@@ -257,6 +259,7 @@ export default function Board() {
             captureMessage: null,
             winners: [],
             invalidMove: false,
+            isThinking: false,
         });
     }, []);
 
@@ -393,6 +396,110 @@ export default function Board() {
         moveToken(color, tokenIndex, gameState.diceValue);
     };
 
+    // --- AI ORCHESTRATION ---
+    useEffect(() => {
+        if (gameState.winner) return;
+
+        const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
+        if (currentPlayerInfo?.isAi) {
+            const delay = Math.floor(Math.random() * 500) + 1000; // 1-1.5s delay
+
+            if (gameState.gamePhase === 'rolling') {
+                const timer = setTimeout(() => {
+                    setGameState(s => ({ ...s, isThinking: true }));
+                    // Trigger roll from component would be better, but we'll simulate logic
+                    // We need a way to trigger the Dice component's roll
+                    const newValue = Math.floor(Math.random() * 6) + 1;
+                    handleRoll(newValue);
+                }, delay);
+                return () => clearTimeout(timer);
+            }
+
+            if (gameState.gamePhase === 'moving' && gameState.diceValue !== null) {
+                const timer = setTimeout(() => {
+                    // AI Decision Logic
+                    const color = gameState.currentPlayer;
+                    const diceValue = gameState.diceValue!;
+                    const options: number[] = [];
+
+                    gameState.positions[color].forEach((pos, idx) => {
+                        // Check if move is valid
+                        if (pos === -1) {
+                            if (diceValue === 6) options.push(idx);
+                        } else if (pos + diceValue <= 57) {
+                            options.push(idx);
+                        }
+                    });
+
+                    if (options.length === 0) {
+                        // Pass turn
+                        setGameState(s => ({
+                            ...s,
+                            isThinking: false,
+                            gamePhase: 'rolling',
+                            currentPlayer: getNextPlayer(s.currentPlayer)
+                        }));
+                        return;
+                    }
+
+                    // Heuristic Scoring
+                    let bestTokenIdx = options[0];
+                    let maxScore = -Infinity;
+
+                    options.forEach(idx => {
+                        const currentPos = gameState.positions[color][idx];
+                        const nextPos = currentPos === -1 ? 0 : currentPos + diceValue;
+                        let score = 0;
+
+                        // Priority: Reach finish
+                        if (nextPos === 57) score += 150;
+
+                        // Priority: Enter finish lane
+                        if (nextPos >= 52 && currentPos < 52) score += 25;
+
+                        // Priority: Move out of home
+                        if (currentPos === -1) score += 40;
+
+                        // Priority: Capture
+                        if (nextPos < 52) {
+                            const targetPoint = PLAYER_PATHS[color][nextPos];
+                            const isSafe = SAFE_POSITIONS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+
+                            if (!isSafe) {
+                                (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
+                                    if (otherColor !== color) {
+                                        gameState.positions[otherColor].forEach(otherPos => {
+                                            if (otherPos >= 0 && otherPos < 52) {
+                                                const otherPoint = PLAYER_PATHS[otherColor][otherPos];
+                                                if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
+                                                    score += 100;
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
+                            } else {
+                                score += 50; // Move into safe zone
+                            }
+                        }
+
+                        // Tendency: Move further ahead
+                        score += nextPos;
+
+                        if (score > maxScore) {
+                            maxScore = score;
+                            bestTokenIdx = idx;
+                        }
+                    });
+
+                    setGameState(s => ({ ...s, isThinking: false }));
+                    moveToken(color, bestTokenIdx, diceValue);
+                }, delay);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll]);
+
     const renderTokensOnPath = () => {
         const tokens: React.ReactNode[] = [];
 
@@ -435,6 +542,9 @@ export default function Board() {
             {PLAYERS.map((p) => (
                 <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''}`}>
                     <PlayerCard player={p} />
+                    {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                        <div className="ai-thinking-tag">Thinking...</div>
+                    )}
                 </div>
             ))}
 
