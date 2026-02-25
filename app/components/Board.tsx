@@ -81,6 +81,10 @@ const PLAYER_PATHS: Record<string, Point[]> = {
     ],
 };
 
+const SAFE_POSITIONS: Point[] = [
+    { r: 7, c: 2 }, { r: 2, c: 9 }, { r: 9, c: 14 }, { r: 14, c: 7 }, // Star squares / Starts
+];
+
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
 const StarMarker = () => (
@@ -226,6 +230,7 @@ export default function Board() {
         diceValue: null as number | null,
         gamePhase: 'rolling' as 'rolling' | 'moving',
         winner: null as Player['color'] | null,
+        captureMessage: null as string | null,
     });
 
     const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
@@ -253,24 +258,25 @@ export default function Board() {
 
             // --- CAPTURE LOGIC ---
             let captured = false;
+            let capturedColor = '';
             if (nextPos >= 0 && nextPos < 52) { // Only on shared path
                 const targetPoint = PLAYER_PATHS[color][nextPos];
-                const isSafeSquare = (
-                    (targetPoint.r === 7 && targetPoint.c === 2) ||
-                    (targetPoint.r === 2 && targetPoint.c === 9) ||
-                    (targetPoint.r === 9 && targetPoint.c === 14) ||
-                    (targetPoint.r === 14 && targetPoint.c === 7)
-                );
+                const isSafeSquare = SAFE_POSITIONS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
 
                 if (!isSafeSquare) {
                     // Check other players for capture
                     (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
                         if (otherColor !== color) {
-                            newPositions[otherColor] = newPositions[otherColor].map(otherPos => {
+                            const playerPositions = newPositions[otherColor];
+                            let playerCaptured = false;
+
+                            newPositions[otherColor] = playerPositions.map(otherPos => {
                                 if (otherPos >= 0 && otherPos < 52) {
                                     const otherPoint = PLAYER_PATHS[otherColor][otherPos];
                                     if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
                                         captured = true;
+                                        playerCaptured = true;
+                                        capturedColor = otherColor;
                                         return -1; // Reset to Home
                                     }
                                 }
@@ -290,6 +296,7 @@ export default function Board() {
                 gamePhase: 'rolling',
                 currentPlayer: (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer),
                 winner: hasWon ? color : prev.winner,
+                captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
             };
         });
     }, [checkWin]);
@@ -304,7 +311,8 @@ export default function Board() {
         setGameState((prev) => ({
             ...prev,
             diceValue: value,
-            gamePhase: 'moving'
+            gamePhase: 'moving',
+            captureMessage: null,
         }));
     };
 
@@ -397,8 +405,22 @@ export default function Board() {
                         </div>
                     ))}
 
-                    {/* ── Tokens on Path ── */}
+                    {/* --- Tokens on Path --- */}
                     {renderTokensOnPath()}
+
+                    {/* --- Status Notification --- */}
+                    <AnimatePresence>
+                        {gameState.captureMessage && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="capture-toast"
+                            >
+                                {gameState.captureMessage}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* ── Center Finish Zone ── */}
                     <div
