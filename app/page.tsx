@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Board from './components/Board';
+import ThemeSwitcher from './components/ThemeSwitcher';
 
 // ─── Inline SVG Icon Components ──────────────────────────────────────────────
 
@@ -88,9 +89,12 @@ export default function Page() {
           </div>
           <span className="app-title">Ludo Base</span>
         </div>
-        <div className="token-pill">
-          <TokenIcon />
-          <span>1,250</span>
+        <div className="header-right">
+          <ThemeSwitcher />
+          <div className="token-pill">
+            <TokenIcon />
+            <span>1,250</span>
+          </div>
         </div>
       </header>
 

@@ -8,21 +8,117 @@
 
 /* ─── Step 1: @theme — Tailwind-accessible design tokens ─── */
 @theme {
-  --color-ludo-background: #F8FAFC;
-  --color-ludo-card: #FFFFFF;
-  --color-ludo-sage: #A8E6CF;
-  --color-ludo-rose: #FFD3B6;
-  --color-ludo-sky: #D4F1F4;
-  --color-ludo-amber: #FFEFBA;
-  --color-ludo-slate: #475569;
+  --color-ludo-background: var(--ludo-bg);
+  --color-ludo-card: var(--ludo-card);
+  --color-ludo-sage: var(--ludo-sage);
+  --color-ludo-rose: var(--ludo-rose);
+  --color-ludo-sky: var(--ludo-sky);
+  --color-ludo-amber: var(--ludo-amber);
+  --color-ludo-slate: var(--ludo-slate);
 
-  /* Extended palette for full UI coverage */
-  --color-ludo-blue: #0052FF;
-  --color-ludo-blue-soft: #E8EFFF;
-  --color-ludo-text: #1E293B;
-  --color-ludo-muted: #64748B;
-  --color-ludo-faint: #94A3B8;
-  --color-ludo-border: #E2E8F0;
+  --color-ludo-blue: var(--ludo-blue);
+  --color-ludo-blue-soft: var(--ludo-blue-soft);
+  --color-ludo-text: var(--ludo-text);
+  --color-ludo-muted: var(--ludo-muted);
+  --color-ludo-faint: var(--ludo-faint);
+  --color-ludo-border: var(--ludo-border);
+}
+
+:root {
+  /* --- Default Pastel Theme --- */
+  --ludo-bg: #F8FAFC;
+  --ludo-card: #FFFFFF;
+  --ludo-sage: #A8E6CF;
+  --ludo-rose: #FFD3B6;
+  --ludo-sky: #D4F1F4;
+  --ludo-amber: #FFEFBA;
+  --ludo-slate: #475569;
+  --ludo-blue: #0052FF;
+  --ludo-blue-soft: #E8EFFF;
+  --ludo-text: #1E293B;
+  --ludo-muted: #64748B;
+  --ludo-faint: #94A3B8;
+  --ludo-border: #E2E8F0;
+
+  --ludo-sage-contrast: #2d4a3e;
+  --ludo-rose-contrast: #5a3a2a;
+  --ludo-sky-contrast: #2d4a4d;
+  --ludo-amber-contrast: #5a502a;
+}
+
+[data-theme="midnight"] {
+  --ludo-bg: #0F172A;
+  --ludo-card: #1E293B;
+  --ludo-sage: #38BDF8;
+  /* Electric Blue */
+  --ludo-rose: #818CF8;
+  /* Indigo */
+  --ludo-sky: #94A3B8;
+  /* Steel */
+  --ludo-amber: #F1F5F9;
+  /* Off-white */
+  --ludo-slate: #F8FAFC;
+  --ludo-blue: #38BDF8;
+  --ludo-blue-soft: #1E293B;
+  --ludo-text: #F1F5F9;
+  --ludo-muted: #94A3B8;
+  --ludo-faint: #64748B;
+  --ludo-border: #334155;
+
+  --ludo-sage-contrast: #082F49;
+  --ludo-rose-contrast: #1E1B4B;
+  --ludo-sky-contrast: #0F172A;
+  --ludo-amber-contrast: #1E293B;
+}
+
+[data-theme="cyberpunk"] {
+  --ludo-bg: #050505;
+  --ludo-card: #0D0D0D;
+  --ludo-sage: #39FF14;
+  /* Lime Neon */
+  --ludo-rose: #FF007F;
+  /* Pink Neon */
+  --ludo-sky: #00FFFF;
+  /* Cyan Neon */
+  --ludo-amber: #FFFF00;
+  /* Yellow Neon */
+  --ludo-slate: #FFFFFF;
+  --ludo-blue: #00FFFF;
+  --ludo-blue-soft: #002222;
+  --ludo-text: #FFFFFF;
+  --ludo-muted: #AAAAAA;
+  --ludo-faint: #444444;
+  --ludo-border: #222222;
+
+  --ludo-sage-contrast: #000000;
+  --ludo-rose-contrast: #FFFFFF;
+  --ludo-sky-contrast: #000000;
+  --ludo-amber-contrast: #000000;
+}
+
+[data-theme="classic"] {
+  --ludo-bg: #EAEAEA;
+  --ludo-card: #FFFFFF;
+  --ludo-sage: #4CAF50;
+  /* Traditional Green */
+  --ludo-rose: #F44336;
+  /* Traditional Red */
+  --ludo-sky: #2196F3;
+  /* Traditional Blue */
+  --ludo-amber: #FFEB3B;
+  /* Traditional Yellow */
+  --ludo-slate: #333333;
+  --ludo-blue: #2196F3;
+  --ludo-blue-soft: #E3F2FD;
+  --ludo-text: #000000;
+  --ludo-muted: #666666;
+  --ludo-faint: #999999;
+  --ludo-border: #CCCCCC;
+
+  --ludo-sage-contrast: #FFFFFF;
+  --ludo-rose-contrast: #FFFFFF;
+  --ludo-sky-contrast: #FFFFFF;
+  --ludo-amber-contrast: #000000;
 }
 
 /* ─── Step 2: Base styles ─── */
@@ -148,6 +244,104 @@ a {
   flex-direction: column;
   gap: 24px;
   overflow-y: auto;
+}
+
+/* ─── Theme Switcher ─── */
+.theme-switcher-wrapper {
+  position: relative;
+}
+
+.theme-toggle-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--color-ludo-blue-soft);
+  border: 1px solid var(--color-ludo-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.05);
+  background: var(--ludo-bg);
+}
+
+.theme-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.theme-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  background: var(--color-ludo-card);
+  border: 1px solid var(--color-ludo-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+  z-index: 1001;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.theme-option:hover {
+  background: var(--color-ludo-blue-soft);
+}
+
+.theme-option.active {
+  background: var(--color-ludo-blue);
+  color: white;
+}
+
+.theme-option.active .theme-label {
+  color: white;
+}
+
+.theme-icon {
+  font-size: 16px;
+}
+
+.theme-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ludo-text);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ─── Board Styles ─── */
+.board-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
 }
 
 /* ─── Section Label ─── */
@@ -698,22 +892,22 @@ a {
 
 .avatar.green {
   background: var(--color-ludo-sage);
-  color: #2d4a3e;
+  color: var(--ludo-sage-contrast);
 }
 
 .avatar.red {
   background: var(--color-ludo-rose);
-  color: #5a3a2a;
+  color: var(--ludo-rose-contrast);
 }
 
 .avatar.yellow {
   background: var(--color-ludo-sky);
-  color: #2d4a4d;
+  color: var(--ludo-sky-contrast);
 }
 
 .avatar.blue {
   background: var(--color-ludo-amber);
-  color: #5a502a;
+  color: var(--ludo-amber-contrast);
 }
 
 .stats-item .info {
