@@ -576,6 +576,71 @@ a {
   white-space: nowrap;
 }
 
+/* ─── Shake Feedback ─── */
+.shake-feedback {
+  animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes shake {
+
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
+/* ─── Finish Counter ─── */
+.finish-counter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  color: var(--color-ludo-text);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 5;
+}
+
+.tri-top .finish-counter {
+  transform: translate(-50%, -120%);
+}
+
+.tri-right .finish-counter {
+  transform: translate(20%, -50%);
+}
+
+.tri-bottom .finish-counter {
+  transform: translate(-50%, 20%);
+}
+
+.tri-left .finish-counter {
+  transform: translate(-120%, -50%);
+}
+
 .player-card.top-left {
   top: -14px;
   left: 0;

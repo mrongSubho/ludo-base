@@ -232,6 +232,8 @@ export default function Board() {
         gamePhase: 'rolling' as 'rolling' | 'moving',
         winner: null as Player['color'] | null,
         captureMessage: null as string | null,
+        winners: [] as Player['color'][],
+        invalidMove: false,
     });
 
     const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
@@ -251,6 +253,8 @@ export default function Board() {
             gamePhase: 'rolling',
             winner: null,
             captureMessage: null,
+            winners: [],
+            invalidMove: false,
         });
     }, []);
 
@@ -286,7 +290,17 @@ export default function Board() {
                 if (steps === 6) nextPos = 0; // Start
             } else {
                 nextPos = currentPos + steps;
-                if (nextPos > 57) return prev; // Exact roll needed for finish
+                if (nextPos > 57) {
+                    // --- OVERSHOOT FEEDBACK ---
+                    setGameState(s => ({ ...s, invalidMove: true }));
+                    setTimeout(() => setGameState(s => ({ ...s, invalidMove: false })), 500);
+
+                    return {
+                        ...prev,
+                        gamePhase: 'rolling',
+                        currentPlayer: getNextPlayer(prev.currentPlayer),
+                    };
+                }
             }
 
             if (nextPos === currentPos) return prev; // No move made
@@ -326,7 +340,9 @@ export default function Board() {
 
             // --- WIN CHECK ---
             const hasWon = checkWin(newPositions, color);
-            if (hasWon) {
+            const newWinners = [...prev.winners];
+            if (hasWon && !newWinners.includes(color)) {
+                newWinners.push(color);
                 celebrate();
             }
 
@@ -336,6 +352,7 @@ export default function Board() {
                 gamePhase: 'rolling',
                 currentPlayer: (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer),
                 winner: hasWon ? color : prev.winner,
+                winners: newWinners,
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
             };
         });
@@ -353,6 +370,7 @@ export default function Board() {
             diceValue: value,
             gamePhase: 'moving',
             captureMessage: null,
+            invalidMove: false,
         }));
     };
 
@@ -462,15 +480,30 @@ export default function Board() {
                         )}
                     </AnimatePresence>
 
-                    {/* ── Center Finish Zone ── */}
+                    {/* --- Center Finish Zone --- */}
                     <div
-                        className="finish-center"
+                        className={`finish-center ${gameState.invalidMove ? 'shake-feedback' : ''}`}
                         style={{ gridRow: '7 / 10', gridColumn: '7 / 10' }}
                     >
-                        <div className="tri tri-top" />
-                        <div className="tri tri-right" />
-                        <div className="tri tri-bottom" />
-                        <div className="tri tri-left" />
+                        {(['green', 'red', 'blue', 'yellow'] as const).map((color) => {
+                            const finishedCount = gameState.positions[color].filter(p => p === 57).length;
+                            const triClass = {
+                                green: 'tri-top',
+                                red: 'tri-right',
+                                blue: 'tri-bottom',
+                                yellow: 'tri-left'
+                            }[color];
+
+                            return (
+                                <div key={color} className={`tri ${triClass}`}>
+                                    {finishedCount > 0 && (
+                                        <div className="finish-counter">
+                                            {finishedCount}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
 
                         <div className="dice-overlay">
                             <Dice
