@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import { useAudio } from '../hooks/useAudio';
+import { useMultiplayer } from '../hooks/useMultiplayer';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
 // Diagonal-opposite pairs:  Green ↔ Blue  |  Red ↔ Yellow
@@ -240,7 +241,26 @@ export default function Board() {
         invalidMove: false,
         isThinking: false,
         showLeaderboard: false,
+        multiplayer: {
+            targetId: '',
+            isConnected: false,
+            isHost: false,
+            status: 'idle' as 'idle' | 'host' | 'guest'
+        }
     });
+
+    const onPeerStateUpdate = useCallback((newState: any) => {
+        setGameState(s => ({ ...s, ...newState }));
+    }, []);
+
+    const { peerId, connectToPeer, broadcastState, isHost, status } = useMultiplayer(onPeerStateUpdate);
+
+    // Auto-broadcast state on change IF we are host or connected
+    useEffect(() => {
+        if (status !== 'idle') {
+            broadcastState(gameState);
+        }
+    }, [gameState, status, broadcastState]);
 
     const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
         return positions[color].every((pos) => pos === 57);
@@ -263,6 +283,12 @@ export default function Board() {
             invalidMove: false,
             isThinking: false,
             showLeaderboard: false,
+            multiplayer: {
+                targetId: '',
+                isConnected: false,
+                isHost: false,
+                status: 'idle'
+            }
         });
     }, []);
 
@@ -577,7 +603,7 @@ export default function Board() {
 
             <div className="board-wrapper">
                 <div className="board-grid">
-                    {/* ── Corner Homes — diagonal opposites ── */}
+                    {/* ── Corner Homes ── */}
                     {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
                         const gridInfo = {
                             green: { row: "1 / 7", col: "1 / 7" },
@@ -602,35 +628,7 @@ export default function Board() {
                         );
                     })}
 
-                    {/* ── Cross-Path Cells ── */}
-                    {PATH_CELLS.map(({ row, col, cls }) => (
-                        <div
-                            key={`${row}-${col}`}
-                            className={cls}
-                            style={{ gridRow: row, gridColumn: col }}
-                        >
-                            {cls.includes('star-cell') && <StarMarker />}
-                        </div>
-                    ))}
-
-                    {/* --- Tokens on Path --- */}
-                    {renderTokensOnPath()}
-
-                    {/* --- Status Notification --- */}
-                    <AnimatePresence>
-                        {gameState.captureMessage && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                className="capture-toast"
-                            >
-                                {gameState.captureMessage}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* --- Center Finish Zone --- */}
+                    {/* ── Center Finish Zone ── */}
                     <div
                         className={`finish-center ${gameState.invalidMove ? 'shake-feedback' : ''}`}
                         style={{ gridRow: '7 / 10', gridColumn: '7 / 10' }}
@@ -662,41 +660,103 @@ export default function Board() {
                             />
                         </div>
                     </div>
+
+                    {/* ── Path Squares ── */}
+                    {PATH_CELLS.map(({ row, col, cls }) => (
+                        <div
+                            key={`${row}-${col}`}
+                            className={cls}
+                            style={{ gridRow: row, gridColumn: col }}
+                        >
+                            {cls.includes('star-cell') && <StarMarker />}
+                        </div>
+                    ))}
+
+                    {/* ── Tokens ── */}
+                    {renderTokensOnPath()}
                 </div>
+
+                {/* --- Status Notification --- */}
+                <AnimatePresence>
+                    {gameState.captureMessage && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="capture-toast"
+                        >
+                            {gameState.captureMessage}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Multiplayer UI Bar */}
+            <div className="multiplayer-bar">
+                <div className="peer-info">
+                    <span className="label">My ID:</span>
+                    <span className="id-code" onClick={() => {
+                        navigator.clipboard.writeText(peerId);
+                        alert('ID Copied!');
+                    }}>{peerId || '...'}</span>
+                </div>
+                {status === 'idle' && (
+                    <div className="join-gate">
+                        <input
+                            placeholder="Join with ID"
+                            value={gameState.multiplayer.targetId}
+                            onChange={(e) => setGameState(s => ({
+                                ...s,
+                                multiplayer: { ...s.multiplayer, targetId: e.target.value }
+                            }))}
+                        />
+                        <button onClick={() => connectToPeer(gameState.multiplayer.targetId)}>
+                            Join
+                        </button>
+                    </div>
+                )}
+                {status !== 'idle' && (
+                    <div className="conn-status">
+                        <span className={`dot connected`} />
+                        {status === 'host' ? 'Hosting' : 'Connected'}
+                    </div>
+                )}
             </div>
 
             {/* --- Celebration Overlay --- */}
-            {gameState.winner && (
-                <div className="winner-overlay">
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="winner-card"
-                    >
-                        <span className="celebration-emoji">🏆</span>
-                        <h2 style={{ textTransform: 'capitalize' }}>{gameState.winner} Fits the Crown!</h2>
-                        <p>A minimalist masterclass!</p>
-                        <div className="match-summary">
-                            <div className="summary-stat">
-                                <span>Tokens Home</span>
-                                <strong>4 / 4</strong>
-                            </div>
-                        </div>
-                        <button
-                            className="play-again-btn"
-                            onClick={resetGame}
+            <AnimatePresence>
+                {gameState.winner && (
+                    <div className="winner-overlay">
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="winner-card"
                         >
-                            Rematch
-                        </button>
-                    </motion.div>
-                </div>
-            )}
+                            <span className="celebration-emoji">🏆</span>
+                            <h2 style={{ textTransform: 'capitalize' }}>{gameState.winner} Fits the Crown!</h2>
+                            <p>A minimalist masterclass!</p>
+                            <div className="match-summary">
+                                <div className="summary-stat">
+                                    <span>Tokens Home</span>
+                                    <strong>4 / 4</strong>
+                                </div>
+                            </div>
+                            <button
+                                className="play-again-btn"
+                                onClick={resetGame}
+                            >
+                                Rematch
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             <button
                 className="leaderboard-toggle"
                 onClick={() => setGameState(s => ({ ...s, showLeaderboard: true }))}
             >
-                🏆
+                🏁
             </button>
 
             <Leaderboard
@@ -705,4 +765,4 @@ export default function Board() {
             />
         </div>
     );
-}
+};

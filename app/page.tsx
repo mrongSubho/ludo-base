@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Board from './components/Board';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import AudioToggle from './components/AudioToggle';
 
 // ─── Inline SVG Icon Components ──────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export default function Page() {
           <span className="app-title">Ludo Base</span>
         </div>
         <div className="header-right">
+          <AudioToggle />
           <ThemeSwitcher />
           <div className="token-pill">
             <TokenIcon />

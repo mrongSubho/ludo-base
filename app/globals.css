@@ -337,6 +337,26 @@ a {
   color: white;
 }
 
+/* ─── Audio Toggle ─── */
+.audio-toggle-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--color-ludo-blue-soft);
+  border: 1px solid var(--color-ludo-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audio-toggle-btn:hover {
+  transform: scale(1.05);
+  background: var(--ludo-bg);
+}
+
 .theme-icon {
   font-size: 16px;
 }
@@ -1578,4 +1598,89 @@ a {
   z-index: 100;
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* ─── Multiplayer Bar ─── */
+.multiplayer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-ludo-card);
+  border-top: 1px solid var(--color-ludo-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  gap: 12px;
+}
+
+.peer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.peer-info .label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-ludo-faint);
+  text-transform: uppercase;
+}
+
+.peer-info .id-code {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--color-ludo-blue);
+  cursor: pointer;
+  background: var(--color-ludo-blue-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.join-gate {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.join-gate input {
+  flex: 1;
+  background: var(--color-ludo-background);
+  border: 1px solid var(--color-ludo-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--color-ludo-text);
+}
+
+.join-gate button {
+  background: var(--color-ludo-blue);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ludo-text);
+}
+
+.conn-status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.conn-status .dot.connected {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
 }
