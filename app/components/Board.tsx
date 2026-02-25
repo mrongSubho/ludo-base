@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import Dice from './Dice';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
@@ -237,6 +238,42 @@ export default function Board() {
         return positions[color].every((pos) => pos === 57);
     }, []);
 
+    const resetGame = useCallback(() => {
+        setGameState({
+            positions: {
+                green: [-1, -1, -1, -1],
+                red: [-1, -1, -1, -1],
+                yellow: [-1, -1, -1, -1],
+                blue: [-1, -1, -1, -1],
+            },
+            currentPlayer: 'green',
+            diceValue: null,
+            gamePhase: 'rolling',
+            winner: null,
+            captureMessage: null,
+        });
+    }, []);
+
+    const celebrate = useCallback(() => {
+        const duration = 5 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+        const interval: any = setInterval(function () {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+        }, 250);
+    }, []);
+
     const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number) => {
         setGameState((prev) => {
             if (prev.winner) return prev;
@@ -289,6 +326,9 @@ export default function Board() {
 
             // --- WIN CHECK ---
             const hasWon = checkWin(newPositions, color);
+            if (hasWon) {
+                celebrate();
+            }
 
             return {
                 ...prev,
@@ -299,7 +339,7 @@ export default function Board() {
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
             };
         });
-    }, [checkWin]);
+    }, [checkWin, celebrate]);
 
     const getNextPlayer = (current: Player['color']): Player['color'] => {
         const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
@@ -445,17 +485,27 @@ export default function Board() {
             {/* --- Celebration Overlay --- */}
             {gameState.winner && (
                 <div className="winner-overlay">
-                    <div className="winner-card animate-in">
+                    <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="winner-card"
+                    >
                         <span className="celebration-emoji">🏆</span>
-                        <h2>{PLAYERS.find(p => p.color === gameState.winner)?.name} Wins!</h2>
+                        <h2 style={{ textTransform: 'capitalize' }}>{gameState.winner} Wins!</h2>
                         <p>A minimalist masterclass!</p>
+                        <div className="match-summary">
+                            <div className="summary-stat">
+                                <span>Tokens Home</span>
+                                <strong>4 / 4</strong>
+                            </div>
+                        </div>
                         <button
                             className="play-again-btn"
-                            onClick={() => window.location.reload()}
+                            onClick={resetGame}
                         >
-                            Play Again
+                            Rematch
                         </button>
-                    </div>
+                    </motion.div>
                 </div>
             )}
         </div>

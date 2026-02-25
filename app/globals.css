@@ -1018,6 +1018,30 @@ a {
   margin-bottom: 24px;
 }
 
+.match-summary {
+  background: var(--color-ludo-background);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.summary-stat span {
+  color: var(--color-ludo-faint);
+  font-weight: 500;
+}
+
+.summary-stat strong {
+  color: var(--color-ludo-text);
+  font-weight: 700;
+}
+
 .play-again-btn {
   width: 100%;
   padding: 14px;
