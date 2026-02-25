@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Dice from './Dice';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
@@ -183,9 +184,14 @@ function Token({
     isDraggable?: boolean;
 }) {
     return (
-        <div
+        <motion.div
+            layout
+            initial={false}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className={`ludo-token ${color}-token ${isDraggable ? 'draggable' : ''}`}
             onClick={onClick}
+            whileHover={isDraggable ? { scale: 1.15, y: -4 } : { scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
         />
     );
 }
@@ -219,10 +225,17 @@ export default function Board() {
         currentPlayer: 'green' as Player['color'],
         diceValue: null as number | null,
         gamePhase: 'rolling' as 'rolling' | 'moving',
+        winner: null as Player['color'] | null,
     });
+
+    const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
+        return positions[color].every((pos) => pos === 57);
+    }, []);
 
     const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number) => {
         setGameState((prev) => {
+            if (prev.winner) return prev;
+
             const newPositions = { ...prev.positions };
             const currentPos = newPositions[color][tokenIndex];
 
@@ -231,20 +244,55 @@ export default function Board() {
                 if (steps === 6) nextPos = 0; // Start
             } else {
                 nextPos = currentPos + steps;
-                if (nextPos >= 57) return prev; // Cannot move past finish
+                if (nextPos > 57) return prev; // Exact roll needed for finish
             }
+
+            if (nextPos === currentPos) return prev; // No move made
 
             newPositions[color][tokenIndex] = nextPos;
 
-            // Logic for switching turns, extra turn on 6, etc. can be added here
+            // --- CAPTURE LOGIC ---
+            let captured = false;
+            if (nextPos >= 0 && nextPos < 52) { // Only on shared path
+                const targetPoint = PLAYER_PATHS[color][nextPos];
+                const isSafeSquare = (
+                    (targetPoint.r === 7 && targetPoint.c === 2) ||
+                    (targetPoint.r === 2 && targetPoint.c === 9) ||
+                    (targetPoint.r === 9 && targetPoint.c === 14) ||
+                    (targetPoint.r === 14 && targetPoint.c === 7)
+                );
+
+                if (!isSafeSquare) {
+                    // Check other players for capture
+                    (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
+                        if (otherColor !== color) {
+                            newPositions[otherColor] = newPositions[otherColor].map(otherPos => {
+                                if (otherPos >= 0 && otherPos < 52) {
+                                    const otherPoint = PLAYER_PATHS[otherColor][otherPos];
+                                    if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
+                                        captured = true;
+                                        return -1; // Reset to Home
+                                    }
+                                }
+                                return otherPos;
+                            }) as [number, number, number, number];
+                        }
+                    });
+                }
+            }
+
+            // --- WIN CHECK ---
+            const hasWon = checkWin(newPositions, color);
+
             return {
                 ...prev,
                 positions: newPositions,
                 gamePhase: 'rolling',
-                currentPlayer: steps === 6 ? prev.currentPlayer : getNextPlayer(prev.currentPlayer),
+                currentPlayer: (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer),
+                winner: hasWon ? color : prev.winner,
             };
         });
-    }, []);
+    }, [checkWin]);
 
     const getNextPlayer = (current: Player['color']): Player['color'] => {
         const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
@@ -271,20 +319,29 @@ export default function Board() {
 
         (['green', 'red', 'blue', 'yellow'] as const).forEach((color) => {
             gameState.positions[color].forEach((pos, idx) => {
-                if (pos >= 0 && pos < 57) {
+                if (pos >= 0 && pos < 58) { // Up to 57
                     const point = PLAYER_PATHS[color][pos];
+                    if (!point) return;
+
                     tokens.push(
-                        <div
+                        <motion.div
                             key={`${color}-${idx}`}
+                            layout
                             className="token-on-grid"
-                            style={{ gridRow: point.r, gridColumn: point.c }}
+                            style={{
+                                gridRow: point.r,
+                                gridColumn: point.c,
+                                zIndex: gameState.currentPlayer === color ? 15 : 10
+                            }}
+                            initial={false}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         >
                             <Token
                                 color={color}
                                 onClick={() => handleTokenClick(color, idx)}
                                 isDraggable={gameState.currentPlayer === color && gameState.gamePhase === 'moving'}
                             />
-                        </div>
+                        </motion.div>
                     );
                 }
             });
@@ -356,12 +413,29 @@ export default function Board() {
                         <div className="dice-overlay">
                             <Dice
                                 onRoll={handleRoll}
-                                disabled={gameState.gamePhase !== 'rolling'}
+                                disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner}
                             />
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* --- Celebration Overlay --- */}
+            {gameState.winner && (
+                <div className="winner-overlay">
+                    <div className="winner-card animate-in">
+                        <span className="celebration-emoji">🏆</span>
+                        <h2>{PLAYERS.find(p => p.color === gameState.winner)?.name} Wins!</h2>
+                        <p>A minimalist masterclass!</p>
+                        <button
+                            className="play-again-btn"
+                            onClick={() => window.location.reload()}
+                        >
+                            Play Again
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -873,9 +873,9 @@ a {
   height: 75%;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 
-    0 2px 6px rgba(0,0,0,0.15),
-    inset 0 0 0 1px rgba(0,0,0,0.05);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
@@ -892,14 +892,30 @@ a {
 }
 
 @keyframes pulse-border {
-  from { box-shadow: 0 0 0 0px rgba(0, 82, 255, 0.4), 0 2px 6px rgba(0,0,0,0.15); }
-  to { box-shadow: 0 0 0 6px rgba(0, 82, 255, 0), 0 2px 6px rgba(0,0,0,0.15); }
+  from {
+    box-shadow: 0 0 0 0px rgba(0, 82, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  to {
+    box-shadow: 0 0 0 6px rgba(0, 82, 255, 0), 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
 }
 
-.green-token { background: linear-gradient(135deg, #7EC8A0, #5FA880); }
-.red-token { background: linear-gradient(135deg, #D4847A, #B4645A); }
-.yellow-token { background: linear-gradient(135deg, #E8C567, #C8A547); }
-.blue-token { background: linear-gradient(135deg, #7BAFD4, #5B8FB4); }
+.green-token {
+  background: linear-gradient(135deg, #7EC8A0, #5FA880);
+}
+
+.red-token {
+  background: linear-gradient(135deg, #D4847A, #B4645A);
+}
+
+.yellow-token {
+  background: linear-gradient(135deg, #E8C567, #C8A547);
+}
+
+.blue-token {
+  background: linear-gradient(135deg, #7BAFD4, #5B8FB4);
+}
 
 .token-on-grid {
   display: flex;
@@ -946,4 +962,75 @@ a {
 .active-turn .player-card {
   background: white;
   box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
+  animation: pulse-glow 2s infinite alternate;
+}
+
+@keyframes pulse-glow {
+  from {
+    box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
+  }
+
+  to {
+    box-shadow: 0 0 0 4px var(--color-ludo-blue), 0 8px 25px rgba(0, 82, 255, 0.4);
+  }
+}
+
+/* ─── Winner Overlay ─── */
+.winner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.winner-card {
+  background: white;
+  padding: 40px;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.celebration-emoji {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.winner-card h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-ludo-text);
+  margin-bottom: 8px;
+}
+
+.winner-card p {
+  font-size: 15px;
+  color: var(--color-ludo-muted);
+  margin-bottom: 24px;
+}
+
+.play-again-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-ludo-blue);
+  color: white;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.play-again-btn:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
 }
