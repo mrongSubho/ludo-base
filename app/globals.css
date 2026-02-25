@@ -22,12 +22,14 @@
   --color-ludo-muted: var(--ludo-muted);
   --color-ludo-faint: var(--ludo-faint);
   --color-ludo-border: var(--ludo-border);
+
+  --image-ludo-bg: var(--ludo-bg-image);
 }
 
 :root {
   /* --- Default Pastel Theme --- */
   --ludo-bg: #F8FAFC;
-  --ludo-card: #FFFFFF;
+  --ludo-card: rgba(255, 255, 255, 0.85);
   --ludo-sage: #A8E6CF;
   --ludo-rose: #FFD3B6;
   --ludo-sky: #D4F1F4;
@@ -44,11 +46,14 @@
   --ludo-rose-contrast: #5a3a2a;
   --ludo-sky-contrast: #2d4a4d;
   --ludo-amber-contrast: #5a502a;
+
+  --ludo-bg-image: url('/backgrounds/pastel_bg.png');
+  --ludo-bg-rgb: 248, 250, 252;
 }
 
 [data-theme="midnight"] {
   --ludo-bg: #0F172A;
-  --ludo-card: #1E293B;
+  --ludo-card: rgba(30, 41, 59, 0.85);
   --ludo-sage: #38BDF8;
   /* Electric Blue */
   --ludo-rose: #818CF8;
@@ -59,7 +64,7 @@
   /* Off-white */
   --ludo-slate: #F8FAFC;
   --ludo-blue: #38BDF8;
-  --ludo-blue-soft: #1E293B;
+  --ludo-blue-soft: rgba(30, 41, 59, 0.5);
   --ludo-text: #F1F5F9;
   --ludo-muted: #94A3B8;
   --ludo-faint: #64748B;
@@ -69,11 +74,14 @@
   --ludo-rose-contrast: #1E1B4B;
   --ludo-sky-contrast: #0F172A;
   --ludo-amber-contrast: #1E293B;
+
+  --ludo-bg-image: url('/backgrounds/midnight_bg.png');
+  --ludo-bg-rgb: 15, 23, 42;
 }
 
 [data-theme="cyberpunk"] {
   --ludo-bg: #050505;
-  --ludo-card: #0D0D0D;
+  --ludo-card: rgba(13, 13, 13, 0.85);
   --ludo-sage: #39FF14;
   /* Lime Neon */
   --ludo-rose: #FF007F;
@@ -84,7 +92,7 @@
   /* Yellow Neon */
   --ludo-slate: #FFFFFF;
   --ludo-blue: #00FFFF;
-  --ludo-blue-soft: #002222;
+  --ludo-blue-soft: rgba(0, 34, 34, 0.5);
   --ludo-text: #FFFFFF;
   --ludo-muted: #AAAAAA;
   --ludo-faint: #444444;
@@ -94,11 +102,14 @@
   --ludo-rose-contrast: #FFFFFF;
   --ludo-sky-contrast: #000000;
   --ludo-amber-contrast: #000000;
+
+  --ludo-bg-image: url('/backgrounds/cyberpunk_bg.png');
+  --ludo-bg-rgb: 5, 5, 5;
 }
 
 [data-theme="classic"] {
   --ludo-bg: #EAEAEA;
-  --ludo-card: #FFFFFF;
+  --ludo-card: rgba(255, 255, 255, 0.9);
   --ludo-sage: #4CAF50;
   /* Traditional Green */
   --ludo-rose: #F44336;
@@ -119,6 +130,9 @@
   --ludo-rose-contrast: #FFFFFF;
   --ludo-sky-contrast: #FFFFFF;
   --ludo-amber-contrast: #000000;
+
+  --ludo-bg-image: url('/backgrounds/classic_bg.png');
+  --ludo-bg-rgb: 234, 234, 234;
 }
 
 /* ─── Step 2: Base styles ─── */
@@ -137,6 +151,10 @@ body {
   overflow-x: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--color-ludo-background);
+  background-image: var(--ludo-bg-image);
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
   color: var(--color-ludo-slate);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -792,9 +810,10 @@ a {
   align-items: center;
   gap: 8px;
   padding: 5px 10px 5px 5px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--color-ludo-card);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--color-ludo-border);
   border-radius: var(--radius-pill);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
   z-index: 10;
