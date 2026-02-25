@@ -12,13 +12,23 @@ export const metadata: Metadata = {
     images: [`${APP_URL}/og-image.png`], // Make sure you have an image in your public folder!
   },
   other: {
-    // Keep your App ID
+    // Farcaster Frame v2
+    'fc:frame': JSON.stringify({
+      version: "next",
+      imageUrl: `${APP_URL}/og-image.png`,
+      button: {
+        title: "Play Ludo",
+        action: {
+          type: "launch_frame",
+          name: "Ludo Base Superstar",
+          url: APP_URL,
+          splashImageUrl: `${APP_URL}/og-image.png`,
+          splashBackgroundColor: "#F8FAFC",
+        },
+      },
+    }),
+    'fc:frame:image:aspect_ratio': '1:1',
     'base:app_id': '699c46f96a71d5dab092bfb0',
-    // Mandatory Frame v2 tags
-    'fc:frame': 'vNext',
-    'fc:frame:image': `${APP_URL}/og-image.png`,
-    'fc:frame:button:1': 'Play Ludo',
-    'fc:frame:post_url': `${APP_URL}/api/frame`,
   },
 };
 
