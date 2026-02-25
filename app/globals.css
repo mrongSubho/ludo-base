@@ -184,11 +184,8 @@ a {
   min-height: 100dvh;
   max-width: 430px;
   margin: 0 auto;
-  background: rgba(var(--ludo-bg-rgb), 0.5);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: transparent;
   position: relative;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.2);
 }
 
 /* ─── Header ─── */
@@ -197,7 +194,7 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: var(--color-ludo-card);
+  background: var(--ludo-bg);
   box-shadow: var(--shadow-card);
   position: sticky;
   top: 0;
@@ -702,7 +699,7 @@ a {
   justify-content: space-around;
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  background: var(--color-ludo-card);
+  background: var(--ludo-bg);
   box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.05);
   z-index: 100;
 }
@@ -1168,13 +1165,11 @@ a {
 .board-wrapper {
   width: 100%;
   padding: 8px;
-  background: rgba(var(--ludo-bg-rgb), 0.4);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: var(--ludo-bg);
   border-radius: var(--radius-xl);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.05);
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.03);
   margin-top: 20px;
   margin-bottom: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1189,7 +1184,7 @@ a {
   gap: 1.5px;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: rgba(var(--ludo-bg-rgb), 0.15);
+  background: var(--color-ludo-border);
   border: 1.5px solid var(--color-ludo-border);
 }
 
@@ -1219,7 +1214,7 @@ a {
 .home-pad {
   width: 62%;
   aspect-ratio: 1;
-  background: rgba(var(--ludo-bg-rgb), 0.7);
+  background: #FFFFFF;
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1252,7 +1247,7 @@ a {
 
 /* ── Path Cells ── */
 .board-cell {
-  background: rgba(var(--ludo-bg-rgb), 0.6);
+  background: #FFFFFF;
   position: relative;
   transition: background 0.15s ease;
 }
