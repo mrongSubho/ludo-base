@@ -866,3 +866,84 @@ a {
 .animate-in:nth-child(4) {
   animation-delay: 0.2s;
 }
+
+/* ─── Ludo Tokens ─── */
+.ludo-token {
+  width: 75%;
+  height: 75%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 2px 6px rgba(0,0,0,0.15),
+    inset 0 0 0 1px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  z-index: 5;
+}
+
+.ludo-token:hover {
+  transform: scale(1.15) translateY(-2px);
+  z-index: 10;
+}
+
+.ludo-token.draggable {
+  animation: pulse-border 1.5s infinite alternate;
+}
+
+@keyframes pulse-border {
+  from { box-shadow: 0 0 0 0px rgba(0, 82, 255, 0.4), 0 2px 6px rgba(0,0,0,0.15); }
+  to { box-shadow: 0 0 0 6px rgba(0, 82, 255, 0), 0 2px 6px rgba(0,0,0,0.15); }
+}
+
+.green-token { background: linear-gradient(135deg, #7EC8A0, #5FA880); }
+.red-token { background: linear-gradient(135deg, #D4847A, #B4645A); }
+.yellow-token { background: linear-gradient(135deg, #E8C567, #C8A547); }
+.blue-token { background: linear-gradient(135deg, #7BAFD4, #5B8FB4); }
+
+.token-on-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.token-dot-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.token-dot-placeholder {
+  width: 25%;
+  height: 25%;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
+}
+
+/* ─── Dice Overlay ─── */
+.dice-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+/* ─── Turn Indicator ─── */
+.player-wrapper {
+  transition: all 0.3s ease;
+}
+
+.active-turn {
+  transform: scale(1.05);
+}
+
+.active-turn .player-card {
+  background: white;
+  box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
+}

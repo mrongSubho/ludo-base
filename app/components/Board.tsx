@@ -1,5 +1,8 @@
 'use client';
 
+import { useState, useCallback } from 'react';
+import Dice from './Dice';
+
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
 // Diagonal-opposite pairs:  Green ↔ Blue  |  Red ↔ Yellow
 // Layout:  Green (top-left)  —  Red (top-right)
@@ -27,6 +30,55 @@ const PLAYERS: Player[] = [
     { name: 'Jordan', level: 15, avatar: '🟡', color: 'yellow', position: 'bottom-left' },
     { name: 'Kai', level: 10, avatar: '🔵', color: 'blue', position: 'bottom-right' },
 ];
+
+// ─── Path Constants ──────────────────────────────────────────────────────────
+
+type Point = { r: number; c: number };
+
+// Shared perimeter path (52 cells)
+const SHARED_PATH: Point[] = [
+    // Top-Middle column 7 (bottom to top)
+    { r: 6, c: 7 }, { r: 5, c: 7 }, { r: 4, c: 7 }, { r: 3, c: 7 }, { r: 2, c: 7 }, { r: 1, c: 7 },
+    { r: 1, c: 8 }, { r: 1, c: 9 }, // Top edge
+    { r: 2, c: 9 }, { r: 3, c: 9 }, { r: 4, c: 9 }, { r: 5, c: 9 }, { r: 6, c: 9 }, // Top-Middle column 9 (top to bottom)
+    { r: 7, c: 10 }, { r: 7, c: 11 }, { r: 7, c: 12 }, { r: 7, c: 13 }, { r: 7, c: 14 }, { r: 7, c: 15 }, // Right-Middle row 7 (left to right)
+    { r: 8, c: 15 }, { r: 9, c: 15 }, // Right edge
+    { r: 9, c: 14 }, { r: 9, c: 13 }, { r: 9, c: 12 }, { r: 9, c: 11 }, { r: 9, c: 10 }, // Right-Middle row 9 (right to left)
+    { r: 10, c: 9 }, { r: 11, c: 9 }, { r: 12, c: 9 }, { r: 13, c: 9 }, { r: 14, c: 9 }, { r: 15, c: 9 }, // Bottom-Middle column 9 (top to bottom)
+    { r: 15, c: 8 }, { r: 15, c: 7 }, // Bottom edge
+    { r: 14, c: 7 }, { r: 13, c: 7 }, { r: 12, c: 7 }, { r: 11, c: 7 }, { r: 10, c: 7 }, // Bottom-Middle column 7 (bottom to top)
+    { r: 9, c: 6 }, { r: 9, c: 5 }, { r: 9, c: 4 }, { r: 9, c: 3 }, { r: 9, c: 2 }, { r: 9, c: 1 }, // Left-Middle row 9 (right to left)
+    { r: 8, c: 1 }, { r: 7, c: 1 }, // Left edge
+    { r: 7, c: 2 }, { r: 7, c: 3 }, { r: 7, c: 4 }, { r: 7, c: 5 }, { r: 7, c: 6 }, // Left-Middle row 7 (left to right)
+];
+
+// Helper to shift the shared path for each player's start point
+const rotatePath = (points: Point[], startIndex: number): Point[] => {
+    return [...points.slice(startIndex), ...points.slice(0, startIndex)];
+};
+
+const PLAYER_PATHS: Record<string, Point[]> = {
+    green: [
+        ...rotatePath(SHARED_PATH, 47), // Starts at {7,2} index 47
+        { r: 8, c: 2 }, { r: 8, c: 3 }, { r: 8, c: 4 }, { r: 8, c: 5 }, { r: 8, c: 6 }, // Home Lane
+        { r: 8, c: 7 } // Finish
+    ],
+    red: [
+        ...rotatePath(SHARED_PATH, 8), // Starts at {2,9} index 8
+        { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }, // Home Lane
+        { r: 7, c: 8 } // Finish
+    ],
+    blue: [
+        ...rotatePath(SHARED_PATH, 21), // Starts at {9,14} index 21
+        { r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }, // Home Lane
+        { r: 8, c: 9 } // Finish
+    ],
+    yellow: [
+        ...rotatePath(SHARED_PATH, 34), // Starts at {14,7} index 34
+        { r: 14, c: 8 }, { r: 13, c: 8 }, { r: 12, c: 8 }, { r: 11, c: 8 }, { r: 10, c: 8 }, // Home Lane
+        { r: 9, c: 8 } // Finish
+    ],
+};
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -87,10 +139,14 @@ function HomeBlock({
     color,
     gridRow,
     gridCol,
+    tokensInHome,
+    onTokenClick,
 }: {
     color: 'green' | 'red' | 'yellow' | 'blue';
     gridRow: string;
     gridCol: string;
+    tokensInHome: number[];
+    onTokenClick: (tokenIndex: number) => void;
 }) {
     return (
         <div
@@ -98,12 +154,39 @@ function HomeBlock({
             style={{ gridRow, gridColumn: gridCol }}
         >
             <div className="home-pad">
-                <span className="token-dot" />
-                <span className="token-dot" />
-                <span className="token-dot" />
-                <span className="token-dot" />
+                {[0, 1, 2, 3].map((idx) => (
+                    <div key={idx} className="token-dot-wrapper">
+                        {tokensInHome.includes(idx) && (
+                            <Token
+                                color={color}
+                                onClick={() => onTokenClick(idx)}
+                                isDraggable={false}
+                            />
+                        )}
+                        {!tokensInHome.includes(idx) && <span className="token-dot-placeholder" />}
+                    </div>
+                ))}
             </div>
         </div>
+    );
+}
+
+// ─── Token Component ──────────────────────────────────────────────────────────
+
+function Token({
+    color,
+    onClick,
+    isDraggable
+}: {
+    color: string;
+    onClick?: () => void;
+    isDraggable?: boolean;
+}) {
+    return (
+        <div
+            className={`ludo-token ${color}-token ${isDraggable ? 'draggable' : ''}`}
+            onClick={onClick}
+        />
     );
 }
 
@@ -126,20 +209,125 @@ function PlayerCard({ player }: { player: Player }) {
 // ─── Main Board ──────────────────────────────────────────────────────────────
 
 export default function Board() {
+    const [gameState, setGameState] = useState({
+        positions: {
+            green: [-1, -1, -1, -1],
+            red: [-1, -1, -1, -1],
+            yellow: [-1, -1, -1, -1],
+            blue: [-1, -1, -1, -1],
+        },
+        currentPlayer: 'green' as Player['color'],
+        diceValue: null as number | null,
+        gamePhase: 'rolling' as 'rolling' | 'moving',
+    });
+
+    const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number) => {
+        setGameState((prev) => {
+            const newPositions = { ...prev.positions };
+            const currentPos = newPositions[color][tokenIndex];
+
+            let nextPos = currentPos;
+            if (currentPos === -1) {
+                if (steps === 6) nextPos = 0; // Start
+            } else {
+                nextPos = currentPos + steps;
+                if (nextPos >= 57) return prev; // Cannot move past finish
+            }
+
+            newPositions[color][tokenIndex] = nextPos;
+
+            // Logic for switching turns, extra turn on 6, etc. can be added here
+            return {
+                ...prev,
+                positions: newPositions,
+                gamePhase: 'rolling',
+                currentPlayer: steps === 6 ? prev.currentPlayer : getNextPlayer(prev.currentPlayer),
+            };
+        });
+    }, []);
+
+    const getNextPlayer = (current: Player['color']): Player['color'] => {
+        const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
+        const idx = order.indexOf(current);
+        return order[(idx + 1) % 4];
+    };
+
+    const handleRoll = (value: number) => {
+        setGameState((prev) => ({
+            ...prev,
+            diceValue: value,
+            gamePhase: 'moving'
+        }));
+    };
+
+    const handleTokenClick = (color: Player['color'], tokenIndex: number) => {
+        if (gameState.currentPlayer !== color || gameState.gamePhase !== 'moving' || gameState.diceValue === null) return;
+
+        moveToken(color, tokenIndex, gameState.diceValue);
+    };
+
+    const renderTokensOnPath = () => {
+        const tokens: React.ReactNode[] = [];
+
+        (['green', 'red', 'blue', 'yellow'] as const).forEach((color) => {
+            gameState.positions[color].forEach((pos, idx) => {
+                if (pos >= 0 && pos < 57) {
+                    const point = PLAYER_PATHS[color][pos];
+                    tokens.push(
+                        <div
+                            key={`${color}-${idx}`}
+                            className="token-on-grid"
+                            style={{ gridRow: point.r, gridColumn: point.c }}
+                        >
+                            <Token
+                                color={color}
+                                onClick={() => handleTokenClick(color, idx)}
+                                isDraggable={gameState.currentPlayer === color && gameState.gamePhase === 'moving'}
+                            />
+                        </div>
+                    );
+                }
+            });
+        });
+
+        return tokens;
+    };
+
     return (
         <div className="board-outer">
             {/* Player cards at each corner */}
             {PLAYERS.map((p) => (
-                <PlayerCard key={p.color} player={p} />
+                <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''}`}>
+                    <PlayerCard player={p} />
+                </div>
             ))}
 
             <div className="board-wrapper">
                 <div className="board-grid">
                     {/* ── Corner Homes — diagonal opposites ── */}
-                    <HomeBlock color="green" gridRow="1 / 7" gridCol="1 / 7" />
-                    <HomeBlock color="red" gridRow="1 / 7" gridCol="10 / 16" />
-                    <HomeBlock color="yellow" gridRow="10 / 16" gridCol="1 / 7" />
-                    <HomeBlock color="blue" gridRow="10 / 16" gridCol="10 / 16" />
+                    {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
+                        const gridInfo = {
+                            green: { row: "1 / 7", col: "1 / 7" },
+                            red: { row: "1 / 7", col: "10 / 16" },
+                            yellow: { row: "10 / 16", col: "1 / 7" },
+                            blue: { row: "10 / 16", col: "10 / 16" },
+                        }[color];
+
+                        const tokensInHome = gameState.positions[color]
+                            .map((pos, idx) => pos === -1 ? idx : -1)
+                            .filter(idx => idx !== -1);
+
+                        return (
+                            <HomeBlock
+                                key={color}
+                                color={color}
+                                gridRow={gridInfo.row}
+                                gridCol={gridInfo.col}
+                                tokensInHome={tokensInHome}
+                                onTokenClick={(idx) => handleTokenClick(color, idx)}
+                            />
+                        );
+                    })}
 
                     {/* ── Cross-Path Cells ── */}
                     {PATH_CELLS.map(({ row, col, cls }) => (
@@ -152,6 +340,9 @@ export default function Board() {
                         </div>
                     ))}
 
+                    {/* ── Tokens on Path ── */}
+                    {renderTokensOnPath()}
+
                     {/* ── Center Finish Zone ── */}
                     <div
                         className="finish-center"
@@ -161,6 +352,13 @@ export default function Board() {
                         <div className="tri tri-right" />
                         <div className="tri tri-bottom" />
                         <div className="tri tri-left" />
+
+                        <div className="dice-overlay">
+                            <Dice
+                                onRoll={handleRoll}
+                                disabled={gameState.gamePhase !== 'rolling'}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
