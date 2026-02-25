@@ -258,10 +258,16 @@ export default function Board() {
         });
     }, []);
 
-    const celebrate = useCallback(() => {
+    const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;
         const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+        const defaults = {
+            startVelocity: 30,
+            spread: 360,
+            ticks: 60,
+            zIndex: 0,
+            colors: ['#A8E6CF', '#FFD3B6', '#D4F1F4', '#FFEFBA'] // Sage, Rose, Sky, Amber
+        };
 
         const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
@@ -343,7 +349,9 @@ export default function Board() {
             const newWinners = [...prev.winners];
             if (hasWon && !newWinners.includes(color)) {
                 newWinners.push(color);
-                celebrate();
+                if (newWinners.length === 1) {
+                    triggerWinConfetti();
+                }
             }
 
             return {
@@ -356,7 +364,7 @@ export default function Board() {
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
             };
         });
-    }, [checkWin, celebrate]);
+    }, [checkWin, triggerWinConfetti]);
 
     const getNextPlayer = (current: Player['color']): Player['color'] => {
         const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
