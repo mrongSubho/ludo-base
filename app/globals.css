@@ -835,9 +835,21 @@ a {
   max-width: min(100vw, 100vh - 120px);
 }
 
-/* ─── Player Cards ─── */
-.player-card {
+/* ─── Player Wrappers & Cards ─── */
+.player-wrapper {
   position: absolute;
+  z-index: 10;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  /* Let clicks pass through empty space */
+}
+
+/* Allow clicking the actual card */
+.player-wrapper>* {
+  pointer-events: auto;
+}
+
+.player-card {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -848,7 +860,6 @@ a {
   border: 1px solid var(--color-ludo-border);
   border-radius: var(--radius-pill);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
-  z-index: 10;
   white-space: nowrap;
 }
 
@@ -1404,38 +1415,41 @@ a {
     border: none !important;
   }
 
-  .player-card {
+  .player-wrapper {
     position: absolute !important;
     z-index: 100 !important;
     top: auto !important;
     bottom: auto !important;
     left: auto !important;
     right: auto !important;
+  }
+
+  .player-wrapper.top-left {
+    top: -95px !important;
+    left: 10px !important;
+  }
+
+  .player-wrapper.top-right {
+    top: -95px !important;
+    right: 10px !important;
+  }
+
+  .player-wrapper.bottom-left {
+    bottom: -95px !important;
+    left: 10px !important;
+  }
+
+  .player-wrapper.bottom-right {
+    bottom: -95px !important;
+    right: 10px !important;
+  }
+
+  .player-card {
     background: rgba(255, 255, 255, 0.98) !important;
     border: 1px solid rgba(0, 0, 0, 0.1) !important;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
     padding: 4px 10px !important;
     border-radius: 20px !important;
-  }
-
-  .player-card.top-left {
-    top: -95px !important;
-    left: 10px !important;
-  }
-
-  .player-card.top-right {
-    top: -95px !important;
-    right: 10px !important;
-  }
-
-  .player-card.bottom-left {
-    bottom: -95px !important;
-    left: 10px !important;
-  }
-
-  .player-card.bottom-right {
-    bottom: -95px !important;
-    right: 10px !important;
   }
 
   .player-avatar {
@@ -1580,6 +1594,7 @@ a {
 /* ─── Turn Indicator ─── */
 .player-wrapper {
   transition: all 0.3s ease;
+  transform-origin: center center;
 }
 
 .active-turn {
