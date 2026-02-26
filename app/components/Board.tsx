@@ -93,10 +93,10 @@ const SAFE_POSITIONS: Point[] = [
 
 // Directional arrows at home lane entries
 const ARROW_CELLS: { r: number; c: number; dir: 'up' | 'down' | 'left' | 'right' }[] = [
-    { r: 10, c: 8, dir: 'up' },    // Green home lane (enters upward)
-    { r: 6, c: 8, dir: 'down' },   // Blue home lane (enters downward)
-    { r: 8, c: 10, dir: 'left' },  // Red home lane (enters leftward)
-    { r: 8, c: 6, dir: 'right' },  // Yellow home lane (enters rightward)
+    { r: 14, c: 8, dir: 'up' },    // Green: first cell of green home lane (enters upward)
+    { r: 2, c: 8, dir: 'down' },   // Blue: first cell of blue home lane (enters downward)
+    { r: 8, c: 14, dir: 'left' },  // Red: first cell of red home lane (enters leftward)
+    { r: 8, c: 2, dir: 'right' },  // Yellow: first cell of yellow home lane (enters rightward)
 ];
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
