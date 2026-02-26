@@ -258,8 +258,8 @@ function PlayerCard({
 
     return (
         <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
-            {/* Left-side: text LEFT, avatar RIGHT */}
-            {isLeft && textBlock}
+            {/* Right-positioned (Red, Blue): text LEFT, avatar RIGHT */}
+            {!isLeft && textBlock}
 
             {/* Circular Avatar */}
             <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
@@ -281,8 +281,8 @@ function PlayerCard({
                 </div>
             </div>
 
-            {/* Right-side: avatar LEFT, text RIGHT */}
-            {!isLeft && textBlock}
+            {/* Left-positioned (Green, Yellow): avatar LEFT, text RIGHT */}
+            {isLeft && textBlock}
         </div>
     );
 }

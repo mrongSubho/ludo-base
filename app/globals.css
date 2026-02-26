@@ -1419,6 +1419,9 @@ a {
   background: #FFFFFF;
   position: relative;
   transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .board-cell::after {
