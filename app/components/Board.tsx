@@ -453,109 +453,127 @@ export default function Board({
         moveToken(color, tokenIndex, gameState.diceValue);
     };
 
+    // --- AI HEURISTIC FUNCTION ---
+    // Calculate the best possible move based on priority scoring
+    const getBestMove = useCallback((playerId: Player['color'], roll: number) => {
+        const options: number[] = [];
+
+        gameState.positions[playerId].forEach((pos, idx) => {
+            // Check if move is valid
+            if (pos === -1) {
+                if (roll === 6) options.push(idx);
+            } else if (pos + roll <= 57) {
+                options.push(idx);
+            }
+        });
+
+        if (options.length === 0) return null; // No valid moves
+
+        let bestTokenIdx = options[0];
+        let maxScore = -Infinity;
+
+        options.forEach(idx => {
+            const currentPos = gameState.positions[playerId][idx];
+            const nextPos = currentPos === -1 ? 0 : currentPos + roll;
+            let score = 0;
+
+            // Reach Finish Zone (+150) - The ultimate objective
+            if (nextPos === 57) {
+                score += 150;
+            }
+
+            // Enter Home Lane (+25) - Safe from captures
+            if (nextPos >= 52 && currentPos < 52) {
+                score += 25;
+            }
+
+            // Move out of Home (+40) - Getting a new piece on the board
+            if (currentPos === -1) {
+                score += 40;
+            }
+
+            // Capturing / Safe Zones Logic
+            if (nextPos < 52) {
+                const targetPoint = PLAYER_PATHS[playerId][nextPos];
+                const isSafeSquare = SAFE_POSITIONS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+
+                if (isSafeSquare) {
+                    // Move to Safe Zone (+50)
+                    score += 50;
+                } else {
+                    // Check for Captures (+100)
+                    (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
+                        if (otherColor !== playerId) {
+                            gameState.positions[otherColor].forEach(otherPos => {
+                                if (otherPos >= 0 && otherPos < 52) {
+                                    const otherPoint = PLAYER_PATHS[otherColor][otherPos];
+                                    if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
+                                        score += 100;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+
+            // Distance to finish (Higher is better, small incremental points)
+            score += nextPos;
+
+            if (score > maxScore) {
+                maxScore = score;
+                bestTokenIdx = idx;
+            }
+        });
+
+        return bestTokenIdx;
+    }, [gameState.positions]);
+
     // --- AI ORCHESTRATION ---
     useEffect(() => {
         if (gameState.winner) return;
 
         const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
         if (currentPlayerInfo?.isAi) {
-            const delay = Math.floor(Math.random() * 500) + 1000; // 1-1.5s delay
 
+            // Phase 1: Rolling
             if (gameState.gamePhase === 'rolling') {
                 const timer = setTimeout(() => {
                     setGameState(s => ({ ...s, isThinking: true }));
-                    // Trigger roll from component would be better, but we'll simulate logic
-                    // We need a way to trigger the Dice component's roll
+
+                    // Simulate AI Roll
                     const newValue = Math.floor(Math.random() * 6) + 1;
                     handleRoll(newValue);
-                }, delay);
+                }, 1500); // 1.5s thinking delay
                 return () => clearTimeout(timer);
             }
 
+            // Phase 2: Moving
             if (gameState.gamePhase === 'moving' && gameState.diceValue !== null) {
                 const timer = setTimeout(() => {
-                    // AI Decision Logic
                     const color = gameState.currentPlayer;
                     const diceValue = gameState.diceValue!;
-                    const options: number[] = [];
 
-                    gameState.positions[color].forEach((pos, idx) => {
-                        // Check if move is valid
-                        if (pos === -1) {
-                            if (diceValue === 6) options.push(idx);
-                        } else if (pos + diceValue <= 57) {
-                            options.push(idx);
-                        }
-                    });
+                    const bestModeIdx = getBestMove(color, diceValue);
 
-                    if (options.length === 0) {
-                        // Pass turn
+                    if (bestModeIdx === null) {
+                        // Pass turn if no moves
                         setGameState(s => ({
                             ...s,
                             isThinking: false,
                             gamePhase: 'rolling',
                             currentPlayer: getNextPlayer(s.currentPlayer)
                         }));
-                        return;
+                    } else {
+                        // Execute move
+                        setGameState(s => ({ ...s, isThinking: false }));
+                        moveToken(color, bestModeIdx, diceValue);
                     }
-
-                    // Heuristic Scoring
-                    let bestTokenIdx = options[0];
-                    let maxScore = -Infinity;
-
-                    options.forEach(idx => {
-                        const currentPos = gameState.positions[color][idx];
-                        const nextPos = currentPos === -1 ? 0 : currentPos + diceValue;
-                        let score = 0;
-
-                        // Priority: Reach finish
-                        if (nextPos === 57) score += 150;
-
-                        // Priority: Enter finish lane
-                        if (nextPos >= 52 && currentPos < 52) score += 25;
-
-                        // Priority: Move out of home
-                        if (currentPos === -1) score += 40;
-
-                        // Priority: Capture
-                        if (nextPos < 52) {
-                            const targetPoint = PLAYER_PATHS[color][nextPos];
-                            const isSafe = SAFE_POSITIONS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
-
-                            if (!isSafe) {
-                                (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
-                                    if (otherColor !== color) {
-                                        gameState.positions[otherColor].forEach(otherPos => {
-                                            if (otherPos >= 0 && otherPos < 52) {
-                                                const otherPoint = PLAYER_PATHS[otherColor][otherPos];
-                                                if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
-                                                    score += 100;
-                                                }
-                                            }
-                                        });
-                                    }
-                                });
-                            } else {
-                                score += 50; // Move into safe zone
-                            }
-                        }
-
-                        // Tendency: Move further ahead
-                        score += nextPos;
-
-                        if (score > maxScore) {
-                            maxScore = score;
-                            bestTokenIdx = idx;
-                        }
-                    });
-
-                    setGameState(s => ({ ...s, isThinking: false }));
-                    moveToken(color, bestTokenIdx, diceValue);
-                }, delay);
+                }, 1000); // 1s wait after rolling
                 return () => clearTimeout(timer);
             }
         }
-    }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll]);
+    }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll, getBestMove]);
 
     const renderTokensOnPath = () => {
         const tokens: React.ReactNode[] = [];
