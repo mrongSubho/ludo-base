@@ -199,6 +199,8 @@ a {
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
 }
 
 .header-left {
@@ -380,6 +382,7 @@ a {
   align-items: center;
   justify-content: center;
   padding: 0 4px;
+  /* Default desktop padding */
 }
 
 /* ─── Section Label ─── */
@@ -690,18 +693,18 @@ a {
 .footer-nav {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
   width: 100%;
-  max-width: 430px;
   display: flex;
   align-items: center;
   justify-content: space-around;
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   background: var(--ludo-bg);
-  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   z-index: 100;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
 }
 
 .nav-item {
@@ -811,8 +814,10 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
-  padding-bottom: calc(12px + 60px);
+  padding: 8px;
+  /* Reduced to maximize board width */
+  padding-bottom: calc(8px + 72px);
+  /* Space for taller footer */
   overflow: hidden;
 }
 
@@ -1164,14 +1169,15 @@ a {
 /* ─── Ludo Board ─── */
 .board-wrapper {
   width: 100%;
-  padding: 8px;
+  padding: 12px;
+  /* Increased slightly for better card distribution inside */
   background: var(--ludo-bg);
   border-radius: var(--radius-xl);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.08),
     0 1px 3px rgba(0, 0, 0, 0.03);
-  margin-top: 20px;
-  margin-bottom: 20px;
+  margin-top: 10px;
+  margin-bottom: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -1329,11 +1335,16 @@ a {
 }
 
 /* Board responsive */
-@media (max-width: 400px) {
+@media (max-width: 430px) {
+  .board-main {
+    padding: 2px;
+  }
+
   .board-wrapper {
-    padding: 6px;
-    margin-top: 16px;
-    margin-bottom: 16px;
+    padding: 2px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border-radius: var(--radius-lg);
   }
 
   .player-card {
