@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Board from './components/Board';
-import ThemeSwitcher from './components/ThemeSwitcher';
-import AudioToggle from './components/AudioToggle';
+import Leaderboard from './components/Leaderboard';
 
-// ─── Inline SVG Icon Components ──────────────────────────────────────────────
+// ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
 const WalletIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,8 +20,6 @@ const TokenIcon = () => (
     <path d="M12 6v12M8 10h8M8 14h8" />
   </svg>
 );
-
-// ─── Footer Nav Icons ────────────────────────────────────────────────────────
 
 const ProfileIcon = () => (
   <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -51,14 +48,6 @@ const LeaderboardIcon = () => (
   </svg>
 );
 
-const ItemsIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 10a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z" />
-    <path d="M9 8V6a3 3 0 0 1 6 0v2" />
-    <line x1="8" y1="14" x2="16" y2="14" />
-  </svg>
-);
-
 const MissionIcon = () => (
   <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -75,15 +64,44 @@ const MarketplaceIcon = () => (
   </svg>
 );
 
-// ─── Main Page Component ─────────────────────────────────────────────────────
+// ─── Generic Slide-up Panel ───────────────────────────────────────────────────
+
+function TabPanel({ title, emoji, description, onClose }: {
+  title: string;
+  emoji: string;
+  description: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="tab-panel-overlay" onClick={onClose}>
+      <div className="tab-panel" onClick={e => e.stopPropagation()}>
+        <div className="tab-panel-handle" />
+        <div className="tab-panel-header">
+          <span className="tab-panel-emoji">{emoji}</span>
+          <h2 className="tab-panel-title">{title}</h2>
+          <button className="tab-panel-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="tab-panel-body">
+          <div className="tab-coming-soon-card">
+            <span className="coming-soon-icon">🚀</span>
+            <p className="coming-soon-title">{description}</p>
+            <p className="coming-soon-sub">Coming soon in the next update!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+type Tab = 'game' | 'profile' | 'friends' | 'mission' | 'leaderboard' | 'marketplace';
 
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('game');
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  useEffect(() => { setIsMounted(true); }, []);
 
   if (!isMounted) {
     return (
@@ -93,14 +111,15 @@ export default function Page() {
     );
   }
 
+  const closeTab = () => setActiveTab('game');
+  const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? 'game' : tab);
+
   return (
     <div className="app-shell">
-      {/* ── Header ─────────────────────────────────────────── */}
+      {/* Header */}
       <header className="header">
         <div className="header-left">
-          <div className="wallet-icon">
-            <WalletIcon />
-          </div>
+          <div className="wallet-icon"><WalletIcon /></div>
           <span className="app-title">Ludo Base</span>
         </div>
         <div className="header-right">
@@ -111,42 +130,57 @@ export default function Page() {
         </div>
       </header>
 
-      {/* ── Board (full-screen) ────────────────────────────── */}
+      {/* Board */}
       <main className="board-main">
-        <Board
-          showLeaderboard={showLeaderboard}
-          onToggleLeaderboard={setShowLeaderboard}
-        />
+        <Board />
       </main>
 
-      {/* ── Footer Navigation ──────────────────────────────── */}
+      {/* ── Panels ── */}
+      {activeTab === 'leaderboard' && (
+        <Leaderboard isOpen onClose={closeTab} />
+      )}
+      {activeTab === 'profile' && (
+        <TabPanel title="Profile" emoji="👤"
+          description="Your stats, match history, and achievements will live here."
+          onClose={closeTab} />
+      )}
+      {activeTab === 'friends' && (
+        <TabPanel title="Friends" emoji="👥"
+          description="Invite friends, view online players, and challenge them to a game."
+          onClose={closeTab} />
+      )}
+      {activeTab === 'mission' && (
+        <TabPanel title="Missions" emoji="🎯"
+          description="Daily and weekly missions to earn bonus tokens and rewards."
+          onClose={closeTab} />
+      )}
+      {activeTab === 'marketplace' && (
+        <TabPanel title="Marketplace" emoji="🛍️"
+          description="Buy board skins, token designs, and exclusive avatar frames."
+          onClose={closeTab} />
+      )}
+
+      {/* Footer Nav */}
       <nav className="footer-nav">
-        <button className="nav-item">
+        <button id="nav-profile" className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => toggle('profile')}>
           <ProfileIcon />
           <span className="nav-label">Profile</span>
         </button>
-        <button className="nav-item">
+        <button id="nav-friends" className={`nav-item ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => toggle('friends')}>
           <FriendsIcon />
           <span className="nav-label">Friends</span>
         </button>
-        <button className="nav-item">
+        <button id="nav-mission" className={`nav-item ${activeTab === 'mission' ? 'active' : ''}`} onClick={() => toggle('mission')}>
           <MissionIcon />
           <span className="nav-label">Mission</span>
         </button>
-        <button
-          className={`nav-item ${showLeaderboard ? 'active' : ''}`}
-          onClick={() => setShowLeaderboard(true)}
-        >
+        <button id="nav-leaderboard" className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => toggle('leaderboard')}>
           <LeaderboardIcon />
           <span className="nav-label">Leaderboard</span>
         </button>
-        <button className="nav-item">
-          <ItemsIcon />
-          <span className="nav-label">Items</span>
-        </button>
-        <button className="nav-item">
+        <button id="nav-marketplace" className={`nav-item ${activeTab === 'marketplace' ? 'active' : ''}`} onClick={() => toggle('marketplace')}>
           <MarketplaceIcon />
-          <span className="nav-label">Marketplace</span>
+          <span className="nav-label">Market</span>
         </button>
       </nav>
     </div>
