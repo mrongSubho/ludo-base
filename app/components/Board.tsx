@@ -493,14 +493,41 @@ export default function Board({
     };
 
     const handleRoll = (value: number) => {
-        setGameState((prev) => ({
-            ...prev,
-            diceValue: value,
-            gamePhase: 'moving',
-            captureMessage: null,
-            invalidMove: false,
-            timeLeft: 15, // Reset timer for move phase
-        }));
+        setGameState((prev) => {
+            const color = prev.currentPlayer;
+            let hasValidMove = false;
+
+            // Check if player has any moves with this roll
+            prev.positions[color].forEach((pos) => {
+                if (pos === -1 && value === 6) {
+                    hasValidMove = true;
+                } else if (pos >= 0 && pos + value <= 57) {
+                    hasValidMove = true;
+                }
+            });
+
+            // If no valid moves exist (e.g. rolled 3 and all tokens at home), auto-skip
+            if (!hasValidMove) {
+                return {
+                    ...prev,
+                    diceValue: value,
+                    gamePhase: 'rolling',
+                    currentPlayer: getNextPlayer(prev.currentPlayer),
+                    timeLeft: 15,
+                    captureMessage: null,
+                    invalidMove: false,
+                };
+            }
+
+            return {
+                ...prev,
+                diceValue: value,
+                gamePhase: 'moving',
+                captureMessage: null,
+                invalidMove: false,
+                timeLeft: 15, // Reset timer for move phase
+            };
+        });
     };
 
     const handleTokenClick = (color: Player['color'], tokenIndex: number) => {
