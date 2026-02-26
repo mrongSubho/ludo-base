@@ -87,7 +87,16 @@ const PLAYER_PATHS: Record<string, Point[]> = {
 };
 
 const SAFE_POSITIONS: Point[] = [
-    { r: 7, c: 2 }, { r: 2, c: 9 }, { r: 9, c: 14 }, { r: 14, c: 7 }, // Star squares / Starts
+    { r: 7, c: 2 }, { r: 2, c: 9 }, { r: 9, c: 14 }, { r: 14, c: 7 },   // Start squares
+    { r: 3, c: 7 }, { r: 7, c: 13 }, { r: 13, c: 9 }, { r: 9, c: 3 },   // Mid-corridor safe squares
+];
+
+// Directional arrows at home lane entries
+const ARROW_CELLS: { r: number; c: number; dir: 'up' | 'down' | 'left' | 'right' }[] = [
+    { r: 10, c: 8, dir: 'up' },    // Green home lane (enters upward)
+    { r: 6, c: 8, dir: 'down' },   // Blue home lane (enters downward)
+    { r: 8, c: 10, dir: 'left' },  // Red home lane (enters leftward)
+    { r: 8, c: 6, dir: 'right' },  // Yellow home lane (enters rightward)
 ];
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -97,6 +106,20 @@ const StarMarker = () => (
         <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
     </svg>
 );
+
+const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) => {
+    const rotation = { up: 0, down: 180, left: 270, right: 90 }[dir];
+    return (
+        <svg
+            className="home-arrow-svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            style={{ transform: `rotate(${rotation}deg)` }}
+        >
+            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+        </svg>
+    );
+};
 
 // ─── Path builder ────────────────────────────────────────────────────────────
 // Diagonal arrangement:  Green (TL) — Red (TR) — Yellow (BL) — Blue (BR)
@@ -126,10 +149,7 @@ function buildPathCells(): PathCell[] {
                 else if (r === 8 && c >= 2 && c <= 6) cls += ' lane-yellow';  // left → center
 
                 // Star / safe squares
-                if (
-                    (r === 7 && c === 2) || (r === 2 && c === 9) ||
-                    (r === 9 && c === 14) || (r === 14 && c === 7)
-                ) {
+                if (SAFE_POSITIONS.some(p => p.r === r && p.c === c)) {
                     cls += ' star-cell';
                 }
 
@@ -218,45 +238,42 @@ function PlayerCard({
     timeLeft: number;
     strikes: number;
 }) {
-    // 15s max, calculate dash offset for SVG circle
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
 
     return (
-        <div className={`player-card ${player.position}`}>
-            <div className={`player-avatar-wrapper ${isActive ? 'is-active' : ''} ${isWarning ? 'timer-warning' : ''}`}>
+        <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
+            {/* Circular Avatar */}
+            <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
                 {/* SVG Timer Ring */}
                 {!player.isAi && (
-                    <svg className="timer-ring" viewBox="0 0 44 44">
-                        <circle className="timer-ring-bg" cx="22" cy="22" r="20" />
+                    <svg className="timer-ring" viewBox="0 0 52 52">
+                        <circle className="timer-ring-bg" cx="26" cy="26" r="23" />
                         <circle
                             className="timer-ring-progress"
-                            cx="22" cy="22" r="20"
+                            cx="26" cy="26" r="23"
                             style={{
-                                strokeDasharray: 125.6,
-                                strokeDashoffset: 125.6 - (125.6 * progress) / 100
+                                strokeDasharray: 144.5,
+                                strokeDashoffset: 144.5 - (144.5 * progress) / 100
                             }}
                         />
                     </svg>
                 )}
-
-                <div className={`player-avatar ${player.color}`}>
-                    <span>{player.avatar}</span>
+                <div className={`avatar-circle ${player.color}`}>
+                    <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
-            <div className="player-info">
-                <span className="player-name">{player.name}</span>
-                <div className="player-status-row">
-                    <span className="player-level">Lv.{player.level}</span>
-                    {/* Strike Indicators */}
-                    {!player.isAi && strikes > 0 && (
-                        <div className="strike-indicators">
-                            {[1, 2, 3].map(s => (
-                                <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
-                            ))}
-                        </div>
-                    )}
-                </div>
+            {/* Name Pill */}
+            <div className="avatar-label-pill">
+                <span className="avatar-lv">Lv.{player.level}</span>
+                <span className="avatar-name">{player.name}</span>
+                {!player.isAi && strikes > 0 && (
+                    <div className="strike-indicators">
+                        {[1, 2, 3].map(s => (
+                            <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -862,6 +879,10 @@ export default function Board({
                             style={{ gridRow: row, gridColumn: col }}
                         >
                             {cls.includes('star-cell') && <StarMarker />}
+                            {/* Directional arrow at home lane entries */}
+                            {ARROW_CELLS.map(a => a.r === row && a.c === col ? (
+                                <ArrowMarker key={`arrow-${row}-${col}`} dir={a.dir} />
+                            ) : null)}
                         </div>
                     ))}
 

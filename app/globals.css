@@ -852,27 +852,106 @@ a {
   transform-origin: center center;
 }
 
-.player-card {
+/* New corner-avatar style overrides the old pill card */
+.player-card-corner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 4px;
-  /* Less left padding for circular avatar */
-  background: var(--color-ludo-card);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--color-ludo-border);
-  border-radius: var(--radius-pill);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  gap: 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
   white-space: nowrap;
 }
 
-.player-avatar {
+.avatar-circle-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+}
+
+.avatar-circle {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.avatar-emoji {
+  line-height: 1;
+  display: block;
+}
+
+.avatar-circle.green {
+  background: linear-gradient(135deg, #7EC8A0, #5FA880);
+}
+
+.avatar-circle.red {
+  background: linear-gradient(135deg, #D4847A, #B4645A);
+}
+
+.avatar-circle.yellow {
+  background: linear-gradient(135deg, #E8C567, #C8A547);
+}
+
+.avatar-circle.blue {
+  background: linear-gradient(135deg, #7BAFD4, #5B8FB4);
+}
+
+/* Active state: scale the wrapper */
+.card-is-active .avatar-circle-wrapper {
+  transform: scale(1.1);
+}
+
+.card-is-active .avatar-circle {
+  box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 14px rgba(0, 82, 255, 0.3);
+}
+
+.avatar-label-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-ludo-card);
+  border: 1px solid var(--color-ludo-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  font-size: 10px;
+  max-width: 88px;
+  overflow: hidden;
+}
+
+.avatar-lv {
+  font-weight: 700;
+  color: var(--color-ludo-blue);
+  flex-shrink: 0;
+}
+
+.avatar-name {
+  font-weight: 600;
+  color: var(--color-ludo-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 52px;
+}
+
+/* Directional arrow marker */
+.home-arrow-svg {
+  width: 55%;
+  height: 55%;
+  color: var(--color-ludo-muted);
+  opacity: 0.55;
 }
 
 /* ─── Leaderboard UI ─── */
@@ -1160,22 +1239,6 @@ a {
   justify-content: center;
   font-size: 14px;
   flex-shrink: 0;
-}
-
-.player-avatar.green {
-  background: rgba(126, 200, 160, 0.25);
-}
-
-.player-avatar.red {
-  background: rgba(212, 132, 122, 0.25);
-}
-
-.player-avatar.yellow {
-  background: rgba(232, 197, 103, 0.25);
-}
-
-.player-avatar.blue {
-  background: rgba(123, 175, 212, 0.25);
 }
 
 .player-info {
