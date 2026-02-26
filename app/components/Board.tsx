@@ -65,24 +65,24 @@ const rotatePath = (points: Point[], startIndex: number): Point[] => {
 
 const PLAYER_PATHS: Record<string, Point[]> = {
     green: [
-        ...rotatePath(SHARED_PATH, 47), // Starts at {7,2} index 47
-        { r: 8, c: 2 }, { r: 8, c: 3 }, { r: 8, c: 4 }, { r: 8, c: 5 }, { r: 8, c: 6 }, // Home Lane
-        { r: 8, c: 7 } // Finish
+        ...rotatePath(SHARED_PATH, 34), // Starts at {14,7} index 34 -> Bottom-Left
+        { r: 14, c: 8 }, { r: 13, c: 8 }, { r: 12, c: 8 }, { r: 11, c: 8 }, { r: 10, c: 8 }, // Home Lane
+        { r: 9, c: 8 } // Finish
     ],
     red: [
-        ...rotatePath(SHARED_PATH, 8), // Starts at {2,9} index 8
+        ...rotatePath(SHARED_PATH, 8), // Starts at {2,9} index 8 -> Top-Right
         { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }, // Home Lane
         { r: 7, c: 8 } // Finish
     ],
     blue: [
-        ...rotatePath(SHARED_PATH, 21), // Starts at {9,14} index 21
+        ...rotatePath(SHARED_PATH, 21), // Starts at {9,14} index 21 -> Bottom-Right
         { r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }, // Home Lane
         { r: 8, c: 9 } // Finish
     ],
     yellow: [
-        ...rotatePath(SHARED_PATH, 34), // Starts at {14,7} index 34
-        { r: 14, c: 8 }, { r: 13, c: 8 }, { r: 12, c: 8 }, { r: 11, c: 8 }, { r: 10, c: 8 }, // Home Lane
-        { r: 9, c: 8 } // Finish
+        ...rotatePath(SHARED_PATH, 47), // Starts at {7,2} index 47 -> Top-Left
+        { r: 8, c: 2 }, { r: 8, c: 3 }, { r: 8, c: 4 }, { r: 8, c: 5 }, { r: 8, c: 6 }, // Home Lane
+        { r: 8, c: 7 } // Finish
     ],
 };
 
@@ -610,9 +610,9 @@ export default function Board({
                     {/* ── Corner Homes ── */}
                     {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
                         const gridInfo = {
-                            green: { row: "1 / 7", col: "1 / 7" },
+                            yellow: { row: "1 / 7", col: "1 / 7" },
                             red: { row: "1 / 7", col: "10 / 16" },
-                            yellow: { row: "10 / 16", col: "1 / 7" },
+                            green: { row: "10 / 16", col: "1 / 7" },
                             blue: { row: "10 / 16", col: "10 / 16" },
                         }[color];
 
