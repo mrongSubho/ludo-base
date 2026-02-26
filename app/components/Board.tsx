@@ -263,18 +263,16 @@ function PlayerCard({
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
-            {/* Name Pill */}
-            <div className="avatar-label-pill">
-                <span className="avatar-lv">Lv.{player.level}</span>
-                <span className="avatar-name">{player.name}</span>
-                {!player.isAi && strikes > 0 && (
-                    <div className="strike-indicators">
-                        {[1, 2, 3].map(s => (
-                            <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
-                        ))}
-                    </div>
-                )}
-            </div>
+            {/* Plain text label */}
+            <span className="avatar-name">{player.name}</span>
+            <span className="avatar-lv">Lv.{player.level}</span>
+            {!player.isAi && strikes > 0 && (
+                <div className="strike-indicators">
+                    {[1, 2, 3].map(s => (
+                        <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
