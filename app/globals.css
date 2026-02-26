@@ -2056,3 +2056,174 @@ a {
   font-size: 12px;
   color: var(--color-ludo-faint);
 }
+
+/* ─── Player Profile Sheet ─── */
+.profile-sheet {
+  max-height: 82vh;
+}
+
+.profile-hero {
+  position: relative;
+  width: 100%;
+  border-radius: 24px 24px 0 0;
+  padding: 28px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.profile-avatar-hero {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.profile-ai-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  border-radius: 20px;
+  padding: 3px 10px;
+  letter-spacing: 0.3px;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 2px;
+  margin-top: -30px;
+}
+
+.profile-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-ludo-text);
+}
+
+.profile-level-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-ludo-blue);
+  background: rgba(0, 82, 255, 0.08);
+  border: 1px solid rgba(0, 82, 255, 0.18);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.profile-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-ludo-border);
+}
+
+.profile-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.profile-stat strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-ludo-text);
+}
+
+.profile-stat span {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-ludo-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-stat-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--color-ludo-border);
+}
+
+.profile-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px 28px;
+}
+
+.profile-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-ludo-border);
+  background: var(--color-ludo-background);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-ludo-text);
+}
+
+.profile-action-btn:hover:not(:disabled) {
+  border-color: var(--color-ludo-blue);
+  background: rgba(0, 82, 255, 0.05);
+  color: var(--color-ludo-blue);
+  transform: translateY(-2px);
+}
+
+.profile-action-btn.action-active {
+  border-color: var(--color-ludo-blue);
+  background: rgba(0, 82, 255, 0.08);
+  color: var(--color-ludo-blue);
+}
+
+.profile-action-btn.action-danger:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.07);
+  color: #ef4444;
+}
+
+.profile-action-btn.action-active-danger {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.07);
+  color: #ef4444;
+}
+
+.profile-action-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.action-icon {
+  font-size: 20px;
+}
+
+.profile-ai-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-ludo-faint);
+  padding: 16px 20px 28px;
+  line-height: 1.5;
+}

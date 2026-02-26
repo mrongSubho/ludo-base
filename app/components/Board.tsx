@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
 import Leaderboard from './Leaderboard';
+import PlayerProfileSheet from './PlayerProfileSheet';
 import { useAudio } from '../hooks/useAudio';
 import { useMultiplayer } from '../hooks/useMultiplayer';
 
@@ -231,12 +232,14 @@ function PlayerCard({
     player,
     isActive,
     timeLeft,
-    strikes
+    strikes,
+    onAvatarClick,
 }: {
     player: Player;
     isActive: boolean;
     timeLeft: number;
     strikes: number;
+    onAvatarClick: () => void;
 }) {
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
@@ -276,7 +279,12 @@ function PlayerCard({
                         />
                     </svg>
                 )}
-                <div className={`avatar-circle ${player.color}`}>
+                <div
+                    className={`avatar-circle ${player.color}`}
+                    onClick={onAvatarClick}
+                    style={{ cursor: 'pointer' }}
+                    title={`View ${player.name}'s profile`}
+                >
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
@@ -297,6 +305,7 @@ export default function Board({
     onToggleLeaderboard?: (show: boolean) => void;
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
+    const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
     const [gameState, setGameState] = useState({
         positions: {
             green: [-1, -1, -1, -1],
@@ -807,6 +816,7 @@ export default function Board({
                             isActive={gameState.currentPlayer === p.color}
                             timeLeft={gameState.timeLeft}
                             strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                            onAvatarClick={() => setSelectedPlayer(p)}
                         />
                         {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                             <div className="ai-thinking-tag">Thinking...</div>
@@ -951,6 +961,7 @@ export default function Board({
                             isActive={gameState.currentPlayer === p.color}
                             timeLeft={gameState.timeLeft}
                             strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                            onAvatarClick={() => setSelectedPlayer(p)}
                         />
                         {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                             <div className="ai-thinking-tag">Thinking...</div>
@@ -967,6 +978,15 @@ export default function Board({
                 isOpen={showLeaderboard}
                 onClose={() => onToggleLeaderboard?.(false)}
             />
+
+            {/* ── Player Profile Sheet ── */}
+            {selectedPlayer && (
+                <PlayerProfileSheet
+                    player={selectedPlayer}
+                    wins={gameState.positions[selectedPlayer.color].filter(p => p === 57).length}
+                    onClose={() => setSelectedPlayer(null)}
+                />
+            )}
         </div>
     );
 };
