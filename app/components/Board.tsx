@@ -207,15 +207,56 @@ function Token({
 
 // ─── Player Card ─────────────────────────────────────────────────────────────
 
-function PlayerCard({ player }: { player: Player }) {
+function PlayerCard({
+    player,
+    isActive,
+    timeLeft,
+    strikes
+}: {
+    player: Player;
+    isActive: boolean;
+    timeLeft: number;
+    strikes: number;
+}) {
+    // 15s max, calculate dash offset for SVG circle
+    const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
+    const isWarning = isActive && !player.isAi && timeLeft <= 5;
+
     return (
         <div className={`player-card ${player.position}`}>
-            <div className={`player-avatar ${player.color}`}>
-                <span>{player.avatar}</span>
+            <div className={`player-avatar-wrapper ${isActive ? 'is-active' : ''} ${isWarning ? 'timer-warning' : ''}`}>
+                {/* SVG Timer Ring */}
+                {!player.isAi && (
+                    <svg className="timer-ring" viewBox="0 0 44 44">
+                        <circle className="timer-ring-bg" cx="22" cy="22" r="20" />
+                        <circle
+                            className="timer-ring-progress"
+                            cx="22" cy="22" r="20"
+                            style={{
+                                strokeDasharray: 125.6,
+                                strokeDashoffset: 125.6 - (125.6 * progress) / 100
+                            }}
+                        />
+                    </svg>
+                )}
+
+                <div className={`player-avatar ${player.color}`}>
+                    <span>{player.avatar}</span>
+                </div>
             </div>
             <div className="player-info">
                 <span className="player-name">{player.name}</span>
-                <span className="player-level">Lv.{player.level}</span>
+                <div className="player-status-row">
+                    <span className="player-level">Lv.{player.level}</span>
+                    {/* Strike Indicators */}
+                    {!player.isAi && strikes > 0 && (
+                        <div className="strike-indicators">
+                            {[1, 2, 3].map(s => (
+                                <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -246,6 +287,13 @@ export default function Board({
         winners: [] as Player['color'][],
         invalidMove: false,
         isThinking: false,
+        timeLeft: 15,
+        strikes: {
+            green: 0,
+            red: 0,
+            yellow: 0,
+            blue: 0,
+        },
         multiplayer: {
             targetId: '',
             isConnected: false,
@@ -287,6 +335,8 @@ export default function Board({
             winners: [],
             invalidMove: false,
             isThinking: false,
+            timeLeft: 15,
+            strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
             multiplayer: {
                 targetId: '',
                 isConnected: false,
@@ -366,6 +416,7 @@ export default function Board({
                         ...prev,
                         gamePhase: 'rolling',
                         currentPlayer: getNextPlayer(prev.currentPlayer),
+                        timeLeft: 15, // Reset Timer on turn pass
                     };
                 }
             }
@@ -419,14 +470,18 @@ export default function Board({
                 }
             }
 
+            const newPlayer = (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer);
+
             return {
                 ...prev,
                 positions: newPositions,
                 gamePhase: 'rolling',
-                currentPlayer: (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer),
+                currentPlayer: newPlayer,
                 winner: hasWon ? color : prev.winner,
                 winners: newWinners,
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
+                timeLeft: 15, // Reset timer whenever turn passes or bonus turn
+                strikes: { ...prev.strikes, [color]: 0 }, // Reset strikes when they successfully make a move
             };
         });
     }, [checkWin, triggerWinConfetti]);
@@ -444,6 +499,7 @@ export default function Board({
             gamePhase: 'moving',
             captureMessage: null,
             invalidMove: false,
+            timeLeft: 15, // Reset timer for move phase
         }));
     };
 
@@ -529,12 +585,75 @@ export default function Board({
         return bestTokenIdx;
     }, [gameState.positions]);
 
+    // --- 7.5 HUMAN TURN TIMER & AFK AUTO-PLAY LOGIC ---
+    useEffect(() => {
+        if (gameState.winner) return;
+
+        const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
+
+        // Timer only applies to non-AI humans (unless they strike out 3 times)
+        const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
+
+        if (!isCurrentlyBot) {
+            if (gameState.timeLeft <= 0) {
+                // TImer runs out, auto-play for them and add a strike
+                setGameState(prev => {
+                    const newStrikes = prev.strikes[prev.currentPlayer] + 1;
+                    return {
+                        ...prev,
+                        strikes: { ...prev.strikes, [prev.currentPlayer]: newStrikes },
+                    };
+                });
+
+                // Trigger forced action
+                if (gameState.gamePhase === 'rolling') {
+                    const forcedRoll = Math.floor(Math.random() * 6) + 1;
+                    handleRoll(forcedRoll);
+                } else if (gameState.gamePhase === 'moving' && gameState.diceValue !== null) {
+                    const bestMoveIdx = getBestMove(gameState.currentPlayer, gameState.diceValue);
+                    if (bestMoveIdx === null) {
+                        setGameState(s => ({
+                            ...s,
+                            gamePhase: 'rolling',
+                            currentPlayer: getNextPlayer(s.currentPlayer),
+                            timeLeft: 15
+                        }));
+                    } else {
+                        moveToken(gameState.currentPlayer, bestMoveIdx, gameState.diceValue);
+                    }
+                }
+                return;
+            }
+
+            // Normal Tick Logic
+            const interval = setInterval(() => {
+                setGameState(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
+            }, 1000);
+
+            return () => clearInterval(interval);
+        }
+    }, [
+        gameState.timeLeft,
+        gameState.currentPlayer,
+        gameState.gamePhase,
+        gameState.winner,
+        gameState.diceValue,
+        gameState.strikes,
+        handleRoll,
+        moveToken,
+        getBestMove
+    ]);
+
     // --- AI ORCHESTRATION ---
     useEffect(() => {
         if (gameState.winner) return;
 
         const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
-        if (currentPlayerInfo?.isAi) {
+
+        // AI logic handles both native AI and humans who struck out
+        const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
+
+        if (isCurrentlyBot) {
 
             // Phase 1: Rolling
             if (gameState.gamePhase === 'rolling') {
@@ -562,7 +681,8 @@ export default function Board({
                             ...s,
                             isThinking: false,
                             gamePhase: 'rolling',
-                            currentPlayer: getNextPlayer(s.currentPlayer)
+                            currentPlayer: getNextPlayer(s.currentPlayer),
+                            timeLeft: 15 // Ensure timer resets
                         }));
                     } else {
                         // Execute move
@@ -573,7 +693,7 @@ export default function Board({
                 return () => clearTimeout(timer);
             }
         }
-    }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll, getBestMove]);
+    }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll, getBestMove, gameState.strikes]);
 
     const renderTokensOnPath = () => {
         const tokens: React.ReactNode[] = [];
@@ -617,9 +737,18 @@ export default function Board({
             <div className="player-row player-row-top">
                 {PLAYERS.filter(p => p.position.includes('top')).map((p) => (
                     <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
-                        <PlayerCard player={p} />
+                        <PlayerCard
+                            player={p}
+                            isActive={gameState.currentPlayer === p.color}
+                            timeLeft={gameState.timeLeft}
+                            strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                        />
                         {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                             <div className="ai-thinking-tag">Thinking...</div>
+                        )}
+                        {/* Auto-play Mode Tag */}
+                        {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
+                            <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                         )}
                     </div>
                 ))}
@@ -748,9 +877,18 @@ export default function Board({
             <div className="player-row player-row-bottom">
                 {PLAYERS.filter(p => p.position.includes('bottom')).map((p) => (
                     <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
-                        <PlayerCard player={p} />
+                        <PlayerCard
+                            player={p}
+                            isActive={gameState.currentPlayer === p.color}
+                            timeLeft={gameState.timeLeft}
+                            strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                        />
                         {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                             <div className="ai-thinking-tag">Thinking...</div>
+                        )}
+                        {/* Auto-play Mode Tag */}
+                        {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
+                            <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                         )}
                     </div>
                 ))}

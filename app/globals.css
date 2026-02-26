@@ -1184,6 +1184,71 @@ a {
   line-height: 1.2;
 }
 
+.player-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.strike-indicators {
+  display: flex;
+  gap: 3px;
+}
+
+.strike-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-ludo-border);
+  transition: background-color 0.2s;
+}
+
+.strike-dot.active {
+  background-color: var(--color-ludo-rose);
+  box-shadow: 0 0 4px var(--color-ludo-rose);
+}
+
+.player-avatar-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-ring {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.timer-ring-bg {
+  fill: none;
+  stroke: var(--color-ludo-border);
+  stroke-width: 3;
+}
+
+.timer-ring-progress {
+  fill: none;
+  stroke: var(--color-ludo-blue);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+}
+
+.player-avatar-wrapper.timer-warning .timer-ring-progress {
+  stroke: var(--color-ludo-rose);
+}
+
+.afk-tag {
+  background: var(--color-ludo-rose) !important;
+  color: #1a0505 !important;
+  animation: none !important;
+}
+
 .player-name {
   font-size: 12px;
   font-weight: 600;
