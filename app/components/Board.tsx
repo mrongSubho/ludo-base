@@ -703,7 +703,7 @@ export default function Board({
                     // Simulate AI Roll
                     const newValue = Math.floor(Math.random() * 6) + 1;
                     handleRoll(newValue);
-                }, 1500); // 1.5s thinking delay
+                }, 4000); // 4s thinking delay
                 return () => clearTimeout(timer);
             }
 
