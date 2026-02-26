@@ -1679,17 +1679,17 @@ a {
 
 .active-turn .player-card {
   background: white;
-  box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
+  box-shadow: 0 0 0 1px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
   animation: pulse-glow 2s infinite alternate;
 }
 
 @keyframes pulse-glow {
   from {
-    box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
+    box-shadow: 0 0 0 1px var(--color-ludo-blue), 0 4px 15px rgba(0, 82, 255, 0.2);
   }
 
   to {
-    box-shadow: 0 0 0 4px var(--color-ludo-blue), 0 8px 25px rgba(0, 82, 255, 0.4);
+    box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 8px 25px rgba(0, 82, 255, 0.4);
   }
 }
 

@@ -271,7 +271,7 @@ export default function Board({
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
 }) {
-    const { playMove, playCapture, playWin } = useAudio();
+    const { playMove, playCapture, playWin, playTurn } = useAudio();
     const [gameState, setGameState] = useState({
         positions: {
             green: [-1, -1, -1, -1],
@@ -611,6 +611,19 @@ export default function Board({
 
         return bestTokenIdx;
     }, [gameState.positions]);
+
+    // --- TURN NOTIFICATION BEEP ---
+    useEffect(() => {
+        if (gameState.winner) return;
+
+        // Only beep if the new active player is human and hasn't struck out into auto-play
+        const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
+        const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
+
+        if (!isCurrentlyBot && gameState.gamePhase === 'rolling') {
+            playTurn();
+        }
+    }, [gameState.currentPlayer, gameState.winner, gameState.strikes, playTurn, gameState.gamePhase]);
 
     // --- 7.5 HUMAN TURN TIMER & AFK AUTO-PLAY LOGIC ---
     useEffect(() => {
