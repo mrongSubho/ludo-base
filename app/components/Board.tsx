@@ -108,7 +108,7 @@ const StarMarker = () => (
 );
 
 const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) => {
-    const rotation = { up: 0, down: 180, left: 270, right: 90 }[dir];
+    const rotation = { right: 0, down: 90, left: 180, up: 270 }[dir];
     return (
         <svg
             className="home-arrow-svg"
