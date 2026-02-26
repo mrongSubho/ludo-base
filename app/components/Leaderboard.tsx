@@ -51,34 +51,40 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     return (
         <AnimatePresence>
             {isOpen && (
-                <>
+                <motion.div
+                    className="tab-panel-overlay"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                >
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="modal-overlay"
-                    />
-                    <motion.div
-                        initial={{ x: '100%' }}
-                        animate={{ x: 0 }}
-                        exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="leaderboard-panel"
+                        className="tab-panel"
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+                        onClick={e => e.stopPropagation()}
                     >
-                        <div className="leaderboard-header">
-                            <h2>Hall of Fame</h2>
-                            <button onClick={onClose} className="close-btn">✕</button>
+                        {/* Drag handle */}
+                        <div className="tab-panel-handle" />
+
+                        {/* Header */}
+                        <div className="tab-panel-header">
+                            <span className="tab-panel-emoji">🏆</span>
+                            <h2 className="tab-panel-title">Hall of Fame</h2>
+                            <button className="tab-panel-close" onClick={onClose}>✕</button>
                         </div>
 
-                        <div className="leaderboard-content">
+                        {/* Content */}
+                        <div className="tab-panel-body" style={{ alignItems: 'flex-start', justifyContent: 'flex-start' }}>
                             {stats.length === 0 ? (
-                                <div className="empty-state">
-                                    <span className="empty-emoji">🏆</span>
-                                    <p>The throne is empty. Who will be the first champion?</p>
+                                <div className="tab-coming-soon-card">
+                                    <span className="coming-soon-icon">🏆</span>
+                                    <p className="coming-soon-title">The throne is empty. Who will be the first champion?</p>
                                 </div>
                             ) : (
-                                <div className="stats-list">
+                                <div className="stats-list" style={{ width: '100%' }}>
                                     {stats.map((entry, idx) => (
                                         <div key={entry.name} className="stats-item">
                                             <div className="rank">#{idx + 1}</div>
@@ -101,11 +107,12 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                             )}
                         </div>
 
-                        <div className="leaderboard-footer">
-                            <p>Only local legends are tracked here.</p>
-                        </div>
+                        {/* Footer note */}
+                        <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--color-ludo-faint)', padding: '0 20px 20px' }}>
+                            Only local legends are tracked here.
+                        </p>
                     </motion.div>
-                </>
+                </motion.div>
             )}
         </AnimatePresence>
     );
