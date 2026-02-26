@@ -595,15 +595,17 @@ export default function Board({
 
     return (
         <div className="board-outer">
-            {/* Player cards at each corner */}
-            {PLAYERS.map((p) => (
-                <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''}`}>
-                    <PlayerCard player={p} />
-                    {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                        <div className="ai-thinking-tag">Thinking...</div>
-                    )}
-                </div>
-            ))}
+            {/* ── Top Player Row (Opponent: Yellow & Blue) ── */}
+            <div className="player-row player-row-top">
+                {PLAYERS.filter(p => p.position.includes('top')).map((p) => (
+                    <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
+                        <PlayerCard player={p} />
+                        {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                            <div className="ai-thinking-tag">Thinking...</div>
+                        )}
+                    </div>
+                ))}
+            </div>
 
             <div className="board-wrapper">
                 <div className="board-grid">
@@ -723,6 +725,18 @@ export default function Board({
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* ── Bottom Player Row (You & Opponent: Green & Red) ── */}
+            <div className="player-row player-row-bottom">
+                {PLAYERS.filter(p => p.position.includes('bottom')).map((p) => (
+                    <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
+                        <PlayerCard player={p} />
+                        {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                            <div className="ai-thinking-tag">Thinking...</div>
+                        )}
+                    </div>
+                ))}
+            </div>
 
             <Leaderboard
                 isOpen={showLeaderboard}
