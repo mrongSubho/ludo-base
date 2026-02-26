@@ -240,12 +240,29 @@ function PlayerCard({
 }) {
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
+    const isLeft = player.position.includes('left');
+
+    const textBlock = (
+        <div className={`avatar-text ${isLeft ? 'text-align-right' : 'text-align-left'}`}>
+            <span className="avatar-name">{player.name}</span>
+            <span className="avatar-lv">Lv.{player.level}</span>
+            {!player.isAi && strikes > 0 && (
+                <div className="strike-indicators">
+                    {[1, 2, 3].map(s => (
+                        <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
+            {/* Left-side: text LEFT, avatar RIGHT */}
+            {isLeft && textBlock}
+
             {/* Circular Avatar */}
             <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
-                {/* SVG Timer Ring */}
                 {!player.isAi && (
                     <svg className="timer-ring" viewBox="0 0 52 52">
                         <circle className="timer-ring-bg" cx="26" cy="26" r="23" />
@@ -263,16 +280,9 @@ function PlayerCard({
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
-            {/* Plain text label */}
-            <span className="avatar-name">{player.name}</span>
-            <span className="avatar-lv">Lv.{player.level}</span>
-            {!player.isAi && strikes > 0 && (
-                <div className="strike-indicators">
-                    {[1, 2, 3].map(s => (
-                        <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
-                    ))}
-                </div>
-            )}
+
+            {/* Right-side: avatar LEFT, text RIGHT */}
+            {!isLeft && textBlock}
         </div>
     );
 }

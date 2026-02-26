@@ -855,14 +855,28 @@ a {
 /* New corner-avatar style overrides the old pill card */
 .player-card-corner {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
   white-space: nowrap;
+}
+
+.avatar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.avatar-text.text-align-right {
+  align-items: flex-end;
+}
+
+.avatar-text.text-align-left {
+  align-items: flex-start;
 }
 
 .avatar-circle-wrapper {
@@ -941,6 +955,8 @@ a {
   height: 55%;
   color: var(--color-ludo-muted);
   opacity: 0.55;
+  display: block;
+  margin: auto;
 }
 
 /* ─── Leaderboard UI ─── */
