@@ -183,7 +183,6 @@ a {
   min-height: 100vh;
   min-height: 100dvh;
   max-width: 500px;
-  /* Increased to allow wider boards on modern smartphones */
   margin: 0 auto;
   background: transparent;
   position: relative;
@@ -1339,8 +1338,16 @@ a {
 
 /* Board responsive */
 @media (max-width: 500px) {
+  .app-shell {
+    max-width: 100%;
+  }
+
+  .footer-nav {
+    max-width: 100%;
+  }
+
   .board-main {
-    padding: 0;
+    padding: 38px 0;
   }
 
   .board-outer {
@@ -1350,8 +1357,7 @@ a {
 
   .board-wrapper {
     padding: 0;
-    margin-top: 0;
-    margin-bottom: 0;
+    margin: 0;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -1360,39 +1366,40 @@ a {
 
   .board-grid {
     gap: 0.5px;
-    /* Minimal gap for seamless look */
   }
 
   .player-card.top-left {
-    top: 6px;
-    left: 6px;
+    top: -32px;
+    left: 4px;
   }
 
   .player-card.top-right {
-    top: 6px;
-    right: 6px;
+    top: -34px;
+    right: 4px;
   }
 
   .player-card.bottom-left {
-    bottom: 6px;
-    left: 6px;
+    bottom: -32px;
+    left: 4px;
   }
 
   .player-card.bottom-right {
-    bottom: 6px;
-    right: 6px;
+    bottom: -34px;
+    right: 4px;
   }
 
   .player-card {
-    padding: 3px 8px 3px 3px;
-    gap: 5px;
+    padding: 2px 6px;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.9);
     border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
   .player-avatar {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
   }
 
   .player-name {

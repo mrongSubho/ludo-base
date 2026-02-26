@@ -31,9 +31,9 @@ interface Player {
 }
 
 const PLAYERS: Player[] = [
-    { name: 'Alex', level: 12, avatar: '🟢', color: 'green', position: 'top-left', isAi: false },
+    { name: 'Alex', level: 12, avatar: '🟢', color: 'green', position: 'bottom-left', isAi: false },
     { name: 'Gemini (AI)', level: 8, avatar: '🤖', color: 'red', position: 'top-right', isAi: true },
-    { name: 'Deep (AI)', level: 15, avatar: '💾', color: 'yellow', position: 'bottom-left', isAi: true },
+    { name: 'Deep (AI)', level: 15, avatar: '💾', color: 'yellow', position: 'top-left', isAi: true },
     { name: 'Core (AI)', level: 10, avatar: '⚙️', color: 'blue', position: 'bottom-right', isAi: true },
 ];
 
