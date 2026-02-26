@@ -1338,84 +1338,116 @@ a {
 
 /* Board responsive */
 @media (max-width: 500px) {
+
+  html,
+  body {
+    overflow-x: hidden !important;
+    position: relative !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .app-shell {
-    max-width: 100vw;
-    width: 100vw;
-    margin: 0;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
   }
 
   .footer-nav {
-    max-width: 100vw;
-    width: 100vw;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    left: 0 !important;
+    transform: none !important;
+    border-radius: 0 !important;
+    /* Flat edge-to-edge footer */
   }
 
   .board-main {
-    padding: 45px 0;
-    /* Clear space for avatars */
-    width: 100vw;
+    padding: 60px 0 !important;
+    /* Huge clearance for avatars */
+    width: 100vw !important;
+    margin: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
   }
 
   .board-outer {
-    max-width: 100vw;
-    width: 100vw;
-    margin: 0;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .board-wrapper {
-    padding: 0;
-    margin: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    border-radius: 0;
-    width: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
   }
 
   .board-grid {
-    gap: 0.5px;
-    width: 100%;
-  }
-
-  .player-card.top-left {
-    top: -42px;
-    left: 8px;
-  }
-
-  .player-card.top-right {
-    top: -42px;
-    right: 8px;
-  }
-
-  .player-card.bottom-left {
-    bottom: -42px;
-    left: 8px;
-  }
-
-  .player-card.bottom-right {
-    bottom: -42px;
-    right: 8px;
+    gap: 0px !important;
+    /* Absolute zero gap */
+    width: 100% !important;
+    border: none !important;
   }
 
   .player-card {
-    padding: 4px 10px;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: var(--shadow-card);
+    position: absolute !important;
+    z-index: 100 !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+  }
+
+  .player-card.top-left {
+    top: -55px !important;
+    left: 4px !important;
+  }
+
+  .player-card.top-right {
+    top: -55px !important;
+    right: 4px !important;
+  }
+
+  .player-card.bottom-left {
+    bottom: -55px !important;
+    left: 4px !important;
+  }
+
+  .player-card.bottom-right {
+    bottom: -55px !important;
+    right: 4px !important;
+  }
+
+  .player-card {
+    padding: 3px 8px !important;
+    gap: 5px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
   }
 
   .player-avatar {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 10px !important;
   }
 
   .player-name {
-    font-size: 12px;
+    font-size: 11px !important;
   }
 
   .player-level {
-    font-size: 10px;
+    font-size: 9px !important;
   }
 }
 
