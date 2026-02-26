@@ -147,7 +147,10 @@
 html,
 body {
   height: 100%;
+  width: 100vw;
   max-width: 100vw;
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--color-ludo-background);
@@ -182,8 +185,10 @@ a {
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
   max-width: 500px;
   margin: 0 auto;
+  padding: 0;
   background: transparent;
   position: relative;
 }
@@ -827,7 +832,7 @@ a {
 .board-outer {
   position: relative;
   width: 100%;
-  max-width: min(92vw, 92vh - 120px);
+  max-width: min(100vw, 100vh - 120px);
 }
 
 /* ─── Player Cards ─── */
@@ -1366,13 +1371,14 @@ a {
   }
 
   .board-main {
-    padding: 60px 0 !important;
-    /* Huge clearance for avatars */
+    padding: 110px 0 !important;
+    /* Total clearance for floating HUDs */
     width: 100vw !important;
     margin: 0 !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
+    overflow: visible !important;
   }
 
   .board-outer {
@@ -1394,7 +1400,6 @@ a {
 
   .board-grid {
     gap: 0px !important;
-    /* Absolute zero gap */
     width: 100% !important;
     border: none !important;
   }
@@ -1406,48 +1411,52 @@ a {
     bottom: auto !important;
     left: auto !important;
     right: auto !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+    padding: 4px 10px !important;
+    border-radius: 20px !important;
   }
 
   .player-card.top-left {
-    top: -55px !important;
-    left: 4px !important;
+    top: -95px !important;
+    left: 10px !important;
   }
 
   .player-card.top-right {
-    top: -55px !important;
-    right: 4px !important;
+    top: -95px !important;
+    right: 10px !important;
   }
 
   .player-card.bottom-left {
-    bottom: -55px !important;
-    left: 4px !important;
+    bottom: -95px !important;
+    left: 10px !important;
   }
 
   .player-card.bottom-right {
-    bottom: -55px !important;
-    right: 4px !important;
-  }
-
-  .player-card {
-    padding: 3px 8px !important;
-    gap: 5px !important;
-    background: rgba(255, 255, 255, 0.98) !important;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    bottom: -95px !important;
+    right: 10px !important;
   }
 
   .player-avatar {
-    width: 20px !important;
-    height: 20px !important;
-    font-size: 10px !important;
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 15px !important;
   }
 
   .player-name {
-    font-size: 11px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
   }
 
   .player-level {
-    font-size: 9px !important;
+    font-size: 10px !important;
+  }
+
+  .footer-nav {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    border-radius: 0 !important;
   }
 }
 
