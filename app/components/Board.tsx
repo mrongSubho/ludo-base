@@ -32,9 +32,9 @@ interface Player {
 
 const PLAYERS: Player[] = [
     { name: 'Alex', level: 12, avatar: '🟢', color: 'green', position: 'bottom-left', isAi: false },
-    { name: 'Gemini (AI)', level: 8, avatar: '🤖', color: 'red', position: 'top-right', isAi: true },
+    { name: 'Gemini (AI)', level: 8, avatar: '🤖', color: 'red', position: 'bottom-right', isAi: true },
     { name: 'Deep (AI)', level: 15, avatar: '💾', color: 'yellow', position: 'top-left', isAi: true },
-    { name: 'Core (AI)', level: 10, avatar: '⚙️', color: 'blue', position: 'bottom-right', isAi: true },
+    { name: 'Core (AI)', level: 10, avatar: '⚙️', color: 'blue', position: 'top-right', isAi: true },
 ];
 
 // ─── Path Constants ──────────────────────────────────────────────────────────
@@ -70,14 +70,14 @@ const PLAYER_PATHS: Record<string, Point[]> = {
         { r: 9, c: 8 } // Finish
     ],
     red: [
-        ...rotatePath(SHARED_PATH, 8), // Starts at {2,9} (top-middle right)
-        { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }, // Home Lane
-        { r: 7, c: 8 } // Finish
-    ],
-    blue: [
         ...rotatePath(SHARED_PATH, 21), // Starts at {9,14} (right-middle bottom)
         { r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }, // Home Lane
         { r: 8, c: 9 } // Finish
+    ],
+    blue: [
+        ...rotatePath(SHARED_PATH, 8), // Starts at {2,9} (top-middle right)
+        { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }, // Home Lane
+        { r: 7, c: 8 } // Finish
     ],
     yellow: [
         ...rotatePath(SHARED_PATH, 47), // Starts at {7,2} (left-middle top)
@@ -120,9 +120,9 @@ function buildPathCells(): PathCell[] {
                 let cls = 'board-cell';
 
                 // Finish lanes leading toward center
-                if (c === 8 && r >= 2 && r <= 6) cls += ' lane-green';       // top → center
-                else if (r === 8 && c >= 10 && c <= 14) cls += ' lane-red';   // right → center  (was blue)
-                else if (c === 8 && r >= 10 && r <= 14) cls += ' lane-blue';  // bottom → center (was red)
+                if (c === 8 && r >= 2 && r <= 6) cls += ' lane-blue';         // top → center
+                else if (r === 8 && c >= 10 && c <= 14) cls += ' lane-red';   // right → center
+                else if (c === 8 && r >= 10 && r <= 14) cls += ' lane-green'; // bottom → center
                 else if (r === 8 && c >= 2 && c <= 6) cls += ' lane-yellow';  // left → center
 
                 // Star / safe squares
@@ -611,9 +611,9 @@ export default function Board({
                     {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
                         const gridInfo = {
                             yellow: { row: "1 / 7", col: "1 / 7" },   // Top-Left
-                            red: { row: "1 / 7", col: "10 / 16" },    // Top-Right
+                            blue: { row: "1 / 7", col: "10 / 16" },   // Top-Right (Opposite Green)
                             green: { row: "10 / 16", col: "1 / 7" },  // Bottom-Left (ALEX)
-                            blue: { row: "10 / 16", col: "10 / 16" }, // Bottom-Right
+                            red: { row: "10 / 16", col: "10 / 16" },  // Bottom-Right (Opposite Yellow)
                         }[color];
 
                         const tokensInHome = gameState.positions[color]
@@ -640,9 +640,9 @@ export default function Board({
                         {(['green', 'red', 'blue', 'yellow'] as const).map((color) => {
                             const finishedCount = gameState.positions[color].filter(p => p === 57).length;
                             const triClass = {
-                                green: 'tri-top',
+                                green: 'tri-bottom',
                                 red: 'tri-right',
-                                blue: 'tri-bottom',
+                                blue: 'tri-top',
                                 yellow: 'tri-left'
                             }[color];
 
