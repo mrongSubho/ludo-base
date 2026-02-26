@@ -19,13 +19,30 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     // Here we'll read from localStorage.
     const getStats = (): LeaderboardEntry[] => {
         if (typeof window === 'undefined') return [];
-        const data = localStorage.getItem('ludo-leaderboard');
-        if (!data) return [];
+
+        // Dummy Data
+        const dummyEntries: LeaderboardEntry[] = [
+            { name: 'Mrong', color: 'blue', wins: 42, lastWin: Date.now() - 3600000 },
+            { name: 'Fahmida', color: 'rose', wins: 38, lastWin: Date.now() - 86400000 },
+            { name: 'Gemini (AI)', color: 'sage', wins: 12, lastWin: Date.now() - 172800000 },
+            { name: 'Core (AI)', color: 'slate', wins: 8, lastWin: Date.now() - 259200000 }
+        ];
+
+        const localData = localStorage.getItem('ludo-leaderboard');
+        if (!localData) return dummyEntries.sort((a, b) => b.wins - a.wins);
+
         try {
-            const parsed = JSON.parse(data) as Record<string, LeaderboardEntry>;
-            return Object.values(parsed).sort((a, b) => b.wins - a.wins);
+            const parsed = JSON.parse(localData) as Record<string, LeaderboardEntry>;
+            const localEntries = Object.values(parsed);
+
+            // Combine dummy and local, ensuring names are unique
+            const combinedMap = new Map<string, LeaderboardEntry>();
+            dummyEntries.forEach(e => combinedMap.set(e.name, e));
+            localEntries.forEach(e => combinedMap.set(e.name, e));
+
+            return Array.from(combinedMap.values()).sort((a, b) => b.wins - a.wins);
         } catch (e) {
-            return [];
+            return dummyEntries.sort((a, b) => b.wins - a.wins);
         }
     };
 

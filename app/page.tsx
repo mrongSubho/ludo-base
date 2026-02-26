@@ -59,6 +59,14 @@ const ItemsIcon = () => (
   </svg>
 );
 
+const MissionIcon = () => (
+  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+  </svg>
+);
+
 const MarketplaceIcon = () => (
   <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
@@ -71,6 +79,7 @@ const MarketplaceIcon = () => (
 
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -104,7 +113,10 @@ export default function Page() {
 
       {/* ── Board (full-screen) ────────────────────────────── */}
       <main className="board-main">
-        <Board />
+        <Board
+          showLeaderboard={showLeaderboard}
+          onToggleLeaderboard={setShowLeaderboard}
+        />
       </main>
 
       {/* ── Footer Navigation ──────────────────────────────── */}
@@ -117,7 +129,14 @@ export default function Page() {
           <FriendsIcon />
           <span className="nav-label">Friends</span>
         </button>
-        <button className="nav-item active">
+        <button className="nav-item">
+          <MissionIcon />
+          <span className="nav-label">Mission</span>
+        </button>
+        <button
+          className={`nav-item ${showLeaderboard ? 'active' : ''}`}
+          onClick={() => setShowLeaderboard(true)}
+        >
           <LeaderboardIcon />
           <span className="nav-label">Leaderboard</span>
         </button>

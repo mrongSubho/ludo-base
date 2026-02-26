@@ -223,7 +223,13 @@ function PlayerCard({ player }: { player: Player }) {
 
 // ─── Main Board ──────────────────────────────────────────────────────────────
 
-export default function Board() {
+export default function Board({
+    showLeaderboard = false,
+    onToggleLeaderboard
+}: {
+    showLeaderboard?: boolean;
+    onToggleLeaderboard?: (show: boolean) => void;
+}) {
     const { playMove, playCapture, playWin } = useAudio();
     const [gameState, setGameState] = useState({
         positions: {
@@ -240,7 +246,6 @@ export default function Board() {
         winners: [] as Player['color'][],
         invalidMove: false,
         isThinking: false,
-        showLeaderboard: false,
         multiplayer: {
             targetId: '',
             isConnected: false,
@@ -282,7 +287,6 @@ export default function Board() {
             winners: [],
             invalidMove: false,
             isThinking: false,
-            showLeaderboard: false,
             multiplayer: {
                 targetId: '',
                 isConnected: false,
@@ -720,16 +724,9 @@ export default function Board() {
                 )}
             </AnimatePresence>
 
-            <button
-                className="leaderboard-toggle"
-                onClick={() => setGameState(s => ({ ...s, showLeaderboard: true }))}
-            >
-                🏁
-            </button>
-
             <Leaderboard
-                isOpen={gameState.showLeaderboard}
-                onClose={() => setGameState(s => ({ ...s, showLeaderboard: false }))}
+                isOpen={showLeaderboard}
+                onClose={() => onToggleLeaderboard?.(false)}
             />
         </div>
     );
