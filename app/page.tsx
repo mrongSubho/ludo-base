@@ -327,7 +327,7 @@ export default function Page() {
             </div>
           </div>
           <main className="board-main has-top-back">
-            <Board playerCount={playerCount} />
+            <Board playerCount={playerCount} gameMode={selectedMode} />
           </main>
         </>
       )}

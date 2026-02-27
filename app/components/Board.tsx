@@ -31,6 +31,8 @@ interface Player {
     isAi?: boolean;
 }
 
+export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
+
 // Player identities — shuffled onto color seats each game
 const PLAYER_TEMPLATES = [
     { name: 'Alex', level: 12, avatar: '🎮', isAi: false },
@@ -301,14 +303,19 @@ function PlayerCard({
     isActive,
     timeLeft,
     strikes,
+    power,
+    onPowerClick,
     onAvatarClick,
 }: {
     player: Player;
     isActive: boolean;
     timeLeft: number;
     strikes: number;
+    power: PowerType | null;
+    onPowerClick?: () => void;
     onAvatarClick: () => void;
 }) {
+    const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
     const isLeft = player.position.includes('left');
@@ -347,6 +354,14 @@ function PlayerCard({
                         />
                     </svg>
                 )}
+                {power && (
+                    <div
+                        className={`power-inventory-bubble ${isActive && onPowerClick ? 'power-ready' : ''}`}
+                        onClick={isActive && onPowerClick ? onPowerClick : undefined}
+                    >
+                        {powerEmojis[power]}
+                    </div>
+                )}
                 <div
                     className={`avatar-circle ${player.color}`}
                     onClick={onAvatarClick}
@@ -368,11 +383,13 @@ function PlayerCard({
 export default function Board({
     showLeaderboard = false,
     onToggleLeaderboard,
-    playerCount = '4'
+    playerCount = '4',
+    gameMode = 'classic'
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
     playerCount?: '2' | '4' | '2v2';
+    gameMode?: 'classic' | 'power';
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
@@ -414,6 +431,15 @@ export default function Board({
             yellow: 0,
             blue: 0,
         },
+        powerTiles: (gameMode === 'power' ? pathCells
+            .filter(c => c.cls === 'board-cell')
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 4)
+            .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
+        playerPowers: { green: null, red: null, yellow: null, blue: null } as Record<PlayerColor, PowerType | null>,
+        activeTraps: [] as { r: number, c: number, owner: PlayerColor }[],
+        activeShields: [] as { color: PlayerColor, tokenIdx: number }[],
+        activeBoost: null as PlayerColor | null,
         multiplayer: {
             targetId: '',
             isConnected: false,
@@ -461,6 +487,15 @@ export default function Board({
             isThinking: false,
             timeLeft: 15,
             strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
+            powerTiles: (gameMode === 'power' ? pathCells
+                .filter(c => c.cls === 'board-cell')
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 4)
+                .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
+            playerPowers: { green: null, red: null, yellow: null, blue: null },
+            activeTraps: [],
+            activeShields: [],
+            activeBoost: null,
             multiplayer: {
                 targetId: '',
                 isConnected: false,
@@ -468,7 +503,7 @@ export default function Board({
                 status: 'idle'
             }
         });
-    }, []);
+    }, [playerCount, gameMode, pathCells]);
 
     const recordWin = useCallback((winnerColor: Player['color']) => {
         const player = players.find(p => p.color === winnerColor);
@@ -639,6 +674,23 @@ export default function Board({
         const idx = activeOrder.indexOf(current);
         return activeOrder[(idx + 1) % activeOrder.length];
     };
+
+    const handleUsePower = useCallback((color: Player['color']) => {
+        setGameState(prev => {
+            if (prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return prev;
+
+            const power = prev.playerPowers[color as PlayerColor];
+            if (!power) return prev;
+
+            console.log(`Used power: ${power}`);
+
+            // Consume power
+            return {
+                ...prev,
+                playerPowers: { ...prev.playerPowers, [color]: null }
+            };
+        });
+    }, []);
 
     const handleRoll = (value: number) => {
         setGameState((prev) => {
@@ -936,6 +988,8 @@ export default function Board({
                                 isActive={gameState.currentPlayer === p.color}
                                 timeLeft={gameState.timeLeft}
                                 strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                                power={gameState.playerPowers[p.color]}
+                                onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
                             />
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
@@ -1010,23 +1064,30 @@ export default function Board({
                     </div>
 
                     {/* ── Path Squares ── */}
-                    {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => (
-                        <div
-                            key={`${row}-${col}`}
-                            className={cls}
-                            style={{ gridRow: row, gridColumn: col }}
-                        >
-                            {cls.includes('star-cell') && <StarMarker />}
-                            {/* Directional arrow at home lane entries — dynamic per colorCorner */}
-                            {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([, corner]) => {
-                                const slot = CORNER_SLOTS[corner];
-                                if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
-                                    return <ArrowMarker key={`arrow-${row}-${col}`} dir={slot.arrowDir} />;
-                                }
-                                return null;
-                            })}
-                        </div>
-                    ))}
+                    {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
+                        const isPower = gameState.powerTiles.some(pt => pt.r === row && pt.c === col);
+                        const trap = gameState.activeTraps.find(t => t.r === row && t.c === col);
+
+                        return (
+                            <div
+                                key={`${row}-${col}`}
+                                className={`${cls} ${isPower ? 'power-cell' : ''}`}
+                                style={{ gridRow: row, gridColumn: col }}
+                            >
+                                {cls.includes('star-cell') && <StarMarker />}
+                                {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
+                                {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
+                                {/* Directional arrow at home lane entries — dynamic per colorCorner */}
+                                {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([, corner]) => {
+                                    const slot = CORNER_SLOTS[corner];
+                                    if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
+                                        return <ArrowMarker key={`arrow-${row}-${col}`} dir={slot.arrowDir} />;
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                        );
+                    })}
 
                     {/* ── Tokens ── */}
                     {renderTokensOnPath()}
@@ -1090,6 +1151,8 @@ export default function Board({
                                 isActive={gameState.currentPlayer === p.color}
                                 timeLeft={gameState.timeLeft}
                                 strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                                power={gameState.playerPowers[p.color]}
+                                onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
                             />
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
