@@ -298,6 +298,72 @@ a {
   height: 20px;
 }
 
+/* ── DM Icon & Notification Pulse ── */
+.dm-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  color: var(--color-ludo-text);
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dm-btn:hover {
+  opacity: 1;
+  background: rgba(var(--color-ludo-bg-rgb), 0.1);
+  transform: translateY(-1px);
+}
+
+.dm-icon {
+  width: 24px !important;
+  height: 24px !important;
+  stroke-width: 2px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.unread-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--ludo-sage, #39FF14);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--ludo-sage, #39FF14);
+}
+
+.unread-badge::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background-color: var(--ludo-sage, #39FF14);
+  border-radius: 50%;
+  animation: ping-glow 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  opacity: 0.8;
+}
+
+@keyframes ping-glow {
+
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+
 .wallet-icon {
   width: 36px;
   height: 36px;
