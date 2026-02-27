@@ -3404,8 +3404,8 @@ a {
 }
 
 .profile-name-input {
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--color-ludo-surface);
+  border: 1px solid var(--color-ludo-border);
   color: var(--color-ludo-text);
   font-size: 24px;
   font-weight: 800;
@@ -3419,8 +3419,8 @@ a {
 .profile-name-input:focus,
 .profile-name-input:hover {
   outline: none;
-  background: rgba(var(--color-ludo-bg-rgb), 0.05);
-  border-color: var(--color-ludo-border);
+  border-color: var(--ludo-primary);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
 }
 
 .profile-level-badge {
