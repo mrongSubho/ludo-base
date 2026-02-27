@@ -336,9 +336,9 @@ a {
   right: 4px;
   width: 8px;
   height: 8px;
-  background-color: var(--ludo-sage, #39FF14);
+  background-color: var(--ludo-rose, #F44336);
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--ludo-sage, #39FF14);
+  box-shadow: 0 0 6px var(--ludo-rose, #F44336);
 }
 
 .unread-badge::after {
@@ -348,7 +348,7 @@ a {
   left: -2px;
   right: -2px;
   bottom: -2px;
-  background-color: var(--ludo-sage, #39FF14);
+  background-color: var(--ludo-rose, #F44336);
   border-radius: 50%;
   animation: ping-glow 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
   opacity: 0.8;
