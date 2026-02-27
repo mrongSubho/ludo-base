@@ -140,6 +140,12 @@ const ShieldIcon = () => (
   </svg>
 );
 
+const HeaderMessageIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+  </svg>
+);
+
 const LogOutIcon = () => (
   <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -180,8 +186,28 @@ function TabPanel({ title, emoji, description, onClose }: {
 // ─── Settings Drawer (slides in from right) ──────────────────────────────────
 
 function SettingsPanel({ onClose }: { onClose: () => void }) {
-  const [soundOn, setSoundOn] = useState(true);
-  const [notificationsOn, setNotificationsOn] = useState(true);
+  const [soundEffectsOn, setSoundEffectsOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(true);
+
+  useEffect(() => {
+    // Read initial preferences from localStorage
+    const savedSfx = localStorage.getItem('ludo-sfx');
+    const savedMusic = localStorage.getItem('ludo-music');
+    if (savedSfx !== null) setSoundEffectsOn(savedSfx === 'on');
+    if (savedMusic !== null) setMusicOn(savedMusic === 'on');
+  }, []);
+
+  const toggleSfx = () => {
+    const newState = !soundEffectsOn;
+    setSoundEffectsOn(newState);
+    localStorage.setItem('ludo-sfx', newState ? 'on' : 'off');
+  };
+
+  const toggleMusic = () => {
+    const newState = !musicOn;
+    setMusicOn(newState);
+    localStorage.setItem('ludo-music', newState ? 'on' : 'off');
+  };
 
   return (
     <div className="settings-drawer-overlay" onClick={onClose}>
@@ -205,16 +231,20 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <SoundIcon />
                 <span>Sound Effects</span>
               </div>
-              <button className={`settings-toggle ${soundOn ? 'toggle-on' : ''}`} onClick={() => setSoundOn(!soundOn)}>
+              <button className={`settings-toggle ${soundEffectsOn ? 'toggle-on' : ''}`} onClick={toggleSfx}>
                 <span className="toggle-knob" />
               </button>
             </div>
             <div className="settings-row">
               <div className="settings-row-left">
-                <BellIcon />
-                <span>Notifications</span>
+                <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                <span>Game Music</span>
               </div>
-              <button className={`settings-toggle ${notificationsOn ? 'toggle-on' : ''}`} onClick={() => setNotificationsOn(!notificationsOn)}>
+              <button className={`settings-toggle ${musicOn ? 'toggle-on' : ''}`} onClick={toggleMusic}>
                 <span className="toggle-knob" />
               </button>
             </div>
@@ -267,10 +297,29 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Messages Drawer (slides in from right) ──────────────────────────────────
+
+function MessagesPanel({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="settings-drawer-overlay" onClick={onClose}>
+      <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+        <div className="settings-drawer-header">
+          <h2 className="settings-drawer-title">Messages</h2>
+          <button className="settings-drawer-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="settings-drawer-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6, paddingTop: '100px' }}>
+          <HeaderMessageIcon />
+          <p style={{ marginTop: '16px', fontWeight: 500 }}>No new messages yet.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type AppState = 'dashboard' | 'game';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
 
 // Mock user data
 const USER = { avatar: '🎮', name: 'Player', level: 8 };
@@ -327,6 +376,9 @@ export default function Page() {
               </div>
             </div>
             <div className="header-right">
+              <button className="settings-dots-btn" onClick={() => toggle('messages')} title="Messages">
+                <HeaderMessageIcon />
+              </button>
               <button className="settings-dots-btn" onClick={() => toggle('settings')} title="Settings">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                   <circle cx="12" cy="5" r="2" />
@@ -468,6 +520,8 @@ export default function Page() {
             <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
           )}
 
+          {activeTab === 'settings' && <SettingsPanel onClose={closeTab} />}
+          {activeTab === 'messages' && <MessagesPanel onClose={closeTab} />}
         </div>
       )}
 

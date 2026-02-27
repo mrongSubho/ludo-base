@@ -34,6 +34,7 @@ export const useAudio = () => {
     };
 
     const playMove = useCallback(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -53,6 +54,7 @@ export const useAudio = () => {
     }, []);
 
     const playCapture = useCallback(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -72,6 +74,7 @@ export const useAudio = () => {
     }, []);
 
     const playWin = useCallback(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
         const ctx = initAudio();
         const playChime = (freq: number, startTime: number) => {
             const osc = ctx.createOscillator();
@@ -106,8 +109,10 @@ export const useAudio = () => {
     }, []);
 
     const playAmbient = useCallback((theme: string, volume: number = 0.05) => {
-        const ctx = initAudio();
         stopAmbient();
+        if (typeof window !== 'undefined' && localStorage.getItem('ludo-music') === 'off') return;
+
+        const ctx = initAudio();
 
         if (volume <= 0) return;
 
@@ -190,6 +195,7 @@ export const useAudio = () => {
     }, [stopAmbient]);
 
     const playTurn = useCallback(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
