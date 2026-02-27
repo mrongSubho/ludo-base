@@ -316,6 +316,160 @@ function MessagesPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Settings Drawer (slides in from right) ──────────────────────────────────
+// (This is located higher up in the file)
+
+// ─── User Profile Dashboard (slides in from right) ───────────────────────────
+
+const AVATARS = ['🎮', '👾', '🦊', '🦁', '🐉', '🤖', '💀', '👽'];
+
+function UserProfilePanel({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState('Player');
+  const [avatarIndex, setAvatarIndex] = useState(0);
+  const [isPublic, setIsPublic] = useState(true);
+  const [allowRequests, setAllowRequests] = useState(true);
+
+  // Animate the donut chart on mount
+  const [chartProgress, setChartProgress] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setChartProgress(78), 200); // 78% win rate
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleAvatarCycle = () => {
+    setAvatarIndex((prev) => (prev + 1) % AVATARS.length);
+  };
+
+  const currentAvatar = AVATARS[avatarIndex];
+
+  // Calculate SVG stroke offset for the 78% chart
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (chartProgress / 100) * circumference;
+
+  return (
+    <div className="settings-drawer-overlay" onClick={onClose}>
+      <div className="settings-drawer profile-drawer" onClick={e => e.stopPropagation()}>
+        <div className="settings-drawer-header">
+          <h2 className="settings-drawer-title">Profile</h2>
+          <button className="settings-drawer-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="settings-drawer-body profile-body">
+
+          {/* Identity Section */}
+          <div className="profile-identity">
+            <div className="profile-avatar-wrapper" onClick={handleAvatarCycle} title="Click to change Avatar">
+              <div className="profile-avatar">{currentAvatar}</div>
+              <div className="avatar-edit-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                </svg>
+              </div>
+            </div>
+
+            <div className="profile-name-edit">
+              <input
+                type="text"
+                className="profile-name-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={12}
+              />
+              <div className="profile-level-badge">
+                <span className="prestige-rank prestige-silver">Silver II</span>
+                <span className="level-text">Lv. 8</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-divider" />
+
+          {/* Stats Section with Chart */}
+          <div className="settings-section">
+            <h3 className="settings-section-title">Performance</h3>
+            <div className="profile-stats-grid">
+
+              <div className="stat-card-glass chart-card">
+                <div className="donut-chart-wrapper">
+                  <svg className="donut-chart" width="90" height="90" viewBox="0 0 90 90">
+                    <circle className="donut-bg" cx="45" cy="45" r={radius} strokeWidth="8" />
+                    <circle
+                      className="donut-fill"
+                      cx="45" cy="45" r={radius}
+                      strokeWidth="8"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                      transform="rotate(-90 45 45)"
+                    />
+                  </svg>
+                  <div className="donut-center">
+                    <span className="donut-value">{chartProgress}%</span>
+                    <span className="donut-label">WIN</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="stat-card-glass text-card">
+                <div className="stat-mini">
+                  <span className="stat-value">42</span>
+                  <span className="stat-label">Total Wins</span>
+                </div>
+                <div className="stat-mini">
+                  <span className="stat-value">114</span>
+                  <span className="stat-label">Matches</span>
+                </div>
+                <div className="stat-mini">
+                  <span className="stat-value">3🔥</span>
+                  <span className="stat-label">Hot Streak</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div className="settings-divider" />
+
+          {/* Privacy & Social Controls */}
+          <div className="settings-section">
+            <h3 className="settings-section-title">Privacy</h3>
+
+            <div className="settings-row">
+              <div className="settings-row-left">
+                <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>Public Profile</span>
+              </div>
+              <button className={`settings-toggle ${isPublic ? 'toggle-on' : ''}`} onClick={() => setIsPublic(!isPublic)}>
+                <span className="toggle-knob" />
+              </button>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-left">
+                <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="20" y1="8" x2="20" y2="14"></line>
+                  <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+                <span>Allow Friend Requests</span>
+              </div>
+              <button className={`settings-toggle ${allowRequests ? 'toggle-on' : ''}`} onClick={() => setAllowRequests(!allowRequests)}>
+                <span className="toggle-knob" />
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type AppState = 'dashboard' | 'game';
@@ -507,7 +661,7 @@ export default function Page() {
 
           {/* Slide-up Panels for footer tabs */}
           {activeTab === 'profile' && (
-            <TabPanel title="Profile" emoji="👤" description="Your detailed game history & stats." onClose={closeTab} />
+            <UserProfilePanel onClose={closeTab} />
           )}
           {activeTab === 'friends' && (
             <TabPanel title="Friends" emoji="👥" description="See who is online and invite them to play." onClose={closeTab} />

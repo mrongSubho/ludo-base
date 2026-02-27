@@ -3344,3 +3344,203 @@ a {
     box-shadow: 0 0 15px var(--ludo-primary), 0 0 10px rgba(255, 255, 0, 0.5);
   }
 }
+
+/* ── User Profile Panel ── */
+.profile-drawer {
+  background: var(--color-ludo-bg);
+}
+
+.profile-body {
+  padding-bottom: 32px;
+}
+
+.profile-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.profile-avatar-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ludo-indigo), var(--ludo-teal));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(var(--color-ludo-bg-rgb), 0.3);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.profile-avatar-wrapper:hover {
+  transform: scale(1.05) rotate(-5deg);
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--color-ludo-surface);
+  border: 2px solid var(--color-ludo-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ludo-text);
+}
+
+.profile-name-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-name-input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-ludo-text);
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  width: 180px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.profile-name-input:focus,
+.profile-name-input:hover {
+  outline: none;
+  background: rgba(var(--color-ludo-bg-rgb), 0.05);
+  border-color: var(--color-ludo-border);
+}
+
+.profile-level-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prestige-rank {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prestige-silver {
+  background: linear-gradient(135deg, #E0E0E0, #9E9E9E);
+  color: #212121;
+  box-shadow: 0 0 8px rgba(158, 158, 158, 0.4);
+}
+
+.profile-level-badge .level-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ludo-faint);
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.stat-card-glass {
+  background: rgba(var(--color-ludo-surface-rgb), 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-ludo-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-around;
+}
+
+.stat-mini {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.stat-mini .stat-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-ludo-text);
+}
+
+.stat-mini .stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ludo-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.donut-chart-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+}
+
+.donut-bg {
+  fill: none;
+  stroke: rgba(var(--color-ludo-text-rgb), 0.1);
+}
+
+.donut-fill {
+  fill: none;
+  stroke: var(--ludo-indigo);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.25, 1, 0.5, 1);
+  filter: drop-shadow(0 0 4px var(--ludo-indigo));
+}
+
+.donut-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-value {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-ludo-text);
+}
+
+.donut-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ludo-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+}
