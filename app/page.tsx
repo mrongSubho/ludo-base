@@ -313,7 +313,7 @@ export default function Page() {
             <span className="game-status">{playerCount} Players • Bet {betAmount}</span>
           </div>
           <main className="board-main has-top-back">
-            <Board />
+            <Board playerCount={playerCount} />
           </main>
         </>
       )}

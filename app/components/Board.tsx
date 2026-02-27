@@ -47,10 +47,23 @@ const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = 
     { color: 'blue', position: 'top-right' },
 ];
 
-function shufflePlayers(): Player[] {
+function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4'): Player[] {
     const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
-    return COLOR_SEATS.map((seat, i) => ({ ...templates[i], ...seat }));
+
+    // In a 2-player game, we only want 2 diagonal colors. 
+    // Which 2? Either 'green'/'blue' or 'red'/'yellow'
+    const usePair1 = Math.random() > 0.5; // True: Green(0) & Blue(3), False: Red(1) & Yellow(2)
+    const activeIndices = playerCount === '2' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
+
+    return COLOR_SEATS.map((seat, i) => {
+        if (!activeIndices.includes(i)) return null;
+        return { ...templates[i], ...seat };
+    }).filter(Boolean) as Player[];
 }
+
+const getTeam = (color: Player['color']) => {
+    return (color === 'green' || color === 'blue') ? 1 : 2;
+};
 
 // ─── Path Constants ──────────────────────────────────────────────────────────
 
@@ -354,13 +367,15 @@ function PlayerCard({
 
 export default function Board({
     showLeaderboard = false,
-    onToggleLeaderboard
+    onToggleLeaderboard,
+    playerCount = '4'
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
+    playerCount?: '2' | '4' | '2v2';
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
-    const [players, setPlayers] = useState<Player[]>(() => shufflePlayers());
+    const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
     // Single state for the color-corner mapping and derived paths (always in sync)
     const [colorLayout, setColorLayout] = useState<{
         colorCorner: ColorCorner;
@@ -384,7 +399,7 @@ export default function Board({
             yellow: [-1, -1, -1, -1],
             blue: [-1, -1, -1, -1],
         },
-        currentPlayer: 'green' as Player['color'],
+        currentPlayer: players[0].color,
         diceValue: null as number | null,
         gamePhase: 'rolling' as 'rolling' | 'moving',
         winner: null as Player['color'] | null,
@@ -426,7 +441,8 @@ export default function Board({
 
     const resetGame = useCallback(() => {
         const newCC = shuffleColorCorner();
-        setPlayers(shufflePlayers());
+        const newPlayers = shufflePlayers(playerCount);
+        setPlayers(newPlayers);
         setColorLayout({ colorCorner: newCC, playerPaths: buildPlayerPaths(newCC) });
         setGameState({
             positions: {
@@ -435,7 +451,7 @@ export default function Board({
                 yellow: [-1, -1, -1, -1],
                 blue: [-1, -1, -1, -1],
             },
-            currentPlayer: 'green',
+            currentPlayer: newPlayers[0].color,
             diceValue: null,
             gamePhase: 'rolling',
             winner: null,
@@ -544,7 +560,11 @@ export default function Board({
                 if (!isSafeSquare) {
                     // Check other players for capture
                     (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
-                        if (otherColor !== color) {
+                        if (otherColor !== color && players.some(p => p.color === otherColor)) {
+                            // In 2v2, do not capture teammates
+                            if (playerCount === '2v2' && getTeam(otherColor) === getTeam(color)) {
+                                return; // skip
+                            }
                             const playerPositions = newPositions[otherColor];
                             let playerCaptured = false;
 
@@ -569,15 +589,33 @@ export default function Board({
             // --- WIN CHECK ---
             const hasWon = checkWin(newPositions, color);
             const newWinners = [...prev.winners];
+            let teamWon = false;
+
             if (hasWon && !newWinners.includes(color)) {
                 newWinners.push(color);
-                playWin();
-                if (newWinners.length === 1) {
-                    recordWin(color);
-                    triggerWinConfetti();
+
+                if (playerCount === '2v2') {
+                    // Check if teammate also won
+                    const teammate = (color === 'green' || color === 'blue')
+                        ? (color === 'green' ? 'blue' : 'green')
+                        : (color === 'red' ? 'yellow' : 'red');
+                    if (newWinners.includes(teammate)) {
+                        teamWon = true;
+                    }
+                } else {
+                    teamWon = true; // Solo win
+                }
+
+                if (teamWon) {
+                    playWin();
+                    if (newWinners.length === (playerCount === '2v2' ? 2 : 1)) {
+                        recordWin(color);
+                        triggerWinConfetti();
+                    }
                 }
             }
 
+            const gameEnded = (playerCount === '2v2') ? teamWon : hasWon;
             const newPlayer = (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer);
 
             return {
@@ -585,7 +623,7 @@ export default function Board({
                 positions: newPositions,
                 gamePhase: 'rolling',
                 currentPlayer: newPlayer,
-                winner: hasWon ? color : prev.winner,
+                winner: gameEnded ? color : prev.winner,
                 winners: newWinners,
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
                 timeLeft: 15, // Reset timer whenever turn passes or bonus turn
@@ -596,8 +634,10 @@ export default function Board({
 
     const getNextPlayer = (current: Player['color']): Player['color'] => {
         const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
-        const idx = order.indexOf(current);
-        return order[(idx + 1) % 4];
+        const activeColors = players.map(p => p.color);
+        const activeOrder = order.filter(c => activeColors.includes(c));
+        const idx = activeOrder.indexOf(current);
+        return activeOrder[(idx + 1) % activeOrder.length];
     };
 
     const handleRoll = (value: number) => {
@@ -847,6 +887,7 @@ export default function Board({
         const tokens: React.ReactNode[] = [];
 
         (['green', 'red', 'blue', 'yellow'] as const).forEach((color) => {
+            if (!players.some(p => p.color === color)) return;
             gameState.positions[color].forEach((pos, idx) => {
                 if (pos >= 0 && pos < 58) { // Up to 57
                     const point = playerPaths[color][pos];
@@ -907,6 +948,7 @@ export default function Board({
                 <div className="board-grid">
                     {/* ── Corner Homes ── */}
                     {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
+                        const isActive = players.some(p => p.color === color);
                         const slot = CORNER_SLOTS[colorCorner[color as PlayerColor]];
                         const gridInfo = { row: slot.gridRow, col: slot.gridCol };
 
@@ -915,14 +957,15 @@ export default function Board({
                             .filter(idx => idx !== -1);
 
                         return (
-                            <HomeBlock
-                                key={color}
-                                color={color}
-                                gridRow={gridInfo.row}
-                                gridCol={gridInfo.col}
-                                tokensInHome={tokensInHome}
-                                onTokenClick={(idx) => handleTokenClick(color, idx)}
-                            />
+                            <div key={color} style={{ opacity: isActive ? 1 : 0.2, display: 'contents' }}>
+                                <HomeBlock
+                                    color={color}
+                                    gridRow={gridInfo.row}
+                                    gridCol={gridInfo.col}
+                                    tokensInHome={tokensInHome}
+                                    onTokenClick={isActive ? (idx) => handleTokenClick(color, idx) : () => { }}
+                                />
+                            </div>
                         );
                     })}
 
@@ -932,6 +975,7 @@ export default function Board({
                         style={{ gridRow: '7 / 10', gridColumn: '7 / 10' }}
                     >
                         {(['green', 'red', 'blue', 'yellow'] as const).map((color) => {
+                            const isActive = players.some(p => p.color === color);
                             const finishedCount = gameState.positions[color].filter(p => p === 57).length;
                             const triClass = {
                                 green: 'tri-bottom',
@@ -941,8 +985,8 @@ export default function Board({
                             }[color];
 
                             return (
-                                <div key={color} className={`tri ${triClass}`}>
-                                    {finishedCount > 0 && (
+                                <div key={color} className={`tri ${triClass}`} style={{ opacity: isActive ? 1 : 0.1 }}>
+                                    {finishedCount > 0 && isActive && (
                                         <div className="finish-counter">
                                             {finishedCount}
                                         </div>
