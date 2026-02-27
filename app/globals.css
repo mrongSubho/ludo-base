@@ -862,21 +862,31 @@ a {
   border: none;
   box-shadow: none;
   padding: 0;
+}
+
+.home-player-label {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 5;
+  pointer-events: none;
 }
 
-.avatar-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.avatar-text.text-align-right {
-  align-items: flex-end;
-}
-
-.avatar-text.text-align-left {
-  align-items: flex-start;
+/* Adjust labels for top row homes (yellow, blue) to sit at the top */
+.board-home.yellow .home-player-label,
+.board-home.blue .home-player-label {
+  bottom: auto;
+  top: 8px;
 }
 
 .avatar-circle-wrapper {
@@ -932,21 +942,24 @@ a {
   box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 14px rgba(0, 82, 255, 0.3);
 }
 
-.avatar-lv {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--color-ludo-blue);
+.player-dice-wrapper {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
 }
 
-.avatar-name {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-ludo-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 64px;
-  text-align: center;
+/* Left side wrappers (Green, Yellow) */
+.wrapper-bottom-left .player-dice-wrapper,
+.wrapper-top-left .player-dice-wrapper {
+  left: 60px;
+  /* Push right of avatar */
+}
+
+/* Right side wrappers (Red, Blue) */
+.wrapper-bottom-right .player-dice-wrapper,
+.wrapper-top-right .player-dice-wrapper {
+  right: 60px;
 }
 
 /* Directional arrow marker */

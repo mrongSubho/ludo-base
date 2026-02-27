@@ -241,12 +241,14 @@ function HomeBlock({
     gridRow,
     gridCol,
     tokensInHome,
+    player,
     onTokenClick,
 }: {
     color: 'green' | 'red' | 'yellow' | 'blue';
     gridRow: string;
     gridCol: string;
     tokensInHome: number[];
+    player?: Player;
     onTokenClick: (tokenIndex: number) => void;
 }) {
     return (
@@ -268,6 +270,11 @@ function HomeBlock({
                     </div>
                 ))}
             </div>
+            {player && (
+                <div className="home-player-label">
+                    Lv.{player.level} {player.name}
+                </div>
+            )}
         </div>
     );
 }
@@ -318,27 +325,9 @@ function PlayerCard({
     const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
-    const isLeft = player.position.includes('left');
-
-    const textBlock = (
-        <div className={`avatar-text ${isLeft ? 'text-align-right' : 'text-align-left'}`}>
-            <span className="avatar-name">{player.name}</span>
-            <span className="avatar-lv">Lv.{player.level}</span>
-            {!player.isAi && strikes > 0 && (
-                <div className="strike-indicators">
-                    {[1, 2, 3].map(s => (
-                        <span key={s} className={`strike-dot ${strikes >= s ? 'active' : ''}`} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
 
     return (
         <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
-            {/* Right-positioned (Red, Blue): text LEFT, avatar RIGHT */}
-            {!isLeft && textBlock}
-
             {/* Circular Avatar */}
             <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
                 {!player.isAi && (
@@ -371,9 +360,6 @@ function PlayerCard({
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
-
-            {/* Left-positioned (Green, Yellow): avatar LEFT, text RIGHT */}
-            {isLeft && textBlock}
         </div>
     );
 }
@@ -999,6 +985,14 @@ export default function Board({
                             {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
                                 <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                             )}
+                            {gameState.currentPlayer === p.color && (
+                                <div className="player-dice-wrapper">
+                                    <Dice
+                                        onRoll={handleRoll}
+                                        disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner)}
+                                    />
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -1023,6 +1017,7 @@ export default function Board({
                                     gridRow={gridInfo.row}
                                     gridCol={gridInfo.col}
                                     tokensInHome={tokensInHome}
+                                    player={players.find(p => p.color === color)}
                                     onTokenClick={isActive ? (idx) => handleTokenClick(color, idx) : () => { }}
                                 />
                             </div>
@@ -1054,13 +1049,6 @@ export default function Board({
                                 </div>
                             );
                         })}
-
-                        <div className="dice-overlay">
-                            <Dice
-                                onRoll={handleRoll}
-                                disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner}
-                            />
-                        </div>
                     </div>
 
                     {/* ── Path Squares ── */}
@@ -1161,6 +1149,14 @@ export default function Board({
                             {/* Auto-play Mode Tag */}
                             {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
                                 <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                            )}
+                            {gameState.currentPlayer === p.color && (
+                                <div className="player-dice-wrapper">
+                                    <Dice
+                                        onRoll={handleRoll}
+                                        disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner)}
+                                    />
+                                </div>
                             )}
                         </div>
                     );
