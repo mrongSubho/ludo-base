@@ -104,11 +104,10 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
+                                style={{ opacity: isRolling ? 0.3 : 1 }}
                             >
-                                {/* Center large animated question mark or icon */}
-                                <text x="50" y="65" fontSize="45" textAnchor="middle" fill="#64748B" fontWeight="bold">
-                                    ?
-                                </text>
+                                {/* Show 6 dots as the default resting face instead of '?' */}
+                                {renderDots(6)}
                             </motion.g>
                         )}
                     </AnimatePresence>
