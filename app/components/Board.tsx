@@ -31,12 +31,26 @@ interface Player {
     isAi?: boolean;
 }
 
-const PLAYERS: Player[] = [
-    { name: 'Alex', level: 12, avatar: '🟢', color: 'green', position: 'bottom-left', isAi: false },
-    { name: 'Gemini (AI)', level: 8, avatar: '🤖', color: 'red', position: 'bottom-right', isAi: true },
-    { name: 'Deep (AI)', level: 15, avatar: '💾', color: 'yellow', position: 'top-left', isAi: true },
-    { name: 'Core (AI)', level: 10, avatar: '⚙️', color: 'blue', position: 'top-right', isAi: true },
+// Player identities — shuffled onto color seats each game
+const PLAYER_TEMPLATES = [
+    { name: 'Alex', level: 12, avatar: '🎮', isAi: false },
+    { name: 'Gemini', level: 8, avatar: '🤖', isAi: true },
+    { name: 'Deep', level: 15, avatar: '💾', isAi: true },
+    { name: 'Core', level: 10, avatar: '⚙️', isAi: true },
 ];
+
+// Fixed: color → corner position (diagonal pairs: green↔blue, red↔yellow)
+const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = [
+    { color: 'green', position: 'bottom-left' },
+    { color: 'red', position: 'bottom-right' },
+    { color: 'yellow', position: 'top-left' },
+    { color: 'blue', position: 'top-right' },
+];
+
+function shufflePlayers(): Player[] {
+    const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
+    return COLOR_SEATS.map((seat, i) => ({ ...templates[i], ...seat }));
+}
 
 // ─── Path Constants ──────────────────────────────────────────────────────────
 
@@ -305,6 +319,7 @@ export default function Board({
     onToggleLeaderboard?: (show: boolean) => void;
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
+    const [players, setPlayers] = useState<Player[]>(() => shufflePlayers());
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
     const [gameState, setGameState] = useState({
         positions: {
@@ -354,6 +369,7 @@ export default function Board({
     }, []);
 
     const resetGame = useCallback(() => {
+        setPlayers(shufflePlayers()); // new seat draw every game
         setGameState({
             positions: {
                 green: [-1, -1, -1, -1],
@@ -381,7 +397,7 @@ export default function Board({
     }, []);
 
     const recordWin = useCallback((winnerColor: Player['color']) => {
-        const player = PLAYERS.find(p => p.color === winnerColor);
+        const player = players.find(p => p.color === winnerColor);
         if (!player) return;
 
         const data = localStorage.getItem('ludo-leaderboard');
@@ -651,7 +667,7 @@ export default function Board({
         if (gameState.winner) return;
 
         // Only beep if the new active player is human and hasn't struck out into auto-play
-        const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
+        const currentPlayerInfo = players.find(p => p.color === gameState.currentPlayer);
         const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
 
         if (!isCurrentlyBot && gameState.gamePhase === 'rolling') {
@@ -663,7 +679,7 @@ export default function Board({
     useEffect(() => {
         if (gameState.winner) return;
 
-        const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
+        const currentPlayerInfo = players.find(p => p.color === gameState.currentPlayer);
 
         // Timer only applies to non-AI humans (unless they strike out 3 times)
         const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
@@ -722,7 +738,7 @@ export default function Board({
     useEffect(() => {
         if (gameState.winner) return;
 
-        const currentPlayerInfo = PLAYERS.find(p => p.color === gameState.currentPlayer);
+        const currentPlayerInfo = players.find(p => p.color === gameState.currentPlayer);
 
         // AI logic handles both native AI and humans who struck out
         const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
@@ -809,7 +825,7 @@ export default function Board({
         <div className="board-outer">
             {/* ── Top Player Row (Opponent: Yellow & Blue) ── */}
             <div className="player-row player-row-top">
-                {PLAYERS.filter(p => p.position.includes('top')).map((p) => (
+                {players.filter(p => p.position.includes('top')).map((p) => (
                     <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
                         <PlayerCard
                             player={p}
@@ -954,7 +970,7 @@ export default function Board({
 
             {/* ── Bottom Player Row (You & Opponent: Green & Red) ── */}
             <div className="player-row player-row-bottom">
-                {PLAYERS.filter(p => p.position.includes('bottom')).map((p) => (
+                {players.filter(p => p.position.includes('bottom')).map((p) => (
                     <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
                         <PlayerCard
                             player={p}
