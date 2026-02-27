@@ -159,6 +159,8 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
         strikes: { green: 0, red: 0, yellow: 0, blue: 0 } as Record<Player['color'], number>
     });
 
+    const [displayPositions, setDisplayPositions] = useState({ green: 0, red: 0, yellow: 0, blue: 0 } as Record<Player['color'], number>);
+
     const checkWin = useCallback((positions: Record<Player['color'], number>, color: Player['color']) => {
         return positions[color] === 100;
     }, []);
@@ -184,6 +186,8 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
     const handleRoll = useCallback((val: number) => {
         if (gameState.gamePhase !== 'rolling' || gameState.winner) return;
 
+        const activePlayer = gameState.currentPlayer;
+
         setGameState(prev => ({
             ...prev,
             diceValue: val,
@@ -192,68 +196,101 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
         }));
 
         setTimeout(() => {
-            const currentPos = gameState.positions[gameState.currentPlayer];
-            let nextPos = currentPos + val;
+            const currentPos = gameState.positions[activePlayer];
+
+            // Build absolute path array for step-by-step animation
+            const path: number[] = [];
+            let tempPos = currentPos;
             let bounced = false;
 
-            if (nextPos > 100) {
-                // Bounce back effect for exact roll requirement
-                const excessive = nextPos - 100;
-                nextPos = 100 - excessive;
-                bounced = true;
-                showMessage(`Too high! Bounced back to ${nextPos}`);
+            for (let i = 0; i < val; i++) {
+                if (tempPos < 100 && !bounced) {
+                    tempPos++;
+                    if (tempPos === 100 && i < val - 1) {
+                        bounced = true;
+                    }
+                } else if (bounced) {
+                    tempPos--;
+                }
+                path.push(tempPos);
             }
 
-            // Move the token
-            setGameState(prev => {
-                const newPos = { ...prev.positions, [prev.currentPlayer]: nextPos };
-                playMove();
-                return { ...prev, positions: newPos };
-            });
+            if (bounced) {
+                showMessage(`Too high! Bounced back to ${tempPos}`);
+            }
 
-            // Check for ladders/snakes after move settles
-            setTimeout(() => {
-                let finalPos = nextPos;
-                const ladder = LADDERS.find(l => l.start === nextPos);
-                const snake = SNAKES.find(s => s.start === nextPos);
+            let stepIndex = 0;
 
-                if (!bounced) {
-                    if (ladder) {
-                        finalPos = ladder.end;
-                        showMessage("You found a Ladder! ✨");
-                        playMove();
-                    } else if (snake) {
-                        finalPos = snake.end;
-                        showMessage("Oh no! Snake bite! 🐍");
-                        playCapture(); // Just an aggressive sound
+            const animateStep = () => {
+                if (stepIndex < path.length) {
+                    const nextStepPos = path[stepIndex];
+                    setDisplayPositions(prev => ({ ...prev, [activePlayer]: nextStepPos }));
+                    playMove();
+                    stepIndex++;
+                    setTimeout(animateStep, 350); // Speed of each tile step
+                } else {
+                    // Path finished, check for Snakes or Ladders
+                    const targetPos = tempPos;
+                    let finalPos = targetPos;
+                    const ladder = LADDERS.find(l => l.start === targetPos);
+                    const snake = SNAKES.find(s => s.start === targetPos);
+                    let hasSlide = false;
+
+                    if (!bounced) {
+                        if (ladder) {
+                            finalPos = ladder.end;
+                            hasSlide = true;
+                            setTimeout(() => {
+                                showMessage("You found a Ladder! ✨");
+                                playWin(); // Positive sound
+                                setDisplayPositions(prev => ({ ...prev, [activePlayer]: finalPos }));
+                            }, 400); // Small pause before sliding up
+                        } else if (snake) {
+                            finalPos = snake.end;
+                            hasSlide = true;
+                            setTimeout(() => {
+                                showMessage("Oh no! Snake bite! 🐍");
+                                playCapture(); // Aggressive sound
+                                setDisplayPositions(prev => ({ ...prev, [activePlayer]: finalPos }));
+                            }, 400); // Small pause before sliding down
+                        }
                     }
+
+                    // Lock the UI until the sliding transition finishes, otherwise unlock instantly
+                    const slideDelay = hasSlide ? 1200 : 300;
+
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            const finalPositions = { ...prev.positions, [activePlayer]: finalPos };
+                            const hasWon = checkWin(finalPositions, activePlayer);
+
+                            if (hasWon) {
+                                playWin();
+                                triggerWinConfetti();
+                                return { ...prev, positions: finalPositions, winner: activePlayer, gamePhase: 'rolling' };
+                            }
+
+                            // Extra turn on 6, else next player
+                            const nextPlayer = val === 6 ? activePlayer : getNextPlayer(activePlayer, players);
+                            if (val !== 6) playTurn();
+
+                            return {
+                                ...prev,
+                                positions: finalPositions,
+                                gamePhase: 'rolling',
+                                currentPlayer: nextPlayer,
+                                diceValue: null,
+                                timeLeft: 15
+                            };
+                        });
+                    }, slideDelay);
                 }
+            };
 
-                setGameState(prev => {
-                    const finalPositions = { ...prev.positions, [prev.currentPlayer]: finalPos };
-                    const hasWon = checkWin(finalPositions, prev.currentPlayer);
+            // Start the tile-by-tile journey
+            animateStep();
 
-                    if (hasWon) {
-                        playWin();
-                        triggerWinConfetti();
-                        return { ...prev, positions: finalPositions, winner: prev.currentPlayer, gamePhase: 'rolling' };
-                    }
-
-                    // Extra turn on 6, else next player
-                    const nextPlayer = val === 6 ? prev.currentPlayer : getNextPlayer(prev.currentPlayer, players);
-                    if (val !== 6) playTurn();
-
-                    return {
-                        ...prev,
-                        positions: finalPositions,
-                        gamePhase: 'rolling',
-                        currentPlayer: nextPlayer,
-                        diceValue: null,
-                        timeLeft: 15
-                    };
-                });
-            }, 600); // Wait for move animation
-        }, 800); // 800ms to show the dice roll
+        }, 800); // 800ms wait to show the dice roll number before moving
     }, [gameState, players, playMove, playCapture, playTurn, playWin, triggerWinConfetti, checkWin]);
 
     const handleSkipTurn = useCallback((missedPlayerColor: Player['color']) => {
@@ -374,7 +411,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {/* Tokens overlay */}
                 <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 w-full h-full pointer-events-none" style={{ zIndex: 20 }}>
                     {players.map((p, idx) => {
-                        const pos = gameState.positions[p.color];
+                        const pos = displayPositions[p.color];
                         if (pos === 0) return null; // Off board
                         const gridP = getGridPos(pos);
                         return (
