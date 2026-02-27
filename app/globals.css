@@ -2209,6 +2209,25 @@ a {
 
 .settings-row-icon {
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-row-icon.svg-icon {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  flex-shrink: 0;
+  display: block;
+  color: var(--color-ludo-faint);
+  transition: color 0.2s ease;
+}
+
+.text-danger .settings-row-icon.svg-icon {
+  color: #ef4444;
+  /* Match danger text color */
 }
 
 .settings-toggle {
@@ -2260,6 +2279,71 @@ a {
   font-weight: 400 !important;
   color: var(--ludo-faint) !important;
   margin-top: 4px !important;
+}
+
+/* ─── Settings Action Buttons ─── */
+.settings-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 10px;
+  margin: 2px 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ludo-text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.settings-action-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.text-danger {
+  color: #ef4444 !important;
+}
+
+/* ─── Inline Theme Switcher ─── */
+.theme-switcher-inline {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.theme-inline-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-ludo-border);
+  background: var(--color-ludo-card);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.theme-inline-btn.active {
+  border-color: #6366F1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.theme-inline-btn:hover:not(.active) {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-inline-btn .theme-icon {
+  font-size: 16px;
+}
+
+.theme-inline-btn .theme-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-ludo-text);
 }
 
 
