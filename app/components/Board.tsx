@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
@@ -78,40 +78,125 @@ const rotatePath = (points: Point[], startIndex: number): Point[] => {
     return [...points.slice(startIndex), ...points.slice(0, startIndex)];
 };
 
-const PLAYER_PATHS: Record<string, Point[]> = {
-    green: [
-        ...rotatePath(SHARED_PATH, 34), // Starts at {14,7} (bottom-middle left)
-        { r: 14, c: 8 }, { r: 13, c: 8 }, { r: 12, c: 8 }, { r: 11, c: 8 }, { r: 10, c: 8 }, // Home Lane
-        { r: 9, c: 8 } // Finish
-    ],
-    red: [
-        ...rotatePath(SHARED_PATH, 21), // Starts at {9,14} (right-middle bottom)
-        { r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }, // Home Lane
-        { r: 8, c: 9 } // Finish
-    ],
-    blue: [
-        ...rotatePath(SHARED_PATH, 8), // Starts at {2,9} (top-middle right)
-        { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }, // Home Lane
-        { r: 7, c: 8 } // Finish
-    ],
-    yellow: [
-        ...rotatePath(SHARED_PATH, 47), // Starts at {7,2} (left-middle top)
-        { r: 8, c: 2 }, { r: 8, c: 3 }, { r: 8, c: 4 }, { r: 8, c: 5 }, { r: 8, c: 6 }, // Home Lane
-        { r: 8, c: 7 } // Finish
-    ],
+// ─── Corner Slot Definitions (fixed by board geometry) ──────────────────────
+// Each physical corner has a fixed start index, home lane, grid area, and lane key.
+
+type Corner = 'BL' | 'TR' | 'BR' | 'TL';
+type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
+type ColorCorner = Record<PlayerColor, Corner>;
+
+const CORNER_SLOTS: Record<Corner, {
+    startIdx: number;
+    homeCells: Point[];
+    finishCell: Point;
+    gridRow: string;
+    gridCol: string;
+    arrowDir: 'up' | 'down' | 'left' | 'right';
+    arrowCell: Point;
+}> = {
+    BL: {
+        startIdx: 34,
+        homeCells: [{ r: 14, c: 8 }, { r: 13, c: 8 }, { r: 12, c: 8 }, { r: 11, c: 8 }, { r: 10, c: 8 }],
+        finishCell: { r: 9, c: 8 },
+        gridRow: '10 / 16', gridCol: '1 / 7',
+        arrowDir: 'up', arrowCell: { r: 14, c: 8 },
+    },
+    TR: {
+        startIdx: 8,
+        homeCells: [{ r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }],
+        finishCell: { r: 7, c: 8 },
+        gridRow: '1 / 7', gridCol: '10 / 16',
+        arrowDir: 'down', arrowCell: { r: 2, c: 8 },
+    },
+    BR: {
+        startIdx: 21,
+        homeCells: [{ r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }],
+        finishCell: { r: 8, c: 9 },
+        gridRow: '10 / 16', gridCol: '10 / 16',
+        arrowDir: 'left', arrowCell: { r: 8, c: 14 },
+    },
+    TL: {
+        startIdx: 47,
+        homeCells: [{ r: 8, c: 2 }, { r: 8, c: 3 }, { r: 8, c: 4 }, { r: 8, c: 5 }, { r: 8, c: 6 }],
+        finishCell: { r: 8, c: 7 },
+        gridRow: '1 / 7', gridCol: '1 / 7',
+        arrowDir: 'right', arrowCell: { r: 8, c: 2 },
+    },
 };
 
-const SAFE_POSITIONS: Point[] = [
-    { r: 7, c: 2 }, { r: 2, c: 9 }, { r: 9, c: 14 }, { r: 14, c: 7 },   // Start squares
-    { r: 3, c: 7 }, { r: 7, c: 13 }, { r: 13, c: 9 }, { r: 9, c: 3 },   // Mid-corridor safe squares
+// The 4 valid arrangements: green↔blue always share one diagonal, red↔yellow the other.
+const VALID_COLOR_ARRANGEMENTS: ColorCorner[] = [
+    { green: 'BL', blue: 'TR', red: 'BR', yellow: 'TL' }, // A (default)
+    { green: 'TR', blue: 'BL', red: 'BR', yellow: 'TL' }, // B (swap green/blue)
+    { green: 'BL', blue: 'TR', red: 'TL', yellow: 'BR' }, // C (swap red/yellow)
+    { green: 'TR', blue: 'BL', red: 'TL', yellow: 'BR' }, // D (swap both)
 ];
 
-// Directional arrows at home lane entries
-const ARROW_CELLS: { r: number; c: number; dir: 'up' | 'down' | 'left' | 'right' }[] = [
-    { r: 14, c: 8, dir: 'up' },    // Green: first cell of green home lane (enters upward)
-    { r: 2, c: 8, dir: 'down' },   // Blue: first cell of blue home lane (enters downward)
-    { r: 8, c: 14, dir: 'left' },  // Red: first cell of red home lane (enters leftward)
-    { r: 8, c: 2, dir: 'right' },  // Yellow: first cell of yellow home lane (enters rightward)
+function shuffleColorCorner(): ColorCorner {
+    return VALID_COLOR_ARRANGEMENTS[Math.floor(Math.random() * 4)];
+}
+
+function buildPlayerPaths(cc: ColorCorner): Record<string, Point[]> {
+    const paths: Record<string, Point[]> = {};
+    (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).forEach(color => {
+        const slot = CORNER_SLOTS[cc[color]];
+        paths[color] = [
+            ...rotatePath(SHARED_PATH, slot.startIdx),
+            ...slot.homeCells,
+            slot.finishCell,
+        ];
+    });
+    return paths;
+}
+
+// Inverse map: corner → color (for lane/arrow rendering)
+function cornerToColor(cc: ColorCorner): Record<Corner, PlayerColor> {
+    const inv = {} as Record<Corner, PlayerColor>;
+    (Object.entries(cc) as [PlayerColor, Corner][]).forEach(([color, corner]) => {
+        inv[corner] = color;
+    });
+    return inv;
+}
+
+function buildPathCellsDynamic(cc: ColorCorner): PathCell[] {
+    const inv = cornerToColor(cc);
+    const cells: PathCell[] = [];
+
+    for (let r = 1; r <= 15; r++) {
+        for (let c = 1; c <= 15; c++) {
+            const inVert = c >= 7 && c <= 9;
+            const inHoriz = r >= 7 && r <= 9;
+            const isHome =
+                (r <= 6 && c <= 6) ||
+                (r <= 6 && c >= 10) ||
+                (r >= 10 && c <= 6) ||
+                (r >= 10 && c >= 10);
+            const isCenter = inVert && inHoriz;
+
+            if ((inVert || inHoriz) && !isHome && !isCenter) {
+                let cls = 'board-cell';
+
+                // Lane coloring — driven by which color occupies each corner
+                if (c === 8 && r >= 2 && r <= 6) cls += ` lane-${inv['TR']}`; // TR home lane
+                else if (r === 8 && c >= 10 && c <= 14) cls += ` lane-${inv['BR']}`; // BR home lane
+                else if (c === 8 && r >= 10 && r <= 14) cls += ` lane-${inv['BL']}`; // BL home lane
+                else if (r === 8 && c >= 2 && c <= 6) cls += ` lane-${inv['TL']}`; // TL home lane
+
+                if (SAFE_POSITIONS.some(p => p.r === r && p.c === c)) {
+                    cls += ' star-cell';
+                }
+
+                cells.push({ row: r, col: c, cls });
+            }
+        }
+    }
+    return cells;
+}
+
+// Keep SAFE_POSITIONS BEFORE buildPathCellsDynamic so it's in scope when called
+const SAFE_POSITIONS: Point[] = [
+    { r: 7, c: 2 }, { r: 2, c: 9 }, { r: 9, c: 14 }, { r: 14, c: 7 },
+    { r: 3, c: 7 }, { r: 7, c: 13 }, { r: 13, c: 9 }, { r: 9, c: 3 },
 ];
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -135,50 +220,6 @@ const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) => {
         </svg>
     );
 };
-
-// ─── Path builder ────────────────────────────────────────────────────────────
-// Diagonal arrangement:  Green (TL) — Red (TR) — Yellow (BL) — Blue (BR)
-// Finish lanes match the home in each corner.
-
-function buildPathCells(): PathCell[] {
-    const cells: PathCell[] = [];
-
-    for (let r = 1; r <= 15; r++) {
-        for (let c = 1; c <= 15; c++) {
-            const inVert = c >= 7 && c <= 9;
-            const inHoriz = r >= 7 && r <= 9;
-            const isHome =
-                (r <= 6 && c <= 6) ||
-                (r <= 6 && c >= 10) ||
-                (r >= 10 && c <= 6) ||
-                (r >= 10 && c >= 10);
-            const isCenter = inVert && inHoriz;
-
-            if ((inVert || inHoriz) && !isHome && !isCenter) {
-                let cls = 'board-cell';
-
-                // Finish lanes leading toward center
-                if (c === 8 && r >= 2 && r <= 6) cls += ' lane-blue';         // top → center
-                else if (r === 8 && c >= 10 && c <= 14) cls += ' lane-red';   // right → center
-                else if (c === 8 && r >= 10 && r <= 14) cls += ' lane-green'; // bottom → center
-                else if (r === 8 && c >= 2 && c <= 6) cls += ' lane-yellow';  // left → center
-
-                // Star / safe squares
-                if (SAFE_POSITIONS.some(p => p.r === r && p.c === c)) {
-                    cls += ' star-cell';
-                }
-
-                cells.push({ row: r, col: c, cls });
-            }
-        }
-    }
-
-    return cells;
-}
-
-const PATH_CELLS = buildPathCells();
-
-// ─── Home Block ──────────────────────────────────────────────────────────────
 
 function HomeBlock({
     color,
@@ -320,7 +361,22 @@ export default function Board({
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const [players, setPlayers] = useState<Player[]>(() => shufflePlayers());
+    // Single state for the color-corner mapping and derived paths (always in sync)
+    const [colorLayout, setColorLayout] = useState<{
+        colorCorner: ColorCorner;
+        playerPaths: Record<string, Point[]>;
+    }>(() => {
+        const cc = shuffleColorCorner();
+        return { colorCorner: cc, playerPaths: buildPlayerPaths(cc) };
+    });
+    const { colorCorner, playerPaths } = colorLayout;
+    const setColorCorner = (cc: ColorCorner) =>
+        setColorLayout({ colorCorner: cc, playerPaths: buildPlayerPaths(cc) });
+    const setPlayerPaths = (_paths: Record<string, Point[]>) => { }; // merged into setColorCorner
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+
+    // Dynamic path cells re-computed whenever the color arrangement changes
+    const pathCells = useMemo(() => buildPathCellsDynamic(colorCorner), [colorCorner]);
     const [gameState, setGameState] = useState({
         positions: {
             green: [-1, -1, -1, -1],
@@ -369,7 +425,9 @@ export default function Board({
     }, []);
 
     const resetGame = useCallback(() => {
-        setPlayers(shufflePlayers()); // new seat draw every game
+        const newCC = shuffleColorCorner();
+        setPlayers(shufflePlayers());
+        setColorLayout({ colorCorner: newCC, playerPaths: buildPlayerPaths(newCC) });
         setGameState({
             positions: {
                 green: [-1, -1, -1, -1],
@@ -480,8 +538,8 @@ export default function Board({
             let captured = false;
             let capturedColor = '';
             if (nextPos >= 0 && nextPos < 52) { // Only on shared path
-                const targetPoint = PLAYER_PATHS[color][nextPos];
-                const isSafeSquare = SAFE_POSITIONS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+                const targetPoint = playerPaths[color][nextPos];
+                const isSafeSquare = SAFE_POSITIONS.some((p: Point) => p.r === targetPoint.r && p.c === targetPoint.c);
 
                 if (!isSafeSquare) {
                     // Check other players for capture
@@ -492,7 +550,7 @@ export default function Board({
 
                             newPositions[otherColor] = playerPositions.map(otherPos => {
                                 if (otherPos >= 0 && otherPos < 52) {
-                                    const otherPoint = PLAYER_PATHS[otherColor][otherPos];
+                                    const otherPoint = playerPaths[otherColor][otherPos];
                                     if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
                                         captured = true;
                                         playerCaptured = true;
@@ -627,8 +685,8 @@ export default function Board({
 
             // Capturing / Safe Zones Logic
             if (nextPos < 52) {
-                const targetPoint = PLAYER_PATHS[playerId][nextPos];
-                const isSafeSquare = SAFE_POSITIONS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+                const targetPoint = playerPaths[playerId][nextPos];
+                const isSafeSquare = SAFE_POSITIONS.some((p: Point) => p.r === targetPoint.r && p.c === targetPoint.c);
 
                 if (isSafeSquare) {
                     // Move to Safe Zone (+50)
@@ -639,7 +697,7 @@ export default function Board({
                         if (otherColor !== playerId) {
                             gameState.positions[otherColor].forEach(otherPos => {
                                 if (otherPos >= 0 && otherPos < 52) {
-                                    const otherPoint = PLAYER_PATHS[otherColor][otherPos];
+                                    const otherPoint = playerPaths[otherColor][otherPos];
                                     if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
                                         score += 100;
                                     }
@@ -791,7 +849,7 @@ export default function Board({
         (['green', 'red', 'blue', 'yellow'] as const).forEach((color) => {
             gameState.positions[color].forEach((pos, idx) => {
                 if (pos >= 0 && pos < 58) { // Up to 57
-                    const point = PLAYER_PATHS[color][pos];
+                    const point = playerPaths[color][pos];
                     if (!point) return;
 
                     tokens.push(
@@ -849,12 +907,8 @@ export default function Board({
                 <div className="board-grid">
                     {/* ── Corner Homes ── */}
                     {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
-                        const gridInfo = {
-                            yellow: { row: "1 / 7", col: "1 / 7" },   // Top-Left
-                            blue: { row: "1 / 7", col: "10 / 16" },   // Top-Right (Opposite Green)
-                            green: { row: "10 / 16", col: "1 / 7" },  // Bottom-Left (ALEX)
-                            red: { row: "10 / 16", col: "10 / 16" },  // Bottom-Right (Opposite Yellow)
-                        }[color];
+                        const slot = CORNER_SLOTS[colorCorner[color as PlayerColor]];
+                        const gridInfo = { row: slot.gridRow, col: slot.gridCol };
 
                         const tokensInHome = gameState.positions[color]
                             .map((pos, idx) => pos === -1 ? idx : -1)
@@ -906,17 +960,21 @@ export default function Board({
                     </div>
 
                     {/* ── Path Squares ── */}
-                    {PATH_CELLS.map(({ row, col, cls }) => (
+                    {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => (
                         <div
                             key={`${row}-${col}`}
                             className={cls}
                             style={{ gridRow: row, gridColumn: col }}
                         >
                             {cls.includes('star-cell') && <StarMarker />}
-                            {/* Directional arrow at home lane entries */}
-                            {ARROW_CELLS.map(a => a.r === row && a.c === col ? (
-                                <ArrowMarker key={`arrow-${row}-${col}`} dir={a.dir} />
-                            ) : null)}
+                            {/* Directional arrow at home lane entries — dynamic per colorCorner */}
+                            {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([, corner]) => {
+                                const slot = CORNER_SLOTS[corner];
+                                if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
+                                    return <ArrowMarker key={`arrow-${row}-${col}`} dir={slot.arrowDir} />;
+                                }
+                                return null;
+                            })}
                         </div>
                     ))}
 
