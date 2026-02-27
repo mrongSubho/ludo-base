@@ -362,10 +362,10 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             />
                             {/* AI / Auto-play Badges */}
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                <div className="ai-thinking-tag absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">Thinking...</div>
+                                <div className="ai-thinking-tag absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Thinking...</div>
                             )}
                             {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                <div className="ai-thinking-tag afk-tag absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">Auto-Play</div>
+                                <div className="ai-thinking-tag afk-tag absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Auto-Play</div>
                             )}
                         </div>
                     ) : <div key={pos} className="w-[120px]" />;
@@ -468,10 +468,10 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                     onAvatarClick={() => { }}
                                 />
                                 {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap">Thinking...</div>
+                                    <div className="ai-thinking-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Thinking...</div>
                                 )}
                                 {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap">Auto-Play</div>
+                                    <div className="ai-thinking-tag afk-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Auto-Play</div>
                                 )}
                             </>
                         );
@@ -503,10 +503,10 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                     onAvatarClick={() => { }}
                                 />
                                 {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap">Thinking...</div>
+                                    <div className="ai-thinking-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Thinking...</div>
                                 )}
                                 {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap">Auto-Play</div>
+                                    <div className="ai-thinking-tag afk-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Auto-Play</div>
                                 )}
                             </>
                         );
