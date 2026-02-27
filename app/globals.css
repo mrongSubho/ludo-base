@@ -1013,41 +1013,7 @@ a {
 }
 
 /* ─── Snakes Mode Colored Player Cards ─── */
-.snakes-card-green {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-sage) 20%, transparent), transparent);
-  border: 1px solid color-mix(in srgb, var(--color-ludo-sage) 30%, transparent);
-  padding: 6px 16px 6px 6px;
-  border-radius: 30px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.snakes-card-red {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-rose) 20%, transparent), transparent);
-  border: 1px solid color-mix(in srgb, var(--color-ludo-rose) 30%, transparent);
-  padding: 6px 16px 6px 6px;
-  border-radius: 30px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.snakes-card-yellow {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-amber) 20%, transparent), transparent);
-  border: 1px solid color-mix(in srgb, var(--color-ludo-amber) 30%, transparent);
-  padding: 6px 16px 6px 6px;
-  border-radius: 30px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.snakes-card-blue {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-sky) 20%, transparent), transparent);
-  border: 1px solid color-mix(in srgb, var(--color-ludo-sky) 30%, transparent);
-  padding: 6px 16px 6px 6px;
-  border-radius: 30px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
+/* Removed frosted color tints per user feedback */
 
 .home-player-label {
   position: absolute;
@@ -1164,6 +1130,25 @@ a {
 
 .avatar-circle.blue {
   background: linear-gradient(135deg, var(--ludo-sky), var(--ludo-sky));
+}
+
+.avatar-level-badge {
+  position: absolute;
+  bottom: -4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  font-size: 8px;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 20;
 }
 
 /* Active state: scale the wrapper */

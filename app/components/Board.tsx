@@ -367,6 +367,7 @@ function PlayerCard({
                 >
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
+                <div className="avatar-level-badge">{player.level}</div>
                 {teamLabel && (
                     <div className={`team-badge team-${teamLabel.toLowerCase()}`}>
                         {teamLabel}
