@@ -3543,3 +3543,30 @@ a {
   letter-spacing: 0.5px;
   margin-top: 2px;
 }
+
+/* ─── Snakes Mode Specifics ─── */
+.snakes-board-bg {
+  background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.05), rgba(76, 29, 149, 0.1));
+}
+
+.snakes-board-wrapper {
+  perspective: 1000px;
+}
+
+.snakes-grid-container {
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-xl);
+}
+
+.snakes-grid-container .grid>div {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: all 0.2s;
+}
+
+.snakes-grid-container .grid>div:nth-child(even) {
+  background: rgba(255, 255, 255, 0.4);
+}

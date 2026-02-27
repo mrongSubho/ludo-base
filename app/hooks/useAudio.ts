@@ -214,5 +214,26 @@ export const useAudio = () => {
         osc.stop(ctx.currentTime + 0.2);
     }, []);
 
-    return { playMove, playCapture, playWin, playAmbient, stopAmbient, playTurn };
+    const playStrike = useCallback(() => {
+        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
+        const ctx = initAudio();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        // Harsh buzz for a strike
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+    }, []);
+
+    return { playMove, playCapture, playWin, playAmbient, stopAmbient, playTurn, playStrike };
 };

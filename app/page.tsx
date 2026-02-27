@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Board from './components/Board';
+import SnakesBoard from './components/SnakesBoard';
 import ThemeSwitcher from './components/ThemeSwitcher';
 // Slide-up panels and logic might be moved or handled differently later, omitting Leaderboard for now if not needed,
 // but let's keep it imported and conditionally rendered.
@@ -708,8 +709,12 @@ export default function Page() {
               </div>
             </div>
           </div>
-          <main className="board-main has-top-back">
-            <Board playerCount={playerCount} gameMode={selectedMode} />
+          <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
+            {selectedMode === 'snakes' ? (
+              <SnakesBoard playerCount={playerCount} />
+            ) : (
+              <Board playerCount={playerCount} gameMode={selectedMode} />
+            )}
           </main>
         </>
       )}
