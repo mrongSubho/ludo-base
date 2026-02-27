@@ -990,7 +990,7 @@ export default function Board({
                         return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
                     return (
-                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
+                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col items-center gap-1`}>
                             <PlayerCard
                                 player={p}
                                 isActive={gameState.currentPlayer === p.color}
@@ -1158,7 +1158,7 @@ export default function Board({
                         return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
                     return (
-                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
+                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col-reverse items-center gap-1`}>
                             <PlayerCard
                                 player={p}
                                 isActive={gameState.currentPlayer === p.color}

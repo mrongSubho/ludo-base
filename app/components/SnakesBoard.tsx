@@ -358,7 +358,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {(['top-left', 'top-right'] as const).map(pos => {
                     const p = players.find(player => player.position === pos);
                     return p ? (
-                        <div key={p.color} className="relative">
+                        <div key={p.color} className="flex flex-col items-center gap-1 z-50">
                             <PlayerCard
                                 player={p}
                                 isActive={gameState.currentPlayer === p.color}
@@ -369,10 +369,10 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             />
                             {/* AI / Auto-play Badges */}
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                <div className="ai-thinking-tag absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Thinking...</div>
+                                <div className="ai-thinking-tag">Thinking...</div>
                             )}
                             {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                <div className="ai-thinking-tag afk-tag absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Auto-Play</div>
+                                <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                             )}
                         </div>
                     ) : <div key={pos} className="w-[120px]" />;
@@ -465,7 +465,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                         const p = players.find(player => player.position === 'bottom-left');
                         if (!p) return <div className="w-[120px]" />;
                         return (
-                            <>
+                            <div key={p.color} className="flex flex-col-reverse items-center gap-1 z-50">
                                 <PlayerCard
                                     player={p}
                                     isActive={gameState.currentPlayer === p.color}
@@ -475,12 +475,12 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                     onAvatarClick={() => { }}
                                 />
                                 {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Thinking...</div>
+                                    <div className="ai-thinking-tag">Thinking...</div>
                                 )}
                                 {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Auto-Play</div>
+                                    <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                                 )}
-                            </>
+                            </div>
                         );
                     })()}
                 </div>
@@ -500,7 +500,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                         const p = players.find(player => player.position === 'bottom-right');
                         if (!p) return <div className="w-[120px]" />;
                         return (
-                            <>
+                            <div key={p.color} className="flex flex-col-reverse items-center gap-1 z-50">
                                 <PlayerCard
                                     player={p}
                                     isActive={gameState.currentPlayer === p.color}
@@ -510,12 +510,12 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                     onAvatarClick={() => { }}
                                 />
                                 {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Thinking...</div>
+                                    <div className="ai-thinking-tag">Thinking...</div>
                                 )}
                                 {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag absolute -top-6 bottom-auto left-1/2 -translate-x-1/2 whitespace-nowrap z-50">Auto-Play</div>
+                                    <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                                 )}
-                            </>
+                            </div>
                         );
                     })()}
                 </div>
@@ -523,21 +523,23 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
             {/* Winner Overlay */}
             <AnimatePresence>
-                {gameState.winner && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                        className="absolute inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm"
-                    >
-                        <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl text-center">
-                            <h2 className="text-4xl font-extrabold text-white mb-2 uppercase">{gameState.winner} Escapes!</h2>
-                            <p className="text-white/60 mb-6 font-medium">Conquered the snakes and climbed to exactly 100!</p>
-                            <button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all">
-                                Play Again
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                {
+                    gameState.winner && (
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            className="absolute inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm"
+                        >
+                            <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl text-center">
+                                <h2 className="text-4xl font-extrabold text-white mb-2 uppercase">{gameState.winner} Escapes!</h2>
+                                <p className="text-white/60 mb-6 font-medium">Conquered the snakes and climbed to exactly 100!</p>
+                                <button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all">
+                                    Play Again
+                                </button>
+                            </div>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence >
+        </div >
     );
 }

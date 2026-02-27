@@ -776,10 +776,6 @@ a {
 }
 
 .ai-thinking-tag {
-  position: absolute;
-  bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%);
   background: var(--color-ludo-slate);
   color: white;
   padding: 2px 8px;
