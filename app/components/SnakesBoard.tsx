@@ -307,10 +307,10 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
     }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.strikes, players, handleRoll, handleSkipTurn]);
 
     return (
-        <div className="snakes-board-wrapper w-full h-[100dvh] flex flex-col items-center justify-center p-4">
+        <div className="snakes-board-wrapper w-full h-full flex flex-col items-center justify-between py-4 px-2">
 
             {/* Top row cards */}
-            <div className="player-row relative w-full flex justify-between px-4 pb-2 z-50">
+            <div className="player-row relative w-full flex justify-between z-50">
                 {(['top-left', 'top-right'] as const).map(pos => {
                     const p = players.find(player => player.position === pos);
                     return p ? (
@@ -335,8 +335,8 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 })}
             </div>
 
-            {/* Main Board Grid container constrained to prevent mobile flex overflow */}
-            <div className="snakes-grid-container relative w-full aspect-square max-w-[96vw] max-h-[60vh] sm:max-w-md mx-auto my-auto bg-[#ececec] overflow-hidden shadow-base border-[4px] border-[#222] rounded-xl shrink">
+            {/* Main Board Grid container constrained to exactly 3:4 aspect without overflow */}
+            <div className="snakes-grid-container relative w-full aspect-[3/4] max-h-[65vh] max-w-[calc(65vh*0.75)] mx-auto my-auto bg-[#ececec] overflow-hidden shadow-base rounded-lg shrink">
 
                 {/* SVG Overlay for Snakes and Ladders lines */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 10 }}>
@@ -415,7 +415,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
             </div>
 
             {/* Bottom Row cards and Dice */}
-            <div className="player-row relative w-full flex justify-between px-4 pt-2 z-50 items-center">
+            <div className="player-row relative w-full flex justify-between z-50 items-center">
                 <div className="relative">
                     {(() => {
                         const p = players.find(player => player.position === 'bottom-left');
