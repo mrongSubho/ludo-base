@@ -2057,9 +2057,201 @@ a {
   color: var(--color-ludo-faint);
 }
 
-/* ─── Player Profile Sheet ─── */
-.profile-sheet {
-  max-height: 82vh;
+/* ─── Compact Player Profile Popup ─── */
+.profile-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.12);
+  z-index: 300;
+}
+
+.profile-popup {
+  position: fixed;
+  z-index: 301;
+  width: 220px;
+  background: var(--color-ludo-card);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  border: 1px solid var(--color-ludo-border);
+}
+
+/* Coloured header strip */
+.pp-header {
+  position: relative;
+  padding: 18px 14px 22px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.pp-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.pp-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: none;
+  color: white;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.pp-close:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Identity row */
+.pp-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 6px;
+  flex-wrap: wrap;
+}
+
+.pp-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-ludo-text);
+  flex: 1;
+}
+
+.pp-lv {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-ludo-blue);
+  background: rgba(0, 82, 255, 0.08);
+  border: 1px solid rgba(0, 82, 255, 0.2);
+  border-radius: 12px;
+  padding: 2px 7px;
+}
+
+.pp-ai-tag {
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(124, 58, 237, 0.1);
+  color: #7c3aed;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
+/* Stats strip */
+.pp-stats {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--color-ludo-border);
+  border-bottom: 1px solid var(--color-ludo-border);
+}
+
+.pp-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.pp-stat strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-ludo-text);
+}
+
+.pp-stat span {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-ludo-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pp-stat-div {
+  width: 1px;
+  height: 28px;
+  background: var(--color-ludo-border);
+}
+
+/* Action buttons */
+.pp-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 10px 12px;
+}
+
+.pp-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--color-ludo-border);
+  background: var(--color-ludo-background);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-ludo-text);
+  transition: all 0.18s ease;
+}
+
+.pp-btn:hover:not(:disabled) {
+  border-color: var(--color-ludo-blue);
+  background: rgba(0, 82, 255, 0.05);
+  color: var(--color-ludo-blue);
+  transform: translateY(-1px);
+}
+
+.pp-btn-active {
+  border-color: var(--color-ludo-blue);
+  background: rgba(0, 82, 255, 0.07);
+  color: var(--color-ludo-blue);
+}
+
+.pp-btn-danger:hover {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.06) !important;
+  color: #ef4444 !important;
+}
+
+.pp-btn-active-danger {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  color: #ef4444;
+}
+
+.pp-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pp-ai-note {
+  font-size: 10px;
+  color: var(--color-ludo-faint);
+  text-align: center;
+  padding: 8px 12px 14px;
+  line-height: 1.5;
 }
 
 .profile-hero {
