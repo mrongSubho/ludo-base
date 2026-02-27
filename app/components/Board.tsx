@@ -368,6 +368,11 @@ function PlayerCard({
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
+            {teamLabel && (
+                <div className={`team-badge team-${teamLabel.toLowerCase()}`}>
+                    {teamLabel}
+                </div>
+            )}
         </div>
     );
 }
@@ -976,12 +981,7 @@ export default function Board({
                         return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
                     return (
-                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} ${playerCount === '2v2' ? 'has-team' : ''}`}>
-                            {playerCount === '2v2' && (
-                                <div className={`team-label-text team-${getTeam(p.color) === 1 ? 'a' : 'b'}`}>
-                                    Team {getTeam(p.color) === 1 ? 'A' : 'B'}
-                                </div>
-                            )}
+                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
                             <PlayerCard
                                 player={p}
                                 isActive={gameState.currentPlayer === p.color}
@@ -990,6 +990,7 @@ export default function Board({
                                 power={gameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
+                                teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>
@@ -1148,7 +1149,7 @@ export default function Board({
                         return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
                     return (
-                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} ${playerCount === '2v2' ? 'has-team' : ''}`}>
+                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
                             <PlayerCard
                                 player={p}
                                 isActive={gameState.currentPlayer === p.color}
@@ -1157,12 +1158,8 @@ export default function Board({
                                 power={gameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
+                                teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
-                            {playerCount === '2v2' && (
-                                <div className={`team-label-text team-${getTeam(p.color) === 1 ? 'a' : 'b'}`}>
-                                    Team {getTeam(p.color) === 1 ? 'A' : 'B'}
-                                </div>
-                            )}
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>
                             )}
