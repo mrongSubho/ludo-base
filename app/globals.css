@@ -163,6 +163,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Match/Board Scoped Theme Wrapper ─── */
+.board-match-theme-wrapper {
+  background: var(--ludo-bg);
+  background-image: var(--ludo-bg-image);
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  color: var(--ludo-slate);
+  position: relative;
+  overflow: hidden;
+}
+
 a {
   color: inherit;
   text-decoration: none;

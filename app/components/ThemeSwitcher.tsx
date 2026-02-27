@@ -11,13 +11,11 @@ export default function ThemeSwitcher() {
         const savedTheme = localStorage.getItem('ludo-theme') as Theme;
         if (savedTheme) {
             setTheme(savedTheme);
-            document.documentElement.setAttribute('data-theme', savedTheme);
         }
     }, []);
 
     const toggleTheme = (newTheme: Theme) => {
         setTheme(newTheme);
-        document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('ludo-theme', newTheme);
     };
 

@@ -934,6 +934,14 @@ export default function Board({
         }
     }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll, getBestMove, gameState.strikes]);
 
+    const [boardTheme, setBoardTheme] = useState('default');
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('ludo-theme');
+        if (savedTheme) {
+            setBoardTheme(savedTheme);
+        }
+    }, []);
+
     const renderTokensOnPath = () => {
         const tokens: React.ReactNode[] = [];
 
@@ -972,7 +980,7 @@ export default function Board({
     };
 
     return (
-        <div className="board-outer">
+        <div data-theme={boardTheme} className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
             {/* ── Top Player Row (Opponent: Yellow & Blue) ── */}
             <div className="player-row player-row-top">
                 {(['top-left', 'top-right'] as const).map((pos) => {
