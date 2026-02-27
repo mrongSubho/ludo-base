@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Board from './components/Board';
+import ThemeSwitcher from './components/ThemeSwitcher';
 // Slide-up panels and logic might be moved or handled differently later, omitting Leaderboard for now if not needed,
 // but let's keep it imported and conditionally rendered.
 import Leaderboard from './components/Leaderboard';
@@ -113,10 +114,84 @@ function TabPanel({ title, emoji, description, onClose }: {
   );
 }
 
+// ─── Settings Panel ───────────────────────────────────────────────────────────
+
+function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const [soundOn, setSoundOn] = useState(true);
+  const [notificationsOn, setNotificationsOn] = useState(true);
+
+  return (
+    <div className="tab-panel-overlay" onClick={onClose}>
+      <div className="tab-panel settings-panel" onClick={e => e.stopPropagation()}>
+        <div className="tab-panel-handle" />
+        <div className="tab-panel-header">
+          <span className="tab-panel-emoji">⚙️</span>
+          <h2 className="tab-panel-title">Settings</h2>
+          <button className="tab-panel-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="tab-panel-body">
+          {/* Theme Section */}
+          <div className="settings-section">
+            <h3 className="settings-section-title">Theme</h3>
+            <div className="settings-theme-row">
+              <ThemeSwitcher />
+            </div>
+          </div>
+
+          <div className="settings-divider" />
+
+          {/* Toggles */}
+          <div className="settings-section">
+            <h3 className="settings-section-title">Preferences</h3>
+            <div className="settings-row">
+              <div className="settings-row-left">
+                <span className="settings-row-icon">🔊</span>
+                <span>Sound Effects</span>
+              </div>
+              <button
+                className={`settings-toggle ${soundOn ? 'toggle-on' : ''}`}
+                onClick={() => setSoundOn(!soundOn)}
+              >
+                <span className="toggle-knob" />
+              </button>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-left">
+                <span className="settings-row-icon">🔔</span>
+                <span>Notifications</span>
+              </div>
+              <button
+                className={`settings-toggle ${notificationsOn ? 'toggle-on' : ''}`}
+                onClick={() => setNotificationsOn(!notificationsOn)}
+              >
+                <span className="toggle-knob" />
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-divider" />
+
+          {/* About */}
+          <div className="settings-section">
+            <h3 className="settings-section-title">About</h3>
+            <div className="settings-about">
+              <p>Ludo Base Superstar</p>
+              <p className="settings-version">Version 1.0.0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type AppState = 'dashboard' | 'game';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | null;
+
+// Mock user data
+const USER = { avatar: '🎮', name: 'Player', level: 8 };
 
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
@@ -157,14 +232,26 @@ export default function Page() {
           {/* Header */}
           <header className="header dash-header">
             <div className="header-left">
-              <div className="wallet-icon"><WalletIcon /></div>
-              <span className="app-title">Ludo Base</span>
-            </div>
-            <div className="header-right">
               <div className="token-pill">
                 <TokenIcon />
                 <span>1,250</span>
               </div>
+            </div>
+            <div className="header-center">
+              <div className="user-avatar-mini">{USER.avatar}</div>
+              <div className="user-info-mini">
+                <span className="user-name-mini">{USER.name}</span>
+                <span className="user-level-mini">Lv.{USER.level}</span>
+              </div>
+            </div>
+            <div className="header-right">
+              <button className="settings-dots-btn" onClick={() => toggle('settings')} title="Settings">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="19" r="2" />
+                </svg>
+              </button>
             </div>
           </header>
 
@@ -297,6 +384,9 @@ export default function Page() {
           )}
           {activeTab === 'marketplace' && (
             <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
+          )}
+          {activeTab === 'settings' && (
+            <SettingsPanel onClose={closeTab} />
           )}
         </div>
       )}

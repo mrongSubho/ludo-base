@@ -222,6 +222,70 @@ a {
   gap: 10px;
 }
 
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar-mini {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(245, 158, 11, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+}
+
+.user-info-mini {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.user-name-mini {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ludo-text);
+}
+
+.user-level-mini {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ludo-faint);
+  letter-spacing: 0.3px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-dots-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-ludo-text);
+  opacity: 0.6;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.settings-dots-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.settings-dots-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .wallet-icon {
   width: 36px;
   height: 36px;
@@ -267,6 +331,107 @@ a {
 .token-pill svg {
   width: 16px;
   height: 16px;
+}
+
+/* ─── Settings Panel ─── */
+
+.settings-panel {
+  max-height: 80vh;
+}
+
+.settings-section {
+  padding: 4px 0;
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ludo-faint);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.settings-theme-row {
+  display: flex;
+  justify-content: center;
+}
+
+.settings-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 16px 0;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.settings-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ludo-text);
+}
+
+.settings-row-icon {
+  font-size: 18px;
+}
+
+.settings-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.25s ease;
+  padding: 0;
+}
+
+.settings-toggle.toggle-on {
+  background: #6366F1;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s ease;
+}
+
+.settings-toggle.toggle-on .toggle-knob {
+  transform: translateX(20px);
+}
+
+.settings-about {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.settings-about p {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ludo-text);
+  margin: 0;
+}
+
+.settings-version {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--ludo-faint) !important;
+  margin-top: 4px !important;
 }
 
 /* ─── Main Content ─── */
@@ -380,12 +545,6 @@ a {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-ludo-text);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 /* ─── Board Styles ─── */
