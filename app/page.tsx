@@ -114,33 +114,27 @@ function TabPanel({ title, emoji, description, onClose }: {
   );
 }
 
-// ─── Settings Panel ───────────────────────────────────────────────────────────
+// ─── Settings Drawer (slides in from right) ──────────────────────────────────
 
 function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [soundOn, setSoundOn] = useState(true);
   const [notificationsOn, setNotificationsOn] = useState(true);
 
   return (
-    <div className="tab-panel-overlay" onClick={onClose}>
-      <div className="tab-panel settings-panel" onClick={e => e.stopPropagation()}>
-        <div className="tab-panel-handle" />
-        <div className="tab-panel-header">
-          <span className="tab-panel-emoji">⚙️</span>
-          <h2 className="tab-panel-title">Settings</h2>
-          <button className="tab-panel-close" onClick={onClose}>✕</button>
+    <div className="settings-drawer-overlay" onClick={onClose}>
+      <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+        <div className="settings-drawer-header">
+          <h2 className="settings-drawer-title">Settings</h2>
+          <button className="settings-drawer-close" onClick={onClose}>✕</button>
         </div>
-        <div className="tab-panel-body">
-          {/* Theme Section */}
+        <div className="settings-drawer-body">
           <div className="settings-section">
             <h3 className="settings-section-title">Theme</h3>
             <div className="settings-theme-row">
               <ThemeSwitcher />
             </div>
           </div>
-
           <div className="settings-divider" />
-
-          {/* Toggles */}
           <div className="settings-section">
             <h3 className="settings-section-title">Preferences</h3>
             <div className="settings-row">
@@ -148,10 +142,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <span className="settings-row-icon">🔊</span>
                 <span>Sound Effects</span>
               </div>
-              <button
-                className={`settings-toggle ${soundOn ? 'toggle-on' : ''}`}
-                onClick={() => setSoundOn(!soundOn)}
-              >
+              <button className={`settings-toggle ${soundOn ? 'toggle-on' : ''}`} onClick={() => setSoundOn(!soundOn)}>
                 <span className="toggle-knob" />
               </button>
             </div>
@@ -160,18 +151,12 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <span className="settings-row-icon">🔔</span>
                 <span>Notifications</span>
               </div>
-              <button
-                className={`settings-toggle ${notificationsOn ? 'toggle-on' : ''}`}
-                onClick={() => setNotificationsOn(!notificationsOn)}
-              >
+              <button className={`settings-toggle ${notificationsOn ? 'toggle-on' : ''}`} onClick={() => setNotificationsOn(!notificationsOn)}>
                 <span className="toggle-knob" />
               </button>
             </div>
           </div>
-
           <div className="settings-divider" />
-
-          {/* About */}
           <div className="settings-section">
             <h3 className="settings-section-title">About</h3>
             <div className="settings-about">
@@ -385,9 +370,7 @@ export default function Page() {
           {activeTab === 'marketplace' && (
             <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
           )}
-          {activeTab === 'settings' && (
-            <SettingsPanel onClose={closeTab} />
-          )}
+
         </div>
       )}
 
@@ -420,6 +403,11 @@ export default function Page() {
             <Board playerCount={playerCount} gameMode={selectedMode} />
           </main>
         </>
+      )}
+
+      {/* Settings Drawer — at top level for correct fixed positioning */}
+      {activeTab === 'settings' && (
+        <SettingsPanel onClose={closeTab} />
       )}
 
     </div>
