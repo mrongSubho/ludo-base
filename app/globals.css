@@ -333,184 +333,6 @@ a {
   height: 16px;
 }
 
-/* ─── Settings Drawer (Right Side) ─── */
-
-.settings-drawer-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  animation: drawerFadeIn 0.2s ease;
-}
-
-.settings-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 280px;
-  max-width: 80vw;
-  height: 100vh;
-  background: var(--ludo-bg, #f8f6f0);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
-  z-index: 1001;
-  animation: drawerSlideIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-@keyframes drawerSlideIn {
-  from {
-    transform: translateX(100%);
-  }
-
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes drawerFadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.settings-drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.settings-drawer-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-ludo-text);
-  margin: 0;
-}
-
-.settings-drawer-close {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--ludo-faint);
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.15s;
-}
-
-.settings-drawer-close:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--color-ludo-text);
-}
-
-.settings-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.settings-section {
-  padding: 4px 0;
-}
-
-.settings-section-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: var(--ludo-faint);
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-.settings-theme-row {
-  display: flex;
-  justify-content: flex-start;
-}
-
-.settings-divider {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.06);
-  margin: 16px 0;
-}
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-}
-
-.settings-row-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-ludo-text);
-}
-
-.settings-row-icon {
-  font-size: 18px;
-}
-
-.settings-toggle {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  border-radius: 12px;
-  border: none;
-  background: rgba(0, 0, 0, 0.12);
-  cursor: pointer;
-  transition: background 0.25s ease;
-  padding: 0;
-}
-
-.settings-toggle.toggle-on {
-  background: #6366F1;
-}
-
-.toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  transition: transform 0.25s ease;
-}
-
-.settings-toggle.toggle-on .toggle-knob {
-  transform: translateX(20px);
-}
-
-.settings-about {
-  text-align: center;
-  padding: 12px 0;
-}
-
-.settings-about p {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-ludo-text);
-  margin: 0;
-}
-
-.settings-version {
-  font-size: 12px !important;
-  font-weight: 400 !important;
-  color: var(--ludo-faint) !important;
-  margin-top: 4px !important;
-}
-
 /* ─── Main Content ─── */
 .main-content {
   flex: 1;
@@ -2260,6 +2082,186 @@ a {
   background: #10b981;
   box-shadow: 0 0 8px #10b981;
 }
+
+
+/* ─── Settings Drawer (Right Side) ─── */
+
+.settings-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  animation: drawerFadeIn 0.2s ease;
+}
+
+.settings-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 280px;
+  max-width: 80vw;
+  height: 100vh;
+  background: var(--ludo-bg, #f8f6f0);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+  animation: drawerSlideIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawerFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.settings-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.settings-drawer-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ludo-text);
+  margin: 0;
+}
+
+.settings-drawer-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--ludo-faint);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.settings-drawer-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-ludo-text);
+}
+
+.settings-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.settings-section {
+  padding: 4px 0;
+}
+
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ludo-faint);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.settings-theme-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.settings-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 16px 0;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.settings-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ludo-text);
+}
+
+.settings-row-icon {
+  font-size: 18px;
+}
+
+.settings-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.25s ease;
+  padding: 0;
+}
+
+.settings-toggle.toggle-on {
+  background: #6366F1;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s ease;
+}
+
+.settings-toggle.toggle-on .toggle-knob {
+  transform: translateX(20px);
+}
+
+.settings-about {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.settings-about p {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ludo-text);
+  margin: 0;
+}
+
+.settings-version {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--ludo-faint) !important;
+  margin-top: 4px !important;
+}
+
 
 /* ─── Slide-up Tab Panels ─── */
 .tab-panel-overlay {
