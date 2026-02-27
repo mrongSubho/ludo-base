@@ -1,12 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DiceProps {
     onRoll: (value: number) => void;
     isRolling?: boolean;
     disabled?: boolean;
 }
+
+const DOT_POSITIONS = {
+    1: [[50, 50]],
+    2: [[25, 25], [75, 75]],
+    3: [[20, 20], [50, 50], [80, 80]],
+    4: [[25, 25], [25, 75], [75, 25], [75, 75]],
+    5: [[20, 20], [20, 80], [50, 50], [80, 20], [80, 80]],
+    6: [[25, 20], [25, 50], [25, 80], [75, 20], [75, 50], [75, 80]]
+};
 
 export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }: DiceProps) {
     const [localIsRolling, setLocalIsRolling] = useState(false);
@@ -28,23 +38,80 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
         }, 800);
     };
 
+    const renderDots = (num: number) => {
+        const positions = DOT_POSITIONS[num as keyof typeof DOT_POSITIONS] || [];
+        return positions.map(([cx, cy], i) => (
+            <circle key={i} cx={cx} cy={cy} r="8" fill="#1E293B" className="dice-dot-svg" />
+        ));
+    };
+
     return (
         <div className="dice-container">
             <button
-                className={`dice-face ${isRolling ? 'rolling' : ''}`}
+                className={`dice-btn ${isRolling ? 'rolling' : ''}`}
                 onClick={roll}
                 disabled={disabled || isRolling}
+                title={disabled ? (isRolling ? "Rolling..." : "Wait for your turn") : "Roll Dice"}
             >
-                {/* Dots representation for 1-6 */}
-                {!isRolling && value && (
-                    <div className={`dice-dots dots-${value}`}>
-                        {[...Array(value)].map((_, i) => (
-                            <span key={i} className="dice-dot" />
-                        ))}
-                    </div>
-                )}
-                {isRolling && <div className="dice-rolling-placeholder">?</div>}
-                {!isRolling && !value && <div className="dice-rolling-placeholder">🎲</div>}
+                <motion.svg
+                    viewBox="0 0 100 100"
+                    className="dice-svg"
+                    animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [1, 1.1, 1] } : {}}
+                    transition={{ repeat: isRolling ? Infinity : 0, duration: 0.4, ease: "linear" }}
+                >
+                    {/* Main Dice Body */}
+                    <rect
+                        x="5" y="5" width="90" height="90" rx="20" ry="20"
+                        fill="url(#diceGrad)"
+                        stroke="rgba(255,255,255,0.8)"
+                        strokeWidth="3"
+                        className="dice-rect"
+                    />
+
+                    {/* Inner highlight for 3D effect */}
+                    <rect
+                        x="8" y="8" width="84" height="84" rx="16" ry="16"
+                        fill="transparent"
+                        stroke="rgba(255,255,255,0.5)"
+                        strokeWidth="2"
+                    />
+
+                    {/* Gradients */}
+                    <defs>
+                        <linearGradient id="diceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#ffffff" />
+                            <stop offset="100%" stopColor="#e2e8f0" />
+                        </linearGradient>
+                    </defs>
+
+                    {/* Dots / Face */}
+                    <AnimatePresence mode="wait">
+                        {!isRolling && value && (
+                            <motion.g
+                                key={`face-${value}`}
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                {renderDots(value)}
+                            </motion.g>
+                        )}
+                        {(!value || isRolling) && (
+                            <motion.g
+                                key="face-empty"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            >
+                                {/* Center large animated question mark or icon */}
+                                <text x="50" y="65" fontSize="45" textAnchor="middle" fill="#64748B" fontWeight="bold">
+                                    ?
+                                </text>
+                            </motion.g>
+                        )}
+                    </AnimatePresence>
+                </motion.svg>
             </button>
 
             <style jsx>{`
@@ -55,106 +122,66 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                     perspective: 1000px;
                 }
 
-                .dice-face {
-                    width: 60px;
-                    height: 60px;
-                    background: rgba(255, 255, 255, 0.4);
-                    backdrop-filter: blur(8px);
-                    -webkit-backdrop-filter: blur(8px);
-                    border: 1px solid rgba(255, 255, 255, 0.5);
-                    border-radius: 12px;
-                    box-shadow: 
-                        0 4px 15px rgba(0,0,0,0.05),
-                        inset 0 0 0 1px rgba(255,255,255,0.4);
+                .dice-btn {
+                    padding: 0;
+                    margin: 0;
+                    background: transparent;
+                    border: none;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    transition: all 0.2s ease;
                     outline: none;
+                    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 }
 
-                .dice-face:hover:not(:disabled) {
-                    transform: translateY(-2px) scale(1.05);
-                    background: rgba(255, 255, 255, 0.5);
+                .dice-svg {
+                    width: 48px;
+                    height: 48px;
+                    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
                 }
 
-                .dice-face:active:not(:disabled) {
-                    transform: translateY(0) scale(0.95);
+                .dice-rect {
+                    transition: fill 0.3s;
                 }
 
-                .dice-face:disabled {
+                .dice-dot-svg {
+                    filter: drop-shadow(0 1px 1px rgba(255,255,255,0.8));
+                }
+
+                .dice-btn:hover:not(:disabled) {
+                    transform: translateY(-4px) scale(1.05);
+                }
+
+                .dice-btn:hover:not(:disabled) .dice-svg {
+                    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15));
+                }
+
+                .dice-btn:active:not(:disabled) {
+                    transform: translateY(2px) scale(0.95);
+                }
+
+                .dice-btn:disabled {
                     cursor: not-allowed;
-                    opacity: 0.7;
+                    opacity: 0.8;
                 }
 
                 .rolling {
-                    animation: wiggle 0.15s infinite alternate, spin 0.8s ease-in-out;
+                    animation: diceShake 0.4s infinite alternate ease-in-out;
                 }
 
-                @keyframes wiggle {
-                    from { transform: rotate(-5deg); }
-                    to { transform: rotate(5deg); }
-                }
-
-                @keyframes spin {
-                    0% { transform: rotate(0deg) scale(1); }
-                    50% { transform: rotate(180deg) scale(1.2); }
-                    100% { transform: rotate(360deg) scale(1); }
-                }
-
-                .dice-dots {
-                    display: grid;
-                    width: 80%;
-                    height: 80%;
-                    gap: 4px;
-                }
-
-                .dice-dot {
-                    width: 8px;
-                    height: 8px;
-                    background: #1E293B;
-                    border-radius: 50%;
-                    justify-self: center;
-                    align-self: center;
-                }
-
-                .dots-1 { grid-template-areas: ". . ." ". a ." ". . ."; }
-                .dots-1 .dice-dot { grid-area: a; }
-
-                .dots-2 { grid-template-areas: "a . ." ". . ." ". . b"; }
-                .dots-2 .dice-dot:nth-child(1) { grid-area: a; }
-                .dots-2 .dice-dot:nth-child(2) { grid-area: b; }
-
-                .dots-3 { grid-template-areas: "a . ." ". b ." ". . c"; }
-                .dots-3 .dice-dot:nth-child(1) { grid-area: a; }
-                .dots-3 .dice-dot:nth-child(2) { grid-area: b; }
-                .dots-3 .dice-dot:nth-child(3) { grid-area: c; }
-
-                .dots-4 { grid-template-areas: "a . b" ". . ." "c . d"; }
-                .dots-4 .dice-dot:nth-child(1) { grid-area: a; }
-                .dots-4 .dice-dot:nth-child(2) { grid-area: b; }
-                .dots-4 .dice-dot:nth-child(3) { grid-area: c; }
-                .dots-4 .dice-dot:nth-child(4) { grid-area: d; }
-
-                .dots-5 { grid-template-areas: "a . b" ". c ." "d . e"; }
-                .dots-5 .dice-dot:nth-child(1) { grid-area: a; }
-                .dots-5 .dice-dot:nth-child(2) { grid-area: b; }
-                .dots-5 .dice-dot:nth-child(3) { grid-area: c; }
-                .dots-5 .dice-dot:nth-child(4) { grid-area: d; }
-                .dots-5 .dice-dot:nth-child(5) { grid-area: e; }
-
-                .dots-6 { grid-template-areas: "a . b" "c . d" "e . f"; }
-                .dots-6 .dice-dot:nth-child(1) { grid-area: a; }
-                .dots-6 .dice-dot:nth-child(2) { grid-area: b; }
-                .dots-6 .dice-dot:nth-child(3) { grid-area: c; }
-                .dots-6 .dice-dot:nth-child(4) { grid-area: d; }
-                .dots-6 .dice-dot:nth-child(5) { grid-area: e; }
-                .dots-6 .dice-dot:nth-child(6) { grid-area: f; }
-
-                .dice-rolling-placeholder {
-                    font-size: 24px;
-                    color: #1E293B;
+                @keyframes diceShake {
+                    0% { transform: translate(1px, 1px) rotate(0deg); }
+                    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+                    20% { transform: translate(-3px, 0px) rotate(1deg); }
+                    30% { transform: translate(3px, 2px) rotate(0deg); }
+                    40% { transform: translate(1px, -1px) rotate(1deg); }
+                    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+                    60% { transform: translate(-3px, 1px) rotate(0deg); }
+                    70% { transform: translate(3px, 1px) rotate(-1deg); }
+                    80% { transform: translate(-1px, -1px) rotate(1deg); }
+                    90% { transform: translate(1px, 2px) rotate(0deg); }
+                    100% { transform: translate(1px, -2px) rotate(-1deg); }
                 }
             `}</style>
         </div>
