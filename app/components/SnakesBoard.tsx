@@ -86,7 +86,7 @@ function PlayerCard({
     const powerEmojis = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
-        <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
+        <div className={`player-card player-card-corner ${player.position} snakes-card-${player.color} ${isActive ? 'card-is-active' : ''}`}>
             <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
                 {!player.isAi && (
                     <svg className="timer-ring" viewBox="0 0 52 52">
@@ -111,9 +111,16 @@ function PlayerCard({
                 </div>
             </div>
 
-            <div className="player-info">
-                <span className="player-name">{player.name}</span>
-                <span className="player-level">Lv.{player.level}</span>
+            <div className="player-info flex flex-row items-center gap-2">
+                <div className="flex flex-col">
+                    <span className="player-name">{player.name}</span>
+                    <span className="player-level flex items-center gap-1">Lv.{player.level}</span>
+                </div>
+                <div className="scale-[0.55] -ml-2 drop-shadow-md">
+                    <motion.div
+                        className={`ludo-token ${player.color}-token`}
+                    />
+                </div>
             </div>
         </div>
     );

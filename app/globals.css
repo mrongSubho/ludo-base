@@ -1012,6 +1012,43 @@ a {
   padding: 0;
 }
 
+/* ─── Snakes Mode Colored Player Cards ─── */
+.snakes-card-green {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-sage) 20%, transparent), transparent);
+  border: 1px solid color-mix(in srgb, var(--color-ludo-sage) 30%, transparent);
+  padding: 6px 16px 6px 6px;
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.snakes-card-red {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-rose) 20%, transparent), transparent);
+  border: 1px solid color-mix(in srgb, var(--color-ludo-rose) 30%, transparent);
+  padding: 6px 16px 6px 6px;
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.snakes-card-yellow {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-amber) 20%, transparent), transparent);
+  border: 1px solid color-mix(in srgb, var(--color-ludo-amber) 30%, transparent);
+  padding: 6px 16px 6px 6px;
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.snakes-card-blue {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-sky) 20%, transparent), transparent);
+  border: 1px solid color-mix(in srgb, var(--color-ludo-sky) 30%, transparent);
+  padding: 6px 16px 6px 6px;
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 .home-player-label {
   position: absolute;
   background: rgba(0, 0, 0, 0.45);
