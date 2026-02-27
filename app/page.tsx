@@ -140,6 +140,13 @@ const ShieldIcon = () => (
   </svg>
 );
 
+const SnakeIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+    <path d="M16 2.016c-3.3 0-6 2.7-6 6v3.968c0 1.1-.9 2.016-2 2.016s-2-.916-2-2.016V9.984c0-1.1-.9-2.016-2-2.016S2 8.884 2 9.984v4.064c0 3.3 2.7 6 6 6s6-2.7 6-6V9.984c0-1.1.9-2.016 2-2.016H18c1.1 0 2 .916 2 2.016v4.064c0 1.1.9 2.016 2 2.016s2-.916 2-2.016V8.016c0-3.3-2.7-6-6-6h-2z" />
+    <circle cx="15.5" cy="5.5" r="1.5" fill="#fff" />
+  </svg>
+);
+
 const HeaderMessageIcon = () => (
   <svg className="dm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -484,7 +491,7 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<Tab>(null);
 
   // Match Configuration State
-  const [selectedMode, setSelectedMode] = useState<'classic' | 'power'>('classic');
+  const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
   const [playerCount, setPlayerCount] = useState<'2' | '4' | '2v2'>('4');
   const [betAmount, setBetAmount] = useState<number>(50);
 
@@ -577,6 +584,20 @@ export default function Page() {
                   </div>
                   <ChevronRight />
                 </div>
+
+                <div
+                  className={`mode-card ${selectedMode === 'snakes' ? 'active selection-glow-purple' : ''}`}
+                  onClick={() => setSelectedMode('snakes')}
+                >
+                  <div className="mode-icon-wrapper snakes" style={{ background: 'linear-gradient(135deg, var(--ludo-accent), var(--color-ludo-alert))' }}>
+                    <SnakeIcon />
+                  </div>
+                  <div className="mode-details">
+                    <h4>Snakes</h4>
+                    <p>Classic board with unpredictable twists</p>
+                  </div>
+                  <ChevronRight />
+                </div>
               </div>
             </section>
 
@@ -612,25 +633,6 @@ export default function Page() {
                 <button className="play-now-btn" onClick={handlePlayNow}>
                   Play Now
                 </button>
-              </div>
-            </section>
-
-            {/* Stats Section */}
-            <section className="dash-section stats-section">
-              <h3 className="section-title">YOUR STATS</h3>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <h4>42</h4>
-                  <span>WINS</span>
-                </div>
-                <div className="stat-card">
-                  <h4>78%</h4>
-                  <span>WIN RATE</span>
-                </div>
-                <div className="stat-card">
-                  <h4>3</h4>
-                  <span>STREAK</span>
-                </div>
               </div>
             </section>
           </main>

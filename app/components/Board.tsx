@@ -388,7 +388,7 @@ export default function Board({
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
     playerCount?: '2' | '4' | '2v2';
-    gameMode?: 'classic' | 'power';
+    gameMode?: 'classic' | 'power' | 'snakes';
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
