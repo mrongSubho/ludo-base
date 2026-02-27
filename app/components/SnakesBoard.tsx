@@ -434,7 +434,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                 }}
                             >
                                 {/* Offset multiple tokens lightly */}
-                                <div style={{ transform: `translate(${(idx % 2 === 0 ? 1 : -1) * (idx * 3)}px, ${(idx < 2 ? 1 : -1) * (idx * 3)}px)` }}>
+                                <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center" style={{ transform: `translate(${(idx % 2 === 0 ? 1 : -1) * (idx * 3)}px, ${(idx < 2 ? 1 : -1) * (idx * 3)}px)` }}>
                                     <Token color={p.color} />
                                 </div>
                             </motion.div>
