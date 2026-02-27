@@ -244,6 +244,7 @@ function HomeBlock({
     tokensInHome,
     player,
     onTokenClick,
+    playerCount,
 }: {
     color: 'green' | 'red' | 'yellow' | 'blue';
     corner: Corner;
@@ -252,7 +253,9 @@ function HomeBlock({
     tokensInHome: number[];
     player?: Player;
     onTokenClick: (tokenIndex: number) => void;
+    playerCount?: '2' | '4' | '2v2';
 }) {
+    const teamLetter = playerCount === '2v2' ? (getTeam(color) === 1 ? 'A' : 'B') : null;
     return (
         <div
             className={`board-home ${color}`}
@@ -275,7 +278,9 @@ function HomeBlock({
             </div>
             {player && (
                 <div className="home-player-label">
+                    {teamLetter && <span className={`team-dot team-${teamLetter.toLowerCase()}`} />}
                     Lv.{player.level} {player.name}
+                    {teamLetter && <span className="team-letter"> · {teamLetter}</span>}
                 </div>
             )}
         </div>
@@ -316,6 +321,7 @@ function PlayerCard({
     power,
     onPowerClick,
     onAvatarClick,
+    teamLabel,
 }: {
     player: Player;
     isActive: boolean;
@@ -324,6 +330,7 @@ function PlayerCard({
     power: PowerType | null;
     onPowerClick?: () => void;
     onAvatarClick: () => void;
+    teamLabel?: 'A' | 'B' | null;
 }) {
     const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
@@ -363,6 +370,11 @@ function PlayerCard({
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
             </div>
+            {teamLabel && (
+                <div className={`team-badge team-${teamLabel.toLowerCase()}`}>
+                    {teamLabel}
+                </div>
+            )}
         </div>
     );
 }
@@ -980,6 +992,7 @@ export default function Board({
                                 power={gameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
+                                teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>
@@ -1023,6 +1036,7 @@ export default function Board({
                                     tokensInHome={tokensInHome}
                                     player={players.find(p => p.color === color)}
                                     onTokenClick={isActive ? (idx) => handleTokenClick(color, idx) : () => { }}
+                                    playerCount={playerCount}
                                 />
                             </div>
                         );
@@ -1146,6 +1160,7 @@ export default function Board({
                                 power={gameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
+                                teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>

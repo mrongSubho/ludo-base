@@ -314,8 +314,8 @@ export default function Page() {
                 </svg>
               </button>
               <div className="game-status-info">
-                <span className="game-mode-title">{selectedMode} Mode</span>
-                <span className="game-status">{playerCount} Players</span>
+                <span className="game-mode-title">{playerCount === '2v2' ? 'Team Mode' : `${selectedMode} Mode`}</span>
+                <span className="game-status">{playerCount === '2v2' ? '2v2' : `${playerCount} Players`}</span>
               </div>
             </div>
 
