@@ -1521,8 +1521,11 @@ a {
 }
 
 .afk-tag {
-  background: var(--color-ludo-rose) !important;
-  color: #1a0505 !important;
+  background: rgba(239, 68, 68, 0.85) !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
   animation: none !important;
 }
 
