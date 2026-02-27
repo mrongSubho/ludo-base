@@ -864,6 +864,13 @@ a {
   transform-origin: center center;
 }
 
+.player-wrapper.has-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
 /* New corner-avatar style overrides the old pill card */
 .player-card-corner {
   display: flex;
@@ -921,60 +928,23 @@ a {
   left: auto;
 }
 
-/* ─── 2v2 Team Badges & Labels ─── */
+/* ─── 2v2 Team Labels ─── */
 
-/* Team badge on player avatar */
-.team-badge {
-  position: absolute;
-  bottom: -2px;
-  right: -4px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
+/* Team label text near avatars */
+.team-label-text {
+  font-size: 10px;
   font-weight: 800;
-  color: white;
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  z-index: 12;
-  letter-spacing: 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.team-badge.team-a {
-  background: #6366F1;
+.team-label-text.team-a {
+  color: #6366F1;
 }
 
-.team-badge.team-b {
-  background: #F59E0B;
-}
-
-/* Team dot in home label */
-.team-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-.team-dot.team-a {
-  background: #6366F1;
-  box-shadow: 0 0 4px rgba(99, 102, 241, 0.5);
-}
-
-.team-dot.team-b {
-  background: #F59E0B;
-  box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
-}
-
-/* Team letter suffix in label */
-.team-letter {
-  opacity: 0.8;
-  font-weight: 600;
+.team-label-text.team-b {
+  color: #F59E0B;
 }
 
 .avatar-circle-wrapper {
