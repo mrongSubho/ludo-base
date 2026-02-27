@@ -238,6 +238,7 @@ const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) => {
 
 function HomeBlock({
     color,
+    corner,
     gridRow,
     gridCol,
     tokensInHome,
@@ -245,6 +246,7 @@ function HomeBlock({
     onTokenClick,
 }: {
     color: 'green' | 'red' | 'yellow' | 'blue';
+    corner: Corner;
     gridRow: string;
     gridCol: string;
     tokensInHome: number[];
@@ -254,6 +256,7 @@ function HomeBlock({
     return (
         <div
             className={`board-home ${color}`}
+            data-corner={corner}
             style={{ gridRow, gridColumn: gridCol }}
         >
             <div className="home-pad">
@@ -1014,6 +1017,7 @@ export default function Board({
                             <div key={color} style={{ opacity: isActive ? 1 : 0.2, display: 'contents' }}>
                                 <HomeBlock
                                     color={color}
+                                    corner={colorCorner[color as PlayerColor]}
                                     gridRow={gridInfo.row}
                                     gridCol={gridInfo.col}
                                     tokensInHome={tokensInHome}

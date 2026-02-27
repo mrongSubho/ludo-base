@@ -872,39 +872,47 @@ a {
 
 .home-player-label {
   position: absolute;
-  bottom: 8px;
-  /* Move slightly off the edge so it isn't literally touching */
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
   color: white;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   z-index: 5;
   pointer-events: none;
+  letter-spacing: 0.3px;
 }
 
-/* Adjust vertical alignment */
-.board-home.yellow .home-player-label,
-.board-home.blue .home-player-label {
+/* Position labels at the outer edge of each corner */
+.board-home[data-corner='TL'] .home-player-label {
+  top: 6px;
+  left: 6px;
   bottom: auto;
-  top: 8px;
+  right: auto;
 }
 
-/* Adjust horizontal alignment (corners) */
-.board-home.green .home-player-label,
-.board-home.blue .home-player-label {
-  left: 8px;
-  /* Left side homes */
+.board-home[data-corner='TR'] .home-player-label {
+  top: 6px;
+  right: 6px;
+  bottom: auto;
+  left: auto;
 }
 
-.board-home.red .home-player-label,
-.board-home.yellow .home-player-label {
-  right: 8px;
-  /* Right side homes */
+.board-home[data-corner='BL'] .home-player-label {
+  bottom: 6px;
+  left: 6px;
+  top: auto;
+  right: auto;
+}
+
+.board-home[data-corner='BR'] .home-player-label {
+  bottom: 6px;
+  right: 6px;
+  top: auto;
+  left: auto;
 }
 
 .avatar-circle-wrapper {

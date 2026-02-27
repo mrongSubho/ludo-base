@@ -52,38 +52,51 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                 onClick={roll}
                 disabled={disabled || isRolling}
                 title={disabled ? (isRolling ? "Rolling..." : "Wait for your turn") : "Roll Dice"}
-                style={{ width: 48, height: 48 }}
+                style={{ width: 42, height: 42 }}
             >
                 <motion.svg
                     viewBox="0 0 100 100"
                     className="dice-svg"
-                    animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [1, 1.1, 1] } : {}}
-                    transition={{ repeat: isRolling ? Infinity : 0, duration: 0.4, ease: "linear" }}
+                    animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [1, 1.15, 0.95, 1.1, 1] } : {}}
+                    transition={{ repeat: isRolling ? Infinity : 0, duration: 0.5, ease: "easeInOut" }}
                 >
-                    {/* Main Dice Body */}
-                    <rect
-                        x="5" y="5" width="90" height="90" rx="20" ry="20"
-                        fill="url(#diceGrad)"
-                        stroke="rgba(255,255,255,0.8)"
-                        strokeWidth="3"
-                        className="dice-rect"
-                    />
-
-                    {/* Inner highlight for 3D effect */}
-                    <rect
-                        x="8" y="8" width="84" height="84" rx="16" ry="16"
-                        fill="transparent"
-                        stroke="rgba(255,255,255,0.5)"
-                        strokeWidth="2"
-                    />
-
-                    {/* Gradients */}
                     <defs>
-                        <linearGradient id="diceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#ffffff" />
-                            <stop offset="100%" stopColor="#e2e8f0" />
+                        <linearGradient id="diceBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#FEFEFE" />
+                            <stop offset="40%" stopColor="#F8F6F0" />
+                            <stop offset="100%" stopColor="#E8E4DA" />
                         </linearGradient>
+                        <radialGradient id="diceShine" cx="35%" cy="30%" r="60%">
+                            <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
+                            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                        </radialGradient>
+                        <filter id="diceShadow" x="-10%" y="-10%" width="120%" height="130%">
+                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="rgba(0,0,0,0.15)" />
+                        </filter>
                     </defs>
+
+                    {/* Outer shadow body */}
+                    <rect
+                        x="5" y="5" width="90" height="90" rx="18" ry="18"
+                        fill="url(#diceBodyGrad)"
+                        stroke="#D4D0C8"
+                        strokeWidth="1.5"
+                        filter="url(#diceShadow)"
+                    />
+
+                    {/* Inner 3D shine overlay */}
+                    <rect
+                        x="5" y="5" width="90" height="90" rx="18" ry="18"
+                        fill="url(#diceShine)"
+                    />
+
+                    {/* Subtle inner border */}
+                    <rect
+                        x="9" y="9" width="82" height="82" rx="14" ry="14"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.6)"
+                        strokeWidth="1"
+                    />
 
                     {/* Dots / Face */}
                     <AnimatePresence mode="wait">
@@ -102,11 +115,9 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                             <motion.g
                                 key="face-empty"
                                 initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
+                                animate={{ opacity: 0.4 }}
                                 exit={{ opacity: 0 }}
-                                style={{ opacity: isRolling ? 0.3 : 1 }}
                             >
-                                {/* Show 6 dots as the default resting face instead of '?' */}
                                 {renderDots(6)}
                             </motion.g>
                         )}
@@ -119,7 +130,6 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    perspective: 1000px;
                 }
 
                 .dice-btn {
@@ -133,55 +143,46 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                     justify-content: center;
                     outline: none;
                     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    border-radius: 12px;
                 }
 
                 .dice-svg {
-                    width: 48px;
-                    height: 48px;
-                    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-                }
-
-                .dice-rect {
-                    transition: fill 0.3s;
+                    width: 42px;
+                    height: 42px;
+                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12)) drop-shadow(0 1px 2px rgba(0,0,0,0.08));
                 }
 
                 .dice-dot-svg {
-                    filter: drop-shadow(0 1px 1px rgba(255,255,255,0.8));
+                    filter: drop-shadow(0 1px 0px rgba(0,0,0,0.15));
                 }
 
                 .dice-btn:hover:not(:disabled) {
-                    transform: translateY(-4px) scale(1.05);
+                    transform: translateY(-3px) scale(1.08);
                 }
 
                 .dice-btn:hover:not(:disabled) .dice-svg {
-                    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15));
+                    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.18)) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
                 }
 
                 .dice-btn:active:not(:disabled) {
-                    transform: translateY(2px) scale(0.95);
+                    transform: translateY(1px) scale(0.96);
                 }
 
                 .dice-btn:disabled {
                     cursor: not-allowed;
-                    opacity: 0.8;
+                    opacity: 0.6;
                 }
 
                 .rolling {
-                    animation: diceShake 0.4s infinite alternate ease-in-out;
+                    animation: diceShake 0.15s infinite alternate ease-in-out;
                 }
 
                 @keyframes diceShake {
-                    0% { transform: translate(1px, 1px) rotate(0deg); }
-                    10% { transform: translate(-1px, -2px) rotate(-1deg); }
-                    20% { transform: translate(-3px, 0px) rotate(1deg); }
-                    30% { transform: translate(3px, 2px) rotate(0deg); }
-                    40% { transform: translate(1px, -1px) rotate(1deg); }
-                    50% { transform: translate(-1px, 2px) rotate(-1deg); }
-                    60% { transform: translate(-3px, 1px) rotate(0deg); }
-                    70% { transform: translate(3px, 1px) rotate(-1deg); }
-                    80% { transform: translate(-1px, -1px) rotate(1deg); }
-                    90% { transform: translate(1px, 2px) rotate(0deg); }
-                    100% { transform: translate(1px, -2px) rotate(-1deg); }
+                    0% { transform: translate(0.5px, 0.5px) rotate(0deg); }
+                    25% { transform: translate(-1px, -1px) rotate(-2deg); }
+                    50% { transform: translate(1px, 0px) rotate(1deg); }
+                    75% { transform: translate(-0.5px, 1px) rotate(-1deg); }
+                    100% { transform: translate(1px, -1px) rotate(2deg); }
                 }
             `}</style>
         </div>
