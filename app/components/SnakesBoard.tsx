@@ -335,8 +335,8 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 })}
             </div>
 
-            {/* Main Board Grid container forced to edge-to-edge */}
-            <div className="snakes-grid-container relative w-full flex-1 bg-[#ececec] overflow-hidden shadow-inner border-y border-black/10">
+            {/* Main Board Grid container constrained to prevent mobile flex overflow */}
+            <div className="snakes-grid-container relative w-full aspect-square max-w-[96vw] max-h-[60vh] sm:max-w-md mx-auto my-auto bg-[#ececec] overflow-hidden shadow-base border-[4px] border-[#222] rounded-xl shrink">
 
                 {/* SVG Overlay for Snakes and Ladders lines */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 10 }}>
