@@ -367,12 +367,12 @@ function PlayerCard({
                 >
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
+                {teamLabel && (
+                    <div className={`team-badge team-${teamLabel.toLowerCase()}`}>
+                        {teamLabel}
+                    </div>
+                )}
             </div>
-            {teamLabel && (
-                <div className={`team-badge team-${teamLabel.toLowerCase()}`}>
-                    {teamLabel}
-                </div>
-            )}
         </div>
     );
 }
