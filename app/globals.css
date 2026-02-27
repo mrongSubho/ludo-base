@@ -1048,19 +1048,19 @@ a {
 }
 
 .avatar-circle.green {
-  background: linear-gradient(135deg, #7EC8A0, #5FA880);
+  background: linear-gradient(135deg, var(--ludo-sage), var(--ludo-sage));
 }
 
 .avatar-circle.red {
-  background: linear-gradient(135deg, #D4847A, #B4645A);
+  background: linear-gradient(135deg, var(--ludo-rose), var(--ludo-rose));
 }
 
 .avatar-circle.yellow {
-  background: linear-gradient(135deg, #E8C567, #C8A547);
+  background: linear-gradient(135deg, var(--ludo-amber), var(--ludo-amber));
 }
 
 .avatar-circle.blue {
-  background: linear-gradient(135deg, #7BAFD4, #5B8FB4);
+  background: linear-gradient(135deg, var(--ludo-sky), var(--ludo-sky));
 }
 
 /* Active state: scale the wrapper */
@@ -1508,19 +1508,19 @@ a {
 }
 
 .board-home.green {
-  background: #7EC8A0;
+  background: var(--ludo-sage);
 }
 
 .board-home.red {
-  background: #D4847A;
+  background: var(--ludo-rose);
 }
 
 .board-home.yellow {
-  background: #E8C567;
+  background: var(--ludo-amber);
 }
 
 .board-home.blue {
-  background: #7BAFD4;
+  background: var(--ludo-sky);
 }
 
 .home-pad {
@@ -1528,7 +1528,7 @@ a {
   height: 62%;
   flex-shrink: 0;
   aspect-ratio: 1;
-  background: #FFFFFF;
+  background: var(--ludo-card);
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1556,24 +1556,24 @@ a {
 
 
 .green .token-dot {
-  background: #7EC8A0;
+  background: var(--ludo-sage);
 }
 
 .red .token-dot {
-  background: #D4847A;
+  background: var(--ludo-rose);
 }
 
 .yellow .token-dot {
-  background: #E8C567;
+  background: var(--ludo-amber);
 }
 
 .blue .token-dot {
-  background: #7BAFD4;
+  background: var(--ludo-sky);
 }
 
 /* ── Path Cells ── */
 .board-cell {
-  background: #FFFFFF;
+  background: var(--ludo-card);
   position: relative;
   transition: background 0.15s ease;
   display: flex;
@@ -1592,19 +1592,19 @@ a {
 
 /* ── Finish Lanes — translucent tints ── */
 .lane-green {
-  background: color-mix(in srgb, var(--ludo-sage) 35%, transparent) !important;
+  background: var(--ludo-fade-sage, color-mix(in srgb, var(--ludo-sage) 35%, transparent)) !important;
 }
 
 .lane-red {
-  background: color-mix(in srgb, var(--ludo-rose) 35%, transparent) !important;
+  background: var(--ludo-fade-rose, color-mix(in srgb, var(--ludo-rose) 35%, transparent)) !important;
 }
 
 .lane-blue {
-  background: color-mix(in srgb, var(--ludo-sky) 35%, transparent) !important;
+  background: var(--ludo-fade-sky, color-mix(in srgb, var(--ludo-sky) 35%, transparent)) !important;
 }
 
 .lane-yellow {
-  background: color-mix(in srgb, var(--ludo-amber) 35%, transparent) !important;
+  background: var(--ludo-fade-amber, color-mix(in srgb, var(--ludo-amber) 35%, transparent)) !important;
 }
 
 .board-cell.star-cell {
@@ -1616,7 +1616,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #FAFAFA !important;
+  background: var(--ludo-card) !important;
 }
 
 .star-svg {
@@ -1638,22 +1638,22 @@ a {
 }
 
 .tri-top {
-  background: #7EC8A0;
+  background: var(--ludo-sage);
   clip-path: polygon(0 0, 100% 0, 50% 50%);
 }
 
 .tri-right {
-  background: #D4847A;
+  background: var(--ludo-rose);
   clip-path: polygon(100% 0, 100% 100%, 50% 50%);
 }
 
 .tri-bottom {
-  background: #7BAFD4;
+  background: var(--ludo-sky);
   clip-path: polygon(0 100%, 100% 100%, 50% 50%);
 }
 
 .tri-left {
-  background: #E8C567;
+  background: var(--ludo-amber);
   clip-path: polygon(0 0, 0 100%, 50% 50%);
 }
 
