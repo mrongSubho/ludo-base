@@ -52,6 +52,7 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                 onClick={roll}
                 disabled={disabled || isRolling}
                 title={disabled ? (isRolling ? "Rolling..." : "Wait for your turn") : "Roll Dice"}
+                style={{ width: 48, height: 48 }}
             >
                 <motion.svg
                     viewBox="0 0 100 100"

@@ -867,7 +867,7 @@ a {
 
 .home-player-label {
   position: absolute;
-  bottom: 12px;
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.4);
@@ -887,7 +887,7 @@ a {
 .board-home.yellow .home-player-label,
 .board-home.blue .home-player-label {
   bottom: auto;
-  top: 12px;
+  top: 6px;
 }
 
 .avatar-circle-wrapper {
