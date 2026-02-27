@@ -23,22 +23,6 @@ const TokenIcon = () => (
   </svg>
 );
 
-const HomeIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <polyline points="9 22 9 12 15 12 15 22" />
-  </svg>
-);
-
-const InviteIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="8.5" cy="7" r="4" />
-    <line x1="20" y1="8" x2="20" y2="14" />
-    <line x1="23" y1="11" x2="17" y2="11" />
-  </svg>
-);
-
 const ProfileIcon = () => (
   <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -46,11 +30,26 @@ const ProfileIcon = () => (
   </svg>
 );
 
-const BackpackIcon = () => (
+const UsersIcon = () => (
   <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const TrophyIcon = () => (
+  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 21h8M12 17v4M7 4h10M5 4h14v5a7 7 0 0 1-14 0V4z" />
+  </svg>
+);
+
+const TargetIcon = () => (
+  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
   </svg>
 );
 
@@ -117,12 +116,12 @@ function TabPanel({ title, emoji, description, onClose }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type AppState = 'dashboard' | 'game';
-type Tab = 'home' | 'invite' | 'profile' | 'backpack' | 'shop';
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | null;
 
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>('dashboard');
-  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [activeTab, setActiveTab] = useState<Tab>(null);
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power'>('classic');
@@ -139,8 +138,8 @@ export default function Page() {
     );
   }
 
-  const closeTab = () => setActiveTab('home');
-  const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? 'home' : tab);
+  const closeTab = () => setActiveTab(null);
+  const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
   const handlePlayNow = () => {
     setAppState('game');
@@ -261,40 +260,43 @@ export default function Page() {
 
           {/* Footer Nav */}
           <nav className="footer-nav">
-            <button className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => toggle('home')}>
-              <HomeIcon />
-              <span className="nav-label">Home</span>
-            </button>
-            <button className={`nav-item ${activeTab === 'invite' ? 'active' : ''}`} onClick={() => toggle('invite')}>
-              <InviteIcon />
-              <span className="nav-label">Invite</span>
-            </button>
             <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => toggle('profile')}>
               <ProfileIcon />
               <span className="nav-label">Profile</span>
             </button>
-            <button className={`nav-item ${activeTab === 'backpack' ? 'active' : ''}`} onClick={() => toggle('backpack')}>
-              <BackpackIcon />
-              <span className="nav-label">Backpack</span>
+            <button className={`nav-item ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => toggle('friends')}>
+              <UsersIcon />
+              <span className="nav-label">Friends</span>
             </button>
-            <button className={`nav-item ${activeTab === 'shop' ? 'active' : ''}`} onClick={() => toggle('shop')}>
+            <button className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => toggle('leaderboard')}>
+              <TrophyIcon />
+              <span className="nav-label">Leaderboard</span>
+            </button>
+            <button className={`nav-item ${activeTab === 'mission' ? 'active' : ''}`} onClick={() => toggle('mission')}>
+              <TargetIcon />
+              <span className="nav-label">Mission</span>
+            </button>
+            <button className={`nav-item ${activeTab === 'marketplace' ? 'active' : ''}`} onClick={() => toggle('marketplace')}>
               <ShopIcon />
-              <span className="nav-label">Shop</span>
+              <span className="nav-label">MarketP.</span>
             </button>
           </nav>
 
-          {/* Dummy Panels for non-home tabs */}
-          {activeTab === 'invite' && (
-            <TabPanel title="Invite Friends" emoji="👥" description="Invite friends to your game room." onClose={closeTab} />
-          )}
+          {/* Slide-up Panels for footer tabs */}
           {activeTab === 'profile' && (
-            <TabPanel title="Profile" emoji="👤" description="Your detailed game history." onClose={closeTab} />
+            <TabPanel title="Profile" emoji="👤" description="Your detailed game history & stats." onClose={closeTab} />
           )}
-          {activeTab === 'backpack' && (
-            <TabPanel title="Backpack" emoji="🎒" description="Inventory and custom tokens." onClose={closeTab} />
+          {activeTab === 'friends' && (
+            <TabPanel title="Friends" emoji="👥" description="See who is online and invite them to play." onClose={closeTab} />
           )}
-          {activeTab === 'shop' && (
-            <TabPanel title="Shop" emoji="🛍️" description="Buy themes, skins, and power-ups." onClose={closeTab} />
+          {activeTab === 'leaderboard' && (
+            <Leaderboard isOpen={true} onClose={closeTab} />
+          )}
+          {activeTab === 'mission' && (
+            <TabPanel title="Missions" emoji="🎯" description="Complete daily challenges for rewards." onClose={closeTab} />
+          )}
+          {activeTab === 'marketplace' && (
+            <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
           )}
         </div>
       )}
