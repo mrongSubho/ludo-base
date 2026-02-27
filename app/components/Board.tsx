@@ -924,24 +924,30 @@ export default function Board({
         <div className="board-outer">
             {/* ── Top Player Row (Opponent: Yellow & Blue) ── */}
             <div className="player-row player-row-top">
-                {players.filter(p => p.position.includes('top')).map((p) => (
-                    <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
-                        <PlayerCard
-                            player={p}
-                            isActive={gameState.currentPlayer === p.color}
-                            timeLeft={gameState.timeLeft}
-                            strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
-                            onAvatarClick={() => setSelectedPlayer(p)}
-                        />
-                        {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                            <div className="ai-thinking-tag">Thinking...</div>
-                        )}
-                        {/* Auto-play Mode Tag */}
-                        {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
-                            <div className="ai-thinking-tag afk-tag">Auto-Play</div>
-                        )}
-                    </div>
-                ))}
+                {(['top-left', 'top-right'] as const).map((pos) => {
+                    const p = players.find(player => player.position === pos);
+                    if (!p) {
+                        return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
+                    }
+                    return (
+                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
+                            <PlayerCard
+                                player={p}
+                                isActive={gameState.currentPlayer === p.color}
+                                timeLeft={gameState.timeLeft}
+                                strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                                onAvatarClick={() => setSelectedPlayer(p)}
+                            />
+                            {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                                <div className="ai-thinking-tag">Thinking...</div>
+                            )}
+                            {/* Auto-play Mode Tag */}
+                            {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
+                                <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
 
             <div className="board-wrapper">
@@ -1072,24 +1078,30 @@ export default function Board({
 
             {/* ── Bottom Player Row (You & Opponent: Green & Red) ── */}
             <div className="player-row player-row-bottom">
-                {players.filter(p => p.position.includes('bottom')).map((p) => (
-                    <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
-                        <PlayerCard
-                            player={p}
-                            isActive={gameState.currentPlayer === p.color}
-                            timeLeft={gameState.timeLeft}
-                            strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
-                            onAvatarClick={() => setSelectedPlayer(p)}
-                        />
-                        {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                            <div className="ai-thinking-tag">Thinking...</div>
-                        )}
-                        {/* Auto-play Mode Tag */}
-                        {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
-                            <div className="ai-thinking-tag afk-tag">Auto-Play</div>
-                        )}
-                    </div>
-                ))}
+                {(['bottom-left', 'bottom-right'] as const).map((pos) => {
+                    const p = players.find(player => player.position === pos);
+                    if (!p) {
+                        return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
+                    }
+                    return (
+                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position}`}>
+                            <PlayerCard
+                                player={p}
+                                isActive={gameState.currentPlayer === p.color}
+                                timeLeft={gameState.timeLeft}
+                                strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
+                                onAvatarClick={() => setSelectedPlayer(p)}
+                            />
+                            {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                                <div className="ai-thinking-tag">Thinking...</div>
+                            )}
+                            {/* Auto-play Mode Tag */}
+                            {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
+                                <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
 
             <Leaderboard

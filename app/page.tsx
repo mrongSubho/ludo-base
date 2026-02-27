@@ -304,13 +304,25 @@ export default function Page() {
       {appState === 'game' && (
         <>
           <div className="game-top-bar">
-            <button className="back-btn" onClick={handleBackToSubMenu}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px' }}>
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-            </button>
-            <span className="game-status">{playerCount} Players • Bet {betAmount}</span>
+            <div className="game-header-left">
+              <button className="back-btn" onClick={handleBackToSubMenu}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                  <line x1="19" y1="12" x2="5" y2="12"></line>
+                  <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+              </button>
+              <div className="game-status-info">
+                <span className="game-mode-title">{selectedMode} Mode</span>
+                <span className="game-status">{playerCount} Players</span>
+              </div>
+            </div>
+
+            <div className="game-header-right">
+              <div className="game-bet-pill">
+                <TokenIcon />
+                <span>{betAmount}</span>
+              </div>
+            </div>
           </div>
           <main className="board-main has-top-back">
             <Board playerCount={playerCount} />

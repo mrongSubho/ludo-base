@@ -2685,43 +2685,103 @@ a {
 
 /* ── GAME TOP BAR (When playing) ── */
 .game-top-bar {
+  position: absolute;
+  top: max(env(safe-area-inset-top), 20px);
+  left: 20px;
+  right: 20px;
   display: flex;
   align-items: center;
-  padding: 16px 20px;
-  background: var(--ludo-card);
-  border-bottom: 1px solid var(--ludo-border);
-  z-index: 10;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 100px;
+  z-index: 50;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark mode adjustment for the new header */
+[data-theme='midnight'] .game-top-bar {
+  background: rgba(20, 24, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.game-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .back-btn {
-  background: transparent;
+  background: var(--ludo-primary);
+  color: white;
   border: none;
-  color: var(--ludo-text);
   cursor: pointer;
   padding: 8px;
-  margin-left: -8px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background 0.2s;
+  transition: transform 0.2s, background 0.2s;
+  flex-shrink: 0;
 }
 
 .back-btn:hover {
-  background: var(--ludo-border);
+  transform: scale(1.05);
+  background: var(--ludo-primary-dark, #2563eb);
+}
+
+.game-status-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-mode-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ludo-text);
+  line-height: 1.1;
+  text-transform: capitalize;
 }
 
 .game-status {
-  flex: 1;
-  text-align: center;
+  font-size: 11px;
   font-weight: 600;
-  font-size: 15px;
+  color: var(--ludo-faint);
+  line-height: 1.1;
+}
+
+.game-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.game-bet-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ludo-surface);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--ludo-border);
+}
+
+.game-bet-pill svg {
+  width: 16px;
+  height: 16px;
+  color: #F59E0B;
+}
+
+.game-bet-pill span {
+  font-size: 13px;
+  font-weight: 700;
   color: var(--ludo-text);
-  margin-right: 24px;
-  /* balance out the back button width to center text */
 }
 
 /* Push board down when top bar is present */
 .board-main.has-top-back {
-  padding-top: 20px;
+  padding-top: 80px;
 }
