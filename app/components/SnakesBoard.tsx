@@ -83,6 +83,7 @@ function PlayerCard({
 }) {
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
+    const isLeft = player.position.endsWith('-left');
     const powerEmojis = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
@@ -113,6 +114,27 @@ function PlayerCard({
                     </div>
                     <div className="avatar-level-badge">{player.level}</div>
                 </div>
+
+                {/* Native Vertical Name attached directly to Avatar */}
+                {isLeft ? (
+                    <div className="absolute right-[100%] top-1/2 -translate-y-1/2 mr-3 sm:mr-5 pointer-events-none z-[100]">
+                        <span
+                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            style={{ writingMode: 'vertical-rl' }}
+                        >
+                            {player.name}
+                        </span>
+                    </div>
+                ) : (
+                    <div className="absolute left-[100%] top-1/2 -translate-y-1/2 ml-3 sm:ml-5 pointer-events-none z-[100]">
+                        <span
+                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                        >
+                            {player.name}
+                        </span>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -347,18 +369,9 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
             {/* Top row cards */}
             <div className="player-row relative w-full flex justify-between z-50 px-10 sm:px-16 md:px-24">
-                {/* Top-Left Outer Name */}
-                {players.find(p => p.position === 'top-left') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 left-2 sm:left-4 md:left-6 rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
-                        {players.find(p => p.position === 'top-left')?.name}
-                    </div>
-                )}
-                {/* Top-Right Outer Name */}
-                {players.find(p => p.position === 'top-right') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-2 sm:right-4 md:right-6 -rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
-                        {players.find(p => p.position === 'top-right')?.name}
-                    </div>
-                )}
+                {/* Empty Area for inner board layout padding */}
+                <div></div>
+
 
                 {(['top-left', 'top-right'] as const).map(pos => {
                     const p = players.find(player => player.position === pos);
@@ -487,18 +500,9 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
             {/* Bottom Row cards and Dice */}
             <div className="player-row relative w-full flex justify-between z-50 items-center px-10 sm:px-16 md:px-24">
-                {/* Bottom-Left Outer Name */}
-                {players.find(p => p.position === 'bottom-left') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 left-2 sm:left-4 md:left-6 rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
-                        {players.find(p => p.position === 'bottom-left')?.name}
-                    </div>
-                )}
-                {/* Bottom-Right Outer Name */}
-                {players.find(p => p.position === 'bottom-right') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-2 sm:right-4 md:right-6 -rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
-                        {players.find(p => p.position === 'bottom-right')?.name}
-                    </div>
-                )}
+                {/* Empty Area for inner board layout padding */}
+                <div></div>
+
 
                 <div className="relative">
                     {(() => {
