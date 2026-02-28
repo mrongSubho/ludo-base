@@ -381,7 +381,7 @@ function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 type="text"
                 className="profile-name-input"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.slice(0, 12))}
                 maxLength={12}
               />
               <div className="profile-level-badge">

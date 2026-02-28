@@ -128,6 +128,8 @@ const getPlayerNameColorClass = (color?: string) => {
     }
 };
 
+const sliceName = (name?: string) => name ? name.slice(0, 12) : '';
+
 // ─── Grid Math & Traps ───
 const LADDERS = [
     { start: 4, end: 14 }, { start: 9, end: 31 }, { start: 20, end: 38 },
@@ -416,7 +418,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'top-left')?.color)}`}
                             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
-                            {players.find(p => p.position === 'top-left')?.name}
+                            {sliceName(players.find(p => p.position === 'top-left')?.name)}
                         </span>
                     </div>
                 )}
@@ -428,7 +430,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-left')?.color)}`}
                             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
-                            {players.find(p => p.position === 'bottom-left')?.name}
+                            {sliceName(players.find(p => p.position === 'bottom-left')?.name)}
                         </span>
                     </div>
                 )}
@@ -440,7 +442,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'top-right')?.color)}`}
                             style={{ writingMode: 'vertical-rl' }}
                         >
-                            {players.find(p => p.position === 'top-right')?.name}
+                            {sliceName(players.find(p => p.position === 'top-right')?.name)}
                         </span>
                     </div>
                 )}
@@ -452,7 +454,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-right')?.color)}`}
                             style={{ writingMode: 'vertical-rl' }}
                         >
-                            {players.find(p => p.position === 'bottom-right')?.name}
+                            {sliceName(players.find(p => p.position === 'bottom-right')?.name)}
                         </span>
                     </div>
                 )}

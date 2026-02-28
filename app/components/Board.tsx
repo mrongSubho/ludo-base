@@ -278,7 +278,7 @@ function HomeBlock({
             </div>
             {player && (
                 <div className="home-player-label">
-                    Lv.{player.level} {player.name}
+                    Lv.{player.level} {player.name.slice(0, 12)}
                 </div>
             )}
         </div>

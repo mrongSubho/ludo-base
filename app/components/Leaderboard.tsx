@@ -92,7 +92,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                 {entry.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="info">
-                                                <span className="name">{entry.name}</span>
+                                                <span className="name">{entry.name.slice(0, 12)}</span>
                                                 <span className="last-win">
                                                     {new Date(entry.lastWin).toLocaleDateString()}
                                                 </span>

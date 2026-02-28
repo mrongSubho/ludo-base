@@ -89,7 +89,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
 
                 {/* Name + level */}
                 <div className="pp-identity">
-                    <span className="pp-name">{player.name}</span>
+                    <span className="pp-name">{player.name.slice(0, 12)}</span>
                     <span className="pp-lv">Lv.{player.level}</span>
                     {player.isAi && <span className="pp-ai-tag">AI</span>}
                 </div>
