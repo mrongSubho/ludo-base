@@ -415,7 +415,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'top-left') && (
                     <div className="absolute top-[10%] sm:top-[15%] left-1 sm:-left-3 md:-left-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'top-left')?.color)}`}
+                            className={`block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] drop-shadow-md bg-black/10 dark:bg-black/30 backdrop-blur-[2px] rounded-full py-4 px-1.5 ${getPlayerNameColorClass(players.find(p => p.position === 'top-left')?.color)}`}
                             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
                             {sliceName(players.find(p => p.position === 'top-left')?.name)}
@@ -427,7 +427,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'bottom-left') && (
                     <div className="absolute bottom-[10%] sm:bottom-[15%] left-1 sm:-left-3 md:-left-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-left')?.color)}`}
+                            className={`block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] drop-shadow-md bg-black/10 dark:bg-black/30 backdrop-blur-[2px] rounded-full py-4 px-1.5 ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-left')?.color)}`}
                             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
                             {sliceName(players.find(p => p.position === 'bottom-left')?.name)}
@@ -439,7 +439,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'top-right') && (
                     <div className="absolute top-[10%] sm:top-[15%] right-1 sm:-right-3 md:-right-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'top-right')?.color)}`}
+                            className={`block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] drop-shadow-md bg-black/10 dark:bg-black/30 backdrop-blur-[2px] rounded-full py-4 px-1.5 ${getPlayerNameColorClass(players.find(p => p.position === 'top-right')?.color)}`}
                             style={{ writingMode: 'vertical-rl' }}
                         >
                             {sliceName(players.find(p => p.position === 'top-right')?.name)}
@@ -451,7 +451,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'bottom-right') && (
                     <div className="absolute bottom-[10%] sm:bottom-[15%] right-1 sm:-right-3 md:-right-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-right')?.color)}`}
+                            className={`block text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] drop-shadow-md bg-black/10 dark:bg-black/30 backdrop-blur-[2px] rounded-full py-4 px-1.5 ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-right')?.color)}`}
                             style={{ writingMode: 'vertical-rl' }}
                         >
                             {sliceName(players.find(p => p.position === 'bottom-right')?.name)}
