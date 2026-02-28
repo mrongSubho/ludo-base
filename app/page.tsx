@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -486,18 +487,67 @@ type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | '
 // Mock user data
 const USER = { avatar: '🎮', name: 'Player', level: 8 };
 
+const SplashScreen = () => (
+  <motion.div
+    initial={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.8, ease: "easeInOut" }}
+    className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md"
+  >
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0, y: 20 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, ease: "easeOut" }}
+      className="flex flex-col items-center"
+    >
+      <div className="w-24 h-24 mb-6 relative">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-indigo-500 to-teal-400 opacity-20 blur-xl"
+        />
+        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(99,102,241,0.4)] flex items-center justify-center border border-white/20">
+          <span className="text-5xl drop-shadow-lg">🎲</span>
+        </div>
+      </div>
+
+      <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
+        LUDO BASE
+      </h1>
+      <p className="text-indigo-300 font-medium tracking-[0.3em] uppercase text-sm mb-12 text-center">
+        Superstar Edition
+      </p>
+
+      {/* Loading Bar Illusion */}
+      <div className="w-64 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/10 shadow-inner">
+        <motion.div
+          initial={{ width: "0%" }}
+          animate={{ width: "100%" }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+          className="h-full bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(45,212,191,0.6)]"
+        />
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
   const [showQuitWarning, setShowQuitWarning] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
   const [playerCount, setPlayerCount] = useState<'2' | '4' | '2v2'>('4');
   const [betAmount, setBetAmount] = useState<number>(50);
 
-  useEffect(() => { setIsMounted(true); }, []);
+  useEffect(() => {
+    setIsMounted(true);
+    const t = setTimeout(() => setShowSplash(false), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // Sync state to ref for back-button hardware popstate interceptor
   const stateRef = useRef({ activeTab, appState, showQuitWarning });
@@ -552,239 +602,244 @@ export default function Page() {
   };
 
   return (
-    <div className={`app-shell ${appState === 'dashboard' ? 'dashboard-shell' : ''}`}>
-      {/* ── Dashboard State ── */}
-      {appState === 'dashboard' && (
-        <div className="dashboard-container">
-          {/* Header */}
-          <header className="header dash-header">
-            <div className="header-left">
-              <div className="token-pill">
-                <TokenIcon />
-                <span>1,250</span>
-              </div>
-            </div>
-            <div className="header-center">
-              <div className="user-avatar-mini">{USER.avatar}</div>
-              <div className="user-info-mini">
-                <span className="user-name-mini">{USER.name}</span>
-                <span className="user-level-mini">Lv.{USER.level}</span>
-              </div>
-            </div>
-            <div className="header-right">
-              <button className="dm-btn" onClick={() => toggle('messages')} title="Messages">
-                <HeaderMessageIcon />
-                {/* Glowing Notification Pulse */}
-                <span className="unread-badge"></span>
-              </button>
-              <button className="settings-dots-btn" onClick={() => toggle('settings')} title="Settings">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                  <circle cx="12" cy="5" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="12" cy="19" r="2" />
-                </svg>
-              </button>
-            </div>
-          </header>
-
-          <main className="dash-main">
-            {/* Game Modes Section */}
-            <section className="dash-section">
-              <h3 className="section-title">GAME MODES</h3>
-              <div className="modes-list">
-                <div
-                  className={`mode-card ${selectedMode === 'classic' ? 'active selection-glow-green' : ''}`}
-                  onClick={() => setSelectedMode('classic')}
-                >
-                  <div className="mode-icon-wrapper classic">
-                    <DiceIcon />
-                  </div>
-                  <div className="mode-details">
-                    <h4>Classic</h4>
-                    <p>Traditional rules, pure strategy</p>
-                  </div>
-                  <ChevronRight />
-                </div>
-
-                <div
-                  className={`mode-card ${selectedMode === 'power' ? 'active selection-glow-orange' : ''}`}
-                  onClick={() => setSelectedMode('power')}
-                >
-                  <div className="mode-icon-wrapper power">
-                    <LightningIcon />
-                  </div>
-                  <div className="mode-details">
-                    <h4>Power</h4>
-                    <p>Power-ups, shields & wild cards</p>
-                  </div>
-                  <ChevronRight />
-                </div>
-
-                <div
-                  className={`mode-card ${selectedMode === 'snakes' ? 'active selection-glow-purple' : ''}`}
-                  onClick={() => setSelectedMode('snakes')}
-                >
-                  <div className="mode-icon-wrapper snakes" style={{ background: 'linear-gradient(135deg, var(--ludo-accent), var(--color-ludo-alert))' }}>
-                    <SnakeIcon />
-                  </div>
-                  <div className="mode-details">
-                    <h4>Snakes</h4>
-                    <p>Classic board with unpredictable twists</p>
-                  </div>
-                  <ChevronRight />
+    <>
+      <AnimatePresence>
+        {showSplash && <SplashScreen />}
+      </AnimatePresence>
+      <div className={`app-shell ${appState === 'dashboard' ? 'dashboard-shell' : ''}`}>
+        {/* ── Dashboard State ── */}
+        {appState === 'dashboard' && (
+          <div className="dashboard-container">
+            {/* Header */}
+            <header className="header dash-header">
+              <div className="header-left">
+                <div className="token-pill">
+                  <TokenIcon />
+                  <span>1,250</span>
                 </div>
               </div>
-            </section>
-
-            {/* Match Config Section */}
-            <section className="dash-section config-section">
-              <div className="config-card">
-                <h4 className="config-title text-center">Select Players</h4>
-                <div className="segmented-control">
-                  {(['2', '4', '2v2'] as const).map(num => (
-                    <button
-                      key={num}
-                      className={`seg-btn ${playerCount === num ? 'active' : ''}`}
-                      onClick={() => setPlayerCount(num)}
-                    >
-                      {num}
-                    </button>
-                  ))}
+              <div className="header-center">
+                <div className="user-avatar-mini">{USER.avatar}</div>
+                <div className="user-info-mini">
+                  <span className="user-name-mini">{USER.name}</span>
+                  <span className="user-level-mini">Lv.{USER.level}</span>
                 </div>
-
-                <h4 className="config-title text-center mt-6">BET AMOUNT</h4>
-                <div className="bet-pills">
-                  {[10, 25, 50, 100, 250].map(amt => (
-                    <button
-                      key={amt}
-                      className={`bet-pill ${betAmount === amt ? 'active' : ''}`}
-                      onClick={() => setBetAmount(amt)}
-                    >
-                      {amt}
-                    </button>
-                  ))}
-                </div>
-
-                <button className="play-now-btn" onClick={handlePlayNow}>
-                  Play Now
+              </div>
+              <div className="header-right">
+                <button className="dm-btn" onClick={() => toggle('messages')} title="Messages">
+                  <HeaderMessageIcon />
+                  {/* Glowing Notification Pulse */}
+                  <span className="unread-badge"></span>
+                </button>
+                <button className="settings-dots-btn" onClick={() => toggle('settings')} title="Settings">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                    <circle cx="12" cy="5" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="12" cy="19" r="2" />
+                  </svg>
                 </button>
               </div>
-            </section>
-          </main>
+            </header>
 
-          {/* Footer Nav */}
-          <nav className="footer-nav">
-            <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => toggle('profile')}>
-              <ProfileIcon />
-              <span className="nav-label">Profile</span>
-            </button>
-            <button className={`nav-item ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => toggle('friends')}>
-              <UsersIcon />
-              <span className="nav-label">Friends</span>
-            </button>
-            <button className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => toggle('leaderboard')}>
-              <TrophyIcon />
-              <span className="nav-label">Leaderboard</span>
-            </button>
-            <button className={`nav-item ${activeTab === 'mission' ? 'active' : ''}`} onClick={() => toggle('mission')}>
-              <TargetIcon />
-              <span className="nav-label">Mission</span>
-            </button>
-            <button className={`nav-item ${activeTab === 'marketplace' ? 'active' : ''}`} onClick={() => toggle('marketplace')}>
-              <ShopIcon />
-              <span className="nav-label">MarketP.</span>
-            </button>
-          </nav>
+            <main className="dash-main">
+              {/* Game Modes Section */}
+              <section className="dash-section">
+                <h3 className="section-title">GAME MODES</h3>
+                <div className="modes-list">
+                  <div
+                    className={`mode-card ${selectedMode === 'classic' ? 'active selection-glow-green' : ''}`}
+                    onClick={() => setSelectedMode('classic')}
+                  >
+                    <div className="mode-icon-wrapper classic">
+                      <DiceIcon />
+                    </div>
+                    <div className="mode-details">
+                      <h4>Classic</h4>
+                      <p>Traditional rules, pure strategy</p>
+                    </div>
+                    <ChevronRight />
+                  </div>
 
-          {/* Slide-up Panels for footer tabs */}
-          {activeTab === 'profile' && (
-            <UserProfilePanel onClose={closeTab} />
-          )}
-          {activeTab === 'friends' && (
-            <TabPanel title="Friends" emoji="👥" description="See who is online and invite them to play." onClose={closeTab} />
-          )}
-          {activeTab === 'leaderboard' && (
-            <Leaderboard isOpen={true} onClose={closeTab} />
-          )}
-          {activeTab === 'mission' && (
-            <TabPanel title="Missions" emoji="🎯" description="Complete daily challenges for rewards." onClose={closeTab} />
-          )}
-          {activeTab === 'marketplace' && (
-            <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
-          )}
+                  <div
+                    className={`mode-card ${selectedMode === 'power' ? 'active selection-glow-orange' : ''}`}
+                    onClick={() => setSelectedMode('power')}
+                  >
+                    <div className="mode-icon-wrapper power">
+                      <LightningIcon />
+                    </div>
+                    <div className="mode-details">
+                      <h4>Power</h4>
+                      <p>Power-ups, shields & wild cards</p>
+                    </div>
+                    <ChevronRight />
+                  </div>
 
-          {activeTab === 'settings' && <SettingsPanel onClose={closeTab} />}
-          {activeTab === 'messages' && <MessagesPanel onClose={closeTab} />}
-        </div>
-      )}
+                  <div
+                    className={`mode-card ${selectedMode === 'snakes' ? 'active selection-glow-purple' : ''}`}
+                    onClick={() => setSelectedMode('snakes')}
+                  >
+                    <div className="mode-icon-wrapper snakes" style={{ background: 'linear-gradient(135deg, var(--ludo-accent), var(--color-ludo-alert))' }}>
+                      <SnakeIcon />
+                    </div>
+                    <div className="mode-details">
+                      <h4>Snakes</h4>
+                      <p>Classic board with unpredictable twists</p>
+                    </div>
+                    <ChevronRight />
+                  </div>
+                </div>
+              </section>
 
+              {/* Match Config Section */}
+              <section className="dash-section config-section">
+                <div className="config-card">
+                  <h4 className="config-title text-center">Select Players</h4>
+                  <div className="segmented-control">
+                    {(['2', '4', '2v2'] as const).map(num => (
+                      <button
+                        key={num}
+                        className={`seg-btn ${playerCount === num ? 'active' : ''}`}
+                        onClick={() => setPlayerCount(num)}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
 
-      {/* ── Game State ── */}
-      {appState === 'game' && (
-        <>
-          <div className="game-top-bar">
-            <div className="game-header-left">
-              <button className="back-btn" onClick={() => setShowQuitWarning(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-                  <line x1="19" y1="12" x2="5" y2="12"></line>
-                  <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
+                  <h4 className="config-title text-center mt-6">BET AMOUNT</h4>
+                  <div className="bet-pills">
+                    {[10, 25, 50, 100, 250].map(amt => (
+                      <button
+                        key={amt}
+                        className={`bet-pill ${betAmount === amt ? 'active' : ''}`}
+                        onClick={() => setBetAmount(amt)}
+                      >
+                        {amt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button className="play-now-btn" onClick={handlePlayNow}>
+                    Play Now
+                  </button>
+                </div>
+              </section>
+            </main>
+
+            {/* Footer Nav */}
+            <nav className="footer-nav">
+              <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => toggle('profile')}>
+                <ProfileIcon />
+                <span className="nav-label">Profile</span>
               </button>
-              <div className="game-status-info">
-                <span className="game-mode-title">{playerCount === '2v2' ? 'Team Mode' : `${selectedMode} Mode`}</span>
-                <span className="game-status">{playerCount === '2v2' ? '2v2' : `${playerCount} Players`}</span>
-              </div>
-            </div>
+              <button className={`nav-item ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => toggle('friends')}>
+                <UsersIcon />
+                <span className="nav-label">Friends</span>
+              </button>
+              <button className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => toggle('leaderboard')}>
+                <TrophyIcon />
+                <span className="nav-label">Leaderboard</span>
+              </button>
+              <button className={`nav-item ${activeTab === 'mission' ? 'active' : ''}`} onClick={() => toggle('mission')}>
+                <TargetIcon />
+                <span className="nav-label">Mission</span>
+              </button>
+              <button className={`nav-item ${activeTab === 'marketplace' ? 'active' : ''}`} onClick={() => toggle('marketplace')}>
+                <ShopIcon />
+                <span className="nav-label">MarketP.</span>
+              </button>
+            </nav>
 
-            <div className="game-header-right">
-              <div className="game-bet-pill">
-                <TokenIcon />
-                <span>{betAmount}</span>
-              </div>
-            </div>
-          </div>
-          <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
-            {selectedMode === 'snakes' ? (
-              <SnakesBoard playerCount={playerCount} />
-            ) : (
-              <Board playerCount={playerCount} gameMode={selectedMode} />
+            {/* Slide-up Panels for footer tabs */}
+            {activeTab === 'profile' && (
+              <UserProfilePanel onClose={closeTab} />
             )}
-          </main>
+            {activeTab === 'friends' && (
+              <TabPanel title="Friends" emoji="👥" description="See who is online and invite them to play." onClose={closeTab} />
+            )}
+            {activeTab === 'leaderboard' && (
+              <Leaderboard isOpen={true} onClose={closeTab} />
+            )}
+            {activeTab === 'mission' && (
+              <TabPanel title="Missions" emoji="🎯" description="Complete daily challenges for rewards." onClose={closeTab} />
+            )}
+            {activeTab === 'marketplace' && (
+              <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
+            )}
 
-          {/* ── Quit Match Warning Overlay ── */}
-          {showQuitWarning && (
-            <div className="absolute inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center">
-              <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-sm w-[90%] text-center">
-                <h2 className="text-2xl font-bold text-white mb-3">Leave Match?</h2>
-                <p className="text-white/70 mb-8 font-medium">All progress will be lost. Are you sure you want to quit?</p>
-                <div className="flex gap-4 justify-center">
-                  <button
-                    onClick={() => setShowQuitWarning(false)}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowQuitWarning(false);
-                      handleBackToSubMenu();
-                    }}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 transition-colors"
-                  >
-                    Quit Game
-                  </button>
+            {activeTab === 'settings' && <SettingsPanel onClose={closeTab} />}
+            {activeTab === 'messages' && <MessagesPanel onClose={closeTab} />}
+          </div>
+        )}
+
+
+        {/* ── Game State ── */}
+        {appState === 'game' && (
+          <>
+            <div className="game-top-bar">
+              <div className="game-header-left">
+                <button className="back-btn" onClick={() => setShowQuitWarning(true)}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                </button>
+                <div className="game-status-info">
+                  <span className="game-mode-title">{playerCount === '2v2' ? 'Team Mode' : `${selectedMode} Mode`}</span>
+                  <span className="game-status">{playerCount === '2v2' ? '2v2' : `${playerCount} Players`}</span>
+                </div>
+              </div>
+
+              <div className="game-header-right">
+                <div className="game-bet-pill">
+                  <TokenIcon />
+                  <span>{betAmount}</span>
                 </div>
               </div>
             </div>
-          )}
-        </>
-      )}
+            <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
+              {selectedMode === 'snakes' ? (
+                <SnakesBoard playerCount={playerCount} />
+              ) : (
+                <Board playerCount={playerCount} gameMode={selectedMode} />
+              )}
+            </main>
 
-      {/* Settings Drawer — at top level for correct fixed positioning */}
-      {activeTab === 'settings' && (
-        <SettingsPanel onClose={closeTab} />
-      )}
+            {/* ── Quit Match Warning Overlay ── */}
+            {showQuitWarning && (
+              <div className="absolute inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center">
+                <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-sm w-[90%] text-center">
+                  <h2 className="text-2xl font-bold text-white mb-3">Leave Match?</h2>
+                  <p className="text-white/70 mb-8 font-medium">All progress will be lost. Are you sure you want to quit?</p>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={() => setShowQuitWarning(false)}
+                      className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowQuitWarning(false);
+                        handleBackToSubMenu();
+                      }}
+                      className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 transition-colors"
+                    >
+                      Quit Game
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-    </div>
+        {/* Settings Drawer — at top level for correct fixed positioning */}
+        {activeTab === 'settings' && (
+          <SettingsPanel onClose={closeTab} />
+        )}
+
+      </div>
+    </>
   );
 }
