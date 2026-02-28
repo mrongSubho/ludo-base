@@ -3007,6 +3007,10 @@ a {
   box-shadow: 0 0 0 2px #FFB347, 0 8px 24px rgba(255, 179, 71, 0.2);
 }
 
+.mode-card.active.selection-glow-purple {
+  box-shadow: 0 0 0 2px #a855f7, 0 8px 24px rgba(168, 85, 247, 0.2);
+}
+
 .mode-icon-wrapper {
   width: 48px;
   height: 48px;
