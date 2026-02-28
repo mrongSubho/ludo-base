@@ -135,7 +135,14 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         <div className="px-6 pb-4 border-b border-white/10 flex flex-col gap-4">
                             <div className="flex items-center justify-between mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <span className="text-2xl">🏆</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-yellow-500">
+                                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                                        <path d="M4 22h16"></path>
+                                        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+                                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+                                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+                                    </svg>
                                     Leaderboard
                                 </h2>
 
@@ -226,7 +233,11 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
                             {stats.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
-                                    <span className="text-6xl mb-4">👑</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-16 h-16 mb-4 text-white/40">
+                                        <path d="M6 3h12l4 6-10 13L2 9z"></path>
+                                        <path d="M11 3 8 9l4 13 4-13-3-6"></path>
+                                        <path d="M2 9h20"></path>
+                                    </svg>
                                     <h3 className="text-xl font-bold text-white mb-2">The throne is empty</h3>
                                     <p className="text-sm text-white/60">No records found for this period.</p>
                                 </div>

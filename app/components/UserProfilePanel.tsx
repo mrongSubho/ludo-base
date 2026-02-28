@@ -57,7 +57,10 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 <div className="px-6 pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <span className="text-2xl">👤</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-indigo-400">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
                             Profile
                         </h2>
                         <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors">

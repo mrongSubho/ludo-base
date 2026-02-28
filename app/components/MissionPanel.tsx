@@ -98,7 +98,11 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                         <div className="px-6 pb-4 border-b border-white/10 flex flex-col gap-4">
                             <div className="flex items-center justify-between mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <span className="text-2xl">🎯</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-blue-400">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <circle cx="12" cy="12" r="6"></circle>
+                                        <circle cx="12" cy="12" r="2"></circle>
+                                    </svg>
                                     Missions
                                 </h2>
                                 <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors">
@@ -166,8 +170,19 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                                                     {mission.title}
                                                                 </h3>
                                                                 {/* Reward Tag */}
-                                                                <div className="flex items-center gap-1.5 bg-black/40 px-2 py-1 rounded-md border border-white/5 flex-shrink-0">
-                                                                    <span className="text-[10px] leading-none">{mission.rewardType === 'coins' ? '🪙' : '💎'}</span>
+                                                                <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
+                                                                    {mission.rewardType === 'coins' ? (
+                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-yellow-400">
+                                                                            <circle cx="12" cy="12" r="8"></circle>
+                                                                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                                                                            <path d="M16 12H8"></path>
+                                                                        </svg>
+                                                                    ) : (
+                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
+                                                                            <path d="M6 3h12l4 6-10 13L2 9z"></path>
+                                                                            <path d="M11 3 8 9l4 13 4-13-3-6"></path>
+                                                                        </svg>
+                                                                    )}
                                                                     <span className={`text-[11px] font-black leading-none ${mission.rewardType === 'coins' ? 'text-yellow-400' : 'text-cyan-400'}`}>
                                                                         {mission.rewardAmount}
                                                                     </span>
