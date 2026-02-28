@@ -12,7 +12,6 @@ interface MarketItem {
     name: string;
     description: string;
     price: number;
-    currency: 'coins' | 'gems' | 'eth';
     owned: boolean;
     rarity: Rarity;
     previewColor: string;
@@ -26,24 +25,25 @@ interface MarketplacePanelProps {
 
 export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelProps) {
     const [activeTab, setActiveTab] = useState<MarketTab>('items');
+    const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
 
     // MOCK DATA: Premium NFT Goods
     const getMarketItems = (tab: MarketTab): MarketItem[] => {
         const items: MarketItem[] = [
             // Themes
-            { id: 't1', type: 'themes', name: 'Midnight', description: 'Deep space aesthetic.', price: 5000, currency: 'coins', owned: true, rarity: 'common', previewColor: 'bg-[#0a0b14]' },
-            { id: 't2', type: 'themes', name: 'Cyberpunk', description: 'Neon lights and glitch.', price: 0.05, currency: 'eth', owned: false, rarity: 'legendary', previewColor: 'bg-fuchsia-900', previewIcon: <div className="text-fuchsia-400">⚡</div> },
-            { id: 't3', type: 'themes', name: 'Golden Era', description: 'Luxury royal theme.', price: 10000, currency: 'coins', owned: false, rarity: 'rare', previewColor: 'bg-yellow-900/50' },
+            { id: 't1', type: 'themes', name: 'Midnight', description: 'Deep space aesthetic.', price: 12.50, owned: true, rarity: 'common', previewColor: 'bg-[#0a0b14]' },
+            { id: 't2', type: 'themes', name: 'Cyberpunk', description: 'Neon lights and glitch.', price: 45.00, owned: false, rarity: 'legendary', previewColor: 'bg-fuchsia-900', previewIcon: <div className="text-fuchsia-400">⚡</div> },
+            { id: 't3', type: 'themes', name: 'Golden Era', description: 'Luxury royal theme.', price: 25.00, owned: false, rarity: 'rare', previewColor: 'bg-yellow-900/50' },
 
             // Items
-            { id: 's1', type: 'items', name: 'Crystal', description: 'Translucent tokens.', price: 0.012, currency: 'eth', owned: false, rarity: 'rare', previewColor: 'bg-cyan-500/30' },
-            { id: 's2', type: 'items', name: 'Magma', description: 'Animated lava flow.', price: 3000, currency: 'coins', owned: true, rarity: 'rare', previewColor: 'bg-orange-600' },
-            { id: 's3', type: 'items', name: 'Void', description: 'Absorbs all light.', price: 0.08, currency: 'eth', owned: false, rarity: 'legendary', previewColor: 'bg-black' },
+            { id: 's1', type: 'items', name: 'Crystal', description: 'Translucent tokens.', price: 8.99, owned: false, rarity: 'rare', previewColor: 'bg-cyan-500/30' },
+            { id: 's2', type: 'items', name: 'Magma', description: 'Animated lava flow.', price: 15.00, owned: true, rarity: 'rare', previewColor: 'bg-orange-600' },
+            { id: 's3', type: 'items', name: 'Void', description: 'Absorbs all light.', price: 99.00, owned: false, rarity: 'legendary', previewColor: 'bg-black' },
 
             // Dice
-            { id: 'd1', type: 'dice', name: 'Classic Red', description: 'The original feel.', price: 0, currency: 'coins', owned: true, rarity: 'common', previewColor: 'bg-red-500' },
-            { id: 'd2', type: 'dice', name: 'Glass D6', description: 'See-through glass.', price: 1200, currency: 'coins', owned: false, rarity: 'common', previewColor: 'bg-white/10' },
-            { id: 'd3', type: 'dice', name: 'Dragon Eye', description: 'Watch it roll.', price: 0.02, currency: 'eth', owned: false, rarity: 'legendary', previewColor: 'bg-emerald-900' },
+            { id: 'd1', type: 'dice', name: 'Classic Red', description: 'The original feel.', price: 0, owned: true, rarity: 'common', previewColor: 'bg-red-500' },
+            { id: 'd2', type: 'dice', name: 'Glass D6', description: 'See-through glass.', price: 5.50, owned: false, rarity: 'common', previewColor: 'bg-white/10' },
+            { id: 'd3', type: 'dice', name: 'Dragon Eye', description: 'Watch it roll.', price: 32.00, owned: false, rarity: 'legendary', previewColor: 'bg-emerald-900' },
         ];
         return items.filter(i => i.type === tab);
     };
@@ -69,7 +69,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
+                        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -122,12 +122,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         layout
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
-                                        className={`bg-white/5 border rounded-lg p-1 flex flex-col group hover:bg-white/10 transition-all ${item.rarity === 'legendary' ? 'border-fuchsia-600/30' :
-                                            item.rarity === 'rare' ? 'border-blue-500/30' : 'border-white/10'
+                                        onClick={() => setSelectedItem(item)}
+                                        className={`bg-white/5 border rounded-lg p-1 flex flex-col group cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all ${item.rarity === 'legendary' ? 'border-fuchsia-600/30 shadow-[0_0_15px_rgba(192,38,211,0.05)]' :
+                                            item.rarity === 'rare' ? 'border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.05)]' : 'border-white/10'
                                             }`}
                                     >
                                         {/* Preview Area */}
-                                        <div className={`aspect-square w-full rounded-md ${item.previewColor} mb-1 border border-white/5 flex items-center justify-center text-lg shadow-inner relative overflow-hidden`}>
+                                        <div className={`aspect-square w-full rounded-md ${item.previewColor} mb-1 border border-white/5 flex items-center justify-center text-lg shadow-inner relative overflow-hidden group-hover:scale-[1.02] transition-transform`}>
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
                                             <div className="relative z-10">{item.previewIcon}</div>
 
@@ -151,55 +152,85 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                         {/* Info */}
                                         <div className="flex flex-col flex-1 px-0.5">
-                                            <div className="flex items-center justify-between pointer-events-none mb-0.5">
+                                            <div className="flex items-center justify-between mb-0.5">
                                                 <h3 className="text-[8px] font-black text-white truncate max-w-full leading-tight">{item.name}</h3>
                                             </div>
-                                            <p className="text-[6px] text-white/30 mb-1.5 line-clamp-1 h-2 leading-none uppercase tracking-tighter select-none">{item.rarity}</p>
 
-                                            {/* Action Button */}
-                                            <button
-                                                disabled={item.owned}
-                                                className={`w-full py-1 rounded-md text-[7px] font-black transition-all flex items-center justify-center gap-0.5
-                                                    ${item.owned
-                                                        ? 'bg-transparent text-white/10 border border-white/5 cursor-default'
-                                                        : 'bg-white/5 hover:bg-white/10 text-white border border-white/10 active:scale-90'
-                                                    }
-                                                `}
-                                            >
-                                                {item.owned ? (
-                                                    'OWNED'
-                                                ) : (
-                                                    <>
-                                                        {item.currency === 'eth' ? (
-                                                            <div className="flex items-center gap-0.5">
-                                                                <svg viewBox="0 0 256 417" className="w-1 h-1.5 fill-white/40"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" /><path d="M127.962 0L0 212.32l127.962 75.638V154.158z" /><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.59 128.038-180.32z" /><path d="M127.962 416.905V312.187L0 236.402z" /><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" /><path d="M0 212.32l127.962 75.638V154.158z" /></svg>
-                                                                <span className="text-[7px]">{item.price}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-0.5">
-                                                                {item.currency === 'coins' ? (
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5 text-yellow-400">
-                                                                        <circle cx="12" cy="12" r="8"></circle>
-                                                                        <line x1="12" y1="8" x2="12" y2="16"></line>
-                                                                        <path d="M16 12H8"></path>
-                                                                    </svg>
-                                                                ) : (
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5 text-cyan-400">
-                                                                        <path d="M6 3h12l4 6-10 13L2 9z"></path>
-                                                                        <path d="M11 3 8 9l4 13 4-13-3-6"></path>
-                                                                    </svg>
-                                                                )}
-                                                                <span className="text-[7px]">{item.price}</span>
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </button>
+                                            <div className="flex items-center justify-between mt-auto pt-1">
+                                                <span className={`text-[6px] font-black tracking-tighter uppercase ${item.rarity === 'legendary' ? 'text-fuchsia-400' :
+                                                    item.rarity === 'rare' ? 'text-blue-400' : 'text-white/30'
+                                                    }`}>
+                                                    {item.rarity[0]}
+                                                </span>
+
+                                                <div className="flex items-center gap-0.5">
+                                                    <span className="text-[7px] text-white/50 font-mono">$</span>
+                                                    <span className="text-[8px] font-black text-white/90 font-mono">{item.price % 1 === 0 ? item.price : item.price.toFixed(2)}</span>
+                                                    <span className="text-[6px] text-white/20 font-black ml-0.5">USDC</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </motion.div>
                                 ))}
                             </motion.div>
                         </div>
+
+                        {/* Product Detail Overlay (Mock) */}
+                        <AnimatePresence>
+                            {selectedItem && (
+                                <motion.div
+                                    initial={{ x: '100%' }}
+                                    animate={{ x: 0 }}
+                                    exit={{ x: '100%' }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                    className="absolute inset-x-0 bottom-0 top-[60px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col p-6 rounded-t-[24px]"
+                                >
+                                    <div className="flex items-center justify-between mb-8">
+                                        <button
+                                            onClick={() => setSelectedItem(null)}
+                                            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-xs font-bold"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                            Back
+                                        </button>
+                                        <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full">
+                                            <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">{selectedItem.rarity} collectible</span>
+                                        </div>
+                                    </div>
+
+                                    <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden`}>
+                                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                                        <div className="relative z-10">{selectedItem.previewIcon}</div>
+                                        {selectedItem.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-3xl animate-pulse" />}
+                                    </div>
+
+                                    <div className="flex flex-col flex-1">
+                                        <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
+                                        <p className="text-white/40 text-sm leading-relaxed mb-8">{selectedItem.description}</p>
+
+                                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-auto">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Market Price</span>
+                                                <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Available</span>
+                                            </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-4xl font-black text-white font-mono">{selectedItem.price}</span>
+                                                <span className="text-xl font-bold text-white/30 font-mono">USDC</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4 mt-8">
+                                            <button className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all">
+                                                {selectedItem.owned ? 'SELL NFT' : 'MINT NOW'}
+                                            </button>
+                                            <button className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 active:scale-95 transition-all">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 </>
             )}
