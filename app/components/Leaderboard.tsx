@@ -26,6 +26,7 @@ interface LeaderboardProps {
 export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
     const [scope, setScope] = useState<'global' | 'friends'>('global');
+    const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
 
     // MOCK DATA: 5-Tier Advanced Ranking System
     const getStats = (tab: LeaderboardTab, currentScope: 'global' | 'friends'): LeaderboardEntry[] => {
@@ -143,13 +144,15 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                         onClick={() => setScope('global')}
                                         className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all ${scope === 'global' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
                                     >
-                                        <span>🌍</span> Global
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                        Global
                                     </button>
                                     <button
                                         onClick={() => setScope('friends')}
                                         className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all ${scope === 'friends' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
                                     >
-                                        <span>👥</span> Friends
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                        Friends
                                     </button>
                                 </div>
 
@@ -164,12 +167,19 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab as LeaderboardTab)}
-                                        className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all ${activeTab === tab
+                                        className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === tab
                                             ? 'bg-blue-600/80 text-white shadow-lg border border-blue-500/30'
                                             : 'text-white/40 hover:text-white/70'
                                             }`}
                                     >
-                                        {tab === 'tier' ? 'TIER' : tab}
+                                        {tab === 'tier' ? (
+                                            <>
+                                                TIER
+                                                <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${activeTab === 'tier' ? 'bg-white/20 text-white' : 'bg-white/10 text-white/30'}`}>
+                                                    Q{currentQuarter}
+                                                </span>
+                                            </>
+                                        ) : tab}
                                     </button>
                                 ))}
                             </div>
