@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
@@ -11,6 +11,7 @@ import UserProfilePanel from './components/UserProfilePanel';
 // but let's keep it imported and conditionally rendered.
 import Leaderboard from './components/Leaderboard';
 import MissionPanel from './components/MissionPanel';
+import MarketplacePanel from './components/MarketplacePanel';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -193,7 +194,11 @@ function TabPanel({ title, emoji, icon, description, onClose }: {
         </div>
         <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center text-center opacity-60">
           <div className="mb-4">
-            {icon ? React.cloneElement(icon as React.ReactElement, { className: "w-16 h-16 text-white/40" }) : <span className="text-6xl">{emoji}</span>}
+            {icon ? (
+              <div className="w-16 h-16 text-white/40 mx-auto">
+                {icon}
+              </div>
+            ) : <span className="text-6xl">{emoji}</span>}
           </div>
           <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
           <p className="text-sm text-white/60">{description}</p>
@@ -626,7 +631,7 @@ export default function Page() {
               <MissionPanel isOpen={true} onClose={closeTab} />
             )}
             {activeTab === 'marketplace' && (
-              <TabPanel title="Marketplace" icon={<ShopIcon />} description="Buy themes, skins, and new dice." onClose={closeTab} />
+              <MarketplacePanel isOpen={true} onClose={closeTab} />
             )}
 
             {activeTab === 'settings' && <SettingsPanel onClose={closeTab} />}
