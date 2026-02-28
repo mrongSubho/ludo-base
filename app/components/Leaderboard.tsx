@@ -25,18 +25,25 @@ interface LeaderboardProps {
 
 export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
+    const [scope, setScope] = useState<'global' | 'friends'>('global');
 
     // MOCK DATA: 5-Tier Advanced Ranking System
-    const getStats = (tab: LeaderboardTab): LeaderboardEntry[] => {
-        const dummyEntries: LeaderboardEntry[] = [
+    const getStats = (tab: LeaderboardTab, currentScope: 'global' | 'friends'): LeaderboardEntry[] => {
+        const dummyEntries: (LeaderboardEntry & { isFriend?: boolean })[] = [
             { id: '1', name: 'Mrong', avatar: '1', wins: 42, lastWin: Date.now() - 3600000, isCurrentUser: true, tier: 'Platinum', stage: 'I' },
-            { id: '2', name: 'Fahmida', avatar: '2', wins: 89, lastWin: Date.now() - 86400000, tier: 'Legendary', stage: 'III' },
+            { id: '2', name: 'Fahmida', avatar: '2', wins: 89, lastWin: Date.now() - 86400000, tier: 'Legendary', stage: 'III', isFriend: true },
             { id: '3', name: 'Gemini (AI)', avatar: '3', wins: 12, lastWin: Date.now() - 172800000, tier: 'Silver', stage: 'II' },
             { id: '4', name: 'Core (AI)', avatar: '4', wins: 8, lastWin: Date.now() - 259200000, tier: 'Rookie', stage: 'I' },
-            { id: '5', name: 'Alex', avatar: '5', wins: 56, lastWin: Date.now() - 4000000, tier: 'Gold', stage: 'III' },
+            { id: '5', name: 'Alex', avatar: '5', wins: 56, lastWin: Date.now() - 4000000, tier: 'Gold', stage: 'III', isFriend: true },
             { id: '6', name: 'Sarah Ludo', avatar: '6', wins: 24, lastWin: Date.now() - 900000, tier: 'Silver', stage: 'III' },
-            { id: '7', name: 'MasterG', avatar: '7', wins: 102, lastWin: Date.now() - 120000, tier: 'Legendary', stage: 'II' }
+            { id: '7', name: 'MasterG', avatar: '7', wins: 102, lastWin: Date.now() - 120000, tier: 'Legendary', stage: 'II', isFriend: true }
         ];
+
+        // Filter by scope first
+        let scopedEntries = dummyEntries;
+        if (currentScope === 'friends') {
+            scopedEntries = dummyEntries.filter(e => e.isFriend || e.isCurrentUser);
+        }
 
         // Sort differently based on the active tab
         if (tab === 'tier') {
@@ -44,7 +51,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
             const tierWeight = { 'Legendary': 5, 'Platinum': 4, 'Gold': 3, 'Silver': 2, 'Rookie': 1 };
             const stageWeight = { 'III': 3, 'II': 2, 'I': 1 };
 
-            return dummyEntries.sort((a, b) => {
+            return scopedEntries.sort((a, b) => {
                 const tierDiff = tierWeight[b.tier] - tierWeight[a.tier];
                 if (tierDiff !== 0) return tierDiff;
 
@@ -61,22 +68,22 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
 
         // Daily: Only records from today (UTC)
         if (tab === 'daily') {
-            return dummyEntries
+            return scopedEntries
                 .filter(e => e.lastWin >= startOfDayUTC)
                 .sort((a, b) => b.wins - a.wins);
         }
 
         // Monthly: Only records from this month (UTC)
         if (tab === 'monthly') {
-            return dummyEntries
+            return scopedEntries
                 .filter(e => e.lastWin >= startOfMonthUTC)
                 .sort((a, b) => b.wins - a.wins);
         }
 
-        return dummyEntries;
+        return scopedEntries;
     };
 
-    const stats = getStats(activeTab);
+    const stats = getStats(activeTab, scope);
 
     // Map the standard 1,2,3 ranks for Daily/Monthly
     const getRankBadge = (rank: number) => {
@@ -129,6 +136,23 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                     <span className="text-2xl">🏆</span>
                                     Leaderboard
                                 </h2>
+
+                                {/* Scope Switcher (Global vs Friends) */}
+                                <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                                    <button
+                                        onClick={() => setScope('global')}
+                                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all ${scope === 'global' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
+                                    >
+                                        <span>🌍</span> Global
+                                    </button>
+                                    <button
+                                        onClick={() => setScope('friends')}
+                                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all ${scope === 'friends' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
+                                    >
+                                        <span>👥</span> Friends
+                                    </button>
+                                </div>
+
                                 <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
