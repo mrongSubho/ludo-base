@@ -161,7 +161,7 @@ export default function FriendsPanel({ onClose }: FriendsPanelProps) {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 /* Specific transparent glass background applied here as requested (approx 15-20%) */
-                className="fixed bottom-0 left-0 right-0 h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
+                className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>

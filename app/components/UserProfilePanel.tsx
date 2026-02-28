@@ -46,7 +46,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 /* Specific transparent glass background applied here to match FriendsPanel (approx 20%) */
-                className="fixed bottom-0 left-0 right-0 h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
+                className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -141,7 +141,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                         <span className="text-[9px] uppercase font-bold text-white/40">Matches</span>
                                     </div>
                                     <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-2 flex flex-col items-center justify-center flex-1">
-                                        <span className="text-sm font-bold text-orange-400">3🔥</span>
+                                        <span className="text-sm font-bold text-orange-400">3</span>
                                         <span className="text-[9px] uppercase font-bold text-orange-400/70">Streak</span>
                                     </div>
                                 </div>
