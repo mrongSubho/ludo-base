@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -490,6 +490,7 @@ export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
+  const [showQuitWarning, setShowQuitWarning] = useState(false);
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
@@ -497,6 +498,39 @@ export default function Page() {
   const [betAmount, setBetAmount] = useState<number>(50);
 
   useEffect(() => { setIsMounted(true); }, []);
+
+  // Sync state to ref for back-button hardware popstate interceptor
+  const stateRef = useRef({ activeTab, appState, showQuitWarning });
+  useEffect(() => {
+    stateRef.current = { activeTab, appState, showQuitWarning };
+  }, [activeTab, appState, showQuitWarning]);
+
+  useEffect(() => {
+    // Push an initial history state so the hardware back button has something to pop instead of leaving the PWA
+    window.history.pushState({ ludoState: 'active' }, '', window.location.href);
+
+    const handlePopState = (e: PopStateEvent) => {
+      // Re-push state so the next back press is also intercepted
+      window.history.pushState({ ludoState: 'active' }, '', window.location.href);
+
+      const current = stateRef.current;
+
+      if (current.activeTab !== null) {
+        // Drawer is open -> natively close it
+        setActiveTab(null);
+      } else if (current.appState === 'game') {
+        // In a game -> Prompt exit confirmation instead of leaving instantly
+        if (!current.showQuitWarning) {
+          setShowQuitWarning(true);
+        } else {
+          setShowQuitWarning(false);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   if (!isMounted) {
     return (
@@ -690,7 +724,7 @@ export default function Page() {
         <>
           <div className="game-top-bar">
             <div className="game-header-left">
-              <button className="back-btn" onClick={handleBackToSubMenu}>
+              <button className="back-btn" onClick={() => setShowQuitWarning(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
                   <line x1="19" y1="12" x2="5" y2="12"></line>
                   <polyline points="12 19 5 12 12 5"></polyline>
@@ -716,6 +750,33 @@ export default function Page() {
               <Board playerCount={playerCount} gameMode={selectedMode} />
             )}
           </main>
+
+          {/* ── Quit Match Warning Overlay ── */}
+          {showQuitWarning && (
+            <div className="absolute inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center">
+              <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-sm w-[90%] text-center">
+                <h2 className="text-2xl font-bold text-white mb-3">Leave Match?</h2>
+                <p className="text-white/70 mb-8 font-medium">All progress will be lost. Are you sure you want to quit?</p>
+                <div className="flex gap-4 justify-center">
+                  <button
+                    onClick={() => setShowQuitWarning(false)}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowQuitWarning(false);
+                      handleBackToSubMenu();
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 transition-colors"
+                  >
+                    Quit Game
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
