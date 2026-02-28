@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
@@ -87,15 +88,6 @@ function PlayerCard({
 
     return (
         <div className="relative flex items-center justify-center">
-            {/* Vertical Player Name */}
-            <div
-                className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest opacity-80 ${player.position.includes('left')
-                    ? '-left-6 rotate-90 origin-center text-slate-500'
-                    : '-right-6 -rotate-90 origin-center text-slate-500'
-                    }`}
-            >
-                {player.name}
-            </div>
 
             <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
                 <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
@@ -132,6 +124,47 @@ function PlayerCard({
                 </div>
             </div>
         </div>
+    );
+}
+
+// ─── Outboard Names Portal ───
+function OutboardNames({ players }: { players: Player[] }) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted || typeof document === 'undefined') return null;
+
+    return createPortal(
+        <div className="snakes-outboard-names fixed inset-0 pointer-events-none z-[100]">
+            {/* Top-Left */}
+            {players.find(p => p.position === 'top-left') && (
+                <div className="absolute top-[20%] -translate-y-1/2 left-2 rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
+                    {players.find(p => p.position === 'top-left')?.name}
+                </div>
+            )}
+            {/* Top-Right */}
+            {players.find(p => p.position === 'top-right') && (
+                <div className="absolute top-[20%] -translate-y-1/2 right-2 -rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
+                    {players.find(p => p.position === 'top-right')?.name}
+                </div>
+            )}
+            {/* Bottom-Left */}
+            {players.find(p => p.position === 'bottom-left') && (
+                <div className="absolute bottom-[20%] translate-y-1/2 left-2 rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
+                    {players.find(p => p.position === 'bottom-left')?.name}
+                </div>
+            )}
+            {/* Bottom-Right */}
+            {players.find(p => p.position === 'bottom-right') && (
+                <div className="absolute bottom-[20%] translate-y-1/2 right-2 -rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
+                    {players.find(p => p.position === 'bottom-right')?.name}
+                </div>
+            )}
+        </div>,
+        document.body
     );
 }
 
@@ -361,6 +394,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
     return (
         <div className="snakes-board-wrapper w-full h-full flex flex-col items-center justify-between py-4 px-2">
+            <OutboardNames players={players} />
 
             {/* Top row cards */}
             <div className="player-row relative w-full flex justify-between z-50 px-10 sm:px-16 md:px-24">
@@ -368,8 +402,8 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                     const p = players.find(player => player.position === pos);
                     return p ? (
                         <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
-                            {/* Left Dice */}
-                            {gameState.currentPlayer === p.color && pos.includes('left') && (
+                            {/* Left Dice (For Right Players, placing it strictly inside) */}
+                            {gameState.currentPlayer === p.color && pos.includes('right') && (
                                 <div className="z-50 scale-75 origin-right">
                                     <Dice
                                         onRoll={handleRoll}
@@ -396,8 +430,8 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                 )}
                             </div>
 
-                            {/* Right Dice */}
-                            {gameState.currentPlayer === p.color && pos.includes('right') && (
+                            {/* Right Dice (For Left Players, placing it strictly inside) */}
+                            {gameState.currentPlayer === p.color && pos.includes('left') && (
                                 <div className="z-50 scale-75 origin-left">
                                     <Dice
                                         onRoll={handleRoll}
@@ -497,7 +531,46 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                         if (!p) return <div className="w-[120px]" />;
                         return (
                             <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
-                                {/* Left Dice */}
+                                <div className="flex flex-col-reverse items-center gap-1">
+                                    <PlayerCard
+                                        player={p}
+                                        isActive={gameState.currentPlayer === p.color}
+                                        timeLeft={gameState.timeLeft}
+                                        strikes={gameState.strikes[p.color]}
+                                        power={null}
+                                        onAvatarClick={() => { }}
+                                    />
+                                    {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                                        <div className="ai-thinking-tag">Thinking...</div>
+                                    )}
+                                    {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
+                                        <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                    )}
+                                </div>
+
+                                {/* Right Dice (For Left Player) */}
+                                {gameState.currentPlayer === p.color && (
+                                    <div className="z-50 scale-75 origin-left">
+                                        <Dice
+                                            onRoll={handleRoll}
+                                            disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+                </div>
+
+                {/* Central Dice removed to match classic board peripheral layout */}
+
+                <div className="relative">
+                    {(() => {
+                        const p = players.find(player => player.position === 'bottom-right');
+                        if (!p) return <div className="w-[120px]" />;
+                        return (
+                            <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
+                                {/* Left Dice (For Right Player) */}
                                 {gameState.currentPlayer === p.color && (
                                     <div className="z-50 scale-75 origin-right">
                                         <Dice
@@ -523,45 +596,6 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                         <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                                     )}
                                 </div>
-                            </div>
-                        );
-                    })()}
-                </div>
-
-                {/* Central Dice removed to match classic board peripheral layout */}
-
-                <div className="relative">
-                    {(() => {
-                        const p = players.find(player => player.position === 'bottom-right');
-                        if (!p) return <div className="w-[120px]" />;
-                        return (
-                            <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
-                                <div className="flex flex-col-reverse items-center gap-1">
-                                    <PlayerCard
-                                        player={p}
-                                        isActive={gameState.currentPlayer === p.color}
-                                        timeLeft={gameState.timeLeft}
-                                        strikes={gameState.strikes[p.color]}
-                                        power={null}
-                                        onAvatarClick={() => { }}
-                                    />
-                                    {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                        <div className="ai-thinking-tag">Thinking...</div>
-                                    )}
-                                    {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                        <div className="ai-thinking-tag afk-tag">Auto-Play</div>
-                                    )}
-                                </div>
-
-                                {/* Right Dice */}
-                                {gameState.currentPlayer === p.color && (
-                                    <div className="z-50 scale-75 origin-left">
-                                        <Dice
-                                            onRoll={handleRoll}
-                                            disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
-                                        />
-                                    </div>
-                                )}
                             </div>
                         );
                     })()}
