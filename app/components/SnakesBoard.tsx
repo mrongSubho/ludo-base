@@ -86,40 +86,49 @@ function PlayerCard({
     const powerEmojis = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
-        <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
-            <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
-                {!player.isAi && (
-                    <svg className="timer-ring" viewBox="0 0 52 52">
-                        <circle className="timer-ring-bg" cx="26" cy="26" r="23" />
-                        <circle
-                            className="timer-ring-progress"
-                            cx="26" cy="26" r="23"
-                            style={{
-                                strokeDasharray: 144.5,
-                                strokeDashoffset: 144.5 - (144.5 * progress) / 100
-                            }}
-                        />
-                    </svg>
-                )}
-                <div
-                    className={`avatar-circle ${player.color}`}
-                    onClick={onAvatarClick}
-                    style={{ cursor: 'pointer' }}
-                    title={`View ${player.name}'s profile`}
-                >
-                    <span className="avatar-emoji">{player.avatar}</span>
-                </div>
-                <div className="avatar-level-badge">{player.level}</div>
+        <div className="relative flex items-center justify-center">
+            {/* Vertical Player Name */}
+            <div
+                className={`absolute top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest opacity-80 ${player.position.includes('left')
+                    ? '-left-6 rotate-90 origin-center text-slate-500'
+                    : '-right-6 -rotate-90 origin-center text-slate-500'
+                    }`}
+            >
+                {player.name}
             </div>
 
-            <div className="player-info flex flex-row items-center gap-2">
-                <div className="flex flex-col">
-                    <span className="player-name">{player.name}</span>
+            <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
+                <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
+                    {!player.isAi && (
+                        <svg className="timer-ring" viewBox="0 0 52 52">
+                            <circle className="timer-ring-bg" cx="26" cy="26" r="23" />
+                            <circle
+                                className="timer-ring-progress"
+                                cx="26" cy="26" r="23"
+                                style={{
+                                    strokeDasharray: 144.5,
+                                    strokeDashoffset: 144.5 - (144.5 * progress) / 100
+                                }}
+                            />
+                        </svg>
+                    )}
+                    <div
+                        className={`avatar-circle ${player.color}`}
+                        onClick={onAvatarClick}
+                        style={{ cursor: 'pointer' }}
+                        title={`View ${player.name}'s profile`}
+                    >
+                        <span className="avatar-emoji">{player.avatar}</span>
+                    </div>
+                    <div className="avatar-level-badge">{player.level}</div>
                 </div>
-                <div className="scale-[0.55] -ml-2 drop-shadow-md">
-                    <motion.div
-                        className={`ludo-token ${player.color}-token`}
-                    />
+
+                <div className="player-info flex flex-row items-center gap-2">
+                    <div className="scale-[0.55] -ml-3 drop-shadow-md">
+                        <motion.div
+                            className={`ludo-token ${player.color}-token`}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
@@ -354,11 +363,20 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
         <div className="snakes-board-wrapper w-full h-full flex flex-col items-center justify-between py-4 px-2">
 
             {/* Top row cards */}
-            <div className="player-row relative w-full flex justify-between z-50">
+            <div className="player-row relative w-full flex justify-between z-50 px-10 sm:px-16 md:px-24">
                 {(['top-left', 'top-right'] as const).map(pos => {
                     const p = players.find(player => player.position === pos);
                     return p ? (
-                        <div key={p.color} className="flex flex-col items-center gap-1 z-50">
+                        <div key={p.color} className="relative flex flex-col items-center gap-1 z-50">
+                            {/* Dice element overlay */}
+                            {gameState.currentPlayer === p.color && (
+                                <div className={`absolute top-1/2 -translate-y-1/2 ${pos.includes('left') ? '-left-12 sm:-left-16' : '-right-12 sm:-right-16'} z-50 scale-75`}>
+                                    <Dice
+                                        onRoll={handleRoll}
+                                        disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
+                                    />
+                                </div>
+                            )}
                             <PlayerCard
                                 player={p}
                                 isActive={gameState.currentPlayer === p.color}
@@ -459,13 +477,22 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
             </div>
 
             {/* Bottom Row cards and Dice */}
-            <div className="player-row relative w-full flex justify-between z-50 items-center">
+            <div className="player-row relative w-full flex justify-between z-50 items-center px-10 sm:px-16 md:px-24">
                 <div className="relative">
                     {(() => {
                         const p = players.find(player => player.position === 'bottom-left');
                         if (!p) return <div className="w-[120px]" />;
                         return (
-                            <div key={p.color} className="flex flex-col-reverse items-center gap-1 z-50">
+                            <div key={p.color} className="relative flex flex-col-reverse items-center gap-1 z-50">
+                                {/* Dice element overlay */}
+                                {gameState.currentPlayer === p.color && (
+                                    <div className="absolute top-1/2 -translate-y-1/2 -left-12 sm:-left-16 z-50 scale-75">
+                                        <Dice
+                                            onRoll={handleRoll}
+                                            disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
+                                        />
+                                    </div>
+                                )}
                                 <PlayerCard
                                     player={p}
                                     isActive={gameState.currentPlayer === p.color}
@@ -485,22 +512,23 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                     })()}
                 </div>
 
-                {/* Central Dice Layer */}
-                <div className="flex-1 flex justify-center z-[60]">
-                    <div className="scale-125">
-                        <Dice
-                            onRoll={handleRoll}
-                            disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (players.find(p => p.color === gameState.currentPlayer)?.isAi && !gameState.winner) || false}
-                        />
-                    </div>
-                </div>
+                {/* Central Dice removed to match classic board peripheral layout */}
 
                 <div className="relative">
                     {(() => {
                         const p = players.find(player => player.position === 'bottom-right');
                         if (!p) return <div className="w-[120px]" />;
                         return (
-                            <div key={p.color} className="flex flex-col-reverse items-center gap-1 z-50">
+                            <div key={p.color} className="relative flex flex-col-reverse items-center gap-1 z-50">
+                                {/* Dice element overlay */}
+                                {gameState.currentPlayer === p.color && (
+                                    <div className="absolute top-1/2 -translate-y-1/2 -right-12 sm:-right-16 z-50 scale-75">
+                                        <Dice
+                                            onRoll={handleRoll}
+                                            disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
+                                        />
+                                    </div>
+                                )}
                                 <PlayerCard
                                     player={p}
                                     isActive={gameState.currentPlayer === p.color}
