@@ -46,10 +46,26 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
     // Helpers for rendering aesthetic badges
     const getTypeBadge = (type: Mission['type']) => {
         switch (type) {
-            case 'play': return { icon: '🎲', color: 'text-blue-400', bg: 'bg-blue-500/20' };
-            case 'win': return { icon: '🏆', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
-            case 'streak': return { icon: '🔥', color: 'text-orange-400', bg: 'bg-orange-500/20' };
-            case 'social': return { icon: '👥', color: 'text-indigo-400', bg: 'bg-indigo-500/20' };
+            case 'play': return {
+                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M7 7h.01"></path><path d="M17 7h.01"></path><path d="M12 12h.01"></path><path d="M7 17h.01"></path><path d="M17 17h.01"></path></svg>,
+                color: 'text-blue-400',
+                bg: 'bg-blue-500/20'
+            };
+            case 'win': return {
+                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v6a5 5 0 0 1-10 0V4"></path><path d="M3 5h4v4A5 5 0 0 1 3 5"></path><path d="M21 5h-4v4a5 5 0 0 0 4-4"></path></svg>,
+                color: 'text-yellow-400',
+                bg: 'bg-yellow-500/20'
+            };
+            case 'streak': return {
+                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M17 10C15 8 13.97 3 13.97 3 10 5.25 10 10 10 10c-3-2-2.5-6.5-2.5-6.5C4 6.5 4 11 4 14a8 8 0 0 0 16 0c0-2.5-1.5-4-3-4z"></path></svg>,
+                color: 'text-orange-400',
+                bg: 'bg-orange-500/20'
+            };
+            case 'social': return {
+                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+                color: 'text-indigo-400',
+                bg: 'bg-indigo-500/20'
+            };
         }
     };
 
