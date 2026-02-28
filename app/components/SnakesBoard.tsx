@@ -118,6 +118,16 @@ function PlayerCard({
     );
 }
 
+const getPlayerNameColorClass = (color?: string) => {
+    switch (color) {
+        case 'green': return 'text-green-600 dark:text-green-400';
+        case 'red': return 'text-red-500 dark:text-red-400';
+        case 'yellow': return 'text-amber-500 dark:text-amber-400';
+        case 'blue': return 'text-blue-500 dark:text-blue-400';
+        default: return 'text-slate-800 dark:text-slate-200';
+    }
+};
+
 // ─── Grid Math & Traps ───
 const LADDERS = [
     { start: 4, end: 14 }, { start: 9, end: 31 }, { start: 20, end: 38 },
@@ -347,8 +357,6 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
             {/* Top row cards */}
             <div className="player-row relative w-full flex justify-between z-50 px-10 sm:px-16 md:px-24">
-                {/* Empty Area for inner board layout padding */}
-                <div></div>
 
 
                 {(['top-left', 'top-right'] as const).map(pos => {
@@ -405,7 +413,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'top-left') && (
                     <div className="absolute top-[10%] sm:top-[15%] left-1 sm:-left-3 md:-left-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'top-left')?.color)}`}
                             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
                             {players.find(p => p.position === 'top-left')?.name}
@@ -417,7 +425,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'bottom-left') && (
                     <div className="absolute bottom-[10%] sm:bottom-[15%] left-1 sm:-left-3 md:-left-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-left')?.color)}`}
                             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
                             {players.find(p => p.position === 'bottom-left')?.name}
@@ -429,7 +437,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'top-right') && (
                     <div className="absolute top-[10%] sm:top-[15%] right-1 sm:-right-3 md:-right-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'top-right')?.color)}`}
                             style={{ writingMode: 'vertical-rl' }}
                         >
                             {players.find(p => p.position === 'top-right')?.name}
@@ -441,7 +449,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {players.find(p => p.position === 'bottom-right') && (
                     <div className="absolute bottom-[10%] sm:bottom-[15%] right-1 sm:-right-3 md:-right-6 flex items-center justify-center pointer-events-none z-[100]">
                         <span
-                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            className={`block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] drop-shadow-md ${getPlayerNameColorClass(players.find(p => p.position === 'bottom-right')?.color)}`}
                             style={{ writingMode: 'vertical-rl' }}
                         >
                             {players.find(p => p.position === 'bottom-right')?.name}
@@ -530,8 +538,6 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
             {/* Bottom Row cards and Dice */}
             <div className="player-row relative w-full flex justify-between z-50 items-center px-10 sm:px-16 md:px-24">
-                {/* Empty Area for inner board layout padding */}
-                <div></div>
 
 
                 <div className="relative">
