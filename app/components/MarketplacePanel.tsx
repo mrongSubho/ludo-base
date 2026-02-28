@@ -6,6 +6,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 type MarketTab = 'items' | 'themes' | 'dice';
 type Rarity = 'common' | 'rare' | 'legendary';
 
+interface MarketActivity {
+    event: 'Mint' | 'Sale' | 'Transfer';
+    from: string;
+    to: string;
+    price?: number;
+    date: string;
+}
+
+interface MarketTrait {
+    trait_type: string;
+    value: string;
+    rarity_percent: number;
+}
+
 interface MarketItem {
     id: string;
     type: MarketTab;
@@ -16,8 +30,15 @@ interface MarketItem {
     owned: boolean;
     rarity: Rarity;
     collection: string;
+    collectionStats: {
+        floor: number;
+        volume: number;
+        owners: number;
+    };
     creator: string;
     stats: { label: string; value: string; icon?: React.ReactNode }[];
+    traits: MarketTrait[];
+    activity: MarketActivity[];
     chainInfo: {
         address: string;
         standard: string;
@@ -45,7 +66,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'Deep space aesthetic for focused gaming.',
                 lore: 'Forged in the heart of a dying star, the Midnight theme brings the calm of the void to your board. It is said that those who play on this board can hear the faint whispers of the cosmos.',
                 price: 12.50, owned: true, rarity: 'common', collection: 'Cosmos Series', creator: 'StellarForge',
+                collectionStats: { floor: 8.2, volume: 4200, owners: 1560 },
                 stats: [{ label: 'Focus', value: '+15%' }, { label: 'Rarity Score', value: '420' }],
+                traits: [
+                    { trait_type: 'Environment', value: 'Void', rarity_percent: 15 },
+                    { trait_type: 'Contrast', value: 'High', rarity_percent: 30 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0x123...abc', to: 'Player', price: 12.0, date: '1d ago' },
+                    { event: 'Mint', from: 'System', to: '0x123...abc', date: '1mo ago' }
+                ],
                 chainInfo: { address: '0x812...e9f', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-[#0a0b14]'
             },
@@ -54,7 +84,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'Neon lights and glitch aesthetic.',
                 lore: 'In the year 2099, Ludo isn\'t just a game—it\'s a high-stakes digital battle. The Cyberpunk theme pulses with the energy of a thousand neon signs and the grit of the underground.',
                 price: 45.00, owned: false, rarity: 'legendary', collection: 'Neo-Tokyo', creator: 'GlitchMaster',
+                collectionStats: { floor: 38.5, volume: 1250, owners: 840 },
                 stats: [{ label: 'Energy', value: 'MAX' }, { label: 'Style', value: '99/100' }],
+                traits: [
+                    { trait_type: 'Core', value: 'Neon Pulse', rarity_percent: 2 },
+                    { trait_type: 'Glitch', value: 'Level 5', rarity_percent: 5 },
+                    { trait_type: 'Style', value: 'Technoir', rarity_percent: 12 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0x8a2...11b', to: '0x3c2...ef9', price: 42.5, date: '2d ago' },
+                    { event: 'Transfer', from: '0x000...000', to: '0x8a2...11b', date: '5d ago' },
+                    { event: 'Mint', from: 'System', to: '0x000...000', date: '10d ago' }
+                ],
                 chainInfo: { address: '0x3a1...bc2', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-fuchsia-900', previewIcon: <div className="text-fuchsia-400">⚡</div>
             },
@@ -63,7 +104,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'Luxury royal theme for winners.',
                 lore: 'The Golden Era theme was commissioned by the High King of Ludo-Land. Every tile is plated in pure 24k digital gold, ensuring your victory is as stylish as it is absolute.',
                 price: 25.00, owned: false, rarity: 'rare', collection: 'Royal Treasury', creator: 'MidasTouch',
+                collectionStats: { floor: 18.0, volume: 8500, owners: 2100 },
                 stats: [{ label: 'Luck', value: '+5%' }, { label: 'Prestige', value: '88' }],
+                traits: [
+                    { trait_type: 'Material', value: '24k Gold', rarity_percent: 8 },
+                    { trait_type: 'Finish', value: 'Polished', rarity_percent: 45 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0x771...aa2', to: '0xbb2...cc1', price: 24.0, date: '1h ago' },
+                    { event: 'Mint', from: 'System', to: '0x771...aa2', date: '3d ago' }
+                ],
                 chainInfo: { address: '0xf5e...11a', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-yellow-900/50'
             },
@@ -74,7 +124,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'Translucent tokens with prismatic reflections.',
                 lore: 'Carved from the ice of the Northern Peaks, these Crystal tokens refract light into a dazzling spectrum of colors. Fragile in appearance, but unbreakable in spirit.',
                 price: 8.99, owned: false, rarity: 'rare', collection: 'Elemental', creator: 'FrostByte',
+                collectionStats: { floor: 5.5, volume: 12000, owners: 4500 },
                 stats: [{ label: 'Clarity', value: '98%' }, { label: 'Durability', value: 'Hard' }],
+                traits: [
+                    { trait_type: 'Element', value: 'Ice', rarity_percent: 25 },
+                    { trait_type: 'Transparency', value: '98%', rarity_percent: 15 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0x441...111', to: '0x222...333', price: 8.5, date: '6h ago' },
+                    { event: 'Mint', from: 'System', to: '0x441...111', date: '1w ago' }
+                ],
                 chainInfo: { address: '0x123...456', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-cyan-500/30'
             },
@@ -83,7 +142,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'Tokens born from volcanic fire.',
                 lore: 'Don\'t touch the edges. These tokens are literal chunks of cooled magma, still glowing with the inner heat of the earth. Perfect for players with a fiery competitive streak.',
                 price: 15.00, owned: true, rarity: 'rare', collection: 'Elemental', creator: 'Vulcan',
+                collectionStats: { floor: 5.5, volume: 12000, owners: 4500 },
                 stats: [{ label: 'Heat', value: 'High' }, { label: 'Mass', value: 'Heavy' }],
+                traits: [
+                    { trait_type: 'Element', value: 'Fire', rarity_percent: 25 },
+                    { trait_type: 'Temperature', value: 'Extreme', rarity_percent: 10 }
+                ],
+                activity: [
+                    { event: 'Transfer', from: '0x888...999', to: 'Player', date: '12h ago' },
+                    { event: 'Sale', from: '0x555...666', to: '0x888...999', price: 14.0, date: '1d ago' }
+                ],
                 chainInfo: { address: '0x987...654', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-orange-600'
             },
@@ -92,7 +160,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'Tokens that absorb all surrounding light.',
                 lore: 'Nothingness. The Void tokens occupy space without reflecting a single photon. They are a reminder that in the end, the board always wins. Use with caution.',
                 price: 99.00, owned: false, rarity: 'legendary', collection: 'The Unknown', creator: 'Shadow',
+                collectionStats: { floor: 75.0, volume: 500, owners: 120 },
                 stats: [{ label: 'Stealth', value: '100' }, { label: 'Gravity', value: 'Stable' }],
+                traits: [
+                    { trait_type: 'Material', value: 'Dark Matter', rarity_percent: 1 },
+                    { trait_type: 'Reflection', value: '0%', rarity_percent: 1 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0xaaa...bbb', to: '0xccc...ddd', price: 95.0, date: '3d ago' },
+                    { event: 'Mint', from: 'System', to: '0xaaa...bbb', date: '1mo ago' }
+                ],
                 chainInfo: { address: '0xabc...def', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-black'
             },
@@ -103,7 +180,15 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'The reliable choice for every player.',
                 lore: 'Sometimes, the old ways are the best. This Classic Red dice has rolled more sixes than any other in history. It\'s balanced, weighted, and ready for action.',
                 price: 0, owned: true, rarity: 'common', collection: 'Foundations', creator: 'LudoCorp',
+                collectionStats: { floor: 0, volume: 100000, owners: 50000 },
                 stats: [{ label: 'Reliability', value: 'Tier 1' }],
+                traits: [
+                    { trait_type: 'Color', value: 'Red', rarity_percent: 100 },
+                    { trait_type: 'Style', value: 'Legacy', rarity_percent: 100 }
+                ],
+                activity: [
+                    { event: 'Mint', from: 'System', to: 'Player', date: 'Genesis' }
+                ],
                 chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
                 previewColor: 'bg-red-500'
             },
@@ -112,7 +197,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'See the mechanics of chance.',
                 lore: 'A transparent masterpiece. The Glass D6 allows you to see the internal weight distribution, proving that every roll is fair. Or is it just an illusion?',
                 price: 5.50, owned: false, rarity: 'common', collection: 'Prism', creator: 'Lux',
+                collectionStats: { floor: 4.2, volume: 15600, owners: 3200 },
                 stats: [{ label: 'Transparency', value: 'Full' }],
+                traits: [
+                    { trait_type: 'Material', value: 'Glass', rarity_percent: 20 },
+                    { trait_type: 'Weight', value: 'Balanced', rarity_percent: 50 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0xeee...fff', to: '0x111...222', price: 5.2, date: '2d ago' },
+                    { event: 'Mint', from: 'System', to: '0xeee...fff', date: '2w ago' }
+                ],
                 chainInfo: { address: '0xddd...eee', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-white/10'
             },
@@ -121,7 +215,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 description: 'A dice that watches your every move.',
                 lore: 'The pupil of a Dragon Eye dice dilates when it sees a winning combination. Beware: it is said the dice chooses the player, not the other way around.',
                 price: 32.00, owned: false, rarity: 'legendary', collection: 'Mythic', creator: 'AncientOnes',
+                collectionStats: { floor: 28.0, volume: 2200, owners: 450 },
                 stats: [{ label: 'Vision', value: 'Dark' }, { label: 'Agility', value: '+12' }],
+                traits: [
+                    { trait_type: 'Eye Color', value: 'Emerald', rarity_percent: 3 },
+                    { trait_type: 'Glow', value: 'Active', rarity_percent: 10 }
+                ],
+                activity: [
+                    { event: 'Sale', from: '0x777...888', to: '0x999...000', price: 30.0, date: '1d ago' },
+                    { event: 'Mint', from: 'System', to: '0x777...888', date: '1mo ago' }
+                ],
                 chainInfo: { address: '0x777...888', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-emerald-900'
             },
@@ -293,6 +396,24 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         </div>
                                         <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
 
+                                        {/* Collection Analytics Bar */}
+                                        <div className="flex gap-4 mb-6 p-3 bg-white/5 border border-white/5 rounded-xl">
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Floor</span>
+                                                <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.floor} USDC</span>
+                                            </div>
+                                            <div className="w-px h-6 bg-white/10" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Volume</span>
+                                                <span className="text-[10px] text-white/80 font-mono font-bold">{(selectedItem.collectionStats.volume / 1000).toFixed(1)}k</span>
+                                            </div>
+                                            <div className="w-px h-6 bg-white/10" />
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Owners</span>
+                                                <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.owners}</span>
+                                            </div>
+                                        </div>
+
                                         <p className="text-white/40 text-sm leading-relaxed mb-6">{selectedItem.description}</p>
 
                                         {/* Stats Grid */}
@@ -305,19 +426,59 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             ))}
                                         </div>
 
+                                        {/* Properties / Traits Grid */}
+                                        <div className="mb-8">
+                                            <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Properties</h4>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {selectedItem.traits.map((trait, i) => (
+                                                    <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
+                                                        <span className="text-[8px] text-blue-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
+                                                        <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
+                                                        <span className="text-[9px] text-blue-400 font-mono">{trait.rarity_percent}% rarity</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
                                         {/* Lore Section */}
-                                        <div className="mb-8 p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-2 opacity-10">
+                                        <div className="mb-8 p-4 bg-fuchsia-500/5 border border-fuchsia-500/10 rounded-2xl relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-2 opacity-10 text-fuchsia-400">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                                             </div>
-                                            <h4 className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-2">Item Lore</h4>
+                                            <h4 className="text-[10px] text-fuchsia-400 font-black uppercase tracking-widest mb-2">Item Lore</h4>
                                             <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
                                         </div>
 
-                                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-8">
+                                        {/* Activity Ledger */}
+                                        <div className="mb-8">
+                                            <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Item Activity</h4>
+                                            <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
+                                                {selectedItem.activity.map((act, i) => (
+                                                    <div key={i} className={`flex items-center justify-between p-3 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Mint' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
+                                                            <span className="text-white font-bold">{act.event}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-end">
+                                                            <div className="flex items-center gap-1.5 font-mono text-white/60">
+                                                                <span>{act.from}</span>
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2 h-2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                                                <span>{act.to}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                {act.price && <span className="text-white font-bold">{act.price} USDC</span>}
+                                                                <span className="text-white/20">{act.date}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-4">
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Market Price</span>
-                                                <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Available</span>
+                                                <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Listing Price</span>
+                                                <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Instant Buy</span>
                                             </div>
                                             <div className="flex items-baseline gap-2">
                                                 <span className="text-4xl font-black text-white font-mono">{selectedItem.price.toFixed(2)}</span>
@@ -325,23 +486,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             </div>
                                         </div>
 
-                                        {/* Chain Details */}
-                                        <div className="mt-auto pt-6 border-t border-white/5 grid grid-cols-3 gap-4 pb-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] text-white/20 font-black uppercase mb-1">Network</span>
-                                                <span className="text-[9px] text-white/60 font-mono">{selectedItem.chainInfo.network}</span>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] text-white/20 font-black uppercase mb-1">Standard</span>
-                                                <span className="text-[9px] text-white/60 font-mono">{selectedItem.chainInfo.standard}</span>
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] text-white/20 font-black uppercase mb-1">Address</span>
-                                                <span className="text-[9px] text-white/60 font-mono truncate">{selectedItem.chainInfo.address}</span>
-                                            </div>
+                                        <div className="flex items-center justify-between px-1 mb-8">
+                                            <a href="#" className="text-[10px] text-blue-400 font-bold hover:underline flex items-center gap-1">
+                                                View on BaseScan
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                            </a>
+                                            <button className="text-[10px] text-white/40 font-bold hover:text-white flex items-center gap-1">
+                                                Share NFT
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                                            </button>
                                         </div>
 
-                                        <div className="flex gap-4 mt-4 sticky bottom-0 bg-[#1a1c29] pt-2 pb-4">
+                                        <div className="flex gap-4 sticky bottom-0 bg-[#1a1c29] pt-2 pb-4">
                                             <button className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(255,255,255,0.1)]">
                                                 {selectedItem.owned ? 'SELL NFT' : 'MINT NOW'}
                                             </button>
