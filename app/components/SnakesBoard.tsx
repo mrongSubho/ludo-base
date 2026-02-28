@@ -367,30 +367,43 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                 {(['top-left', 'top-right'] as const).map(pos => {
                     const p = players.find(player => player.position === pos);
                     return p ? (
-                        <div key={p.color} className="relative flex flex-col items-center gap-1 z-50">
-                            {/* Dice element overlay */}
-                            {gameState.currentPlayer === p.color && (
-                                <div className={`absolute top-1/2 -translate-y-1/2 ${pos.includes('left') ? '-left-12 sm:-left-16' : '-right-12 sm:-right-16'} z-50 scale-75`}>
+                        <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
+                            {/* Left Dice */}
+                            {gameState.currentPlayer === p.color && pos.includes('left') && (
+                                <div className="z-50 scale-75 origin-right">
                                     <Dice
                                         onRoll={handleRoll}
                                         disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
                                     />
                                 </div>
                             )}
-                            <PlayerCard
-                                player={p}
-                                isActive={gameState.currentPlayer === p.color}
-                                timeLeft={gameState.timeLeft}
-                                strikes={gameState.strikes[p.color]}
-                                power={null}
-                                onAvatarClick={() => { }}
-                            />
-                            {/* AI / Auto-play Badges */}
-                            {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                <div className="ai-thinking-tag">Thinking...</div>
-                            )}
-                            {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+
+                            <div className="flex flex-col items-center gap-1">
+                                <PlayerCard
+                                    player={p}
+                                    isActive={gameState.currentPlayer === p.color}
+                                    timeLeft={gameState.timeLeft}
+                                    strikes={gameState.strikes[p.color]}
+                                    power={null}
+                                    onAvatarClick={() => { }}
+                                />
+                                {/* AI / Auto-play Badges */}
+                                {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                                    <div className="ai-thinking-tag">Thinking...</div>
+                                )}
+                                {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
+                                    <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                )}
+                            </div>
+
+                            {/* Right Dice */}
+                            {gameState.currentPlayer === p.color && pos.includes('right') && (
+                                <div className="z-50 scale-75 origin-left">
+                                    <Dice
+                                        onRoll={handleRoll}
+                                        disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
+                                    />
+                                </div>
                             )}
                         </div>
                     ) : <div key={pos} className="w-[120px]" />;
@@ -483,30 +496,33 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                         const p = players.find(player => player.position === 'bottom-left');
                         if (!p) return <div className="w-[120px]" />;
                         return (
-                            <div key={p.color} className="relative flex flex-col-reverse items-center gap-1 z-50">
-                                {/* Dice element overlay */}
+                            <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
+                                {/* Left Dice */}
                                 {gameState.currentPlayer === p.color && (
-                                    <div className="absolute top-1/2 -translate-y-1/2 -left-12 sm:-left-16 z-50 scale-75">
+                                    <div className="z-50 scale-75 origin-right">
                                         <Dice
                                             onRoll={handleRoll}
                                             disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
                                         />
                                     </div>
                                 )}
-                                <PlayerCard
-                                    player={p}
-                                    isActive={gameState.currentPlayer === p.color}
-                                    timeLeft={gameState.timeLeft}
-                                    strikes={gameState.strikes[p.color]}
-                                    power={null}
-                                    onAvatarClick={() => { }}
-                                />
-                                {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag">Thinking...</div>
-                                )}
-                                {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag">Auto-Play</div>
-                                )}
+
+                                <div className="flex flex-col-reverse items-center gap-1">
+                                    <PlayerCard
+                                        player={p}
+                                        isActive={gameState.currentPlayer === p.color}
+                                        timeLeft={gameState.timeLeft}
+                                        strikes={gameState.strikes[p.color]}
+                                        power={null}
+                                        onAvatarClick={() => { }}
+                                    />
+                                    {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                                        <div className="ai-thinking-tag">Thinking...</div>
+                                    )}
+                                    {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
+                                        <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })()}
@@ -519,29 +535,32 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                         const p = players.find(player => player.position === 'bottom-right');
                         if (!p) return <div className="w-[120px]" />;
                         return (
-                            <div key={p.color} className="relative flex flex-col-reverse items-center gap-1 z-50">
-                                {/* Dice element overlay */}
+                            <div key={p.color} className="flex flex-row items-center gap-6 sm:gap-8 z-50">
+                                <div className="flex flex-col-reverse items-center gap-1">
+                                    <PlayerCard
+                                        player={p}
+                                        isActive={gameState.currentPlayer === p.color}
+                                        timeLeft={gameState.timeLeft}
+                                        strikes={gameState.strikes[p.color]}
+                                        power={null}
+                                        onAvatarClick={() => { }}
+                                    />
+                                    {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                                        <div className="ai-thinking-tag">Thinking...</div>
+                                    )}
+                                    {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
+                                        <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                    )}
+                                </div>
+
+                                {/* Right Dice */}
                                 {gameState.currentPlayer === p.color && (
-                                    <div className="absolute top-1/2 -translate-y-1/2 -right-12 sm:-right-16 z-50 scale-75">
+                                    <div className="z-50 scale-75 origin-left">
                                         <Dice
                                             onRoll={handleRoll}
                                             disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner) || false}
                                         />
                                     </div>
-                                )}
-                                <PlayerCard
-                                    player={p}
-                                    isActive={gameState.currentPlayer === p.color}
-                                    timeLeft={gameState.timeLeft}
-                                    strikes={gameState.strikes[p.color]}
-                                    power={null}
-                                    onAvatarClick={() => { }}
-                                />
-                                {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag">Thinking...</div>
-                                )}
-                                {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                                 )}
                             </div>
                         );
