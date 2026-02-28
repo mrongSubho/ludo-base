@@ -10,6 +10,7 @@ import UserProfilePanel from './components/UserProfilePanel';
 // Slide-up panels and logic might be moved or handled differently later, omitting Leaderboard for now if not needed,
 // but let's keep it imported and conditionally rendered.
 import Leaderboard from './components/Leaderboard';
+import MissionPanel from './components/MissionPanel';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -614,7 +615,7 @@ export default function Page() {
               <Leaderboard isOpen={true} onClose={closeTab} />
             )}
             {activeTab === 'mission' && (
-              <TabPanel title="Missions" emoji="🎯" description="Complete daily challenges for rewards." onClose={closeTab} />
+              <MissionPanel isOpen={true} onClose={closeTab} />
             )}
             {activeTab === 'marketplace' && (
               <TabPanel title="Marketplace" emoji="🛍️" description="Buy themes, skins, and new dice." onClose={closeTab} />
