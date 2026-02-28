@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Turbopack needs this to stay quiet
-  turbopack: {},
+  turbopack: {
+    root: ".",
+  },
 
   webpack: (config) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
