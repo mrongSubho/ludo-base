@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
@@ -114,57 +113,8 @@ function PlayerCard({
                     </div>
                     <div className="avatar-level-badge">{player.level}</div>
                 </div>
-
-                <div className="player-info flex flex-row items-center gap-2">
-                    <div className="scale-[0.55] -ml-3 drop-shadow-md">
-                        <motion.div
-                            className={`ludo-token ${player.color}-token`}
-                        />
-                    </div>
-                </div>
             </div>
         </div>
-    );
-}
-
-// ─── Outboard Names Portal ───
-function OutboardNames({ players }: { players: Player[] }) {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    if (!mounted || typeof document === 'undefined') return null;
-
-    return createPortal(
-        <div className="snakes-outboard-names fixed inset-0 pointer-events-none z-[100]">
-            {/* Top-Left */}
-            {players.find(p => p.position === 'top-left') && (
-                <div className="absolute top-[20%] -translate-y-1/2 left-2 rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
-                    {players.find(p => p.position === 'top-left')?.name}
-                </div>
-            )}
-            {/* Top-Right */}
-            {players.find(p => p.position === 'top-right') && (
-                <div className="absolute top-[20%] -translate-y-1/2 right-2 -rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
-                    {players.find(p => p.position === 'top-right')?.name}
-                </div>
-            )}
-            {/* Bottom-Left */}
-            {players.find(p => p.position === 'bottom-left') && (
-                <div className="absolute bottom-[20%] translate-y-1/2 left-2 rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
-                    {players.find(p => p.position === 'bottom-left')?.name}
-                </div>
-            )}
-            {/* Bottom-Right */}
-            {players.find(p => p.position === 'bottom-right') && (
-                <div className="absolute bottom-[20%] translate-y-1/2 right-2 -rotate-90 origin-center text-[10px] sm:text-xs font-bold uppercase tracking-widest opacity-80 text-slate-500">
-                    {players.find(p => p.position === 'bottom-right')?.name}
-                </div>
-            )}
-        </div>,
-        document.body
     );
 }
 
@@ -394,10 +344,22 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
     return (
         <div className="snakes-board-wrapper w-full h-full flex flex-col items-center justify-between py-4 px-2">
-            <OutboardNames players={players} />
 
             {/* Top row cards */}
             <div className="player-row relative w-full flex justify-between z-50 px-10 sm:px-16 md:px-24">
+                {/* Top-Left Outer Name */}
+                {players.find(p => p.position === 'top-left') && (
+                    <div className="absolute top-1/2 -translate-y-1/2 left-0 sm:left-2 rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                        {players.find(p => p.position === 'top-left')?.name}
+                    </div>
+                )}
+                {/* Top-Right Outer Name */}
+                {players.find(p => p.position === 'top-right') && (
+                    <div className="absolute top-1/2 -translate-y-1/2 right-0 sm:right-2 -rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                        {players.find(p => p.position === 'top-right')?.name}
+                    </div>
+                )}
+
                 {(['top-left', 'top-right'] as const).map(pos => {
                     const p = players.find(player => player.position === pos);
                     return p ? (
@@ -525,6 +487,19 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
             {/* Bottom Row cards and Dice */}
             <div className="player-row relative w-full flex justify-between z-50 items-center px-10 sm:px-16 md:px-24">
+                {/* Bottom-Left Outer Name */}
+                {players.find(p => p.position === 'bottom-left') && (
+                    <div className="absolute top-1/2 -translate-y-1/2 left-0 sm:left-2 rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                        {players.find(p => p.position === 'bottom-left')?.name}
+                    </div>
+                )}
+                {/* Bottom-Right Outer Name */}
+                {players.find(p => p.position === 'bottom-right') && (
+                    <div className="absolute top-1/2 -translate-y-1/2 right-0 sm:right-2 -rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                        {players.find(p => p.position === 'bottom-right')?.name}
+                    </div>
+                )}
+
                 <div className="relative">
                     {(() => {
                         const p = players.find(player => player.position === 'bottom-left');
