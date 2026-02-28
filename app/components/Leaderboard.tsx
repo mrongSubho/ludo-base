@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type LeaderboardTab = 'rank' | 'daily' | 'monthly';
+type LeaderboardTab = 'tier' | 'daily' | 'monthly';
 
 interface LeaderboardEntry {
     id: string;
@@ -24,7 +24,7 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
-    const [activeTab, setActiveTab] = useState<LeaderboardTab>('rank');
+    const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
 
     // MOCK DATA: 5-Tier Advanced Ranking System
     const getStats = (tab: LeaderboardTab): LeaderboardEntry[] => {
@@ -39,7 +39,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
         ];
 
         // Sort differently based on the active tab
-        if (tab === 'rank') {
+        if (tab === 'tier') {
             // Sort by Tier Hierarchy, then Stage, then Wins
             const tierWeight = { 'Legendary': 5, 'Platinum': 4, 'Gold': 3, 'Silver': 2, 'Rookie': 1 };
             const stageWeight = { 'III': 3, 'II': 2, 'I': 1 };
@@ -55,15 +55,22 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
             });
         }
 
-        // For Daily/Monthly, just sort by overall wins (mocking time constraints)
+        const now = new Date();
+        const startOfDayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        const startOfMonthUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+
+        // Daily: Only records from today (UTC)
         if (tab === 'daily') {
             return dummyEntries
-                .filter(e => e.lastWin > Date.now() - 86400000 * 2) // Mock daily filter
+                .filter(e => e.lastWin >= startOfDayUTC)
                 .sort((a, b) => b.wins - a.wins);
         }
 
+        // Monthly: Only records from this month (UTC)
         if (tab === 'monthly') {
-            return dummyEntries.sort((a, b) => b.wins - a.wins); // Assume all are monthly 
+            return dummyEntries
+                .filter(e => e.lastWin >= startOfMonthUTC)
+                .sort((a, b) => b.wins - a.wins);
         }
 
         return dummyEntries;
@@ -129,7 +136,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
 
                             {/* Tri-Tab Switcher */}
                             <div className="flex bg-black/30 p-1.5 rounded-2xl w-full max-w-sm mx-auto self-center">
-                                {['rank', 'daily', 'monthly'].map((tab) => (
+                                {['tier', 'daily', 'monthly'].map((tab) => (
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab as LeaderboardTab)}
@@ -138,7 +145,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                             : 'text-white/40 hover:text-white/70'
                                             }`}
                                     >
-                                        {tab === 'rank' ? 'By Rank' : tab}
+                                        {tab === 'tier' ? 'TIER' : tab}
                                     </button>
                                 ))}
                             </div>
@@ -174,7 +181,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                 >
                                                     {/* Rank/Podium Badge */}
                                                     <div className="flex-shrink-0 mr-1">
-                                                        {activeTab === 'rank' ? (
+                                                        {activeTab === 'tier' ? (
                                                             <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center text-sm">{idx + 1}</div>
                                                         ) : (
                                                             getRankBadge(idx + 1)
@@ -204,7 +211,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                             {entry.name}
                                                         </span>
 
-                                                        {activeTab === 'rank' ? (
+                                                        {activeTab === 'tier' ? (
                                                             // Display the Beautiful 5-Tier Badge System
                                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <div className={`w-2 h-2 rounded-full ${tierStyles.dot} ${tierStyles.shadow}`} />
@@ -212,12 +219,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                                     {entry.tier} {entry.stage}
                                                                 </span>
                                                             </div>
-                                                        ) : (
-                                                            // Standard Substantive info
-                                                            <span className="text-[11px] font-medium text-white/40 uppercase tracking-widest mt-0.5">
-                                                                {new Date(entry.lastWin).toLocaleDateString()}
-                                                            </span>
-                                                        )}
+                                                        ) : null}
                                                     </div>
 
                                                     {/* Score Metric */}
