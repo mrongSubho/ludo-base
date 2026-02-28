@@ -349,13 +349,13 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
             <div className="player-row relative w-full flex justify-between z-50 px-10 sm:px-16 md:px-24">
                 {/* Top-Left Outer Name */}
                 {players.find(p => p.position === 'top-left') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 left-0 sm:left-2 rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-6 sm:-left-8 md:-left-12 rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
                         {players.find(p => p.position === 'top-left')?.name}
                     </div>
                 )}
                 {/* Top-Right Outer Name */}
                 {players.find(p => p.position === 'top-right') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-0 sm:right-2 -rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                    <div className="absolute top-1/2 -translate-y-1/2 -right-6 sm:-right-8 md:-right-12 -rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
                         {players.find(p => p.position === 'top-right')?.name}
                     </div>
                 )}
@@ -489,13 +489,13 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
             <div className="player-row relative w-full flex justify-between z-50 items-center px-10 sm:px-16 md:px-24">
                 {/* Bottom-Left Outer Name */}
                 {players.find(p => p.position === 'bottom-left') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 left-0 sm:left-2 rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-6 sm:-left-8 md:-left-12 rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
                         {players.find(p => p.position === 'bottom-left')?.name}
                     </div>
                 )}
                 {/* Bottom-Right Outer Name */}
                 {players.find(p => p.position === 'bottom-right') && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-0 sm:right-2 -rotate-90 origin-center text-[10px] font-bold uppercase tracking-widest opacity-80 text-slate-500 z-0">
+                    <div className="absolute top-1/2 -translate-y-1/2 -right-6 sm:-right-8 md:-right-12 -rotate-90 origin-center text-[11px] sm:text-sm font-bold uppercase tracking-[0.2em] opacity-100 text-slate-800 dark:text-slate-200 drop-shadow-md z-[100]">
                         {players.find(p => p.position === 'bottom-right')?.name}
                     </div>
                 )}
