@@ -26,6 +26,7 @@ interface LeaderboardProps {
 export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
     const [scope, setScope] = useState<'global' | 'friends'>('global');
+    const [showQuarterInfo, setShowQuarterInfo] = useState(false);
     const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
 
     // MOCK DATA: 5-Tier Advanced Ranking System
@@ -175,9 +176,45 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                         {tab === 'tier' ? (
                                             <>
                                                 TIER
-                                                <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${activeTab === 'tier' ? 'bg-white/20 text-white' : 'bg-white/10 text-white/30'}`}>
-                                                    Q{currentQuarter}
-                                                </span>
+                                                <div
+                                                    className="relative"
+                                                    onMouseEnter={() => setShowQuarterInfo(true)}
+                                                    onMouseLeave={() => setShowQuarterInfo(false)}
+                                                >
+                                                    <span
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowQuarterInfo(!showQuarterInfo);
+                                                        }}
+                                                        className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold cursor-pointer ${activeTab === 'tier' ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white/10 text-white/30'}`}
+                                                    >
+                                                        Q{currentQuarter}
+                                                    </span>
+
+                                                    {/* Quarter Info Tooltip */}
+                                                    <AnimatePresence>
+                                                        {showQuarterInfo && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                                                                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl z-50 normal-case tracking-normal text-left"
+                                                            >
+                                                                {/* Arrow Pointer */}
+                                                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
+
+                                                                <div className="relative z-10">
+                                                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                                                        <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
+                                                                    </div>
+                                                                    <p className="text-[10px] text-white/70 leading-snug">
+                                                                        The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
+                                                                    </p>
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
                                             </>
                                         ) : tab}
                                     </button>
