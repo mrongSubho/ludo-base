@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import FriendsPanel from './components/FriendsPanel';
 // Slide-up panels and logic might be moved or handled differently later, omitting Leaderboard for now if not needed,
 // but let's keep it imported and conditionally rendered.
 import Leaderboard from './components/Leaderboard';
@@ -755,7 +756,7 @@ export default function Page() {
               <UserProfilePanel onClose={closeTab} />
             )}
             {activeTab === 'friends' && (
-              <TabPanel title="Friends" emoji="👥" description="See who is online and invite them to play." onClose={closeTab} />
+              <FriendsPanel onClose={closeTab} />
             )}
             {activeTab === 'leaderboard' && (
               <Leaderboard isOpen={true} onClose={closeTab} />
