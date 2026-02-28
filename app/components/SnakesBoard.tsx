@@ -83,7 +83,6 @@ function PlayerCard({
 }) {
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
-    const isLeft = player.position.endsWith('-left');
     const powerEmojis = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
@@ -114,27 +113,6 @@ function PlayerCard({
                     </div>
                     <div className="avatar-level-badge">{player.level}</div>
                 </div>
-
-                {/* Native Vertical Name attached directly to Avatar */}
-                {isLeft ? (
-                    <div className="absolute right-[100%] top-1/2 -translate-y-1/2 mr-3 sm:mr-5 pointer-events-none z-[100]">
-                        <span
-                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
-                            style={{ writingMode: 'vertical-rl' }}
-                        >
-                            {player.name}
-                        </span>
-                    </div>
-                ) : (
-                    <div className="absolute left-[100%] top-1/2 -translate-y-1/2 ml-3 sm:ml-5 pointer-events-none z-[100]">
-                        <span
-                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
-                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-                        >
-                            {player.name}
-                        </span>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -420,82 +398,134 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
             </div>
 
             {/* Main Board Grid container constrained to exactly 3:4 aspect without overflow */}
-            <div className="snakes-grid-container relative w-full aspect-[3/4] max-h-[65vh] max-w-[calc(65vh*0.75)] mx-auto my-auto bg-[#ececec] overflow-hidden shadow-base rounded-lg shrink">
+            <div className="relative w-full aspect-[3/4] max-h-[65vh] max-w-[calc(65vh*0.75)] mx-auto my-auto shrink">
 
-                {/* SVG Overlay for Snakes and Ladders lines */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 10 }}>
-                    {LADDERS.map((l, i) => {
-                        const p1 = getGridPos(l.start);
-                        const p2 = getGridPos(l.end);
-                        return <line key={`ladder-${i}`} x1={(p1.c - 0.5) * 10} y1={(p1.r - 0.5) * 10} x2={(p2.c - 0.5) * 10} y2={(p2.r - 0.5) * 10} stroke="rgba(34, 197, 94, 0.6)" strokeWidth="3" strokeDasharray="2,1" strokeLinecap="round" />;
-                    })}
-                    {SNAKES.map((s, i) => {
-                        const p1 = getGridPos(s.start);
-                        const p2 = getGridPos(s.end);
-                        // Curved path for snakes visually
-                        const mx = (p1.c + p2.c) / 2 * 10 + (Math.random() * 10 - 5);
-                        const my = (p1.r + p2.r) / 2 * 10 + (Math.random() * 10 - 5);
-                        return <path key={`snake-${i}`} d={`M ${(p1.c - 0.5) * 10} ${(p1.r - 0.5) * 10} Q ${mx} ${my} ${(p2.c - 0.5) * 10} ${(p2.r - 0.5) * 10}`} fill="none" stroke="rgba(239, 68, 68, 0.7)" strokeWidth="2.5" strokeLinecap="round" />;
-                    })}
-                </svg>
-
-                <div className="grid grid-cols-10 grid-rows-10 w-full h-full" style={{ zIndex: 5 }}>
-                    {Array.from({ length: 100 }).map((_, i) => {
-                        const cellNum = 100 - i;
-                        const r = Math.floor(i / 10) + 1; // 1 to 10 from top
-                        const isEven = r % 2 === 0;
-                        const physicalNum = isEven ? (r - 1) * 10 + (i % 10) + 1 : (r - 1) * 10 + (10 - (i % 10));
-                        const actualCellNum = 101 - physicalNum;
-
-                        return (
-                            <div key={i} className="flex items-center justify-center border border-black/10 text-xs font-bold text-black/30 relative">
-                                {actualCellNum}
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Tokens overlay */}
-                <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 w-full h-full pointer-events-none" style={{ zIndex: 20 }}>
-                    {players.map((p, idx) => {
-                        const pos = displayPositions[p.color];
-                        if (pos === 0) return null; // Off board
-                        const gridP = getGridPos(pos);
-                        return (
-                            <motion.div
-                                key={p.color}
-                                layout
-                                initial={false}
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                className="col-span-1 row-span-1 w-full h-full flex items-center justify-center relative pointer-events-auto"
-                                style={{
-                                    gridRow: gridP.r,
-                                    gridColumn: gridP.c,
-                                }}
-                            >
-                                {/* Offset multiple tokens lightly */}
-                                <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center" style={{ transform: `translate(${(idx % 2 === 0 ? 1 : -1) * (idx * 3)}px, ${(idx < 2 ? 1 : -1) * (idx * 3)}px)` }}>
-                                    <Token color={p.color} />
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-
-                {/* Toast Message Overlay */}
-                <AnimatePresence>
-                    {gameState.message && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white font-bold py-3 px-6 rounded-full shadow-2xl z-50 text-center backdrop-blur-md"
+                {/* --- VERTICAL NAMES ANCHORED TO THE BOARD GRID WRAPPER --- */}
+                {/* Top-Left: Left edge, top half */}
+                {players.find(p => p.position === 'top-left') && (
+                    <div className="absolute top-[10%] sm:top-[15%] left-1 sm:-left-3 md:-left-6 flex items-center justify-center pointer-events-none z-[100]">
+                        <span
+                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                         >
-                            {gameState.message}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                            {players.find(p => p.position === 'top-left')?.name}
+                        </span>
+                    </div>
+                )}
 
+                {/* Bottom-Left: Left edge, bottom half */}
+                {players.find(p => p.position === 'bottom-left') && (
+                    <div className="absolute bottom-[10%] sm:bottom-[15%] left-1 sm:-left-3 md:-left-6 flex items-center justify-center pointer-events-none z-[100]">
+                        <span
+                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                        >
+                            {players.find(p => p.position === 'bottom-left')?.name}
+                        </span>
+                    </div>
+                )}
+
+                {/* Top-Right: Right edge, top half */}
+                {players.find(p => p.position === 'top-right') && (
+                    <div className="absolute top-[10%] sm:top-[15%] right-1 sm:-right-3 md:-right-6 flex items-center justify-center pointer-events-none z-[100]">
+                        <span
+                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            style={{ writingMode: 'vertical-rl' }}
+                        >
+                            {players.find(p => p.position === 'top-right')?.name}
+                        </span>
+                    </div>
+                )}
+
+                {/* Bottom-Right: Right edge, bottom half */}
+                {players.find(p => p.position === 'bottom-right') && (
+                    <div className="absolute bottom-[10%] sm:bottom-[15%] right-1 sm:-right-3 md:-right-6 flex items-center justify-center pointer-events-none z-[100]">
+                        <span
+                            className="block text-[11px] sm:text-[13px] font-bold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 drop-shadow-md"
+                            style={{ writingMode: 'vertical-rl' }}
+                        >
+                            {players.find(p => p.position === 'bottom-right')?.name}
+                        </span>
+                    </div>
+                )}
+
+                <div className="snakes-grid-container absolute inset-0 bg-[#ececec] overflow-hidden shadow-base rounded-lg">
+
+                    {/* SVG Overlay for Snakes and Ladders lines */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 10 }}>
+                        {LADDERS.map((l, i) => {
+                            const p1 = getGridPos(l.start);
+                            const p2 = getGridPos(l.end);
+                            return <line key={`ladder-${i}`} x1={(p1.c - 0.5) * 10} y1={(p1.r - 0.5) * 10} x2={(p2.c - 0.5) * 10} y2={(p2.r - 0.5) * 10} stroke="rgba(34, 197, 94, 0.6)" strokeWidth="3" strokeDasharray="2,1" strokeLinecap="round" />;
+                        })}
+                        {SNAKES.map((s, i) => {
+                            const p1 = getGridPos(s.start);
+                            const p2 = getGridPos(s.end);
+                            // Curved path for snakes visually
+                            const mx = (p1.c + p2.c) / 2 * 10 + (Math.random() * 10 - 5);
+                            const my = (p1.r + p2.r) / 2 * 10 + (Math.random() * 10 - 5);
+                            return <path key={`snake-${i}`} d={`M ${(p1.c - 0.5) * 10} ${(p1.r - 0.5) * 10} Q ${mx} ${my} ${(p2.c - 0.5) * 10} ${(p2.r - 0.5) * 10}`} fill="none" stroke="rgba(239, 68, 68, 0.7)" strokeWidth="2.5" strokeLinecap="round" />;
+                        })}
+                    </svg>
+
+                    <div className="grid grid-cols-10 grid-rows-10 w-full h-full" style={{ zIndex: 5 }}>
+                        {Array.from({ length: 100 }).map((_, i) => {
+                            const cellNum = 100 - i;
+                            const r = Math.floor(i / 10) + 1; // 1 to 10 from top
+                            const isEven = r % 2 === 0;
+                            const physicalNum = isEven ? (r - 1) * 10 + (i % 10) + 1 : (r - 1) * 10 + (10 - (i % 10));
+                            const actualCellNum = 101 - physicalNum;
+
+                            return (
+                                <div key={i} className="flex items-center justify-center border border-black/10 text-xs font-bold text-black/30 relative">
+                                    {actualCellNum}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Tokens overlay */}
+                    <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 w-full h-full pointer-events-none" style={{ zIndex: 20 }}>
+                        {players.map((p, idx) => {
+                            const pos = displayPositions[p.color];
+                            if (pos === 0) return null; // Off board
+                            const gridP = getGridPos(pos);
+                            return (
+                                <motion.div
+                                    key={p.color}
+                                    layout
+                                    initial={false}
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    className="col-span-1 row-span-1 w-full h-full flex items-center justify-center relative pointer-events-auto"
+                                    style={{
+                                        gridRow: gridP.r,
+                                        gridColumn: gridP.c,
+                                    }}
+                                >
+                                    {/* Offset multiple tokens lightly */}
+                                    <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center" style={{ transform: `translate(${(idx % 2 === 0 ? 1 : -1) * (idx * 3)}px, ${(idx < 2 ? 1 : -1) * (idx * 3)}px)` }}>
+                                        <Token color={p.color} />
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Toast Message Overlay */}
+                    <AnimatePresence>
+                        {gameState.message && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white font-bold py-3 px-6 rounded-full shadow-2xl z-50 text-center backdrop-blur-md"
+                            >
+                                {gameState.message}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                </div>
             </div>
 
             {/* Bottom Row cards and Dice */}
