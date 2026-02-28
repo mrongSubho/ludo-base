@@ -114,60 +114,55 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                             <motion.div
                                 layout
-                                className="grid grid-cols-2 gap-4 pb-24"
+                                className="grid grid-cols-4 gap-2 pb-24"
                             >
                                 {currentItems.map((item) => (
                                     <motion.div
                                         key={item.id}
                                         layout
-                                        initial={{ opacity: 0, y: 5 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={`bg-white/5 border rounded-xl p-2 flex flex-col group hover:bg-white/10 transition-all ${item.rarity === 'legendary' ? 'border-fuchsia-600/30' :
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className={`bg-white/5 border rounded-lg p-1 flex flex-col group hover:bg-white/10 transition-all ${item.rarity === 'legendary' ? 'border-fuchsia-600/30' :
                                             item.rarity === 'rare' ? 'border-blue-500/30' : 'border-white/10'
                                             }`}
                                     >
                                         {/* Preview Area */}
-                                        <div className={`aspect-square w-full rounded-lg ${item.previewColor} mb-2 border border-white/5 flex items-center justify-center text-2xl shadow-inner relative overflow-hidden`}>
+                                        <div className={`aspect-square w-full rounded-md ${item.previewColor} mb-1 border border-white/5 flex items-center justify-center text-lg shadow-inner relative overflow-hidden`}>
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
                                             <div className="relative z-10">{item.previewIcon}</div>
 
                                             {/* Rarity Glow */}
-                                            {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-xl animate-pulse" />}
-                                            {item.rarity === 'rare' && <div className="absolute inset-0 bg-blue-500/10 blur-xl animate-pulse" />}
+                                            {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-md animate-pulse" />}
+                                            {item.rarity === 'rare' && <div className="absolute inset-0 bg-blue-500/10 blur-md animate-pulse" />}
 
                                             {/* Badges */}
-                                            <div className="absolute top-1 left-1 flex gap-1">
-                                                <div className="px-1 py-0.5 rounded bg-black/60 border border-white/10 backdrop-blur-md">
-                                                    <span className="text-[7px] font-black text-white/70 tracking-tighter">NFT</span>
+                                            <div className="absolute top-0.5 left-0.5 flex gap-1">
+                                                <div className="px-1 py-0 rounded-sm bg-black/60 border border-white/5 backdrop-blur-md">
+                                                    <span className="text-[6px] font-black text-white/50 tracking-tighter">NFT</span>
                                                 </div>
                                             </div>
 
                                             {item.owned && (
-                                                <div className="absolute top-1 right-1 bg-green-500 rounded-full p-0.5 shadow-lg z-20">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2 h-2 text-white"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                <div className="absolute top-0.5 right-0.5 bg-green-500 rounded-full p-0.5 shadow-lg z-20">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5 text-white"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                                 </div>
                                             )}
                                         </div>
 
                                         {/* Info */}
                                         <div className="flex flex-col flex-1 px-0.5">
-                                            <div className="flex items-center justify-between mb-0.5">
-                                                <h3 className="text-[10px] font-black text-white truncate max-w-[70%]">{item.name}</h3>
-                                                <span className={`text-[7px] font-black tracking-widest uppercase ${item.rarity === 'legendary' ? 'text-fuchsia-400' :
-                                                    item.rarity === 'rare' ? 'text-blue-400' : 'text-white/30'
-                                                    }`}>
-                                                    {item.rarity[0].toUpperCase()}
-                                                </span>
+                                            <div className="flex items-center justify-between pointer-events-none mb-0.5">
+                                                <h3 className="text-[8px] font-black text-white truncate max-w-full leading-tight">{item.name}</h3>
                                             </div>
-                                            <p className="text-[8px] text-white/30 mb-2 line-clamp-1 h-2.5">{item.description}</p>
+                                            <p className="text-[6px] text-white/30 mb-1.5 line-clamp-1 h-2 leading-none uppercase tracking-tighter select-none">{item.rarity}</p>
 
                                             {/* Action Button */}
                                             <button
                                                 disabled={item.owned}
-                                                className={`w-full py-1 rounded-md text-[9px] font-black transition-all flex items-center justify-center gap-1
+                                                className={`w-full py-1 rounded-md text-[7px] font-black transition-all flex items-center justify-center gap-0.5
                                                     ${item.owned
-                                                        ? 'bg-transparent text-white/20 border border-white/5 cursor-default'
-                                                        : 'bg-white/5 hover:bg-white/10 text-white border border-white/10 active:scale-95'
+                                                        ? 'bg-transparent text-white/10 border border-white/5 cursor-default'
+                                                        : 'bg-white/5 hover:bg-white/10 text-white border border-white/10 active:scale-90'
                                                     }
                                                 `}
                                             >
@@ -176,26 +171,25 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 ) : (
                                                     <>
                                                         {item.currency === 'eth' ? (
-                                                            <div className="flex items-center gap-1">
-                                                                <svg viewBox="0 0 256 417" className="w-1.5 h-2 fill-white/60"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" /><path d="M127.962 0L0 212.32l127.962 75.638V154.158z" /><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.59 128.038-180.32z" /><path d="M127.962 416.905V312.187L0 236.402z" /><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" /><path d="M0 212.32l127.962 75.638V154.158z" /></svg>
-                                                                <span className="text-white/60 font-mono tracking-tighter uppercase text-[8px]">MINT</span>
-                                                                <span className="text-[8px]">{item.price}</span>
+                                                            <div className="flex items-center gap-0.5">
+                                                                <svg viewBox="0 0 256 417" className="w-1 h-1.5 fill-white/40"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" /><path d="M127.962 0L0 212.32l127.962 75.638V154.158z" /><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.59 128.038-180.32z" /><path d="M127.962 416.905V312.187L0 236.402z" /><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" /><path d="M0 212.32l127.962 75.638V154.158z" /></svg>
+                                                                <span className="text-[7px]">{item.price}</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-1">
+                                                            <div className="flex items-center gap-0.5">
                                                                 {item.currency === 'coins' ? (
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2 h-2 text-yellow-400">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5 text-yellow-400">
                                                                         <circle cx="12" cy="12" r="8"></circle>
                                                                         <line x1="12" y1="8" x2="12" y2="16"></line>
                                                                         <path d="M16 12H8"></path>
                                                                     </svg>
                                                                 ) : (
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2 h-2 text-cyan-400">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-1.5 h-1.5 text-cyan-400">
                                                                         <path d="M6 3h12l4 6-10 13L2 9z"></path>
                                                                         <path d="M11 3 8 9l4 13 4-13-3-6"></path>
                                                                     </svg>
                                                                 )}
-                                                                <span className="text-[8px]">{item.price}</span>
+                                                                <span className="text-[7px]">{item.price}</span>
                                                             </div>
                                                         )}
                                                     </>
