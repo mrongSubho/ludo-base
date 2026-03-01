@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import './globals.css';
+import { Providers } from './Providers';
 
 const APP_URL = 'https://ludo-base.vercel.app';
 
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Ludo Base Superstar',
     description: 'A Ludo game built on Base',
-    images: [`${APP_URL}/og-image.png`], // Make sure you have an image in your public folder!
+    images: [`${APP_URL}/og-image.png`],
   },
   other: {
     // Farcaster Frame v2
@@ -32,8 +33,6 @@ export const metadata: Metadata = {
   },
 };
 
-import { RootProvider } from './rootProvider';
-
 export default function RootLayout({
   children,
 }: {
@@ -45,7 +44,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
       <body suppressHydrationWarning>
-        <RootProvider>{children}</RootProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

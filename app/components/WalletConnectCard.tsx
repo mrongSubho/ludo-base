@@ -1,23 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useConnect } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 interface WalletConnectCardProps {
     onConnect?: () => void;
 }
 
 export default function WalletConnectCard({ onConnect }: WalletConnectCardProps) {
-    const { connect, connectors } = useConnect();
-
-    const handleConnect = () => {
-        if (onConnect) {
-            onConnect();
-        } else if (connectors.length > 0) {
-            // Default to the first injected connector (e.g., MetaMask, Coinbase Wallet extension)
-            connect({ connector: connectors[0] });
-        }
-    };
-
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -44,24 +33,9 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
                 Connect your Web3 wallet to enter the arena and play with friends.
             </p>
 
-            <button
-                onClick={handleConnect}
-                className="w-full relative group overflow-hidden rounded-2xl p-[1px] z-10 shadow-lg transition-transform active:scale-95"
-            >
-                {/* Animated Border */}
-                <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-teal-400 to-indigo-500 rounded-2xl opacity-70 group-hover:opacity-100 transition-opacity blur-[2px]" />
-                <span className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-teal-400 to-indigo-500 animate-[spin_4s_linear_infinite] opacity-50 group-hover:opacity-100" />
-
-                {/* Button Content */}
-                <div className="relative flex items-center justify-center gap-3 w-full bg-[#1a1c29]/90 backdrop-blur-xl px-6 py-4 rounded-2xl transition-all group-hover:bg-[#1a1c29]/70">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-teal-400">
-                        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-                        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-                        <path d="M18 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0" />
-                    </svg>
-                    <span className="font-bold text-white text-lg tracking-wide">Connect Wallet</span>
-                </div>
-            </button>
+            <div className="z-10 w-full flex justify-center">
+                <ConnectButton />
+            </div>
         </motion.div>
     );
 }
