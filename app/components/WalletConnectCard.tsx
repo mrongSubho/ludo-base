@@ -1,11 +1,23 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useConnect } from 'wagmi';
 
 interface WalletConnectCardProps {
     onConnect?: () => void;
 }
 
 export default function WalletConnectCard({ onConnect }: WalletConnectCardProps) {
+    const { connect, connectors } = useConnect();
+
+    const handleConnect = () => {
+        if (onConnect) {
+            onConnect();
+        } else if (connectors.length > 0) {
+            // Default to the first injected connector (e.g., MetaMask, Coinbase Wallet extension)
+            connect({ connector: connectors[0] });
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -33,7 +45,7 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
             </p>
 
             <button
-                onClick={onConnect}
+                onClick={handleConnect}
                 className="w-full relative group overflow-hidden rounded-2xl p-[1px] z-10 shadow-lg transition-transform active:scale-95"
             >
                 {/* Animated Border */}
