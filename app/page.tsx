@@ -613,7 +613,7 @@ export default function Page() {
               </button>
               <button className={`nav-item ${activeTab === 'marketplace' ? 'active' : ''}`} onClick={() => toggle('marketplace')}>
                 <ShopIcon />
-                <span className="nav-label">MarketP.</span>
+                <span className="nav-label">Market</span>
               </button>
             </nav>
 

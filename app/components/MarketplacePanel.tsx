@@ -486,20 +486,22 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     animate={{ x: 0 }}
                                     exit={{ x: '100%' }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="absolute inset-x-0 bottom-0 top-[34px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
+                                    className="absolute inset-0 bg-[#1a1c29] z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
                                 >
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar py-6 px-safe pb-safe-footer text-left">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar pt-6 px-safe pb-32 text-left">
                                         <div className="flex items-center justify-between mb-8 px-5">
-                                            <button
-                                                onClick={handleCloseDetail}
-                                                className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-xs font-bold"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                Back
-                                            </button>
-                                            <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full">
-                                                <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">{selectedItem.rarity} collectible</span>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={handleCloseDetail}
+                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                                </button>
+                                                <h2 className="text-lg font-black text-white">Item Details</h2>
                                             </div>
+                                            <button onClick={onClose} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            </button>
                                         </div>
 
                                         <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden`}>
@@ -634,12 +636,17 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(37,99,235,0.1),transparent_70%)] pointer-events-none" />
 
                                                     <div className="flex items-center justify-between mb-10 relative z-10">
-                                                        <h3 className="text-xl font-black text-white">List for Sale</h3>
-                                                        <button
-                                                            onClick={() => setIsSelling(false)}
-                                                            className="text-white/40 hover:text-white transition-colors p-2"
-                                                        >
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                onClick={() => setIsSelling(false)}
+                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all"
+                                                            >
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                                            </button>
+                                                            <h3 className="text-xl font-black text-white">List for Sale</h3>
+                                                        </div>
+                                                        <button onClick={onClose} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                                         </button>
                                                     </div>
 
@@ -733,10 +740,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             )}
                                         </AnimatePresence>
 
-                                        <div className="flex gap-4 sticky bottom-0 bg-[#1a1c29] pt-2 pb-4 px-5">
+                                        <div className="flex gap-4 absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#1a1c29] via-[#1a1c29] to-transparent pt-10 pb-8 px-5 z-30">
                                             <button
                                                 onClick={selectedItem.owned ? () => setIsSelling(true) : handleBuy}
-                                                className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(255,255,255,0.1)]"
+                                                className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_30px_rgba(255,255,255,0.15)]"
                                             >
                                                 {selectedItem.owned ? 'SELL' : 'BUY NOW'}
                                             </button>
