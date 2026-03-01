@@ -95,7 +95,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                         </div>
 
                         {/* Header Section */}
-                        <div className="px-6 pb-4 border-b border-white/10">
+                        <div className="px-4 pb-4 border-b border-white/10">
                             <div className="flex items-center justify-between mb-6 mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-teal-400">

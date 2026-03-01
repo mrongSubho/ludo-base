@@ -397,7 +397,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         </AnimatePresence>
 
                         {/* Header */}
-                        <div className="px-6 pb-4 border-b border-white/10">
+                        <div className="px-4 pb-4 border-b border-white/10">
                             <div className="flex items-center justify-between mb-4 mt-2">
                                 <div className="flex flex-col">
                                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
