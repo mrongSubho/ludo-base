@@ -101,7 +101,10 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                 </div>
 
                 {/* Header */}
-                <div className="px-4 pb-4 border-b border-white/10">
+                <div
+                    className="pb-4 border-b border-white/10"
+                    style={{ paddingLeft: '16px', paddingRight: '16px' }}
+                >
                     <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-2">
                             {selectedChat ? (
@@ -136,7 +139,10 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-hidden relative">
+                <div
+                    className="flex-1 overflow-hidden relative"
+                    style={{ paddingLeft: '16px', paddingRight: '16px' }}
+                >
                     <AnimatePresence mode="wait">
                         {!selectedChat ? (
                             /* Chat List */
@@ -145,7 +151,7 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="h-full overflow-y-auto px-4 py-4 space-y-2 custom-scrollbar"
+                                className="h-full overflow-y-auto py-4 space-y-2 custom-scrollbar"
                             >
                                 {MOCK_CONVERSATIONS.map((chat) => (
                                     <button
