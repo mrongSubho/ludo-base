@@ -87,5 +87,4 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-oncha
 
 #### Quality & Docs
 - [ ] **Tests** – No test files
-- [ ] **README** – Minimal setup only
 
