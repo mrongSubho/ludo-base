@@ -7,10 +7,11 @@ type MarketTab = 'items' | 'themes' | 'dice';
 type Rarity = 'common' | 'rare' | 'legendary';
 
 interface MarketActivity {
-    event: 'Created' | 'Sale' | 'Transfer';
+    event: 'Created' | 'Sale' | 'Transfer' | 'List';
     from: string;
     to: string;
     price?: number;
+    duration?: string;
     date: string;
 }
 
@@ -237,9 +238,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     const [activeTab, setActiveTab] = useState<MarketTab>('items');
     const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
     const [isSelling, setIsSelling] = useState(false);
-    const [sellPrice, setSellPrice] = useState<string>('');
-
-    // Transaction States
+    const [sellPrice, setSellPrice] = useState('');
+    const [listingDuration, setListingDuration] = useState<'7d' | '30d' | 'indefinite'>('7d');
     const [isProcessing, setIsProcessing] = useState(false);
     const [transactionResult, setTransactionResult] = useState<'success' | 'error' | null>(null);
 
@@ -284,10 +284,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setMarketData(prev => prev.map(item => {
             if (item.id === selectedItem.id) {
                 const newActivity: MarketActivity = {
-                    event: 'Sale',
+                    event: 'List',
                     from: 'Player',
                     to: 'Market',
                     price: priceNum,
+                    duration: listingDuration === '7d' ? '7 Days' : listingDuration === '30d' ? '30 Days' : 'Indefinite',
                     date: 'Just now'
                 };
                 return { ...item, price: priceNum, activity: [newActivity, ...item.activity] };
@@ -575,8 +576,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     {selectedItem.activity.map((act, i) => (
                                                         <div key={i} className={`flex items-center justify-between glass-card !rounded-none !bg-transparent !border-0 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
                                                             <div className="flex items-center gap-2">
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
-                                                                <span className="text-white font-bold">{act.event}</span>
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : act.event === 'List' ? 'bg-orange-400' : 'bg-white/20'}`} />
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-white font-bold">{act.event}</span>
+                                                                    {act.duration && <span className="text-[8px] text-white/30 font-medium">Valid for {act.duration}</span>}
+                                                                </div>
                                                             </div>
                                                             <div className="flex flex-col items-end">
                                                                 <div className="flex items-center gap-1.5 font-mono text-white/60">
@@ -624,30 +628,33 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     initial={{ y: '100%' }}
                                                     animate={{ y: 0 }}
                                                     exit={{ y: '100%' }}
-                                                    className="absolute inset-0 bg-[#1a1c29] z-20 flex flex-col py-6 px-5"
+                                                    className="absolute inset-0 bg-[#1a1c29] z-20 flex flex-col py-6 px-5 overflow-hidden"
                                                 >
-                                                    <div className="flex items-center justify-between mb-10">
+                                                    {/* Industrial Background Glow */}
+                                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(37,99,235,0.1),transparent_70%)] pointer-events-none" />
+
+                                                    <div className="flex items-center justify-between mb-10 relative z-10">
                                                         <h3 className="text-xl font-black text-white">List for Sale</h3>
                                                         <button
                                                             onClick={() => setIsSelling(false)}
-                                                            className="text-white/40 hover:text-white transition-colors"
+                                                            className="text-white/40 hover:text-white transition-colors p-2"
                                                         >
                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                                         </button>
                                                     </div>
 
-                                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                                        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-8">
-                                                            <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center text-3xl shadow-lg`}>
+                                                    <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
+                                                        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-8 backdrop-blur-md">
+                                                            <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center text-3xl shadow-lg border border-white/5`}>
                                                                 {selectedItem.previewIcon}
                                                             </div>
                                                             <div>
                                                                 <h4 className="text-sm font-black text-white">{selectedItem.name}</h4>
-                                                                <p className="text-[10px] text-white/40">{selectedItem.collection}</p>
+                                                                <p className="text-[10px] text-white/40 font-bold tracking-wider uppercase">{selectedItem.collection}</p>
                                                             </div>
                                                         </div>
 
-                                                        <div className="mb-8">
+                                                        <div className="mb-6">
                                                             <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Set Price (USDC)</label>
                                                             <div className="relative group">
                                                                 <input
@@ -655,13 +662,29 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                                     placeholder="0.00"
                                                                     value={sellPrice}
                                                                     onChange={(e) => setSellPrice(e.target.value)}
-                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-white/10"
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-white/10 shadow-inner"
                                                                 />
                                                                 <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-bold text-white/20">USDC</div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-4 glass-card mb-8">
+                                                        {/* Duration Selector */}
+                                                        <div className="mb-8">
+                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Listing Duration</label>
+                                                            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+                                                                {(['7d', '30d', 'indefinite'] as const).map((d) => (
+                                                                    <button
+                                                                        key={d}
+                                                                        onClick={() => setListingDuration(d)}
+                                                                        className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${listingDuration === d ? 'bg-blue-600 text-white shadow-lg' : 'text-white/30 hover:text-white/60'}`}
+                                                                    >
+                                                                        {d === '7d' ? '7 Days' : d === '30d' ? '30 Days' : 'Indefinite'}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-4 glass-card mb-8 !bg-white/[0.02]">
                                                             <div className="flex justify-between text-[11px] font-medium">
                                                                 <span className="text-white/40">Marketplace Fee</span>
                                                                 <span className="text-white font-mono">2.5%</span>
@@ -672,29 +695,37 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                             <div className="h-px bg-white/10 my-2" />
                                                             <div className="flex justify-between items-center">
-                                                                <span className="text-xs font-black text-white uppercase tracking-wider">Your Earnings</span>
-                                                                <div className="flex items-baseline gap-1 text-green-400">
-                                                                    <span className="text-3xl font-black font-mono tracking-tighter">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-xs font-black text-white uppercase tracking-wider">Your Earnings</span>
+                                                                    <span className="text-[9px] text-white/20 font-bold italic ring-offset-green-400">Estimated Yield</span>
+                                                                </div>
+                                                                <div className="flex items-baseline gap-1 text-green-400 relative">
+                                                                    {/* Yield Pulse Glow */}
+                                                                    {sellPrice && Number(sellPrice) > 0 && (
+                                                                        <div className="absolute inset-0 bg-green-400/20 blur-xl animate-pulse" />
+                                                                    )}
+                                                                    <span className="text-3xl font-black font-mono tracking-tighter relative z-10">
                                                                         {sellPrice ? (Number(sellPrice) * 0.925).toFixed(2) : '0.00'}
                                                                     </span>
-                                                                    <span className="text-[10px] font-black">USDC</span>
+                                                                    <span className="text-[10px] font-black relative z-10">USDC</span>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex gap-4 pt-4 mt-auto">
+                                                    <div className="flex gap-4 pt-4 mt-auto relative z-10">
                                                         <button
                                                             onClick={() => setIsSelling(false)}
-                                                            className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white hover:bg-white/10 transition-all"
+                                                            className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white hover:bg-white/10 transition-all active:scale-95"
                                                         >
                                                             CANCEL
                                                         </button>
                                                         <button
                                                             disabled={!sellPrice || Number(sellPrice) <= 0}
-                                                            className="flex-2 py-4 bg-blue-600 rounded-2xl font-black text-xs text-white hover:bg-blue-500 disabled:opacity-50 disabled:grayscale transition-all shadow-lg"
+                                                            className="flex-[2] py-4 bg-blue-600 rounded-2xl font-black text-xs text-white hover:bg-blue-500 disabled:opacity-50 disabled:grayscale transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
                                                             onClick={handleConfirmListing}
                                                         >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                                             CONFIRM LISTING
                                                         </button>
                                                     </div>
