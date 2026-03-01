@@ -300,17 +300,19 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                             </div>
 
                             {/* Pill Switcher */}
-                            <div className="flex bg-black/40 p-0.5 rounded-lg">
-                                {(['items', 'themes', 'dice'] as MarketTab[]).map((tab) => (
-                                    <button
-                                        key={tab}
-                                        className={`flex-1 py-1.5 text-[10px] font-black rounded-md capitalize transition-all ${activeTab === tab ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/60'}`}
-                                        onClick={() => setActiveTab(tab)}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
+                            {!selectedItem && (
+                                <div className="flex bg-black/40 p-0.5 rounded-lg">
+                                    {(['items', 'themes', 'dice'] as MarketTab[]).map((tab) => (
+                                        <button
+                                            key={tab}
+                                            className={`flex-1 py-1.5 text-[10px] font-black rounded-md capitalize transition-all ${activeTab === tab ? 'bg-white/10 text-white shadow-sm' : 'text-white/30 hover:text-white/60'}`}
+                                            onClick={() => setActiveTab(tab)}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Inventory Grid Container */}
