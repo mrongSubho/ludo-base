@@ -7,7 +7,7 @@ type MarketTab = 'items' | 'themes' | 'dice';
 type Rarity = 'common' | 'rare' | 'legendary';
 
 interface MarketActivity {
-    event: 'Mint' | 'Sale' | 'Transfer';
+    event: 'Created' | 'Sale' | 'Transfer';
     from: string;
     to: string;
     price?: number;
@@ -83,7 +83,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 ],
                 activity: [
                     { event: 'Sale', from: '0x123...abc', to: 'Player', price: 12.0, date: '1d ago' },
-                    { event: 'Mint', from: 'System', to: '0x123...abc', date: '1mo ago' }
+                    { event: 'Created', from: 'System', to: '0x123...abc', date: '1mo ago' }
                 ],
                 chainInfo: { address: '0x812...e9f', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-[#0a0b14]'
@@ -103,7 +103,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 activity: [
                     { event: 'Sale', from: '0x8a2...11b', to: '0x3c2...ef9', price: 42.5, date: '2d ago' },
                     { event: 'Transfer', from: '0x000...000', to: '0x8a2...11b', date: '5d ago' },
-                    { event: 'Mint', from: 'System', to: '0x000...000', date: '10d ago' }
+                    { event: 'Created', from: 'System', to: '0x000...000', date: '10d ago' }
                 ],
                 chainInfo: { address: '0x3a1...bc2', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-fuchsia-900', previewIcon: <div className="text-fuchsia-400">⚡</div>
@@ -121,7 +121,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 ],
                 activity: [
                     { event: 'Sale', from: '0x771...aa2', to: '0xbb2...cc1', price: 24.0, date: '1h ago' },
-                    { event: 'Mint', from: 'System', to: '0x771...aa2', date: '3d ago' }
+                    { event: 'Created', from: 'System', to: '0x771...aa2', date: '3d ago' }
                 ],
                 chainInfo: { address: '0xf5e...11a', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-yellow-900/50'
@@ -141,7 +141,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 ],
                 activity: [
                     { event: 'Sale', from: '0x441...111', to: '0x222...333', price: 8.5, date: '6h ago' },
-                    { event: 'Mint', from: 'System', to: '0x441...111', date: '1w ago' }
+                    { event: 'Created', from: 'System', to: '0x441...111', date: '1w ago' }
                 ],
                 chainInfo: { address: '0x123...456', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-cyan-500/30'
@@ -177,7 +177,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 ],
                 activity: [
                     { event: 'Sale', from: '0xaaa...bbb', to: '0xccc...ddd', price: 95.0, date: '3d ago' },
-                    { event: 'Mint', from: 'System', to: '0xaaa...bbb', date: '1mo ago' }
+                    { event: 'Created', from: 'System', to: '0xaaa...bbb', date: '1mo ago' }
                 ],
                 chainInfo: { address: '0xabc...def', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-black'
@@ -196,7 +196,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                     { trait_type: 'Style', value: 'Legacy', rarity_percent: 100 }
                 ],
                 activity: [
-                    { event: 'Mint', from: 'System', to: 'Player', date: 'Genesis' }
+                    { event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }
                 ],
                 chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
                 previewColor: 'bg-red-500'
@@ -214,7 +214,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 ],
                 activity: [
                     { event: 'Sale', from: '0xeee...fff', to: '0x111...222', price: 5.2, date: '2d ago' },
-                    { event: 'Mint', from: 'System', to: '0xeee...fff', date: '2w ago' }
+                    { event: 'Created', from: 'System', to: '0xeee...fff', date: '2w ago' }
                 ],
                 chainInfo: { address: '0xddd...eee', standard: 'ERC-1155', network: 'Base' },
                 previewColor: 'bg-white/10'
@@ -232,7 +232,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 ],
                 activity: [
                     { event: 'Sale', from: '0x777...888', to: '0x999...000', price: 30.0, date: '1d ago' },
-                    { event: 'Mint', from: 'System', to: '0x777...888', date: '1mo ago' }
+                    { event: 'Created', from: 'System', to: '0x777...888', date: '1mo ago' }
                 ],
                 chainInfo: { address: '0x777...888', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-emerald-900'
@@ -344,7 +344,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             {/* Badges */}
                                             <div className="absolute top-0.5 left-0.5 flex gap-1">
                                                 <div className="px-1 py-0 rounded-sm bg-black/60 border border-white/5 backdrop-blur-md">
-                                                    <span className="text-[6px] font-black text-white/50 tracking-tighter">NFT</span>
+                                                    <span className="text-[6px] font-black text-white/50 tracking-tighter">ITEM</span>
                                                 </div>
                                             </div>
 
@@ -478,7 +478,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     {selectedItem.activity.map((act, i) => (
                                                         <div key={i} className={`flex items-center justify-between glass-card !rounded-none !bg-transparent !border-0 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
                                                             <div className="flex items-center gap-2">
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Mint' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
                                                                 <span className="text-white font-bold">{act.event}</span>
                                                             </div>
                                                             <div className="flex flex-col items-end">
@@ -510,11 +510,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                             <div className="flex items-center justify-between px-1 mb-8">
                                                 <a href="#" className="text-[10px] text-blue-400 font-bold hover:underline flex items-center gap-1">
-                                                    View on BaseScan
+                                                    View on Explorer
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                                                 </a>
                                                 <button className="text-[10px] text-white/40 font-bold hover:text-white flex items-center gap-1">
-                                                    Share NFT
+                                                    Share Item
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
                                                 </button>
                                             </div>
@@ -625,7 +625,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 onClick={selectedItem.owned ? () => setIsSelling(true) : undefined}
                                                 className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(255,255,255,0.1)]"
                                             >
-                                                {selectedItem.owned ? 'SELL NFT' : 'MINT NOW'}
+                                                {selectedItem.owned ? 'SELL' : 'BUY NOW'}
                                             </button>
                                             <button className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 active:scale-95 transition-all">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
