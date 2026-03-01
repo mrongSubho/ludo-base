@@ -56,6 +56,15 @@ interface MarketplacePanelProps {
 export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelProps) {
     const [activeTab, setActiveTab] = useState<MarketTab>('items');
     const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
+    const [isSelling, setIsSelling] = useState(false);
+    const [sellPrice, setSellPrice] = useState<string>('');
+
+    // Reset selling state when closing detail view
+    const handleCloseDetail = () => {
+        setSelectedItem(null);
+        setIsSelling(false);
+        setSellPrice('');
+    };
 
     // MOCK DATA: Premium NFT Goods
     const getMarketItems = (tab: MarketTab): MarketItem[] => {
@@ -305,7 +314,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         </div>
 
                         {/* Inventory Grid Container */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 mb-4">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pt-2 px-safe mb-4">
                             <motion.div
                                 layout
                                 className="grid grid-cols-4 gap-2 pb-safe-footer"
@@ -379,10 +388,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                     className="absolute inset-x-0 bottom-0 top-[60px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
                                 >
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-safe-footer">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar py-6 px-safe pb-safe-footer">
                                         <div className="flex items-center justify-between mb-8">
                                             <button
-                                                onClick={() => setSelectedItem(null)}
+                                                onClick={handleCloseDetail}
                                                 className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-xs font-bold"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -408,7 +417,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
 
                                             {/* Collection Analytics Bar */}
-                                            <div className="flex gap-4 mb-6 p-3 bg-white/5 border border-white/5 rounded-xl">
+                                            <div className="flex gap-4 mb-6 glass-card-sm !rounded-xl">
                                                 <div className="flex flex-col">
                                                     <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Floor</span>
                                                     <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.floor} USDC</span>
@@ -430,7 +439,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             {/* Stats Grid */}
                                             <div className="grid grid-cols-2 gap-3 mb-8">
                                                 {selectedItem.stats.map((stat, i) => (
-                                                    <div key={i} className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col">
+                                                    <div key={i} className="glass-card-sm !rounded-xl flex flex-col">
                                                         <span className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-1">{stat.label}</span>
                                                         <span className="text-sm font-bold text-white">{stat.value}</span>
                                                     </div>
@@ -439,7 +448,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                             {/* Properties / Traits Grid */}
                                             <div className="mb-8">
-                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Properties</h4>
+                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Properties</h4>
                                                 <div className="grid grid-cols-3 gap-2">
                                                     {selectedItem.traits.map((trait, i) => (
                                                         <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
@@ -452,7 +461,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             </div>
 
                                             {/* Lore Section */}
-                                            <div className="mb-8 p-4 bg-fuchsia-500/5 border border-fuchsia-500/10 rounded-2xl relative overflow-hidden">
+                                            <div className="mb-8 glass-card !bg-fuchsia-500/5 !border-fuchsia-500/10 relative overflow-hidden">
                                                 <div className="absolute top-0 right-0 p-2 opacity-10 text-fuchsia-400">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                                                 </div>
@@ -462,10 +471,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                             {/* Activity Ledger */}
                                             <div className="mb-8">
-                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Item Activity</h4>
+                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Item Activity</h4>
                                                 <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
                                                     {selectedItem.activity.map((act, i) => (
-                                                        <div key={i} className={`flex items-center justify-between p-3 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
+                                                        <div key={i} className={`flex items-center justify-between glass-card !rounded-none !bg-transparent !border-0 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
                                                             <div className="flex items-center gap-2">
                                                                 <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Mint' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
                                                                 <span className="text-white font-bold">{act.event}</span>
@@ -508,8 +517,112 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {/* Sell Mode Overlay */}
+                                        <AnimatePresence>
+                                            {isSelling && (
+                                                <motion.div
+                                                    initial={{ y: '100%' }}
+                                                    animate={{ y: 0 }}
+                                                    exit={{ y: '100%' }}
+                                                    className="absolute inset-0 bg-[#1a1c29] z-20 flex flex-col py-6 px-safe pb-safe-footer"
+                                                >
+                                                    <div className="flex items-center justify-between mb-10">
+                                                        <h3 className="text-xl font-black text-white">List for Sale</h3>
+                                                        <button
+                                                            onClick={() => setIsSelling(false)}
+                                                            className="text-white/40 hover:text-white transition-colors"
+                                                        >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                                        {/* Item Mini Card */}
+                                                        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-8">
+                                                            <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center text-3xl shadow-lg`}>
+                                                                {selectedItem.previewIcon}
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-white">{selectedItem.name}</h4>
+                                                                <p className="text-[10px] text-white/40">{selectedItem.collection}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Price Input */}
+                                                        <div className="mb-8">
+                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Set Price (USDC)</label>
+                                                            <div className="relative group">
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0.00"
+                                                                    value={sellPrice}
+                                                                    onChange={(e) => setSellPrice(e.target.value)}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-white/10"
+                                                                />
+                                                                <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-bold text-white/20">USDC</div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Fees Breakdown */}
+                                                        <div className="space-y-4 glass-card mb-8">
+                                                            <div className="flex justify-between text-[11px] font-medium">
+                                                                <span className="text-white/40">Marketplace Fee</span>
+                                                                <span className="text-white font-mono">2.5%</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-[11px] font-medium">
+                                                                <span className="text-white/40">Creator Royalty</span>
+                                                                <span className="text-white font-mono">5.0%</span>
+                                                            </div>
+                                                            <div className="h-px bg-white/10 my-2" />
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-xs font-black text-white uppercase tracking-wider">Your Earnings</span>
+                                                                <div className="flex items-baseline gap-1 text-green-400">
+                                                                    <span className="text-3xl font-black font-mono tracking-tighter">
+                                                                        {sellPrice ? (Number(sellPrice) * 0.925).toFixed(2) : '0.00'}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-black">USDC</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Duration Selector */}
+                                                        <div className="mb-4">
+                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Duration</label>
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                {['7 Days', '30 Days', 'Forever'].map((d) => (
+                                                                    <button key={d} className={`py-3 rounded-xl border text-[10px] font-bold transition-all ${d === 'Forever' ? 'bg-blue-600/20 border-blue-500/50 text-white' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                                                                        {d}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex gap-4 pt-4 mt-auto">
+                                                        <button
+                                                            onClick={() => setIsSelling(false)}
+                                                            className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white hover:bg-white/10 transition-all"
+                                                        >
+                                                            CANCEL
+                                                        </button>
+                                                        <button
+                                                            disabled={!sellPrice || Number(sellPrice) <= 0}
+                                                            className="flex-2 py-4 bg-blue-600 rounded-2xl font-black text-xs text-white hover:bg-blue-500 disabled:opacity-50 disabled:grayscale transition-all shadow-lg"
+                                                            onClick={handleCloseDetail}
+                                                        >
+                                                            CONFIRM LISTING
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+
                                         <div className="flex gap-4 sticky bottom-0 bg-[#1a1c29] pt-2 pb-4">
-                                            <button className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(255,255,255,0.1)]">
+                                            <button
+                                                onClick={selectedItem.owned ? () => setIsSelling(true) : undefined}
+                                                className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(255,255,255,0.1)]"
+                                            >
                                                 {selectedItem.owned ? 'SELL NFT' : 'MINT NOW'}
                                             </button>
                                             <button className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 active:scale-95 transition-all">

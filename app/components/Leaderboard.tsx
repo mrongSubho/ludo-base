@@ -32,13 +32,18 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     // MOCK DATA: 5-Tier Advanced Ranking System
     const getStats = (tab: LeaderboardTab, currentScope: 'global' | 'friends'): LeaderboardEntry[] => {
         const dummyEntries: (LeaderboardEntry & { isFriend?: boolean })[] = [
-            { id: '1', name: 'Mrong', avatar: '1', wins: 42, lastWin: Date.now() - 3600000, isCurrentUser: true, tier: 'Platinum', stage: 'I' },
-            { id: '2', name: 'Fahmida', avatar: '2', wins: 89, lastWin: Date.now() - 86400000, tier: 'Legendary', stage: 'III', isFriend: true },
+            { id: '1', name: 'You', avatar: '1', wins: 42, lastWin: Date.now() - 3600000, isCurrentUser: true, tier: 'Platinum', stage: 'I' },
+            { id: '2', name: 'Nova', avatar: '2', wins: 89, lastWin: Date.now() - 86400000, tier: 'Legendary', stage: 'III', isFriend: true },
             { id: '3', name: 'Gemini (AI)', avatar: '3', wins: 12, lastWin: Date.now() - 172800000, tier: 'Silver', stage: 'II' },
             { id: '4', name: 'Core (AI)', avatar: '4', wins: 8, lastWin: Date.now() - 259200000, tier: 'Rookie', stage: 'I' },
             { id: '5', name: 'Alex', avatar: '5', wins: 56, lastWin: Date.now() - 4000000, tier: 'Gold', stage: 'III', isFriend: true },
             { id: '6', name: 'Sarah Ludo', avatar: '6', wins: 24, lastWin: Date.now() - 900000, tier: 'Silver', stage: 'III' },
-            { id: '7', name: 'MasterG', avatar: '7', wins: 102, lastWin: Date.now() - 120000, tier: 'Legendary', stage: 'II', isFriend: true }
+            { id: '7', name: 'MasterG', avatar: '7', wins: 102, lastWin: Date.now() - 120000, tier: 'Legendary', stage: 'II', isFriend: true },
+            { id: '8', name: 'CyberRunner', avatar: '8', wins: 67, lastWin: Date.now() - 5000000, tier: 'Platinum', stage: 'III' },
+            { id: '9', name: 'NeonNinja', avatar: '9', wins: 45, lastWin: Date.now() - 7200000, tier: 'Gold', stage: 'II' },
+            { id: '10', name: 'GlitchKing', avatar: '10', wins: 115, lastWin: Date.now() - 60000, tier: 'Legendary', stage: 'III' },
+            { id: '11', name: 'PixelPirate', avatar: '11', wins: 33, lastWin: Date.now() - 15000000, tier: 'Silver', stage: 'I' },
+            { id: '12', name: 'BinaryBoss', avatar: '12', wins: 15, lastWin: Date.now() - 30000000, tier: 'Rookie', stage: 'III' }
         ];
 
         // Filter by scope first
@@ -242,7 +247,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                     <p className="text-sm text-white/60">No records found for this period.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3 pb-safe-footer">
+                                <div className="space-y-3 px-safe pb-safe-footer">
                                     <AnimatePresence mode="popLayout">
                                         {stats.map((entry, idx) => {
                                             const tierStyles = getTierConfig(entry.tier);

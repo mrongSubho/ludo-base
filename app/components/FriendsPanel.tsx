@@ -209,7 +209,7 @@ export default function FriendsPanel({ onClose }: FriendsPanelProps) {
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto pt-4 px-safe custom-scrollbar">
                     <AnimatePresence mode="wait">
 
                         {activeMainTab === 'game' && (

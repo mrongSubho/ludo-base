@@ -128,7 +128,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                         </div>
 
                         {/* Missions Content */}
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
+                        <div className="flex-1 overflow-y-auto pt-4 px-safe custom-scrollbar relative">
                             {missions.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
                                     <span className="text-6xl mb-4">✨</span>

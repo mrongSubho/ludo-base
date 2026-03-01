@@ -478,7 +478,7 @@ export default function Page() {
         {appState === 'dashboard' && (
           <div className="dashboard-container">
             {/* Header */}
-            <header className="header dash-header">
+            <header className="header dash-header px-safe">
               <div className="header-left">
                 <div className="token-pill">
                   <TokenIcon />
@@ -508,7 +508,7 @@ export default function Page() {
               </div>
             </header>
 
-            <main className="dash-main pb-safe-footer">
+            <main className="dash-main pb-safe-footer px-safe">
               {/* Game Modes Section */}
               <section className="dash-section">
                 <h3 className="section-title">GAME MODES</h3>
