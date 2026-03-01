@@ -11,7 +11,7 @@ const config = getDefaultConfig({
     appName: "Ludo Base",
     projectId: "673e0d259a5dc10d64b0fec83f6e8eca",
     chains: [base, baseSepolia],
-    ssr: true, // If NextJS App Router
+    ssr: true, // This is the required addition for mobile support
 });
 
 const queryClient = new QueryClient();
