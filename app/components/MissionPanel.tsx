@@ -95,7 +95,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                         </div>
 
                         {/* Header Section */}
-                        <div className="px-4 pb-4 border-b border-white/10">
+                        <div className="px-panel-gutter pb-4 border-b border-white/10">
                             <div className="flex items-center justify-between mb-6 mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-teal-400">
@@ -131,7 +131,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                         </div>
 
                         {/* Missions Content */}
-                        <div className="flex-1 overflow-y-auto pt-4 px-safe custom-scrollbar relative">
+                        <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-4 custom-scrollbar relative">
                             {missions.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
                                     <span className="text-6xl mb-4">✨</span>

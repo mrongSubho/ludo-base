@@ -54,7 +54,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Header */}
-                <div className="px-4 pb-4 border-b border-white/10">
+                <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-indigo-400">
@@ -73,7 +73,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto py-6 px-safe custom-scrollbar space-y-6 pb-safe-footer">
+                <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-6 custom-scrollbar">
 
                     {/* Identity Section */}
                     <div className="flex flex-col items-center glass-card relative">

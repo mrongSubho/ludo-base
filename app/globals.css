@@ -3636,6 +3636,11 @@ a {
   padding-right: 24px;
 }
 
+.px-panel-gutter {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .glass-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.05);

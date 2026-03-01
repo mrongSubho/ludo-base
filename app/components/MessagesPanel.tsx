@@ -101,10 +101,7 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                 </div>
 
                 {/* Header */}
-                <div
-                    className="pb-4 border-b border-white/10"
-                    style={{ paddingLeft: '16px', paddingRight: '16px' }}
-                >
+                <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-2">
                             {selectedChat ? (
@@ -139,10 +136,7 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                 </div>
 
                 {/* Content */}
-                <div
-                    className="flex-1 overflow-hidden relative"
-                    style={{ paddingLeft: '16px', paddingRight: '16px' }}
-                >
+                <div className="flex-1 overflow-hidden relative px-panel-gutter">
                     <AnimatePresence mode="wait">
                         {!selectedChat ? (
                             /* Chat List */
