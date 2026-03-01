@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface FriendsPanelProps {
     onClose: () => void;
+    onDM?: (friendId: string) => void;
 }
 
 type MainTab = 'game' | 'base' | 'requests';
@@ -69,7 +70,7 @@ const RejectIcon = () => (
 );
 
 
-export default function FriendsPanel({ onClose }: FriendsPanelProps) {
+export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('game');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
 
@@ -97,7 +98,10 @@ export default function FriendsPanel({ onClose }: FriendsPanelProps) {
                     </div>
                 </div>
 
-                <button className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm">
+                <button
+                    onClick={() => onDM?.(friend.id)}
+                    className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                >
                     <DMIcon />
                 </button>
             </div>

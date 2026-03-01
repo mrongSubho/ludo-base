@@ -12,6 +12,7 @@ import UserProfilePanel from './components/UserProfilePanel';
 import Leaderboard from './components/Leaderboard';
 import MissionPanel from './components/MissionPanel';
 import MarketplacePanel from './components/MarketplacePanel';
+import MessagesPanel from './components/MessagesPanel';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -323,23 +324,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
 }
 
 // ─── Messages Drawer (slides in from right) ──────────────────────────────────
-
-function MessagesPanel({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="settings-drawer-overlay" onClick={onClose}>
-      <div className="settings-drawer" onClick={e => e.stopPropagation()}>
-        <div className="settings-drawer-header">
-          <h2 className="settings-drawer-title">Messages</h2>
-          <button className="settings-drawer-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="settings-drawer-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.6, paddingTop: '100px' }}>
-          <HeaderMessageIcon />
-          <p style={{ marginTop: '16px', fontWeight: 500 }}>No new messages yet.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+// (Moved to external component: MessagesPanel.tsx)
 
 // ─── Settings Drawer (slides in from right) ──────────────────────────────────
 // (This is located higher up in the file)
@@ -402,6 +387,7 @@ export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -622,7 +608,13 @@ export default function Page() {
               <UserProfilePanel onClose={closeTab} />
             )}
             {activeTab === 'friends' && (
-              <FriendsPanel onClose={closeTab} />
+              <FriendsPanel
+                onClose={closeTab}
+                onDM={(friendId) => {
+                  setSelectedChatId(friendId);
+                  setActiveTab('messages');
+                }}
+              />
             )}
             {activeTab === 'leaderboard' && (
               <Leaderboard isOpen={true} onClose={closeTab} />
@@ -635,7 +627,15 @@ export default function Page() {
             )}
 
             {activeTab === 'settings' && <SettingsPanel onClose={closeTab} />}
-            {activeTab === 'messages' && <MessagesPanel onClose={closeTab} />}
+            {activeTab === 'messages' && (
+              <MessagesPanel
+                onClose={() => {
+                  closeTab();
+                  setSelectedChatId(null);
+                }}
+                initialChatId={selectedChatId}
+              />
+            )}
           </div>
         )}
 
