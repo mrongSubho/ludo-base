@@ -330,7 +330,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed bottom-[80px] left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[calc(100vh-160px)] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -402,7 +402,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         <span className="text-[10px] text-white/40 font-mono tracking-wider">BASE MAINNET · 0x71C...892</span>
                                     </div>
                                 </div>
-                                <button onClick={onClose} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
+                                <button
+                                    onClick={onClose}
+                                    className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
                             </div>
@@ -486,241 +489,266 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     animate={{ x: 0 }}
                                     exit={{ x: '100%' }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="absolute inset-0 bg-[#1a1c29] z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
+                                    className="absolute inset-0 bg-[#1a1c29] z-[120] flex flex-col rounded-[24px] overflow-hidden"
                                 >
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar pt-6 px-safe pb-32 text-left">
-                                        <div className="flex items-center justify-between mb-8 px-5">
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={handleCloseDetail}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all"
-                                                >
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                </button>
-                                                <h2 className="text-lg font-black text-white">Item Details</h2>
+                                    {/* Pinned Header */}
+                                    <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-[#1a1c29]/80 backdrop-blur-xl z-20">
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={handleCloseDetail}
+                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all shadow-sm"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                            </button>
+                                            <h2 className="text-lg font-black text-white tracking-tight">Item Details</h2>
+                                        </div>
+                                        <button
+                                            onClick={onClose}
+                                            className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    </div>
+
+                                    {/* Scrollable Content */}
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar px-safe pb-32 text-left">
+                                        <div className="pt-8">
+                                            <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden group`}>
+                                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent transition-opacity group-hover:opacity-80" />
+                                                <div className="relative z-10">{selectedItem.previewIcon}</div>
+                                                {selectedItem.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-3xl animate-pulse" />}
                                             </div>
-                                            <button onClick={onClose} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+
+                                            <div className="px-5">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
+                                                    <span className="w-1 h-1 bg-white/20 rounded-full" />
+                                                    <span className="text-[10px] text-blue-400 font-bold">@{selectedItem.creator}</span>
+                                                </div>
+                                                <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
+
+                                                {/* Collection Analytics Bar */}
+                                                <div className="flex gap-4 mb-6 glass-card-sm !rounded-xl">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Floor</span>
+                                                        <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.floor} USDC</span>
+                                                    </div>
+                                                    <div className="w-px h-6 bg-white/10" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Volume</span>
+                                                        <span className="text-[10px] text-white/80 font-mono font-bold">{(selectedItem.collectionStats.volume / 1000).toFixed(1)}k</span>
+                                                    </div>
+                                                    <div className="w-px h-6 bg-white/10" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Owners</span>
+                                                        <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.owners}</span>
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-white/40 text-sm leading-relaxed mb-6">{selectedItem.description}</p>
+
+                                                {/* ...rest of stats and lore... */}
+                                                <div className="grid grid-cols-2 gap-3 mb-8">
+                                                    {selectedItem.stats.map((stat, i) => (
+                                                        <div key={i} className="glass-card-sm !rounded-xl flex flex-col">
+                                                            <span className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-1">{stat.label}</span>
+                                                            <span className="text-sm font-bold text-white">{stat.value}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="mb-8">
+                                                    <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Properties</h4>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {selectedItem.traits.map((trait, i) => (
+                                                            <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
+                                                                <span className="text-[8px] text-blue-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
+                                                                <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
+                                                                <span className="text-[9px] text-blue-400 font-mono">{trait.rarity_percent}% rarity</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="mb-8 glass-card !bg-fuchsia-500/5 !border-fuchsia-500/10 relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 p-2 opacity-10 text-fuchsia-400">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                                    </div>
+                                                    <h4 className="text-[10px] text-fuchsia-400 font-black uppercase tracking-widest mb-2">Item Lore</h4>
+                                                    <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
+                                                </div>
+
+                                                <div className="mb-8">
+                                                    <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Item Activity</h4>
+                                                    <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
+                                                        {selectedItem.activity.map((act, i) => (
+                                                            <div key={i} className={`flex items-center justify-between glass-card !rounded-none !bg-transparent !border-0 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : act.event === 'List' ? 'bg-orange-400' : 'bg-white/20'}`} />
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-white font-bold">{act.event}</span>
+                                                                        {act.duration && <span className="text-[8px] text-white/30 font-medium">Valid for {act.duration}</span>}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-end">
+                                                                    <div className="flex items-center gap-1.5 font-mono text-white/60">
+                                                                        <span>{act.from.substring(0, 6)}</span>
+                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2 h-2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                                                        <span>{act.to.substring(0, 6)}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                                        {act.price && <span className="text-white font-bold">{act.price} USDC</span>}
+                                                                        <span className="text-white/20">{act.date}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-4">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Listing Price</span>
+                                                        <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Instant Buy</span>
+                                                    </div>
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className="text-4xl font-black text-white font-mono">{selectedItem.price.toFixed(2)}</span>
+                                                        <span className="text-xl font-bold text-white/30 font-mono">USDC</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-1 mb-8">
+                                                    <a href="#" className="text-[10px] text-blue-400 font-bold hover:underline flex items-center gap-1">
+                                                        View on Explorer
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                    </a>
+                                                    <button className="text-[10px] text-white/40 font-bold hover:text-white flex items-center gap-1">
+                                                        Share Item
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Pinned Action Footer */}
+                                    <div className="absolute bottom-0 inset-x-0 p-6 pb-8 bg-gradient-to-t from-[#1a1c29] via-[#1a1c29] to-transparent z-40">
+                                        <div className="flex gap-4">
+                                            <button
+                                                onClick={selectedItem.owned ? () => setIsSelling(true) : handleBuy}
+                                                className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_8px_30px_rgba(255,255,255,0.2)]"
+                                            >
+                                                {selectedItem.owned ? 'SELL' : 'BUY NOW'}
+                                            </button>
+                                            <button className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 active:scale-95 transition-all">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 0 0 0 0-7.78z"></path></svg>
                                             </button>
                                         </div>
+                                    </div>
 
-                                        <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden`}>
-                                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                                            <div className="relative z-10">{selectedItem.previewIcon}</div>
-                                            {selectedItem.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-3xl animate-pulse" />}
-                                        </div>
+                                    {/* Sell Mode Overlay */}
+                                    <AnimatePresence>
+                                        {isSelling && (
+                                            <motion.div
+                                                initial={{ y: '100%' }}
+                                                animate={{ y: 0 }}
+                                                exit={{ y: '100%' }}
+                                                className="absolute inset-0 bg-[#1a1c29] z-[130] flex flex-col overflow-hidden rounded-[24px]"
+                                            >
+                                                {/* Industrial Background Glow */}
+                                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(37,99,235,0.1),transparent_70%)] pointer-events-none" />
 
-                                        <div className="px-5">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
-                                                <span className="w-1 h-1 bg-white/20 rounded-full" />
-                                                <span className="text-[10px] text-blue-400 font-bold">@{selectedItem.creator}</span>
-                                            </div>
-                                            <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
-
-                                            {/* Collection Analytics Bar */}
-                                            <div className="flex gap-4 mb-6 glass-card-sm !rounded-xl">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Floor</span>
-                                                    <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.floor} USDC</span>
-                                                </div>
-                                                <div className="w-px h-6 bg-white/10" />
-                                                <div className="flex flex-col">
-                                                    <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Volume</span>
-                                                    <span className="text-[10px] text-white/80 font-mono font-bold">{(selectedItem.collectionStats.volume / 1000).toFixed(1)}k</span>
-                                                </div>
-                                                <div className="w-px h-6 bg-white/10" />
-                                                <div className="flex flex-col">
-                                                    <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Owners</span>
-                                                    <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.owners}</span>
-                                                </div>
-                                            </div>
-
-                                            <p className="text-white/40 text-sm leading-relaxed mb-6">{selectedItem.description}</p>
-
-                                            {/* Stats Grid */}
-                                            <div className="grid grid-cols-2 gap-3 mb-8">
-                                                {selectedItem.stats.map((stat, i) => (
-                                                    <div key={i} className="glass-card-sm !rounded-xl flex flex-col">
-                                                        <span className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-1">{stat.label}</span>
-                                                        <span className="text-sm font-bold text-white">{stat.value}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Properties / Traits Grid */}
-                                            <div className="mb-8">
-                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Properties</h4>
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {selectedItem.traits.map((trait, i) => (
-                                                        <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
-                                                            <span className="text-[8px] text-blue-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
-                                                            <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
-                                                            <span className="text-[9px] text-blue-400 font-mono">{trait.rarity_percent}% rarity</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Lore Section */}
-                                            <div className="mb-8 glass-card !bg-fuchsia-500/5 !border-fuchsia-500/10 relative overflow-hidden">
-                                                <div className="absolute top-0 right-0 p-2 opacity-10 text-fuchsia-400">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                                                </div>
-                                                <h4 className="text-[10px] text-fuchsia-400 font-black uppercase tracking-widest mb-2">Item Lore</h4>
-                                                <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
-                                            </div>
-
-                                            {/* Activity Ledger */}
-                                            <div className="mb-8">
-                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Item Activity</h4>
-                                                <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
-                                                    {selectedItem.activity.map((act, i) => (
-                                                        <div key={i} className={`flex items-center justify-between glass-card !rounded-none !bg-transparent !border-0 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : act.event === 'List' ? 'bg-orange-400' : 'bg-white/20'}`} />
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-white font-bold">{act.event}</span>
-                                                                    {act.duration && <span className="text-[8px] text-white/30 font-medium">Valid for {act.duration}</span>}
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex flex-col items-end">
-                                                                <div className="flex items-center gap-1.5 font-mono text-white/60">
-                                                                    <span>{act.from.substring(0, 6)}</span>
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2 h-2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                                    <span>{act.to.substring(0, 6)}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2 mt-0.5">
-                                                                    {act.price && <span className="text-white font-bold">{act.price} USDC</span>}
-                                                                    <span className="text-white/20">{act.date}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-4">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Listing Price</span>
-                                                    <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Instant Buy</span>
-                                                </div>
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="text-4xl font-black text-white font-mono">{selectedItem.price.toFixed(2)}</span>
-                                                    <span className="text-xl font-bold text-white/30 font-mono">USDC</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center justify-between px-1 mb-20">
-                                                <a href="#" className="text-[10px] text-blue-400 font-bold hover:underline flex items-center gap-1">
-                                                    View on Explorer
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                                </a>
-                                                <button className="text-[10px] text-white/40 font-bold hover:text-white flex items-center gap-1">
-                                                    Share Item
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Sell Mode Overlay */}
-                                        <AnimatePresence>
-                                            {isSelling && (
-                                                <motion.div
-                                                    initial={{ y: '100%' }}
-                                                    animate={{ y: 0 }}
-                                                    exit={{ y: '100%' }}
-                                                    className="absolute inset-0 bg-[#1a1c29] z-20 flex flex-col py-6 px-5 overflow-hidden"
-                                                >
-                                                    {/* Industrial Background Glow */}
-                                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(37,99,235,0.1),transparent_70%)] pointer-events-none" />
-
-                                                    <div className="flex items-center justify-between mb-10 relative z-10">
-                                                        <div className="flex items-center gap-3">
-                                                            <button
-                                                                onClick={() => setIsSelling(false)}
-                                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all"
-                                                            >
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                            </button>
-                                                            <h3 className="text-xl font-black text-white">List for Sale</h3>
-                                                        </div>
-                                                        <button onClick={onClose} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/50 transition-colors">
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                {/* Pinned Sell Header */}
+                                                <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-[#1a1c29]/80 backdrop-blur-xl z-20">
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={() => setIsSelling(false)}
+                                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all shadow-sm"
+                                                        >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                                                         </button>
+                                                        <h3 className="text-xl font-black text-white tracking-tight">List for Sale</h3>
                                                     </div>
+                                                    <button
+                                                        onClick={onClose}
+                                                        className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                    </button>
+                                                </div>
 
-                                                    <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
-                                                        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-8 backdrop-blur-md">
-                                                            <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center text-3xl shadow-lg border border-white/5`}>
-                                                                {selectedItem.previewIcon}
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="text-sm font-black text-white">{selectedItem.name}</h4>
-                                                                <p className="text-[10px] text-white/40 font-bold tracking-wider uppercase">{selectedItem.collection}</p>
-                                                            </div>
+                                                {/* Scrollable Sell Content */}
+                                                <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 px-5 pt-8 pb-32">
+                                                    <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-8 backdrop-blur-md">
+                                                        <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center text-3xl shadow-lg border border-white/5`}>
+                                                            {selectedItem.previewIcon}
                                                         </div>
-
-                                                        <div className="mb-6">
-                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Set Price (USDC)</label>
-                                                            <div className="relative group">
-                                                                <input
-                                                                    type="number"
-                                                                    placeholder="0.00"
-                                                                    value={sellPrice}
-                                                                    onChange={(e) => setSellPrice(e.target.value)}
-                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-white/10 shadow-inner"
-                                                                />
-                                                                <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-bold text-white/20">USDC</div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Duration Selector */}
-                                                        <div className="mb-8">
-                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Listing Duration</label>
-                                                            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
-                                                                {(['7d', '30d', 'indefinite'] as const).map((d) => (
-                                                                    <button
-                                                                        key={d}
-                                                                        onClick={() => setListingDuration(d)}
-                                                                        className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${listingDuration === d ? 'bg-blue-600 text-white shadow-lg' : 'text-white/30 hover:text-white/60'}`}
-                                                                    >
-                                                                        {d === '7d' ? '7 Days' : d === '30d' ? '30 Days' : 'Indefinite'}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="space-y-4 glass-card mb-8 !bg-white/[0.02]">
-                                                            <div className="flex justify-between text-[11px] font-medium">
-                                                                <span className="text-white/40">Marketplace Fee</span>
-                                                                <span className="text-white font-mono">2.5%</span>
-                                                            </div>
-                                                            <div className="flex justify-between text-[11px] font-medium">
-                                                                <span className="text-white/40">Creator Royalty</span>
-                                                                <span className="text-white font-mono">5.0%</span>
-                                                            </div>
-                                                            <div className="h-px bg-white/10 my-2" />
-                                                            <div className="flex justify-between items-center">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-xs font-black text-white uppercase tracking-wider">Your Earnings</span>
-                                                                    <span className="text-[9px] text-white/20 font-bold italic ring-offset-green-400">Estimated Yield</span>
-                                                                </div>
-                                                                <div className="flex items-baseline gap-1 text-green-400 relative">
-                                                                    {/* Yield Pulse Glow */}
-                                                                    {sellPrice && Number(sellPrice) > 0 && (
-                                                                        <div className="absolute inset-0 bg-green-400/20 blur-xl animate-pulse" />
-                                                                    )}
-                                                                    <span className="text-3xl font-black font-mono tracking-tighter relative z-10">
-                                                                        {sellPrice ? (Number(sellPrice) * 0.925).toFixed(2) : '0.00'}
-                                                                    </span>
-                                                                    <span className="text-[10px] font-black relative z-10">USDC</span>
-                                                                </div>
-                                                            </div>
+                                                        <div>
+                                                            <h4 className="text-sm font-black text-white">{selectedItem.name}</h4>
+                                                            <p className="text-[10px] text-white/40 font-bold tracking-wider uppercase">{selectedItem.collection}</p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex gap-4 pt-4 mt-auto relative z-10">
+                                                    <div className="mb-6">
+                                                        <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Set Price (USDC)</label>
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="number"
+                                                                placeholder="0.00"
+                                                                value={sellPrice}
+                                                                onChange={(e) => setSellPrice(e.target.value)}
+                                                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-white/10 shadow-inner"
+                                                            />
+                                                            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-bold text-white/20">USDC</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mb-8">
+                                                        <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 block px-1">Listing Duration</label>
+                                                        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+                                                            {(['7d', '30d', 'indefinite'] as const).map((d) => (
+                                                                <button
+                                                                    key={d}
+                                                                    onClick={() => setListingDuration(d)}
+                                                                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${listingDuration === d ? 'bg-blue-600 text-white shadow-lg' : 'text-white/30 hover:text-white/60'}`}
+                                                                >
+                                                                    {d === '7d' ? '7 Days' : d === '30d' ? '30 Days' : 'Indefinite'}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-4 glass-card mb-8 !bg-white/[0.02]">
+                                                        <div className="flex justify-between text-[11px] font-medium">
+                                                            <span className="text-white/40">Marketplace Fee</span>
+                                                            <span className="text-white font-mono">2.5%</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[11px] font-medium">
+                                                            <span className="text-white/40">Creator Royalty</span>
+                                                            <span className="text-white font-mono">5.0%</span>
+                                                        </div>
+                                                        <div className="h-px bg-white/10 my-2" />
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-black text-white uppercase tracking-wider">Your Earnings</span>
+                                                                <span className="text-[9px] text-white/20 font-bold italic ring-offset-green-400">Estimated Yield</span>
+                                                            </div>
+                                                            <div className="flex items-baseline gap-1 text-green-400 relative">
+                                                                {sellPrice && Number(sellPrice) > 0 && (
+                                                                    <div className="absolute inset-0 bg-green-400/20 blur-xl animate-pulse" />
+                                                                )}
+                                                                <span className="text-3xl font-black font-mono tracking-tighter relative z-10">
+                                                                    {sellPrice ? (Number(sellPrice) * 0.925).toFixed(2) : '0.00'}
+                                                                </span>
+                                                                <span className="text-[10px] font-black relative z-10">USDC</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Pinned Sell Action Footer */}
+                                                <div className="absolute bottom-0 inset-x-0 p-6 pb-8 bg-gradient-to-t from-[#1a1c29] via-[#1a1c29] to-transparent z-30">
+                                                    <div className="flex gap-4">
                                                         <button
                                                             onClick={() => setIsSelling(false)}
                                                             className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white hover:bg-white/10 transition-all active:scale-95"
@@ -736,22 +764,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             CONFIRM LISTING
                                                         </button>
                                                     </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-
-                                        <div className="flex gap-4 absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#1a1c29] via-[#1a1c29] to-transparent pt-10 pb-8 px-5 z-30">
-                                            <button
-                                                onClick={selectedItem.owned ? () => setIsSelling(true) : handleBuy}
-                                                className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_30px_rgba(255,255,255,0.15)]"
-                                            >
-                                                {selectedItem.owned ? 'SELL' : 'BUY NOW'}
-                                            </button>
-                                            <button className="p-4 bg-white/5 border border-white/10 rounded-2xl text-white hover:bg-white/10 active:scale-95 transition-all">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                                            </button>
-                                        </div>
-                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </motion.div>
                             )}
                         </AnimatePresence>
