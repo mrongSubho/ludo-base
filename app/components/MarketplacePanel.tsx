@@ -388,7 +388,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     animate={{ x: 0 }}
                                     exit={{ x: '100%' }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="absolute inset-x-0 bottom-0 top-[60px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
+                                    className="absolute inset-x-0 bottom-0 top-[34px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
                                 >
                                     <div className="flex-1 overflow-y-auto custom-scrollbar py-6 px-safe pb-safe-footer">
                                         <div className="flex items-center justify-between mb-8">
