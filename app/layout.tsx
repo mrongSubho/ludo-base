@@ -32,6 +32,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { RootProvider } from './rootProvider';
+
 export default function RootLayout({
   children,
 }: {
@@ -42,7 +44,9 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <RootProvider>{children}</RootProvider>
+      </body>
     </html>
   );
 }
