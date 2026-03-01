@@ -129,14 +129,14 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
-                        {/* Header & Tabs */}
+                        {/* Header Section */}
                         <div className="px-6 pb-4 border-b border-white/10 flex flex-col gap-4">
                             <div className="flex items-center justify-between mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -150,43 +150,39 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                     </svg>
                                     Leaderboard
                                 </h2>
-
-                                {/* Scope Switcher (Global vs Friends) */}
-                                <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                                    <button
-                                        onClick={() => setScope('global')}
-                                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all ${scope === 'global' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                        Global
-                                    </button>
-                                    <button
-                                        onClick={() => setScope('friends')}
-                                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center gap-1.5 transition-all ${scope === 'friends' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                        Friends
-                                    </button>
-                                </div>
-
                                 <button
                                     onClick={onClose}
-                                    className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
                             </div>
 
+                            {/* Scope Switcher (Global vs Friends) */}
+                            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                                <button
+                                    onClick={() => setScope('global')}
+                                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-1.5 transition-all ${scope === 'global' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                    Global
+                                </button>
+                                <button
+                                    onClick={() => setScope('friends')}
+                                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-1.5 transition-all ${scope === 'friends' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                    Friends
+                                </button>
+                            </div>
+
                             {/* Tri-Tab Switcher */}
                             <div className="flex bg-black/30 p-1.5 rounded-2xl w-full max-w-sm mx-auto self-center">
-                                {['tier', 'daily', 'monthly'].map((tab) => (
+                                {(['tier', 'daily', 'monthly'] as LeaderboardTab[]).map((tab) => (
                                     <button
                                         key={tab}
-                                        onClick={() => setActiveTab(tab as LeaderboardTab)}
-                                        className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === tab
-                                            ? 'bg-blue-600/80 text-white shadow-lg border border-blue-500/30'
-                                            : 'text-white/40 hover:text-white/70'
-                                            }`}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg scale-[1.02]' : 'text-white/30 hover:text-white/60'}`}
                                     >
                                         {tab === 'tier' ? (
                                             <>

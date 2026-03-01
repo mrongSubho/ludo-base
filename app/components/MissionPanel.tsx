@@ -87,27 +87,27 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
-                        {/* Header & Tabs */}
-                        <div className="px-6 pb-4 border-b border-white/10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between mt-2">
-                                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-blue-400">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <circle cx="12" cy="12" r="6"></circle>
-                                        <circle cx="12" cy="12" r="2"></circle>
+                        {/* Header Section */}
+                        <div className="px-6 pb-4 border-b border-white/10">
+                            <div className="flex items-center justify-between mb-6 mt-2">
+                                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-teal-400">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <circle cx="12" cy="12" r="6" />
+                                        <circle cx="12" cy="12" r="2" />
                                     </svg>
                                     Missions
                                 </h2>
                                 <button
                                     onClick={onClose}
-                                    className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>

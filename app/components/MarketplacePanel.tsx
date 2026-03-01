@@ -49,12 +49,21 @@ interface MarketItem {
     previewIcon?: React.ReactNode;
 }
 
+// ─── Token Icon ───────────────────────────────────────────────────────────
+const TokenIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-indigo-400">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 6v12M8 10h8M8 14h8" />
+    </svg>
+);
+
 interface MarketplacePanelProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
 export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelProps) {
+    // ... rest of the component
     // Industrial State Management
     const [marketData, setMarketData] = useState<MarketItem[]>([
         // Themes
@@ -330,7 +339,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed bottom-[80px] left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[calc(100vh-160px)] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -388,23 +397,23 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         </AnimatePresence>
 
                         {/* Header */}
-                        <div className="px-5 pb-3 border-b border-white/10">
-                            <div className="flex items-center justify-between mb-4 mt-1">
+                        <div className="px-6 pb-4 border-b border-white/10">
+                            <div className="flex items-center justify-between mb-4 mt-2">
                                 <div className="flex flex-col">
-                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                                         <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center p-0.5">
                                             <div className="w-full h-full bg-white rounded-full" />
                                         </div>
                                         Marketplace
                                     </h2>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                                        <span className="text-[10px] text-white/40 font-mono tracking-wider">BASE MAINNET · 0x71C...892</span>
+                                    <div className="flex items-center gap-1.5 mt-0.5 px-0.5">
+                                        <TokenIcon />
+                                        <span className="text-xs font-black text-indigo-300">BASE NETWORK</span>
                                     </div>
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
@@ -492,7 +501,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     className="absolute inset-0 bg-[#1a1c29] z-[120] flex flex-col rounded-[24px] overflow-hidden"
                                 >
                                     {/* Pinned Header */}
-                                    <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-[#1a1c29]/80 backdrop-blur-xl z-20">
+                                    <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-[#1a1c29]/40 backdrop-blur-xl z-20">
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={handleCloseDetail}
@@ -773,7 +782,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         </AnimatePresence>
                     </motion.div>
                 </>
-            )}
-        </AnimatePresence>
+            )
+            }
+        </AnimatePresence >
     );
 }

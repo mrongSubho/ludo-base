@@ -390,6 +390,7 @@ export default function Page() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(true); // Default true for demo
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
@@ -479,10 +480,22 @@ export default function Page() {
                 </div>
               </div>
               <div className="header-right">
-                <button className="dm-btn" onClick={() => toggle('messages')} title="Messages">
+                <button
+                  className={`dm-btn ${hasUnreadMessages ? 'ping-glow' : ''}`}
+                  onClick={() => {
+                    toggle('messages');
+                    setHasUnreadMessages(false);
+                  }}
+                  title="Messages"
+                >
                   <HeaderMessageIcon />
                   {/* Glowing Notification Pulse */}
-                  <span className="unread-badge"></span>
+                  {hasUnreadMessages && (
+                    <span className="absolute top-2 right-2 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                    </span>
+                  )}
                 </button>
                 <button className="settings-dots-btn" onClick={() => toggle('settings')} title="Settings">
                   <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">

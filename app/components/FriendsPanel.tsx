@@ -164,8 +164,8 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                /* Specific transparent glass background applied here as requested (approx 15-20%) */
-                className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl"
+                /* Unified global panel layout: top-64, bottom-80, bg-20 glass */
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -186,7 +186,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                         </h2>
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 mr-4 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
