@@ -242,7 +242,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                     <p className="text-sm text-white/60">No records found for this period.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3 pb-20">
+                                <div className="space-y-3 pb-safe-footer">
                                     <AnimatePresence mode="popLayout">
                                         {stats.map((entry, idx) => {
                                             const tierStyles = getTierConfig(entry.tier);

@@ -136,7 +136,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                     <p className="text-sm text-white/60">Check back later for new missions.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-4 pb-20">
+                                <div className="space-y-4 pb-safe-footer">
                                     <AnimatePresence mode="popLayout">
                                         {missions.map((mission) => {
                                             const isCompleted = mission.current >= mission.target;

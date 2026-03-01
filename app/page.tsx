@@ -192,7 +192,7 @@ function TabPanel({ title, emoji, icon, description, onClose }: {
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center text-center opacity-60">
+        <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center text-center opacity-60 pb-safe-footer">
           <div className="mb-4">
             {icon ? (
               <div className="w-16 h-16 text-white/40 mx-auto">
@@ -508,7 +508,7 @@ export default function Page() {
               </div>
             </header>
 
-            <main className="dash-main">
+            <main className="dash-main pb-safe-footer">
               {/* Game Modes Section */}
               <section className="dash-section">
                 <h3 className="section-title">GAME MODES</h3>

@@ -3595,3 +3595,38 @@ a {
 .snakes-grid-container .grid>div:nth-child(even) {
   background: rgba(255, 255, 255, 0.4);
 }
+
+/* ─── Custom Scrollbar Utility ─── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* ─── Layout Helpers ─── */
+.pb-safe-footer {
+  padding-bottom: 100px;
+  /* Space for footer + buffer */
+}

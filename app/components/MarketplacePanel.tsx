@@ -228,6 +228,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 chainInfo: { address: '0x777...888', standard: 'ERC-721', network: 'Base' },
                 previewColor: 'bg-emerald-900'
             },
+            { id: 't7', type: 'themes', name: 'Noir', description: 'Dark theme.', lore: 'Pure darkness.', price: 5, owned: false, rarity: 'common', collection: 'Classic', creator: 'X', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-black' },
+            { id: 't8', type: 'themes', name: 'Solar', description: 'Sun theme.', lore: 'Blinding light.', price: 50, owned: false, rarity: 'legendary', collection: 'Astral', creator: 'X', collectionStats: { floor: 40, volume: 1000, owners: 50 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-yellow-600' },
+            { id: 's4', type: 'items', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 5, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-blue-500' },
+            { id: 's5', type: 'items', name: 'Cyber-V', description: 'Matrix skin.', lore: 'The digital frontier.', price: 12, owned: false, rarity: 'rare', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-purple-500' },
+            { id: 's6', type: 'items', name: 'Steel-Z', description: 'Metal skin.', lore: 'Cold steel.', price: 2, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-gray-500' },
+            { id: 'd4', type: 'dice', name: 'Ice D6', description: 'Cold dice.', lore: 'Frozen in time.', price: 10, owned: false, rarity: 'rare', collection: 'Elemental', creator: 'X', collectionStats: { floor: 8, volume: 500, owners: 100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-blue-200' },
+            { id: 'd5', type: 'dice', name: 'Fire D6', description: 'Hot dice.', lore: 'Molten core.', price: 10, owned: false, rarity: 'rare', collection: 'Elemental', creator: 'X', collectionStats: { floor: 8, volume: 500, owners: 100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-red-500' },
+            { id: 'd6', type: 'dice', name: 'Bone D6', description: 'Old dice.', lore: 'Ancient remains.', price: 5, owned: false, rarity: 'common', collection: 'History', creator: 'X', collectionStats: { floor: 2, volume: 50, owners: 500 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-orange-100' },
+            { id: 'd7', type: 'dice', name: 'Void D6', description: 'Dark dice.', lore: 'Event horizon.', price: 100, owned: false, rarity: 'legendary', collection: 'Void', creator: 'X', collectionStats: { floor: 90, volume: 1000, owners: 10 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-black' },
+            { id: 'd8', type: 'dice', name: 'Lava D6', description: 'Flowing dice.', lore: 'Liquid rock.', price: 40, owned: false, rarity: 'rare', collection: 'Elemental', creator: 'X', collectionStats: { floor: 35, volume: 300, owners: 80 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-orange-800' },
         ];
         return items.filter(i => i.type === tab);
     };
@@ -294,11 +304,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                             </div>
                         </div>
 
-                        {/* Inventory Grid */}
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        {/* Inventory Grid Container */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 mb-4">
                             <motion.div
                                 layout
-                                className="grid grid-cols-4 gap-2 pb-24"
+                                className="grid grid-cols-4 gap-2 pb-safe-footer"
                             >
                                 {currentItems.map((item) => (
                                     <motion.div
@@ -367,136 +377,137 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     animate={{ x: 0 }}
                                     exit={{ x: '100%' }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="absolute inset-x-0 bottom-0 top-[60px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col p-6 rounded-t-[24px]"
+                                    className="absolute inset-x-0 bottom-0 top-[60px] bg-[#1a1c29] border-t border-white/10 z-[60] flex flex-col rounded-t-[24px] overflow-hidden"
                                 >
-                                    <div className="flex items-center justify-between mb-8">
-                                        <button
-                                            onClick={() => setSelectedItem(null)}
-                                            className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-xs font-bold"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                            Back
-                                        </button>
-                                        <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full">
-                                            <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">{selectedItem.rarity} collectible</span>
-                                        </div>
-                                    </div>
-
-                                    <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden`}>
-                                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                                        <div className="relative z-10">{selectedItem.previewIcon}</div>
-                                        {selectedItem.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-3xl animate-pulse" />}
-                                    </div>
-
-                                    <div className="flex flex-col flex-1 overflow-y-auto custom-scrollbar pr-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
-                                            <span className="w-1 h-1 bg-white/20 rounded-full" />
-                                            <span className="text-[10px] text-blue-400 font-bold">@{selectedItem.creator}</span>
-                                        </div>
-                                        <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
-
-                                        {/* Collection Analytics Bar */}
-                                        <div className="flex gap-4 mb-6 p-3 bg-white/5 border border-white/5 rounded-xl">
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Floor</span>
-                                                <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.floor} USDC</span>
-                                            </div>
-                                            <div className="w-px h-6 bg-white/10" />
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Volume</span>
-                                                <span className="text-[10px] text-white/80 font-mono font-bold">{(selectedItem.collectionStats.volume / 1000).toFixed(1)}k</span>
-                                            </div>
-                                            <div className="w-px h-6 bg-white/10" />
-                                            <div className="flex flex-col">
-                                                <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Owners</span>
-                                                <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.owners}</span>
-                                            </div>
-                                        </div>
-
-                                        <p className="text-white/40 text-sm leading-relaxed mb-6">{selectedItem.description}</p>
-
-                                        {/* Stats Grid */}
-                                        <div className="grid grid-cols-2 gap-3 mb-8">
-                                            {selectedItem.stats.map((stat, i) => (
-                                                <div key={i} className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col">
-                                                    <span className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-1">{stat.label}</span>
-                                                    <span className="text-sm font-bold text-white">{stat.value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Properties / Traits Grid */}
-                                        <div className="mb-8">
-                                            <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Properties</h4>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {selectedItem.traits.map((trait, i) => (
-                                                    <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
-                                                        <span className="text-[8px] text-blue-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
-                                                        <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
-                                                        <span className="text-[9px] text-blue-400 font-mono">{trait.rarity_percent}% rarity</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Lore Section */}
-                                        <div className="mb-8 p-4 bg-fuchsia-500/5 border border-fuchsia-500/10 rounded-2xl relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-2 opacity-10 text-fuchsia-400">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                                            </div>
-                                            <h4 className="text-[10px] text-fuchsia-400 font-black uppercase tracking-widest mb-2">Item Lore</h4>
-                                            <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
-                                        </div>
-
-                                        {/* Activity Ledger */}
-                                        <div className="mb-8">
-                                            <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Item Activity</h4>
-                                            <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
-                                                {selectedItem.activity.map((act, i) => (
-                                                    <div key={i} className={`flex items-center justify-between p-3 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Mint' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
-                                                            <span className="text-white font-bold">{act.event}</span>
-                                                        </div>
-                                                        <div className="flex flex-col items-end">
-                                                            <div className="flex items-center gap-1.5 font-mono text-white/60">
-                                                                <span>{act.from}</span>
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2 h-2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                                <span>{act.to}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                {act.price && <span className="text-white font-bold">{act.price} USDC</span>}
-                                                                <span className="text-white/20">{act.date}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-4">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Listing Price</span>
-                                                <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Instant Buy</span>
-                                            </div>
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-4xl font-black text-white font-mono">{selectedItem.price.toFixed(2)}</span>
-                                                <span className="text-xl font-bold text-white/30 font-mono">USDC</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between px-1 mb-8">
-                                            <a href="#" className="text-[10px] text-blue-400 font-bold hover:underline flex items-center gap-1">
-                                                View on BaseScan
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                            </a>
-                                            <button className="text-[10px] text-white/40 font-bold hover:text-white flex items-center gap-1">
-                                                Share NFT
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pb-safe-footer">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <button
+                                                onClick={() => setSelectedItem(null)}
+                                                className="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-xs font-bold"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                                Back
                                             </button>
+                                            <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full">
+                                                <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">{selectedItem.rarity} collectible</span>
+                                            </div>
                                         </div>
 
+                                        <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden`}>
+                                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                                            <div className="relative z-10">{selectedItem.previewIcon}</div>
+                                            {selectedItem.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-3xl animate-pulse" />}
+                                        </div>
+
+                                        <div className="flex flex-col flex-1 overflow-y-auto custom-scrollbar pr-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
+                                                <span className="w-1 h-1 bg-white/20 rounded-full" />
+                                                <span className="text-[10px] text-blue-400 font-bold">@{selectedItem.creator}</span>
+                                            </div>
+                                            <h1 className="text-3xl font-black text-white mb-2">{selectedItem.name}</h1>
+
+                                            {/* Collection Analytics Bar */}
+                                            <div className="flex gap-4 mb-6 p-3 bg-white/5 border border-white/5 rounded-xl">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Floor</span>
+                                                    <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.floor} USDC</span>
+                                                </div>
+                                                <div className="w-px h-6 bg-white/10" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Volume</span>
+                                                    <span className="text-[10px] text-white/80 font-mono font-bold">{(selectedItem.collectionStats.volume / 1000).toFixed(1)}k</span>
+                                                </div>
+                                                <div className="w-px h-6 bg-white/10" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-[8px] text-white/20 font-black uppercase mb-0.5">Owners</span>
+                                                    <span className="text-[10px] text-white/80 font-mono font-bold">{selectedItem.collectionStats.owners}</span>
+                                                </div>
+                                            </div>
+
+                                            <p className="text-white/40 text-sm leading-relaxed mb-6">{selectedItem.description}</p>
+
+                                            {/* Stats Grid */}
+                                            <div className="grid grid-cols-2 gap-3 mb-8">
+                                                {selectedItem.stats.map((stat, i) => (
+                                                    <div key={i} className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col">
+                                                        <span className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-1">{stat.label}</span>
+                                                        <span className="text-sm font-bold text-white">{stat.value}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Properties / Traits Grid */}
+                                            <div className="mb-8">
+                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Properties</h4>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {selectedItem.traits.map((trait, i) => (
+                                                        <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
+                                                            <span className="text-[8px] text-blue-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
+                                                            <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
+                                                            <span className="text-[9px] text-blue-400 font-mono">{trait.rarity_percent}% rarity</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Lore Section */}
+                                            <div className="mb-8 p-4 bg-fuchsia-500/5 border border-fuchsia-500/10 rounded-2xl relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-2 opacity-10 text-fuchsia-400">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                                                </div>
+                                                <h4 className="text-[10px] text-fuchsia-400 font-black uppercase tracking-widest mb-2">Item Lore</h4>
+                                                <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
+                                            </div>
+
+                                            {/* Activity Ledger */}
+                                            <div className="mb-8">
+                                                <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-1">Item Activity</h4>
+                                                <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
+                                                    {selectedItem.activity.map((act, i) => (
+                                                        <div key={i} className={`flex items-center justify-between p-3 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Mint' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-blue-400' : 'bg-white/20'}`} />
+                                                                <span className="text-white font-bold">{act.event}</span>
+                                                            </div>
+                                                            <div className="flex flex-col items-end">
+                                                                <div className="flex items-center gap-1.5 font-mono text-white/60">
+                                                                    <span>{act.from}</span>
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2 h-2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                                                    <span>{act.to}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    {act.price && <span className="text-white font-bold">{act.price} USDC</span>}
+                                                                    <span className="text-white/20">{act.date}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-4">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Listing Price</span>
+                                                    <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">Instant Buy</span>
+                                                </div>
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className="text-4xl font-black text-white font-mono">{selectedItem.price.toFixed(2)}</span>
+                                                    <span className="text-xl font-bold text-white/30 font-mono">USDC</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between px-1 mb-8">
+                                                <a href="#" className="text-[10px] text-blue-400 font-bold hover:underline flex items-center gap-1">
+                                                    View on BaseScan
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                                </a>
+                                                <button className="text-[10px] text-white/40 font-bold hover:text-white flex items-center gap-1">
+                                                    Share NFT
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                                                </button>
+                                            </div>
+                                        </div>
                                         <div className="flex gap-4 sticky bottom-0 bg-[#1a1c29] pt-2 pb-4">
                                             <button className="flex-1 py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-[0_4px_20px_rgba(255,255,255,0.1)]">
                                                 {selectedItem.owned ? 'SELL NFT' : 'MINT NOW'}

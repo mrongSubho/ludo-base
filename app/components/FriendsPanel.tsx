@@ -213,7 +213,7 @@ export default function FriendsPanel({ onClose }: FriendsPanelProps) {
                     <AnimatePresence mode="wait">
 
                         {activeMainTab === 'game' && (
-                            <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-20">
+                            <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
                                     Game Friends ({GAME_FRIENDS.length})
                                 </div>
@@ -222,7 +222,7 @@ export default function FriendsPanel({ onClose }: FriendsPanelProps) {
                         )}
 
                         {activeMainTab === 'base' && (
-                            <motion.div key="base" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-20">
+                            <motion.div key="base" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
                                     Base Friends ({BASE_FRIENDS.length})
                                 </div>
@@ -231,7 +231,7 @@ export default function FriendsPanel({ onClose }: FriendsPanelProps) {
                         )}
 
                         {activeMainTab === 'requests' && (
-                            <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pb-20">
+                            <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pb-safe-footer">
 
                                 {/* Secondary Tab Switcher inside Requests */}
                                 <div className="flex gap-4 mb-4 border-b border-white/5 px-2">

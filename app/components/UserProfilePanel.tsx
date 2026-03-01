@@ -70,7 +70,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 pb-20">
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 pb-safe-footer">
 
                     {/* Identity Section */}
                     <div className="flex flex-col items-center bg-white/5 border border-white/10 rounded-2xl p-6 relative">
