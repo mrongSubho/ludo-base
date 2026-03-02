@@ -1,10 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Turbopack needs this to stay quiet
-  turbopack: {
-    root: "/Users/mrongsubho/Documents/Termninal/ludo-base",
-  },
+  // Turbopack config
+  turbopack: {},
 
   webpack: (config) => {
     config.resolve.fallback = {
