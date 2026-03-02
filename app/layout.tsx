@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './Providers';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 const APP_URL = 'https://ludo-base.vercel.app';
 
@@ -44,7 +45,12 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
       <body suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers>
+          <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 2147483647, backgroundColor: 'red', padding: '10px' }}>
+            <ConnectButton />
+          </div>
+          {children}
+        </Providers>
       </body>
     </html>
   );
