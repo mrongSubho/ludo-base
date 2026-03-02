@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
@@ -7,6 +7,12 @@ interface WalletConnectCardProps {
 }
 
 export default function WalletConnectCard({ onConnect }: WalletConnectCardProps) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -34,7 +40,11 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
             </p>
 
             <div className="z-10 w-full flex justify-center">
-                <ConnectButton />
+                {mounted ? (
+                    <ConnectButton />
+                ) : (
+                    <div className="w-40 h-10 bg-white/10 animate-pulse rounded-xl"></div>
+                )}
             </div>
         </motion.div>
     );
