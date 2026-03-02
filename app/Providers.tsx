@@ -7,6 +7,7 @@ import { base, baseSepolia } from "wagmi/chains";
 import { coinbaseWallet, injected } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode } from "react";
+import ProfileSyncer from "./components/ProfileSyncer";
 
 const config = createConfig({
     chains: [base, baseSepolia],
@@ -34,10 +35,10 @@ export function Providers({ children }: { children: ReactNode }) {
                     apiKey="YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
                     chain={base}
                 >
+                    <ProfileSyncer />
                     {children}
                 </OnchainKitProvider>
             </QueryClientProvider>
         </WagmiProvider>
     );
 }
-
