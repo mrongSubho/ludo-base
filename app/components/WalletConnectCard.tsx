@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
 
 interface WalletConnectCardProps {
     onConnect?: () => void;
@@ -41,7 +41,12 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
 
             <div className="z-10 w-full flex justify-center">
                 {mounted ? (
-                    <ConnectButton />
+                    <Wallet>
+                        <ConnectWallet
+                            className="bg-white/10 backdrop-blur-md text-white rounded-2xl shadow-lg border border-white/20 px-6 py-3 hover:bg-white/20 transition-all font-bold"
+                            disconnectedLabel="Connect Wallet"
+                        />
+                    </Wallet>
                 ) : (
                     <div className="w-40 h-10 bg-white/10 animate-pulse rounded-xl"></div>
                 )}
@@ -49,3 +54,4 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
         </motion.div>
     );
 }
+

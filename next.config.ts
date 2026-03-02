@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Turbopack needs this to stay quiet
   turbopack: {
-    root: ".",
+    root: "/Users/mrongsubho/Documents/Termninal/ludo-base",
   },
 
   webpack: (config) => {
