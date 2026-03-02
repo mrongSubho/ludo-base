@@ -8,31 +8,29 @@ export default function ProfileSyncer() {
     const { address, isConnected } = useAccount();
 
     useEffect(() => {
-        const syncProfile = async () => {
+        async function syncProfile() {
             if (isConnected && address) {
-                try {
-                    const { error } = await supabase
-                        .from('players')
-                        .upsert({
-                            wallet_address: address,
-                            last_played_at: new Date().toISOString()
-                        }, {
-                            onConflict: 'wallet_address'
-                        });
+                console.log('🔄 Attempting to sync wallet to Supabase:', address);
 
-                    if (error) {
-                        console.error('Error syncing profile to Supabase:', error.message);
-                    } else {
-                        console.log('Profile synced to Supabase for address:', address);
-                    }
-                } catch (err) {
-                    console.error('Unexpected error syncing profile:', err);
+                const { data, error } = await supabase
+                    .from('players')
+                    .upsert({
+                        wallet_address: address,
+                        last_played_at: new Date().toISOString()
+                    })
+                    .select(); // Force it to return the row so we know it worked
+
+                if (error) {
+                    console.error('❌ Supabase Error:', error.message, error.details, error.hint);
+                } else {
+                    console.log('✅ Profile successfully saved to Supabase!', data);
                 }
             }
-        };
+        }
 
         syncProfile();
-    }, [address, isConnected]);
+    }, [isConnected, address]);
 
     return null;
 }
+
