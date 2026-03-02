@@ -14,6 +14,7 @@ import MissionPanel from './components/MissionPanel';
 import MarketplacePanel from './components/MarketplacePanel';
 import MessagesPanel from './components/MessagesPanel';
 import WalletConnectCard from './components/WalletConnectCard';
+import GameLobby from './components/GameLobby';
 import { useAccount, useDisconnect } from 'wagmi';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
@@ -521,6 +522,11 @@ export default function Page() {
               </header>
 
               <main className="dash-main pb-safe-footer px-safe">
+                {/* Game Lobby Foundation */}
+                <section className="dash-section">
+                  <GameLobby />
+                </section>
+
                 {/* Game Modes Section */}
                 <section className="dash-section">
                   <h3 className="section-title">GAME MODES</h3>
