@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 
+const generateShortId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
+
 export function useMultiplayer() {
     const [roomId, setRoomId] = useState<string>('');
     const [connection, setConnection] = useState<DataConnection | null>(null);
@@ -10,7 +12,8 @@ export function useMultiplayer() {
     const peerRef = useRef<Peer | null>(null);
 
     const hostGame = () => {
-        const peer = new Peer();
+        const customRoomId = generateShortId();
+        const peer = new Peer(customRoomId);
         peerRef.current = peer;
 
         peer.on('open', (id) => {
