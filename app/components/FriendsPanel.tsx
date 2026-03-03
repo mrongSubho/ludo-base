@@ -91,7 +91,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                             total_wins
                         )
                     `)
-                    .eq('user_address', connectedAddress.toLowerCase());
+                    .ilike('user_address', connectedAddress);
 
                 if (error) throw error;
 

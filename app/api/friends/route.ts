@@ -26,11 +26,13 @@ export async function GET(request: Request) {
 
         if (followingWallets.length === 0) return NextResponse.json({ friends: [] });
 
-        // Intersect with our Supabase players table
+        // Intersect with our Supabase players table (Case-Insensitive)
+        const orQuery = followingWallets.map((addr: string) => `wallet_address.ilike.${addr}`).join(',');
+
         const { data: registeredFriends, error } = await supabase
             .from('players')
             .select('wallet_address, username, avatar_url, total_wins')
-            .in('wallet_address', followingWallets);
+            .or(orQuery);
 
         if (error) throw error;
 

@@ -35,7 +35,7 @@ export async function recordMatchResult(
         const { data: player, error: fetchError } = await supabase
             .from('players')
             .select('total_wins, total_games')
-            .eq('wallet_address', winnerAddress)
+            .ilike('wallet_address', winnerAddress)
             .single();
 
         if (fetchError) {
@@ -53,7 +53,7 @@ export async function recordMatchResult(
                     total_games: newGames,
                     last_played_at: new Date().toISOString()
                 })
-                .eq('wallet_address', winnerAddress);
+                .ilike('wallet_address', winnerAddress);
 
             if (updateError) {
                 console.error('❌ Error updating player stats:', updateError);
@@ -66,7 +66,7 @@ export async function recordMatchResult(
             const { data: otherPlayer, error: otherFetchError } = await supabase
                 .from('players')
                 .select('total_games')
-                .eq('wallet_address', addr)
+                .ilike('wallet_address', addr)
                 .single();
 
             if (!otherFetchError && otherPlayer) {
@@ -76,7 +76,7 @@ export async function recordMatchResult(
                         total_games: (otherPlayer.total_games || 0) + 1,
                         last_played_at: new Date().toISOString()
                     })
-                    .eq('wallet_address', addr);
+                    .ilike('wallet_address', addr);
             }
         }
 
