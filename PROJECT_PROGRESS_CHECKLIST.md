@@ -1,213 +1,273 @@
 # Ludo Base Project Progress Checklist
 
-This tracker summarizes what is currently implemented in the codebase and what remains partial/pending.
+This document is now organized directory-wise for discussion and planning.
 
-## 🟨 1) Core Gameplay
+Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 
-- [x] Classic Ludo mode
-  - Key changes:
-    - Added 15x15 board logic with dynamic path/corner mapping in `Board.tsx`.
-    - Implemented token path traversal, safe cells, home lanes, and finish cell flow.
-  - Key enhancements:
-    - Supports seat/color shuffling for replay variety.
-    - Supports multiple player configurations (`2`, `4`, `2v2`).
+## app/
 
-- [x] Power Ludo mode (partial)
-  - Key changes:
-    - Added `PowerType` model (`shield`, `boost`, `bomb`, `warp`) and related state plumbing.
-    - Integrated power-mode-compatible game state in board logic.
-  - Key enhancements:
-    - UX prepared for richer power interactions.
-    - Full effect resolution and balancing still pending.
+### 🟩 layout.tsx
+- Key notes:
+  - `metadata` defines SEO + OpenGraph + Farcaster Frame metadata.
+  - `RootLayout()` wraps the entire app in `Providers`, so wallet/frame/multiplayer/profile sync are globally available.
+  - Sets strict mobile viewport behavior for game-like fullscreen UX.
+- Key enhancements:
+  - Frame/Base metadata is already wired.
+  - `og-image.png` asset still needs finalization.
 
-- [x] Snakes & Ladders mode
-  - Key changes:
-    - Added dedicated `SnakesBoard.tsx` with 10x10 serpentine grid math.
-    - Implemented 8 ladders + 8 snakes with position remapping.
-  - Key enhancements:
-    - Added bounce-back behavior on overshoot.
-    - Added event messaging for snake/ladder encounters.
+### 🟩 Providers.tsx
+- Key notes:
+  - Creates wagmi config for `base` + `baseSepolia` and registers connectors (Coinbase wallet + injected).
+  - `Providers()` composes `WagmiProvider -> QueryClientProvider -> OnchainKitProvider -> FrameProvider -> MultiplayerProvider`.
+  - Mounts `ProfileSyncer` globally so profile data is synced in the background.
+- Key enhancements:
+  - Excellent central dependency wiring.
+  - API key currently hardcoded in provider config and should be moved to env.
 
-- [x] Turn, dice, and win flow
-  - Key changes:
-    - Added dice-driven movement phases (`rolling` -> `moving`) with animated step progression.
-    - Added turn switching, winner detection, and win-trigger handling.
-  - Key enhancements:
-    - Added confetti celebration for wins.
-    - Added clearer feedback for overshoot and slide events.
+### 🟨 page.tsx
+- Key notes:
+  - `TabPanel()` is a reusable slide-up shell for footer tabs.
+  - `SettingsPanel()` reads/writes `ludo-sfx` and `ludo-music` to `localStorage` and controls runtime audio toggles.
+  - Main page state orchestrates mode selection, panel visibility, and routing between `Board`, `SnakesBoard`, wallet view, and lobby flow.
+  - Uses wagmi identity hooks (`useAccount`, `useDisconnect`) for auth-aware UI branches.
+- Key enhancements:
+  - Strong app shell and panel UX.
+  - File is very large; splitting state/features into smaller modules will improve maintainability.
 
-- [x] AI and timer/strike automation
-  - Key changes:
-    - Added AI player templates and auto-turn integration.
-    - Added turn timer (`15s`) and strike counter state.
-  - Key enhancements:
-    - Added auto-play fallback when timer limits are hit.
-    - Reduced stalled games in local/AI matches.
+## app/components/
 
-## 🟩 2) UI Components
+### 🟨 Board.tsx
+- Key notes:
+  - `shufflePlayers()` randomizes player templates and supports 2-player diagonal pairing logic.
+  - `shuffleColorCorner()` randomizes color-to-corner arrangements while preserving valid diagonals.
+  - `buildPlayerPaths()` builds full token routes (shared path + home lane + finish) per color.
+  - `buildPathCellsDynamic()` computes board cell classes and lane colors dynamically from current corner mapping.
+  - Turn/move flow combines dice roll -> token movement -> capture/safe checks -> extra turns -> winner checks.
+  - Calls `recordMatchResult()` to persist outcomes when a wallet-addressed winner is available.
+- Key enhancements:
+  - Core Ludo rules are functionally rich and replayable.
+  - Power-mode effect execution is still partially implemented.
 
-- [x] Board component set
-  - Key changes:
-    - Implemented `Board.tsx` (Ludo) and `SnakesBoard.tsx` (variant mode).
-    - Added reusable `Dice` component with motion-based interaction.
-  - Key enhancements:
-    - Improved visual readability with lane highlights/safe markers.
-    - Added animated token transitions using Framer Motion.
+### 🟨 SnakesBoard.tsx
+- Key notes:
+  - `getGridPos()` converts tile numbers into serpentine 10x10 board coordinates.
+  - `handleRoll()` animates step-by-step movement, handles overshoot bounce-back, then applies snake/ladder remap.
+  - `checkWin()` completes game at tile `100` and triggers confetti + sound feedback.
+  - Includes timer/strike/AI flow similar to the classic board variant.
+- Key enhancements:
+  - Variant mode is complete for core play.
+  - Could share more logic with `Board.tsx` to reduce duplication.
 
-- [x] Theme and audio controls
-  - Key changes:
-    - Added `ThemeSwitcher` and `AudioToggle` controls.
-    - Added persisted preferences via `localStorage` (`ludo-theme`, `ludo-sfx`, `ludo-music`).
-  - Key enhancements:
-    - Theme-aware ambient sound profiles through Web Audio API.
-    - User-level control for sound without leaving gameplay.
+### 🟩 Dice.tsx
+- Key notes:
+  - Encapsulates dice interaction and animation so both board modes can reuse the same roll UX contract.
+- Key enhancements:
+  - Keeps roll UI consistent between modes.
 
-## 🟨 3) Dashboard and Social Panels
+### 🟩 ThemeSwitcher.tsx
+- Key notes:
+  - Initializes theme from `localStorage` on mount.
+  - `toggleTheme()` writes selected theme to `localStorage` and updates active button state.
+  - Provides four gameplay themes: Pastel, Midnight, Cyberpunk, Classic.
+- Key enhancements:
+  - Lightweight, predictable UX for theme persistence.
 
-- [x] User profile panel
-  - Key changes:
-    - Added editable profile name/avatar flow and stats widgets.
-    - Added privacy toggles (public profile, allow requests).
-  - Key enhancements:
-    - Improved player identity layer before backend integration.
-    - Ready for future real profile sync.
+### 🟩 AudioToggle.tsx
+- Key notes:
+  - Controls persisted SFX/music preference flags that are consumed by the audio hook.
+- Key enhancements:
+  - Player can mute quickly without leaving the current flow.
 
-- [x] Friends panel (mock)
-  - Key changes:
-    - Added tabbed lists for game friends, base friends, and requests.
-    - Added DM/accept/reject interaction controls.
-  - Key enhancements:
-    - Better social UX scaffolding using realistic states (`Online`, `In Match`, `Offline`).
-    - API/data persistence integration remains pending.
+### 🟨 ProfileSyncer.tsx
+- Key notes:
+  - 3-step profile resolution pipeline:
+    - 1) Frame SDK user context (if inside Farcaster)
+    - 2) `/api/farcaster` fallback via wallet lookup (Neynar)
+    - 3) Onchain identity fallback (`useName`, `useAvatar`) then wallet-short form
+  - Writes resolved profile into Supabase `players` table with `upsert`.
+- Key enhancements:
+  - Good identity fallback design across app contexts.
+  - Needs stricter error/retry policies and clearer sync status UX.
 
-- [x] Leaderboard panel (mock)
-  - Key changes:
-    - Added tier/daily/monthly tabs and global/friends scope switch.
-    - Added ranking logic with tier/stage sorting and time-window filtering.
-  - Key enhancements:
-    - Supports seasonal framing (quarter marker UX).
-    - Real backend ranking pipeline still pending.
+### 🟨 WalletConnectCard.tsx
+- Key notes:
+  - Renders OnchainKit `Wallet` + `ConnectWallet` button inside branded card UI.
+  - Uses mounted-state guard to avoid hydration mismatch on SSR.
+- Key enhancements:
+  - Wallet entry UX is polished.
+  - Connect action is not yet linked to bet/payment flow.
 
-- [x] Mission panel (mock)
-  - Key changes:
-    - Added daily/weekly mission tabs with progress and rewards.
-    - Added completion-aware UI and progress bars.
-  - Key enhancements:
-    - Prepared mission structure (`type`, `target`, `reward`) for backend syncing.
-    - Claim/reward economy not yet connected to real state.
+### 🟨 GameLobby.tsx
+- Key notes:
+  - `handleHost()` calls `hostGame()` from multiplayer hook and creates sharable room code.
+  - `handleJoin()` validates room input then calls `joinGame(roomId)`.
+  - Switches to connected loading state once lobby connection is established.
+- Key enhancements:
+  - Practical prototype for room-based entry.
+  - Needs integration with stronger matchmaking/recovery states.
 
-- [x] Marketplace panel (mock-rich)
-  - Key changes:
-    - Added multi-category market model (`items`, `themes`, `dice`) with rarity and metadata.
-    - Added NFT-like fields (collection, traits, activity, chain info).
-  - Key enhancements:
-    - Strong data model foundation for onchain inventory.
-    - Real purchase/listing/ownership verification pending.
+### 🟨 FriendsPanel.tsx
+- Key notes:
+  - Organizes social UX into `game`, `base`, and `requests` tabs.
+  - `renderFriendList()` and `renderRequestList()` centralize list-row rendering.
+  - Includes action affordances (DM, accept, reject) and status badges.
+- Key enhancements:
+  - Clear social structure for future real data.
+  - Still mock-data driven.
 
-- [x] Messaging and player sheets
-  - Key changes:
-    - Added `MessagesPanel` placeholder and in-game `PlayerProfileSheet`.
-    - Added panelized mobile-first overlays and transitions.
-  - Key enhancements:
-    - Shared panel system improves navigation consistency.
-    - Real DM/message transport is still pending.
+### 🟨 Leaderboard.tsx
+- Key notes:
+  - `getStats()` supports multiple ranking strategies (tier hierarchy, daily UTC window, monthly UTC window).
+  - Adds scope filtering (`global` vs `friends`) before ranking.
+  - Uses quarter tooltip to communicate season-reset concept.
+- Key enhancements:
+  - Ranking logic contract is well-defined.
+  - Still in-memory/mock data.
 
-## 🟨 4) Multiplayer and Connectivity
+### 🟨 MissionPanel.tsx
+- Key notes:
+  - `getMissions()` returns tab-specific mission sets (`daily`, `weekly`).
+  - Progress state maps into visual bars, reward tags, and claim/completed CTA states.
+- Key enhancements:
+  - Mission model is ready for backend sync.
+  - Reward claiming is not tied to persistent economy yet.
 
-- [x] PeerJS multiplayer core
-  - Key changes:
-    - Added `useMultiplayer` hook with host/guest roles and state broadcasting.
-    - Added message schema for state updates and basic signaling structures.
-  - Key enhancements:
-    - Enables direct session-based multiplayer prototype.
-    - Reliability, reconnection, and richer sync validation still pending.
+### 🟨 MarketplacePanel.tsx
+- Key notes:
+  - Defines robust marketplace data types: `MarketItem`, `MarketTrait`, `MarketActivity`, rarity classes.
+  - Represents NFT-style metadata including chain info, collection stats, traits, and activity history.
+  - Supports category-based inventory browsing (`items`, `themes`, `dice`).
+- Key enhancements:
+  - Excellent schema-level groundwork.
+  - Real purchase/list/ownership transactions remain pending.
 
-- [x] Lobby UI for room-based sessions
-  - Key changes:
-    - Added `GameLobby` host/join flow with room ID input and status UI.
-    - Added room-share UX and connection state handoff.
-  - Key enhancements:
-    - Improves usability of multiplayer setup from manual testing.
-    - Needs deeper integration into main play flow and error handling.
+### 🟨 UserProfilePanel.tsx
+- Key notes:
+  - Local profile editor for avatar cycling, display name updates, and privacy toggles.
+  - Animated performance widgets (wins, win-rate donut, streak, matches).
+- Key enhancements:
+  - Strong visual profile experience.
+  - Not fully bound to persistent profile writes yet.
 
-## 🟨 5) Web3 and Base/Farcaster Setup
+### 🟨 MessagesPanel.tsx / PlayerProfileSheet.tsx
+- Key notes:
+  - Messages view currently acts as placeholder inbox state.
+  - Player profile sheet is an in-match quick action surface (friend/DM/block).
+- Key enhancements:
+  - Shared slide-panel UI language is consistent.
+  - Messaging backend and moderation actions are still pending.
 
-- [x] Wallet UI and dependencies present
-  - Key changes:
-    - Added `WalletConnectCard` using OnchainKit wallet components.
-    - Added Web3 dependencies (`wagmi`, `viem`, `@coinbase/onchainkit`).
-  - Key enhancements:
-    - UI path exists for wallet onboarding.
-    - Full transaction and bet settlement flow remains pending.
+### 🟩 FrameProvider.tsx
+- Key notes:
+  - Calls `sdk.actions.ready()` on mount so Farcaster frame lifecycle is correctly initialized.
+- Key enhancements:
+  - Ensures frame-hosted startup reliability.
 
-- [x] Base/Farcaster ecosystem setup present
-  - Key changes:
-    - Added Farcaster SDK dependencies and app metadata scaffolding.
-    - Added provider scaffolding files (`Providers.tsx`, `FrameProvider.tsx`, `lib/supabase.ts`).
-  - Key enhancements:
-    - Positions app for Frame/Base ecosystem compatibility.
-    - End-to-end runtime wiring is partial and needs final integration validation.
+## app/hooks/
 
-## 🟨 6) UX, Visual, and Technical Polish
+### 🟩 useAudio.ts
+- Key notes:
+  - `initAudio()` lazily creates/resumes the browser audio context.
+  - `playMove`, `playCapture`, `playTurn`, `playStrike`, `playWin` synthesize SFX procedurally.
+  - `playAmbient(theme)` builds theme-specific oscillator/filter/LFO chains.
+  - `stopAmbient()` tears down active ambient nodes to prevent overlaps/leaks.
+- Key enhancements:
+  - No external audio assets needed for core signals.
+  - Final loudness balancing is still needed.
 
-- [x] Multi-theme visual system
-  - Key changes:
-    - Added 4 theme options and background assets structure.
-    - Added glassmorphism-based panel style consistency across feature panels.
-  - Key enhancements:
-    - Better visual variety and personalization.
-    - Some expected static assets still missing (avatars/extra backgrounds/OG image).
+### 🟨 useMultiplayer.ts (app/hooks)
+- Key notes:
+  - PeerJS-oriented hook for direct host/guest connection and state broadcast/listen.
+  - `connectToPeer()` opens guest connection; `broadcastState()` sends board updates.
+- Key enhancements:
+  - Useful low-level peer sync helper.
+  - Partially overlaps with context-based multiplayer architecture.
 
-- [x] Audio system with ambient + SFX
-  - Key changes:
-    - Implemented audio hook with move/capture/win/turn/strike effects.
-    - Implemented theme-driven ambient synthesis with fade/filter/LFO behavior.
-  - Key enhancements:
-    - Strong feedback loop during gameplay.
-    - Needs final balancing for loudness and mobile/browser edge cases.
+## app/api/
 
-- [x] App foundation and deployment readiness
-  - Key changes:
-    - Next.js app scaffolded with TypeScript, Tailwind, ESLint, and build scripts.
-    - Deployment target documented in README (`ludo-base.vercel.app`).
-  - Key enhancements:
-    - Stable development baseline for rapid iteration.
-    - Test coverage and production monitoring are still missing.
+### 🟨 farcaster/route.ts
+- Key notes:
+  - `GET()` resolves Farcaster profile by wallet address using Neynar bulk-by-address endpoint.
+  - Returns normalized profile payload (`fid`, `displayName`, `username`, `avatarUrl`) for client syncers.
+- Key enhancements:
+  - Important fallback when frame context is unavailable.
+  - Depends on `NEYNAR_API_KEY` and should include rate-limit handling.
 
-## 🟥 7) Pending / Partial Checklist (Vice Versa)
+### 🟨 friends/route.ts
+- Key notes:
+  - `GET()` fetches following list by FID from Neynar.
+  - Intersects following wallets with local Supabase `players` to return only in-app registered friends.
+- Key enhancements:
+  - Smart bridge between social graph and app database.
+  - Needs pagination/caching and robust failure handling.
 
-- [ ] Real wallet-to-game transaction loop
-  - Key changes done so far:
-    - Wallet connect UI and dependencies are in place.
-  - Key enhancements pending:
-    - Bet escrow, entry fee transfer, payout distribution, and failure handling.
+## hooks/
 
-- [ ] Backend/data persistence
-  - Key changes done so far:
-    - Frontend state models exist across profile/friends/missions/leaderboard/marketplace.
-  - Key enhancements pending:
-    - API routes, Supabase schema usage, auth-bound records, and sync.
+### 🟨 MultiplayerContext.tsx
+- Key notes:
+  - `hostGame()` creates a custom short room ID and starts Peer host listeners.
+  - `joinGame(roomId)` connects to host peer and opens data channel.
+  - `sendAction(type, payload)` is the generic network dispatch function.
+  - `rollDice()` generates local roll and broadcasts the result to peer.
+  - Context state (`roomId`, `connection`, `isLobbyConnected`, `incomingAction`, `lastRoll`) drives lobby + board sync.
+- Key enhancements:
+  - Clean shared multiplayer state for whole app.
+  - Needs stronger anti-desync, reconnection, and message validation.
 
-- [ ] Social systems (real)
-  - Key changes done so far:
-    - Requests/DM UI and player profile actions are implemented.
-  - Key enhancements pending:
-    - Real friend graph, invite flow, block/report enforcement, and DM transport.
+### 🟩 useMultiplayer.ts (hooks)
+- Key notes:
+  - Thin wrapper around `useMultiplayerContext()` so UI files consume a simple hook API.
+- Key enhancements:
+  - Keeps import surface clean and consistent.
 
-- [ ] Power-mode completion
-  - Key changes done so far:
-    - Power types and partial gameplay hooks exist.
-  - Key enhancements pending:
-    - Finalized effect mechanics (shield/bomb/warp interactions), balancing, and tests.
+### 🟨 useCurrentUser.ts
+- Key notes:
+  - Fetches player profile by connected wallet from Supabase.
+  - Subscribes to realtime `players` updates for immediate profile refresh after sync.
+  - Generates fallback display name when username is missing: `Guest <LAST_6_CHARS>`.
+- Key enhancements:
+  - Strong fallback identity behavior for missing profiles.
+  - Should include better error-state exposure for UI.
 
-- [ ] Multiplayer hardening
-  - Key changes done so far:
-    - Peer session prototype, host/join lobby, and state broadcast flow.
-  - Key enhancements pending:
-    - Match recovery, anti-desync strategy, retry logic, and richer connection UX.
+## lib/
 
-- [ ] QA and tests
-  - Key changes done so far:
-    - Lint/build scripts configured.
-  - Key enhancements pending:
-    - Unit/integration/e2e test coverage and CI gates.
+### 🟩 supabase.ts
+- Key notes:
+  - Creates single Supabase client from public env vars.
+  - Uses placeholders + warning logs when env is missing to keep builds from crashing.
+- Key enhancements:
+  - Stable shared client setup across app/API.
+
+### 🟨 matchRecorder.ts
+- Key notes:
+  - `recordMatchResult(winnerAddress, roomCode, gameMode, participants)` performs 3 operations:
+    - Insert match row into `matches`
+    - Increment winner `total_wins` and `total_games`
+    - Increment `total_games` for other participants
+  - Designed so match record can succeed even if stats update partially fails.
+- Key enhancements:
+  - Good first pass for post-match persistence.
+  - Should be transactional/server-side hardened to avoid partial update drift.
+
+## Styling & Assets
+
+### 🟨 globals.css / page.module.css
+- Key notes:
+  - Provide app-wide visual system: glass panels, board UI, control states, and theme styling hooks.
+- Key enhancements:
+  - UI identity is strong and consistent.
+  - Further component-level CSS decomposition can reduce global complexity.
+
+### 🟥 public assets (avatars/og/background parity)
+- Key notes:
+  - Some referenced assets are still incomplete or placeholder in current flow.
+- Key enhancements:
+  - Final asset pack is needed for fully polished production release.
+
+## Pending Focus (Next Discussion Order)
+
+1. `Board.tsx` and `MultiplayerContext.tsx`: finalize sync-safe turn engine.
+2. `matchRecorder.ts` + API routes: move critical writes to hardened server flow.
+3. `FriendsPanel.tsx`, `MessagesPanel.tsx`: replace mock social data with real transport.
+4. `WalletConnectCard.tsx` + game state: wire real bet/payment lifecycle.
+5. Testing layer for rules, sync, and match persistence.
