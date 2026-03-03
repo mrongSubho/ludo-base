@@ -402,10 +402,9 @@ export default function Page() {
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
-  const { profile, address, isConnected } = useCurrentUser();
+  const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { incomingAction, sendAction, isHost } = useMultiplayer();
 
-  const finalName = profile?.displayName || 'Guest';
   const finalAvatar = profile?.avatar_url || null;
 
   // Match Configuration State

@@ -57,5 +57,7 @@ export function useCurrentUser() {
         }
     }, [address, isConnected]);
 
-    return { profile, address, isConnected };
+    const displayName = profile?.displayName || (address ? address.slice(-6).toUpperCase() : 'Guest');
+
+    return { profile, address, isConnected, displayName };
 }

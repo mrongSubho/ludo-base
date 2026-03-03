@@ -5,9 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
-    const { profile, address } = useCurrentUser();
+    const { profile, address, displayName: finalName } = useCurrentUser();
 
-    const finalName = profile?.displayName || 'Guest';
     const finalAvatar = profile?.avatar_url || null;
 
     const [isPublic, setIsPublic] = useState(true);
