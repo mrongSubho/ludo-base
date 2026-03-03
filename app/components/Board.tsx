@@ -7,7 +7,8 @@ import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { useAudio } from '../hooks/useAudio';
-import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { useMultiplayerContext, PlayerColor } from '@/hooks/MultiplayerContext';
+import { processMove } from '@/lib/gameLogic';
 import { useAccount } from 'wagmi';
 import { recordMatchResult } from '@/lib/matchRecorder';
 
@@ -100,7 +101,7 @@ const rotatePath = (points: Point[], startIndex: number): Point[] => {
 // Each physical corner has a fixed start index, home lane, grid area, and lane key.
 
 type Corner = 'BL' | 'TR' | 'BR' | 'TL';
-type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
+// Redundant type removed, using import from MultiplayerContext
 type ColorCorner = Record<PlayerColor, Corner>;
 
 const CORNER_SLOTS: Record<Corner, {
@@ -427,19 +428,19 @@ export default function Board({
             }));
         }
     }, [address]);
-    const [gameState, setGameState] = useState({
+    const [localGameState, setLocalGameState] = useState({
         positions: {
             green: [-1, -1, -1, -1],
             red: [-1, -1, -1, -1],
             yellow: [-1, -1, -1, -1],
             blue: [-1, -1, -1, -1],
         },
-        currentPlayer: players[0].color,
+        currentPlayer: players[0].color as PlayerColor,
         diceValue: null as number | null,
         gamePhase: 'rolling' as 'rolling' | 'moving',
-        winner: null as Player['color'] | null,
+        winner: null as string | null,
         captureMessage: null as string | null,
-        winners: [] as Player['color'][],
+        winners: [] as string[],
         invalidMove: false,
         isThinking: false,
         timeLeft: 15,
@@ -448,7 +449,7 @@ export default function Board({
             red: 0,
             yellow: 0,
             blue: 0,
-        },
+        } as Record<string, number>,
         powerTiles: (gameMode === 'power' ? pathCells
             .filter(c => c.cls === 'board-cell')
             .sort(() => Math.random() - 0.5)
@@ -466,41 +467,33 @@ export default function Board({
         }
     });
 
-    const { incomingAction, sendAction, roomId } = useMultiplayer();
+    const {
+        gameState,
+        isHost,
+        sendIntent,
+        broadcastAction,
+        roomId,
+        isLobbyConnected
+    } = useMultiplayerContext();
 
-    // --- Multiplayer Action Sync ---
+    // The Board now reacts to gameState from context
+    // We'll map context state to local rendering needs if necessary
+    // Phase 1: Minimal shift to prove Authority
+
+    // Sync local state with context state for Guests
     useEffect(() => {
-        if (!incomingAction) return;
-
-        switch (incomingAction.type) {
-            case 'ROLL_DICE':
-                handleRoll(incomingAction.value, true);
-                break;
-            case 'MOVE_TOKEN':
-                const { color, tokenIndex, steps, targetPosition } = incomingAction.payload;
-                moveToken(color, tokenIndex, steps, true, targetPosition);
-                break;
-            case 'NEXT_TURN':
-                setGameState(prev => ({
-                    ...prev,
-                    gamePhase: 'rolling',
-                    currentPlayer: getNextPlayer(prev.currentPlayer),
-                    diceValue: null,
-                    timeLeft: 15,
-                }));
-                break;
-            case 'SYNC_PROFILE':
-                setPlayers(prev => prev.map(p => {
-                    if (p.name !== 'Alex' && !p.isAi && !p.walletAddress) {
-                        return { ...p, walletAddress: incomingAction.address };
-                    }
-                    return p;
-                }));
-                break;
+        if (!isHost && isLobbyConnected && gameState) {
+            setLocalGameState(prev => ({
+                ...prev,
+                ...gameState,
+                winner: gameState.winner as any,
+                winners: gameState.winners as any,
+                positions: gameState.positions || prev.positions
+            }));
         }
-    }, [incomingAction]);
+    }, [isHost, isLobbyConnected, gameState]);
 
-    const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
+    const checkWin = useCallback((positions: typeof localGameState.positions, color: Player['color']) => {
         return positions[color].every((pos) => pos === 57);
     }, []);
 
@@ -517,7 +510,7 @@ export default function Board({
         const newPlayers = shufflePlayers(playerCount);
         setPlayers(newPlayers);
         setColorLayout({ colorCorner: newCC, playerPaths: buildPlayerPaths(newCC) });
-        setGameState({
+        setLocalGameState({
             positions: {
                 green: [-1, -1, -1, -1],
                 red: [-1, -1, -1, -1],
@@ -615,125 +608,56 @@ export default function Board({
     }, []);
 
     const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number, isRemote = false, targetPosition?: number) => {
-        setGameState((prev) => {
+        setLocalGameState((prev) => {
             if (prev.winner) return prev;
 
-            const newPositions = { ...prev.positions };
-            const currentPos = newPositions[color][tokenIndex];
+            const { newState, captured, bonusRoll } = processMove(
+                prev as any,
+                color as any,
+                tokenIndex,
+                steps,
+                playerPaths,
+                playerCount
+            );
 
-            const nextPos = targetPosition !== undefined ? targetPosition : (currentPos === -1 ? (steps === 6 ? 0 : -1) : currentPos + steps);
-
-            if (nextPos > 57) {
-                setGameState(s => ({ ...s, invalidMove: true }));
-                setTimeout(() => setGameState(s => ({ ...s, invalidMove: false })), 500);
-
-                const nextPlayer = getNextPlayer(prev.currentPlayer);
-                if (!isRemote) {
-                    sendAction('NEXT_TURN');
-                }
-
-                return {
-                    ...prev,
-                    gamePhase: 'rolling',
-                    currentPlayer: nextPlayer,
-                    timeLeft: 15,
-                    diceValue: null
-                };
+            // Handle side effects
+            if (newState.positions[color][tokenIndex] !== prev.positions[color][tokenIndex]) {
+                playMove();
+            }
+            if (captured) playCapture();
+            if (newState.winner && !prev.winner) {
+                playWin();
+                triggerWinConfetti();
+                recordWin(color);
             }
 
-            if (nextPos === currentPos) return prev;
-
-            newPositions[color][tokenIndex] = nextPos;
-            playMove();
-
-            // Broadcast move if local
-            if (!isRemote) {
-                sendAction('MOVE_TOKEN', {
+            // Broadcast move if Host
+            if (isHost && !isRemote) {
+                broadcastAction('MOVE_TOKEN', {
                     payload: {
                         color,
                         tokenIndex,
                         steps,
-                        targetPosition: nextPos
+                        targetPosition: newState.positions[color][tokenIndex]
                     }
                 });
-            }
-
-            let captured = false;
-            let capturedColor = '';
-            if (nextPos >= 0 && nextPos < 52) {
-                const targetPoint = playerPaths[color][nextPos];
-                const isSafeSquare = SAFE_POSITIONS.some((p: Point) => p.r === targetPoint.r && p.c === targetPoint.c);
-
-                if (!isSafeSquare) {
-                    (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
-                        if (otherColor !== color && players.some(p => p.color === otherColor)) {
-                            if (playerCount === '2v2' && getTeam(otherColor) === getTeam(color)) return;
-                            const playerPositions = newPositions[otherColor];
-                            newPositions[otherColor] = playerPositions.map(otherPos => {
-                                if (otherPos >= 0 && otherPos < 52) {
-                                    const otherPoint = playerPaths[otherColor][otherPos];
-                                    if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
-                                        captured = true;
-                                        capturedColor = otherColor;
-                                        playCapture();
-                                        return -1;
-                                    }
-                                }
-                                return otherPos;
-                            }) as [number, number, number, number];
-                        }
-                    });
+                if (newState.currentPlayer !== prev.currentPlayer) {
+                    broadcastAction('TURN_SWITCH', { nextPlayer: newState.currentPlayer });
                 }
-            }
-
-            const hasWon = checkWin(newPositions, color);
-            const newWinners = [...prev.winners];
-            let teamWon = false;
-
-            if (hasWon && !newWinners.includes(color)) {
-                newWinners.push(color);
-                if (playerCount === '2v2') {
-                    const teammate = (color === 'green' || color === 'blue')
-                        ? (color === 'green' ? 'blue' : 'green')
-                        : (color === 'red' ? 'yellow' : 'red');
-                    if (newWinners.includes(teammate)) teamWon = true;
-                } else {
-                    teamWon = true;
-                }
-
-                if (teamWon) {
-                    playWin();
-                    if (newWinners.length === (playerCount === '2v2' ? 2 : 1)) {
-                        recordWin(color);
-                        triggerWinConfetti();
-                    }
-                }
-            }
-
-            const gameEnded = (playerCount === '2v2') ? teamWon : hasWon;
-            const newPlayer = (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer);
-
-            if (!isRemote && newPlayer !== prev.currentPlayer) {
-                sendAction('NEXT_TURN');
             }
 
             return {
                 ...prev,
-                positions: newPositions,
-                gamePhase: 'rolling',
-                currentPlayer: newPlayer,
-                winner: gameEnded ? color : prev.winner,
-                winners: newWinners,
+                ...newState,
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
-                timeLeft: 15,
                 strikes: { ...prev.strikes, [color]: 0 },
             };
         });
-    }, [checkWin, triggerWinConfetti, sendAction, players, playerCount, playerPaths, getNextPlayer, playMove, playCapture, playWin, recordWin]);
+    }, [isHost, broadcastAction, playerPaths, playerCount, playMove, playCapture, playWin, triggerWinConfetti, recordWin]);
 
 
     const handleUsePower = useCallback((color: Player['color']) => {
-        setGameState(prev => {
+        setLocalGameState(prev => {
             if (prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return prev;
             const power = prev.playerPowers[color as PlayerColor];
             if (!power) return prev;
@@ -744,44 +668,62 @@ export default function Board({
         });
     }, []);
 
-    const handleRoll = useCallback((value: number, isRemote = false) => {
-        if (!isRemote) {
-            sendAction('ROLL_DICE', { value });
+    const handleRoll = useCallback((value?: number, isRemote = false) => {
+        if (localGameState.gamePhase !== 'rolling' || localGameState.isThinking || localGameState.winner) return;
+
+        // If Guest, send Intent to Host
+        if (!isHost && !isRemote) {
+            sendIntent('REQUEST_ROLL');
+            return;
         }
-        setGameState((prev) => {
+
+        // If Host or Local
+        const roll = value || Math.floor(Math.random() * 6) + 1;
+        if (isHost && !isRemote) {
+            broadcastAction('ROLL_DICE', { value: roll });
+        }
+        setLocalGameState((prev) => {
             const color = prev.currentPlayer;
             let hasValidMove = false;
             prev.positions[color].forEach((pos) => {
-                if (pos === -1 && value === 6) hasValidMove = true;
-                else if (pos >= 0 && pos + value <= 57) hasValidMove = true;
+                const nextPos = pos === -1 ? (roll === 6 ? 0 : -1) : pos + roll;
+                if (nextPos <= 57 && nextPos !== -1) hasValidMove = true;
             });
 
-            if (!hasValidMove) {
-                return {
-                    ...prev,
-                    diceValue: value,
-                    gamePhase: 'rolling',
-                    currentPlayer: getNextPlayer(prev.currentPlayer),
-                    timeLeft: 15,
-                    captureMessage: null,
-                    invalidMove: false,
-                };
+            if (!hasValidMove && !isRemote) {
+                const nextPlayer = getNextPlayer(color);
+                setTimeout(() => {
+                    if (isHost) {
+                        broadcastAction('TURN_SWITCH', { nextPlayer });
+                    }
+                    setLocalGameState(s => ({
+                        ...s,
+                        gamePhase: 'rolling',
+                        currentPlayer: nextPlayer,
+                        diceValue: null,
+                        timeLeft: 15
+                    }));
+                }, 1000);
             }
 
             return {
                 ...prev,
-                diceValue: value,
-                gamePhase: 'moving',
-                captureMessage: null,
-                invalidMove: false,
+                diceValue: roll,
+                gamePhase: hasValidMove ? 'moving' : 'rolling',
                 timeLeft: 15,
             };
         });
-    }, [getNextPlayer, sendAction]);
+    }, [getNextPlayer, isHost, broadcastAction, sendIntent]);
 
     const handleTokenClick = (color: Player['color'], tokenIndex: number) => {
-        if (gameState.currentPlayer !== color || gameState.gamePhase !== 'moving' || gameState.diceValue === null) return;
-        moveToken(color, tokenIndex, gameState.diceValue);
+        if (localGameState.currentPlayer !== color || localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
+
+        if (!isHost && isLobbyConnected) {
+            sendIntent('REQUEST_MOVE', { color, tokenIndex, diceValue: localGameState.diceValue });
+            return;
+        }
+
+        moveToken(color, tokenIndex, localGameState.diceValue);
     };
 
     // --- AI HEURISTIC FUNCTION ---
@@ -789,7 +731,7 @@ export default function Board({
     const getBestMove = useCallback((playerId: Player['color'], roll: number) => {
         const options: number[] = [];
 
-        gameState.positions[playerId].forEach((pos, idx) => {
+        localGameState.positions[playerId].forEach((pos, idx) => {
             // Check if move is valid
             if (pos === -1) {
                 if (roll === 6) options.push(idx);
@@ -804,7 +746,7 @@ export default function Board({
         let maxScore = -Infinity;
 
         options.forEach(idx => {
-            const currentPos = gameState.positions[playerId][idx];
+            const currentPos = localGameState.positions[playerId][idx];
             const nextPos = currentPos === -1 ? 0 : currentPos + roll;
             let score = 0;
 
@@ -835,7 +777,7 @@ export default function Board({
                     // Check for Captures (+100)
                     (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
                         if (otherColor !== playerId) {
-                            gameState.positions[otherColor].forEach(otherPos => {
+                            localGameState.positions[otherColor].forEach(otherPos => {
                                 if (otherPos >= 0 && otherPos < 52) {
                                     const otherPoint = playerPaths[otherColor][otherPos];
                                     if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
@@ -858,34 +800,34 @@ export default function Board({
         });
 
         return bestTokenIdx;
-    }, [gameState.positions]);
+    }, [localGameState.positions]);
 
     // --- TURN NOTIFICATION BEEP ---
     useEffect(() => {
-        if (gameState.winner) return;
+        if (localGameState.winner) return;
 
         // Only beep if the new active player is human and hasn't struck out into auto-play
-        const currentPlayerInfo = players.find(p => p.color === gameState.currentPlayer);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
+        const currentPlayerInfo = players.find(p => p.color === localGameState.currentPlayer);
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
 
-        if (!isCurrentlyBot && gameState.gamePhase === 'rolling') {
+        if (!isCurrentlyBot && localGameState.gamePhase === 'rolling') {
             playTurn();
         }
-    }, [gameState.currentPlayer, gameState.winner, gameState.strikes, playTurn, gameState.gamePhase]);
+    }, [localGameState.currentPlayer, localGameState.winner, localGameState.strikes, playTurn, localGameState.gamePhase]);
 
     // --- 7.5 HUMAN TURN TIMER & AFK AUTO-PLAY LOGIC ---
     useEffect(() => {
-        if (gameState.winner) return;
+        if (localGameState.winner) return;
 
-        const currentPlayerInfo = players.find(p => p.color === gameState.currentPlayer);
+        const currentPlayerInfo = players.find(p => p.color === localGameState.currentPlayer);
 
         // Timer only applies to non-AI humans (unless they strike out 3 times)
-        const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
 
         if (!isCurrentlyBot) {
-            if (gameState.timeLeft <= 0) {
+            if (localGameState.timeLeft <= 0) {
                 // TImer runs out, auto-play for them and add a strike
-                setGameState(prev => {
+                setLocalGameState(prev => {
                     const newStrikes = prev.strikes[prev.currentPlayer] + 1;
                     return {
                         ...prev,
@@ -894,20 +836,20 @@ export default function Board({
                 });
 
                 // Trigger forced action
-                if (gameState.gamePhase === 'rolling') {
+                if (localGameState.gamePhase === 'rolling') {
                     const forcedRoll = Math.floor(Math.random() * 6) + 1;
                     handleRoll(forcedRoll);
-                } else if (gameState.gamePhase === 'moving' && gameState.diceValue !== null) {
-                    const bestMoveIdx = getBestMove(gameState.currentPlayer, gameState.diceValue);
+                } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
+                    const bestMoveIdx = getBestMove(localGameState.currentPlayer, localGameState.diceValue);
                     if (bestMoveIdx === null) {
-                        setGameState(s => ({
+                        setLocalGameState(s => ({
                             ...s,
                             gamePhase: 'rolling',
                             currentPlayer: getNextPlayer(s.currentPlayer),
                             timeLeft: 15
                         }));
                     } else {
-                        moveToken(gameState.currentPlayer, bestMoveIdx, gameState.diceValue);
+                        moveToken(localGameState.currentPlayer, bestMoveIdx, localGameState.diceValue);
                     }
                 }
                 return;
@@ -915,18 +857,18 @@ export default function Board({
 
             // Normal Tick Logic
             const interval = setInterval(() => {
-                setGameState(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
+                setLocalGameState(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
             }, 1000);
 
             return () => clearInterval(interval);
         }
     }, [
-        gameState.timeLeft,
-        gameState.currentPlayer,
-        gameState.gamePhase,
-        gameState.winner,
-        gameState.diceValue,
-        gameState.strikes,
+        localGameState.timeLeft,
+        localGameState.currentPlayer,
+        localGameState.gamePhase,
+        localGameState.winner,
+        localGameState.diceValue,
+        localGameState.strikes,
         handleRoll,
         moveToken,
         getBestMove
@@ -934,19 +876,19 @@ export default function Board({
 
     // --- AI ORCHESTRATION ---
     useEffect(() => {
-        if (gameState.winner) return;
+        if (localGameState.winner) return;
 
-        const currentPlayerInfo = players.find(p => p.color === gameState.currentPlayer);
+        const currentPlayerInfo = players.find(p => p.color === localGameState.currentPlayer);
 
         // AI logic handles both native AI and humans who struck out
-        const isCurrentlyBot = currentPlayerInfo?.isAi || gameState.strikes[gameState.currentPlayer] >= 3;
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
 
         if (isCurrentlyBot) {
 
             // Phase 1: Rolling
-            if (gameState.gamePhase === 'rolling') {
+            if (localGameState.gamePhase === 'rolling') {
                 const timer = setTimeout(() => {
-                    setGameState(s => ({ ...s, isThinking: true }));
+                    setLocalGameState(s => ({ ...s, isThinking: true }));
 
                     // Simulate AI Roll
                     const newValue = Math.floor(Math.random() * 6) + 1;
@@ -956,16 +898,16 @@ export default function Board({
             }
 
             // Phase 2: Moving
-            if (gameState.gamePhase === 'moving' && gameState.diceValue !== null) {
+            if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const timer = setTimeout(() => {
-                    const color = gameState.currentPlayer;
-                    const diceValue = gameState.diceValue!;
+                    const color = localGameState.currentPlayer;
+                    const diceValue = localGameState.diceValue!;
 
                     const bestModeIdx = getBestMove(color, diceValue);
 
                     if (bestModeIdx === null) {
                         // Pass turn if no moves
-                        setGameState(s => ({
+                        setLocalGameState(s => ({
                             ...s,
                             isThinking: false,
                             gamePhase: 'rolling',
@@ -974,14 +916,14 @@ export default function Board({
                         }));
                     } else {
                         // Execute move
-                        setGameState(s => ({ ...s, isThinking: false }));
+                        setLocalGameState(s => ({ ...s, isThinking: false }));
                         moveToken(color, bestModeIdx, diceValue);
                     }
                 }, 1000); // 1s wait after rolling
                 return () => clearTimeout(timer);
             }
         }
-    }, [gameState.currentPlayer, gameState.gamePhase, gameState.winner, gameState.diceValue, moveToken, handleRoll, getBestMove, gameState.strikes]);
+    }, [localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, moveToken, handleRoll, getBestMove, localGameState.strikes]);
 
     const [boardTheme, setBoardTheme] = useState('default');
     useEffect(() => {
@@ -996,7 +938,7 @@ export default function Board({
 
         (['green', 'red', 'blue', 'yellow'] as const).forEach((color) => {
             if (!players.some(p => p.color === color)) return;
-            gameState.positions[color].forEach((pos, idx) => {
+            localGameState.positions[color].forEach((pos, idx) => {
                 if (pos >= 0 && pos < 58) { // Up to 57
                     const point = playerPaths[color][pos];
                     if (!point) return;
@@ -1009,7 +951,7 @@ export default function Board({
                             style={{
                                 gridRow: point.r,
                                 gridColumn: point.c,
-                                zIndex: gameState.currentPlayer === color ? 15 : 10
+                                zIndex: localGameState.currentPlayer === color ? 15 : 10
                             }}
                             initial={false}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -1017,7 +959,7 @@ export default function Board({
                             <Token
                                 color={color}
                                 onClick={() => handleTokenClick(color, idx)}
-                                isDraggable={gameState.currentPlayer === color && gameState.gamePhase === 'moving'}
+                                isDraggable={localGameState.currentPlayer === color && localGameState.gamePhase === 'moving'}
                             />
                         </motion.div>
                     );
@@ -1038,29 +980,29 @@ export default function Board({
                         return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
                     return (
-                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col items-center gap-1`}>
+                        <div key={p.color} className={`player-wrapper ${localGameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col items-center gap-1`}>
                             <PlayerCard
                                 player={p}
-                                isActive={gameState.currentPlayer === p.color}
-                                timeLeft={gameState.timeLeft}
-                                strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
-                                power={gameState.playerPowers[p.color]}
+                                isActive={localGameState.currentPlayer === p.color}
+                                timeLeft={localGameState.timeLeft}
+                                strikes={localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0}
+                                power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
                                 teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
-                            {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                            {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>
                             )}
                             {/* Auto-play Mode Tag */}
-                            {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
+                            {localGameState.currentPlayer === p.color && !p.isAi && (localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0) >= 3 && (
                                 <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                             )}
-                            {gameState.currentPlayer === p.color && (
+                            {localGameState.currentPlayer === p.color && (
                                 <div className="player-dice-wrapper">
                                     <Dice
                                         onRoll={handleRoll}
-                                        disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner)}
+                                        disabled={localGameState.gamePhase !== 'rolling' || !!localGameState.winner || (p.isAi && !localGameState.winner)}
                                     />
                                 </div>
                             )}
@@ -1077,7 +1019,7 @@ export default function Board({
                         const slot = CORNER_SLOTS[colorCorner[color as PlayerColor]];
                         const gridInfo = { row: slot.gridRow, col: slot.gridCol };
 
-                        const tokensInHome = gameState.positions[color]
+                        const tokensInHome = localGameState.positions[color]
                             .map((pos, idx) => pos === -1 ? idx : -1)
                             .filter(idx => idx !== -1);
 
@@ -1099,12 +1041,12 @@ export default function Board({
 
                     {/* ── Center Finish Zone ── */}
                     <div
-                        className={`finish-center ${gameState.invalidMove ? 'shake-feedback' : ''}`}
+                        className={`finish-center ${localGameState.invalidMove ? 'shake-feedback' : ''}`}
                         style={{ gridRow: '7 / 10', gridColumn: '7 / 10' }}
                     >
                         {(['green', 'red', 'blue', 'yellow'] as const).map((color) => {
                             const isActive = players.some(p => p.color === color);
-                            const finishedCount = gameState.positions[color].filter(p => p === 57).length;
+                            const finishedCount = localGameState.positions[color].filter(p => p === 57).length;
                             const triClass = {
                                 green: 'tri-bottom',
                                 red: 'tri-right',
@@ -1126,8 +1068,8 @@ export default function Board({
 
                     {/* ── Path Squares ── */}
                     {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
-                        const isPower = gameState.powerTiles.some(pt => pt.r === row && pt.c === col);
-                        const trap = gameState.activeTraps.find(t => t.r === row && t.c === col);
+                        const isPower = localGameState.powerTiles.some(pt => pt.r === row && pt.c === col);
+                        const trap = localGameState.activeTraps.find(t => t.r === row && t.c === col);
 
                         return (
                             <div
@@ -1156,14 +1098,14 @@ export default function Board({
 
                 {/* --- Status Notification --- */}
                 <AnimatePresence>
-                    {gameState.captureMessage && (
+                    {localGameState.captureMessage && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9 }}
                             className="capture-toast"
                         >
-                            {gameState.captureMessage}
+                            {localGameState.captureMessage}
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -1171,7 +1113,7 @@ export default function Board({
 
             {/* --- Celebration Overlay --- */}
             <AnimatePresence>
-                {gameState.winner && (
+                {localGameState.winner && (
                     <div className="winner-overlay">
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
@@ -1179,7 +1121,7 @@ export default function Board({
                             className="winner-card"
                         >
                             <span className="celebration-emoji">🏆</span>
-                            <h2 style={{ textTransform: 'capitalize' }}>{gameState.winner} Fits the Crown!</h2>
+                            <h2 style={{ textTransform: 'capitalize' }}>{localGameState.winner} Fits the Crown!</h2>
                             <p>A minimalist masterclass!</p>
                             <div className="match-summary">
                                 <div className="summary-stat">
@@ -1206,29 +1148,29 @@ export default function Board({
                         return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
                     return (
-                        <div key={p.color} className={`player-wrapper ${gameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col-reverse items-center gap-1`}>
+                        <div key={p.color} className={`player-wrapper ${localGameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col-reverse items-center gap-1`}>
                             <PlayerCard
                                 player={p}
-                                isActive={gameState.currentPlayer === p.color}
-                                timeLeft={gameState.timeLeft}
-                                strikes={gameState.strikes[p.color as keyof typeof gameState.strikes] || 0}
-                                power={gameState.playerPowers[p.color]}
+                                isActive={localGameState.currentPlayer === p.color}
+                                timeLeft={localGameState.timeLeft}
+                                strikes={localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0}
+                                power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                                 onAvatarClick={() => setSelectedPlayer(p)}
                                 teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
-                            {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
+                            {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>
                             )}
                             {/* Auto-play Mode Tag */}
-                            {gameState.currentPlayer === p.color && !p.isAi && (gameState.strikes[p.color as keyof typeof gameState.strikes] || 0) >= 3 && (
+                            {localGameState.currentPlayer === p.color && !p.isAi && (localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0) >= 3 && (
                                 <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                             )}
-                            {gameState.currentPlayer === p.color && (
+                            {localGameState.currentPlayer === p.color && (
                                 <div className="player-dice-wrapper">
                                     <Dice
                                         onRoll={handleRoll}
-                                        disabled={gameState.gamePhase !== 'rolling' || !!gameState.winner || (p.isAi && !gameState.winner)}
+                                        disabled={localGameState.gamePhase !== 'rolling' || !!localGameState.winner || (p.isAi && !localGameState.winner)}
                                     />
                                 </div>
                             )}
@@ -1246,7 +1188,7 @@ export default function Board({
             {selectedPlayer && (
                 <PlayerProfileSheet
                     player={selectedPlayer}
-                    wins={gameState.positions[selectedPlayer.color].filter(p => p === 57).length}
+                    wins={localGameState.positions[selectedPlayer.color].filter(p => p === 57).length}
                     onClose={() => setSelectedPlayer(null)}
                 />
             )}

@@ -4,45 +4,109 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import Peer, { DataConnection } from 'peerjs';
 import { useAccount } from 'wagmi';
 
+// --- Types ---
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'GAME_START';
+export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE';
+
+export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
+
+export interface GameState {
+    positions: {
+        green: number[];
+        red: number[];
+        yellow: number[];
+        blue: number[];
+    };
+    currentPlayer: 'green' | 'red' | 'yellow' | 'blue';
+    diceValue: number | null;
+    gamePhase: 'rolling' | 'moving';
+    status: 'waiting' | 'playing' | 'finished';
+    winner: string | null;
+    winners: string[];
+    timeLeft: number;
+    strikes: Record<string, number>;
+    powerTiles: { r: number, c: number }[];
+    playerPowers: Record<string, string | null>;
+    activeTraps: { r: number, c: number, owner: string }[];
+    activeShields: { color: string, tokenIdx: number }[];
+    lastUpdate: number;
+}
+
 interface MultiplayerContextType {
     roomId: string;
     connection: DataConnection | null;
     isLobbyConnected: boolean;
     isHost: boolean;
-    lastRoll: number | null;
-    incomingAction: any;
+    gameState: GameState;
     hostGame: () => void;
     joinGame: (targetRoomId: string) => void;
-    rollDice: () => void;
-    sendAction: (type: string, payload?: any) => void;
+    sendIntent: (type: GameIntentType, payload?: any) => void;
+    // Actions only the host should call directly
+    broadcastAction: (type: GameActionType, payload?: any) => void;
     myAddress?: string;
+    updateGameState: (newState: Partial<GameState>) => void;
 }
 
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
 
 const generateShortId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
+const INITIAL_GAME_STATE: GameState = {
+    positions: {
+        green: [-1, -1, -1, -1],
+        red: [-1, -1, -1, -1],
+        yellow: [-1, -1, -1, -1],
+        blue: [-1, -1, -1, -1],
+    },
+    currentPlayer: 'green',
+    diceValue: null,
+    gamePhase: 'rolling',
+    status: 'waiting',
+    winner: null,
+    winners: [],
+    timeLeft: 15,
+    strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
+    powerTiles: [],
+    playerPowers: { green: null, red: null, yellow: null, blue: null },
+    activeTraps: [],
+    activeShields: [],
+    lastUpdate: Date.now()
+};
+
 export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     const [roomId, setRoomId] = useState<string>('');
     const [connection, setConnection] = useState<DataConnection | null>(null);
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
     const [isHost, setIsHost] = useState(false);
-    const [lastRoll, setLastRoll] = useState<number | null>(null);
-    const [incomingAction, setIncomingAction] = useState<any>(null);
+    const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
     const { address: myAddress } = useAccount();
     const peerRef = useRef<Peer | null>(null);
+    const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const sendAction = (type: string, payload?: any) => {
+    // --- Core Logic ---
+
+    const broadcastAction = (type: GameActionType, payload?: any) => {
+        if (!isHost) return; // Only host broadcasts
         if (connection && connection.open) {
             connection.send({ type, ...payload });
         }
     };
 
-    const rollDice = () => {
-        const roll = Math.floor(Math.random() * 6) + 1;
-        setLastRoll(roll);
-        sendAction('ROLL_DICE', { value: roll });
+    const sendIntent = (type: GameIntentType, payload?: any) => {
+        if (connection && connection.open) {
+            connection.send({ type, ...payload });
+        }
     };
+
+    const updateGameState = (newState: Partial<GameState>) => {
+        setGameState(prev => ({
+            ...prev,
+            ...newState,
+            lastUpdate: Date.now()
+        }));
+    };
+
+    // --- Peer Setup ---
 
     const hostGame = () => {
         if (peerRef.current) peerRef.current.destroy();
@@ -53,28 +117,39 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         peerRef.current = peer;
 
         peer.on('open', (id) => {
-            console.log('🎲 Peer opened with ID:', id);
+            console.log('🎲 Host Peer opened:', id);
             setRoomId(id);
         });
 
         peer.on('connection', (conn) => {
-            console.log('🔗 Incoming connection from:', conn.peer);
+            console.log('🔗 Lobby connection:', conn.peer);
             setConnection(conn);
             setIsLobbyConnected(true);
 
             conn.on('open', () => {
-                console.log('🔗 Connection open to guest');
                 if (myAddress) {
                     conn.send({ type: 'SYNC_PROFILE', address: myAddress });
                 }
+                // Initial sync
+                conn.send({ type: 'SYNC_STATE', gameState });
             });
 
             conn.on('data', (data: any) => {
-                console.log('📩 Received data:', data);
-                if (data.type === 'ROLL_DICE') {
-                    setLastRoll(data.value);
+                console.log('📩 Host received data:', data.type, data);
+
+                // Host handles Intents from Guest
+                if (data.type === 'REQUEST_ROLL') {
+                    // Host-as-Authority: Roll the dice and broadcast the result
+                    const roll = Math.floor(Math.random() * 6) + 1;
+                    const updated = { ...gameState, diceValue: roll, isRolling: false };
+                    setGameState(updated);
+                    broadcastAction('ROLL_DICE', { value: roll });
+                } else if (data.type === 'REQUEST_MOVE') {
+                    // Phase 2 will handle logic, for now we just acknowledge
+                    broadcastAction('MOVE_TOKEN', data.payload);
+                } else if (data.type === 'SYNC_PROFILE') {
+                    // Logic to store guest address
                 }
-                setIncomingAction(data);
             });
 
             conn.on('close', () => {
@@ -82,10 +157,15 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 setIsLobbyConnected(false);
                 setConnection(null);
             });
-        });
 
-        peer.on('error', (err) => {
-            console.error('❌ Peer error:', err);
+            // Heartbeat system: Host broadcasts full state every 5 seconds
+            const heartbeat = setInterval(() => {
+                if (isHost && conn.open) {
+                    conn.send({ type: 'SYNC_STATE', gameState });
+                }
+            }, 5000);
+
+            return () => clearInterval(heartbeat);
         });
     };
 
@@ -98,11 +178,10 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         peerRef.current = peer;
 
         peer.on('open', (id) => {
-            console.log('🎲 Joiner Peer opened with ID:', id);
+            console.log('🎲 Guest Peer opened:', id);
             const conn = peer.connect(targetRoomId);
 
             conn.on('open', () => {
-                console.log('✅ Connected to host:', targetRoomId);
                 setConnection(conn);
                 setIsLobbyConnected(true);
                 if (myAddress) {
@@ -111,30 +190,43 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             });
 
             conn.on('data', (data: any) => {
-                console.log('📩 Received data:', data);
-                if (data.type === 'ROLL_DICE') {
-                    setLastRoll(data.value);
+                console.log('📩 Guest received data:', data.type, data);
+
+                // Guest handles Actions from Host
+                if (data.type === 'SYNC_STATE') {
+                    setGameState(data.gameState);
+                } else if (data.type === 'ROLL_DICE') {
+                    setGameState(prev => ({ ...prev, diceValue: data.value, isRolling: false }));
+                } else if (data.type === 'MOVE_TOKEN') {
+                    // Move logic will be reactive in Phase 2
                 }
-                setIncomingAction(data);
             });
 
             conn.on('close', () => {
-                console.log('❌ Connection closed');
                 setIsLobbyConnected(false);
                 setConnection(null);
             });
         });
-
-        peer.on('error', (err) => {
-            console.error('❌ Peer error:', err);
-        });
     };
+
+    // --- Heartbeat Logic ---
+    useEffect(() => {
+        if (isHost && isLobbyConnected) {
+            heartbeatTimerRef.current = setInterval(() => {
+                console.log('💓 Heartbeat: Syncing state...');
+                broadcastAction('SYNC_STATE', { gameState });
+            }, 5000);
+        } else {
+            if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
+        }
+        return () => {
+            if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
+        };
+    }, [isHost, isLobbyConnected, gameState]);
 
     useEffect(() => {
         return () => {
-            if (peerRef.current) {
-                peerRef.current.destroy();
-            }
+            if (peerRef.current) peerRef.current.destroy();
         };
     }, []);
 
@@ -144,13 +236,13 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             connection,
             isLobbyConnected,
             isHost,
-            lastRoll,
-            incomingAction,
-            myAddress,
+            gameState,
             hostGame,
             joinGame,
-            rollDice,
-            sendAction
+            sendIntent,
+            broadcastAction,
+            myAddress,
+            updateGameState
         }}>
             {children}
         </MultiplayerContext.Provider>

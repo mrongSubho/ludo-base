@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
 import { useAudio } from '../hooks/useAudio';
+import { calculateSnakesMove } from '@/lib/snakesLogic';
 
 type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
@@ -208,22 +209,16 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
 
         setTimeout(() => {
             const currentPos = gameState.positions[activePlayer];
+            const { finalPos, bounced, slideType } = calculateSnakesMove(currentPos, val);
+            const tempPos = bounced ? (100 - ((currentPos + val) - 100)) : (currentPos + val);
 
             // Build absolute path array for step-by-step animation
             const path: number[] = [];
-            let tempPos = currentPos;
-            let bounced = false;
-
-            for (let i = 0; i < val; i++) {
-                if (tempPos < 100 && !bounced) {
-                    tempPos++;
-                    if (tempPos === 100 && i < val - 1) {
-                        bounced = true;
-                    }
-                } else if (bounced) {
-                    tempPos--;
-                }
-                path.push(tempPos);
+            let p = currentPos;
+            for (let i = 1; i <= val; i++) {
+                if (p < 100) p++;
+                else p--;
+                path.push(p);
             }
 
             if (bounced) {
@@ -238,32 +233,23 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                     setDisplayPositions(prev => ({ ...prev, [activePlayer]: nextStepPos }));
                     playMove();
                     stepIndex++;
-                    setTimeout(animateStep, 350); // Speed of each tile step
+                    setTimeout(animateStep, 350);
                 } else {
-                    // Path finished, check for Snakes or Ladders
-                    const targetPos = tempPos;
-                    let finalPos = targetPos;
-                    const ladder = LADDERS.find(l => l.start === targetPos);
-                    const snake = SNAKES.find(s => s.start === targetPos);
-                    let hasSlide = false;
+                    let hasSlide = !!slideType;
 
                     if (!bounced) {
-                        if (ladder) {
-                            finalPos = ladder.end;
-                            hasSlide = true;
+                        if (slideType === 'ladder') {
                             setTimeout(() => {
                                 showMessage("You found a Ladder! ✨");
-                                playWin(); // Positive sound
+                                playWin();
                                 setDisplayPositions(prev => ({ ...prev, [activePlayer]: finalPos }));
-                            }, 400); // Small pause before sliding up
-                        } else if (snake) {
-                            finalPos = snake.end;
-                            hasSlide = true;
+                            }, 400);
+                        } else if (slideType === 'snake') {
                             setTimeout(() => {
                                 showMessage("Oh no! Snake bite! 🐍");
-                                playCapture(); // Aggressive sound
+                                playCapture();
                                 setDisplayPositions(prev => ({ ...prev, [activePlayer]: finalPos }));
-                            }, 400); // Small pause before sliding down
+                            }, 400);
                         }
                     }
 
