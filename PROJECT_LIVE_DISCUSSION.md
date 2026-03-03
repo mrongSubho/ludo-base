@@ -207,6 +207,18 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Keeps roll UI consistent between modes.
 
+#### Live Discussion: Dice.tsx Deep Dive (Section 3)
+- What this file is in the system:
+  - Shared interaction component that emits dice values to board engines.
+- How it works in game:
+  - Accepts roll triggers from the active player and visually communicates random roll outcome.
+  - Keeps roll UX consistent so Classic and Snakes modes feel like one product.
+- Why it matters:
+  - Decouples roll presentation from rules logic, so we can iterate animation without rewriting turn rules.
+- Next improvements:
+  - Add disabled/locked state contract so illegal rolls are impossible at component level.
+  - Add deterministic test hook for replay/testing scenarios.
+
 ### 🟩 ThemeSwitcher.tsx
 - Key notes:
   - Initializes theme from `localStorage` on mount.
@@ -215,11 +227,37 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Lightweight, predictable UX for theme persistence.
 
+#### Live Discussion: ThemeSwitcher.tsx Deep Dive (Section 4)
+- What this file is in the system:
+  - Theme state controller for user personalization.
+- Function behavior:
+  - On mount, loads persisted choice from `localStorage`.
+  - `toggleTheme(newTheme)` updates local state and persistence store.
+- How it affects gameplay/system:
+  - Changes visual environment without disrupting current match state.
+  - Works as the source of truth for UI theme preference across sessions.
+- Next improvements:
+  - Introduce explicit theme context to avoid scattered reads of `localStorage`.
+  - Add server-side profile persistence for cross-device theme sync.
+
 ### 🟩 AudioToggle.tsx
 - Key notes:
   - Controls persisted SFX/music preference flags that are consumed by the audio hook.
 - Key enhancements:
   - Player can mute quickly without leaving the current flow.
+
+#### Live Discussion: AudioToggle.tsx Deep Dive (Section 5)
+- What this file is in the system:
+  - User-facing control surface for runtime audio flags.
+- How it works:
+  - Writes `ludo-sfx` and `ludo-music` preferences to `localStorage`.
+  - `useAudio.ts` reads these flags before emitting effects/ambient audio.
+- How it affects gameplay/system:
+  - Provides immediate accessibility control during active turns.
+  - Keeps audio experience predictable across reloads.
+- Next improvements:
+  - Add explicit “muted” UI indicator in board HUD.
+  - Unify toggle logic with settings drawer to avoid duplicate state behavior.
 
 ### 🟨 ProfileSyncer.tsx
 - Key notes:
@@ -232,6 +270,23 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Good identity fallback design across app contexts.
   - Needs stricter error/retry policies and clearer sync status UX.
 
+#### Live Discussion: ProfileSyncer.tsx Deep Dive (Section 6)
+- What this file is in the system:
+  - Background profile identity resolver + persistence bridge.
+- Function behavior:
+  - Pulls wallet state from wagmi.
+  - Tries identity sources in priority order:
+    - Frame SDK user context
+    - `/api/farcaster` wallet lookup
+    - Onchain name/avatar fallback
+  - Upserts normalized identity into Supabase `players`.
+- How it affects gameplay/system:
+  - Keeps player identity coherent across social panels, profile UI, and multiplayer context.
+  - Reduces anonymous-user edge cases by always producing fallback identity.
+- Next improvements:
+  - Add debounce and retry/backoff to reduce repeated network writes.
+  - Add sync status event to UI so players can see success/failure state.
+
 ### 🟨 WalletConnectCard.tsx
 - Key notes:
   - Renders OnchainKit `Wallet` + `ConnectWallet` button inside branded card UI.
@@ -239,6 +294,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Wallet entry UX is polished.
   - Connect action is not yet linked to bet/payment flow.
+
+#### Live Discussion: WalletConnectCard.tsx Deep Dive (Section 7)
+- What this file is in the system:
+  - Front door for authentication/onchain session entry.
+- How it works:
+  - Delays render until mount, then exposes OnchainKit wallet connect CTA.
+  - Keeps onboarding UI isolated from game rule components.
+- How it affects gameplay/system:
+  - Gates identity-aware features (profile sync, stats persistence, social).
+  - Currently connect-only, not transaction lifecycle-aware.
+- Next improvements:
+  - Emit post-connect callbacks with wallet metadata for match setup.
+  - Integrate wager eligibility checks before entering paid modes.
 
 ### 🟨 GameLobby.tsx
 - Key notes:
@@ -249,6 +317,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Practical prototype for room-based entry.
   - Needs integration with stronger matchmaking/recovery states.
 
+#### Live Discussion: GameLobby.tsx Deep Dive (Section 8)
+- What this file is in the system:
+  - Match entry coordinator for peer room sessions.
+- Function behavior:
+  - `handleHost()` starts host peer and exposes room code.
+  - `handleJoin()` validates input and attempts guest connection.
+- How it affects gameplay/system:
+  - Converts manual peer setup into a user-facing flow.
+  - Controls transition from pre-game state to connected board state.
+- Next improvements:
+  - Add reconnect and timeout states for failed/jittery joins.
+  - Add copy/share actions and lightweight room validation UX.
+
 ### 🟨 FriendsPanel.tsx
 - Key notes:
   - Organizes social UX into `game`, `base`, and `requests` tabs.
@@ -257,6 +338,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Clear social structure for future real data.
   - Still mock-data driven.
+
+#### Live Discussion: FriendsPanel.tsx Deep Dive (Section 9)
+- What this file is in the system:
+  - Social graph surface for discovery, requests, and direct interactions.
+- Function behavior:
+  - `renderFriendList()` renders active friend rows with status and DM action.
+  - `renderRequestList()` handles incoming/sent request states.
+- How it affects gameplay/system:
+  - Defines social interaction model before backend wiring.
+  - Establishes expected status vocabulary used elsewhere (`Online`, `In Match`, `Offline`).
+- Next improvements:
+  - Replace mock arrays with API-driven state from friends endpoints.
+  - Wire accept/reject/DM actions to real mutations and optimistic UI.
 
 ### 🟨 Leaderboard.tsx
 - Key notes:
@@ -267,6 +361,20 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Ranking logic contract is well-defined.
   - Still in-memory/mock data.
 
+#### Live Discussion: Leaderboard.tsx Deep Dive (Section 10)
+- What this file is in the system:
+  - Competitive ranking presentation layer.
+- Function behavior:
+  - `getStats(tab, scope)` filters and sorts entries by ranking mode.
+  - Tier mode applies tier-stage hierarchy weights.
+  - Daily/monthly modes use UTC boundary filters.
+- How it affects gameplay/system:
+  - Encodes ranking semantics that backend must match exactly.
+  - Sets seasonal expectations via quarter reset messaging.
+- Next improvements:
+  - Move ranking computation to server for consistency/trust.
+  - Add pagination and rank-change deltas for heavy datasets.
+
 ### 🟨 MissionPanel.tsx
 - Key notes:
   - `getMissions()` returns tab-specific mission sets (`daily`, `weekly`).
@@ -274,6 +382,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Mission model is ready for backend sync.
   - Reward claiming is not tied to persistent economy yet.
+
+#### Live Discussion: MissionPanel.tsx Deep Dive (Section 11)
+- What this file is in the system:
+  - Progression/reward panel for retention loops.
+- Function behavior:
+  - `getMissions(tab)` selects mission set by cadence.
+  - UI computes completion and progress percentage per mission.
+- How it affects gameplay/system:
+  - Provides clear mission schema (`type`, `target`, `current`, `reward`) for backend contracts.
+  - Encourages repeat sessions through visible progression.
+- Next improvements:
+  - Add server-side claim validation and anti-double-claim protection.
+  - Sync mission timers with canonical UTC reset windows.
 
 ### 🟨 MarketplacePanel.tsx
 - Key notes:
@@ -284,6 +405,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Excellent schema-level groundwork.
   - Real purchase/list/ownership transactions remain pending.
 
+#### Live Discussion: MarketplacePanel.tsx Deep Dive (Section 12)
+- What this file is in the system:
+  - Economy/catalog UI for cosmetic and collectible assets.
+- Function behavior:
+  - Uses rich typed models for item metadata, rarity, chain info, and trade history.
+  - Supports category filtering for themes/items/dice.
+- How it affects gameplay/system:
+  - Establishes contract for future onchain/offchain inventory fusion.
+  - Separates presentation-ready asset metadata from transaction plumbing.
+- Next improvements:
+  - Connect listing/purchase state to wallet + contract transaction status.
+  - Add ownership verification and cache strategy for inventory reads.
+
 ### 🟨 UserProfilePanel.tsx
 - Key notes:
   - Local profile editor for avatar cycling, display name updates, and privacy toggles.
@@ -291,6 +425,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Strong visual profile experience.
   - Not fully bound to persistent profile writes yet.
+
+#### Live Discussion: UserProfilePanel.tsx Deep Dive (Section 13)
+- What this file is in the system:
+  - Player identity and personal stats presentation surface.
+- Function behavior:
+  - Local state handles name edits, avatar cycling, and privacy toggle state.
+  - Animated stat cards visualize engagement and performance.
+- How it affects gameplay/system:
+  - Provides user-facing profile controls before full account settings backend.
+  - Creates target schema for eventual profile mutation endpoints.
+- Next improvements:
+  - Bind editable fields to persisted profile mutations.
+  - Pull stats from authoritative match history rather than static values.
 
 ### 🟨 MessagesPanel.tsx / PlayerProfileSheet.tsx
 - Key notes:
@@ -300,11 +447,37 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Shared slide-panel UI language is consistent.
   - Messaging backend and moderation actions are still pending.
 
+#### Live Discussion: MessagesPanel.tsx + PlayerProfileSheet.tsx Deep Dive (Section 14)
+- What these files are in the system:
+  - Communication placeholder (`MessagesPanel.tsx`) + contextual in-match action sheet (`PlayerProfileSheet.tsx`).
+- Function behavior:
+  - Messages panel currently returns empty-state UX.
+  - Profile sheet exposes social moderation actions at point-of-play.
+- How they affect gameplay/system:
+  - Define future chat/moderation workflow and contextual social actions.
+  - Keep social actions close to gameplay for lower friction.
+- Next improvements:
+  - Add real conversation threads, unread counts, and send pipeline.
+  - Add block/report persistence and moderation state enforcement.
+
 ### 🟩 FrameProvider.tsx
 - Key notes:
   - Calls `sdk.actions.ready()` on mount so Farcaster frame lifecycle is correctly initialized.
 - Key enhancements:
   - Ensures frame-hosted startup reliability.
+
+#### Live Discussion: FrameProvider.tsx Deep Dive (Section 15)
+- What this file is in the system:
+  - Environment bootstrapper for Farcaster-hosted runtime.
+- Function behavior:
+  - Executes frame readiness handshake in `useEffect`.
+  - Wraps child tree so frame init runs once at app boot.
+- How it affects gameplay/system:
+  - Prevents frame-only APIs from being used before host is ready.
+  - Stabilizes cross-context behavior between browser and frame environments.
+- Next improvements:
+  - Add explicit fallback state when frame init fails.
+  - Emit frame readiness status to analytics/debug tooling.
 
 ## app/hooks/
 
