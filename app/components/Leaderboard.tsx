@@ -1,7 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
+import { useAccount } from 'wagmi';
+
+const ITEMS_PER_PAGE = 20;
+
+const getTierFromWins = (wins: number) => {
+    if (wins >= 100) return { tier: 'Legendary' as const, stage: wins >= 150 ? 'III' as const : (wins >= 125 ? 'II' as const : 'I' as const) };
+    if (wins >= 50) return { tier: 'Platinum' as const, stage: wins >= 80 ? 'III' as const : (wins >= 65 ? 'II' as const : 'I' as const) };
+    if (wins >= 20) return { tier: 'Gold' as const, stage: wins >= 40 ? 'III' as const : (wins >= 30 ? 'II' as const : 'I' as const) };
+    if (wins >= 5) return { tier: 'Silver' as const, stage: wins >= 15 ? 'III' as const : (wins >= 10 ? 'II' as const : 'I' as const) };
+    return { tier: 'Rookie' as const, stage: wins >= 3 ? 'III' as const : (wins >= 1 ? 'II' as const : 'I' as const) };
+};
 
 type LeaderboardTab = 'tier' | 'daily' | 'monthly';
 
@@ -24,75 +36,54 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
+    const { address } = useAccount();
     const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
     const [scope, setScope] = useState<'global' | 'friends'>('global');
     const [showQuarterInfo, setShowQuarterInfo] = useState(false);
     const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
 
-    // MOCK DATA: 5-Tier Advanced Ranking System
-    const getStats = (tab: LeaderboardTab, currentScope: 'global' | 'friends'): LeaderboardEntry[] => {
-        const dummyEntries: (LeaderboardEntry & { isFriend?: boolean })[] = [
-            { id: '1', name: 'You', avatar: '1', wins: 42, lastWin: Date.now() - 3600000, isCurrentUser: true, tier: 'Platinum', stage: 'I' },
-            { id: '2', name: 'Nova', avatar: '2', wins: 89, lastWin: Date.now() - 86400000, tier: 'Legendary', stage: 'III', isFriend: true },
-            { id: '3', name: 'Gemini (AI)', avatar: '3', wins: 12, lastWin: Date.now() - 172800000, tier: 'Silver', stage: 'II' },
-            { id: '4', name: 'Core (AI)', avatar: '4', wins: 8, lastWin: Date.now() - 259200000, tier: 'Rookie', stage: 'I' },
-            { id: '5', name: 'Alex', avatar: '5', wins: 56, lastWin: Date.now() - 4000000, tier: 'Gold', stage: 'III', isFriend: true },
-            { id: '6', name: 'Sarah Ludo', avatar: '6', wins: 24, lastWin: Date.now() - 900000, tier: 'Silver', stage: 'III' },
-            { id: '7', name: 'MasterG', avatar: '7', wins: 102, lastWin: Date.now() - 120000, tier: 'Legendary', stage: 'II', isFriend: true },
-            { id: '8', name: 'CyberRunner', avatar: '8', wins: 67, lastWin: Date.now() - 5000000, tier: 'Platinum', stage: 'III' },
-            { id: '9', name: 'NeonNinja', avatar: '9', wins: 45, lastWin: Date.now() - 7200000, tier: 'Gold', stage: 'II' },
-            { id: '10', name: 'GlitchKing', avatar: '10', wins: 115, lastWin: Date.now() - 60000, tier: 'Legendary', stage: 'III' },
-            { id: '11', name: 'PixelPirate', avatar: '11', wins: 33, lastWin: Date.now() - 15000000, tier: 'Silver', stage: 'I' },
-            { id: '12', name: 'BinaryBoss', avatar: '12', wins: 15, lastWin: Date.now() - 30000000, tier: 'Rookie', stage: 'III' }
-        ];
+    const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
-        // Filter by scope first
-        let scopedEntries = dummyEntries;
-        if (currentScope === 'friends') {
-            scopedEntries = dummyEntries.filter(e => e.isFriend || e.isCurrentUser);
+    useEffect(() => {
+        const fetchLeaderboard = async () => {
+            setIsLoading(true);
+            const from = (currentPage - 1) * ITEMS_PER_PAGE;
+            const to = from + ITEMS_PER_PAGE - 1;
+
+            const { data, count, error } = await supabase
+                .from('players')
+                .select('*', { count: 'exact' })
+                .order('total_wins', { ascending: false })
+                .range(from, to);
+
+            if (!error && data) {
+                const formattedData = data.map(player => ({
+                    id: player.wallet_address,
+                    name: player.username || `${player.wallet_address.slice(0, 6)}...`,
+                    avatar: player.avatar_url,
+                    wins: player.total_wins,
+                    lastWin: new Date(player.last_played_at).getTime(),
+                    isCurrentUser: player.wallet_address === address,
+                    ...getTierFromWins(player.total_wins)
+                }));
+                setLeaders(formattedData);
+                if (count) setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+            }
+            setIsLoading(false);
+        };
+
+        if (isOpen) {
+            fetchLeaderboard();
         }
+    }, [isOpen, activeTab, scope, currentPage, address]);
 
-        // Sort differently based on the active tab
-        if (tab === 'tier') {
-            // Sort by Tier Hierarchy, then Stage, then Wins
-            const tierWeight = { 'Legendary': 5, 'Platinum': 4, 'Gold': 3, 'Silver': 2, 'Rookie': 1 };
-            const stageWeight = { 'III': 3, 'II': 2, 'I': 1 };
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, scope]);
 
-            return scopedEntries.sort((a, b) => {
-                const tierDiff = tierWeight[b.tier] - tierWeight[a.tier];
-                if (tierDiff !== 0) return tierDiff;
-
-                const stageDiff = stageWeight[b.stage] - stageWeight[a.stage];
-                if (stageDiff !== 0) return stageDiff;
-
-                return b.wins - a.wins;
-            });
-        }
-
-        const now = new Date();
-        const startOfDayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-        const startOfMonthUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-
-        // Daily: Only records from today (UTC)
-        if (tab === 'daily') {
-            return scopedEntries
-                .filter(e => e.lastWin >= startOfDayUTC)
-                .sort((a, b) => b.wins - a.wins);
-        }
-
-        // Monthly: Only records from this month (UTC)
-        if (tab === 'monthly') {
-            return scopedEntries
-                .filter(e => e.lastWin >= startOfMonthUTC)
-                .sort((a, b) => b.wins - a.wins);
-        }
-
-        return scopedEntries;
-    };
-
-    const stats = getStats(activeTab, scope);
-
-    // Map the standard 1,2,3 ranks for Daily/Monthly
     const getRankBadge = (rank: number) => {
         if (rank === 1) return <div className="w-8 h-8 rounded-full bg-yellow-400/20 text-yellow-400 font-extrabold flex items-center justify-center border border-yellow-400/30 shadow-[0_0_10px_rgba(250,204,21,0.2)]">1</div>;
         if (rank === 2) return <div className="w-8 h-8 rounded-full bg-slate-300/20 text-slate-300 font-bold flex items-center justify-center border border-slate-300/30">2</div>;
@@ -100,7 +91,6 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
         return <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center">{rank}</div>;
     };
 
-    // Advanced Ranking UI Colors
     const getTierConfig = (tier: LeaderboardEntry['tier']) => {
         switch (tier) {
             case 'Legendary': return { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', shadow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', dot: 'bg-red-400' };
@@ -131,12 +121,10 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                         className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
-                        {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
-                        {/* Header Section */}
                         <div className="px-panel-gutter pb-4 border-b border-white/10 flex flex-col gap-4">
                             <div className="flex items-center justify-between mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -158,7 +146,6 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                 </button>
                             </div>
 
-                            {/* Scope Switcher (Global vs Friends) */}
                             <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
                                 <button
                                     onClick={() => setScope('global')}
@@ -176,7 +163,6 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                 </button>
                             </div>
 
-                            {/* Tri-Tab Switcher */}
                             <div className="flex bg-black/30 p-1.5 rounded-2xl w-full max-w-sm mx-auto self-center">
                                 {(['tier', 'daily', 'monthly'] as LeaderboardTab[]).map((tab) => (
                                     <button
@@ -202,7 +188,6 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                         Q{currentQuarter}
                                                     </span>
 
-                                                    {/* Quarter Info Tooltip */}
                                                     <AnimatePresence>
                                                         {showQuarterInfo && (
                                                             <motion.div
@@ -211,7 +196,6 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                                 exit={{ opacity: 0, y: 5, scale: 0.95 }}
                                                                 className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl z-50 normal-case tracking-normal text-left"
                                                             >
-                                                                {/* Arrow Pointer */}
                                                                 <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
 
                                                                 <div className="relative z-10">
@@ -233,9 +217,13 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                             </div>
                         </div>
 
-                        {/* Leaderboard Content */}
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
-                            {stats.length === 0 ? (
+                            {isLoading ? (
+                                <div className="flex flex-col items-center justify-center h-full space-y-4">
+                                    <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Syncing Throne...</p>
+                                </div>
+                            ) : leaders.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-16 h-16 mb-4 text-white/40">
                                         <path d="M6 3h12l4 6-10 13L2 9z"></path>
@@ -246,11 +234,12 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                     <p className="text-sm text-white/60">No records found for this period.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3 px-panel-gutter pb-safe-footer">
+                                <div className="space-y-3 px-panel-gutter pb-4">
                                     <AnimatePresence mode="popLayout">
-                                        {stats.map((entry, idx) => {
+                                        {leaders.map((entry, idx) => {
                                             const tierStyles = getTierConfig(entry.tier);
                                             const isMe = entry.isCurrentUser;
+                                            const rank = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
 
                                             return (
                                                 <motion.div
@@ -259,30 +248,32 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                     animate={{ opacity: 1, scale: 1 }}
                                                     exit={{ opacity: 0, scale: 0.95 }}
                                                     key={entry.id}
-                                                    // Highlighted styling if it's the current user
                                                     className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${isMe
                                                         ? 'bg-indigo-500/20 border-2 border-indigo-400/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]'
                                                         : 'bg-white/5 border border-white/10 hover:bg-white/10'
                                                         }`}
                                                 >
-                                                    {/* Rank/Podium Badge */}
                                                     <div className="flex-shrink-0 mr-1">
                                                         {activeTab === 'tier' ? (
-                                                            <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center text-sm">{idx + 1}</div>
+                                                            <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center text-sm">{rank}</div>
                                                         ) : (
-                                                            getRankBadge(idx + 1)
+                                                            getRankBadge(rank)
                                                         )}
                                                     </div>
 
-                                                    {/* Avatar */}
                                                     <div className="relative">
                                                         <div className={`w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e] flex-shrink-0 border-2 ${isMe ? 'border-indigo-400' : 'border-white/10'}`}>
-                                                            <img
-                                                                src={`/avatars/${entry.avatar || (idx % 8 + 1)}.png`}
-                                                                alt={entry.name}
-                                                                className="w-full h-full object-cover"
-                                                                onError={(e) => { e.currentTarget.src = '/avatars/1.png' }}
-                                                            />
+                                                            {entry.avatar ? (
+                                                                <img
+                                                                    src={entry.avatar}
+                                                                    alt={entry.name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-white/20">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         {isMe && (
                                                             <div className="absolute -bottom-1 -right-1 bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-indigo-300">
@@ -291,24 +282,21 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                         )}
                                                     </div>
 
-                                                    {/* Info & Advanced Hierarchy */}
                                                     <div className="flex flex-col flex-1 min-w-0">
                                                         <span className={`font-bold text-[15px] truncate ${isMe ? 'text-indigo-100' : 'text-white'}`}>
                                                             {entry.name}
                                                         </span>
 
                                                         {activeTab === 'tier' ? (
-                                                            // Display the Beautiful 5-Tier Badge System
                                                             <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <div className={`w-2 h-2 rounded-full ${tierStyles.dot} ${tierStyles.shadow}`} />
-                                                                <span className={`text-[11px] font-bold tracking-widest uppercase ${tierStyles.color}`}>
+                                                                <div className={`w-2 h-2 rounded-full ${tierStyles?.dot} ${tierStyles?.shadow}`} />
+                                                                <span className={`text-[11px] font-bold tracking-widest uppercase ${tierStyles?.color}`}>
                                                                     {entry.tier} {entry.stage}
                                                                 </span>
                                                             </div>
                                                         ) : null}
                                                     </div>
 
-                                                    {/* Score Metric */}
                                                     <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-indigo-950/50 border-indigo-500/30' : 'bg-black/40 border-white/5'}`}>
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-indigo-300' : 'text-indigo-400'}`}>
                                                             {entry.wins}
@@ -319,6 +307,36 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                             );
                                         })}
                                     </AnimatePresence>
+
+                                    {totalPages > 1 && (
+                                        <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-white/10 pb-6 shrink-0">
+                                            <button
+                                                disabled={currentPage === 1}
+                                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                                    <button
+                                                        key={page}
+                                                        onClick={() => setCurrentPage(page)}
+                                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${currentPage === page ? 'bg-indigo-600 text-white shadow-[0_0_10px_rgba(79,70,229,0.4)]' : 'bg-transparent text-white/50 hover:bg-white/5'}`}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <button
+                                                disabled={currentPage === totalPages}
+                                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
