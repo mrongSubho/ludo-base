@@ -53,7 +53,7 @@ const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = 
     { color: 'blue', position: 'top-right' },
 ];
 
-function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4'): Player[] {
+function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4', isBotMatch: boolean = false): Player[] {
     const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
 
     // In a 2-player game, we only want 2 diagonal colors. 
@@ -63,7 +63,15 @@ function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4'): Player[] {
 
     return COLOR_SEATS.map((seat, i) => {
         if (!activeIndices.includes(i)) return null;
-        return { ...templates[i], ...seat };
+        let p = { ...templates[i], ...seat };
+
+        // If it's a bot match, ensure only one player is human (Alex)
+        if (isBotMatch) {
+            if (p.name !== 'Alex') p.isAi = true;
+            else p.isAi = false;
+        }
+
+        return p;
     }).filter(Boolean) as Player[];
 }
 
@@ -388,15 +396,17 @@ export default function Board({
     showLeaderboard = false,
     onToggleLeaderboard,
     playerCount = '4',
-    gameMode = 'classic'
+    gameMode = 'classic',
+    isBotMatch = false
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
     playerCount?: '2' | '4' | '2v2';
     gameMode?: 'classic' | 'power' | 'snakes';
+    isBotMatch?: boolean;
 }) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
-    const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
+    const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount, isBotMatch));
     // Single state for the color-corner mapping and derived paths (always in sync)
     const [colorLayout, setColorLayout] = useState<{
         colorCorner: ColorCorner;
@@ -449,12 +459,8 @@ export default function Board({
             red: 0,
             yellow: 0,
             blue: 0,
-        } as Record<string, number>,
-        powerTiles: (gameMode === 'power' ? pathCells
-            .filter(c => c.cls === 'board-cell')
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 4)
-            .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
+        } as Record<PlayerColor, number>,
+        powerTiles: (gameMode === 'power' ? [] : []) as { r: number, c: number }[], // will be filled in useEffect
         playerPowers: { green: null, red: null, yellow: null, blue: null } as Record<PlayerColor, PowerType | null>,
         activeTraps: [] as { r: number, c: number, owner: PlayerColor }[],
         activeShields: [] as { color: PlayerColor, tokenIdx: number }[],
@@ -507,7 +513,7 @@ export default function Board({
 
     const resetGame = useCallback(() => {
         const newCC = shuffleColorCorner();
-        const newPlayers = shufflePlayers(playerCount);
+        const newPlayers = shufflePlayers(playerCount, isBotMatch);
         setPlayers(newPlayers);
         setColorLayout({ colorCorner: newCC, playerPaths: buildPlayerPaths(newCC) });
         setLocalGameState({
@@ -526,16 +532,16 @@ export default function Board({
             invalidMove: false,
             isThinking: false,
             timeLeft: 15,
-            strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
+            strikes: { green: 0, red: 0, yellow: 0, blue: 0 } as Record<PlayerColor, number>,
             powerTiles: (gameMode === 'power' ? pathCells
                 .filter(c => c.cls === 'board-cell')
                 .sort(() => Math.random() - 0.5)
                 .slice(0, 4)
                 .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
-            playerPowers: { green: null, red: null, yellow: null, blue: null },
-            activeTraps: [],
-            activeShields: [],
-            activeBoost: null,
+            playerPowers: { green: null, red: null, yellow: null, blue: null } as Record<PlayerColor, PowerType | null>,
+            activeTraps: [] as { r: number, c: number, owner: PlayerColor }[],
+            activeShields: [] as { color: PlayerColor, tokenIdx: number }[],
+            activeBoost: null as PlayerColor | null,
             multiplayer: {
                 targetId: '',
                 isConnected: false,

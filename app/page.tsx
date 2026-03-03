@@ -403,14 +403,15 @@ export default function Page() {
   const [showSplash, setShowSplash] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
-  const { incomingAction, sendAction, isHost } = useMultiplayer();
+  const { gameState, broadcastAction, isHost, isLobbyConnected } = useMultiplayer();
 
   const finalAvatar = profile?.avatar_url || null;
 
-  // Match Configuration State
+  // Match Configuration State (Synced with GameLobby)
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
   const [playerCount, setPlayerCount] = useState<'2' | '4' | '2v2'>('4');
   const [betAmount, setBetAmount] = useState<number>(50);
+  const [isBotMatch, setIsBotMatch] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -453,11 +454,10 @@ export default function Page() {
 
   // --- Multiplayer Game Start Sync ---
   useEffect(() => {
-    if (!incomingAction) return;
-    if (incomingAction.type === 'START_GAME') {
+    if (gameState?.isStarted && appState !== 'game') {
       setAppState('game');
     }
-  }, [incomingAction]);
+  }, [gameState?.isStarted, appState]);
 
   if (!isMounted) {
     return (
@@ -472,7 +472,7 @@ export default function Page() {
 
   const handlePlayNow = () => {
     if (isHost) {
-      sendAction('START_GAME');
+      broadcastAction('START_GAME', {});
     }
     setAppState('game');
   };
@@ -543,88 +543,19 @@ export default function Page() {
 
               <main className="dash-main pb-safe-footer px-safe">
 
-                {/* Game Modes Section */}
-                <section className="dash-section">
-                  <h3 className="section-title">GAME MODES</h3>
-                  <div className="modes-list">
-                    <div
-                      className={`mode-card ${selectedMode === 'classic' ? 'active selection-glow-green' : ''}`}
-                      onClick={() => setSelectedMode('classic')}
-                    >
-                      <div className="mode-icon-wrapper classic">
-                        <DiceIcon />
-                      </div>
-                      <div className="mode-details">
-                        <h4>Classic</h4>
-                        <p>Traditional rules, pure strategy</p>
-                      </div>
-                      <ChevronRight />
-                    </div>
-
-                    <div
-                      className={`mode-card ${selectedMode === 'power' ? 'active selection-glow-orange' : ''}`}
-                      onClick={() => setSelectedMode('power')}
-                    >
-                      <div className="mode-icon-wrapper power">
-                        <LightningIcon />
-                      </div>
-                      <div className="mode-details">
-                        <h4>Power</h4>
-                        <p>Power-ups, shields & wild cards</p>
-                      </div>
-                      <ChevronRight />
-                    </div>
-
-                    <div
-                      className={`mode-card ${selectedMode === 'snakes' ? 'active selection-glow-purple' : ''}`}
-                      onClick={() => setSelectedMode('snakes')}
-                    >
-                      <div className="mode-icon-wrapper snakes" style={{ background: 'linear-gradient(135deg, var(--ludo-accent), var(--color-ludo-alert))' }}>
-                        <SnakeIcon />
-                      </div>
-                      <div className="mode-details">
-                        <h4>Snakes</h4>
-                        <p>Classic board with unpredictable twists</p>
-                      </div>
-                      <ChevronRight />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Match Config Section */}
-                <section className="dash-section config-section">
-                  <div className="config-card">
-                    <h4 className="config-title text-center">Select Players</h4>
-                    <div className="segmented-control">
-                      {(['2', '4', '2v2'] as const).map(num => (
-                        <button
-                          key={num}
-                          className={`seg-btn ${playerCount === num ? 'active' : ''}`}
-                          onClick={() => setPlayerCount(num)}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-
-                    <h4 className="config-title text-center mt-6">BET AMOUNT</h4>
-                    <div className="bet-pills">
-                      {[10, 25, 50, 100, 250].map(amt => (
-                        <button
-                          key={amt}
-                          className={`bet-pill ${betAmount === amt ? 'active' : ''}`}
-                          onClick={() => setBetAmount(amt)}
-                        >
-                          {amt}
-                        </button>
-                      ))}
-                    </div>
-
-                    <button className="play-now-btn" onClick={handlePlayNow}>
-                      Play Now
-                    </button>
-                  </div>
-                </section>
+                <GameLobby
+                  gameMode={selectedMode as any}
+                  setGameMode={setSelectedMode as any}
+                  matchType={playerCount as any}
+                  setMatchType={setPlayerCount as any}
+                  wager={betAmount}
+                  setWager={setBetAmount}
+                  onStartGame={(isBot?: boolean) => {
+                    if (isBot) setIsBotMatch(true);
+                    else setIsBotMatch(false);
+                    setAppState('game');
+                  }}
+                />
               </main>
 
               {/* Footer Nav */}
@@ -714,9 +645,9 @@ export default function Page() {
               </div>
               <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
                 {selectedMode === 'snakes' ? (
-                  <SnakesBoard playerCount={playerCount} />
+                  <SnakesBoard playerCount={playerCount} isBotMatch={isBotMatch} />
                 ) : (
-                  <Board playerCount={playerCount} gameMode={selectedMode} />
+                  <Board playerCount={playerCount} gameMode={selectedMode as any} isBotMatch={isBotMatch} />
                 )}
               </main>
 

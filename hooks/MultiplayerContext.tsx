@@ -5,10 +5,11 @@ import Peer, { DataConnection } from 'peerjs';
 import { useAccount } from 'wagmi';
 
 // --- Types ---
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'GAME_START';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE';
 
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
+export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
 export interface GameState {
     positions: {
@@ -24,11 +25,12 @@ export interface GameState {
     winner: string | null;
     winners: string[];
     timeLeft: number;
-    strikes: Record<string, number>;
+    strikes: Record<PlayerColor, number>;
     powerTiles: { r: number, c: number }[];
-    playerPowers: Record<string, string | null>;
-    activeTraps: { r: number, c: number, owner: string }[];
-    activeShields: { color: string, tokenIdx: number }[];
+    playerPowers: Record<PlayerColor, PowerType | null>;
+    activeTraps: { r: number, c: number, owner: PlayerColor }[];
+    activeShields: { color: PlayerColor, tokenIdx: number }[];
+    isStarted: boolean;
     lastUpdate: number;
 }
 
@@ -70,31 +72,42 @@ const INITIAL_GAME_STATE: GameState = {
     playerPowers: { green: null, red: null, yellow: null, blue: null },
     activeTraps: [],
     activeShields: [],
+    isStarted: false,
     lastUpdate: Date.now()
 };
 
-export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
-    const [roomId, setRoomId] = useState<string>('');
+const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
+    const [roomId, setRoomId] = useState('');
     const [connection, setConnection] = useState<DataConnection | null>(null);
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
     const [isHost, setIsHost] = useState(false);
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
     const { address: myAddress } = useAccount();
-    const peerRef = useRef<Peer | null>(null);
-    const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // --- Core Logic ---
+    const peerRef = useRef<Peer | null>(null);
+    const heartbeatTimerRef = useRef<any>(null);
 
     const broadcastAction = (type: GameActionType, payload?: any) => {
-        if (!isHost) return; // Only host broadcasts
-        if (connection && connection.open) {
-            connection.send({ type, ...payload });
+        if (!isHost || !connection || !connection.open) return;
+
+        // Update local state if it's a state-changing action
+        if (type === 'START_GAME') {
+            setGameState(prev => ({ ...prev, isStarted: true }));
         }
+
+        connection.send({ type, ...payload, gameState: type === 'SYNC_STATE' ? gameState : undefined });
     };
 
     const sendIntent = (type: GameIntentType, payload?: any) => {
-        if (connection && connection.open) {
-            connection.send({ type, ...payload });
+        if (isHost) {
+            // If host, process directly
+            if (type === 'REQUEST_ROLL') {
+                const roll = Math.floor(Math.random() * 6) + 1;
+                setGameState(prev => ({ ...prev, diceValue: roll, gamePhase: 'moving' }));
+                broadcastAction('ROLL_DICE', { value: roll });
+            }
+        } else if (connection && connection.open) {
+            connection.send({ type, payload });
         }
     };
 
@@ -142,7 +155,7 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                     // Host-as-Authority: Roll the dice and broadcast the result
                     const roll = Math.floor(Math.random() * 6) + 1;
                     const updated = { ...gameState, diceValue: roll, isRolling: false };
-                    setGameState(updated);
+                    setGameState(updated as any);
                     broadcastAction('ROLL_DICE', { value: roll });
                 } else if (data.type === 'REQUEST_MOVE') {
                     // Phase 2 will handle logic, for now we just acknowledge
@@ -197,6 +210,8 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                     setGameState(data.gameState);
                 } else if (data.type === 'ROLL_DICE') {
                     setGameState(prev => ({ ...prev, diceValue: data.value, isRolling: false }));
+                } else if (data.type === 'START_GAME') {
+                    setGameState(prev => ({ ...prev, isStarted: true }));
                 } else if (data.type === 'MOVE_TOKEN') {
                     // Move logic will be reactive in Phase 2
                 }
@@ -248,6 +263,8 @@ export const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         </MultiplayerContext.Provider>
     );
 };
+
+export { MultiplayerProvider };
 
 export const useMultiplayerContext = () => {
     const context = useContext(MultiplayerContext);

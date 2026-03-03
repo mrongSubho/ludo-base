@@ -32,14 +32,19 @@ const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = 
     { color: 'blue', position: 'top-right' },
 ];
 
-function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4'): Player[] {
+function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4', isBotMatch: boolean = false): Player[] {
     const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
     const usePair1 = Math.random() > 0.5;
     const activeIndices = playerCount === '2' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
 
     return COLOR_SEATS.map((seat, i) => {
         if (!activeIndices.includes(i)) return null;
-        return { ...templates[i], ...seat };
+        let p = { ...templates[i], ...seat };
+        if (isBotMatch) {
+            if (p.name !== 'Alex') p.isAi = true;
+            else p.isAi = false;
+        }
+        return p;
     }).filter(Boolean) as Player[];
 }
 
