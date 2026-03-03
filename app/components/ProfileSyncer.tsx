@@ -23,10 +23,28 @@ export default function ProfileSyncer() {
     useEffect(() => {
         async function syncProfile() {
             if (isConnected && address) {
-                // Determine best identity: Farcaster first, then OnchainKit
+                // 1. Try Frame SDK (if in Warpcast)
                 const fcUser = fcContext?.user;
-                const finalName = fcUser?.username || onchainName || address.slice(0, 6) + '...' + address.slice(-4);
-                const finalAvatar = fcUser?.pfpUrl || onchainAvatar || null;
+                let finalName = fcUser?.displayName || fcUser?.username || null;
+                let finalAvatar = fcUser?.pfpUrl || null;
+
+                // 2. Try Neynar API fallback (if in Base App or normal browser)
+                if (!finalName) {
+                    try {
+                        const res = await fetch(`/api/farcaster?wallet=${address}`);
+                        if (res.ok) {
+                            const fcData = await res.json();
+                            finalName = fcData.displayName || fcData.username;
+                            finalAvatar = fcData.avatarUrl;
+                        }
+                    } catch (e) {
+                        console.error("Farcaster API fallback failed", e);
+                    }
+                }
+
+                // 3. Fallback to OnchainKit (Base/ENS) or Wallet Address
+                if (!finalName) finalName = onchainName || address.slice(0, 6) + '...' + address.slice(-4);
+                if (!finalAvatar) finalAvatar = onchainAvatar || null;
 
                 console.log('🔄 Syncing Profile:', { address, finalName, finalAvatar });
 
