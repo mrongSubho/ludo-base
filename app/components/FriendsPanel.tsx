@@ -56,7 +56,8 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('game');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
 
-    const [friendsList, setFriendsList] = useState<Friend[]>([]);
+    const [gameFriends, setGameFriends] = useState<Friend[]>([]);
+    const [onchainFriends, setOnchainFriends] = useState<Friend[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -64,7 +65,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
             if (!connectedAddress) return;
             setIsLoading(true);
             try {
-                // 1. Try Farcaster Social Graph if FID is available
+                // 1. Fetch Farcaster Social Graph if FID is available
                 if (userFid) {
                     const res = await fetch(`/api/friends?fid=${userFid}`);
                     const data = await res.json();
@@ -74,13 +75,11 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                             displayName: friend.username || friend.wallet_address.slice(-6).toUpperCase(),
                             status: 'Online'
                         }));
-                        setFriendsList(formatted);
-                        setIsLoading(false);
-                        return;
+                        setGameFriends(formatted);
                     }
                 }
 
-                // 2. Fetch live friendships from Supabase
+                // 2. Fetch live friendships from Supabase (Onchain Friends)
                 const { data, error } = await supabase
                     .from('friendships')
                     .select(`
@@ -106,7 +105,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                             status: item.status === 'accepted' ? 'Online' : 'Offline'
                         };
                     });
-                    setFriendsList(formatted);
+                    setOnchainFriends(formatted);
                 }
             } catch (err) {
                 console.error('Error fetching friends:', err);
@@ -270,18 +269,18 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                         {activeMainTab === 'game' && (
                             <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Game Friends ({friendsList.length})
+                                    Game Friends ({gameFriends.length})
                                 </div>
-                                {renderFriendList(friendsList)}
+                                {renderFriendList(gameFriends)}
                             </motion.div>
                         )}
 
                         {activeMainTab === 'onchain' && (
                             <motion.div key="onchain" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Onchain Friends ({friendsList.filter(f => !f.username?.includes('.eth')).length})
+                                    Onchain Friends ({onchainFriends.length})
                                 </div>
-                                {renderFriendList(friendsList.filter(f => !f.username?.includes('.eth')))}
+                                {renderFriendList(onchainFriends)}
                             </motion.div>
                         )}
 
