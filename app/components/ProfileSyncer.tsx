@@ -27,7 +27,6 @@ export default function ProfileSyncer() {
                 const fcUser = fcContext?.user;
                 let finalName = fcUser?.displayName || fcUser?.username || null;
                 let finalAvatar = fcUser?.pfpUrl || null;
-                let finalFid = fcUser?.fid || null;
 
                 // 2. Try Neynar API fallback (if in Base App or normal browser)
                 if (!finalName) {
@@ -37,7 +36,6 @@ export default function ProfileSyncer() {
                             const fcData = await res.json();
                             finalName = fcData.displayName || fcData.username;
                             finalAvatar = fcData.avatarUrl;
-                            finalFid = fcData.fid;
                         }
                     } catch (e) {
                         console.error("Farcaster API fallback failed", e);
@@ -51,7 +49,6 @@ export default function ProfileSyncer() {
                 const updateData: any = {
                     wallet_address: address.toLowerCase(),
                     avatar_url: finalAvatar,
-                    fid: finalFid,
                     last_played_at: new Date().toISOString()
                 };
 

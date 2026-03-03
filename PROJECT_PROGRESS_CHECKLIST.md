@@ -134,6 +134,73 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Variant mode is complete for core play.
   - Could share more logic with `Board.tsx` to reduce duplication.
 
+#### Live Discussion: SnakesBoard.tsx Deep Dive (Section 2)
+- What this file is in the system:
+  - `SnakesBoard.tsx` is the alternate rules engine for Snakes & Ladders mode.
+  - It keeps the same app-level UX patterns (turns, timer, AI, effects) while switching movement rules to linear 1..100 progression.
+
+- Core data model and gameplay mapping:
+  - `positions[color]` stores each player’s single token tile position (`0` start, `100` finish).
+  - `displayPositions[color]` is used for animation-friendly visual stepping, separated from final logic position.
+  - `gamePhase`, `currentPlayer`, `diceValue`, `timeLeft`, `strikes`, and `winner` define the mode state machine.
+
+- Function-by-function behavior notes:
+  - `shufflePlayers(playerCount)`:
+    - What it does: selects active players and assigns fixed color seats.
+    - How it works in game: preserves balanced color layout while reducing players for 2-player mode.
+  - `getNextPlayer(current, players)`:
+    - What it does: computes the next valid active color based on fixed turn order.
+    - How it works in game: skips non-participating colors cleanly in reduced player modes.
+  - `getGridPos(n)`:
+    - What it does: maps numeric board position to rendered row/column on a serpentine grid.
+    - How it works in game: ensures visual token location exactly follows Snakes & Ladders board numbering logic.
+  - `checkWin(positions, color)`:
+    - What it does: checks whether a player reached tile `100`.
+    - How it works in game: triggers final win state and blocks further turns.
+  - `showMessage(msg)`:
+    - What it does: displays short-lived event text and auto-clears it.
+    - How it works in game: communicates bounce, snake bite, ladder climb, and win-adjacent events.
+  - `handleRoll(val)`:
+    - What it does:
+      - validates phase;
+      - builds step-by-step path;
+      - handles overshoot bounce-back;
+      - applies ladder/snake remap after movement;
+      - advances turn or grants continuation by rule.
+    - How it works in game: this is the central turn executor for Snakes mode.
+  - `triggerWinConfetti()`:
+    - What it does: runs timed confetti bursts from both sides.
+    - How it works in game: creates strong win feedback consistent with Classic mode.
+
+- Snakes/Ladders rule execution:
+  - Ladders and snakes are represented as static start/end pairs.
+  - Post-roll resolution order:
+    - animate movement to target tile;
+    - then check ladder or snake start;
+    - then animate/commit jump to mapped end tile.
+  - Practical effect: players feel both movement and trap/boost transitions, not instant teleport only.
+
+- AI, timer, and AFK behavior in this mode:
+  - Turn timer decrements for human turns; timeout can force roll/move behavior.
+  - Strike count escalates toward auto-play behavior similar to the classic board.
+  - AI uses staged delays to simulate thinking and avoid instant robotic turns.
+
+- Current engineering risks for SnakesBoard:
+  - Logic duplication:
+    - timer, strike, AI orchestration duplicates patterns already in `Board.tsx`.
+  - State complexity:
+    - `positions` and `displayPositions` can drift if updates are not sequenced carefully.
+  - Testability gap:
+    - snake/ladder remap, overshoot bounce, and turn transitions are mostly untested.
+
+- Suggested immediate next refactor plan (for SnakesBoard only):
+  - Extract pure helpers (`resolveBounce`, `resolveSnakeLadder`, `nextTurn`) into reusable rule utilities.
+  - Standardize turn/timer orchestration with the Classic board through shared hooks.
+  - Add deterministic tests for edge cases:
+    - overshoot at `97+`,
+    - ladder/snake collisions after bounce,
+    - timeout during `moving` phase.
+
 ### 🟩 Dice.tsx
 - Key notes:
   - Encapsulates dice interaction and animation so both board modes can reuse the same roll UX contract.
