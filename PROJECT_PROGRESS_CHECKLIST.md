@@ -48,6 +48,82 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Core Ludo rules are functionally rich and replayable.
   - Power-mode effect execution is still partially implemented.
 
+#### Live Discussion: Board.tsx Deep Dive (Section 1)
+- What this file is in the system:
+  - `Board.tsx` is the main gameplay engine for Classic/Power mode.
+  - It is both renderer and rules engine, so UI state and game rules are tightly coupled in one component.
+
+- Core data model and why it matters:
+  - `gameState.positions[color][tokenIndex]` stores token progress (`-1` home, `0..57` path/home-lane).
+  - `currentPlayer`, `gamePhase`, `diceValue`, `strikes`, and `winner` define the turn-state machine.
+  - `colorLayout` (`colorCorner` + `playerPaths`) ensures seat randomization still maps to valid geometric paths.
+
+- Function-by-function behavior notes:
+  - `shufflePlayers(playerCount)`:
+    - What it does: picks active players and assigns color seats.
+    - How it works in game: enforces diagonal-pair fairness for 2-player mode so path geometry remains symmetric.
+  - `shuffleColorCorner()`:
+    - What it does: picks one valid corner arrangement from a constrained set.
+    - How it works in game: avoids impossible/invalid board orientations while still giving variety between matches.
+  - `buildPlayerPaths(colorCorner)`:
+    - What it does: generates each color’s full traversal route from start to finish.
+    - How it works in game: every token movement, capture check, and win check depends on this path map.
+  - `buildPathCellsDynamic(colorCorner)`:
+    - What it does: assigns CSS lane classes and safe-cell markers for the current layout.
+    - How it works in game: board visuals always match gameplay logic after seat/corner shuffles.
+  - `getNextPlayer(currentColor)`:
+    - What it does: computes next active color based on currently active players.
+    - How it works in game: correctly skips absent colors in `2`/`2v2` setups and keeps turns consistent.
+  - `handleRoll(value, isRemote)`:
+    - What it does: applies dice value, validates move availability, and sets phase.
+    - How it works in game: if no token can legally move, turn auto-passes and timer resets.
+  - `moveToken(color, tokenIndex, steps, isRemote, targetPosition)`:
+    - What it does: executes legal movement, handles overshoot, capture logic, win checks, and turn switching.
+    - How it works in game:
+      - rejects overshoot beyond `57` and passes turn;
+      - grants bonus turn on `6` or capture;
+      - applies safe-square immunity via board coordinates;
+      - updates team-win logic in `2v2`.
+  - `getBestMove(playerId, roll)`:
+    - What it does: scores possible token moves and returns best index for bot/auto-play.
+    - How it works in game: prioritizes winning, captures, safe entry, home-lane progress, and forward advancement.
+  - `recordWin(winnerColor)`:
+    - What it does: updates local leaderboard and triggers persistent match recording.
+    - How it works in system: calls `recordMatchResult()` once (guarded by `hasRecordedWin`) for connected winner flow.
+  - `resetGame()`:
+    - What it does: rebuilds players, path layout, and full game state from initial values.
+    - How it works in game: creates fresh match conditions including randomized layout and cleared power/trap state.
+
+- Multiplayer action flow inside Board:
+  - Incoming actions handled: `ROLL_DICE`, `MOVE_TOKEN`, `NEXT_TURN`, `SYNC_PROFILE`.
+  - Outgoing actions emitted: `ROLL_DICE`, `MOVE_TOKEN`, `NEXT_TURN`.
+  - Practical effect: host/guest stay synchronized using action replay, but conflict control is still lightweight.
+
+- Timer, AFK, and AI orchestration:
+  - Human timer decrements in `rolling/moving` states; timeout adds a strike.
+  - At `3+` strikes, player behavior switches into bot-like automation.
+  - AI cycle:
+    - rolling phase: delayed roll;
+    - moving phase: heuristic selection via `getBestMove()` then execution.
+
+- Power-mode status in this file:
+  - State exists for `powerTiles`, `playerPowers`, `activeTraps`, `activeShields`, `activeBoost`.
+  - `handleUsePower()` currently consumes/invokes power state minimally.
+  - Conclusion: data scaffolding is present, but full tactical effect logic is still incomplete.
+
+- Current engineering risks we should discuss next for Board:
+  - Multiplayer desync risk:
+    - local and remote actions can both trigger turn transitions if ordering drifts.
+  - Large component complexity:
+    - rules, rendering, AI, sync, audio, and persistence are all in one file.
+  - Partial persistence consistency:
+    - local leaderboard write + remote DB write are separate paths with different guarantees.
+
+- Suggested immediate next refactor plan (for Board only):
+  - Extract pure rules helpers (`canMove`, `applyMove`, `resolveCapture`, `resolveWin`) into a separate module.
+  - Move multiplayer action reducer into dedicated sync layer.
+  - Keep `Board.tsx` focused on rendering + dispatching intents.
+
 ### 🟨 SnakesBoard.tsx
 - Key notes:
   - `getGridPos()` converts tile numbers into serpentine 10x10 board coordinates.

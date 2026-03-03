@@ -44,21 +44,25 @@ export default function ProfileSyncer() {
                     }
                 }
 
-                // 3. Fallback to OnchainKit (Base/ENS) or Wallet Address
-                if (!finalName) finalName = onchainName || address.slice(0, 6) + '...' + address.slice(-4);
+                // 3. Fallback to OnchainKit (Base/ENS)
+                if (!finalName) finalName = onchainName || null;
                 if (!finalAvatar) finalAvatar = onchainAvatar || null;
 
-                console.log('🔄 Syncing Profile:', { address, finalName, finalAvatar, finalFid });
+                const updateData: any = {
+                    wallet_address: address.toLowerCase(),
+                    avatar_url: finalAvatar,
+                    fid: finalFid,
+                    last_played_at: new Date().toISOString()
+                };
+
+                // Only overwrite username if we actually found a real decentralized name
+                if (finalName) {
+                    updateData.username = finalName;
+                }
 
                 const { error } = await supabase
                     .from('players')
-                    .upsert({
-                        wallet_address: address.toLowerCase(),
-                        username: finalName,
-                        avatar_url: finalAvatar,
-                        fid: finalFid,
-                        last_played_at: new Date().toISOString()
-                    });
+                    .upsert(updateData, { onConflict: 'wallet_address' });
 
                 if (error) {
                     console.error('❌ Supabase Sync Error:', error.message);
