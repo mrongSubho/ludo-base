@@ -9,17 +9,20 @@ export function useCurrentUser() {
     useEffect(() => {
         async function fetchProfile() {
             if (isConnected && address) {
-                const { data } = await supabase
+                const { data, error } = await supabase
                     .from('players')
                     .select('username, avatar_url, fid')
-                    .ilike('wallet_address', address)
-                    .single();
+                    .or(`wallet_address.ilike.${address},wallet_address.eq.${address.toLowerCase()},wallet_address.eq.${address}`)
+                    .limit(1);
 
-                if (data) {
+                if (data && data.length > 0) {
+                    const player = data[0];
                     setProfile({
-                        ...data,
-                        displayName: (data.username && !data.username.startsWith('0x')) ? data.username : "Guest " + address.slice(-6).toUpperCase()
+                        ...player,
+                        displayName: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + address.slice(-6).toUpperCase()
                     });
+                } else if (error) {
+                    console.error('Profile fetch error:', error);
                 }
             } else {
                 setProfile(null);
