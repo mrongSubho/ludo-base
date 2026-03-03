@@ -62,7 +62,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
             if (!error && data) {
                 const formattedData = data.map(player => ({
                     id: player.wallet_address,
-                    name: player.username || player.wallet_address.slice(-6).toUpperCase(),
+                    name: player.username || "Guest " + player.wallet_address.slice(-6).toUpperCase(),
                     avatar: player.avatar_url,
                     wins: player.total_wins,
                     lastWin: new Date(player.last_played_at).getTime(),

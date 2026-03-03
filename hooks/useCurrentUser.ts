@@ -18,7 +18,7 @@ export function useCurrentUser() {
                 if (data) {
                     setProfile({
                         ...data,
-                        displayName: data.username || address.slice(-6).toUpperCase()
+                        displayName: data.username || "Guest " + address.slice(-6).toUpperCase()
                     });
                 }
             } else {
@@ -45,7 +45,7 @@ export function useCurrentUser() {
                             username: payload.new.username,
                             avatar_url: payload.new.avatar_url,
                             fid: payload.new.fid,
-                            displayName: payload.new.username || address.slice(-6).toUpperCase()
+                            displayName: payload.new.username || "Guest " + address.slice(-6).toUpperCase()
                         });
                     }
                 )
@@ -57,7 +57,7 @@ export function useCurrentUser() {
         }
     }, [address, isConnected]);
 
-    const displayName = profile?.displayName || (address ? address.slice(-6).toUpperCase() : 'Guest');
+    const displayName = profile?.displayName || (address ? "Guest " + address.slice(-6).toUpperCase() : 'Guest');
 
     return { profile, address, isConnected, displayName };
 }

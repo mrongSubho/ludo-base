@@ -72,7 +72,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                     if (data.friends) {
                         const formatted = data.friends.map((friend: any) => ({
                             ...friend,
-                            displayName: friend.username || friend.wallet_address.slice(-6).toUpperCase(),
+                            displayName: friend.username || "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
                             status: 'Online'
                         }));
                         setGameFriends(formatted);
@@ -98,7 +98,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 if (data) {
                     const formatted = data.map((item: any) => {
                         const p = item.friend;
-                        const displayName = p.username || p.wallet_address.slice(-6).toUpperCase();
+                        const displayName = p.username || "Guest " + p.wallet_address.slice(-6).toUpperCase();
                         return {
                             ...p,
                             displayName,
