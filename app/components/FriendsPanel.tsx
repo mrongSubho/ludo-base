@@ -1,7 +1,7 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAccount } from 'wagmi';
+import { supabase } from '@/lib/supabase';
 
 interface FriendsPanelProps {
     onClose: () => void;
@@ -26,28 +26,6 @@ interface Request {
     time: string;
 }
 
-// ── Mock Data ──
-const GAME_FRIENDS: Friend[] = [
-    { id: '1', name: 'AlexD', avatar: '1', status: 'In Match' },
-    { id: '2', name: 'Sarah_99', avatar: '2', status: 'Online' },
-    { id: '3', name: 'MikePro', avatar: '5', status: 'Offline' },
-    { id: '4', name: 'JenPlays', avatar: '4', status: 'Online' },
-];
-
-const BASE_FRIENDS: Friend[] = [
-    { id: '5', name: 'Chris_H', avatar: '3', status: 'Online' },
-    { id: '6', name: 'EmmaWin', avatar: '6', status: 'Offline' },
-    { id: '7', name: 'DavidL', avatar: '7', status: 'In Match' },
-];
-
-const INCOMING_REQUESTS: Request[] = [
-    { id: '8', name: 'TomRider', avatar: '8', time: '2h ago' },
-    { id: '9', name: 'LisaFox', avatar: '2', time: '5h ago' },
-];
-
-const SENT_REQUESTS: Request[] = [
-    { id: '10', name: 'SamNinja', avatar: '5', time: '1d ago' },
-];
 
 // SVG Icons
 const DMIcon = () => (
@@ -71,8 +49,44 @@ const RejectIcon = () => (
 
 
 export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
+    const { address: connectedAddress } = useAccount();
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('game');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
+
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchFriends() {
+            if (!connectedAddress) return;
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('friendships')
+                    .select('*, friend:players!friendships_friend_address_fkey(username, avatar_url, total_wins)')
+                    .eq('user_address', connectedAddress.toLowerCase());
+
+                if (error) throw error;
+
+                if (data) {
+                    const mappedFriends: Friend[] = data.map((item: any) => ({
+                        id: item.friend_address,
+                        name: item.friend.username || 'Anonymous',
+                        avatar: item.friend.avatar_url,
+                        status: 'Online' // Mocking online status for now
+                    }));
+                    setFriends(mappedFriends);
+                }
+            } catch (err) {
+                console.error('Error fetching friends:', err);
+            } finally {
+                setIsLoading(true); // Keeping loading state high for consistent UI or set to false
+                setIsLoading(false);
+            }
+        }
+
+        fetchFriends();
+    }, [connectedAddress]);
 
     // Renders the list items for Game/Base Friends
     const renderFriendList = (friends: Friend[]) => {
@@ -84,7 +98,13 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
             <div key={friend.id} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e]">
-                        <img src={`/avatars/${friend.avatar}.png`} alt={friend.name} className="w-full h-full object-cover" />
+                        {friend.avatar ? (
+                            <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl bg-indigo-500/20 text-indigo-400">
+                                {friend.name.slice(0, 1)}
+                            </div>
+                        )}
                         <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
               ${friend.status === 'Online' ? 'bg-green-500' : friend.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
                         />
@@ -222,18 +242,18 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                         {activeMainTab === 'game' && (
                             <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Game Friends ({GAME_FRIENDS.length})
+                                    Game Friends ({friends.length})
                                 </div>
-                                {renderFriendList(GAME_FRIENDS)}
+                                {renderFriendList(friends)}
                             </motion.div>
                         )}
 
                         {activeMainTab === 'base' && (
                             <motion.div key="base" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Base Friends ({BASE_FRIENDS.length})
+                                    Base Friends (0)
                                 </div>
-                                {renderFriendList(BASE_FRIENDS)}
+                                {renderFriendList([])}
                             </motion.div>
                         )}
 
@@ -246,7 +266,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                                         className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'incoming' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
                                         onClick={() => setActiveRequestTab('incoming')}
                                     >
-                                        Incoming ({INCOMING_REQUESTS.length})
+                                        Incoming (0)
                                         {activeRequestTab === 'incoming' && (
                                             <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-full" />
                                         )}
@@ -255,7 +275,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                                         className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'sent' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
                                         onClick={() => setActiveRequestTab('sent')}
                                     >
-                                        Sent ({SENT_REQUESTS.length})
+                                        Sent (0)
                                         {activeRequestTab === 'sent' && (
                                             <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-full" />
                                         )}
@@ -264,8 +284,8 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
 
                                 <div className="mt-2">
                                     {activeRequestTab === 'incoming'
-                                        ? renderRequestList(INCOMING_REQUESTS, true)
-                                        : renderRequestList(SENT_REQUESTS, false)
+                                        ? renderRequestList([], true)
+                                        : renderRequestList([], false)
                                     }
                                 </div>
 

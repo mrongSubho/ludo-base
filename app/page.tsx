@@ -16,6 +16,7 @@ import MessagesPanel from './components/MessagesPanel';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { useAccount, useDisconnect } from 'wagmi';
+import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
@@ -399,8 +400,23 @@ export default function Page() {
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { incomingAction, sendAction, isHost } = useMultiplayer();
+
+  // Real-time Identity
+  const { data: onchainName } = useName({ address: address as `0x${string}` });
+  const { data: onchainAvatar } = useAvatar({ ensName: onchainName ?? '' }, { enabled: !!onchainName });
+  const [fcContext, setFcContext] = useState<any>(null);
+
+  useEffect(() => {
+    import('@farcaster/frame-sdk').then(({ sdk }) => {
+      sdk.context.then(setFcContext);
+    });
+  }, []);
+
+  const fcUser = fcContext?.user;
+  const finalName = fcUser?.username || onchainName || (address ? address.slice(0, 6) + '...' + address.slice(-4) : 'Player');
+  const finalAvatar = fcUser?.pfpUrl || onchainAvatar || null;
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
@@ -500,10 +516,12 @@ export default function Page() {
                   </div>
                 </div>
                 <div className="header-center">
-                  <div className="user-avatar-mini">{USER.avatar}</div>
+                  <div className="user-avatar-mini">
+                    {finalAvatar ? <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover rounded-full" /> : <span>🎮</span>}
+                  </div>
                   <div className="user-info-mini">
-                    <span className="user-name-mini">{USER.name}</span>
-                    <span className="user-level-mini">Lv.{USER.level}</span>
+                    <span className="user-name-mini">{finalName}</span>
+                    <span className="user-level-mini">Lv.8</span>
                   </div>
                 </div>
                 <div className="header-right">
@@ -535,10 +553,6 @@ export default function Page() {
               </header>
 
               <main className="dash-main pb-safe-footer px-safe">
-                {/* Game Lobby Foundation */}
-                <section className="dash-section">
-                  <GameLobby />
-                </section>
 
                 {/* Game Modes Section */}
                 <section className="dash-section">

@@ -477,7 +477,17 @@ export default function Board({
                 handleRoll(incomingAction.value, true);
                 break;
             case 'MOVE_TOKEN':
-                moveToken(incomingAction.color, incomingAction.tokenIndex, incomingAction.steps, true);
+                const { color, tokenIndex, steps, targetPosition } = incomingAction.payload;
+                moveToken(color, tokenIndex, steps, true, targetPosition);
+                break;
+            case 'NEXT_TURN':
+                setGameState(prev => ({
+                    ...prev,
+                    gamePhase: 'rolling',
+                    currentPlayer: getNextPlayer(prev.currentPlayer),
+                    diceValue: null,
+                    timeLeft: 15,
+                }));
                 break;
             case 'SYNC_PROFILE':
                 setPlayers(prev => prev.map(p => {
@@ -604,29 +614,31 @@ export default function Board({
         }, 250);
     }, []);
 
-    const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number, isRemote = false) => {
+    const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number, isRemote = false, targetPosition?: number) => {
         setGameState((prev) => {
             if (prev.winner) return prev;
 
             const newPositions = { ...prev.positions };
             const currentPos = newPositions[color][tokenIndex];
 
-            let nextPos = currentPos;
-            if (currentPos === -1) {
-                if (steps === 6) nextPos = 0;
-            } else {
-                nextPos = currentPos + steps;
-                if (nextPos > 57) {
-                    setGameState(s => ({ ...s, invalidMove: true }));
-                    setTimeout(() => setGameState(s => ({ ...s, invalidMove: false })), 500);
+            const nextPos = targetPosition !== undefined ? targetPosition : (currentPos === -1 ? (steps === 6 ? 0 : -1) : currentPos + steps);
 
-                    return {
-                        ...prev,
-                        gamePhase: 'rolling',
-                        currentPlayer: getNextPlayer(prev.currentPlayer),
-                        timeLeft: 15,
-                    };
+            if (nextPos > 57) {
+                setGameState(s => ({ ...s, invalidMove: true }));
+                setTimeout(() => setGameState(s => ({ ...s, invalidMove: false })), 500);
+
+                const nextPlayer = getNextPlayer(prev.currentPlayer);
+                if (!isRemote) {
+                    sendAction('NEXT_TURN');
                 }
+
+                return {
+                    ...prev,
+                    gamePhase: 'rolling',
+                    currentPlayer: nextPlayer,
+                    timeLeft: 15,
+                    diceValue: null
+                };
             }
 
             if (nextPos === currentPos) return prev;
@@ -636,7 +648,14 @@ export default function Board({
 
             // Broadcast move if local
             if (!isRemote) {
-                sendAction('MOVE_TOKEN', { color, tokenIndex, steps });
+                sendAction('MOVE_TOKEN', {
+                    payload: {
+                        color,
+                        tokenIndex,
+                        steps,
+                        targetPosition: nextPos
+                    }
+                });
             }
 
             let captured = false;
@@ -693,6 +712,10 @@ export default function Board({
 
             const gameEnded = (playerCount === '2v2') ? teamWon : hasWon;
             const newPlayer = (steps === 6 || captured) ? prev.currentPlayer : getNextPlayer(prev.currentPlayer);
+
+            if (!isRemote && newPlayer !== prev.currentPlayer) {
+                sendAction('NEXT_TURN');
+            }
 
             return {
                 ...prev,

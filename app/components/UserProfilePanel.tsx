@@ -2,12 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAccount } from 'wagmi';
+import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 
-const AVATARS = ['🎮', '👾', '🦊', '🦁', '🐉', '🤖', '💀', '👽'];
 
 export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
-    const [name, setName] = useState('Player');
-    const [avatarIndex, setAvatarIndex] = useState(0);
+    const { address } = useAccount();
+    const { data: onchainName } = useName({ address: address as `0x${string}` });
+    const { data: onchainAvatar } = useAvatar({ ensName: onchainName ?? '' }, { enabled: !!onchainName });
+    const [fcContext, setFcContext] = useState<any>(null);
+
+    useEffect(() => {
+        import('@farcaster/frame-sdk').then(({ sdk }) => {
+            sdk.context.then(setFcContext);
+        });
+    }, []);
+
+    const fcUser = fcContext?.user;
+    const displayName = fcUser?.username || onchainName || (address ? address.slice(0, 6) + '...' + address.slice(-4) : 'Player');
+    const displayAvatar = fcUser?.pfpUrl || onchainAvatar || null;
+
     const [isPublic, setIsPublic] = useState(true);
     const [allowRequests, setAllowRequests] = useState(true);
 
@@ -18,11 +32,6 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
         return () => clearTimeout(timer);
     }, []);
 
-    const handleAvatarCycle = () => {
-        setAvatarIndex((prev) => (prev + 1) % AVATARS.length);
-    };
-
-    const currentAvatar = AVATARS[avatarIndex];
 
     // Calculate SVG stroke offset for the 78% chart
     const radius = 36;
@@ -75,31 +84,22 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-6 custom-scrollbar">
 
-                    {/* Identity Section */}
                     <div className="flex flex-col items-center glass-card relative">
                         <div
-                            className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-4xl mb-4 relative shadow-lg"
-                            onClick={handleAvatarCycle}
-                            title="Click to change Avatar"
+                            className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-4xl mb-4 relative shadow-lg overflow-hidden"
+                            title="Your Profile Avatar"
                         >
-                            <div className="w-full h-full bg-[#1a1c29] rounded-full flex items-center justify-center">
-                                {currentAvatar}
-                            </div>
-                            <div className="absolute bottom-0 right-0 w-7 h-7 bg-indigo-500 rounded-full border-2 border-[#1a1c29] flex items-center justify-center text-white">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-                                </svg>
+                            <div className="w-full h-full bg-[#1a1c29] rounded-full flex items-center justify-center overflow-hidden">
+                                {displayAvatar ? (
+                                    <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span>🎮</span>
+                                )}
                             </div>
                         </div>
 
                         <div className="flex flex-col items-center w-full max-w-[200px]">
-                            <input
-                                type="text"
-                                className="w-full bg-transparent text-center text-2xl font-bold text-white focus:outline-none focus:bg-white/5 rounded-lg py-1 transition-colors"
-                                value={name}
-                                onChange={(e) => setName(e.target.value.slice(0, 12))}
-                                maxLength={12}
-                            />
+                            <h2 className="text-2xl font-bold text-white py-1">{displayName}</h2>
                             <div className="flex items-center gap-2 mt-2 bg-black/40 px-3 py-1 rounded-full border border-white/10">
                                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-slate-400">Silver II</span>
                                 <div className="w-1 h-1 bg-white/30 rounded-full" />
