@@ -405,7 +405,7 @@ export default function Page() {
   const { profile, address, isConnected } = useCurrentUser();
   const { incomingAction, sendAction, isHost } = useMultiplayer();
 
-  const finalName = profile?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Guest');
+  const finalName = profile?.displayName || 'Guest';
   const finalAvatar = profile?.avatar_url || null;
 
   // Match Configuration State

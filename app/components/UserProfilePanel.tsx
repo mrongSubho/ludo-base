@@ -7,8 +7,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
     const { profile, address } = useCurrentUser();
 
-    const displayName = profile?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Guest');
-    const displayAvatar = profile?.avatar_url || null;
+    const finalName = profile?.displayName || 'Guest';
+    const finalAvatar = profile?.avatar_url || null;
 
     const [isPublic, setIsPublic] = useState(true);
     const [allowRequests, setAllowRequests] = useState(true);
@@ -78,8 +78,8 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                             title="Your Profile Avatar"
                         >
                             <div className="w-full h-full bg-[#1a1c29] rounded-full flex items-center justify-center overflow-hidden">
-                                {displayAvatar ? (
-                                    <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
+                                {finalAvatar ? (
+                                    <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
                                 ) : (
                                     <span>🎮</span>
                                 )}
@@ -87,7 +87,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                         </div>
 
                         <div className="flex flex-col items-center w-full max-w-[200px]">
-                            <h2 className="text-2xl font-bold text-white py-1">{displayName}</h2>
+                            <h2 className="text-2xl font-bold text-white py-1">{finalName}</h2>
                             <div className="flex items-center gap-2 mt-2 bg-black/40 px-3 py-1 rounded-full border border-white/10">
                                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-slate-400">Silver II</span>
                                 <div className="w-1 h-1 bg-white/30 rounded-full" />

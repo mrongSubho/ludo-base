@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export function useCurrentUser() {
     const { address, isConnected } = useAccount();
-    const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null; fid: number | null } | null>(null);
+    const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null; fid: number | null; displayName: string } | null>(null);
 
     useEffect(() => {
         async function fetchProfile() {
@@ -16,7 +16,10 @@ export function useCurrentUser() {
                     .single();
 
                 if (data) {
-                    setProfile(data);
+                    setProfile({
+                        ...data,
+                        displayName: data.username || address.slice(-6).toUpperCase()
+                    });
                 }
             } else {
                 setProfile(null);
@@ -41,7 +44,8 @@ export function useCurrentUser() {
                         setProfile({
                             username: payload.new.username,
                             avatar_url: payload.new.avatar_url,
-                            fid: payload.new.fid
+                            fid: payload.new.fid,
+                            displayName: payload.new.username || address.slice(-6).toUpperCase()
                         });
                     }
                 )

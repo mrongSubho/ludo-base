@@ -8,7 +8,7 @@ interface FriendsPanelProps {
     onDM?: (friendId: string) => void;
 }
 
-type MainTab = 'game' | 'base' | 'requests';
+type MainTab = 'game' | 'onchain' | 'requests';
 type RequestTab = 'incoming' | 'sent';
 
 // Define the mock friend interfaces
@@ -80,21 +80,32 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                     }
                 }
 
-                // 2. Fallback to Supabase Friendships
+                // 2. Fetch live friendships from Supabase
                 const { data, error } = await supabase
                     .from('friendships')
-                    .select('*, friend:players!friendships_friend_address_fkey(username, avatar_url, total_wins)')
+                    .select(`
+                        status,
+                        friend:players!friendships_friend_address_fkey(
+                            wallet_address,
+                            username,
+                            avatar_url,
+                            total_wins
+                        )
+                    `)
                     .eq('user_address', connectedAddress.toLowerCase());
 
                 if (error) throw error;
 
                 if (data) {
-                    const formatted = data.map((item: any) => ({
-                        ...item.friend,
-                        wallet_address: item.friend_address,
-                        displayName: item.friend.username || item.friend_address.slice(-6).toUpperCase(),
-                        status: 'Online'
-                    }));
+                    const formatted = data.map((item: any) => {
+                        const p = item.friend;
+                        const displayName = p.username || p.wallet_address.slice(-6).toUpperCase();
+                        return {
+                            ...p,
+                            displayName,
+                            status: item.status === 'accepted' ? 'Online' : 'Offline'
+                        };
+                    });
                     setFriendsList(formatted);
                 }
             } catch (err) {
@@ -117,13 +128,11 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
             <div key={friend.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e]">
-                        {friend.avatar_url ? (
-                            <img src={friend.avatar_url} alt={friend.displayName} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xl bg-indigo-500/20 text-indigo-400">
-                                {friend.displayName.slice(0, 1)}
-                            </div>
-                        )}
+                        <img
+                            src={friend.avatar_url || '/default-avatar.png'}
+                            alt={friend.displayName}
+                            className="w-full h-full object-cover"
+                        />
                         <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
               ${friend.status === 'Online' ? 'bg-green-500' : friend.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
                         />
@@ -240,10 +249,10 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                             Game Friends
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'base' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
-                            onClick={() => setActiveMainTab('base')}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'onchain' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            onClick={() => setActiveMainTab('onchain')}
                         >
-                            Base Friends
+                            Onchain Friends
                         </button>
                         <button
                             className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
@@ -267,12 +276,12 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                             </motion.div>
                         )}
 
-                        {activeMainTab === 'base' && (
-                            <motion.div key="base" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
+                        {activeMainTab === 'onchain' && (
+                            <motion.div key="onchain" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Base Friends (0)
+                                    Onchain Friends ({friendsList.filter(f => !f.username?.includes('.eth')).length})
                                 </div>
-                                {renderFriendList([])}
+                                {renderFriendList(friendsList.filter(f => !f.username?.includes('.eth')))}
                             </motion.div>
                         )}
 
