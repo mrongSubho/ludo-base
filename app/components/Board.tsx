@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { useAudio } from '../hooks/useAudio';
-import { useMultiplayer } from '../hooks/useMultiplayer';
+import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { useAccount } from 'wagmi';
+import { recordMatchResult } from '@/lib/matchRecorder';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
 // Diagonal-opposite pairs:  Green ↔ Blue  |  Red ↔ Yellow
@@ -29,6 +31,7 @@ interface Player {
     color: 'green' | 'red' | 'yellow' | 'blue';
     position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     isAi?: boolean;
+    walletAddress?: string;
 }
 
 export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
@@ -407,8 +410,23 @@ export default function Board({
     const setPlayerPaths = (_paths: Record<string, Point[]>) => { }; // merged into setColorCorner
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
+    const { address } = useAccount();
+    const hasRecordedWin = useRef<boolean>(false);
+
     // Dynamic path cells re-computed whenever the color arrangement changes
     const pathCells = useMemo(() => buildPathCellsDynamic(colorCorner), [colorCorner]);
+
+    // Update local player's wallet address when connected
+    useEffect(() => {
+        if (address) {
+            setPlayers(prev => prev.map(p => {
+                if (p.name === 'Alex' && !p.isAi) {
+                    return { ...p, walletAddress: address };
+                }
+                return p;
+            }));
+        }
+    }, [address]);
     const [gameState, setGameState] = useState({
         positions: {
             green: [-1, -1, -1, -1],
@@ -448,22 +466,41 @@ export default function Board({
         }
     });
 
-    const onPeerStateUpdate = useCallback((newState: any) => {
-        setGameState(s => ({ ...s, ...newState }));
-    }, []);
+    const { incomingAction, sendAction, roomId } = useMultiplayer();
 
-    const { peerId, connectToPeer, broadcastState, isHost, status } = useMultiplayer(onPeerStateUpdate);
-
-    // Auto-broadcast state on change IF we are host or connected
+    // --- Multiplayer Action Sync ---
     useEffect(() => {
-        if (status !== 'idle') {
-            broadcastState(gameState);
+        if (!incomingAction) return;
+
+        switch (incomingAction.type) {
+            case 'ROLL_DICE':
+                handleRoll(incomingAction.value, true);
+                break;
+            case 'MOVE_TOKEN':
+                moveToken(incomingAction.color, incomingAction.tokenIndex, incomingAction.steps, true);
+                break;
+            case 'SYNC_PROFILE':
+                setPlayers(prev => prev.map(p => {
+                    if (p.name !== 'Alex' && !p.isAi && !p.walletAddress) {
+                        return { ...p, walletAddress: incomingAction.address };
+                    }
+                    return p;
+                }));
+                break;
         }
-    }, [gameState, status, broadcastState]);
+    }, [incomingAction]);
 
     const checkWin = useCallback((positions: typeof gameState.positions, color: Player['color']) => {
         return positions[color].every((pos) => pos === 57);
     }, []);
+
+    const getNextPlayer = useCallback((current: Player['color']): Player['color'] => {
+        const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
+        const activeColors = players.map(p => p.color);
+        const activeOrder = order.filter(c => activeColors.includes(c));
+        const idx = activeOrder.indexOf(current);
+        return activeOrder[(idx + 1) % activeOrder.length];
+    }, [players]);
 
     const resetGame = useCallback(() => {
         const newCC = shuffleColorCorner();
@@ -505,10 +542,11 @@ export default function Board({
         });
     }, [playerCount, gameMode, pathCells]);
 
-    const recordWin = useCallback((winnerColor: Player['color']) => {
+    const recordWin = useCallback(async (winnerColor: Player['color']) => {
         const player = players.find(p => p.color === winnerColor);
         if (!player) return;
 
+        // 1. Local Leaderboard (Legacy)
         const data = localStorage.getItem('ludo-leaderboard');
         const stats = data ? JSON.parse(data) : {};
 
@@ -523,10 +561,25 @@ export default function Board({
 
         stats[player.name].wins += 1;
         stats[player.name].lastWin = Date.now();
-        stats[player.name].color = player.color; // Update color in case alex plays different color
+        stats[player.name].color = player.color;
 
         localStorage.setItem('ludo-leaderboard', JSON.stringify(stats));
-    }, []);
+
+        // 2. Supabase Match Recording (New)
+        if (address && player.walletAddress === address && !hasRecordedWin.current) {
+            hasRecordedWin.current = true;
+            const participants = players
+                .map(p => p.walletAddress)
+                .filter(Boolean) as string[];
+
+            await recordMatchResult(
+                address,
+                roomId || 'local',
+                gameMode,
+                participants
+            );
+        }
+    }, [players, address, roomId, gameMode]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;
@@ -536,17 +589,14 @@ export default function Board({
             spread: 360,
             ticks: 60,
             zIndex: 0,
-            colors: ['#A8E6CF', '#FFD3B6', '#D4F1F4', '#FFEFBA'] // Sage, Rose, Sky, Amber
+            colors: ['#A8E6CF', '#FFD3B6', '#D4F1F4', '#FFEFBA']
         };
 
         const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
         const interval: any = setInterval(function () {
             const timeLeft = animationEnd - Date.now();
-
-            if (timeLeft <= 0) {
-                return clearInterval(interval);
-            }
+            if (timeLeft <= 0) return clearInterval(interval);
 
             const particleCount = 50 * (timeLeft / duration);
             confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
@@ -554,7 +604,7 @@ export default function Board({
         }, 250);
     }, []);
 
-    const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number) => {
+    const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number, isRemote = false) => {
         setGameState((prev) => {
             if (prev.winner) return prev;
 
@@ -563,11 +613,10 @@ export default function Board({
 
             let nextPos = currentPos;
             if (currentPos === -1) {
-                if (steps === 6) nextPos = 0; // Start
+                if (steps === 6) nextPos = 0;
             } else {
                 nextPos = currentPos + steps;
                 if (nextPos > 57) {
-                    // --- OVERSHOOT FEEDBACK ---
                     setGameState(s => ({ ...s, invalidMove: true }));
                     setTimeout(() => setGameState(s => ({ ...s, invalidMove: false })), 500);
 
@@ -575,43 +624,40 @@ export default function Board({
                         ...prev,
                         gamePhase: 'rolling',
                         currentPlayer: getNextPlayer(prev.currentPlayer),
-                        timeLeft: 15, // Reset Timer on turn pass
+                        timeLeft: 15,
                     };
                 }
             }
 
-            if (nextPos === currentPos) return prev; // No move made
+            if (nextPos === currentPos) return prev;
 
             newPositions[color][tokenIndex] = nextPos;
             playMove();
 
-            // --- CAPTURE LOGIC ---
+            // Broadcast move if local
+            if (!isRemote) {
+                sendAction('MOVE_TOKEN', { color, tokenIndex, steps });
+            }
+
             let captured = false;
             let capturedColor = '';
-            if (nextPos >= 0 && nextPos < 52) { // Only on shared path
+            if (nextPos >= 0 && nextPos < 52) {
                 const targetPoint = playerPaths[color][nextPos];
                 const isSafeSquare = SAFE_POSITIONS.some((p: Point) => p.r === targetPoint.r && p.c === targetPoint.c);
 
                 if (!isSafeSquare) {
-                    // Check other players for capture
                     (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
                         if (otherColor !== color && players.some(p => p.color === otherColor)) {
-                            // In 2v2, do not capture teammates
-                            if (playerCount === '2v2' && getTeam(otherColor) === getTeam(color)) {
-                                return; // skip
-                            }
+                            if (playerCount === '2v2' && getTeam(otherColor) === getTeam(color)) return;
                             const playerPositions = newPositions[otherColor];
-                            let playerCaptured = false;
-
                             newPositions[otherColor] = playerPositions.map(otherPos => {
                                 if (otherPos >= 0 && otherPos < 52) {
                                     const otherPoint = playerPaths[otherColor][otherPos];
                                     if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
                                         captured = true;
-                                        playerCaptured = true;
                                         capturedColor = otherColor;
                                         playCapture();
-                                        return -1; // Reset to Home
+                                        return -1;
                                     }
                                 }
                                 return otherPos;
@@ -621,24 +667,19 @@ export default function Board({
                 }
             }
 
-            // --- WIN CHECK ---
             const hasWon = checkWin(newPositions, color);
             const newWinners = [...prev.winners];
             let teamWon = false;
 
             if (hasWon && !newWinners.includes(color)) {
                 newWinners.push(color);
-
                 if (playerCount === '2v2') {
-                    // Check if teammate also won
                     const teammate = (color === 'green' || color === 'blue')
                         ? (color === 'green' ? 'blue' : 'green')
                         : (color === 'red' ? 'yellow' : 'red');
-                    if (newWinners.includes(teammate)) {
-                        teamWon = true;
-                    }
+                    if (newWinners.includes(teammate)) teamWon = true;
                 } else {
-                    teamWon = true; // Solo win
+                    teamWon = true;
                 }
 
                 if (teamWon) {
@@ -661,30 +702,18 @@ export default function Board({
                 winner: gameEnded ? color : prev.winner,
                 winners: newWinners,
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
-                timeLeft: 15, // Reset timer whenever turn passes or bonus turn
-                strikes: { ...prev.strikes, [color]: 0 }, // Reset strikes when they successfully make a move
+                timeLeft: 15,
+                strikes: { ...prev.strikes, [color]: 0 },
             };
         });
-    }, [checkWin, triggerWinConfetti]);
+    }, [checkWin, triggerWinConfetti, sendAction, players, playerCount, playerPaths, getNextPlayer, playMove, playCapture, playWin, recordWin]);
 
-    const getNextPlayer = (current: Player['color']): Player['color'] => {
-        const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
-        const activeColors = players.map(p => p.color);
-        const activeOrder = order.filter(c => activeColors.includes(c));
-        const idx = activeOrder.indexOf(current);
-        return activeOrder[(idx + 1) % activeOrder.length];
-    };
 
     const handleUsePower = useCallback((color: Player['color']) => {
         setGameState(prev => {
             if (prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return prev;
-
             const power = prev.playerPowers[color as PlayerColor];
             if (!power) return prev;
-
-            console.log(`Used power: ${power}`);
-
-            // Consume power
             return {
                 ...prev,
                 playerPowers: { ...prev.playerPowers, [color]: null }
@@ -692,21 +721,18 @@ export default function Board({
         });
     }, []);
 
-    const handleRoll = (value: number) => {
+    const handleRoll = useCallback((value: number, isRemote = false) => {
+        if (!isRemote) {
+            sendAction('ROLL_DICE', { value });
+        }
         setGameState((prev) => {
             const color = prev.currentPlayer;
             let hasValidMove = false;
-
-            // Check if player has any moves with this roll
             prev.positions[color].forEach((pos) => {
-                if (pos === -1 && value === 6) {
-                    hasValidMove = true;
-                } else if (pos >= 0 && pos + value <= 57) {
-                    hasValidMove = true;
-                }
+                if (pos === -1 && value === 6) hasValidMove = true;
+                else if (pos >= 0 && pos + value <= 57) hasValidMove = true;
             });
 
-            // If no valid moves exist (e.g. rolled 3 and all tokens at home), auto-skip
             if (!hasValidMove) {
                 return {
                     ...prev,
@@ -725,14 +751,13 @@ export default function Board({
                 gamePhase: 'moving',
                 captureMessage: null,
                 invalidMove: false,
-                timeLeft: 15, // Reset timer for move phase
+                timeLeft: 15,
             };
         });
-    };
+    }, [getNextPlayer, sendAction]);
 
     const handleTokenClick = (color: Player['color'], tokenIndex: number) => {
         if (gameState.currentPlayer !== color || gameState.gamePhase !== 'moving' || gameState.diceValue === null) return;
-
         moveToken(color, tokenIndex, gameState.diceValue);
     };
 

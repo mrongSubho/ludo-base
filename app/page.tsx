@@ -16,6 +16,7 @@ import MessagesPanel from './components/MessagesPanel';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { useAccount, useDisconnect } from 'wagmi';
+import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -397,8 +398,9 @@ export default function Page() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(true); // Default true for demo
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
   const { isConnected } = useAccount();
+  const { incomingAction, sendAction, isHost } = useMultiplayer();
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
@@ -444,6 +446,14 @@ export default function Page() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // --- Multiplayer Game Start Sync ---
+  useEffect(() => {
+    if (!incomingAction) return;
+    if (incomingAction.type === 'START_GAME') {
+      setAppState('game');
+    }
+  }, [incomingAction]);
+
   if (!isMounted) {
     return (
       <div className="loading-shell">
@@ -456,6 +466,9 @@ export default function Page() {
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
   const handlePlayNow = () => {
+    if (isHost) {
+      sendAction('START_GAME');
+    }
     setAppState('game');
   };
 

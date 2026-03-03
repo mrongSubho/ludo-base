@@ -5,7 +5,7 @@ import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 export default function GameLobby() {
     const [inputRoomId, setInputRoomId] = useState('');
-    const { roomId, isLobbyConnected, lastRoll, hostGame, joinGame, rollDice } = useMultiplayer();
+    const { roomId, isLobbyConnected, isHost, lastRoll, hostGame, joinGame, rollDice, sendAction } = useMultiplayer();
 
     const handleHost = () => {
         hostGame();
@@ -37,7 +37,16 @@ export default function GameLobby() {
                     </button>
                 </div>
 
-                <p className="text-white/40 text-sm animate-pulse italic">Ready to start the game soon...</p>
+                {isHost ? (
+                    <button
+                        onClick={() => sendAction('START_GAME')}
+                        className="w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 active:scale-95 text-lg uppercase tracking-wider"
+                    >
+                        🚀 Start Game
+                    </button>
+                ) : (
+                    <p className="text-white/40 text-sm animate-pulse italic">Waiting for host to start...</p>
+                )}
             </div>
         );
     }

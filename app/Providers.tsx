@@ -9,6 +9,7 @@ import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
+import { MultiplayerProvider } from "@/hooks/MultiplayerContext";
 
 const config = createConfig({
     chains: [base, baseSepolia],
@@ -37,8 +38,10 @@ export function Providers({ children }: { children: ReactNode }) {
                     chain={base}
                 >
                     <FrameProvider>
-                        <ProfileSyncer />
-                        {children}
+                        <MultiplayerProvider>
+                            <ProfileSyncer />
+                            {children}
+                        </MultiplayerProvider>
                     </FrameProvider>
                 </OnchainKitProvider>
             </QueryClientProvider>
