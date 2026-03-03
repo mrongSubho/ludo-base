@@ -392,6 +392,8 @@ const SplashScreen = () => (
   </motion.div>
 );
 
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+
 export default function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>('dashboard');
@@ -400,23 +402,11 @@ export default function Page() {
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
-  const { isConnected, address } = useAccount();
+  const { profile, address, isConnected } = useCurrentUser();
   const { incomingAction, sendAction, isHost } = useMultiplayer();
 
-  // Real-time Identity
-  const { data: onchainName } = useName({ address: address as `0x${string}` });
-  const { data: onchainAvatar } = useAvatar({ ensName: onchainName ?? '' }, { enabled: !!onchainName });
-  const [fcContext, setFcContext] = useState<any>(null);
-
-  useEffect(() => {
-    import('@farcaster/frame-sdk').then(({ sdk }) => {
-      sdk.context.then(setFcContext);
-    });
-  }, []);
-
-  const fcUser = fcContext?.user;
-  const finalName = fcUser?.username || onchainName || (address ? address.slice(0, 6) + '...' + address.slice(-4) : 'Player');
-  const finalAvatar = fcUser?.pfpUrl || onchainAvatar || null;
+  const finalName = profile?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Guest');
+  const finalAvatar = profile?.avatar_url || null;
 
   // Match Configuration State
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');

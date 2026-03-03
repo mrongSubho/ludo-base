@@ -66,7 +66,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                     avatar: player.avatar_url,
                     wins: player.total_wins,
                     lastWin: new Date(player.last_played_at).getTime(),
-                    isCurrentUser: player.wallet_address === address,
+                    isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
                     ...getTierFromWins(player.total_wins)
                 }));
                 setLeaders(formattedData);

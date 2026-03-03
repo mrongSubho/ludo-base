@@ -2,25 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
-import { useName, useAvatar } from '@coinbase/onchainkit/identity';
-
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
-    const { address } = useAccount();
-    const { data: onchainName } = useName({ address: address as `0x${string}` });
-    const { data: onchainAvatar } = useAvatar({ ensName: onchainName ?? '' }, { enabled: !!onchainName });
-    const [fcContext, setFcContext] = useState<any>(null);
+    const { profile, address } = useCurrentUser();
 
-    useEffect(() => {
-        import('@farcaster/frame-sdk').then(({ sdk }) => {
-            sdk.context.then(setFcContext);
-        });
-    }, []);
-
-    const fcUser = fcContext?.user;
-    const displayName = fcUser?.username || onchainName || (address ? address.slice(0, 6) + '...' + address.slice(-4) : 'Player');
-    const displayAvatar = fcUser?.pfpUrl || onchainAvatar || null;
+    const displayName = profile?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Guest');
+    const displayAvatar = profile?.avatar_url || null;
 
     const [isPublic, setIsPublic] = useState(true);
     const [allowRequests, setAllowRequests] = useState(true);
