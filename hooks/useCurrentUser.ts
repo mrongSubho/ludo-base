@@ -12,7 +12,7 @@ export function useCurrentUser() {
                 const { data } = await supabase
                     .from('players')
                     .select('username, avatar_url, fid')
-                    .eq('wallet_address', address.toLowerCase())
+                    .ilike('wallet_address', address)
                     .single();
 
                 if (data) {
