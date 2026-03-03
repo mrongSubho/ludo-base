@@ -9,7 +9,20 @@ export function useMultiplayer() {
     const [roomId, setRoomId] = useState<string>('');
     const [connection, setConnection] = useState<DataConnection | null>(null);
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
+    const [lastRoll, setLastRoll] = useState<number | null>(null);
     const peerRef = useRef<Peer | null>(null);
+
+    const sendAction = (type: string, payload?: any) => {
+        if (connection && connection.open) {
+            connection.send({ type, ...payload });
+        }
+    };
+
+    const rollDice = () => {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        setLastRoll(roll);
+        sendAction('ROLL_DICE', { value: roll });
+    };
 
     const hostGame = () => {
         const customRoomId = generateShortId();
@@ -26,8 +39,11 @@ export function useMultiplayer() {
             setConnection(conn);
             setIsLobbyConnected(true);
 
-            conn.on('data', (data) => {
+            conn.on('data', (data: any) => {
                 console.log('📩 Received data:', data);
+                if (data.type === 'ROLL_DICE') {
+                    setLastRoll(data.value);
+                }
             });
 
             conn.on('close', () => {
@@ -58,8 +74,11 @@ export function useMultiplayer() {
                 setIsLobbyConnected(true);
             });
 
-            conn.on('data', (data) => {
+            conn.on('data', (data: any) => {
                 console.log('📩 Received data:', data);
+                if (data.type === 'ROLL_DICE') {
+                    setLastRoll(data.value);
+                }
             });
 
             conn.on('close', () => {
@@ -86,7 +105,9 @@ export function useMultiplayer() {
         roomId,
         connection,
         isLobbyConnected,
+        lastRoll,
         hostGame,
-        joinGame
+        joinGame,
+        rollDice
     };
 }
