@@ -4,14 +4,14 @@ import { supabase } from '@/lib/supabase';
 
 export function useCurrentUser() {
     const { address, isConnected } = useAccount();
-    const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null } | null>(null);
+    const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null; fid: number | null } | null>(null);
 
     useEffect(() => {
         async function fetchProfile() {
             if (isConnected && address) {
                 const { data } = await supabase
                     .from('players')
-                    .select('username, avatar_url')
+                    .select('username, avatar_url, fid')
                     .eq('wallet_address', address.toLowerCase())
                     .single();
 
@@ -38,7 +38,11 @@ export function useCurrentUser() {
                         filter: `wallet_address=eq.${address.toLowerCase()}`
                     },
                     (payload) => {
-                        setProfile({ username: payload.new.username, avatar_url: payload.new.avatar_url });
+                        setProfile({
+                            username: payload.new.username,
+                            avatar_url: payload.new.avatar_url,
+                            fid: payload.new.fid
+                        });
                     }
                 )
                 .subscribe();

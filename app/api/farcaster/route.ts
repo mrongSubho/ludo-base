@@ -20,6 +20,7 @@ export async function GET(request: Request) {
 
         if (user) {
             return NextResponse.json({
+                fid: user.fid,
                 displayName: user.display_name,
                 username: user.username,
                 avatarUrl: user.pfp_url

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface FriendsPanelProps {
     onClose: () => void;
@@ -13,9 +13,10 @@ type RequestTab = 'incoming' | 'sent';
 
 // Define the mock friend interfaces
 interface Friend {
-    id: string;
-    name: string;
-    avatar: string;
+    wallet_address: string;
+    username: string;
+    avatar_url: string;
+    displayName: string;
     status: 'Online' | 'In Match' | 'Offline';
 }
 
@@ -49,11 +50,13 @@ const RejectIcon = () => (
 
 
 export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
-    const { address: connectedAddress } = useAccount();
+    const { profile, address: connectedAddress } = useCurrentUser();
+    const userFid = profile?.fid;
+
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('game');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
 
-    const [friends, setFriends] = useState<Friend[]>([]);
+    const [friendsList, setFriendsList] = useState<Friend[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -61,6 +64,23 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
             if (!connectedAddress) return;
             setIsLoading(true);
             try {
+                // 1. Try Farcaster Social Graph if FID is available
+                if (userFid) {
+                    const res = await fetch(`/api/friends?fid=${userFid}`);
+                    const data = await res.json();
+                    if (data.friends) {
+                        const formatted = data.friends.map((friend: any) => ({
+                            ...friend,
+                            displayName: friend.username || friend.wallet_address.slice(-6).toUpperCase(),
+                            status: 'Online'
+                        }));
+                        setFriendsList(formatted);
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+
+                // 2. Fallback to Supabase Friendships
                 const { data, error } = await supabase
                     .from('friendships')
                     .select('*, friend:players!friendships_friend_address_fkey(username, avatar_url, total_wins)')
@@ -69,24 +89,23 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 if (error) throw error;
 
                 if (data) {
-                    const mappedFriends: Friend[] = data.map((item: any) => ({
-                        id: item.friend_address,
-                        name: item.friend.username || 'Anonymous',
-                        avatar: item.friend.avatar_url,
-                        status: 'Online' // Mocking online status for now
+                    const formatted = data.map((item: any) => ({
+                        ...item.friend,
+                        wallet_address: item.friend_address,
+                        displayName: item.friend.username || item.friend_address.slice(-6).toUpperCase(),
+                        status: 'Online'
                     }));
-                    setFriends(mappedFriends);
+                    setFriendsList(formatted);
                 }
             } catch (err) {
                 console.error('Error fetching friends:', err);
             } finally {
-                setIsLoading(true); // Keeping loading state high for consistent UI or set to false
                 setIsLoading(false);
             }
         }
 
         fetchFriends();
-    }, [connectedAddress]);
+    }, [connectedAddress, userFid]);
 
     // Renders the list items for Game/Base Friends
     const renderFriendList = (friends: Friend[]) => {
@@ -95,14 +114,14 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
         }
 
         return friends.map((friend) => (
-            <div key={friend.id} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+            <div key={friend.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e]">
-                        {friend.avatar ? (
-                            <img src={friend.avatar} alt={friend.name} className="w-full h-full object-cover" />
+                        {friend.avatar_url ? (
+                            <img src={friend.avatar_url} alt={friend.displayName} className="w-full h-full object-cover" />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-xl bg-indigo-500/20 text-indigo-400">
-                                {friend.name.slice(0, 1)}
+                                {friend.displayName.slice(0, 1)}
                             </div>
                         )}
                         <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
@@ -110,7 +129,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                         />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-white font-medium text-[15px]">{friend.name}</span>
+                        <span className="text-white font-medium text-[15px]">{friend.displayName}</span>
                         <span className={`text-[12px] font-medium 
               ${friend.status === 'Online' ? 'text-green-400' : friend.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
                             {friend.status}
@@ -119,7 +138,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 </div>
 
                 <button
-                    onClick={() => onDM?.(friend.id)}
+                    onClick={() => onDM?.(friend.wallet_address)}
                     className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
                 >
                     <DMIcon />
@@ -242,9 +261,9 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                         {activeMainTab === 'game' && (
                             <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Game Friends ({friends.length})
+                                    Game Friends ({friendsList.length})
                                 </div>
-                                {renderFriendList(friends)}
+                                {renderFriendList(friendsList)}
                             </motion.div>
                         )}
 
