@@ -2,7 +2,7 @@
 
 This tracker summarizes what is currently implemented in the codebase and what remains partial/pending.
 
-## 1) Core Gameplay
+## 🟨 1) Core Gameplay
 
 - [x] Classic Ludo mode
   - Key changes:
@@ -44,7 +44,7 @@ This tracker summarizes what is currently implemented in the codebase and what r
     - Added auto-play fallback when timer limits are hit.
     - Reduced stalled games in local/AI matches.
 
-## 2) UI Components
+## 🟩 2) UI Components
 
 - [x] Board component set
   - Key changes:
@@ -62,7 +62,7 @@ This tracker summarizes what is currently implemented in the codebase and what r
     - Theme-aware ambient sound profiles through Web Audio API.
     - User-level control for sound without leaving gameplay.
 
-## 3) Dashboard and Social Panels
+## 🟨 3) Dashboard and Social Panels
 
 - [x] User profile panel
   - Key changes:
@@ -112,7 +112,7 @@ This tracker summarizes what is currently implemented in the codebase and what r
     - Shared panel system improves navigation consistency.
     - Real DM/message transport is still pending.
 
-## 4) Multiplayer and Connectivity
+## 🟨 4) Multiplayer and Connectivity
 
 - [x] PeerJS multiplayer core
   - Key changes:
@@ -130,7 +130,7 @@ This tracker summarizes what is currently implemented in the codebase and what r
     - Improves usability of multiplayer setup from manual testing.
     - Needs deeper integration into main play flow and error handling.
 
-## 5) Web3 and Base/Farcaster Setup
+## 🟨 5) Web3 and Base/Farcaster Setup
 
 - [x] Wallet UI and dependencies present
   - Key changes:
@@ -148,7 +148,7 @@ This tracker summarizes what is currently implemented in the codebase and what r
     - Positions app for Frame/Base ecosystem compatibility.
     - End-to-end runtime wiring is partial and needs final integration validation.
 
-## 6) UX, Visual, and Technical Polish
+## 🟨 6) UX, Visual, and Technical Polish
 
 - [x] Multi-theme visual system
   - Key changes:
@@ -174,7 +174,7 @@ This tracker summarizes what is currently implemented in the codebase and what r
     - Stable development baseline for rapid iteration.
     - Test coverage and production monitoring are still missing.
 
-## 7) Pending / Partial Checklist (Vice Versa)
+## 🟥 7) Pending / Partial Checklist (Vice Versa)
 
 - [ ] Real wallet-to-game transaction loop
   - Key changes done so far:
