@@ -499,14 +499,16 @@ export default function Page() {
               {/* Header */}
               <header className="header dash-header px-safe">
                 <div className="header-left">
-                  <div className="token-pill">
+                  <div className="token-pill shimmer-effect">
                     <TokenIcon />
                     <span>1,250</span>
                   </div>
                 </div>
                 <div className="header-center">
-                  <div className="user-avatar-mini">
+                  <div className="user-avatar-mini relative">
                     {finalAvatar ? <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover rounded-full" /> : <span>🎮</span>}
+                    {/* Green Online Status Dot */}
+                    <span className="absolute bottom-[-2px] right-[-2px] w-3 h-3 bg-green-500 border-2 border-[#0b0f19] rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
                   </div>
                   <div className="user-info-mini">
                     <span className="user-name-mini">{finalName}</span>

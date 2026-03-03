@@ -192,6 +192,76 @@ a {
 }
 
 /* ─── App Shell ─── */
+/* ─── Phase 2: Glassmorphism & Neon Utilities ─── */
+
+.glass-mesh-bg {
+  background: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(30, 58, 138, 0.4), transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(15, 23, 42, 0.9), transparent 50%);
+  background-color: #0b0f19;
+  /* Deep dark base */
+  animation: mesh-shift 15s ease-in-out infinite alternate;
+}
+
+@keyframes mesh-shift {
+  0% {
+    background-position: 0% 0%;
+  }
+
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.neon-glow-cyan {
+  color: #00FFFF;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.neon-glow-purple {
+  color: #b026ff;
+  text-shadow: 0 0 5px rgba(176, 38, 255, 0.5), 0 0 10px rgba(176, 38, 255, 0.3);
+}
+
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: skewX(-20deg);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+
+  20% {
+    left: 200%;
+  }
+
+  100% {
+    left: 200%;
+  }
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -873,18 +943,34 @@ a {
 }
 
 .nav-item.active {
-  color: var(--color-ludo-blue);
+  color: #00FFFF;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+  position: relative;
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: #00FFFF;
+  border-radius: 2px;
+  box-shadow: 0 0 5px #00FFFF;
 }
 
 .nav-item .nav-icon {
   width: 22px;
   height: 22px;
   color: var(--color-ludo-faint);
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, filter 0.2s ease;
 }
 
 .nav-item.active .nav-icon {
-  color: var(--color-ludo-blue);
+  color: #00FFFF;
+  filter: drop-shadow(0 0 4px rgba(0, 255, 255, 0.6));
 }
 
 .nav-item .nav-label {
@@ -895,7 +981,7 @@ a {
 }
 
 .nav-item.active .nav-label {
-  color: var(--color-ludo-blue);
+  color: #00FFFF;
   font-weight: 600;
 }
 

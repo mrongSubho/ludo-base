@@ -113,21 +113,21 @@ export default function GameLobby({
                                         <button
                                             key={mode}
                                             onClick={() => setGameMode(mode)}
-                                            className={`relative p-6 rounded-[32px] border transition-all duration-500 overflow-hidden group ${gameMode === mode
-                                                    ? 'bg-indigo-500/20 border-indigo-500 shadow-[0_0_40px_rgba(99,102,241,0.2)]'
-                                                    : 'bg-white/5 border-white/10 hover:border-white/20'
+                                            className={`relative p-6 rounded-[32px] border transition-all duration-500 overflow-hidden group glass-panel ${gameMode === mode
+                                                ? 'border-cyan-400 shadow-[0_0_30px_rgba(0,255,255,0.2)]'
+                                                : 'border-white/10 hover:border-white/30'
                                                 }`}
                                         >
                                             <div className="relative z-10 text-left">
-                                                <span className={`block text-lg font-black italic tracking-tighter capitalize ${gameMode === mode ? 'text-white' : 'text-white/40'}`}>
+                                                <span className={`block text-lg font-black italic tracking-tighter capitalize transition-all duration-300 ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/40'}`}>
                                                     {mode}
                                                 </span>
-                                                <span className="text-[10px] text-white/30 font-medium leading-tight">
+                                                <span className={`text-[11px] font-semibold leading-tight mt-1 block ${gameMode === mode ? 'text-white' : 'text-white/50'}`}>
                                                     {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
                                                 </span>
                                             </div>
                                             {gameMode === mode && (
-                                                <motion.div layoutId="mode-glow" className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent" />
+                                                <motion.div layoutId="mode-glow" className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent" />
                                             )}
                                         </button>
                                     ))}
@@ -141,12 +141,12 @@ export default function GameLobby({
                                         <button
                                             key={type}
                                             onClick={() => setMatchType(type)}
-                                            className={`p-6 rounded-[32px] border transition-all duration-500 ${matchType === type
-                                                    ? 'bg-purple-500/20 border-purple-500 shadow-[0_10px_30px_rgba(168,85,247,0.1)]'
-                                                    : 'bg-white/5 border-white/10 hover:border-white/20'
+                                            className={`p-6 rounded-[32px] border transition-all duration-500 glass-panel ${matchType === type
+                                                ? 'border-purple-500 shadow-[0_0_30px_rgba(176,38,255,0.2)]'
+                                                : 'border-white/10 hover:border-white/30'
                                                 }`}
                                         >
-                                            <span className={`block text-xl font-black italic tracking-tighter ${matchType === type ? 'text-white' : 'text-white/40'}`}>
+                                            <span className={`block text-xl font-black italic tracking-tighter transition-all duration-300 ${matchType === type ? 'neon-glow-purple' : 'text-white/40'}`}>
                                                 {type}
                                             </span>
                                         </button>
@@ -157,7 +157,7 @@ export default function GameLobby({
 
                         {/* Right: Wager & Start (2 cols) */}
                         <div className="lg:col-span-2 flex flex-col justify-end space-y-8">
-                            <div className="p-8 rounded-[40px] bg-white/5 border border-white/10 backdrop-blur-md space-y-6">
+                            <div className="p-8 rounded-[40px] glass-panel space-y-6">
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Match Wager</h3>
                                     <div className="px-3 py-1 bg-yellow-500/20 rounded-full border border-yellow-500/30">
@@ -184,13 +184,15 @@ export default function GameLobby({
                                     </button>
                                 </div>
 
-                                <button
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={startSearch}
-                                    className="group relative w-full py-6 bg-white text-black font-black rounded-[32px] transition-all hover:scale-[1.02] active:scale-95 overflow-hidden"
+                                    className="group relative w-full py-6 bg-white text-black font-black rounded-[32px] transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)]"
                                 >
                                     <div className="absolute inset-0 bg-indigo-500 opacity-0 group-hover:opacity-10 transition-opacity" />
                                     <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
-                                </button>
+                                </motion.button>
                             </div>
 
                             <button
@@ -330,7 +332,7 @@ export default function GameLobby({
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            className="w-full max-w-lg bg-[#1a1c2e]/80 border border-white/10 rounded-[64px] p-12 text-center space-y-10 shadow-2xl relative overflow-hidden"
+                            className="w-full max-w-lg glass-panel rounded-[64px] p-12 text-center space-y-10 shadow-2xl relative overflow-hidden"
                         >
                             {/* Frost Effect */}
                             <div className="absolute inset-0 bg-white/5 pointer-events-none" />
