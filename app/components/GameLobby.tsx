@@ -34,7 +34,7 @@ export default function GameLobby({
     setWager,
     onStartGame
 }: GameLobbyProps) {
-    const { address, isConnected } = useCurrentUser();
+    const { address, profile, displayName: finalName } = useCurrentUser();
     const {
         roomId,
         isLobbyConnected,
@@ -366,33 +366,86 @@ export default function GameLobby({
                     </motion.div>
                 )}
 
-                {/* 4. MATCH COUNTDOWN OVERLAY */}
+                {/* 4. MATCH COUNTDOWN OVERLAY (VS SCREEN) */}
                 {countdown !== null && (
                     <motion.div
                         key="countdown"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-indigo-600"
+                        className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-2xl overflow-hidden"
                     >
-                        <motion.h2
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="text-white/40 text-xl font-black uppercase tracking-[0.5em] mb-4"
-                        >
-                            Match Starting
-                        </motion.h2>
+                        {/* Background Effects */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/30 to-purple-900/30" />
                         <motion.div
-                            key={countdown}
-                            initial={{ scale: 2, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="text-[15rem] font-black text-white italic leading-none"
-                        >
-                            {countdown}
-                        </motion.div>
-                        <div className="mt-12 flex gap-4">
-                            <div className="w-2 h-2 rounded-full bg-white/20 animate-bounce" style={{ animationDelay: '0s' }} />
-                            <div className="w-2 h-2 rounded-full bg-white/20 animate-bounce" style={{ animationDelay: '0.2s' }} />
-                            <div className="w-2 h-2 rounded-full bg-white/20 animate-bounce" style={{ animationDelay: '0.4s' }} />
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                            className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-[url('/mesh-grid.svg')] opacity-10 mix-blend-overlay pointer-events-none"
+                        />
+
+                        {/* VS Container */}
+                        <div className="relative w-full max-w-4xl flex items-center justify-between px-8 md:px-24">
+
+                            {/* Player 1 (Left) */}
+                            <motion.div
+                                initial={{ x: -200, opacity: 0, rotateY: -45 }}
+                                animate={{ x: 0, opacity: 1, rotateY: 0 }}
+                                transition={{ type: "spring", damping: 20, stiffness: 100 }}
+                                className="flex flex-col items-center z-10"
+                            >
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-indigo-500 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-[#1a1c29] flex items-center justify-center text-6xl">
+                                    {profile?.avatar_url ? (
+                                        <img src={profile.avatar_url} alt={finalName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>🎮</span>
+                                    )}
+                                </div>
+                                <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-cyan text-center">
+                                    {finalName}
+                                </h3>
+                                <div className="mt-2 bg-indigo-500/20 px-4 py-1 rounded-full border border-indigo-500/50">
+                                    <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Lv. 8</span>
+                                </div>
+                            </motion.div>
+
+                            {/* Center VS Badge & Timer */}
+                            <motion.div
+                                initial={{ scale: 0, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ delay: 0.3, type: "spring" }}
+                                className="relative flex flex-col items-center justify-center z-20 mx-4"
+                            >
+                                <div className="absolute inset-0 bg-cyan-500/20 blur-[60px] rounded-full" />
+                                <h2 className="text-6xl md:text-[8rem] font-black text-white italic tracking-tighter leading-none drop-shadow-[0_0_30px_rgba(255,255,255,0.8)]">
+                                    VS
+                                </h2>
+                                <motion.div
+                                    key={countdown}
+                                    initial={{ scale: 2, opacity: 0, filter: 'blur(10px)' }}
+                                    animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
+                                    className="mt-8 text-[4rem] md:text-[6rem] font-black text-white italic leading-none drop-shadow-2xl"
+                                >
+                                    {countdown}
+                                </motion.div>
+                            </motion.div>
+
+                            {/* Player 2 (Right - Mocked Rival or AI) */}
+                            <motion.div
+                                initial={{ x: 200, opacity: 0, rotateY: 45 }}
+                                animate={{ x: 0, opacity: 1, rotateY: 0 }}
+                                transition={{ type: "spring", damping: 20, stiffness: 100 }}
+                                className="flex flex-col items-center z-10"
+                            >
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-[#1a1c29] flex items-center justify-center text-6xl">
+                                    <span>🤖</span>
+                                </div>
+                                <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-purple text-center">
+                                    Rival
+                                </h3>
+                                <div className="mt-2 bg-amber-500/20 px-4 py-1 rounded-full border border-amber-500/50">
+                                    <span className="text-xs font-bold text-amber-300 uppercase tracking-widest">Lv. ?</span>
+                                </div>
+                            </motion.div>
+
                         </div>
                     </motion.div>
                 )}

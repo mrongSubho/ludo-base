@@ -585,38 +585,42 @@ export default function Page() {
               </nav>
 
               {/* Slide-up Panels for footer tabs */}
-              {activeTab === 'profile' && (
-                <UserProfilePanel onClose={closeTab} />
-              )}
-              {activeTab === 'friends' && (
-                <FriendsPanel
-                  onClose={closeTab}
-                  onDM={(friendId) => {
-                    setSelectedChatId(friendId);
-                    setActiveTab('messages');
-                  }}
-                />
-              )}
-              {activeTab === 'leaderboard' && (
-                <Leaderboard isOpen={true} onClose={closeTab} />
-              )}
-              {activeTab === 'mission' && (
-                <MissionPanel isOpen={true} onClose={closeTab} />
-              )}
-              {activeTab === 'marketplace' && (
-                <MarketplacePanel isOpen={true} onClose={closeTab} />
-              )}
+              <AnimatePresence mode="wait">
+                {activeTab === 'profile' && (
+                  <UserProfilePanel key="profile" onClose={closeTab} />
+                )}
+                {activeTab === 'friends' && (
+                  <FriendsPanel
+                    key="friends"
+                    onClose={closeTab}
+                    onDM={(friendId) => {
+                      setSelectedChatId(friendId);
+                      setActiveTab('messages');
+                    }}
+                  />
+                )}
+                {activeTab === 'leaderboard' && (
+                  <Leaderboard key="leaderboard" isOpen={true} onClose={closeTab} />
+                )}
+                {activeTab === 'mission' && (
+                  <MissionPanel key="mission" isOpen={true} onClose={closeTab} />
+                )}
+                {activeTab === 'marketplace' && (
+                  <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />
+                )}
 
-              {activeTab === 'settings' && <SettingsPanel onClose={closeTab} />}
-              {activeTab === 'messages' && (
-                <MessagesPanel
-                  onClose={() => {
-                    closeTab();
-                    setSelectedChatId(null);
-                  }}
-                  initialChatId={selectedChatId}
-                />
-              )}
+                {activeTab === 'settings' && <SettingsPanel key="settings" onClose={closeTab} />}
+                {activeTab === 'messages' && (
+                  <MessagesPanel
+                    key="messages"
+                    onClose={() => {
+                      closeTab();
+                      setSelectedChatId(null);
+                    }}
+                    initialChatId={selectedChatId}
+                  />
+                )}
+              </AnimatePresence>
             </div>
           )}
 
@@ -647,7 +651,7 @@ export default function Page() {
               </div>
               <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
                 {selectedMode === 'snakes' ? (
-                  <SnakesBoard playerCount={playerCount} isBotMatch={isBotMatch} />
+                  <SnakesBoard playerCount={playerCount as any} />
                 ) : (
                   <Board playerCount={playerCount} gameMode={selectedMode as any} isBotMatch={isBotMatch} />
                 )}
