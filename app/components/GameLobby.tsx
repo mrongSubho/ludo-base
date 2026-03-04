@@ -107,8 +107,12 @@ export default function GameLobby({
                     >
                         {/* Left: Mode & Match Type (3 cols) */}
                         <div className="lg:col-span-3 space-y-8">
-                            <div className="space-y-4 flex flex-col items-center lg:items-start">
-                                <h3 className="text-white/80 text-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md mb-2">Select Game Mode</h3>
+                            <div className="flex flex-col items-center w-full">
+                                <div className="flex justify-center w-full mb-6 mt-2">
+                                    <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
+                                        <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
+                                    </div>
+                                </div>
                                 <div className="flex justify-center gap-4">
                                     {(['classic', 'power'] as const).map(mode => (
                                         <button
@@ -134,19 +138,23 @@ export default function GameLobby({
                                 </div>
                             </div>
 
-                            <div className="space-y-4 flex flex-col items-center">
-                                <h3 className="text-white/80 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md mt-2">Match Type</h3>
+                            <div className="flex flex-col items-center w-full">
+                                <div className="flex justify-center w-full mt-6 mb-4">
+                                    <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
+                                        <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
+                                    </div>
+                                </div>
                                 <div className="flex justify-center gap-3">
                                     {(['1v1', '2v2', '4P'] as const).map(type => (
                                         <button
                                             key={type}
                                             onClick={() => setMatchType(type)}
                                             className={`w-14 h-14 rounded-full border transition-all duration-300 glass-panel flex items-center justify-center ${matchType === type
-                                                ? 'border-white/60 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-white/10'
+                                                ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-cyan-900/10'
                                                 : 'border-white/10 hover:border-white/30 bg-white/5'
                                                 }`}
                                         >
-                                            <span className={`block text-xl font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-white' : 'text-white/60'}`}>
+                                            <span className={`block text-xl font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>
                                                 {type}
                                             </span>
                                         </button>
@@ -161,8 +169,8 @@ export default function GameLobby({
                             {/* NEW WAGER SECTION */}
                             <div className="p-8 rounded-[40px] glass-panel space-y-6 flex flex-col items-center shadow-2xl border-white/20">
                                 {/* Label */}
-                                <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md mb-2">
-                                    <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Bet Amount</span>
+                                <div className="inline-block px-5 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md mb-2">
+                                    <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                                 </div>
 
                                 {/* Stepper + Input */}
@@ -182,7 +190,6 @@ export default function GameLobby({
                                             className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-purple-600/50 rounded-xl"
                                             style={{ appearance: 'textfield', WebkitAppearance: 'none', margin: 0 }}
                                         />
-                                        <span className="text-[10px] text-white/50 font-black uppercase tracking-[0.2em] mt-2 drop-shadow-md">Auto-Match Entry</span>
                                     </div>
 
                                     <button
@@ -199,34 +206,31 @@ export default function GameLobby({
                                         <button
                                             key={val}
                                             onClick={() => setWager(val)}
-                                            className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-[10px] font-bold transition-all active:scale-95"
+                                            className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/90 text-[11px] font-black transition-all active:scale-95 backdrop-blur-md shadow-sm"
                                         >
                                             {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="w-full space-y-3 pt-6">
+
+                            <div className="w-full flex gap-4 pt-6">
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={startSearch}
-                                    className="group relative w-full py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(176,38,255,0.3)] hover:shadow-[0_0_40px_rgba(176,38,255,0.6)] z-10"
+                                    className="group relative flex-1 py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10"
                                 >
-                                    <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
+                                    <span className="relative text-md lg:text-lg italic tracking-tighter">QUICK MATCH</span>
                                 </motion.button>
 
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => setShowPrivateOptions(true)}
-                                    className="group relative w-full py-4 bg-white/5 border border-white/10 text-white font-black rounded-[32px] transition-all overflow-hidden hover:bg-white/10"
+                                    className="group relative flex-1 py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10"
                                 >
-                                    <div className="absolute inset-0 bg-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
-                                    <span className="relative text-lg italic tracking-tighter shadow-sm flex items-center justify-center gap-2">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                        PLAY WITH FRIENDS
-                                    </span>
+                                    <span className="relative text-md lg:text-lg italic tracking-tighter">WITH FRIENDS</span>
                                 </motion.button>
                             </div>
                         </div>
