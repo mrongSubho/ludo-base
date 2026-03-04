@@ -214,11 +214,15 @@ a {
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
+  /* Darkened from 0.05 white for contrast */
+  backdrop-filter: blur(24px);
+  /* Increased blur */
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  /* Slightly more visible border */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  /* Stronger shadow */
 }
 
 .neon-glow-cyan {

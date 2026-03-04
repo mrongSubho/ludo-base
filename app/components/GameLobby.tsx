@@ -106,8 +106,8 @@ export default function GameLobby({
                     >
                         {/* Left: Mode & Match Type (3 cols) */}
                         <div className="lg:col-span-3 space-y-8">
-                            <div className="space-y-4">
-                                <h3 className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] ml-2">Select Game Mode</h3>
+                            <div className="space-y-4 flex flex-col items-center lg:items-start">
+                                <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] ml-2 drop-shadow-md">Select Game Mode</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     {(['classic', 'power'] as const).map(mode => (
                                         <button
@@ -119,10 +119,10 @@ export default function GameLobby({
                                                 }`}
                                         >
                                             <div className="relative z-10 text-left">
-                                                <span className={`block text-lg font-black italic tracking-tighter capitalize transition-all duration-300 ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/40'}`}>
+                                                <span className={`block text-xl font-black italic tracking-tighter capitalize transition-all duration-300 drop-shadow-md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'}`}>
                                                     {mode}
                                                 </span>
-                                                <span className={`text-[11px] font-semibold leading-tight mt-1 block ${gameMode === mode ? 'text-white' : 'text-white/50'}`}>
+                                                <span className={`text-[12px] font-bold leading-tight mt-1 block drop-shadow-md ${gameMode === mode ? 'text-white' : 'text-white/70'}`}>
                                                     {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
                                                 </span>
                                             </div>
@@ -134,8 +134,8 @@ export default function GameLobby({
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <h3 className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] ml-2">Match Type</h3>
+                            <div className="space-y-4 flex flex-col items-center lg:items-start">
+                                <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] ml-2 drop-shadow-md">Match Type</h3>
                                 <div className="grid grid-cols-3 gap-4">
                                     {(['1v1', '2v2', '4P'] as const).map(type => (
                                         <button
@@ -146,7 +146,7 @@ export default function GameLobby({
                                                 : 'border-white/10 hover:border-white/30'
                                                 }`}
                                         >
-                                            <span className={`block text-xl font-black italic tracking-tighter transition-all duration-300 ${matchType === type ? 'neon-glow-purple' : 'text-white/40'}`}>
+                                            <span className={`block text-2xl font-black italic tracking-tighter transition-all duration-300 drop-shadow-md text-center ${matchType === type ? 'neon-glow-purple' : 'text-white/80'}`}>
                                                 {type}
                                             </span>
                                         </button>
@@ -159,7 +159,7 @@ export default function GameLobby({
                         <div className="lg:col-span-2 flex flex-col justify-end space-y-8">
                             <div className="p-8 rounded-[40px] glass-panel space-y-6">
                                 <div className="flex justify-between items-center">
-                                    <h3 className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Match Wager</h3>
+                                    <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md">Match Wager</h3>
                                     <div className="px-3 py-1 bg-yellow-500/20 rounded-full border border-yellow-500/30">
                                         <span className="text-[10px] text-yellow-500 font-bold">LUDO COINS</span>
                                     </div>
@@ -173,8 +173,8 @@ export default function GameLobby({
                                         −
                                     </button>
                                     <div className="text-center">
-                                        <span className="text-4xl font-black text-white">{wager}</span>
-                                        <span className="block text-[8px] text-white/30 font-bold uppercase tracking-widest mt-1">Entry Fee</span>
+                                        <span className="text-5xl font-black text-white drop-shadow-lg">{wager}</span>
+                                        <span className="block text-[10px] text-white/70 font-bold uppercase tracking-widest mt-1 drop-shadow-md">Entry Fee</span>
                                     </div>
                                     <button
                                         onClick={() => setWager(wager + 100)}
