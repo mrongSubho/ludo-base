@@ -126,7 +126,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
         return friends.map((friend) => (
             <div key={friend.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e]">
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-900">
                         <img
                             src={friend.avatar_url || '/default-avatar.png'}
                             alt={friend.displayName}
@@ -164,7 +164,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
         return requests.map((req) => (
             <div key={req.id} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e]">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-purple-900">
                         <img src={`/avatars/${req.avatar}.png`} alt={req.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col">
@@ -212,7 +212,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 /* Unified global panel layout: top-64, bottom-80, bg-20 glass */
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-950/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>

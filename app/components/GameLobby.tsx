@@ -399,7 +399,7 @@ export default function GameLobby({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-purple-600 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-[#1a1c29] flex items-center justify-center text-6xl">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-purple-600 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-purple-950 flex items-center justify-center text-6xl">
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} alt={finalName} className="w-full h-full object-cover" />
                                     ) : (
@@ -442,7 +442,7 @@ export default function GameLobby({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-[#1a1c29] flex items-center justify-center text-6xl">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-purple-950 flex items-center justify-center text-6xl">
                                     <span>🤖</span>
                                 </div>
                                 <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-purple text-center">

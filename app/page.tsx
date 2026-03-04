@@ -586,13 +586,13 @@ export default function Page() {
                       {isActive && (
                         <motion.div
                           layoutId="active-nav-bg"
-                          className="absolute inset-0 bg-purple-600/80 rounded-[20px] backdrop-blur-sm -z-10"
+                          className="absolute inset-0 bg-purple-600/20 rounded-[20px] backdrop-blur-sm -z-10"
                           transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
                       {/* Hover Background */}
                       {!isActive && (
-                        <div className="absolute inset-0 bg-purple-600/80 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        <div className="absolute inset-0 bg-purple-600/20 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                       )}
 
                       <Icon />

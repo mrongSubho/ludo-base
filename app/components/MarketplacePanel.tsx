@@ -339,7 +339,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-950/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -353,7 +353,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-[100] bg-[#1a1c29]/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center"
+                                    className="absolute inset-0 z-[100] bg-purple-950/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center"
                                 >
                                     <div className="relative mb-6">
                                         <div className="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center animate-pulse">
@@ -371,7 +371,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     initial={{ scale: 0.9, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     exit={{ scale: 0.9, opacity: 0 }}
-                                    className="absolute inset-0 z-[100] bg-[#1a1c29] flex flex-col items-center justify-center p-8 text-center"
+                                    className="absolute inset-0 z-[100] bg-purple-950 flex flex-col items-center justify-center p-8 text-center"
                                 >
                                     <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-12 h-12 text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -498,10 +498,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     animate={{ x: 0 }}
                                     exit={{ x: '100%' }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="absolute inset-0 bg-[#1a1c29] z-[120] flex flex-col rounded-[24px] overflow-hidden"
+                                    className="absolute inset-0 bg-purple-950 z-[120] flex flex-col rounded-[24px] overflow-hidden"
                                 >
                                     {/* Pinned Header */}
-                                    <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-[#1a1c29]/40 backdrop-blur-xl z-20">
+                                    <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-purple-950/40 backdrop-blur-xl z-20">
                                         <div className="flex items-center gap-3">
                                             <button
                                                 onClick={handleCloseDetail}
@@ -662,13 +662,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 initial={{ y: '100%' }}
                                                 animate={{ y: 0 }}
                                                 exit={{ y: '100%' }}
-                                                className="absolute inset-0 bg-[#1a1c29] z-[130] flex flex-col overflow-hidden rounded-[24px]"
+                                                className="absolute inset-0 bg-purple-950 z-[130] flex flex-col overflow-hidden rounded-[24px]"
                                             >
                                                 {/* Industrial Background Glow */}
                                                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(37,99,235,0.1),transparent_70%)] pointer-events-none" />
 
                                                 {/* Pinned Sell Header */}
-                                                <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-[#1a1c29]/80 backdrop-blur-xl z-20">
+                                                <div className="flex items-center justify-between py-4 px-5 border-b border-white/5 bg-purple-950/80 backdrop-blur-xl z-20">
                                                     <div className="flex items-center gap-3">
                                                         <button
                                                             onClick={() => setIsSelling(false)}

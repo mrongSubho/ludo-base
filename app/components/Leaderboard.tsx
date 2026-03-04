@@ -119,7 +119,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-[#1a1c29]/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-950/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
@@ -262,7 +262,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                     </div>
 
                                                     <div className="relative">
-                                                        <div className={`w-12 h-12 rounded-full overflow-hidden bg-[#2a2d3e] flex-shrink-0 border-2 ${isMe ? 'border-purple-400' : 'border-white/10'}`}>
+                                                        <div className={`w-12 h-12 rounded-full overflow-hidden bg-purple-900 flex-shrink-0 border-2 ${isMe ? 'border-purple-400' : 'border-white/10'}`}>
                                                             {entry.avatar ? (
                                                                 <img
                                                                     src={entry.avatar}
