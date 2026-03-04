@@ -989,8 +989,8 @@ a {
 
 
 .nav-item.active {
-  color: #3b82f6;
-  text-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  color: #FFFFFF;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
   position: relative;
 }
 
@@ -1002,9 +1002,9 @@ a {
   transform: translateX(-50%);
   width: 20px;
   height: 2px;
-  background: #3b82f6;
+  background: #FFFFFF;
   border-radius: 2px;
-  box-shadow: 0 0 5px #3b82f6;
+  box-shadow: 0 0 5px #FFFFFF;
 }
 
 .nav-item .nav-icon {
@@ -1015,8 +1015,8 @@ a {
 }
 
 .nav-item.active .nav-icon {
-  color: #00FFFF;
-  filter: drop-shadow(0 0 4px rgba(0, 255, 255, 0.6));
+  color: #FFFFFF;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
 }
 
 .nav-item .nav-label {
@@ -1027,7 +1027,7 @@ a {
 }
 
 .nav-item.active .nav-label {
-  color: #00FFFF;
+  color: #FFFFFF;
   font-weight: 600;
 }
 
