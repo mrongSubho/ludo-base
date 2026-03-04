@@ -492,10 +492,15 @@ export default function Page() {
           <WalletConnectCard />
         </div>
       ) : (
-        <div className={`app-shell ${appState === 'dashboard' ? 'dashboard-shell' : ''}`}>
+        <div className={`app-shell ${appState === 'dashboard' ? 'dashboard-shell cosmic-core-bg' : ''}`}>
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
-            <div className="dashboard-container">
+            <div className="dashboard-container relative">
+              {/* Cosmic Orbs (Rendered behind content) */}
+              <div className="cosmic-orb cosmic-orb-1" />
+              <div className="cosmic-orb cosmic-orb-2" />
+              <div className="cosmic-orb cosmic-orb-3" />
+
               {/* Header */}
               <header className="header dash-header px-safe">
                 <div className="header-left">
@@ -561,27 +566,35 @@ export default function Page() {
               </main>
 
               {/* Footer Nav */}
-              <nav className="footer-nav">
-                <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => toggle('profile')}>
-                  <ProfileIcon />
-                  <span className="nav-label">Profile</span>
-                </button>
-                <button className={`nav-item ${activeTab === 'friends' ? 'active' : ''}`} onClick={() => toggle('friends')}>
-                  <UsersIcon />
-                  <span className="nav-label">Friends</span>
-                </button>
-                <button className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`} onClick={() => toggle('leaderboard')}>
-                  <TrophyIcon />
-                  <span className="nav-label">Leaderboard</span>
-                </button>
-                <button className={`nav-item ${activeTab === 'mission' ? 'active' : ''}`} onClick={() => toggle('mission')}>
-                  <TargetIcon />
-                  <span className="nav-label">Mission</span>
-                </button>
-                <button className={`nav-item ${activeTab === 'marketplace' ? 'active' : ''}`} onClick={() => toggle('marketplace')}>
-                  <ShopIcon />
-                  <span className="nav-label">Market</span>
-                </button>
+              <nav className="footer-nav relative overflow-hidden">
+                {[
+                  { id: 'profile', icon: ProfileIcon, label: 'Profile' },
+                  { id: 'friends', icon: UsersIcon, label: 'Friends' },
+                  { id: 'leaderboard', icon: TrophyIcon, label: 'Leaderboard' },
+                  { id: 'mission', icon: TargetIcon, label: 'Mission' },
+                  { id: 'marketplace', icon: ShopIcon, label: 'Market' }
+                ].map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      className={`nav-item relative z-10 ${isActive ? 'active' : ''}`}
+                      onClick={() => toggle(tab.id as Tab)}
+                    >
+                      {/* Active Sliding Background */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="active-nav-bg"
+                          className="absolute inset-0 bg-blue-500/20 rounded-[20px] backdrop-blur-sm -z-10"
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
+                      )}
+                      <Icon />
+                      <span className="nav-label">{tab.label}</span>
+                    </button>
+                  );
+                })}
               </nav>
 
               {/* Slide-up Panels for footer tabs */}

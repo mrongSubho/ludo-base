@@ -158,67 +158,90 @@ export default function GameLobby({
                         </div>
 
                         {/* Right: Wager & Start (2 cols) */}
-                        <div className="lg:col-span-2 flex flex-col justify-end space-y-8">
-                            <div className="p-8 rounded-[40px] glass-panel space-y-6">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md">Match Fees</h3>
-                                    <div className="px-3 py-1 bg-yellow-500/20 rounded-full border border-yellow-500/30">
-                                        <span className="text-[10px] text-yellow-500 font-bold">LUDO COINS</span>
-                                    </div>
+                        <div className="lg:col-span-2 flex flex-col justify-end space-y-4">
+
+                            {/* NEW WAGER SECTION */}
+                            <div className="p-8 rounded-[40px] glass-panel space-y-6 flex flex-col items-center">
+                                {/* Label */}
+                                <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
+                                    <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Bet Amount</span>
                                 </div>
 
-                                <div className="flex items-center justify-between gap-4 py-2">
+                                {/* Stepper + Input */}
+                                <div className="flex items-center justify-center gap-4 w-full">
                                     <button
-                                        onClick={() => setWager(Math.max(0, wager - 100))}
-                                        className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                                        onClick={() => setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100)))}
+                                        className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:text-white transition-colors active:scale-95 touch-manipulation shadow-lg"
                                     >
-                                        −
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
-                                    <div className="text-center">
-                                        <span className="text-5xl font-black text-white drop-shadow-lg">{wager}</span>
-                                        <span className="block text-[10px] text-white/70 font-bold uppercase tracking-widest mt-1 drop-shadow-md">Entry Fee</span>
+
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="number"
+                                            value={wager}
+                                            onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))}
+                                            className="w-full bg-transparent text-center text-5xl font-black text-white drop-shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-xl py-2"
+                                            style={{ appearance: 'textfield' }}
+                                        />
+                                        <span className="block text-[10px] text-white/70 font-bold uppercase tracking-widest mt-1 drop-shadow-md text-center">Auto-Match Entry</span>
                                     </div>
+
                                     <button
-                                        onClick={() => setWager(wager + 100)}
-                                        className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                                        onClick={() => setWager(wager + (wager >= 1000 ? 1000 : 100))}
+                                        className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:text-white transition-colors active:scale-95 touch-manipulation shadow-lg"
                                     >
-                                        +
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
                                 </div>
 
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={startSearch}
-                                    className="group relative w-full py-6 bg-white text-black font-black rounded-[32px] transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)]"
-                                >
-                                    <div className="absolute inset-0 bg-indigo-500 opacity-0 group-hover:opacity-10 transition-opacity" />
-                                    <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
-                                </motion.button>
+                                {/* Quick Select Chips */}
+                                <div className="flex gap-2 justify-center flex-wrap pt-2">
+                                    {[0, 1000, 10000, 100000, 1000000].map(val => (
+                                        <button
+                                            key={val}
+                                            onClick={() => setWager(val)}
+                                            className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-[10px] font-bold transition-all active:scale-95"
+                                        >
+                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000}M` : val >= 1000 ? `${val / 1000}k` : val}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            <button
-                                onClick={() => setShowPrivateOptions(!showPrivateOptions)}
-                                className="text-white/30 hover:text-white/60 text-[10px] font-bold uppercase tracking-widest transition-colors"
-                            >
-                                {showPrivateOptions ? "✕ Close Private Options" : "⬚ Host/Join Private Room"}
-                            </button>
 
-                            <AnimatePresence>
-                                {showPrivateOptions && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="flex gap-2 p-2 bg-white/5 rounded-3xl border border-white/10">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => setShowPrivateOptions(!showPrivateOptions)}
+                                className="group relative w-full py-4 bg-white/5 border border-white/10 text-white font-black rounded-[32px] transition-all overflow-hidden hover:bg-white/10"
+                            >
+                                <div className="absolute inset-0 bg-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+                                <span className="relative text-lg italic tracking-tighter shadow-sm flex items-center justify-center gap-2">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                    PLAY WITH FRIENDS
+                                </span>
+                            </motion.button>
+                        </div>
+
+                        <AnimatePresence>
+                            {showPrivateOptions && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden lg:col-span-2"
+                                >
+                                    {/* Play with Friends Tabbed Panel will be built here */}
+                                    <div className="flex flex-col gap-4 p-6 glass-panel rounded-[32px] mt-2 border border-purple-500/30 shadow-[0_0_30px_rgba(176,38,255,0.1)]">
+                                        <h3 className="text-white font-black italic tracking-tighter text-xl neon-glow-purple text-center mb-2">FRIEND MATCH</h3>
+                                        <div className="flex gap-2">
                                             <input
                                                 type="text"
                                                 placeholder="ROOM ID"
                                                 value={inputRoomId}
                                                 onChange={(e) => setInputRoomId(e.target.value.toUpperCase())}
-                                                className="flex-grow bg-transparent px-4 py-3 text-white font-mono text-sm placeholder-white/20 focus:outline-none"
+                                                className="flex-grow bg-black/40 px-4 py-3 text-white font-mono text-sm placeholder-white/20 focus:outline-none rounded-2xl border border-white/10 focus:border-purple-500/50"
                                             />
                                             <button
                                                 onClick={() => joinGame(inputRoomId)}
@@ -226,17 +249,17 @@ export default function GameLobby({
                                             >
                                                 JOIN
                                             </button>
-                                            <button
-                                                onClick={hostGame}
-                                                className="px-6 py-3 bg-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/20"
-                                            >
-                                                HOST
-                                            </button>
                                         </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
+                                        <button
+                                            onClick={hostGame}
+                                            className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-black italic tracking-tighter rounded-2xl shadow-[0_0_15px_rgba(176,38,255,0.4)] transition-colors mt-2"
+                                        >
+                                            HOST NEW ROOM
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </motion.div>
                 )}
 
@@ -452,6 +475,6 @@ export default function GameLobby({
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }
