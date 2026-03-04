@@ -48,7 +48,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
         switch (type) {
             case 'play': return {
                 icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M7 7h.01"></path><path d="M17 7h.01"></path><path d="M12 12h.01"></path><path d="M7 17h.01"></path><path d="M17 17h.01"></path></svg>,
-                color: 'text-blue-400',
+                color: 'text-purple-400',
                 bg: 'bg-purple-600/20'
             };
             case 'win': return {
@@ -120,7 +120,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                         key={tab}
                                         onClick={() => setActiveTab(tab as MissionTab)}
                                         className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all ${activeTab === tab
-                                            ? 'bg-blue-600/80 text-white shadow-lg border border-purple-600/30'
+                                            ? 'bg-purple-600/80 text-white shadow-lg border border-purple-600/30'
                                             : 'text-white/40 hover:text-white/70'
                                             }`}
                                     >
