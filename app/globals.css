@@ -987,7 +987,7 @@ a {
 }
 
 .nav-item:hover {
-  background: var(--color-ludo-background);
+  /* Hover handled by Tailwind classes in page.tsx */
 }
 
 .nav-item.active {

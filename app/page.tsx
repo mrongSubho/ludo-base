@@ -579,17 +579,22 @@ export default function Page() {
                   return (
                     <button
                       key={tab.id}
-                      className={`nav-item relative z-10 ${isActive ? 'active' : ''}`}
+                      className={`nav-item relative z-10 group ${isActive ? 'active' : ''}`}
                       onClick={() => toggle(tab.id as Tab)}
                     >
                       {/* Active Sliding Background */}
                       {isActive && (
                         <motion.div
                           layoutId="active-nav-bg"
-                          className="absolute inset-0 bg-blue-500/20 rounded-[20px] backdrop-blur-sm -z-10"
+                          className="absolute inset-0 bg-blue-500/50 rounded-[20px] backdrop-blur-sm -z-10"
                           transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
+                      {/* Hover Background */}
+                      {!isActive && (
+                        <div className="absolute inset-0 bg-blue-500/50 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                      )}
+
                       <Icon />
                       <span className="nav-label">{tab.label}</span>
                     </button>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PlayWithFriendsPanel } from './PlayWithFriendsPanel';
 import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -113,17 +114,17 @@ export default function GameLobby({
                                         <button
                                             key={mode}
                                             onClick={() => setGameMode(mode)}
-                                            className={`relative p-6 rounded-[32px] border transition-all duration-500 overflow-hidden group glass-panel ${gameMode === mode
+                                            className={`relative p - 6 rounded - [32px] border transition - all duration - 500 overflow - hidden group glass - panel ${gameMode === mode
                                                 ? 'border-cyan-400 shadow-[0_0_30px_rgba(0,255,255,0.2)]'
                                                 : 'border-white/10 hover:border-white/30'
-                                                }`}
+                                                } `}
                                         >
                                             <div className="relative z-10 text-left">
-                                                <span className={`block text-xl font-black italic tracking-tighter capitalize transition-all duration-300 drop-shadow-md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'}`}>
+                                                <span className={`block text - xl font - black italic tracking - tighter capitalize transition - all duration - 300 drop - shadow - md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'} `}>
                                                     {mode}
                                                 </span>
-                                                <div className={`mt-2 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
-                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'}`}>
+                                                <div className={`mt - 2 inline - block px - 3 py - 1 rounded - full border backdrop - blur - md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'} `}>
+                                                    <span className={`text - [10px] font - bold uppercase tracking - widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'} `}>
                                                         {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
                                                     </span>
                                                 </div>
@@ -143,12 +144,12 @@ export default function GameLobby({
                                         <button
                                             key={type}
                                             onClick={() => setMatchType(type)}
-                                            className={`p-6 rounded-[32px] border transition-all duration-500 glass-panel ${matchType === type
+                                            className={`p - 6 rounded - [32px] border transition - all duration - 500 glass - panel ${matchType === type
                                                 ? 'border-purple-500 shadow-[0_0_30px_rgba(176,38,255,0.2)]'
                                                 : 'border-white/10 hover:border-white/30'
-                                                }`}
+                                                } `}
                                         >
-                                            <span className={`block text-2xl font-black italic tracking-tighter transition-all duration-300 drop-shadow-md text-center ${matchType === type ? 'neon-glow-purple' : 'text-white/80'}`}>
+                                            <span className={`block text - 2xl font - black italic tracking - tighter transition - all duration - 300 drop - shadow - md text - center ${matchType === type ? 'neon-glow-purple' : 'text-white/80'} `}>
                                                 {type}
                                             </span>
                                         </button>
@@ -203,61 +204,44 @@ export default function GameLobby({
                                             onClick={() => setWager(val)}
                                             className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-[10px] font-bold transition-all active:scale-95"
                                         >
-                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000}M` : val >= 1000 ? `${val / 1000}k` : val}
+                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                         </button>
                                     ))}
                                 </div>
                             </div>
+                            <div className="w-full space-y-3">
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={startSearch}
+                                    className="group relative w-full py-6 bg-white text-black font-black rounded-[32px] transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)]"
+                                >
+                                    <div className="absolute inset-0 bg-indigo-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+                                    <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
+                                </motion.button>
 
-
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setShowPrivateOptions(!showPrivateOptions)}
-                                className="group relative w-full py-4 bg-white/5 border border-white/10 text-white font-black rounded-[32px] transition-all overflow-hidden hover:bg-white/10"
-                            >
-                                <div className="absolute inset-0 bg-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
-                                <span className="relative text-lg italic tracking-tighter shadow-sm flex items-center justify-center gap-2">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                    PLAY WITH FRIENDS
-                                </span>
-                            </motion.button>
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setShowPrivateOptions(true)}
+                                    className="group relative w-full py-4 bg-white/5 border border-white/10 text-white font-black rounded-[32px] transition-all overflow-hidden hover:bg-white/10"
+                                >
+                                    <div className="absolute inset-0 bg-purple-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+                                    <span className="relative text-lg italic tracking-tighter shadow-sm flex items-center justify-center gap-2">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                        PLAY WITH FRIENDS
+                                    </span>
+                                </motion.button>
+                            </div>
                         </div>
 
                         <AnimatePresence>
                             {showPrivateOptions && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="overflow-hidden lg:col-span-2"
-                                >
-                                    {/* Play with Friends Tabbed Panel will be built here */}
-                                    <div className="flex flex-col gap-4 p-6 glass-panel rounded-[32px] mt-2 border border-purple-500/30 shadow-[0_0_30px_rgba(176,38,255,0.1)]">
-                                        <h3 className="text-white font-black italic tracking-tighter text-xl neon-glow-purple text-center mb-2">FRIEND MATCH</h3>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                placeholder="ROOM ID"
-                                                value={inputRoomId}
-                                                onChange={(e) => setInputRoomId(e.target.value.toUpperCase())}
-                                                className="flex-grow bg-black/40 px-4 py-3 text-white font-mono text-sm placeholder-white/20 focus:outline-none rounded-2xl border border-white/10 focus:border-purple-500/50"
-                                            />
-                                            <button
-                                                onClick={() => joinGame(inputRoomId)}
-                                                className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl transition-all"
-                                            >
-                                                JOIN
-                                            </button>
-                                        </div>
-                                        <button
-                                            onClick={hostGame}
-                                            className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-black italic tracking-tighter rounded-2xl shadow-[0_0_15px_rgba(176,38,255,0.4)] transition-colors mt-2"
-                                        >
-                                            HOST NEW ROOM
-                                        </button>
-                                    </div>
-                                </motion.div>
+                                <PlayWithFriendsPanel
+                                    onClose={() => setShowPrivateOptions(false)}
+                                    onJoin={(code: string) => joinGame(code)}
+                                    onHost={hostGame}
+                                />
                             )}
                         </AnimatePresence>
                     </motion.div>
@@ -278,12 +262,12 @@ export default function GameLobby({
                             <motion.div
                                 animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
                                 transition={{ duration: 2, repeat: Infinity }}
-                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-indigo-500/30'}`}
+                                className={`absolute inset - 0 rounded - full border - 2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-indigo-500/30'} `}
                             />
                             <motion.div
                                 animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
                                 transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-indigo-500/20'}`}
+                                className={`absolute inset - 0 rounded - full border - 2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-indigo-500/20'} `}
                             />
 
                             {/* Center Glowing Orb */}
@@ -295,12 +279,12 @@ export default function GameLobby({
                                         : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
                                 }}
                                 transition={{ duration: 3, repeat: Infinity }}
-                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-indigo-500/20 border-indigo-500/40'
-                                    }`}
+                                className={`w - 40 h - 40 rounded - full backdrop - blur - 3xl border flex flex - col items - center justify - center transition - colors duration - 1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-indigo-500/20 border-indigo-500/40'
+                                    } `}
                             >
                                 <span className="text-4xl font-black text-white italic">{searchTime}s</span>
-                                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-indigo-400'
-                                    }`}>Elapsed</span>
+                                <span className={`text - [8px] font - black uppercase tracking - widest mt - 1 transition - colors duration - 1000 ${status === 'expanding' ? 'text-amber-400' : 'text-indigo-400'
+                                    } `}>Elapsed</span>
                             </motion.div>
 
                             {/* Rotating Scan Line */}
@@ -309,7 +293,7 @@ export default function GameLobby({
                                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                                 className="absolute inset-0 z-20"
                             >
-                                <div className={`w-1/2 h-1 bg-gradient-to-r from-transparent via-white/40 to-white/60 absolute top-1/2 left-1/2 origin-left -translate-y-1/2 blur-[1px]`} />
+                                <div className={`w - 1 / 2 h - 1 bg - gradient - to - r from - transparent via - white / 40 to - white / 60 absolute top - 1 / 2 left - 1 / 2 origin - left - translate - y - 1 / 2 blur - [1px]`} />
                             </motion.div>
                         </div>
 
