@@ -182,7 +182,7 @@ export default function GameLobby({
                                             type="number"
                                             value={wager}
                                             onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))}
-                                            className="w-full bg-transparent text-center text-5xl font-black text-white drop-shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-xl py-2"
+                                            className="w-full bg-transparent text-center text-5xl font-black text-white drop-shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-600/50 rounded-xl py-2"
                                             style={{ appearance: 'textfield' }}
                                         />
                                         <span className="block text-[10px] text-white/70 font-bold uppercase tracking-widest mt-1 drop-shadow-md text-center">Auto-Match Entry</span>
@@ -216,7 +216,7 @@ export default function GameLobby({
                                     onClick={startSearch}
                                     className="group relative w-full py-6 bg-white text-black font-black rounded-[32px] transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)]"
                                 >
-                                    <div className="absolute inset-0 bg-indigo-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+                                    <div className="absolute inset-0 bg-purple-600 opacity-0 group-hover:opacity-10 transition-opacity" />
                                     <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
                                 </motion.button>
 
@@ -262,12 +262,12 @@ export default function GameLobby({
                             <motion.div
                                 animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
                                 transition={{ duration: 2, repeat: Infinity }}
-                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-indigo-500/30'}`}
+                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-purple-600/30'}`}
                             />
                             <motion.div
                                 animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
                                 transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-indigo-500/20'}`}
+                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-purple-600/20'}`}
                             />
 
                             {/* Center Glowing Orb */}
@@ -279,10 +279,10 @@ export default function GameLobby({
                                         : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
                                 }}
                                 transition={{ duration: 3, repeat: Infinity }}
-                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-indigo-500/20 border-indigo-500/40'}`}
+                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-purple-600/20 border-purple-600/40'}`}
                             >
                                 <span className="text-4xl font-black text-white italic">{searchTime}s</span>
-                                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-indigo-400'}`}>Elapsed</span>
+                                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-purple-400'}`}>Elapsed</span>
                             </motion.div>
 
                             {/* Rotating Scan Line */}
@@ -399,7 +399,7 @@ export default function GameLobby({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-indigo-500 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-[#1a1c29] flex items-center justify-center text-6xl">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-purple-600 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-[#1a1c29] flex items-center justify-center text-6xl">
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} alt={finalName} className="w-full h-full object-cover" />
                                     ) : (
@@ -409,8 +409,8 @@ export default function GameLobby({
                                 <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-cyan text-center">
                                     {finalName}
                                 </h3>
-                                <div className="mt-2 bg-indigo-500/20 px-4 py-1 rounded-full border border-indigo-500/50">
-                                    <span className="text-xs font-bold text-indigo-300 uppercase tracking-widest">Lv. 8</span>
+                                <div className="mt-2 bg-purple-600/20 px-4 py-1 rounded-full border border-purple-600/50">
+                                    <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">Lv. 8</span>
                                 </div>
                             </motion.div>
 

@@ -365,17 +365,17 @@ const SplashScreen = () => (
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-indigo-500 to-teal-400 opacity-20 blur-xl"
+          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-purple-600 to-teal-400 opacity-20 blur-xl"
         />
-        <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(99,102,241,0.4)] flex items-center justify-center border border-white/20">
+        <div className="absolute inset-0 bg-gradient-to-tr from-purple-600 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(99,102,241,0.4)] flex items-center justify-center border border-white/20">
           <span className="text-5xl drop-shadow-lg">🎲</span>
         </div>
       </div>
 
-      <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
+      <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
         LUDO BASE
       </h1>
-      <p className="text-indigo-300 font-medium tracking-[0.3em] uppercase text-sm mb-12 text-center">
+      <p className="text-purple-300 font-medium tracking-[0.3em] uppercase text-sm mb-12 text-center">
         Superstar Edition
       </p>
 
@@ -385,7 +385,7 @@ const SplashScreen = () => (
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
           transition={{ duration: 1.5, ease: "easeInOut" }}
-          className="h-full bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(45,212,191,0.6)]"
+          className="h-full bg-gradient-to-r from-purple-600 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(45,212,191,0.6)]"
         />
       </div>
     </motion.div>
@@ -586,13 +586,13 @@ export default function Page() {
                       {isActive && (
                         <motion.div
                           layoutId="active-nav-bg"
-                          className="absolute inset-0 bg-blue-500/50 rounded-[20px] backdrop-blur-sm -z-10"
+                          className="absolute inset-0 bg-purple-600/50 rounded-[20px] backdrop-blur-sm -z-10"
                           transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         />
                       )}
                       {/* Hover Background */}
                       {!isActive && (
-                        <div className="absolute inset-0 bg-blue-500/50 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        <div className="absolute inset-0 bg-purple-600/50 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                       )}
 
                       <Icon />

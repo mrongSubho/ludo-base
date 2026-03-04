@@ -147,7 +147,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
 
                 <button
                     onClick={() => onDM?.(friend.wallet_address)}
-                    className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                    className="w-10 h-10 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
                 >
                     <DMIcon />
                 </button>
@@ -223,7 +223,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mb-6 mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-indigo-400">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
                                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -242,19 +242,19 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                     {/* Top-Level Segmented Control */}
                     <div className="flex bg-black/40 p-1 rounded-xl">
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'game' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'game' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('game')}
                         >
                             Game Friends
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'onchain' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'onchain' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('onchain')}
                         >
                             Onchain Friends
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-indigo-600 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('requests')}
                         >
                             Requests
@@ -295,7 +295,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                                     >
                                         Incoming (0)
                                         {activeRequestTab === 'incoming' && (
-                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-full" />
+                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 rounded-t-full" />
                                         )}
                                     </button>
                                     <button
@@ -304,7 +304,7 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                                     >
                                         Sent (0)
                                         {activeRequestTab === 'sent' && (
-                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-full" />
+                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 rounded-t-full" />
                                         )}
                                     </button>
                                 </div>

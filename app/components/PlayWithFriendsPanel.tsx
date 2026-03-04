@@ -97,7 +97,7 @@ export const PlayWithFriendsPanel = ({ onClose, onJoin, onHost }: any) => {
                                         {mockFriends.map(friend => (
                                             <div key={friend.id} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/10 shadow-sm transition-all hover:bg-white/10">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center font-bold text-white shadow-inner">
+                                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center font-bold text-white shadow-inner">
                                                         {friend.name[0]}
                                                     </div>
                                                     <div>
@@ -138,7 +138,7 @@ export const PlayWithFriendsPanel = ({ onClose, onJoin, onHost }: any) => {
                                 <button
                                     onClick={() => onJoin(roomCode)}
                                     disabled={roomCode.length < 3}
-                                    className="w-full py-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black italic tracking-tighter rounded-[24px] shadow-[0_0_30px_rgba(176,38,255,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xl"
+                                    className="w-full py-5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-black italic tracking-tighter rounded-[24px] shadow-[0_0_30px_rgba(176,38,255,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xl"
                                 >
                                     JOIN GAME
                                 </button>

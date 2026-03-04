@@ -51,7 +51,7 @@ interface MarketItem {
 
 // ─── Token Icon ───────────────────────────────────────────────────────────
 const TokenIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-indigo-400">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-purple-400">
         <circle cx="12" cy="12" r="10" />
         <path d="M12 6v12M8 10h8M8 14h8" />
     </svg>
@@ -234,7 +234,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         },
         { id: 't7', type: 'themes', name: 'Noir', description: 'Dark theme.', lore: 'Pure darkness.', price: 5, owned: false, rarity: 'common', collection: 'Classic', creator: 'X', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-black' },
         { id: 't8', type: 'themes', name: 'Solar', description: 'Sun theme.', lore: 'Blinding light.', price: 50, owned: false, rarity: 'legendary', collection: 'Astral', creator: 'X', collectionStats: { floor: 40, volume: 1000, owners: 50 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-yellow-600' },
-        { id: 's4', type: 'items', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 5, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-blue-500' },
+        { id: 's4', type: 'items', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 5, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-purple-600' },
         { id: 's5', type: 'items', name: 'Cyber-V', description: 'Matrix skin.', lore: 'The digital frontier.', price: 12, owned: false, rarity: 'rare', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-purple-500' },
         { id: 's6', type: 'items', name: 'Steel-Z', description: 'Metal skin.', lore: 'Cold steel.', price: 2, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 4, volume: 100, owners: 200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-gray-500' },
         { id: 'd4', type: 'dice', name: 'Ice D6', description: 'Cold dice.', lore: 'Frozen in time.', price: 10, owned: false, rarity: 'rare', collection: 'Elemental', creator: 'X', collectionStats: { floor: 8, volume: 500, owners: 100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x', standard: 'ERC', network: 'B' }, previewColor: 'bg-blue-200' },
@@ -408,7 +408,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     </h2>
                                     <div className="flex items-center gap-1.5 mt-0.5 px-0.5">
                                         <TokenIcon />
-                                        <span className="text-xs font-black text-indigo-300">BASE NETWORK</span>
+                                        <span className="text-xs font-black text-purple-300">BASE NETWORK</span>
                                     </div>
                                 </div>
                                 <button
@@ -449,14 +449,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         animate={{ opacity: 1, scale: 1 }}
                                         onClick={() => setSelectedItem(item)}
                                         className={`bg-white/5 border rounded-lg p-1 flex flex-col group cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all ${item.rarity === 'legendary' ? 'border-fuchsia-600/30 shadow-[0_0_15px_rgba(192,38,211,0.05)]' :
-                                            item.rarity === 'rare' ? 'border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.05)]' : 'border-white/10'
+                                            item.rarity === 'rare' ? 'border-purple-600/30 shadow-[0_0_15px_rgba(59,130,246,0.05)]' : 'border-white/10'
                                             }`}
                                     >
                                         <div className={`aspect-square w-full rounded-md ${item.previewColor} mb-1 border border-white/5 flex items-center justify-center text-lg shadow-inner relative overflow-hidden group-hover:scale-[1.02] transition-transform`}>
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
                                             <div className="relative z-10">{item.previewIcon}</div>
                                             {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-md animate-pulse" />}
-                                            {item.rarity === 'rare' && <div className="absolute inset-0 bg-blue-500/10 blur-md animate-pulse" />}
+                                            {item.rarity === 'rare' && <div className="absolute inset-0 bg-purple-600/10 blur-md animate-pulse" />}
                                             <div className="absolute top-0.5 left-0.5 flex gap-1">
                                                 <div className="px-1 py-0 rounded-sm bg-black/60 border border-white/5 backdrop-blur-md">
                                                     <span className="text-[6px] font-black text-white/50 tracking-tighter">ITEM</span>
@@ -570,7 +570,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Properties</h4>
                                                     <div className="grid grid-cols-3 gap-2">
                                                         {selectedItem.traits.map((trait, i) => (
-                                                            <div key={i} className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2.5 flex flex-col items-center text-center">
+                                                            <div key={i} className="bg-purple-600/10 border border-purple-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
                                                                 <span className="text-[8px] text-blue-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
                                                                 <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
                                                                 <span className="text-[9px] text-blue-400 font-mono">{trait.rarity_percent}% rarity</span>
@@ -706,7 +706,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                                 placeholder="0.00"
                                                                 value={sellPrice}
                                                                 onChange={(e) => setSellPrice(e.target.value)}
-                                                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-white/10 shadow-inner"
+                                                                className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-3xl font-mono font-black text-white focus:outline-none focus:border-purple-600/50 transition-all placeholder:text-white/10 shadow-inner"
                                                             />
                                                             <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-bold text-white/20">USDC</div>
                                                         </div>
@@ -766,7 +766,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         </button>
                                                         <button
                                                             disabled={!sellPrice || Number(sellPrice) <= 0}
-                                                            className="flex-[2] py-4 bg-blue-600 rounded-2xl font-black text-xs text-white hover:bg-blue-500 disabled:opacity-50 disabled:grayscale transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                                            className="flex-[2] py-4 bg-blue-600 rounded-2xl font-black text-xs text-white hover:bg-purple-600 disabled:opacity-50 disabled:grayscale transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
                                                             onClick={handleConfirmListing}
                                                         >
                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>

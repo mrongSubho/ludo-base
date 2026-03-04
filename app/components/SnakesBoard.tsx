@@ -129,7 +129,7 @@ const getPlayerNameColorClass = (color?: string) => {
         case 'green': return 'text-green-600 dark:text-green-400';
         case 'red': return 'text-red-500 dark:text-red-400';
         case 'yellow': return 'text-amber-500 dark:text-amber-400';
-        case 'blue': return 'text-blue-500 dark:text-blue-400';
+        case 'blue': return 'text-purple-600 dark:text-blue-400';
         default: return 'text-slate-800 dark:text-slate-200';
     }
 };
@@ -621,7 +621,7 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                             <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl text-center">
                                 <h2 className="text-4xl font-extrabold text-white mb-2 uppercase">{gameState.winner} Escapes!</h2>
                                 <p className="text-white/60 mb-6 font-medium">Conquered the snakes and climbed to exactly 100!</p>
-                                <button onClick={() => window.location.reload()} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-full transition-all">
+                                <button onClick={() => window.location.reload()} className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full transition-all">
                                     Play Again
                                 </button>
                             </div>

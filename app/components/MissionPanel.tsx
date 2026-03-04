@@ -49,7 +49,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
             case 'play': return {
                 icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M7 7h.01"></path><path d="M17 7h.01"></path><path d="M12 12h.01"></path><path d="M7 17h.01"></path><path d="M17 17h.01"></path></svg>,
                 color: 'text-blue-400',
-                bg: 'bg-blue-500/20'
+                bg: 'bg-purple-600/20'
             };
             case 'win': return {
                 icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v6a5 5 0 0 1-10 0V4"></path><path d="M3 5h4v4A5 5 0 0 1 3 5"></path><path d="M21 5h-4v4a5 5 0 0 0 4-4"></path></svg>,
@@ -63,8 +63,8 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
             };
             case 'social': return {
                 icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-                color: 'text-indigo-400',
-                bg: 'bg-indigo-500/20'
+                color: 'text-purple-400',
+                bg: 'bg-purple-600/20'
             };
         }
     };
@@ -120,7 +120,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                         key={tab}
                                         onClick={() => setActiveTab(tab as MissionTab)}
                                         className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all ${activeTab === tab
-                                            ? 'bg-blue-600/80 text-white shadow-lg border border-blue-500/30'
+                                            ? 'bg-blue-600/80 text-white shadow-lg border border-purple-600/30'
                                             : 'text-white/40 hover:text-white/70'
                                             }`}
                                     >
@@ -209,7 +209,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                                             {/* Custom CSS Progress Bar */}
                                                             <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-blue-500'}`}
+                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-purple-600'}`}
                                                                     style={{ width: `${progressPercent}%` }}
                                                                 />
                                                             </div>

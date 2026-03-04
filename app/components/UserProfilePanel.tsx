@@ -53,7 +53,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-indigo-400">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="12" cy="7" r="4"></circle>
                             </svg>
@@ -73,7 +73,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
 
                     <div className="flex flex-col items-center glass-card relative">
                         <div
-                            className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-4xl mb-4 relative shadow-lg overflow-hidden"
+                            className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-600 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-4xl mb-4 relative shadow-lg overflow-hidden"
                             title="Your Profile Avatar"
                         >
                             <div className="w-full h-full bg-[#1a1c29] rounded-full flex items-center justify-center overflow-hidden">
@@ -103,12 +103,12 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                             {/* Central Wins Hub */}
                             <div className="glass-card flex flex-col items-center justify-center py-8 relative overflow-hidden group">
                                 {/* Background Decorations */}
-                                <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent opacity-50" />
-                                <div className="absolute -top-10 -around-10 w-32 h-32 bg-indigo-500/20 blur-[60px] rounded-full group-hover:bg-indigo-500/30 transition-colors" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-purple-600/10 to-transparent opacity-50" />
+                                <div className="absolute -top-10 -around-10 w-32 h-32 bg-purple-600/20 blur-[60px] rounded-full group-hover:bg-purple-600/30 transition-colors" />
 
                                 <div className="relative z-10 flex flex-col items-center">
-                                    <div className="mb-2 p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-indigo-400">
+                                    <div className="mb-2 p-3 bg-purple-600/10 rounded-2xl border border-purple-600/20 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-purple-400">
                                             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
                                             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
                                             <path d="M4 22h16"></path>
@@ -118,7 +118,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                         </svg>
                                     </div>
                                     <span className="text-5xl font-black text-white tracking-tighter mb-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">42</span>
-                                    <span className="text-xs font-black uppercase tracking-[0.3em] text-indigo-400/80">Total Wins</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.3em] text-purple-400/80">Total Wins</span>
                                 </div>
                             </div>
 
@@ -134,7 +134,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                                 strokeWidth="12"
                                                 strokeDasharray={circumference}
                                                 strokeDashoffset={strokeDashoffset}
-                                                className="stroke-indigo-500 fill-none"
+                                                className="stroke-purple-600 fill-none"
                                                 strokeLinecap="round"
                                                 transform="rotate(-90 45 45)"
                                             />
@@ -176,7 +176,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                             <div className="flex items-center justify-between p-4 border-b border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                             <circle cx="12" cy="12" r="3"></circle>
@@ -185,7 +185,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                     <span className="text-sm font-medium text-white">Public Profile</span>
                                 </div>
                                 <button
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative ${isPublic ? 'bg-indigo-500' : 'bg-white/10'}`}
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative ${isPublic ? 'bg-purple-600' : 'bg-white/10'}`}
                                     onClick={() => setIsPublic(!isPublic)}
                                 >
                                     <motion.div
