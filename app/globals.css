@@ -195,21 +195,23 @@ a {
 /* ─── Phase 2: Glassmorphism & Neon Utilities ─── */
 
 .cosmic-core-bg {
-  background: radial-gradient(circle at 20% 40%, rgba(66, 17, 133, 0.6), transparent 60%),
-    radial-gradient(circle at 80% 60%, rgba(13, 27, 73, 0.8), transparent 60%),
-    radial-gradient(circle at 50% 100%, rgba(18, 12, 45, 1), transparent 80%);
-  background-color: #070911;
-  /* Deep cosmic void base */
+  /* Textured Grey Gradient matching glassmorphism */
+  background:
+    radial-gradient(circle at 15% 50%, rgba(255, 255, 255, 0.08), transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(200, 200, 200, 0.05), transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(100, 100, 100, 0.03), transparent 60%);
+  background-color: #1a1a1e;
+  /* Solid dark grey base */
   position: relative;
   overflow: hidden;
 }
 
-/* Pulsing Cosmic Orbs */
+/* Pulsing Cosmic Orbs - Updated to match Grey theme */
 .cosmic-orb {
   position: absolute;
   border-radius: 50%;
   filter: blur(40px);
-  opacity: 0.5;
+  opacity: 0.6;
   animation: drift-orb 20s infinite alternate ease-in-out;
   pointer-events: none;
 }
@@ -217,8 +219,8 @@ a {
 .cosmic-orb-1 {
   width: 300px;
   height: 300px;
-  background: rgba(176, 38, 255, 0.3);
-  /* Electric Purple */
+  background: rgba(255, 255, 255, 0.05);
+  /* Soft White */
   top: -100px;
   left: -100px;
   animation-duration: 25s;
@@ -227,8 +229,8 @@ a {
 .cosmic-orb-2 {
   width: 400px;
   height: 400px;
-  background: rgba(0, 255, 255, 0.2);
-  /* Cyan */
+  background: rgba(200, 200, 200, 0.07);
+  /* Light Grey */
   bottom: -150px;
   right: -100px;
   animation-duration: 30s;
@@ -238,8 +240,8 @@ a {
 .cosmic-orb-3 {
   width: 250px;
   height: 250px;
-  background: rgba(79, 70, 229, 0.3);
-  /* Indigo */
+  background: rgba(150, 150, 150, 0.04);
+  /* Mid Grey */
   top: 40%;
   left: 60%;
   animation-duration: 22s;
