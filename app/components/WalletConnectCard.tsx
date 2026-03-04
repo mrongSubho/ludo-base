@@ -32,7 +32,7 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
                 </div>
             </div>
 
-            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-teal-100 tracking-tight mb-2 text-center drop-shadow-sm z-10 relative">
+            <h2 className="text-3xl font-extrabold text-transparent bg-purple-600lip-text bg-gradient-to-r from-white via-purple-100 to-teal-100 tracking-tight mb-2 text-center drop-shadow-sm z-10 relative">
                 Ludo Base
             </h2>
             <p className="text-white/60 font-medium text-sm mb-8 text-center px-4 z-10 relative">

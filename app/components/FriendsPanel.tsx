@@ -211,8 +211,8 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                /* Unified global panel layout: top-64, bottom-80, bg-20 glass */
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-950/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                /* Unified global panel layout: top-64, bottom-80, bg-purple-6000 glass */
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>

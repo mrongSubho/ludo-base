@@ -123,14 +123,14 @@ export default function GameLobby({
                                                 <span className={`block text-xl font-black italic tracking-tighter capitalize transition-all duration-300 drop-shadow-md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'}`}>
                                                     {mode}
                                                 </span>
-                                                <div className={`mt-2 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
+                                                <div className={`mt-2 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-purple-600yan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
                                                     <span className={`text-[10px] font-bold uppercase tracking-widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'}`}>
                                                         {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
                                                     </span>
                                                 </div>
                                             </div>
                                             {gameMode === mode && (
-                                                <motion.div layoutId="mode-glow" className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent" />
+                                                <motion.div layoutId="mode-glow" className="absolute inset-0 bg-gradient-to-br from-purple-600yan-400/10 to-transparent" />
                                             )}
                                         </button>
                                     ))}
@@ -279,7 +279,7 @@ export default function GameLobby({
                                         : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
                                 }}
                                 transition={{ duration: 3, repeat: Infinity }}
-                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-purple-600/20 border-purple-600/40'}`}
+                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-purple-600mber-500/20 border-amber-500/40' : 'bg-purple-600/20 border-purple-600/40'}`}
                             >
                                 <span className="text-4xl font-black text-white italic">{searchTime}s</span>
                                 <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-purple-400'}`}>Elapsed</span>
@@ -399,7 +399,7 @@ export default function GameLobby({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-purple-600 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-purple-950 flex items-center justify-center text-6xl">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-purple-600 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-purple-600 flex items-center justify-center text-6xl">
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} alt={finalName} className="w-full h-full object-cover" />
                                     ) : (
@@ -421,7 +421,7 @@ export default function GameLobby({
                                 transition={{ delay: 0.3, type: "spring" }}
                                 className="relative flex flex-col items-center justify-center z-20 mx-4"
                             >
-                                <div className="absolute inset-0 bg-cyan-500/20 blur-[60px] rounded-full" />
+                                <div className="absolute inset-0 bg-purple-600yan-500/20 blur-[60px] rounded-full" />
                                 <h2 className="text-6xl md:text-[8rem] font-black text-white italic tracking-tighter leading-none drop-shadow-[0_0_30px_rgba(255,255,255,0.8)]">
                                     VS
                                 </h2>
@@ -442,13 +442,13 @@ export default function GameLobby({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-purple-950 flex items-center justify-center text-6xl">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-purple-600 flex items-center justify-center text-6xl">
                                     <span>🤖</span>
                                 </div>
                                 <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-purple text-center">
                                     Rival
                                 </h3>
-                                <div className="mt-2 bg-amber-500/20 px-4 py-1 rounded-full border border-amber-500/50">
+                                <div className="mt-2 bg-purple-600mber-500/20 px-4 py-1 rounded-full border border-amber-500/50">
                                     <span className="text-xs font-bold text-amber-300 uppercase tracking-widest">Lv. ?</span>
                                 </div>
                             </motion.div>

@@ -41,8 +41,8 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                /* Unified global panel layout: top-64, bottom-80, bg-20 glass */
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-950/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                /* Unified global panel layout: top-64, bottom-80, bg-purple-6000 glass */
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
@@ -76,7 +76,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                             className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-600 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-4xl mb-4 relative shadow-lg overflow-hidden"
                             title="Your Profile Avatar"
                         >
-                            <div className="w-full h-full bg-purple-950 rounded-full flex items-center justify-center overflow-hidden">
+                            <div className="w-full h-full bg-purple-600 rounded-full flex items-center justify-center overflow-hidden">
                                 {finalAvatar ? (
                                     <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
                                 ) : (
@@ -88,7 +88,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                         <div className="flex flex-col items-center w-full max-w-[200px]">
                             <h2 className="text-2xl font-bold text-white py-1">{finalName}</h2>
                             <div className="flex items-center gap-2 mt-2 bg-black/40 px-3 py-1 rounded-full border border-white/10">
-                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-slate-400">Silver II</span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-purple-600lip-text bg-gradient-to-r from-gray-300 to-slate-400">Silver II</span>
                                 <div className="w-1 h-1 bg-white/30 rounded-full" />
                                 <span className="text-[11px] text-white/70 font-bold">Lv. 8</span>
                             </div>

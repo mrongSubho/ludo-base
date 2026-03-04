@@ -94,10 +94,10 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
     const getTierConfig = (tier: LeaderboardEntry['tier']) => {
         switch (tier) {
             case 'Legendary': return { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', shadow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', dot: 'bg-red-400' };
-            case 'Platinum': return { color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', shadow: '', dot: 'bg-cyan-400' };
+            case 'Platinum': return { color: 'text-cyan-400', bg: 'bg-purple-600yan-500/10', border: 'border-cyan-500/20', shadow: '', dot: 'bg-purple-600yan-400' };
             case 'Gold': return { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', shadow: '', dot: 'bg-yellow-400' };
             case 'Silver': return { color: 'text-slate-300', bg: 'bg-slate-500/10', border: 'border-slate-500/20', shadow: '', dot: 'bg-slate-300' };
-            case 'Rookie': return { color: 'text-amber-700', bg: 'bg-amber-900/20', border: 'border-amber-900/30', shadow: '', dot: 'bg-amber-700' };
+            case 'Rookie': return { color: 'text-amber-700', bg: 'bg-purple-600mber-900/20', border: 'border-amber-900/30', shadow: '', dot: 'bg-purple-600mber-700' };
         }
     }
 
@@ -119,7 +119,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-950/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
@@ -297,7 +297,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                         ) : null}
                                                     </div>
 
-                                                    <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-purple-950/50 border-purple-600/30' : 'bg-black/40 border-white/5'}`}>
+                                                    <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-purple-600/50 border-purple-600/30' : 'bg-black/40 border-white/5'}`}>
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-purple-300' : 'text-purple-400'}`}>
                                                             {entry.wins}
                                                         </span>
