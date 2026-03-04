@@ -114,7 +114,7 @@ export default function GameLobby({
                                         <button
                                             key={mode}
                                             onClick={() => setGameMode(mode)}
-                                            className={`relative px-8 py-3 rounded-full border transition-all duration-300 overflow-hidden group glass-panel flex flex-col items-center justify-center min-w-[140px] ${gameMode === mode
+                                            className={`relative px-8 py-4 rounded-full border transition-all duration-300 overflow-hidden group glass-panel flex flex-col items-center justify-center min-w-[150px] ${gameMode === mode
                                                 ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-cyan-900/10'
                                                 : 'border-white/20 hover:border-white/40 bg-white/5'
                                                 }`}
@@ -123,9 +123,11 @@ export default function GameLobby({
                                                 <span className={`block text-xl font-black italic tracking-tighter capitalize drop-shadow-md ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>
                                                     {mode}
                                                 </span>
-                                                <span className={`block text-[8px] font-black uppercase tracking-[0.2em] mt-0.5 ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>
-                                                    {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
-                                                </span>
+                                                <div className={`mt-1 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
+                                                    <span className={`text-[8px] font-black uppercase tracking-[0.2em] ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>
+                                                        {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </button>
                                     ))}
@@ -157,17 +159,14 @@ export default function GameLobby({
                         <div className="lg:col-span-2 flex flex-col justify-end space-y-4">
 
                             {/* NEW WAGER SECTION */}
-                            <div className="p-6 pb-8 rounded-[40px] glass-panel flex flex-col items-center shadow-2xl border-white/20">
-                                {/* Header: Match Fees & Ludo Coins */}
-                                <div className="w-full flex justify-between items-start mb-8 px-2">
-                                    <span className="text-white/80 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md">Match Fees</span>
-                                    <div className="px-3 py-1 flex items-center justify-center bg-yellow-400/10 border border-yellow-400/40 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.2)]">
-                                        <span className="text-yellow-400 text-[10px] font-black uppercase tracking-widest drop-shadow-sm">Ludo Coins</span>
-                                    </div>
+                            <div className="p-8 rounded-[40px] glass-panel space-y-6 flex flex-col items-center shadow-2xl border-white/20">
+                                {/* Label */}
+                                <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md mb-2">
+                                    <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Bet Amount</span>
                                 </div>
 
                                 {/* Stepper + Input */}
-                                <div className="flex items-center justify-between w-full px-2 mb-6">
+                                <div className="flex items-center justify-between w-full px-2">
                                     <button
                                         onClick={() => setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100)))}
                                         className="w-14 h-14 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors active:scale-95 shadow-lg backdrop-blur-md"
@@ -183,7 +182,7 @@ export default function GameLobby({
                                             className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-purple-600/50 rounded-xl"
                                             style={{ appearance: 'textfield', WebkitAppearance: 'none', margin: 0 }}
                                         />
-                                        <span className="text-[10px] text-white/50 font-black uppercase tracking-[0.2em] mt-2 drop-shadow-md">Entry Fee</span>
+                                        <span className="text-[10px] text-white/50 font-black uppercase tracking-[0.2em] mt-2 drop-shadow-md">Auto-Match Entry</span>
                                     </div>
 
                                     <button
@@ -193,13 +192,26 @@ export default function GameLobby({
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
                                 </div>
+
+                                {/* Quick Select Chips */}
+                                <div className="flex gap-2 justify-center flex-wrap pt-2">
+                                    {[0, 1000, 10000, 100000, 1000000].map(val => (
+                                        <button
+                                            key={val}
+                                            onClick={() => setWager(val)}
+                                            className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-[10px] font-bold transition-all active:scale-95"
+                                        >
+                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="w-full space-y-3">
+                            <div className="w-full space-y-3 pt-6">
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={startSearch}
-                                    className="group relative w-full py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)] -mt-6 z-10"
+                                    className="group relative w-full py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(176,38,255,0.3)] hover:shadow-[0_0_40px_rgba(176,38,255,0.6)] z-10"
                                 >
                                     <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
                                 </motion.button>
