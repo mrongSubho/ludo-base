@@ -986,9 +986,7 @@ a {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-.nav-item:hover {
-  /* Hover handled by Tailwind classes in page.tsx */
-}
+
 
 .nav-item.active {
   color: #3b82f6;

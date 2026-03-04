@@ -114,17 +114,17 @@ export default function GameLobby({
                                         <button
                                             key={mode}
                                             onClick={() => setGameMode(mode)}
-                                            className={`relative p - 6 rounded - [32px] border transition - all duration - 500 overflow - hidden group glass - panel ${gameMode === mode
+                                            className={`relative p-6 rounded-[32px] border transition-all duration-500 overflow-hidden group glass-panel ${gameMode === mode
                                                 ? 'border-cyan-400 shadow-[0_0_30px_rgba(0,255,255,0.2)]'
                                                 : 'border-white/10 hover:border-white/30'
-                                                } `}
+                                                }`}
                                         >
                                             <div className="relative z-10 text-left">
-                                                <span className={`block text - xl font - black italic tracking - tighter capitalize transition - all duration - 300 drop - shadow - md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'} `}>
+                                                <span className={`block text-xl font-black italic tracking-tighter capitalize transition-all duration-300 drop-shadow-md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'}`}>
                                                     {mode}
                                                 </span>
-                                                <div className={`mt - 2 inline - block px - 3 py - 1 rounded - full border backdrop - blur - md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'} `}>
-                                                    <span className={`text - [10px] font - bold uppercase tracking - widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'} `}>
+                                                <div className={`mt-2 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
+                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'}`}>
                                                         {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
                                                     </span>
                                                 </div>
@@ -144,12 +144,12 @@ export default function GameLobby({
                                         <button
                                             key={type}
                                             onClick={() => setMatchType(type)}
-                                            className={`p - 6 rounded - [32px] border transition - all duration - 500 glass - panel ${matchType === type
+                                            className={`p-6 rounded-[32px] border transition-all duration-500 glass-panel ${matchType === type
                                                 ? 'border-purple-500 shadow-[0_0_30px_rgba(176,38,255,0.2)]'
                                                 : 'border-white/10 hover:border-white/30'
-                                                } `}
+                                                }`}
                                         >
-                                            <span className={`block text - 2xl font - black italic tracking - tighter transition - all duration - 300 drop - shadow - md text - center ${matchType === type ? 'neon-glow-purple' : 'text-white/80'} `}>
+                                            <span className={`block text-2xl font-black italic tracking-tighter transition-all duration-300 drop-shadow-md text-center ${matchType === type ? 'neon-glow-purple' : 'text-white/80'}`}>
                                                 {type}
                                             </span>
                                         </button>
@@ -262,12 +262,12 @@ export default function GameLobby({
                             <motion.div
                                 animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
                                 transition={{ duration: 2, repeat: Infinity }}
-                                className={`absolute inset - 0 rounded - full border - 2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-indigo-500/30'} `}
+                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-indigo-500/30'}`}
                             />
                             <motion.div
                                 animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
                                 transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                className={`absolute inset - 0 rounded - full border - 2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-indigo-500/20'} `}
+                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-indigo-500/20'}`}
                             />
 
                             {/* Center Glowing Orb */}
@@ -279,12 +279,10 @@ export default function GameLobby({
                                         : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
                                 }}
                                 transition={{ duration: 3, repeat: Infinity }}
-                                className={`w - 40 h - 40 rounded - full backdrop - blur - 3xl border flex flex - col items - center justify - center transition - colors duration - 1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-indigo-500/20 border-indigo-500/40'
-                                    } `}
+                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-indigo-500/20 border-indigo-500/40'}`}
                             >
                                 <span className="text-4xl font-black text-white italic">{searchTime}s</span>
-                                <span className={`text - [8px] font - black uppercase tracking - widest mt - 1 transition - colors duration - 1000 ${status === 'expanding' ? 'text-amber-400' : 'text-indigo-400'
-                                    } `}>Elapsed</span>
+                                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-indigo-400'}`}>Elapsed</span>
                             </motion.div>
 
                             {/* Rotating Scan Line */}
@@ -293,7 +291,7 @@ export default function GameLobby({
                                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                                 className="absolute inset-0 z-20"
                             >
-                                <div className={`w - 1 / 2 h - 1 bg - gradient - to - r from - transparent via - white / 40 to - white / 60 absolute top - 1 / 2 left - 1 / 2 origin - left - translate - y - 1 / 2 blur - [1px]`} />
+                                <div className="w-1/2 h-1 bg-gradient-to-r from-transparent via-white/40 to-white/60 absolute top-1/2 left-1/2 origin-left -translate-y-1/2 blur-[1px]" />
                             </motion.div>
                         </div>
 
