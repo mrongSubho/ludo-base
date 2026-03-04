@@ -122,9 +122,11 @@ export default function GameLobby({
                                                 <span className={`block text-xl font-black italic tracking-tighter capitalize transition-all duration-300 drop-shadow-md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'}`}>
                                                     {mode}
                                                 </span>
-                                                <span className={`text-[12px] font-bold leading-tight mt-1 block drop-shadow-md ${gameMode === mode ? 'text-white' : 'text-white/70'}`}>
-                                                    {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
-                                                </span>
+                                                <div className={`mt-2 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
+                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'}`}>
+                                                        {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
+                                                    </span>
+                                                </div>
                                             </div>
                                             {gameMode === mode && (
                                                 <motion.div layoutId="mode-glow" className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent" />
@@ -159,7 +161,7 @@ export default function GameLobby({
                         <div className="lg:col-span-2 flex flex-col justify-end space-y-8">
                             <div className="p-8 rounded-[40px] glass-panel space-y-6">
                                 <div className="flex justify-between items-center">
-                                    <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md">Match Wager</h3>
+                                    <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md">Match Fees</h3>
                                     <div className="px-3 py-1 bg-yellow-500/20 rounded-full border border-yellow-500/30">
                                         <span className="text-[10px] text-yellow-500 font-bold">LUDO COINS</span>
                                     </div>

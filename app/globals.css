@@ -214,15 +214,12 @@ a {
 }
 
 .glass-panel {
-  background: rgba(0, 0, 0, 0.4);
-  /* Darkened from 0.05 white for contrast */
+  background: rgba(26, 28, 41, 0.4);
+  /* #1a1c29 at 40% for better legibility but still glassy */
   backdrop-filter: blur(24px);
-  /* Increased blur */
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  /* Slightly more visible border */
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  /* Stronger shadow */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
 .neon-glow-cyan {
@@ -947,8 +944,8 @@ a {
 }
 
 .nav-item.active {
-  color: #00FFFF;
-  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+  color: #3b82f6;
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
   position: relative;
 }
 
@@ -960,9 +957,9 @@ a {
   transform: translateX(-50%);
   width: 20px;
   height: 2px;
-  background: #00FFFF;
+  background: #3b82f6;
   border-radius: 2px;
-  box-shadow: 0 0 5px #00FFFF;
+  box-shadow: 0 0 5px #3b82f6;
 }
 
 .nav-item .nav-icon {
