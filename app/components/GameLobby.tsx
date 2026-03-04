@@ -108,48 +108,43 @@ export default function GameLobby({
                         {/* Left: Mode & Match Type (3 cols) */}
                         <div className="lg:col-span-3 space-y-8">
                             <div className="space-y-4 flex flex-col items-center lg:items-start">
-                                <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] ml-2 drop-shadow-md">Select Game Mode</h3>
-                                <div className="grid grid-cols-2 gap-4">
+                                <h3 className="text-white/80 text-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md mb-2">Select Game Mode</h3>
+                                <div className="flex justify-center gap-4">
                                     {(['classic', 'power'] as const).map(mode => (
                                         <button
                                             key={mode}
                                             onClick={() => setGameMode(mode)}
-                                            className={`relative p-6 rounded-[32px] border transition-all duration-500 overflow-hidden group glass-panel ${gameMode === mode
-                                                ? 'border-cyan-400 shadow-[0_0_30px_rgba(0,255,255,0.2)]'
-                                                : 'border-white/10 hover:border-white/30'
+                                            className={`relative px-8 py-3 rounded-full border transition-all duration-300 overflow-hidden group glass-panel flex flex-col items-center justify-center min-w-[140px] ${gameMode === mode
+                                                ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-cyan-900/10'
+                                                : 'border-white/20 hover:border-white/40 bg-white/5'
                                                 }`}
                                         >
-                                            <div className="relative z-10 text-left">
-                                                <span className={`block text-xl font-black italic tracking-tighter capitalize transition-all duration-300 drop-shadow-md ${gameMode === mode ? 'neon-glow-cyan' : 'text-white/80'}`}>
+                                            <div className="relative z-10 text-center">
+                                                <span className={`block text-xl font-black italic tracking-tighter capitalize drop-shadow-md ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>
                                                     {mode}
                                                 </span>
-                                                <div className={`mt-2 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-purple-600yan-500/10 border-cyan-500/30' : 'bg-white/5 border-white/10'}`}>
-                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${gameMode === mode ? 'text-cyan-100' : 'text-white/70'}`}>
-                                                        {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
-                                                    </span>
-                                                </div>
+                                                <span className={`block text-[8px] font-black uppercase tracking-[0.2em] mt-0.5 ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>
+                                                    {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
+                                                </span>
                                             </div>
-                                            {gameMode === mode && (
-                                                <motion.div layoutId="mode-glow" className="absolute inset-0 bg-gradient-to-br from-purple-600yan-400/10 to-transparent" />
-                                            )}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="space-y-4 flex flex-col items-center lg:items-start">
-                                <h3 className="text-white/70 text-xs font-black uppercase tracking-[0.2em] ml-2 drop-shadow-md">Match Type</h3>
-                                <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-4 flex flex-col items-center">
+                                <h3 className="text-white/80 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md mt-2">Match Type</h3>
+                                <div className="flex justify-center gap-3">
                                     {(['1v1', '2v2', '4P'] as const).map(type => (
                                         <button
                                             key={type}
                                             onClick={() => setMatchType(type)}
-                                            className={`p-6 rounded-[32px] border transition-all duration-500 glass-panel ${matchType === type
-                                                ? 'border-purple-500 shadow-[0_0_30px_rgba(176,38,255,0.2)]'
-                                                : 'border-white/10 hover:border-white/30'
+                                            className={`w-14 h-14 rounded-full border transition-all duration-300 glass-panel flex items-center justify-center ${matchType === type
+                                                ? 'border-white/60 shadow-[0_0_15px_rgba(255,255,255,0.2)] bg-white/10'
+                                                : 'border-white/10 hover:border-white/30 bg-white/5'
                                                 }`}
                                         >
-                                            <span className={`block text-2xl font-black italic tracking-tighter transition-all duration-300 drop-shadow-md text-center ${matchType === type ? 'neon-glow-purple' : 'text-white/80'}`}>
+                                            <span className={`block text-xl font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-white' : 'text-white/60'}`}>
                                                 {type}
                                             </span>
                                         </button>
@@ -162,51 +157,41 @@ export default function GameLobby({
                         <div className="lg:col-span-2 flex flex-col justify-end space-y-4">
 
                             {/* NEW WAGER SECTION */}
-                            <div className="p-8 rounded-[40px] glass-panel space-y-6 flex flex-col items-center">
-                                {/* Label */}
-                                <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
-                                    <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Bet Amount</span>
+                            <div className="p-6 pb-8 rounded-[40px] glass-panel flex flex-col items-center shadow-2xl border-white/20">
+                                {/* Header: Match Fees & Ludo Coins */}
+                                <div className="w-full flex justify-between items-start mb-8 px-2">
+                                    <span className="text-white/80 text-xs font-black uppercase tracking-[0.2em] drop-shadow-md">Match Fees</span>
+                                    <div className="px-3 py-1 flex items-center justify-center bg-yellow-400/10 border border-yellow-400/40 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.2)]">
+                                        <span className="text-yellow-400 text-[10px] font-black uppercase tracking-widest drop-shadow-sm">Ludo Coins</span>
+                                    </div>
                                 </div>
 
                                 {/* Stepper + Input */}
-                                <div className="flex items-center justify-center gap-4 w-full">
+                                <div className="flex items-center justify-between w-full px-2 mb-6">
                                     <button
                                         onClick={() => setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100)))}
-                                        className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:text-white transition-colors active:scale-95 touch-manipulation shadow-lg"
+                                        className="w-14 h-14 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors active:scale-95 shadow-lg backdrop-blur-md"
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
 
-                                    <div className="flex-1 relative">
+                                    <div className="flex-1 flex flex-col items-center justify-center relative -mt-4">
                                         <input
                                             type="number"
                                             value={wager}
                                             onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))}
-                                            className="w-full bg-transparent text-center text-5xl font-black text-white drop-shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-600/50 rounded-xl py-2"
-                                            style={{ appearance: 'textfield' }}
+                                            className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-purple-600/50 rounded-xl"
+                                            style={{ appearance: 'textfield', WebkitAppearance: 'none', margin: 0 }}
                                         />
-                                        <span className="block text-[10px] text-white/70 font-bold uppercase tracking-widest mt-1 drop-shadow-md text-center">Auto-Match Entry</span>
+                                        <span className="text-[10px] text-white/50 font-black uppercase tracking-[0.2em] mt-2 drop-shadow-md">Entry Fee</span>
                                     </div>
 
                                     <button
                                         onClick={() => setWager(wager + (wager >= 1000 ? 1000 : 100))}
-                                        className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:text-white transition-colors active:scale-95 touch-manipulation shadow-lg"
+                                        className="w-14 h-14 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors active:scale-95 shadow-lg backdrop-blur-md"
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
-                                </div>
-
-                                {/* Quick Select Chips */}
-                                <div className="flex gap-2 justify-center flex-wrap pt-2">
-                                    {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                        <button
-                                            key={val}
-                                            onClick={() => setWager(val)}
-                                            className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-[10px] font-bold transition-all active:scale-95"
-                                        >
-                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
-                                        </button>
-                                    ))}
                                 </div>
                             </div>
                             <div className="w-full space-y-3">
@@ -214,9 +199,8 @@ export default function GameLobby({
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={startSearch}
-                                    className="group relative w-full py-6 bg-white text-black font-black rounded-[32px] transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)]"
+                                    className="group relative w-full py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)] -mt-6 z-10"
                                 >
-                                    <div className="absolute inset-0 bg-purple-600 opacity-0 group-hover:opacity-10 transition-opacity" />
                                     <span className="relative text-xl italic tracking-tighter">PLAY ONLINE</span>
                                 </motion.button>
 

@@ -195,55 +195,64 @@ a {
 /* ─── Phase 2: Glassmorphism & Neon Utilities ─── */
 
 .cosmic-core-bg {
-  /* Textured Grey Gradient matching glassmorphism */
+  /* Premium Silvery Frosted Glass Mesh */
   background:
-    radial-gradient(circle at 15% 50%, rgba(255, 255, 255, 0.08), transparent 50%),
-    radial-gradient(circle at 85% 30%, rgba(200, 200, 200, 0.05), transparent 50%),
-    radial-gradient(circle at 50% 80%, rgba(100, 100, 100, 0.03), transparent 60%) !important;
-  background-color: #1a1a1e !important;
-  /* Solid dark grey base */
+    /* Bright top-left flare */
+    radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
+    /* Swirling wave 1 */
+    radial-gradient(ellipse at 60% 30%, rgba(200, 204, 214, 0.3) 0%, transparent 60%),
+    /* Swirling wave 2 */
+    radial-gradient(ellipse at 30% 70%, rgba(255, 255, 255, 0.25) 0%, transparent 50%),
+    /* Swirling wave 3 */
+    radial-gradient(circle at 80% 90%, rgba(220, 224, 234, 0.2) 0%, transparent 50%),
+    /* Static Noise Texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E") !important;
+
+  background-color: #5a5c63 !important;
+  /* Rich gunmetal silver-grey base */
+  background-blend-mode: color-dodge, screen, screen, screen, overlay !important;
   position: relative;
   overflow: hidden;
 }
 
-/* Pulsing Cosmic Orbs - Updated to match Grey theme */
+/* Pulsing Cosmic Orbs - Updated to match bright silver flares */
 .cosmic-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(40px);
-  opacity: 0.6;
+  filter: blur(60px);
+  opacity: 0.8;
   animation: drift-orb 20s infinite alternate ease-in-out;
   pointer-events: none;
 }
 
 .cosmic-orb-1 {
-  width: 300px;
-  height: 300px;
-  background: rgba(255, 255, 255, 0.05);
-  /* Soft White */
-  top: -100px;
-  left: -100px;
+  width: 350px;
+  height: 350px;
+  background: rgba(255, 255, 255, 0.3);
+  /* Top Flare */
+  top: -50px;
+  left: 20%;
   animation-duration: 25s;
 }
 
 .cosmic-orb-2 {
-  width: 400px;
-  height: 400px;
-  background: rgba(200, 200, 200, 0.07);
-  /* Light Grey */
-  bottom: -150px;
-  right: -100px;
+  width: 450px;
+  height: 450px;
+  background: rgba(255, 255, 255, 0.25);
+  /* Bottom Right Flare */
+  bottom: -100px;
+  right: -50px;
   animation-duration: 30s;
   animation-delay: -5s;
 }
 
 .cosmic-orb-3 {
-  width: 250px;
-  height: 250px;
-  background: rgba(150, 150, 150, 0.04);
-  /* Mid Grey */
+  width: 300px;
+  height: 300px;
+  background: rgba(230, 235, 245, 0.2);
+  /* Center Left Flare */
   top: 40%;
-  left: 60%;
+  left: 10%;
   animation-duration: 22s;
   animation-delay: -10s;
 }
