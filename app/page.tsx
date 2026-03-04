@@ -409,8 +409,8 @@ export default function Page() {
 
   // Match Configuration State (Synced with GameLobby)
   const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
-  const [playerCount, setPlayerCount] = useState<'2' | '4' | '2v2'>('4');
-  const [betAmount, setBetAmount] = useState<number>(50);
+  const [playerCount, setPlayerCount] = useState<'1v1' | '2v2' | '4P'>('1v1');
+  const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);
 
   useEffect(() => {

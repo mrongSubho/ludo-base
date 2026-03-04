@@ -103,13 +103,13 @@ export default function GameLobby({
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="w-full grid grid-cols-1 lg:grid-cols-5 gap-8"
+                        className="w-full max-w-[420px] mx-auto flex flex-col gap-6"
                     >
-                        {/* Left: Mode & Match Type (3 cols) */}
-                        <div className="lg:col-span-3 space-y-8">
+                        {/* Mode & Match Type */}
+                        <div className="w-full space-y-8 flex flex-col">
                             <div className="flex flex-col items-center w-full">
-                                <div className="flex justify-center w-full mb-6 mt-2">
-                                    <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
+                                <div className="flex justify-center w-full mb-8 mt-2">
+                                    <div className="inline-block px-6 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
                                         <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
                                     </div>
                                 </div>
@@ -139,8 +139,8 @@ export default function GameLobby({
                             </div>
 
                             <div className="flex flex-col items-center w-full">
-                                <div className="flex justify-center w-full mt-6 mb-4">
-                                    <div className="inline-block px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
+                                <div className="flex justify-center w-full mt-6 mb-8">
+                                    <div className="inline-block px-6 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
                                         <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
                                     </div>
                                 </div>
@@ -163,13 +163,13 @@ export default function GameLobby({
                             </div>
                         </div>
 
-                        {/* Right: Wager & Start (2 cols) */}
-                        <div className="lg:col-span-2 flex flex-col justify-end space-y-4">
+                        {/* Wager & Start */}
+                        <div className="w-full flex flex-col space-y-4 pt-2">
 
                             {/* NEW WAGER SECTION */}
-                            <div className="p-8 rounded-[40px] glass-panel space-y-6 flex flex-col items-center shadow-2xl border-white/20">
+                            <div className="p-8 pb-10 rounded-[40px] glass-panel space-y-6 flex flex-col items-center shadow-2xl border-white/20">
                                 {/* Label */}
-                                <div className="inline-block px-5 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md mb-2">
+                                <div className="inline-block px-8 py-2.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md mb-2">
                                     <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                                 </div>
 
@@ -187,8 +187,8 @@ export default function GameLobby({
                                             type="number"
                                             value={wager}
                                             onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))}
-                                            className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-purple-600/50 rounded-xl"
-                                            style={{ appearance: 'textfield', WebkitAppearance: 'none', margin: 0 }}
+                                            className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            style={{ margin: 0 }}
                                         />
                                     </div>
 
@@ -206,7 +206,10 @@ export default function GameLobby({
                                         <button
                                             key={val}
                                             onClick={() => setWager(val)}
-                                            className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/90 text-[11px] font-black transition-all active:scale-95 backdrop-blur-md shadow-sm"
+                                            className={`px-5 py-2.5 rounded-full border transition-all active:scale-95 backdrop-blur-md shadow-sm text-[12px] font-black ${wager === val
+                                                ? 'border-cyan-400 bg-cyan-900/10 text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.2)]'
+                                                : 'bg-white/5 hover:bg-white/15 border-white/10 text-white/90'
+                                                }`}
                                         >
                                             {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                         </button>
@@ -214,7 +217,7 @@ export default function GameLobby({
                                 </div>
                             </div>
 
-                            <div className="w-full flex gap-4 pt-6">
+                            <div className="w-full flex gap-4 pt-10">
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
