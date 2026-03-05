@@ -131,14 +131,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-6 custom-scrollbar">
 
-                    {/* Theme Section */}
-                    <div className="flex flex-col">
-                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Theme</h3>
-                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden p-4 flex justify-between items-center">
-                            <span className="text-sm font-medium text-white">Theme Selection</span>
-                            <ThemeSwitcher />
-                        </div>
-                    </div>
+
 
                     {/* Preferences Section */}
                     <div className="flex flex-col">
@@ -189,6 +182,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                     />
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Theme Section */}
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Theme</h3>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden p-4 flex justify-center items-center">
+                            <ThemeSwitcher />
                         </div>
                     </div>
 
