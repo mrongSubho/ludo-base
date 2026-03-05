@@ -253,9 +253,11 @@ export default function Page() {
               />
 
               {/* Settings Drawer */}
-              {activeTab === 'settings' && (
-                <SettingsPanel onClose={closeTab} />
-              )}
+              <AnimatePresence mode="wait">
+                {activeTab === 'settings' && (
+                  <SettingsPanel key="settings" onClose={closeTab} />
+                )}
+              </AnimatePresence>
             </div>
           )}
 

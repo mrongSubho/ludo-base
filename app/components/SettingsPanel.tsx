@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDisconnect } from 'wagmi';
+import { motion } from 'framer-motion';
 import ThemeSwitcher from './ThemeSwitcher';
 
 // ─── Settings Drawer Icons ───────────────────────────────────────────────────
 
 const SoundIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
         <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -15,7 +16,7 @@ const SoundIcon = () => (
 );
 
 const HelpIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -23,13 +24,13 @@ const HelpIcon = () => (
 );
 
 const MessageIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
 );
 
 const InfoIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="16" x2="12" y2="12" />
         <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -37,7 +38,7 @@ const InfoIcon = () => (
 );
 
 const FileTextIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="16" y1="13" x2="8" y2="13" />
@@ -47,13 +48,13 @@ const FileTextIcon = () => (
 );
 
 const ShieldIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </svg>
 );
 
 const LogOutIcon = () => (
-    <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
         <polyline points="16 17 21 12 16 7" />
         <line x1="21" y1="12" x2="9" y2="12" />
@@ -86,84 +87,163 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="settings-drawer-overlay" onClick={onClose}>
-            <div className="settings-drawer" onClick={e => e.stopPropagation()}>
-                <div className="settings-drawer-header">
-                    <h2 className="settings-drawer-title">Settings</h2>
-                    <button className="settings-drawer-close" onClick={onClose}>✕</button>
+        <>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                onClick={onClose}
+            />
+
+            <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+            >
+                {/* Handle Bar */}
+                <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
+                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                 </div>
-                <div className="settings-drawer-body">
-                    <div className="settings-section">
-                        <h3 className="settings-section-title">Theme</h3>
-                        <div className="settings-theme-row">
+
+                {/* Header */}
+                <div className="px-panel-gutter pb-4 border-b border-white/10">
+                    <div className="flex items-center justify-between mt-2">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            Settings
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-6 custom-scrollbar">
+
+                    {/* Theme Section */}
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Theme</h3>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden p-4 flex justify-between items-center">
+                            <span className="text-sm font-medium text-white">Theme Selection</span>
                             <ThemeSwitcher />
                         </div>
                     </div>
-                    <div className="settings-divider" />
-                    <div className="settings-section">
-                        <h3 className="settings-section-title">Preferences</h3>
-                        <div className="settings-row">
-                            <div className="settings-row-left">
-                                <SoundIcon />
-                                <span>Sound Effects</span>
+
+                    {/* Preferences Section */}
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Preferences</h3>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                            {/* SFX */}
+                            <div className="flex items-center justify-between p-4 border-b border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                        <SoundIcon />
+                                    </div>
+                                    <span className="text-sm font-medium text-white">Sound Effects</span>
+                                </div>
+                                <button
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${soundEffectsOn ? 'bg-purple-600' : 'bg-white/10'}`}
+                                    onClick={toggleSfx}
+                                >
+                                    <motion.div
+                                        layout
+                                        className="w-4 h-4 bg-white rounded-full shadow-sm"
+                                        animate={{ x: soundEffectsOn ? 24 : 0 }}
+                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    />
+                                </button>
                             </div>
-                            <button className={`settings-toggle ${soundEffectsOn ? 'toggle-on' : ''}`} onClick={toggleSfx}>
-                                <span className="toggle-knob" />
+
+                            {/* Music */}
+                            <div className="flex items-center justify-between p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                            <path d="M9 18V5l12-2v13"></path>
+                                            <circle cx="6" cy="18" r="3"></circle>
+                                            <circle cx="18" cy="16" r="3"></circle>
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm font-medium text-white">Game Music</span>
+                                </div>
+                                <button
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${musicOn ? 'bg-pink-500' : 'bg-white/10'}`}
+                                    onClick={toggleMusic}
+                                >
+                                    <motion.div
+                                        layout
+                                        className="w-4 h-4 bg-white rounded-full shadow-sm"
+                                        animate={{ x: musicOn ? 24 : 0 }}
+                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Support Section */}
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Support</h3>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+                            <button className="flex items-center gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                    <HelpIcon />
+                                </div>
+                                <span className="text-sm font-medium text-white">Help Center</span>
+                            </button>
+                            <button className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                    <MessageIcon />
+                                </div>
+                                <span className="text-sm font-medium text-white">Feedback Form</span>
                             </button>
                         </div>
-                        <div className="settings-row">
-                            <div className="settings-row-left">
-                                <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-                                    <path d="M9 18V5l12-2v13"></path>
-                                    <circle cx="6" cy="18" r="3"></circle>
-                                    <circle cx="18" cy="16" r="3"></circle>
-                                </svg>
-                                <span>Game Music</span>
-                            </div>
-                            <button className={`settings-toggle ${musicOn ? 'toggle-on' : ''}`} onClick={toggleMusic}>
-                                <span className="toggle-knob" />
+                    </div>
+
+                    {/* About Section */}
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">About</h3>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+                            <button className="flex items-center gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                    <InfoIcon />
+                                </div>
+                                <span className="text-sm font-medium text-white">About Us</span>
+                            </button>
+                            <button className="flex items-center gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                    <FileTextIcon />
+                                </div>
+                                <span className="text-sm font-medium text-white">Terms of Services</span>
+                            </button>
+                            <button className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                    <ShieldIcon />
+                                </div>
+                                <span className="text-sm font-medium text-white">Privacy Policy</span>
                             </button>
                         </div>
-                    </div>
-                    <div className="settings-divider" />
-                    <div className="settings-section">
-                        <h3 className="settings-section-title">Support</h3>
-                        <button className="settings-action-btn">
-                            <HelpIcon />
-                            <span>Help Center</span>
-                        </button>
-                        <button className="settings-action-btn">
-                            <MessageIcon />
-                            <span>Feedback Form</span>
-                        </button>
-                    </div>
-
-                    <div className="settings-divider" />
-                    <div className="settings-section">
-                        <h3 className="settings-section-title">About</h3>
-                        <button className="settings-action-btn">
-                            <InfoIcon />
-                            <span>About Us</span>
-                        </button>
-                        <button className="settings-action-btn">
-                            <FileTextIcon />
-                            <span>Terms of Services</span>
-                        </button>
-                        <button className="settings-action-btn">
-                            <ShieldIcon />
-                            <span>Privacy Policy</span>
-                        </button>
-
-                        <div className="settings-about">
-                            <p>Ludo Base Superstar</p>
-                            <p className="settings-version">Version 1.0.0</p>
+                        <div className="mt-4 flex flex-col items-center justify-center text-center">
+                            <p className="text-white/60 font-bold tracking-widest uppercase text-xs">Ludo Base Superstar</p>
+                            <p className="text-white/30 text-xs">Version 1.0.0</p>
                         </div>
                     </div>
 
-                    <div className="settings-divider" />
-                    <div className="settings-section">
+                    {/* Sign Out */}
+                    <div className="pt-4 pb-8">
                         <button
-                            className="settings-action-btn text-danger"
+                            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-colors text-red-500 font-bold"
                             onClick={() => {
                                 disconnect();
                                 onClose();
@@ -173,8 +253,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                             <span>Sign Out</span>
                         </button>
                     </div>
+
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </>
     );
 }
