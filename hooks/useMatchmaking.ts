@@ -126,10 +126,16 @@ export function useMatchmaking({
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [status, cancelSearch]);
+
+    // Independent unmount cleanup for timers
+    useEffect(() => {
+        return () => {
             if (timerRef.current) clearInterval(timerRef.current);
             if (pollingRef.current) clearInterval(pollingRef.current);
         };
-    }, [status, cancelSearch]);
+    }, []);
 
     return {
         status,
