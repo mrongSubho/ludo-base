@@ -13,8 +13,16 @@ export const SAFE_POSITIONS = [0, 8, 13, 21, 26, 34, 39, 47];
 export function getNextPlayer(current: PlayerColor, playerCount: string): PlayerColor {
     const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
     const idx = order.indexOf(current);
-    if (playerCount === '2') {
-        return current === 'green' ? 'red' : 'green';
+    // 1v1 Mode: only 2 diagonal colors are active.
+    // E.g., if green is active, its opponent is blue
+    if (playerCount === '1v1') {
+        const opposingPairs: Record<PlayerColor, PlayerColor> = {
+            green: 'blue',
+            blue: 'green',
+            red: 'yellow',
+            yellow: 'red'
+        };
+        return opposingPairs[current];
     }
     return order[(idx + 1) % 4];
 }

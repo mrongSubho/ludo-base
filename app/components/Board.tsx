@@ -53,26 +53,47 @@ const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = 
     { color: 'blue', position: 'top-right' },
 ];
 
-function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4', isBotMatch: boolean = false): Player[] {
-    const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
-
+function shufflePlayers(playerCount: '1v1' | '4P' | '2v2' = '4P', isBotMatch: boolean = false): Player[] {
     // In a 2-player game, we only want 2 diagonal colors. 
     // Which 2? Either 'green'/'blue' or 'red'/'yellow'
     const usePair1 = Math.random() > 0.5; // True: Green(0) & Blue(3), False: Red(1) & Yellow(2)
-    const activeIndices = playerCount === '2' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
+    const activeIndices = playerCount === '1v1' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
 
-    return COLOR_SEATS.map((seat, i) => {
-        if (!activeIndices.includes(i)) return null;
-        let p = { ...templates[i], ...seat };
+    // Separate human from bots
+    const humanTemplate = PLAYER_TEMPLATES.find(p => !p.isAi)!;
+    const botTemplates = PLAYER_TEMPLATES.filter(p => p.isAi);
 
-        // If it's a bot match, ensure only one player is human (Alex)
-        if (isBotMatch) {
-            if (p.name !== 'Alex') p.isAi = true;
-            else p.isAi = false;
-        }
+    if (isBotMatch) {
+        // Enforce exact AI layout
+        // For 4P and 2v2: We have 4 slots. 1 Human + 3 Bots.
+        // For 1v1 (count '2'): We have 2 slots. 1 Human + 1 Bot.
 
-        return p;
-    }).filter(Boolean) as Player[];
+        let assignedHuman = false;
+        let botIndex = 0;
+
+        return COLOR_SEATS.map((seat, i) => {
+            if (!activeIndices.includes(i)) return null;
+
+            let template;
+            if (!assignedHuman) {
+                template = humanTemplate;
+                assignedHuman = true;
+            } else {
+                template = botTemplates[botIndex % botTemplates.length];
+                botIndex++;
+            }
+
+            return { ...template, ...seat, isAi: template.isAi };
+        }).filter(Boolean) as Player[];
+
+    } else {
+        // Normal multiplayer shuffle
+        const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
+        return COLOR_SEATS.map((seat, i) => {
+            if (!activeIndices.includes(i)) return null;
+            return { ...templates[i], ...seat };
+        }).filter(Boolean) as Player[];
+    }
 }
 
 const getTeam = (color: Player['color']) => {
@@ -265,7 +286,7 @@ function HomeBlock({
     tokensInHome: number[];
     player?: Player;
     onTokenClick: (tokenIndex: number) => void;
-    playerCount?: '2' | '4' | '2v2';
+    playerCount?: '1v1' | '4P' | '2v2';
 }) {
     const teamLetter = playerCount === '2v2' ? (getTeam(color) === 1 ? 'A' : 'B') : null;
     return (
@@ -395,13 +416,13 @@ function PlayerCard({
 export default function Board({
     showLeaderboard = false,
     onToggleLeaderboard,
-    playerCount = '4',
+    playerCount = '4P',
     gameMode = 'classic',
     isBotMatch = false
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
-    playerCount?: '2' | '4' | '2v2';
+    playerCount?: '1v1' | '4P' | '2v2';
     gameMode?: 'classic' | 'power' | 'snakes';
     isBotMatch?: boolean;
 }) {
