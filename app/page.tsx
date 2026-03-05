@@ -15,163 +15,12 @@ import MarketplacePanel from './components/MarketplacePanel';
 import MessagesPanel from './components/MessagesPanel';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
+import { SettingsPanel } from './components/SettingsPanel';
+import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
+import { FooterNavPanel } from './components/FooterNavPanel';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-
-// ─── Inline SVG Icons ────────────────────────────────────────────────────────
-
-const WalletIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-    <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-    <path d="M18 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0" />
-  </svg>
-);
-
-const TokenIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M12 6v12M8 10h8M8 14h8" />
-  </svg>
-);
-
-const ProfileIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-const UsersIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);
-
-const TrophyIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M8 21h8M12 17v4M7 4h10M5 4h14v5a7 7 0 0 1-14 0V4z" />
-  </svg>
-);
-
-const TargetIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <circle cx="12" cy="12" r="6" />
-    <circle cx="12" cy="12" r="2" />
-  </svg>
-);
-
-const ShopIcon = () => (
-  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <path d="M16 10a4 4 0 0 1-8 0" />
-  </svg>
-);
-
-const DiceIcon = () => (
-  <svg className="mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-    <circle cx="8.5" cy="8.5" r="1.5" />
-    <circle cx="15.5" cy="15.5" r="1.5" />
-    <circle cx="15.5" cy="8.5" r="1.5" />
-    <circle cx="8.5" cy="15.5" r="1.5" />
-    <circle cx="12" cy="12" r="1.5" />
-  </svg>
-);
-
-const LightningIcon = () => (
-  <svg className="mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </svg>
-);
-
-const ChevronRight = () => (
-  <svg className="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
-
-// ─── Settings Drawer Icons ───────────────────────────────────────────────────
-
-const SoundIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-  </svg>
-);
-
-const BellIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </svg>
-);
-
-const HelpIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" y1="17" x2="12.01" y2="17" />
-  </svg>
-);
-
-const MessageIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-);
-
-const InfoIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="16" x2="12" y2="12" />
-    <line x1="12" y1="8" x2="12.01" y2="8" />
-  </svg>
-);
-
-const FileTextIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
-  </svg>
-);
-
-const ShieldIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
-
-const SnakeIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-    <path d="M16 2.016c-3.3 0-6 2.7-6 6v3.968c0 1.1-.9 2.016-2 2.016s-2-.916-2-2.016V9.984c0-1.1-.9-2.016-2-2.016S2 8.884 2 9.984v4.064c0 3.3 2.7 6 6 6s6-2.7 6-6V9.984c0-1.1.9-2.016 2-2.016H18c1.1 0 2 .916 2 2.016v4.064c0 1.1.9 2.016 2 2.016s2-.916 2-2.016V8.016c0-3.3-2.7-6-6-6h-2z" />
-    <circle cx="15.5" cy="5.5" r="1.5" fill="#fff" />
-  </svg>
-);
-
-const HeaderMessageIcon = () => (
-  <svg className="dm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-  </svg>
-);
-
-const LogOutIcon = () => (
-  <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
 
 // ─── Generic Slide-up Panel (for footer tabs) ─────────────────────────────────
 
@@ -214,133 +63,7 @@ function TabPanel({ title, emoji, icon, description, onClose }: {
   );
 }
 
-// ─── Settings Drawer (slides in from right) ──────────────────────────────────
-
-function SettingsPanel({ onClose }: { onClose: () => void }) {
-  const [soundEffectsOn, setSoundEffectsOn] = useState(true);
-  const [musicOn, setMusicOn] = useState(true);
-  const { disconnect } = useDisconnect();
-
-  useEffect(() => {
-    // Read initial preferences from localStorage
-    const savedSfx = localStorage.getItem('ludo-sfx');
-    const savedMusic = localStorage.getItem('ludo-music');
-    if (savedSfx !== null) setSoundEffectsOn(savedSfx === 'on');
-    if (savedMusic !== null) setMusicOn(savedMusic === 'on');
-  }, []);
-
-  const toggleSfx = () => {
-    const newState = !soundEffectsOn;
-    setSoundEffectsOn(newState);
-    localStorage.setItem('ludo-sfx', newState ? 'on' : 'off');
-  };
-
-  const toggleMusic = () => {
-    const newState = !musicOn;
-    setMusicOn(newState);
-    localStorage.setItem('ludo-music', newState ? 'on' : 'off');
-  };
-
-  return (
-    <div className="settings-drawer-overlay" onClick={onClose}>
-      <div className="settings-drawer" onClick={e => e.stopPropagation()}>
-        <div className="settings-drawer-header">
-          <h2 className="settings-drawer-title">Settings</h2>
-          <button className="settings-drawer-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="settings-drawer-body">
-          <div className="settings-section">
-            <h3 className="settings-section-title">Theme</h3>
-            <div className="settings-theme-row">
-              <ThemeSwitcher />
-            </div>
-          </div>
-          <div className="settings-divider" />
-          <div className="settings-section">
-            <h3 className="settings-section-title">Preferences</h3>
-            <div className="settings-row">
-              <div className="settings-row-left">
-                <SoundIcon />
-                <span>Sound Effects</span>
-              </div>
-              <button className={`settings-toggle ${soundEffectsOn ? 'toggle-on' : ''}`} onClick={toggleSfx}>
-                <span className="toggle-knob" />
-              </button>
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-left">
-                <svg className="settings-row-icon svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-                  <path d="M9 18V5l12-2v13"></path>
-                  <circle cx="6" cy="18" r="3"></circle>
-                  <circle cx="18" cy="16" r="3"></circle>
-                </svg>
-                <span>Game Music</span>
-              </div>
-              <button className={`settings-toggle ${musicOn ? 'toggle-on' : ''}`} onClick={toggleMusic}>
-                <span className="toggle-knob" />
-              </button>
-            </div>
-          </div>
-          <div className="settings-divider" />
-          <div className="settings-section">
-            <h3 className="settings-section-title">Support</h3>
-            <button className="settings-action-btn">
-              <HelpIcon />
-              <span>Help Center</span>
-            </button>
-            <button className="settings-action-btn">
-              <MessageIcon />
-              <span>Feedback Form</span>
-            </button>
-          </div>
-
-          <div className="settings-divider" />
-          <div className="settings-section">
-            <h3 className="settings-section-title">About</h3>
-            <button className="settings-action-btn">
-              <InfoIcon />
-              <span>About Us</span>
-            </button>
-            <button className="settings-action-btn">
-              <FileTextIcon />
-              <span>Terms of Services</span>
-            </button>
-            <button className="settings-action-btn">
-              <ShieldIcon />
-              <span>Privacy Policy</span>
-            </button>
-
-            <div className="settings-about">
-              <p>Ludo Base Superstar</p>
-              <p className="settings-version">Version 1.0.0</p>
-            </div>
-          </div>
-
-          <div className="settings-divider" />
-          <div className="settings-section">
-            <button
-              className="settings-action-btn text-danger"
-              onClick={() => disconnect()}
-            >
-              <LogOutIcon />
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Messages Drawer (slides in from right) ──────────────────────────────────
-// (Moved to external component: MessagesPanel.tsx)
-
-// ─── Settings Drawer (slides in from right) ──────────────────────────────────
-// (This is located higher up in the file)
-
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
-
-// ─── Settings Drawer (Side Panel - High Priority) ────────────────────────────────────────────────────────────────
 
 type AppState = 'dashboard' | 'game';
 type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
@@ -395,7 +118,6 @@ const SplashScreen = () => (
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export default function Page() {
-  const [isMounted, setIsMounted] = useState(false);
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -414,7 +136,6 @@ export default function Page() {
   const [isBotMatch, setIsBotMatch] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
     const t = setTimeout(() => setShowSplash(false), 1500);
     return () => clearTimeout(t);
   }, []);
@@ -459,14 +180,6 @@ export default function Page() {
     }
   }, [gameState?.isStarted, appState]);
 
-  if (!isMounted) {
-    return (
-      <div className="loading-shell">
-        <div className="loading-spinner" />
-      </div>
-    );
-  }
-
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
@@ -502,51 +215,16 @@ export default function Page() {
               <div className="cosmic-orb cosmic-orb-3" />
 
               {/* Header */}
-              <header className="header dash-header px-safe">
-                <div className="header-left">
-                  <div className="token-pill shimmer-effect">
-                    <TokenIcon />
-                    <span>1,250</span>
-                  </div>
-                </div>
-                <div className="header-center">
-                  <div className="user-avatar-mini relative">
-                    {finalAvatar ? <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover rounded-full" /> : <span>🎮</span>}
-                    {/* Green Online Status Dot */}
-                    <span className="absolute bottom-[-2px] right-[-2px] w-3 h-3 bg-green-500 border-2 border-[#0b0f19] rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
-                  </div>
-                  <div className="user-info-mini">
-                    <span className="user-name-mini">{finalName}</span>
-                    <span className="user-level-mini">Lv.8</span>
-                  </div>
-                </div>
-                <div className="header-right">
-                  <button
-                    className={`dm-btn ${hasUnreadMessages ? 'ping-glow' : ''}`}
-                    onClick={() => {
-                      toggle('messages');
-                      setHasUnreadMessages(false);
-                    }}
-                    title="Messages"
-                  >
-                    <HeaderMessageIcon />
-                    {/* Glowing Notification Pulse */}
-                    {hasUnreadMessages && (
-                      <span className="absolute top-2 right-2 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
-                      </span>
-                    )}
-                  </button>
-                  <button className="settings-dots-btn" onClick={() => toggle('settings')} title="Settings">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                      <circle cx="12" cy="5" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="12" cy="19" r="2" />
-                    </svg>
-                  </button>
-                </div>
-              </header>
+              <HeaderNavPanel
+                finalAvatar={finalAvatar}
+                finalName={finalName || 'Player'}
+                hasUnreadMessages={hasUnreadMessages}
+                onMessagesClick={() => {
+                  toggle('messages');
+                  setHasUnreadMessages(false);
+                }}
+                onSettingsClick={() => toggle('settings')}
+              />
 
               <main className="dash-main pb-safe-footer px-safe">
 
@@ -565,80 +243,14 @@ export default function Page() {
                 />
               </main>
 
-              {/* Footer Nav */}
-              <nav className="footer-nav relative overflow-hidden">
-                {[
-                  { id: 'profile', icon: ProfileIcon, label: 'Profile' },
-                  { id: 'friends', icon: UsersIcon, label: 'Friends' },
-                  { id: 'leaderboard', icon: TrophyIcon, label: 'Leaderboard' },
-                  { id: 'mission', icon: TargetIcon, label: 'Mission' },
-                  { id: 'marketplace', icon: ShopIcon, label: 'Market' }
-                ].map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      className={`nav-item relative z-10 group ${isActive ? 'active' : ''}`}
-                      onClick={() => toggle(tab.id as Tab)}
-                    >
-                      {/* Active Sliding Background */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="active-nav-bg"
-                          className="absolute inset-0 bg-purple-600/10 rounded-[20px] backdrop-blur-sm -z-10"
-                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        />
-                      )}
-                      {/* Hover Background */}
-                      {!isActive && (
-                        <div className="absolute inset-0 bg-purple-600/10 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                      )}
-
-                      <Icon />
-                      <span className="nav-label">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-
-              {/* Slide-up Panels for footer tabs */}
-              <AnimatePresence mode="wait">
-                {activeTab === 'profile' && (
-                  <UserProfilePanel key="profile" onClose={closeTab} />
-                )}
-                {activeTab === 'friends' && (
-                  <FriendsPanel
-                    key="friends"
-                    onClose={closeTab}
-                    onDM={(friendId) => {
-                      setSelectedChatId(friendId);
-                      setActiveTab('messages');
-                    }}
-                  />
-                )}
-                {activeTab === 'leaderboard' && (
-                  <Leaderboard key="leaderboard" isOpen={true} onClose={closeTab} />
-                )}
-                {activeTab === 'mission' && (
-                  <MissionPanel key="mission" isOpen={true} onClose={closeTab} />
-                )}
-                {activeTab === 'marketplace' && (
-                  <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />
-                )}
-
-                {activeTab === 'settings' && <SettingsPanel key="settings" onClose={closeTab} />}
-                {activeTab === 'messages' && (
-                  <MessagesPanel
-                    key="messages"
-                    onClose={() => {
-                      closeTab();
-                      setSelectedChatId(null);
-                    }}
-                    initialChatId={selectedChatId}
-                  />
-                )}
-              </AnimatePresence>
+              {/* Footer Nav & Modals */}
+              <FooterNavPanel
+                activeTab={activeTab}
+                onToggleTab={toggle}
+                onCloseTab={closeTab}
+                selectedChatId={selectedChatId}
+                onSelectChat={setSelectedChatId}
+              />
             </div>
           )}
 
@@ -702,11 +314,6 @@ export default function Page() {
                 </div>
               )}
             </>
-          )}
-
-          {/* Settings Drawer — at top level for correct fixed positioning */}
-          {activeTab === 'settings' && (
-            <SettingsPanel onClose={closeTab} />
           )}
 
         </div>
