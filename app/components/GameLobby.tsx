@@ -244,6 +244,14 @@ export default function GameLobby({
                                     onClose={() => setShowPrivateOptions(false)}
                                     onJoin={(code: string) => joinGame(code)}
                                     onHost={hostGame}
+                                    currentRoomId={roomId}
+                                    isHost={isHost}
+                                    isLobbyConnected={isLobbyConnected}
+                                    onStartMatch={() => {
+                                        setShowPrivateOptions(false);
+                                        broadcastAction('START_GAME', {});
+                                        onStartGame();
+                                    }}
                                 />
                             )}
                         </AnimatePresence>

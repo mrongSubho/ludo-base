@@ -3,12 +3,37 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const fid = searchParams.get('fid');
+    const wallet = searchParams.get('wallet');
 
-    if (!fid) return NextResponse.json({ error: 'No FID provided' }, { status: 400 });
+    if (!wallet) return NextResponse.json({ error: 'No wallet provided' }, { status: 400 });
 
     try {
-        // Fetch the user's following list from Neynar
+        // 1. Fetch the user's Farcaster profile by wallet address
+        const profileRes = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${wallet}`, {
+            headers: {
+                'accept': 'application/json',
+                'api_key': process.env.NEYNAR_API_KEY || ''
+            }
+        });
+
+        const profileData = await profileRes.json();
+        const userProfile = profileData[wallet.toLowerCase()]?.[0];
+
+        if (!userProfile?.fid) {
+            // No connected Farcaster account, but we can still fetch Game Friends
+            const { data: gameFriends } = await supabase
+                .from('players')
+                .select('wallet_address, username, avatar_url, total_wins')
+                .neq('wallet_address', wallet.toLowerCase())
+                .order('last_played_at', { ascending: false, nullsFirst: false })
+                .limit(20);
+
+            return NextResponse.json({ onchainFriends: [], gameFriends: gameFriends || [] });
+        }
+
+        const fid = userProfile.fid;
+
+        // 2. Fetch the user's following list from Neynar using their FID
         const response = await fetch(`https://api.neynar.com/v2/farcaster/following?fid=${fid}&limit=50`, {
             headers: {
                 'accept': 'application/json',
@@ -17,26 +42,44 @@ export async function GET(request: Request) {
         });
 
         const data = await response.json();
-        if (!data.users) return NextResponse.json({ friends: [] });
+        const users = data.users || [];
 
-        // Extract the wallet addresses of the people they follow
+        // 3. Extract the wallet addresses of the people they follow
         // Neynar returns verified_addresses.eth_addresses array
-        const followingWallets = data.users.flatMap((u: any) => u.verified_addresses?.eth_addresses || [])
+        const followingWallets = users.flatMap((u: any) => u.verified_addresses?.eth_addresses || [])
             .map((address: string) => address.toLowerCase());
 
-        if (followingWallets.length === 0) return NextResponse.json({ friends: [] });
+        // 4. Intersect with our Supabase players table (Case-Insensitive)
+        let onchainFriends: any[] = [];
+        if (followingWallets.length > 0) {
+            const orQuery = followingWallets.map((addr: string) => `wallet_address.ilike.${addr}`).join(',');
+            const { data, error } = await supabase
+                .from('players')
+                .select('wallet_address, username, avatar_url, total_wins')
+                .or(orQuery);
+            if (error) {
+                console.error("Supabase Onchain Friends Fetch Error:", error);
+            } else {
+                onchainFriends = data || [];
+            }
+        }
 
-        // Intersect with our Supabase players table (Case-Insensitive)
-        const orQuery = followingWallets.map((addr: string) => `wallet_address.ilike.${addr}`).join(',');
-
-        const { data: registeredFriends, error } = await supabase
+        // 5. Fetch "Game Friends" (Recent Active Players) from Supabase
+        const { data: gameFriends, error: gameError } = await supabase
             .from('players')
             .select('wallet_address, username, avatar_url, total_wins')
-            .or(orQuery);
+            .neq('wallet_address', wallet.toLowerCase())
+            .order('last_played_at', { ascending: false, nullsFirst: false })
+            .limit(20);
 
-        if (error) throw error;
+        if (gameError) {
+            console.error("Supabase Game Friends Fetch Error:", gameError);
+        }
 
-        return NextResponse.json({ friends: registeredFriends });
+        return NextResponse.json({
+            onchainFriends,
+            gameFriends: gameFriends || []
+        });
     } catch (error) {
         console.error("Friends API failure:", error);
         return NextResponse.json({ error: 'API failure' }, { status: 500 });
