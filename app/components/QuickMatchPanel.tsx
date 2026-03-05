@@ -62,15 +62,17 @@ export const QuickMatchPanel = ({
 
     // Auto-start search when this panel mounts
     useEffect(() => {
-        startSearch();
-        // We'll trust the hook's internal cleanup if the component unmounts unexpectedly
+        let mounted = true;
+
+        if (mounted) {
+            startSearch();
+        }
+
         return () => {
-            if (status === 'searching' || status === 'expanding') {
-                cancelSearch();
-            }
+            mounted = false;
+            cancelSearch(); // ALWAYS cancel if the panel unmounts mid-search
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [startSearch, cancelSearch]);
 
     // Tip rotation logic
     useEffect(() => {
@@ -95,139 +97,174 @@ export const QuickMatchPanel = ({
     const isSearching = status === 'searching' || status === 'expanding';
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl">
-            <AnimatePresence mode="wait">
-                {/* 1. SEARCHING STATE */}
-                {isSearching && (
-                    <motion.div
-                        key="searching"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col items-center space-y-12"
-                    >
-                        {/* Radar Orb */}
-                        <div className="relative w-64 h-64 flex items-center justify-center">
-                            {/* Outer Pulsing Rings */}
-                            <motion.div
-                                animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-purple-600/30'}`}
-                            />
-                            <motion.div
-                                animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
-                                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-purple-600/20'}`}
-                            />
+        <>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                onClick={handleCancelAndClose}
+            />
 
-                            {/* Center Glowing Orb */}
+            <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+            >
+                {/* Header / Title */}
+                <div className="w-full flex justify-center pt-4 pb-2" onClick={handleCancelAndClose}>
+                    <div className="w-12 h-1.5 bg-white/20 rounded-full cursor-pointer" />
+                </div>
+
+                <div className="px-panel-gutter pb-4 border-b border-white/10">
+                    <div className="flex items-center justify-between mt-2">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Matchmaking
+                        </h2>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-panel-gutter py-8 space-y-12 flex flex-col items-center justify-center relative">
+
+                    <AnimatePresence mode="wait">
+                        {/* 1. SEARCHING STATE */}
+                        {isSearching && (
                             <motion.div
-                                animate={{
-                                    scale: [1, 1.1, 1],
-                                    boxShadow: status === 'expanding'
-                                        ? ["0 0 50px rgba(245,158,11,0.2)", "0 0 80px rgba(245,158,11,0.4)", "0 0 50px rgba(245,158,11,0.2)"]
-                                        : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
-                                }}
-                                transition={{ duration: 3, repeat: Infinity }}
-                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-purple-600/20 border-purple-600/40'}`}
+                                key="searching"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="flex flex-col items-center w-full"
                             >
-                                <span className="text-4xl font-black text-white italic">{searchTime}s</span>
-                                <span className={`text-[8px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-purple-400'}`}>Elapsed</span>
-                            </motion.div>
+                                {/* Radar Orb */}
+                                <div className="relative w-64 h-64 flex items-center justify-center mb-8">
+                                    {/* Outer Pulsing Rings */}
+                                    <motion.div
+                                        animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                        className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-purple-600/30'}`}
+                                    />
+                                    <motion.div
+                                        animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
+                                        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                                        className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-purple-600/20'}`}
+                                    />
 
-                            {/* Rotating Scan Line */}
-                            <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                                className="absolute inset-0 z-20"
-                            >
-                                <div className="w-1/2 h-1 bg-gradient-to-r from-transparent via-white/40 to-white/60 absolute top-1/2 left-1/2 origin-left -translate-y-1/2 blur-[1px]" />
-                            </motion.div>
-                        </div>
-
-                        <div className="text-center space-y-4">
-                            <motion.h3
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className="text-3xl font-black text-white italic tracking-tighter"
-                            >
-                                {status === 'expanding' ? "EXPANDING SEARCH PARAMS..." : "SEARCHING FOR RIVALS..."}
-                            </motion.h3>
-
-                            <div className="h-4">
-                                <AnimatePresence mode="wait">
-                                    <motion.p
-                                        key={currentTipIndex}
-                                        initial={{ opacity: 0, y: 5 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -5 }}
-                                        className="text-white/40 text-xs font-bold uppercase tracking-widest"
+                                    {/* Center Glowing Orb */}
+                                    <motion.div
+                                        animate={{
+                                            scale: [1, 1.1, 1],
+                                            boxShadow: status === 'expanding'
+                                                ? ["0 0 50px rgba(245,158,11,0.2)", "0 0 80px rgba(245,158,11,0.4)", "0 0 50px rgba(245,158,11,0.2)"]
+                                                : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
+                                        }}
+                                        transition={{ duration: 3, repeat: Infinity }}
+                                        className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-purple-600/20 border-purple-600/40'}`}
                                     >
-                                        Pro Tip: {PRO_TIPS[currentTipIndex]}
-                                    </motion.p>
-                                </AnimatePresence>
-                            </div>
-                        </div>
+                                        <span className="text-4xl font-black text-white italic">{searchTime}s</span>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-purple-400'}`}>Elapsed</span>
+                                    </motion.div>
 
-                        <button
-                            onClick={handleCancelAndClose}
-                            className="bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 px-12 py-4 rounded-3xl text-white/40 hover:text-red-500 text-[10px] font-black uppercase tracking-widest transition-all"
-                        >
-                            Cancel Search
-                        </button>
-                    </motion.div>
-                )}
+                                    {/* Rotating Scan Line */}
+                                    <motion.div
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                                        className="absolute inset-0 z-20"
+                                    >
+                                        <div className="w-1/2 h-1 bg-gradient-to-r from-transparent via-white/40 to-white/60 absolute top-1/2 left-1/2 origin-left -translate-y-1/2 blur-[1px]" />
+                                    </motion.div>
+                                </div>
 
-                {/* 2. TIMEOUT RESOLUTION MODAL */}
-                {status === 'timeout' && (
-                    <motion.div
-                        key="timeout"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl"
+                                <div className="text-center space-y-4">
+                                    <motion.h3
+                                        animate={{ opacity: [0.5, 1, 0.5] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                        className="text-2xl font-black text-white italic tracking-tighter"
+                                    >
+                                        {status === 'expanding' ? "EXPANDING SEARCH..." : "SEARCHING..."}
+                                    </motion.h3>
+
+                                    <div className="h-4">
+                                        <AnimatePresence mode="wait">
+                                            <motion.p
+                                                key={currentTipIndex}
+                                                initial={{ opacity: 0, y: 5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -5 }}
+                                                className="text-white/50 text-xs font-bold uppercase tracking-wide"
+                                            >
+                                                Tip: {PRO_TIPS[currentTipIndex]}
+                                            </motion.p>
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* 2. TIMEOUT RESOLUTION MODAL */}
+                        {status === 'timeout' && (
+                            <motion.div
+                                key="timeout"
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex flex-col items-center justify-center w-full px-4"
+                            >
+                                <div className="space-y-4 text-center mb-8">
+                                    <h3 className="text-4xl font-black text-white italic tracking-tightest leading-none">NO MATCH<br />FOUND</h3>
+                                    <p className="text-white/50 text-sm font-medium">Servers are quiet. What would you like to do?</p>
+                                </div>
+
+                                <div className="w-full max-w-sm space-y-3">
+                                    <button
+                                        onClick={startSearch}
+                                        className="w-full py-4 bg-white text-black font-black rounded-2xl hover:bg-gray-200 transition-colors"
+                                    >
+                                        RETRY SEARCH
+                                    </button>
+                                    <button
+                                        onClick={handlePlayVsAi}
+                                        className="w-full py-4 bg-purple-600/30 border border-purple-500/50 hover:bg-purple-600/50 text-white font-black rounded-2xl transition-colors"
+                                    >
+                                        PLAY VS AI (OFFLINE)
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Sticky Bottom Actions */}
+                <div className="p-panel-gutter pt-0 mt-auto">
+                    <button
+                        onClick={handleCancelAndClose}
+                        className="w-full py-5 rounded-2xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 text-red-400 font-black tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-lg"
                     >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="w-full max-w-lg glass-panel rounded-[64px] p-12 text-center space-y-10 shadow-2xl relative overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-white/5 pointer-events-none" />
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Cancel Search
+                    </button>
+                </div>
+            </motion.div>
 
-                            <div className="space-y-3">
-                                <h3 className="text-5xl font-black text-white italic tracking-tightest">NO MATCH FOUND</h3>
-                                <p className="text-white/40 text-sm font-medium">Servers are quiet. What would you like to do?</p>
-                            </div>
 
-                            <div className="grid grid-cols-1 gap-4 relative z-10">
-                                <button
-                                    onClick={startSearch}
-                                    className="w-full py-6 bg-white text-black font-black rounded-[32px] hover:scale-[1.02] transition-all active:scale-95"
-                                >
-                                    RETRY SEARCH
-                                </button>
-                                <button
-                                    onClick={handlePlayVsAi}
-                                    className="w-full py-6 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black rounded-[32px] transition-all active:scale-95"
-                                >
-                                    PLAY VS AI (OFFLINE)
-                                </button>
-                                <button
-                                    onClick={handleCancelAndClose}
-                                    className="text-white/20 hover:text-white/40 text-[10px] font-bold uppercase tracking-widest mt-4 transition-colors"
-                                >
-                                    Return to Menu
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
 
-                {/* 3. MATCH COUNTDOWN OVERLAY (VS SCREEN) */}
+            {/* 3. MATCH COUNTDOWN OVERLAY (VS SCREEN) - STAYS FULLSCREEN */}
+            <AnimatePresence>
                 {countdown !== null && (
                     <motion.div
                         key="countdown"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-2xl overflow-hidden"
                     >
                         <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/30 to-purple-900/30" />
@@ -302,6 +339,6 @@ export const QuickMatchPanel = ({
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </>
     );
 };
