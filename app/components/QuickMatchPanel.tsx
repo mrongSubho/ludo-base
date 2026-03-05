@@ -19,7 +19,7 @@ interface QuickMatchPanelProps {
     gameMode: 'classic' | 'power';
     matchType: '1v1' | '2v2' | '4P';
     wager: number;
-    onStartGame: () => void;
+    onStartGame: (isBotMatch?: boolean) => void;
     onCancel: () => void;
 }
 
@@ -86,7 +86,7 @@ export const QuickMatchPanel = ({
 
     const handlePlayVsAi = () => {
         console.log("Initializing AI match...");
-        onStartGame();
+        onStartGame(true);
     };
 
     const handleCancelAndClose = () => {
@@ -216,24 +216,54 @@ export const QuickMatchPanel = ({
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="flex flex-col items-center justify-center w-full px-4"
                             >
+                                {/* AI Proposal Header */}
                                 <div className="space-y-4 text-center mb-8">
-                                    <h3 className="text-4xl font-black text-white italic tracking-tightest leading-none">NO MATCH<br />FOUND</h3>
-                                    <p className="text-white/50 text-sm font-medium">Servers are quiet. What would you like to do?</p>
+                                    <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                                        <span className="text-4xl">🤖</span>
+                                    </div>
+                                    <h3 className="text-3xl font-black text-white italic tracking-tighter">NO MATCH FOUND</h3>
+                                    <p className="text-white/60 text-sm font-medium px-4">The network is currently quiet. Want to hone your skills against our advanced AI?</p>
                                 </div>
 
-                                <div className="w-full max-w-sm space-y-3">
+                                <div className="w-full max-w-sm space-y-4 relative z-10">
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={handlePlayVsAi}
+                                        className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black rounded-2xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] flex flex-col items-center justify-center gap-1"
+                                    >
+                                        <span className="text-xl italic tracking-tighter">PLAY VS AI</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Offline Mode</span>
+                                    </motion.button>
+
                                     <button
                                         onClick={startSearch}
-                                        className="w-full py-4 bg-white text-black font-black rounded-2xl hover:bg-gray-200 transition-colors"
+                                        className="w-full py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black rounded-2xl transition-all"
                                     >
                                         RETRY SEARCH
                                     </button>
-                                    <button
-                                        onClick={handlePlayVsAi}
-                                        className="w-full py-4 bg-purple-600/30 border border-purple-500/50 hover:bg-purple-600/50 text-white font-black rounded-2xl transition-colors"
-                                    >
-                                        PLAY VS AI (OFFLINE)
-                                    </button>
+                                </div>
+
+                                {/* Rotating AI Tips */}
+                                <div className="mt-8 h-4">
+                                    <AnimatePresence mode="wait">
+                                        <motion.p
+                                            key={currentTipIndex}
+                                            initial={{ opacity: 0, y: 5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -5 }}
+                                            className="text-amber-500/70 text-[10px] font-black uppercase tracking-widest text-center"
+                                        >
+                                            AI Tip: {
+                                                [
+                                                    "AI opponents analyze their moves instantly.",
+                                                    "Bots prioritize capturing your pieces.",
+                                                    "Practice advanced strategies offline.",
+                                                    "AI difficulty scales with your level."
+                                                ][currentTipIndex % 4]
+                                            }
+                                        </motion.p>
+                                    </AnimatePresence>
                                 </div>
                             </motion.div>
                         )}

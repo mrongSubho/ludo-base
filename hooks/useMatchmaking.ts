@@ -67,11 +67,18 @@ export function useMatchmaking({
                 timerRef.current = setInterval(() => {
                     setSearchTime(prev => {
                         const newTime = prev + 1;
-                        if (newTime === 26) setStatus('expanding');
-                        if (newTime >= 40) {
+
+                        // Phase 2: Expanding Search (16s - 25s)
+                        if (newTime === 16) {
+                            setStatus('expanding');
+                        }
+
+                        // Phase 3: Timeout (26s)
+                        if (newTime >= 26) {
                             setStatus('timeout');
                             if (timerRef.current) clearInterval(timerRef.current);
                         }
+
                         return newTime;
                     });
                 }, 1000);

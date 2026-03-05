@@ -13,7 +13,7 @@ interface GameLobbyProps {
     setMatchType: (type: '1v1' | '2v2' | '4P') => void;
     wager: number;
     setWager: (wager: number) => void;
-    onStartGame: () => void;
+    onStartGame: (isBotMatch?: boolean) => void;
 }
 
 export default function GameLobby({
@@ -209,7 +209,7 @@ export default function GameLobby({
                         gameMode={gameMode}
                         matchType={matchType}
                         wager={wager}
-                        onStartGame={onStartGame}
+                        onStartGame={(isBotMatch) => onStartGame(isBotMatch)}
                         onCancel={() => setIsQuickMatchActive(false)}
                     />
                 )}
