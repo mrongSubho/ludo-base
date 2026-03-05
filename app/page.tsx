@@ -251,6 +251,11 @@ export default function Page() {
                 selectedChatId={selectedChatId}
                 onSelectChat={setSelectedChatId}
               />
+
+              {/* Settings Drawer */}
+              {activeTab === 'settings' && (
+                <SettingsPanel onClose={closeTab} />
+              )}
             </div>
           )}
 
