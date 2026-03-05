@@ -51,7 +51,7 @@ const RejectIcon = () => (
 
 export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
     const { profile, address: connectedAddress } = useCurrentUser();
-    const userFid = profile?.fid;
+    const userFid = (profile as any)?.fid;
 
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('game');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');

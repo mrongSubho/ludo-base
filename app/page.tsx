@@ -4,15 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
-import ThemeSwitcher from './components/ThemeSwitcher';
-import FriendsPanel from './components/FriendsPanel';
-import UserProfilePanel from './components/UserProfilePanel';
-// Slide-up panels and logic might be moved or handled differently later, omitting Leaderboard for now if not needed,
-// but let's keep it imported and conditionally rendered.
-import Leaderboard from './components/Leaderboard';
-import MissionPanel from './components/MissionPanel';
-import MarketplacePanel from './components/MarketplacePanel';
-import MessagesPanel from './components/MessagesPanel';
+// Unused slide-up panels were extracted to their own components or removed natively
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -22,54 +14,12 @@ import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
-// ─── Generic Slide-up Panel (for footer tabs) ─────────────────────────────────
-
-function TabPanel({ title, emoji, icon, description, onClose }: {
-  title: string;
-  emoji?: string;
-  icon?: React.ReactNode;
-  description: string;
-  onClose: () => void
-}) {
-  return (
-    <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] h-[85vh] bg-[#1a1c29]/20 backdrop-blur-xl border-t border-white/10 rounded-t-[32px] z-50 flex flex-col shadow-2xl">
-        <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}><div className="w-12 h-1.5 bg-white/20 rounded-full" /></div>
-        <div className="px-6 pb-4 border-b border-white/10 flex flex-col gap-4">
-          <div className="flex items-center justify-between mt-2">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              {icon ? icon : <span className="text-2xl">{emoji}</span>}
-              {title}
-            </h2>
-            <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center text-center opacity-60 pb-safe-footer">
-          <div className="mb-4">
-            {icon ? (
-              <div className="w-16 h-16 text-white/40 mx-auto">
-                {icon}
-              </div>
-            ) : <span className="text-6xl">{emoji}</span>}
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-          <p className="text-sm text-white/60">{description}</p>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
 type AppState = 'dashboard' | 'game';
 type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
 
-// Mock user data
-const USER = { avatar: '🎮', name: 'Player', level: 8 };
+// Mock user data has been removed
 
 const SplashScreen = () => (
   <motion.div
