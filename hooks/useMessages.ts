@@ -17,6 +17,7 @@ export interface MessageData {
     created_at: string;
     deleted_by_sender: boolean;
     deleted_by_receiver: boolean;
+    send_status?: 'sending' | 'failed' | 'sent';
 }
 
 export interface Conversation {
@@ -180,14 +181,35 @@ export function useMessages(currentUserAddress: string | undefined | null) {
     const sendMessage = async (receiverId: string, content: string) => {
         if (!currentUserAddress) return;
 
-        const { error } = await supabase.from('messages').insert({
+        const tempId = 'temp-' + Date.now();
+        const optimisticMsg: MessageData = {
+            id: tempId,
+            sender_id: currentUserAddress.toLowerCase(),
+            receiver_id: receiverId.toLowerCase(),
+            content: content,
+            is_read: false,
+            created_at: new Date().toISOString(),
+            deleted_by_sender: false,
+            deleted_by_receiver: false,
+            send_status: 'sending'
+        };
+
+        // Optimistically add to UI
+        setMessages(prev => [...prev, optimisticMsg]);
+
+        const { data, error } = await supabase.from('messages').insert({
             sender_id: currentUserAddress.toLowerCase(),
             receiver_id: receiverId.toLowerCase(),
             content: content
-        });
+        }).select().single();
 
         if (error) {
             console.error("Error sending message:", error);
+            // Mark failed in UI
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
+        } else if (data) {
+            // Replace temporary message with successful database record
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...data, send_status: 'sent' } : m));
         }
     };
 

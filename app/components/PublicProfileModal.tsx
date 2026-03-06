@@ -20,6 +20,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     // Target User Data
     const [profile, setProfile] = useState<any>(null);
     const [isFriend, setIsFriend] = useState(false);
+    const [isPending, setIsPending] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
 
     // Action States
@@ -33,6 +34,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         if (!isOpen || !userAddress || !currentUserAddress) {
             setProfile(null);
             setIsFriend(false);
+            setIsPending(false);
             setIsBlocked(false);
             setActionSuccess(null);
             setReportStep('none');
@@ -91,6 +93,17 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                     setIsFriend(isFollowing || isGameFriend);
                 }
+
+                // 3. Fetch pending friend request state
+                const { data: pendingData } = await supabase
+                    .from('friendships')
+                    .select('id')
+                    .eq('status', 'pending')
+                    .or(`and(user_address.ilike.${currentUserAddress},friend_address.ilike.${userAddress}),and(user_address.ilike.${userAddress},friend_address.ilike.${currentUserAddress})`)
+                    .single();
+
+                setIsPending(!!pendingData);
+
             } catch (err) {
                 console.error("Error during profile validation:", err);
             } finally {
@@ -151,6 +164,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                 if (!error) {
                     setActionSuccess("Friend Request Sent!");
+                    setIsPending(true);
                     setTimeout(() => setActionSuccess(null), 2500);
                 } else {
                     console.error("Supabase Add Friend Error:", error);
@@ -443,13 +457,16 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                             <>
                                                                                 <button
                                                                                     onClick={() => handleAction(isFriend ? 'Unfriend' : 'Add Friend')}
-                                                                                    disabled={isActionLoading}
+                                                                                    disabled={isActionLoading || isPending}
                                                                                     className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                                                 >
                                                                                     {isFriend ? (
                                                                                         <>
-                                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/50"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="23" y1="11" x2="17" y2="11"></line></svg>
                                                                                             <span className="text-white/50 hover:text-red-400 transition-colors">Unfriend</span>
+                                                                                        </>
+                                                                                    ) : isPending ? (
+                                                                                        <>
+                                                                                            <span className="text-white/60">Pending</span>
                                                                                         </>
                                                                                     ) : (
                                                                                         <>

@@ -224,15 +224,19 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                         dragConstraints={{ left: -120, right: 120 }}
                                                         onDragEnd={(e, info) => handleDeleteSwipe(msg, info)}
                                                         whileDrag={{ scale: 0.95 }}
-                                                        className={`max-w-[80%] flex flex-col z-10 ${isMe ? 'items-end' : 'items-start'}`}
+                                                        className={`max-w-[80%] flex flex-col z-10 ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
                                                     >
                                                         <div className={`p-3 rounded-2xl text-[15px] shadow-sm ${isMe
-                                                            ? 'bg-purple-700 text-white rounded-tr-none'
+                                                            ? (msg.send_status === 'failed' ? 'bg-red-600 text-white rounded-tr-none' : 'bg-purple-700 text-white rounded-tr-none')
                                                             : 'bg-white/10 text-white/90 rounded-tl-none border border-white/5'
                                                             }`}>
                                                             {msg.content}
                                                         </div>
-                                                        <span className="text-[10px] text-white/30 mt-1 px-1">{timeString} (swipe to delete)</span>
+                                                        {msg.send_status === 'failed' ? (
+                                                            <span className="text-[10px] text-red-400 mt-1 px-1 font-bold">Failed to send</span>
+                                                        ) : (
+                                                            <span className="text-[10px] text-white/30 mt-1 px-1">{msg.send_status === 'sending' ? 'Sending...' : timeString} (swipe to delete)</span>
+                                                        )}
                                                     </motion.div>
                                                 </div>
                                             );
