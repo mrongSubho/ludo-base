@@ -135,13 +135,20 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         setIsActionLoading(true);
         try {
             if (action === 'Add Friend') {
-                const { error } = await supabase.from('friendships').insert({
+                const { data, error } = await supabase.from('friendships').upsert({
                     user_address: currentUserAddress,
                     friend_address: userAddress,
                     status: 'pending'
-                });
+                }, { onConflict: 'user_address,friend_address' }).select();
+
+                console.log("Add Friend Payload:", { user_address: currentUserAddress, friend_address: userAddress });
+
                 if (!error) {
                     setActionSuccess("Friend Request Sent!");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                } else {
+                    console.error("Supabase Add Friend Error:", error);
+                    setActionSuccess("Failed to send request");
                     setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Unfriend') {
