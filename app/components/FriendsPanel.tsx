@@ -87,21 +87,20 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                 .from('friendships')
                 .select(`
                     status,
-                    friend:players!friendships_friend_address_fkey(
-                        wallet_address,
-                        username,
-                        avatar_url,
-                        total_wins
-                    )
+                    user_address,
+                    friend_address,
+                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins),
+                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins)
                 `)
                 .eq('status', 'accepted')
-                .ilike('user_address', connectedAddress);
+                .or(`user_address.ilike.${connectedAddress},friend_address.ilike.${connectedAddress}`);
 
             if (error) throw error;
 
             if (data) {
                 const formatted = data.map((item: any) => {
-                    const p = item.friend;
+                    const isRequester = item.user_address.toLowerCase() === connectedAddress.toLowerCase();
+                    const p = isRequester ? item.receiver : item.requester;
                     const displayName = (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase();
                     return {
                         ...p,
@@ -249,15 +248,15 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
 
         return requests.map((req) => (
             <div key={req.id} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-purple-900">
-                        <img src={`/avatars/${req.avatar}.png`} alt={req.name} className="w-full h-full object-cover" />
+                <button onClick={() => onOpenProfile?.(req.wallet_address)} className="flex items-center gap-3 hover:opacity-80 transition-opacity focus:outline-none text-left">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-purple-900 border-2 border-transparent">
+                        <img src={req.avatar.startsWith('http') ? req.avatar : `/avatars/${req.avatar}.png`} alt={req.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col">
                         <span className="text-white font-medium text-[15px]">{req.name}</span>
                         <span className="text-[12px] text-white/40 font-medium">{req.time}</span>
                     </div>
-                </div>
+                </button>
 
                 {isIncoming ? (
                     <div className="flex items-center gap-2">
@@ -340,15 +339,17 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                             Onchain Friends
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all relative ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-1 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('requests')}
                         >
-                            Requests
-                            {pendingIncoming.length > 0 && (
-                                <div className="absolute -top-1.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-purple-900 z-20 shadow-md">
-                                    {pendingIncoming.length > 9 ? '9+' : pendingIncoming.length}
-                                </div>
-                            )}
+                            <span className="flex items-center justify-center gap-1.5">
+                                Requests
+                                {pendingIncoming.length > 0 && (
+                                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md leading-none">
+                                        {pendingIncoming.length > 9 ? '9+' : pendingIncoming.length}
+                                    </span>
+                                )}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -360,18 +361,18 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                         {activeMainTab === 'game' && (
                             <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Game Friends ({gameFriends.length})
+                                    Game Friends ({onchainFriends.length})
                                 </div>
-                                {renderFriendList(gameFriends)}
+                                {renderFriendList(onchainFriends)}
                             </motion.div>
                         )}
 
                         {activeMainTab === 'onchain' && (
                             <motion.div key="onchain" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Onchain Friends ({onchainFriends.length})
+                                    Onchain Friends ({gameFriends.length})
                                 </div>
-                                {renderFriendList(onchainFriends)}
+                                {renderFriendList(gameFriends)}
                             </motion.div>
                         )}
 

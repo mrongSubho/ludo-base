@@ -126,14 +126,16 @@ export const FooterNavPanel = ({
                                 <div className="absolute inset-0 bg-purple-600/10 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                             )}
 
-                            {/* Pending Friend Requests Badge */}
-                            {tab.id === 'friends' && pendingCount > 0 && (
-                                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#131520] z-20 shadow-md">
-                                    {pendingCount > 9 ? '9+' : pendingCount}
-                                </div>
-                            )}
+                            <div className="relative inline-flex items-center justify-center">
+                                {/* Pending Friend Requests Badge */}
+                                {tab.id === 'friends' && pendingCount > 0 && (
+                                    <div className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold px-1 py-0 rounded-full border border-[#131520] z-20 shadow-md min-w-[16px] text-center">
+                                        {pendingCount > 9 ? '9+' : pendingCount}
+                                    </div>
+                                )}
+                                <Icon />
+                            </div>
 
-                            <Icon />
                             <span className="nav-label">{tab.label}</span>
                         </button>
                     );

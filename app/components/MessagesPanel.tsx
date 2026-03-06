@@ -31,7 +31,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     // Auto-select initial chat if provided
     useEffect(() => {
-        if (initialChatId && conversations.length > 0 && !selectedChat) {
+        if (initialChatId && !selectedChat) {
             const chat = conversations.find(c => c.id.toLowerCase() === initialChatId.toLowerCase());
             if (chat) setSelectedChat(chat);
             else {
