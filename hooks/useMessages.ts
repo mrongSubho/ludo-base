@@ -72,7 +72,6 @@ export function useMessages(currentUserAddress: string | undefined | null) {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages' },
                 (payload) => {
-                    console.log('🔔 Real-time Message Received:', payload.new);
                     const newMsg = payload.new as MessageData;
                     if (
                         newMsg.sender_id.toLowerCase() === currentAddrLower ||
@@ -106,9 +105,7 @@ export function useMessages(currentUserAddress: string | undefined | null) {
                     }
                 }
             )
-            .subscribe((status) => {
-                console.log(`📡 Real-time Subscription Status (${currentAddrLower}):`, status);
-            });
+            .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
