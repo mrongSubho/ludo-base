@@ -14,24 +14,38 @@ interface PublicProfileModalProps {
 
 export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM }: PublicProfileModalProps) {
     const { address: currentUserAddress } = useCurrentUser();
-    const [isLoading, setIsLoading] = useState(false);
+    const [isProfileLoading, setProfileLoading] = useState(false);
+    const [isFriendValidationLoading, setFriendValidationLoading] = useState(false);
 
     // Target User Data
     const [profile, setProfile] = useState<any>(null);
     const [isFriend, setIsFriend] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false);
+
+    // Action States
+    const [isActionLoading, setIsActionLoading] = useState(false);
+    const [reportStep, setReportStep] = useState<'none' | 'select' | 'submitting' | 'done'>('none');
+    const [selectedReportReason, setSelectedReportReason] = useState<string>('');
 
     // Reset when modal opens with new user
     useEffect(() => {
         if (!isOpen || !userAddress || !currentUserAddress) {
             setProfile(null);
             setIsFriend(false);
+            setIsBlocked(false);
+            setReportStep('none');
+            setSelectedReportReason('');
+            setProfileLoading(false);
+            setFriendValidationLoading(false);
             return;
         }
 
         const fetchProfileData = async () => {
-            setIsLoading(true);
+            setProfileLoading(true);
+            setFriendValidationLoading(true);
+
             try {
-                // 1. Fetch user stats from Supabase
+                // 1. Fetch user stats from Supabase (FAST)
                 const { data: userData, error: userError } = await supabase
                     .from('players')
                     .select('*')
@@ -43,8 +57,28 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 } else {
                     setProfile(userData);
                 }
+            } catch (err) {
+                console.error("Error fetching profile from Supabase:", err);
+            } finally {
+                setProfileLoading(false); // Render top half immediately
+            }
 
-                // 2. Fetch current user's friends list to validate DM capability
+            // 1.5 Fetch block status
+            try {
+                const { data: blockData } = await supabase
+                    .from('user_blocks')
+                    .select('id')
+                    .eq('blocker_address', currentUserAddress)
+                    .ilike('blocked_address', userAddress)
+                    .single();
+
+                setIsBlocked(!!blockData);
+            } catch (err) {
+                console.error("Error checking block status:", err);
+            }
+
+            // 2. Fetch current user's friends list to validate DM capability (SLOWER)
+            try {
                 const response = await fetch(`/api/friends?wallet=${currentUserAddress}`);
                 if (response.ok) {
                     const data = await response.json();
@@ -55,11 +89,10 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                     setIsFriend(isFollowing || isGameFriend);
                 }
-
             } catch (err) {
                 console.error("Error during profile validation:", err);
             } finally {
-                setIsLoading(false);
+                setFriendValidationLoading(false); // Render bottom half actions
             }
         };
 
@@ -74,11 +107,87 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     const displayAvatar = profile?.avatar_url || '1';
     const displayWins = profile?.total_wins || 0;
+    const classicPlayed = profile?.classic_played || 0;
+    const powerPlayed = profile?.power_played || 0;
+    const aiPlayed = profile?.ai_played || 0;
 
-    const handleAction = (action: string) => {
-        // Visual hooks for requested features
-        console.log(`[Public Profile] Triggered Action: ${action} on ${userAddress}`);
-        // To be connected to backend tables if requested
+    // Online Heuristics (Played within last 15 minutes)
+    const lastPlayedAt = profile?.last_played_at ? new Date(profile.last_played_at) : null;
+    const isOnline = lastPlayedAt ? (new Date().getTime() - lastPlayedAt.getTime()) < 15 * 60 * 1000 : false;
+
+    const localTimeString = lastPlayedAt ? new Intl.DateTimeFormat('default', {
+        hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short'
+    }).format(lastPlayedAt) : 'Never';
+
+    // Graph Data Mocking (Assuming we implement a history tracking table later, mocking for now as requested by user)
+    const monthlyGraphHeights = [30, 50, 20, 80, 40, 90, 60, 100, 40, 70]; // CSS Percentages
+
+    const handleAction = async (action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report') => {
+        if (!currentUserAddress || !userAddress || isActionLoading) return;
+
+        if (action === 'Report') {
+            setReportStep('select');
+            return;
+        }
+
+        setIsActionLoading(true);
+        try {
+            if (action === 'Add Friend') {
+                const { error } = await supabase.from('friendships').insert({
+                    user_address: currentUserAddress,
+                    friend_address: userAddress,
+                    status: 'pending'
+                });
+                if (!error) console.log("Friend Request Sent!");
+            } else if (action === 'Unfriend') {
+                const { error } = await supabase.from('friendships')
+                    .delete()
+                    .or(`and(user_address.ilike.${currentUserAddress},friend_address.ilike.${userAddress}),and(user_address.ilike.${userAddress},friend_address.ilike.${currentUserAddress})`);
+                if (!error) setIsFriend(false);
+            } else if (action === 'Block') {
+                const { error } = await supabase.from('user_blocks').insert({
+                    blocker_address: currentUserAddress,
+                    blocked_address: userAddress
+                });
+                if (!error) {
+                    setIsBlocked(true);
+                    setIsFriend(false); // Blocking someone immediately severs frontend friendship
+                }
+            } else if (action === 'Unblock') {
+                const { error } = await supabase.from('user_blocks')
+                    .delete()
+                    .eq('blocker_address', currentUserAddress)
+                    .ilike('blocked_address', userAddress);
+                if (!error) setIsBlocked(false);
+            }
+        } catch (err) {
+            console.error(`Failed to handle action ${action}:`, err);
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const submitReport = async () => {
+        if (!currentUserAddress || !userAddress || !selectedReportReason) return;
+        setReportStep('submitting');
+
+        try {
+            const { error } = await supabase.from('user_reports').insert({
+                reporter_address: currentUserAddress,
+                reported_address: userAddress,
+                reason: selectedReportReason
+            });
+
+            if (!error) {
+                setReportStep('done');
+                setTimeout(() => setReportStep('none'), 2000); // Reset UI after 2s
+            } else {
+                setReportStep('select'); // drop back on error
+            }
+        } catch (err) {
+            console.error(err);
+            setReportStep('select');
+        }
     };
 
     return (
@@ -106,7 +215,17 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         <div className="h-16 bg-gradient-to-b from-purple-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
 
                         {/* Top Controls */}
-                        <div className="flex justify-end p-4 relative z-10">
+                        <div className="flex justify-end p-4 relative z-10 w-full pl-6 pr-4">
+                            {/* Only show online status if verified friend */}
+                            {!isFriendValidationLoading && isFriend && (
+                                <div className="absolute left-6 top-6 flex items-center gap-2">
+                                    <div className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' : 'bg-white/20'}`} />
+                                    <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">
+                                        {isOnline ? 'Online' : 'Offline'}
+                                    </span>
+                                </div>
+                            )}
+
                             <button
                                 onClick={onClose}
                                 className="w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
@@ -116,16 +235,16 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         </div>
 
                         {/* Profile Content */}
-                        <div className="px-6 pb-6 pt-2 flex flex-col items-center relative z-10">
-                            {isLoading ? (
+                        <div className="px-6 pb-6 pt-0 flex flex-col items-center relative z-10">
+                            {isProfileLoading ? (
                                 <div className="py-12 flex flex-col items-center justify-center space-y-4">
                                     <div className="w-8 h-8 border-3 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
-                                    <span className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Decrypting Profile...</span>
+                                    <span className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Decrypting Hex...</span>
                                 </div>
                             ) : (
                                 <>
                                     {/* Avatar */}
-                                    <div className="relative mb-4">
+                                    <div className="relative mb-4 mt-2">
                                         <div className="w-24 h-24 rounded-full overflow-hidden bg-[#1a1c29] border-4 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                                             <img
                                                 src={displayAvatar.startsWith('http') ? displayAvatar : `/avatars/${displayAvatar}.png`}
@@ -139,15 +258,20 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     <h3 className="text-2xl font-bold text-white mb-1 text-center truncate w-full px-4">
                                         {displayName}
                                     </h3>
-                                    <div className="bg-black/40 px-3 py-1 rounded-full border border-white/5 mb-6 flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
-                                        <span className="text-xs text-white/50 font-mono">
-                                            {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
-                                        </span>
+
+                                    <div className="h-8 mb-5 flex items-center justify-center">
+                                        {!isFriendValidationLoading && isFriend && (
+                                            <div className="bg-black/40 px-3 py-1 rounded-full border border-white/5 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                                                <span className="text-xs text-white/50 font-mono">
+                                                    {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Stats Grid */}
-                                    <div className="grid grid-cols-2 gap-3 w-full mb-6">
+                                    <div className="grid grid-cols-2 gap-3 w-full mb-3">
                                         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
                                             <span className="text-2xl font-black text-purple-400">{displayWins}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
@@ -158,48 +282,175 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         </div>
                                     </div>
 
-                                    {/* Primary Actions (Only for friends) */}
-                                    {isFriend ? (
-                                        <button
-                                            onClick={() => onDM(userAddress)}
-                                            className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3.5 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 mb-3"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                            DIRECT MESSAGE
-                                        </button>
-                                    ) : (
-                                        <div className="w-full text-center text-xs text-white/30 border border-white/5 bg-black/20 rounded-xl py-3 mb-3">
-                                            Must be friends to send DMs
-                                        </div>
-                                    )}
+                                    {/* Protected Friend Data Area */}
+                                    <div className="w-full relative min-h-[140px] flex flex-col justify-end">
+                                        {isFriendValidationLoading ? (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center animate-pulse gap-3">
+                                                <div className="w-full h-12 bg-white/5 rounded-xl" />
+                                                <div className="w-full h-12 bg-white/5 rounded-xl" />
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {isFriend ? (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: 10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        className="w-full flex flex-col gap-3 mb-4"
+                                                    >
+                                                        {/* Advanced Stats */}
+                                                        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3 flex justify-between items-center">
+                                                            <div className="flex flex-col items-center flex-1">
+                                                                <span className="text-sm font-bold text-white">{classicPlayed}</span>
+                                                                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Classic</span>
+                                                            </div>
+                                                            <div className="w-px h-6 bg-white/10" />
+                                                            <div className="flex flex-col items-center flex-1">
+                                                                <span className="text-sm font-bold text-white">{powerPlayed}</span>
+                                                                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Power</span>
+                                                            </div>
+                                                            <div className="w-px h-6 bg-white/10" />
+                                                            <div className="flex flex-col items-center flex-1">
+                                                                <span className="text-sm font-bold text-white">{aiPlayed}</span>
+                                                                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">vs AI</span>
+                                                            </div>
+                                                        </div>
 
-                                    {/* Secondary Actions Row */}
-                                    <div className="flex gap-2 w-full">
-                                        {!isFriend && (
-                                            <button
-                                                onClick={() => handleAction('Add Friend')}
-                                                className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-                                                Add
-                                            </button>
+                                                        {/* Monthly Activity Graph & Last Seen */}
+                                                        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col">
+                                                            <div className="flex justify-between items-center mb-3">
+                                                                <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
+                                                                <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
+                                                            </div>
+                                                            <div className="flex items-end justify-between h-8 gap-1">
+                                                                {monthlyGraphHeights.map((h, i) => (
+                                                                    <div key={i} className="flex-1 bg-white/10 rounded-t-sm hover:bg-purple-500/50 transition-colors" style={{ height: `${h}%` }} />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Direct Message (Only visible to friends) */}
+                                                        <button
+                                                            onClick={() => onDM(userAddress)}
+                                                            className="w-full mt-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3.5 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                                            DIRECT MESSAGE
+                                                        </button>
+
+                                                    </motion.div>
+                                                ) : (
+                                                    <motion.div
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        className="w-full flex pb-3"
+                                                    >
+                                                        <div className="flex flex-col gap-2 w-full mt-4">
+
+                                                            {/* Report Flow Inline UI */}
+                                                            <AnimatePresence mode="wait">
+                                                                {reportStep !== 'none' ? (
+                                                                    <motion.div
+                                                                        key="report-ui"
+                                                                        initial={{ opacity: 0, height: 0 }}
+                                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                                        exit={{ opacity: 0, height: 0 }}
+                                                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2 overflow-hidden"
+                                                                    >
+                                                                        {reportStep === 'done' ? (
+                                                                            <div className="flex items-center justify-center p-2 text-green-400 font-bold text-sm gap-2">
+                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                                                Report Submitted
+                                                                            </div>
+                                                                        ) : (
+                                                                            <>
+                                                                                <span className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1">Select Reason</span>
+                                                                                <div className="flex gap-2">
+                                                                                    {['Cheating', 'Abuse', 'Spam'].map((reason) => (
+                                                                                        <button
+                                                                                            key={reason}
+                                                                                            onClick={() => setSelectedReportReason(reason)}
+                                                                                            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
+                                                                                        >
+                                                                                            {reason}
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                                <div className="flex gap-2 mt-1">
+                                                                                    <button
+                                                                                        onClick={() => setReportStep('none')}
+                                                                                        className="flex-1 py-2 text-xs font-bold text-white/50 hover:text-white/80 transition-colors"
+                                                                                    >
+                                                                                        Cancel
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={submitReport}
+                                                                                        disabled={!selectedReportReason || reportStep === 'submitting'}
+                                                                                        className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-all flex justify-center items-center"
+                                                                                    >
+                                                                                        {reportStep === 'submitting' ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Submit'}
+                                                                                    </button>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </motion.div>
+                                                                ) : (
+                                                                    <motion.div key="action-buttons" className="flex gap-2 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                                                                        {isBlocked ? (
+                                                                            <button
+                                                                                onClick={() => handleAction('Unblock')}
+                                                                                disabled={isActionLoading}
+                                                                                className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                            >
+                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2v20"></path><path d="M2.5 10.5 12 2l9.5 8.5"></path><path d="M2.5 22.5 12 14l9.5 8.5"></path></svg>
+                                                                                Unblock
+                                                                            </button>
+                                                                        ) : (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => handleAction(isFriend ? 'Unfriend' : 'Add Friend')}
+                                                                                    disabled={isActionLoading}
+                                                                                    className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                                >
+                                                                                    {isFriend ? (
+                                                                                        <>
+                                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/50"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                                                                                            <span className="text-white/50 hover:text-red-400 transition-colors">Unfriend</span>
+                                                                                        </>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                                                                                            Add Friend
+                                                                                        </>
+                                                                                    )}
+                                                                                </button>
+
+                                                                                <button
+                                                                                    onClick={() => handleAction('Block')}
+                                                                                    disabled={isActionLoading}
+                                                                                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                                >
+                                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                                                                    Block
+                                                                                </button>
+
+                                                                                <button
+                                                                                    onClick={() => handleAction('Report')}
+                                                                                    disabled={isActionLoading}
+                                                                                    className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
+                                                                                    title="Report User"
+                                                                                >
+                                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </>
                                         )}
-
-                                        <button
-                                            onClick={() => handleAction('Block')}
-                                            className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                            Block
-                                        </button>
-
-                                        <button
-                                            onClick={() => handleAction('Report')}
-                                            className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all border border-white/5 shrink-0"
-                                            title="Report User"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                                        </button>
                                     </div>
                                 </>
                             )}

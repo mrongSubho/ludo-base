@@ -160,7 +160,13 @@ const getGridPos = (n: number) => {
     };
 };
 
-export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' | '4' | '2v2' }) {
+export default function SnakesBoard({
+    playerCount = '4',
+    onOpenProfile
+}: {
+    playerCount?: '2' | '4' | '2v2';
+    onOpenProfile?: (address: string) => void;
+}) {
     const { playMove, playCapture, playWin, playTurn, playStrike } = useAudio();
     const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
 
@@ -373,7 +379,9 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                     timeLeft={gameState.timeLeft}
                                     strikes={gameState.strikes[p.color]}
                                     power={null}
-                                    onAvatarClick={() => { }}
+                                    onAvatarClick={() => {
+                                        if (onOpenProfile) onOpenProfile(p.name);
+                                    }}
                                 />
                                 {/* AI / Auto-play Badges */}
                                 {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
@@ -546,7 +554,9 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                         timeLeft={gameState.timeLeft}
                                         strikes={gameState.strikes[p.color]}
                                         power={null}
-                                        onAvatarClick={() => { }}
+                                        onAvatarClick={() => {
+                                            if (onOpenProfile) onOpenProfile(p.name);
+                                        }}
                                     />
                                     {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                                         <div className="ai-thinking-tag">Thinking...</div>
@@ -595,7 +605,9 @@ export default function SnakesBoard({ playerCount = '4' }: { playerCount?: '2' |
                                         timeLeft={gameState.timeLeft}
                                         strikes={gameState.strikes[p.color]}
                                         power={null}
-                                        onAvatarClick={() => { }}
+                                        onAvatarClick={() => {
+                                            if (onOpenProfile) onOpenProfile(p.name);
+                                        }}
                                     />
                                     {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
                                         <div className="ai-thinking-tag">Thinking...</div>

@@ -253,9 +253,9 @@ export default function Page() {
               </div>
               <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
                 {selectedMode === 'snakes' ? (
-                  <SnakesBoard playerCount={playerCount as any} />
+                  <SnakesBoard playerCount={playerCount as any} onOpenProfile={(addr) => setSelectedProfileAddress(addr)} />
                 ) : (
-                  <Board playerCount={playerCount} gameMode={selectedMode as any} isBotMatch={isBotMatch} />
+                  <Board playerCount={playerCount} gameMode={selectedMode as any} isBotMatch={isBotMatch} onOpenProfile={(addr) => setSelectedProfileAddress(addr)} />
                 )}
               </main>
 

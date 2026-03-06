@@ -123,6 +123,7 @@ export const FooterNavPanel = ({
                             onSelectChat(friendId);
                             onToggleTab('messages');
                         }}
+                        onOpenProfile={onOpenProfile}
                     />
                 )}
                 {activeTab === 'leaderboard' && (
@@ -148,6 +149,7 @@ export const FooterNavPanel = ({
                             onSelectChat(null);
                         }}
                         initialChatId={selectedChatId}
+                        onOpenProfile={onOpenProfile}
                     />
                 )}
             </AnimatePresence>

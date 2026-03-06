@@ -9,9 +9,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 interface MessagesPanelProps {
     onClose: () => void;
     initialChatId?: string | null;
+    onOpenProfile?: (address: string) => void;
 }
 
-export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelProps) {
+export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
     const { address } = useCurrentUser();
     const { messages, conversations, sendMessage, markAsRead, deleteMessageLocal } = useMessages(address);
 
@@ -156,18 +157,24 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                                     </div>
                                 ) : (
                                     conversations.map((chat) => (
-                                        <button
+                                        <div
                                             key={chat.id}
-                                            onClick={() => setSelectedChat(chat)}
                                             className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"
                                         >
-                                            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                                            <button
+                                                onClick={() => onOpenProfile?.(chat.id)}
+                                                className="relative w-12 h-12 rounded-full overflow-hidden bg-white/10 flex-shrink-0 hover:scale-105 transition-transform focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                            >
                                                 <img src={`/avatars/${chat.avatar || '1'}.png`} alt={chat.name} className="w-full h-full object-cover" />
                                                 <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
                                                     ${chat.status === 'Online' ? 'bg-green-500' : chat.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
                                                 />
-                                            </div>
-                                            <div className="flex-1 text-left min-w-0">
+                                            </button>
+
+                                            <button
+                                                onClick={() => setSelectedChat(chat)}
+                                                className="flex-1 text-left min-w-0 focus:outline-none"
+                                            >
                                                 <div className="flex justify-between items-center mb-0.5">
                                                     <span className="font-bold text-white truncate">{chat.name}</span>
                                                     <span className="text-[10px] text-white/40">{chat.time}</span>
@@ -175,11 +182,12 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                                                 <p className={`text-sm truncate ${chat.unread ? 'text-white font-medium' : 'text-white/50'}`}>
                                                     {chat.lastMessage}
                                                 </p>
-                                            </div>
+                                            </button>
+
                                             {chat.unread && (
-                                                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+                                                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] flex-shrink-0" />
                                             )}
-                                        </button>
+                                        </div>
                                     ))
                                 )}
                             </motion.div>

@@ -252,13 +252,15 @@ export default function Board({
     onToggleLeaderboard,
     playerCount = '4P',
     gameMode = 'classic',
-    isBotMatch = false
+    isBotMatch = false,
+    onOpenProfile
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
     playerCount?: '1v1' | '4P' | '2v2';
     gameMode?: 'classic' | 'power' | 'snakes';
     isBotMatch?: boolean;
+    onOpenProfile?: (address: string) => void;
 }) {
     const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount, isBotMatch));
     // Single state for the color-corner mapping and derived paths (always in sync)
@@ -357,7 +359,13 @@ export default function Board({
                                 strikes={localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
-                                onAvatarClick={() => setSelectedPlayer(p)}
+                                onAvatarClick={() => {
+                                    if (!p.isAi && onOpenProfile && p.walletAddress) {
+                                        onOpenProfile(p.walletAddress);
+                                    } else {
+                                        setSelectedPlayer(p);
+                                    }
+                                }}
                                 teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
@@ -525,7 +533,13 @@ export default function Board({
                                 strikes={localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
-                                onAvatarClick={() => setSelectedPlayer(p)}
+                                onAvatarClick={() => {
+                                    if (!p.isAi && onOpenProfile && p.walletAddress) {
+                                        onOpenProfile(p.walletAddress);
+                                    } else {
+                                        setSelectedPlayer(p);
+                                    }
+                                }}
                                 teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
@@ -551,6 +565,7 @@ export default function Board({
             <Leaderboard
                 isOpen={showLeaderboard}
                 onClose={() => onToggleLeaderboard?.(false)}
+                onOpenProfile={onOpenProfile || (() => { })}
             />
 
             {/* ── Player Profile Sheet ── */}

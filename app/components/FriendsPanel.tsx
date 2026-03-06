@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 interface FriendsPanelProps {
     onClose: () => void;
     onDM?: (friendId: string) => void;
+    onOpenProfile?: (address: string) => void;
 }
 
 type MainTab = 'game' | 'onchain' | 'requests';
@@ -49,7 +50,7 @@ const RejectIcon = () => (
 );
 
 
-export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
+export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPanelProps) {
     const { profile, address: connectedAddress } = useCurrentUser();
     const userFid = (profile as any)?.fid;
 
@@ -126,7 +127,10 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
         return friends.map((friend) => (
             <div key={friend.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-900">
+                    <button
+                        onClick={() => onOpenProfile?.(friend.wallet_address)}
+                        className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:scale-105 transition-transform"
+                    >
                         <img
                             src={friend.avatar_url || '/default-avatar.png'}
                             alt={friend.displayName}
@@ -135,14 +139,17 @@ export default function FriendsPanel({ onClose, onDM }: FriendsPanelProps) {
                         <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
               ${friend.status === 'Online' ? 'bg-green-500' : friend.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
                         />
-                    </div>
-                    <div className="flex flex-col">
+                    </button>
+                    <button
+                        onClick={() => onOpenProfile?.(friend.wallet_address)}
+                        className="flex flex-col text-left focus:outline-none hover:opacity-80 transition-opacity"
+                    >
                         <span className="text-white font-medium text-[15px]">{friend.displayName}</span>
                         <span className={`text-[12px] font-medium 
               ${friend.status === 'Online' ? 'text-green-400' : friend.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
                             {friend.status}
                         </span>
-                    </div>
+                    </button>
                 </div>
 
                 <button
