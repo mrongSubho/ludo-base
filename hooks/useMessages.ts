@@ -132,6 +132,41 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         };
     }, [currentUserAddress, isVisibleToMe]);
 
+    // 5. Real-time Profile/Status Updates
+    useEffect(() => {
+        const profileChannel = supabase
+            .channel('global-profile-status-sync')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'players' },
+                (payload) => {
+                    const updatedPlayer = payload.new;
+                    const addr = updatedPlayer.wallet_address?.toLowerCase();
+                    if (!addr) return;
+
+                    setProfiles(prev => {
+                        if (!prev[addr]) return prev; // Only track if we already have this profile
+
+                        // Only update if status actually changed
+                        if (prev[addr].status === updatedPlayer.status) return prev;
+
+                        return {
+                            ...prev,
+                            [addr]: {
+                                ...prev[addr],
+                                status: updatedPlayer.status || 'Offline'
+                            }
+                        };
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(profileChannel);
+        };
+    }, []);
+
     // Transform raw DB conversations into UI format
     useEffect(() => {
         if (!currentUserAddress) return;

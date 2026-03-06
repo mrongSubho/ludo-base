@@ -73,12 +73,29 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                 const res = await fetch(`/api/friends?fid=${userFid}`);
                 const data = await res.json();
                 if (data.friends) {
-                    const formatted = data.friends.map((friend: any) => ({
+                    const baseFormatted = data.friends.map((friend: any) => ({
                         ...friend,
                         displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
-                        status: 'Offline'
+                        status: 'Offline' // Default
                     }));
-                    setGameFriends(formatted);
+
+                    // Fetch real statuses for these Farcaster friends from our DB
+                    const fAddresses = baseFormatted.map((f: any) => f.wallet_address.toLowerCase());
+                    const { data: statusData } = await supabase
+                        .from('players')
+                        .select('wallet_address, status')
+                        .in('wallet_address', fAddresses);
+
+                    if (statusData) {
+                        const statusMap = Object.fromEntries(statusData.map(s => [s.wallet_address.toLowerCase(), s.status]));
+                        const withStatus = baseFormatted.map((f: any) => ({
+                            ...f,
+                            status: statusMap[f.wallet_address.toLowerCase()] || 'Offline'
+                        }));
+                        setGameFriends(withStatus);
+                    } else {
+                        setGameFriends(baseFormatted);
+                    }
                 }
             }
 
