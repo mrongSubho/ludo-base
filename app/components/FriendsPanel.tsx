@@ -340,10 +340,15 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                             Onchain Friends
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all relative ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('requests')}
                         >
                             Requests
+                            {pendingIncoming.length > 0 && (
+                                <div className="absolute -top-1.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-purple-900 z-20 shadow-md">
+                                    {pendingIncoming.length > 9 ? '9+' : pendingIncoming.length}
+                                </div>
+                            )}
                         </button>
                     </div>
                 </div>

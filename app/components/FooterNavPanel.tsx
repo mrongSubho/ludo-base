@@ -1,7 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 // Panel Imports
 import UserProfilePanel from './UserProfilePanel';
@@ -72,6 +74,27 @@ export const FooterNavPanel = ({
     onSelectChat,
     onOpenProfile
 }: FooterNavPanelProps) => {
+    const { address: connectedAddress } = useCurrentUser();
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        if (!connectedAddress) return;
+
+        const fetchPendingCount = async () => {
+            const { count } = await supabase
+                .from('friendships')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'pending')
+                .ilike('friend_address', connectedAddress);
+
+            if (count !== null) setPendingCount(count);
+        };
+
+        fetchPendingCount();
+        const interval = setInterval(fetchPendingCount, 15000); // Poll every 15s to update badge
+        return () => clearInterval(interval);
+    }, [connectedAddress]);
+
     return (
         <>
             <nav className="footer-nav relative overflow-hidden">
@@ -101,6 +124,13 @@ export const FooterNavPanel = ({
                             {/* Hover Background */}
                             {!isActive && (
                                 <div className="absolute inset-0 bg-purple-600/10 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                            )}
+
+                            {/* Pending Friend Requests Badge */}
+                            {tab.id === 'friends' && pendingCount > 0 && (
+                                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-[#131520] z-20 shadow-md">
+                                    {pendingCount > 9 ? '9+' : pendingCount}
+                                </div>
                             )}
 
                             <Icon />
