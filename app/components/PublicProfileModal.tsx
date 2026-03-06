@@ -245,7 +245,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm"
-                        onClick={onClose}
                     />
 
                     {/* Pop-up Modal Container */}

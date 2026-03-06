@@ -64,11 +64,10 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
             {/* Dim backdrop — very faint so board stays visible */}
             <motion.div
                 key="profile-backdrop"
-                className="profile-popup-backdrop"
+                className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[120]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={onClose}
             />
 
             {/* Compact floating popup */}

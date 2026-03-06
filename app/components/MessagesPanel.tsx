@@ -109,7 +109,6 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-                onClick={onClose}
             />
 
             {/* Main Panel */}
@@ -122,7 +121,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
-                <div className="w-full flex justify-center pt-4 pb-2" onClick={onClose}>
+                <div className="w-full flex justify-center pt-4 pb-2">
                     <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                 </div>
 
