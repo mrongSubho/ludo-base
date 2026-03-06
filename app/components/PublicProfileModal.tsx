@@ -150,13 +150,13 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             if (action === 'Add Friend') {
                 // Pre-emptively ensure both users exist in players table to avoid FK crashes
                 await supabase.from('players').upsert([
-                    { wallet_address: currentUserAddress },
-                    { wallet_address: userAddress }
+                    { wallet_address: currentUserAddress.toLowerCase() },
+                    { wallet_address: userAddress.toLowerCase() }
                 ], { onConflict: 'wallet_address', ignoreDuplicates: true });
 
                 const { data, error } = await supabase.from('friendships').upsert({
-                    user_address: currentUserAddress,
-                    friend_address: userAddress,
+                    user_address: currentUserAddress.toLowerCase(),
+                    friend_address: userAddress.toLowerCase(),
                     status: 'pending'
                 }, { onConflict: 'user_address,friend_address' }).select();
 
@@ -182,8 +182,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 }
             } else if (action === 'Block') {
                 const { error } = await supabase.from('user_blocks').insert({
-                    blocker_address: currentUserAddress,
-                    blocked_address: userAddress
+                    blocker_address: currentUserAddress.toLowerCase(),
+                    blocked_address: userAddress.toLowerCase()
                 });
                 if (!error) {
                     setIsBlocked(true);
@@ -209,8 +209,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
         try {
             const { error } = await supabase.from('user_reports').insert({
-                reporter_address: currentUserAddress,
-                reported_address: userAddress,
+                reporter_address: currentUserAddress.toLowerCase(),
+                reported_address: userAddress.toLowerCase(),
                 reason: selectedReportReason
             });
 
