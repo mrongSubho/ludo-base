@@ -215,7 +215,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             };
             fetchProfiles();
         }
-    }, [messages, rawConversations, currentUserAddress, profiles]);
+    }, [messages, rawConversations, currentUserAddress, profiles, selectedChatId]);
 
     const sendMessage = async (receiverId: string, content: string) => {
         if (!currentUserAddress) return;
@@ -243,7 +243,12 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         }).select().single();
 
         if (error) {
-            console.error("Error sending message:", error);
+            console.error("CRITICAL: Error sending message:", {
+                code: error.code,
+                message: error.message,
+                details: error.details,
+                hint: error.hint
+            });
             // Mark failed in UI
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
         } else if (data) {
