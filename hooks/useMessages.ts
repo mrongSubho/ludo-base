@@ -1,12 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize a generic supabase client for the browser. 
-// We rely on RLS being partially disabled for `messages` since authentication isn't strictly enforced right now via Supabase Auth,
-// or we assume it's publicly readable/writable for demo purposes if RLS is disabled.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '@/lib/supabase';
 
 export interface MessageData {
     id: string;
@@ -79,6 +72,7 @@ export function useMessages(currentUserAddress: string | undefined | null) {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages' },
                 (payload) => {
+                    console.log('🔔 Real-time Message Received:', payload.new);
                     const newMsg = payload.new as MessageData;
                     if (
                         newMsg.sender_id.toLowerCase() === currentAddrLower ||
@@ -112,7 +106,9 @@ export function useMessages(currentUserAddress: string | undefined | null) {
                     }
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`📡 Real-time Subscription Status (${currentAddrLower}):`, status);
+            });
 
         return () => {
             supabase.removeChannel(channel);
