@@ -152,7 +152,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-hidden relative px-panel-gutter">
+                <div className="flex-1 overflow-hidden relative">
                     <AnimatePresence mode="wait">
                         {!selectedChatId ? (
                             /* Chat List */
@@ -161,7 +161,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
-                                className="h-full overflow-y-auto py-4 space-y-2 custom-scrollbar"
+                                className="h-full overflow-y-auto px-panel-gutter py-4 space-y-2 custom-scrollbar"
                             >
                                 {conversations.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full text-white/40 mt-10">
@@ -215,7 +215,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             >
                                 <div
                                     ref={scrollRef}
-                                    className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar"
+                                    className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-4 custom-scrollbar"
                                 >
                                     {messages
                                         .filter(m => m.sender_id.toLowerCase() === selectedChatId.toLowerCase() || m.receiver_id.toLowerCase() === selectedChatId.toLowerCase())
@@ -257,7 +257,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 </div>
 
                                 {/* Input Area */}
-                                <div className="p-4 border-t border-white/10 bg-black/20">
+                                <div className="px-panel-gutter pt-4 pb-8 border-t border-white/10 bg-black/20">
                                     <div className="flex gap-2 relative">
                                         <input
                                             type="text"
