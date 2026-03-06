@@ -229,7 +229,15 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                     className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-4 custom-scrollbar"
                                 >
                                     {messages
-                                        .filter(m => m.sender_id.toLowerCase() === selectedChatId.toLowerCase() || m.receiver_id.toLowerCase() === selectedChatId.toLowerCase())
+                                        .filter(m => {
+                                            const sender = m.sender_id.toLowerCase();
+                                            const receiver = m.receiver_id.toLowerCase();
+                                            const me = address?.toLowerCase();
+                                            const friend = selectedChatId.toLowerCase();
+
+                                            // Strict pairwise check: (me -> friend) OR (friend -> me)
+                                            return (sender === me && receiver === friend) || (sender === friend && receiver === me);
+                                        })
                                         .map((msg) => {
                                             const isMe = msg.sender_id.toLowerCase() === address?.toLowerCase();
                                             const timeString = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
