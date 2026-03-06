@@ -45,6 +45,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         const currentAddrLower = currentUserAddress.toLowerCase();
 
         const fetchInitialData = async () => {
+            console.log("DEBUG: fetchInitialData starting for", currentAddrLower);
             setIsLoading(true);
 
             // 1. Fetch Conversations sidebar
@@ -55,9 +56,10 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                 .order('last_message_at', { ascending: false });
 
             if (convoError) {
-                console.warn("Conversations table probably missing. Run db_optimize.sql:", convoError.message);
-            } else if (convoData) {
-                setRawConversations(convoData);
+                console.warn("DEBUG: Conversations fetch error:", convoError.message);
+            } else {
+                console.log("DEBUG: Conversations result:", convoData?.length || 0, "rows");
+                if (convoData) setRawConversations(convoData);
             }
 
             // 2. Fetch Recent Messages
@@ -69,10 +71,13 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                 .limit(30);
 
             if (msgError) {
-                console.error("Error fetching messages:", msgError.message);
-            } else if (msgData) {
-                const visible = msgData.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
-                setMessages(visible);
+                console.error("DEBUG: Messages fetch error:", msgError.message);
+            } else {
+                console.log("DEBUG: Messages result:", msgData?.length || 0, "rows");
+                if (msgData) {
+                    const visible = msgData.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
+                    setMessages(visible);
+                }
             }
             setIsLoading(false);
         };
