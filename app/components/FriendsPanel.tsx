@@ -76,7 +76,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     const formatted = data.friends.map((friend: any) => ({
                         ...friend,
                         displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
-                        status: 'Online'
+                        status: 'Offline'
                     }));
                     setGameFriends(formatted);
                 }

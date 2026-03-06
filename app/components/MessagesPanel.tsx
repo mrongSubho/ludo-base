@@ -134,22 +134,21 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 <>
                                     <button
                                         onClick={() => setSelectedChatId(null)}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all flex-shrink-0"
+                                        className="relative z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all flex-shrink-0"
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                                             <polyline points="15 18 9 12 15 6"></polyline>
                                         </svg>
                                     </button>
-                                    <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-2 px-2 overflow-hidden">
-                                        <span className="text-white font-black text-xl italic tracking-tighter truncate max-w-[120px] sm:max-w-[200px]">
+                                    <div className="absolute left-1/2 -translate-x-1/2 flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-2 px-2 overflow-hidden w-full max-w-[200px] sm:max-w-[300px] pointer-events-none">
+                                        <span className="text-white font-black text-xl italic tracking-tighter truncate w-full text-center">
                                             {activeChat.name}
                                         </span>
-                                        <span className={`text-[10px] font-medium uppercase tracking-wider
+                                        <span className={`text-[10px] font-medium uppercase tracking-wider whitespace-nowrap
                                             ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
                                             • {activeChat.status}
                                         </span>
                                     </div>
-                                    <div className="w-8 flex-shrink-0" /> {/* Spacer for symmetry */}
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2">
