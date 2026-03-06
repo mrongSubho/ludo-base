@@ -10,6 +10,7 @@ import GameLobby from './components/GameLobby';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
+import PublicProfileModal from './components/PublicProfileModal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
@@ -74,6 +75,7 @@ export default function Page() {
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
+  const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { gameState, broadcastAction, isHost, isLobbyConnected } = useMultiplayer();
 
@@ -200,6 +202,7 @@ export default function Page() {
                 onCloseTab={closeTab}
                 selectedChatId={selectedChatId}
                 onSelectChat={setSelectedChatId}
+                onOpenProfile={(uid) => setSelectedProfileAddress(uid)}
               />
 
               {/* Settings Drawer */}
@@ -208,6 +211,18 @@ export default function Page() {
                   <SettingsPanel key="settings" onClose={closeTab} />
                 )}
               </AnimatePresence>
+
+              {/* Global Public Profile Popup */}
+              <PublicProfileModal
+                isOpen={!!selectedProfileAddress}
+                userAddress={selectedProfileAddress}
+                onClose={() => setSelectedProfileAddress(null)}
+                onDM={(userId) => {
+                  setSelectedProfileAddress(null);
+                  setSelectedChatId(userId);
+                  setActiveTab('messages');
+                }}
+              />
             </div>
           )}
 

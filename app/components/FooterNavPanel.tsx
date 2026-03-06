@@ -61,6 +61,7 @@ interface FooterNavPanelProps {
     onCloseTab: () => void;
     selectedChatId: string | null;
     onSelectChat: (id: string | null) => void;
+    onOpenProfile: (address: string) => void;
 }
 
 export const FooterNavPanel = ({
@@ -68,7 +69,8 @@ export const FooterNavPanel = ({
     onToggleTab,
     onCloseTab,
     selectedChatId,
-    onSelectChat
+    onSelectChat,
+    onOpenProfile
 }: FooterNavPanelProps) => {
     return (
         <>
@@ -124,7 +126,12 @@ export const FooterNavPanel = ({
                     />
                 )}
                 {activeTab === 'leaderboard' && (
-                    <Leaderboard key="leaderboard" isOpen={true} onClose={onCloseTab} />
+                    <Leaderboard
+                        key="leaderboard"
+                        isOpen={true}
+                        onClose={onCloseTab}
+                        onOpenProfile={onOpenProfile}
+                    />
                 )}
                 {activeTab === 'mission' && (
                     <MissionPanel key="mission" isOpen={true} onClose={onCloseTab} />

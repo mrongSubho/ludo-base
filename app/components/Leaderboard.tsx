@@ -33,9 +33,10 @@ interface LeaderboardEntry {
 interface LeaderboardProps {
     isOpen: boolean;
     onClose: () => void;
+    onOpenProfile: (address: string) => void;
 }
 
-export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
+export default function Leaderboard({ isOpen, onClose, onOpenProfile }: LeaderboardProps) {
     const { address } = useAccount();
     const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
     const [scope, setScope] = useState<'global' | 'friends'>('global');
@@ -261,7 +262,10 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                         )}
                                                     </div>
 
-                                                    <div className="relative">
+                                                    <button
+                                                        onClick={() => onOpenProfile(entry.id)}
+                                                        className="relative hover:scale-105 transition-transform active:scale-95 text-left focus:outline-none focus:ring-2 focus:ring-purple-500/50 rounded-full"
+                                                    >
                                                         <div className={`w-12 h-12 rounded-full overflow-hidden bg-purple-900 flex-shrink-0 border-2 ${isMe ? 'border-purple-400' : 'border-white/10'}`}>
                                                             {entry.avatar ? (
                                                                 <img
@@ -280,10 +284,13 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                                 YOU
                                                             </div>
                                                         )}
-                                                    </div>
+                                                    </button>
 
-                                                    <div className="flex flex-col flex-1 min-w-0">
-                                                        <span className={`font-bold text-[15px] truncate ${isMe ? 'text-purple-100' : 'text-white'}`}>
+                                                    <button
+                                                        onClick={() => onOpenProfile(entry.id)}
+                                                        className="flex flex-col flex-1 min-w-0 text-left hover:opacity-80 transition-opacity focus:outline-none rounded-lg"
+                                                    >
+                                                        <span className={`font-bold text-[15px] truncate w-full ${isMe ? 'text-purple-100' : 'text-white'}`}>
                                                             {entry.name}
                                                         </span>
 
@@ -295,7 +302,7 @@ export default function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                                                                 </span>
                                                             </div>
                                                         ) : null}
-                                                    </div>
+                                                    </button>
 
                                                     <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-purple-600/50 border-purple-600/30' : 'bg-black/40 border-white/5'}`}>
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-purple-300' : 'text-purple-400'}`}>
