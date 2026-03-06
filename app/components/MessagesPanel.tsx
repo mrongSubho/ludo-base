@@ -149,12 +149,12 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
-                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-purple-400">
+                                        <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
                                     </svg>
-                                    <h2 className="text-white font-black text-2xl italic tracking-tighter">IM Mail</h2>
+                                    <h2 className="text-white font-black text-2xl italic tracking-tighter uppercase">Messages</h2>
                                     <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 ml-1">
-                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">72H Storage</span>
+                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Messeges will self destruct within 72H</span>
                                     </div>
                                 </div>
                             )}
@@ -186,7 +186,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             >
                                 {conversations.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full text-white/40 mt-10">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="w-12 h-12 mb-4 opacity-50"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 mb-4 opacity-50">
+                                            <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
+                                        </svg>
                                         <p>No messages yet.</p>
                                     </div>
                                 ) : (

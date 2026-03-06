@@ -30,6 +30,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
     const [rawConversations, setRawConversations] = useState<any[]>([]);
     const [profiles, setProfiles] = useState<Record<string, { username: string, avatar: string }>>({});
     const [isLoading, setIsLoading] = useState(false);
+    const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
     // Filter helper to determine if a message should be visible to the current user
     const isVisibleToMe = useCallback((msg: MessageData, myAddr: string) => {
@@ -167,6 +168,13 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         });
 
         setConversations(transformed);
+
+        // Calculate total unread count
+        const total = rawConversations.reduce((sum, c) => {
+            const isA = c.user_a.toLowerCase() === currentAddrLower;
+            return sum + (isA ? c.unread_count_a : c.unread_count_b);
+        }, 0);
+        setTotalUnreadCount(total);
     }, [rawConversations, currentUserAddress, profiles]);
 
     // Separate Profile Fetcher
@@ -324,6 +332,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         messages,
         conversations,
         isLoading,
+        totalUnreadCount,
         sendMessage,
         markAsRead,
         deleteMessageLocal

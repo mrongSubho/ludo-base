@@ -67,6 +67,7 @@ const SplashScreen = () => (
 );
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useMessages } from '@/hooks/useMessages';
 
 export default function Page() {
   const [appState, setAppState] = useState<AppState>('dashboard');
@@ -74,9 +75,9 @@ export default function Page() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
+  const { totalUnreadCount } = useMessages(address);
   const { gameState, broadcastAction, isHost, isLobbyConnected } = useMultiplayer();
 
   const finalAvatar = profile?.avatar_url || null;
@@ -170,10 +171,9 @@ export default function Page() {
               <HeaderNavPanel
                 finalAvatar={finalAvatar}
                 finalName={finalName || 'Player'}
-                hasUnreadMessages={hasUnreadMessages}
+                unreadCount={totalUnreadCount}
                 onMessagesClick={() => {
                   toggle('messages');
-                  setHasUnreadMessages(false);
                 }}
                 onSettingsClick={() => toggle('settings')}
               />

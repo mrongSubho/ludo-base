@@ -12,8 +12,8 @@ export const TokenIcon = () => (
 );
 
 const HeaderMessageIcon = () => (
-    <svg className="dm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    <svg className="dm-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
     </svg>
 );
 
@@ -22,7 +22,7 @@ const HeaderMessageIcon = () => (
 interface HeaderNavPanelProps {
     finalAvatar: string | null;
     finalName: string;
-    hasUnreadMessages: boolean;
+    unreadCount: number;
     onMessagesClick: () => void;
     onSettingsClick: () => void;
 }
@@ -30,7 +30,7 @@ interface HeaderNavPanelProps {
 export const HeaderNavPanel = ({
     finalAvatar,
     finalName,
-    hasUnreadMessages,
+    unreadCount,
     onMessagesClick,
     onSettingsClick
 }: HeaderNavPanelProps) => {
@@ -55,16 +55,15 @@ export const HeaderNavPanel = ({
             </div>
             <div className="header-right">
                 <button
-                    className={`dm-btn ${hasUnreadMessages ? 'ping-glow' : ''}`}
+                    className={`dm-btn ${unreadCount > 0 ? 'ping-glow' : ''}`}
                     onClick={onMessagesClick}
                     title="Messages"
                 >
                     <HeaderMessageIcon />
-                    {/* Glowing Notification Pulse */}
-                    {hasUnreadMessages && (
-                        <span className="absolute top-2 right-2 flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                    {/* Cyan Number Badge */}
+                    {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-cyan-500 text-black text-[10px] font-black rounded-full shadow-[0_0_10px_rgba(6,182,212,0.6)] border border-white/20">
+                            {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                     )}
                 </button>
