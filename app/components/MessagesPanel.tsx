@@ -3,54 +3,58 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface Message {
-    id: string;
-    text: string;
-    sender: 'me' | 'other';
-    timestamp: string;
-}
-
-interface Conversation {
-    id: string;
-    name: string;
-    avatar: string;
-    lastMessage: string;
-    time: string;
-    unread?: boolean;
-    status: 'Online' | 'Offline' | 'In Match';
-}
+import { useMessages, Conversation, MessageData } from '@/hooks/useMessages';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface MessagesPanelProps {
     onClose: () => void;
     initialChatId?: string | null;
 }
 
-const MOCK_CONVERSATIONS: Conversation[] = [
-    { id: '1', name: 'AlexD', avatar: '1', lastMessage: 'Good game! Want to play again?', time: '2m ago', unread: true, status: 'In Match' },
-    { id: '2', name: 'Sarah_99', avatar: '2', lastMessage: 'I just got the Cyberpunk theme!', time: '1h ago', status: 'Online' },
-    { id: '4', name: 'JenPlays', avatar: '4', lastMessage: 'Check out my new dice skin.', time: '3h ago', status: 'Online' },
-    { id: '5', name: 'Chris_H', avatar: '3', lastMessage: 'See you tomorrow on the board.', time: '1d ago', status: 'Offline' },
-];
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-    '1': [
-        { id: 'm1', text: 'Hey, that was a close one!', sender: 'other', timestamp: '10:05 AM' },
-        { id: 'm2', text: 'Yeah, really intense at the end.', sender: 'me', timestamp: '10:06 AM' },
-        { id: 'm3', text: 'Good game! Want to play again?', sender: 'other', timestamp: '10:07 AM' },
-    ],
-    '2': [
-        { id: 'm4', text: 'The new update is awesome.', sender: 'other', timestamp: 'Yesterday' },
-        { id: 'm5', text: 'I just got the Cyberpunk theme!', sender: 'other', timestamp: '1h ago' },
-    ]
-};
-
 export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelProps) {
-    const [selectedChat, setSelectedChat] = useState<Conversation | null>(
-        initialChatId ? (MOCK_CONVERSATIONS.find(c => c.id === initialChatId) || null) : null
-    );
-    const [messages, setMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
+    const { address } = useCurrentUser();
+    const { messages, conversations, sendMessage, markAsRead, deleteMessageLocal } = useMessages(address);
+
+    const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
     const [inputValue, setInputValue] = useState('');
+    const [cooldownTime, setCooldownTime] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Cooldown Timer
+    useEffect(() => {
+        if (cooldownTime > 0) {
+            const timer = setTimeout(() => setCooldownTime(c => c - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cooldownTime]);
+
+    // Auto-select initial chat if provided
+    useEffect(() => {
+        if (initialChatId && conversations.length > 0 && !selectedChat) {
+            const chat = conversations.find(c => c.id.toLowerCase() === initialChatId.toLowerCase());
+            if (chat) setSelectedChat(chat);
+            else {
+                // If opening a new chat that has no messages yet
+                setSelectedChat({
+                    id: initialChatId,
+                    name: `User ${initialChatId.substring(0, 6)}`,
+                    avatar: '1',
+                    lastMessage: '',
+                    time: 'Just now',
+                    unread: false,
+                    status: 'Offline',
+                    timestamp: Date.now()
+                });
+            }
+        }
+    }, [initialChatId, conversations, selectedChat]);
+
+    // Mark as read when opening a chat
+    useEffect(() => {
+        if (selectedChat && selectedChat.unread) {
+            markAsRead(selectedChat.id);
+        }
+    }, [selectedChat, messages]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -58,21 +62,19 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
         }
     }, [selectedChat, messages]);
 
-    const handleSendMessage = () => {
-        if (!inputValue.trim() || !selectedChat) return;
+    const handleSendMessage = async () => {
+        if (!inputValue.trim() || !selectedChat || !address || cooldownTime > 0) return;
+        const textToSent = inputValue.slice(0, 140); // Hard limit safety
+        setInputValue(''); // Clear aggressively so it feels responsive
+        setCooldownTime(10); // Start 10 second slow-mode
+        await sendMessage(selectedChat.id, textToSent);
+    };
 
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            text: inputValue,
-            sender: 'me',
-            timestamp: 'Just now'
-        };
-
-        setMessages(prev => ({
-            ...prev,
-            [selectedChat.id]: [...(prev[selectedChat.id] || []), newMessage]
-        }));
-        setInputValue('');
+    const handleDeleteSwipe = (msg: MessageData, info: any) => {
+        // If swiped left or right significantly, trigger delete
+        if (Math.abs(info.offset.x) > 100) {
+            deleteMessageLocal(msg);
+        }
     };
 
     return (
@@ -147,32 +149,39 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                                 exit={{ opacity: 0, x: -20 }}
                                 className="h-full overflow-y-auto py-4 space-y-2 custom-scrollbar"
                             >
-                                {MOCK_CONVERSATIONS.map((chat) => (
-                                    <button
-                                        key={chat.id}
-                                        onClick={() => setSelectedChat(chat)}
-                                        className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"
-                                    >
-                                        <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
-                                            <img src={`/avatars/${chat.avatar}.png`} alt={chat.name} className="w-full h-full object-cover" />
-                                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
-                                                ${chat.status === 'Online' ? 'bg-green-500' : chat.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
-                                            />
-                                        </div>
-                                        <div className="flex-1 text-left min-w-0">
-                                            <div className="flex justify-between items-center mb-0.5">
-                                                <span className="font-bold text-white truncate">{chat.name}</span>
-                                                <span className="text-[10px] text-white/40">{chat.time}</span>
+                                {conversations.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-white/40 mt-10">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="w-12 h-12 mb-4 opacity-50"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                        <p>No messages yet.</p>
+                                    </div>
+                                ) : (
+                                    conversations.map((chat) => (
+                                        <button
+                                            key={chat.id}
+                                            onClick={() => setSelectedChat(chat)}
+                                            className="w-full flex items-center gap-4 p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group"
+                                        >
+                                            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                                                <img src={`/avatars/${chat.avatar || '1'}.png`} alt={chat.name} className="w-full h-full object-cover" />
+                                                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
+                                                    ${chat.status === 'Online' ? 'bg-green-500' : chat.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
+                                                />
                                             </div>
-                                            <p className={`text-sm truncate ${chat.unread ? 'text-white font-medium' : 'text-white/50'}`}>
-                                                {chat.lastMessage}
-                                            </p>
-                                        </div>
-                                        {chat.unread && (
-                                            <div className="w-2 h-2 rounded-full bg-purple-600 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
-                                        )}
-                                    </button>
-                                ))}
+                                            <div className="flex-1 text-left min-w-0">
+                                                <div className="flex justify-between items-center mb-0.5">
+                                                    <span className="font-bold text-white truncate">{chat.name}</span>
+                                                    <span className="text-[10px] text-white/40">{chat.time}</span>
+                                                </div>
+                                                <p className={`text-sm truncate ${chat.unread ? 'text-white font-medium' : 'text-white/50'}`}>
+                                                    {chat.lastMessage}
+                                                </p>
+                                            </div>
+                                            {chat.unread && (
+                                                <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+                                            )}
+                                        </button>
+                                    ))
+                                )}
                             </motion.div>
                         ) : (
                             /* Chat Detail */
@@ -187,42 +196,72 @@ export default function MessagesPanel({ onClose, initialChatId }: MessagesPanelP
                                     ref={scrollRef}
                                     className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar"
                                 >
-                                    {(messages[selectedChat.id] || []).map((msg) => (
-                                        <div
-                                            key={msg.id}
-                                            className={`flex flex-col ${msg.sender === 'me' ? 'items-end' : 'items-start'}`}
-                                        >
-                                            <div className={`max-w-[80%] p-3 rounded-2xl text-[15px] shadow-sm ${msg.sender === 'me'
-                                                ? 'bg-purple-700 text-white rounded-tr-none'
-                                                : 'bg-white/10 text-white/90 rounded-tl-none border border-white/5'
-                                                }`}>
-                                                {msg.text}
-                                            </div>
-                                            <span className="text-[10px] text-white/30 mt-1 px-1">{msg.timestamp}</span>
-                                        </div>
-                                    ))}
+                                    {messages
+                                        .filter(m => m.sender_id.toLowerCase() === selectedChat.id.toLowerCase() || m.receiver_id.toLowerCase() === selectedChat.id.toLowerCase())
+                                        .map((msg) => {
+                                            const isMe = msg.sender_id.toLowerCase() === address?.toLowerCase();
+                                            const timeString = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            return (
+                                                <div
+                                                    key={msg.id}
+                                                    className={`flex flex-col relative w-full ${isMe ? 'items-end' : 'items-start'}`}
+                                                >
+                                                    {/* Hidden Trash Background behind swipe */}
+                                                    <div className={`absolute inset-0 flex items-center ${isMe ? 'justify-start pl-4' : 'justify-end pr-4'} text-red-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none`}>
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                                    </div>
+
+                                                    <motion.div
+                                                        drag="x"
+                                                        dragConstraints={{ left: -120, right: 120 }}
+                                                        onDragEnd={(e, info) => handleDeleteSwipe(msg, info)}
+                                                        whileDrag={{ scale: 0.95 }}
+                                                        className={`max-w-[80%] flex flex-col z-10 ${isMe ? 'items-end' : 'items-start'}`}
+                                                    >
+                                                        <div className={`p-3 rounded-2xl text-[15px] shadow-sm ${isMe
+                                                            ? 'bg-purple-700 text-white rounded-tr-none'
+                                                            : 'bg-white/10 text-white/90 rounded-tl-none border border-white/5'
+                                                            }`}>
+                                                            {msg.content}
+                                                        </div>
+                                                        <span className="text-[10px] text-white/30 mt-1 px-1">{timeString} (swipe to delete)</span>
+                                                    </motion.div>
+                                                </div>
+                                            );
+                                        })}
                                 </div>
 
                                 {/* Input Area */}
                                 <div className="p-4 border-t border-white/10 bg-black/20">
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 relative">
                                         <input
                                             type="text"
                                             value={inputValue}
+                                            maxLength={140}
                                             onChange={(e) => setInputValue(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                                            placeholder="Type a message..."
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-purple-600/50 transition-colors"
+                                            disabled={cooldownTime > 0}
+                                            placeholder={cooldownTime > 0 ? `Wait ${cooldownTime}s...` : "Type a message..."}
+                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-purple-600/50 transition-colors disabled:opacity-50"
                                         />
+                                        <div className={`absolute right-16 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'
+                                            }`}>
+                                            {inputValue.length}/140
+                                        </div>
                                         <button
                                             onClick={handleSendMessage}
-                                            disabled={!inputValue.trim()}
-                                            className="w-12 h-12 flex items-center justify-center rounded-xl bg-purple-700 text-white disabled:opacity-50 disabled:bg-white/10 transition-all hover:bg-purple-600"
+                                            disabled={!inputValue.trim() || cooldownTime > 0}
+                                            className="w-12 h-12 flex items-center justify-center rounded-xl bg-purple-700 text-white disabled:opacity-50 disabled:bg-white/10 transition-all hover:bg-purple-600 relative overflow-hidden"
                                         >
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                                                 <line x1="22" y1="2" x2="11" y2="13"></line>
                                                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                                             </svg>
+                                            {cooldownTime > 0 && (
+                                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-xs font-bold text-white backdrop-blur-sm">
+                                                    {cooldownTime}s
+                                                </div>
+                                            )}
                                         </button>
                                     </div>
                                 </div>
