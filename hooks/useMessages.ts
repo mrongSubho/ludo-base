@@ -28,7 +28,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [rawConversations, setRawConversations] = useState<any[]>([]);
-    const [profiles, setProfiles] = useState<Record<string, { username: string, avatar: string }>>({});
+    const [profiles, setProfiles] = useState<Record<string, { username: string, avatar: string, status: string }>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
@@ -162,7 +162,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                 lastMessage: c.last_message_content,
                 time: timeStr,
                 unread: unreadCount > 0,
-                status: 'Offline' as const,
+                status: (profile?.status || 'Offline') as 'Online' | 'Offline' | 'In Match',
                 timestamp: date.getTime()
             };
         });
@@ -204,7 +204,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             const fetchProfiles = async () => {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('wallet_address, username, avatar_url')
+                    .select('wallet_address, username, avatar_url, status')
                     .in('wallet_address', uniqueIds);
 
                 if (error) {
@@ -219,7 +219,8 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                             const addr = p.wallet_address.toLowerCase();
                             next[addr] = {
                                 username: (p.username && !p.username.startsWith('0x')) ? p.username : `User ${addr.substring(0, 6)}`,
-                                avatar: p.avatar_url || '1'
+                                avatar: p.avatar_url || '1',
+                                status: p.status || 'Offline'
                             };
                         });
                         return next;

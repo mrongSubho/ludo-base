@@ -106,7 +106,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     return {
                         ...p,
                         displayName,
-                        status: 'Offline' // Would need live presence hook for real status
+                        status: p.status || 'Offline'
                     };
                 });
                 setOnchainFriends(formatted);
@@ -172,9 +172,32 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
     }, [connectedAddress, userFid]);
 
     useEffect(() => {
-
         fetchFriends();
-    }, [connectedAddress, userFid]);
+
+        // 4. Real-time Status Updates
+        const channel = supabase
+            .channel('players-status-sync')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'players' },
+                (payload) => {
+                    const updatedPlayer = payload.new;
+                    const updateList = (list: Friend[]) =>
+                        list.map(f => f.wallet_address.toLowerCase() === updatedPlayer.wallet_address.toLowerCase()
+                            ? { ...f, status: updatedPlayer.status }
+                            : f
+                        );
+
+                    setGameFriends(prev => updateList(prev));
+                    setOnchainFriends(prev => updateList(prev));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [connectedAddress, userFid, fetchFriends]);
 
     const handleAcceptRequest = async (id: string) => {
         try {

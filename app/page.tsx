@@ -14,6 +14,7 @@ import PublicProfileModal from './components/PublicProfileModal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
+import PresenceManager from './components/PresenceManager';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -152,6 +153,8 @@ export default function Page() {
       <AnimatePresence>
         {showSplash && <SplashScreen />}
       </AnimatePresence>
+
+      <PresenceManager />
 
       {!isConnected ? (
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">

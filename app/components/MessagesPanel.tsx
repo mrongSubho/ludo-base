@@ -134,19 +134,22 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 <>
                                     <button
                                         onClick={() => setSelectedChatId(null)}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all"
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all flex-shrink-0"
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                                             <polyline points="15 18 9 12 15 6"></polyline>
                                         </svg>
                                     </button>
-                                    <span className="text-white font-black text-xl italic tracking-tighter truncate max-w-[150px]">
-                                        {activeChat.name}
-                                    </span>
-                                    <span className={`text-[10px] font-medium ml-1 mt-1 uppercase tracking-wider
-                                        ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
-                                        • {activeChat.status}
-                                    </span>
+                                    <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-0 sm:gap-2 px-2 overflow-hidden">
+                                        <span className="text-white font-black text-xl italic tracking-tighter truncate max-w-[120px] sm:max-w-[200px]">
+                                            {activeChat.name}
+                                        </span>
+                                        <span className={`text-[10px] font-medium uppercase tracking-wider
+                                            ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
+                                            • {activeChat.status}
+                                        </span>
+                                    </div>
+                                    <div className="w-8 flex-shrink-0" /> {/* Spacer for symmetry */}
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -286,7 +289,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 </div>
 
                                 {/* TV News Style Ticker */}
-                                <div className="bg-black/40 border-y border-white/5 py-1.5 overflow-hidden flex whitespace-nowrap">
+                                <div className="bg-black/40 border-y border-white/5 py-1.5 overflow-hidden flex whitespace-nowrap px-6">
                                     <div className="flex animate-marquee">
                                         {[1, 2, 3].map((i) => (
                                             <div key={i} className="flex items-center mx-4">
