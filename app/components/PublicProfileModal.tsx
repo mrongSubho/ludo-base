@@ -135,6 +135,12 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         setIsActionLoading(true);
         try {
             if (action === 'Add Friend') {
+                // Pre-emptively ensure both users exist in players table to avoid FK crashes
+                await supabase.from('players').upsert([
+                    { wallet_address: currentUserAddress },
+                    { wallet_address: userAddress }
+                ], { onConflict: 'wallet_address', ignoreDuplicates: true });
+
                 const { data, error } = await supabase.from('friendships').upsert({
                     user_address: currentUserAddress,
                     friend_address: userAddress,
