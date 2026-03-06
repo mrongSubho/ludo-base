@@ -24,6 +24,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     // Action States
     const [isActionLoading, setIsActionLoading] = useState(false);
+    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
     const [reportStep, setReportStep] = useState<'none' | 'select' | 'submitting' | 'done'>('none');
     const [selectedReportReason, setSelectedReportReason] = useState<string>('');
 
@@ -33,6 +34,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             setProfile(null);
             setIsFriend(false);
             setIsBlocked(false);
+            setActionSuccess(null);
             setReportStep('none');
             setSelectedReportReason('');
             setProfileLoading(false);
@@ -138,12 +140,19 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     friend_address: userAddress,
                     status: 'pending'
                 });
-                if (!error) console.log("Friend Request Sent!");
+                if (!error) {
+                    setActionSuccess("Friend Request Sent!");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                }
             } else if (action === 'Unfriend') {
                 const { error } = await supabase.from('friendships')
                     .delete()
                     .or(`and(user_address.ilike.${currentUserAddress},friend_address.ilike.${userAddress}),and(user_address.ilike.${userAddress},friend_address.ilike.${currentUserAddress})`);
-                if (!error) setIsFriend(false);
+                if (!error) {
+                    setIsFriend(false);
+                    setActionSuccess("Friend Removed");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                }
             } else if (action === 'Block') {
                 const { error } = await supabase.from('user_blocks').insert({
                     blocker_address: currentUserAddress,
@@ -348,7 +357,20 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                                                             {/* Report Flow Inline UI */}
                                                             <AnimatePresence mode="wait">
-                                                                {reportStep !== 'none' ? (
+                                                                {actionSuccess ? (
+                                                                    <motion.div
+                                                                        key="success-toast"
+                                                                        initial={{ opacity: 0, scale: 0.95 }}
+                                                                        animate={{ opacity: 1, scale: 1 }}
+                                                                        exit={{ opacity: 0, scale: 0.95 }}
+                                                                        className="w-full bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col items-center justify-center gap-1 my-2"
+                                                                    >
+                                                                        <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mb-1">
+                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-400"><path d="M20 6L9 17l-5-5"></path></svg>
+                                                                        </div>
+                                                                        <span className="text-sm font-bold text-green-400">{actionSuccess}</span>
+                                                                    </motion.div>
+                                                                ) : reportStep !== 'none' ? (
                                                                     <motion.div
                                                                         key="report-ui"
                                                                         initial={{ opacity: 0, height: 0 }}
