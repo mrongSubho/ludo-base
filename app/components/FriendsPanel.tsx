@@ -83,6 +83,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
             }
 
             // 2. Fetch live friendships from Supabase (Onchain Friends)
+            const currentAddrLower = connectedAddress.toLowerCase();
             const { data, error } = await supabase
                 .from('friendships')
                 .select(`
@@ -93,7 +94,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins)
                 `)
                 .eq('status', 'accepted')
-                .or(`user_address.ilike.${connectedAddress},friend_address.ilike.${connectedAddress}`);
+                .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
 
             if (error) throw error;
 
@@ -124,7 +125,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url)
                 `)
                 .eq('status', 'pending')
-                .or(`user_address.ilike.${connectedAddress},friend_address.ilike.${connectedAddress}`);
+                .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
 
             if (reqError) throw reqError;
 
@@ -136,7 +137,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     const date = new Date(req.created_at);
                     const timeStr = new Intl.DateTimeFormat('default', { month: 'short', day: 'numeric' }).format(date);
 
-                    if (req.friend_address.toLowerCase() === connectedAddress.toLowerCase()) {
+                    if (req.friend_address.toLowerCase() === currentAddrLower) {
                         // Incoming (Someone added us)
                         const p = req.requester;
                         incoming.push({
