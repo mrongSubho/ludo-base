@@ -74,7 +74,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         if (selectedChatId && activeChat?.unread) {
             markAsRead(selectedChatId);
         }
-    }, [selectedChatId, activeChat?.unread, messages]);
+    }, [selectedChatId, activeChat?.unread]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -143,9 +143,10 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                     <span className="text-white font-black text-xl italic tracking-tighter truncate max-w-[150px]">
                                         {activeChat.name}
                                     </span>
-                                    <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 hidden sm:block">
-                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Ephemeral</span>
-                                    </div>
+                                    <span className={`text-[10px] font-medium ml-1 mt-1 uppercase tracking-wider
+                                        ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
+                                        • {activeChat.status}
+                                    </span>
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -153,9 +154,6 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
                                     </svg>
                                     <h2 className="text-white font-black text-2xl italic tracking-tighter uppercase">Messages</h2>
-                                    <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 ml-1">
-                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Messeges will self destruct within 72H</span>
-                                    </div>
                                 </div>
                             )}
                         </div>
@@ -285,6 +283,18 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 </div>
                                             );
                                         })}
+                                </div>
+
+                                {/* TV News Style Ticker */}
+                                <div className="bg-black/40 border-y border-white/5 py-1.5 overflow-hidden flex whitespace-nowrap">
+                                    <div className="flex animate-marquee">
+                                        {[1, 2, 3].map((i) => (
+                                            <div key={i} className="flex items-center mx-4">
+                                                <span className="bg-cyan-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded-sm mr-2 shadow-[0_0_8px_rgba(6,182,212,0.6)]">SECURITY NOTICE</span>
+                                                <span className="text-cyan-400/80 text-[11px] font-bold tracking-wider uppercase">Messages will self destruct within 72 Hours • Privately Encrypted • No logs saved on server</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Input Area */}

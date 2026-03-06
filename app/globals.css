@@ -3799,3 +3799,12 @@ a {
   padding: 0.75rem 1rem;
   /* py-3 px-4 */
 }
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.33%); }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  animation: marquee 20s linear infinite;
+}

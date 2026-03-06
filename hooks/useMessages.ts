@@ -275,14 +275,19 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         const currentAddrLower = currentUserAddress.toLowerCase();
 
         // 1. Optimistic update local messages
-        setMessages(prev => prev.map(m => {
-            if (m.sender_id.toLowerCase() === senderId.toLowerCase() &&
-                m.receiver_id.toLowerCase() === currentAddrLower &&
-                !m.is_read) {
-                return { ...m, is_read: true };
-            }
-            return m;
-        }));
+        setMessages(prev => {
+            let changed = false;
+            const next = prev.map(m => {
+                if (m.sender_id.toLowerCase() === senderId.toLowerCase() &&
+                    m.receiver_id.toLowerCase() === currentAddrLower &&
+                    !m.is_read) {
+                    changed = true;
+                    return { ...m, is_read: true };
+                }
+                return m;
+            });
+            return changed ? next : prev;
+        });
 
         // 2. Clear unread count in conversations table (for sidebar UI)
         try {
