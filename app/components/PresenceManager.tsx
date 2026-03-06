@@ -13,15 +13,14 @@ export default function PresenceManager() {
     useEffect(() => {
         if (!isConnected || !address) return;
 
-        const syncStatus = async () => {
+        const syncStatus = async (statusOverride?: string) => {
             // Determine current status
-            let currentStatus = 'Online';
-            if (gameState.status === 'playing' || gameState.isStarted) {
+            let currentStatus = statusOverride || 'Online';
+            if (!statusOverride && (gameState.status === 'playing' || gameState.isStarted)) {
                 currentStatus = 'In Match';
             }
 
-            // Update database if status changed OR every 30s as a heartbeat
-            const { error } = await supabase
+            await supabase
                 .from('players')
                 .update({
                     status: currentStatus,
@@ -29,32 +28,32 @@ export default function PresenceManager() {
                 })
                 .eq('wallet_address', address.toLowerCase());
 
-            if (!error) {
-                lastStatusRef.current = currentStatus;
+            lastStatusRef.current = currentStatus;
+        };
+
+        // Handle tab close / refresh
+        const handleUnload = () => {
+            if (address) {
+                // We use a regular update here; navigating away might cancel the request
+                // but we try our best. The SQL job handles the rest.
+                supabase.from('players').update({ status: 'Offline' }).eq('wallet_address', address.toLowerCase()).then();
             }
         };
+
+        window.addEventListener('beforeunload', handleUnload);
 
         // Initial sync
         syncStatus();
 
         // Heartbeat every 30 seconds
-        const interval = setInterval(syncStatus, 30000);
+        const interval = setInterval(() => syncStatus(), 30000);
 
-        return () => clearInterval(interval);
-    }, [address, isConnected, gameState.status, gameState.isStarted]);
-
-    // Handle offline status on unmount
-    useEffect(() => {
         return () => {
-            if (address) {
-                supabase
-                    .from('players')
-                    .update({ status: 'Offline' })
-                    .eq('wallet_address', address.toLowerCase())
-                    .then();
-            }
+            clearInterval(interval);
+            window.removeEventListener('beforeunload', handleUnload);
+            syncStatus('Offline');
         };
-    }, [address]);
+    }, [address, isConnected, gameState.status, gameState.isStarted]);
 
     return null;
 }

@@ -68,34 +68,29 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
         if (!connectedAddress) return;
         setIsLoading(true);
         try {
-            // 1. Fetch Farcaster Social Graph if FID is available
-            if (userFid) {
-                const res = await fetch(`/api/friends?fid=${userFid}`);
+            // 1. Fetch Farcaster Social Graph if Wallet is available
+            if (connectedAddress) {
+                const res = await fetch(`/api/friends?wallet=${connectedAddress}`);
                 const data = await res.json();
-                if (data.friends) {
-                    const baseFormatted = data.friends.map((friend: any) => ({
+
+                // Parse Onchain Friends (followed users on Farcaster who are on our platform)
+                if (data.onchainFriends) {
+                    const formatted = data.onchainFriends.map((friend: any) => ({
                         ...friend,
                         displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
-                        status: 'Offline' // Default
+                        status: friend.status || 'Offline'
                     }));
+                    setOnchainFriends(formatted);
+                }
 
-                    // Fetch real statuses for these Farcaster friends from our DB
-                    const fAddresses = baseFormatted.map((f: any) => f.wallet_address.toLowerCase());
-                    const { data: statusData } = await supabase
-                        .from('players')
-                        .select('wallet_address, status')
-                        .in('wallet_address', fAddresses);
-
-                    if (statusData) {
-                        const statusMap = Object.fromEntries(statusData.map(s => [s.wallet_address.toLowerCase(), s.status]));
-                        const withStatus = baseFormatted.map((f: any) => ({
-                            ...f,
-                            status: statusMap[f.wallet_address.toLowerCase()] || 'Offline'
-                        }));
-                        setGameFriends(withStatus);
-                    } else {
-                        setGameFriends(baseFormatted);
-                    }
+                // Parse Game Friends (recent active players globally)
+                if (data.gameFriends) {
+                    const formatted = data.gameFriends.map((friend: any) => ({
+                        ...friend,
+                        displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
+                        status: friend.status || 'Offline'
+                    }));
+                    setGameFriends(formatted);
                 }
             }
 
@@ -107,8 +102,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     status,
                     user_address,
                     friend_address,
-                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins),
-                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins)
+                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins, status),
+                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins, status)
                 `)
                 .eq('status', 'accepted')
                 .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
@@ -126,7 +121,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                         status: p.status || 'Offline'
                     };
                 });
-                setOnchainFriends(formatted);
+                // These are "Social/Onchain" friends who accepted requests
+                // We keep them in onchainFriends state
+                // But wait, the tabs are labeled: Game Friends | Onchain Friends
+                // Let's ensure they match the rendering below
+                setOnchainFriends(prev => {
+                    // Merge or replace? For accepted friends, let's keep them distinct
+                    return formatted;
+                });
             }
 
             // 3. Fetch Pending Requests
@@ -402,18 +404,18 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                         {activeMainTab === 'game' && (
                             <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Game Friends ({onchainFriends.length})
+                                    Active Players ({gameFriends.length})
                                 </div>
-                                {renderFriendList(onchainFriends)}
+                                {renderFriendList(gameFriends)}
                             </motion.div>
                         )}
 
                         {activeMainTab === 'onchain' && (
                             <motion.div key="onchain" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Onchain Friends ({gameFriends.length})
+                                    Social Friends ({onchainFriends.length})
                                 </div>
-                                {renderFriendList(gameFriends)}
+                                {renderFriendList(onchainFriends)}
                             </motion.div>
                         )}
 
