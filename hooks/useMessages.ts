@@ -24,7 +24,7 @@ export interface Conversation {
     timestamp: number; // for sorting
 }
 
-export function useMessages(currentUserAddress: string | undefined | null) {
+export function useMessages(currentUserAddress: string | undefined | null, selectedChatId?: string | null) {
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [rawConversations, setRawConversations] = useState<any[]>([]);
@@ -48,25 +48,29 @@ export function useMessages(currentUserAddress: string | undefined | null) {
             setIsLoading(true);
 
             // 1. Fetch Conversations sidebar
-            const { data: convoData } = await supabase
+            const { data: convoData, error: convoError } = await supabase
                 .from('conversations')
                 .select('*')
                 .or(`user_a.eq.${currentAddrLower},user_b.eq.${currentAddrLower}`)
                 .order('last_message_at', { ascending: false });
 
-            if (convoData) {
+            if (convoError) {
+                console.warn("Conversations table probably missing. Run db_optimize.sql:", convoError.message);
+            } else if (convoData) {
                 setRawConversations(convoData);
             }
 
             // 2. Fetch Recent Messages
-            const { data: msgData } = await supabase
+            const { data: msgData, error: msgError } = await supabase
                 .from('messages')
                 .select('*')
                 .or(`sender_id.ilike.${currentAddrLower},receiver_id.ilike.${currentAddrLower}`)
                 .order('created_at', { ascending: false })
                 .limit(30);
 
-            if (msgData) {
+            if (msgError) {
+                console.error("Error fetching messages:", msgError.message);
+            } else if (msgData) {
                 const visible = msgData.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
                 setMessages(visible);
             }
@@ -162,18 +166,38 @@ export function useMessages(currentUserAddress: string | undefined | null) {
 
     // Separate Profile Fetcher
     useEffect(() => {
-        const otherPartyIds = Array.from(new Set(messages.map(m => {
-            const currentAddrLower = currentUserAddress?.toLowerCase();
-            return m.sender_id.toLowerCase() === currentAddrLower ? m.receiver_id.toLowerCase() : m.sender_id.toLowerCase();
-        })));
+        if (!currentUserAddress) return;
 
-        const missingIds = otherPartyIds.filter(id => !profiles[id]);
-        if (missingIds.length > 0) {
+        // Get all unique IDs from messages
+        const otherPartyIds: string[] = messages.map(m => {
+            const currentAddrLower = currentUserAddress.toLowerCase();
+            return m.sender_id.toLowerCase() === currentAddrLower ? m.receiver_id.toLowerCase() : m.sender_id.toLowerCase();
+        });
+
+        // Also include IDs from conversations
+        rawConversations.forEach(c => {
+            const currentAddrLower = currentUserAddress.toLowerCase();
+            otherPartyIds.push(c.user_a.toLowerCase() === currentAddrLower ? c.user_b.toLowerCase() : c.user_a.toLowerCase());
+        });
+
+        // Add selectedChatId if it exists and is not already in profiles
+        if (selectedChatId && !profiles[selectedChatId.toLowerCase()]) {
+            otherPartyIds.push(selectedChatId.toLowerCase());
+        }
+
+        const uniqueIds = Array.from(new Set(otherPartyIds)).filter(id => !!id && !profiles[id]);
+
+        if (uniqueIds.length > 0) {
             const fetchProfiles = async () => {
-                const { data } = await supabase
+                const { data, error } = await supabase
                     .from('players')
                     .select('wallet_address, username, avatar_url')
-                    .in('wallet_address', missingIds);
+                    .in('wallet_address', uniqueIds);
+
+                if (error) {
+                    console.error("Error fetching profiles:", error.message);
+                    return;
+                }
 
                 if (data) {
                     setProfiles(prev => {
@@ -191,7 +215,7 @@ export function useMessages(currentUserAddress: string | undefined | null) {
             };
             fetchProfiles();
         }
-    }, [messages, currentUserAddress, profiles]);
+    }, [messages, rawConversations, currentUserAddress, profiles]);
 
     const sendMessage = async (receiverId: string, content: string) => {
         if (!currentUserAddress) return;
@@ -232,21 +256,7 @@ export function useMessages(currentUserAddress: string | undefined | null) {
         if (!currentUserAddress) return;
         const currentAddrLower = currentUserAddress.toLowerCase();
 
-        // 1. Mark individual messages as read (for message list UI)
-        await supabase
-            .from('messages')
-            .update({ is_read: true })
-            .ilike('sender_id', senderId)
-            .ilike('receiver_id', currentAddrLower)
-            .eq('is_read', false);
-
-        // 2. Clear unread count in conversations table (for sidebar UI)
-        await supabase.rpc('mark_conversation_read', {
-            me: currentAddrLower,
-            friend: senderId.toLowerCase()
-        });
-
-        // 3. Optimistic update
+        // 1. Optimistic update local messages
         setMessages(prev => prev.map(m => {
             if (m.sender_id.toLowerCase() === senderId.toLowerCase() &&
                 m.receiver_id.toLowerCase() === currentAddrLower &&
@@ -255,6 +265,24 @@ export function useMessages(currentUserAddress: string | undefined | null) {
             }
             return m;
         }));
+
+        // 2. Clear unread count in conversations table (for sidebar UI)
+        try {
+            await supabase.rpc('mark_conversation_read', {
+                me: currentAddrLower,
+                friend: senderId.toLowerCase()
+            });
+        } catch (e) {
+            console.warn("RPC mark_conversation_read failed (table probably missing)");
+        }
+
+        // 3. Mark individual messages as read in DB
+        await supabase
+            .from('messages')
+            .update({ is_read: true })
+            .ilike('sender_id', senderId)
+            .ilike('receiver_id', currentAddrLower)
+            .eq('is_read', false);
     };
 
     const deleteMessageLocal = async (msg: MessageData) => {

@@ -14,9 +14,8 @@ interface MessagesPanelProps {
 
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
     const { address } = useCurrentUser();
-    const { messages, conversations, sendMessage, markAsRead, deleteMessageLocal } = useMessages(address);
-
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const { messages, conversations, sendMessage, markAsRead, deleteMessageLocal } = useMessages(address, selectedChatId);
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
 
