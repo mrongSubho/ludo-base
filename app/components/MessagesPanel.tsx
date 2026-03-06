@@ -132,27 +132,38 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                     <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-2">
                             {activeChat ? (
-                                <button
-                                    onClick={() => setSelectedChatId(null)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                                        <polyline points="15 18 9 12 15 6"></polyline>
-                                    </svg>
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => setSelectedChatId(null)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                            <polyline points="15 18 9 12 15 6"></polyline>
+                                        </svg>
+                                    </button>
+                                    <span className="text-white font-black text-xl italic tracking-tighter truncate max-w-[150px]">
+                                        {activeChat.name}
+                                    </span>
+                                    <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 hidden sm:block">
+                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Ephemeral</span>
+                                    </div>
+                                </>
                             ) : (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
-                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                </svg>
+                                <div className="flex items-center gap-2">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    <h2 className="text-white font-black text-2xl italic tracking-tighter">IM Mail</h2>
+                                    <div className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 ml-1">
+                                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">72H Storage</span>
+                                    </div>
+                                </div>
                             )}
-                            <h2 className="text-2xl font-bold text-white">
-                                {activeChat ? activeChat.name : 'Messages'}
-                            </h2>
                         </div>
 
                         <button
                             onClick={onClose}
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:bg-white/10 hover:text-white transition-all shadow-lg active:scale-95"
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -313,7 +324,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                         )}
                     </AnimatePresence>
                 </div>
-            </motion.div>
+            </motion.div >
         </>
     );
 }
