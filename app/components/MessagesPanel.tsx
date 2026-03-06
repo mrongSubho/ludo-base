@@ -16,12 +16,35 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const { address } = useCurrentUser();
     const { messages, conversations, sendMessage, markAsRead, deleteMessageLocal } = useMessages(address);
 
-    const [selectedChat, setSelectedChat] = useState<Conversation | null>(null);
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
+
+    const activeChat = conversations.find(c => c.id.toLowerCase() === selectedChatId?.toLowerCase()) || (selectedChatId ? {
+        id: selectedChatId,
+        name: `User ${selectedChatId.substring(0, 6)}`,
+        avatar: '1',
+        lastMessage: '',
+        time: 'Just now',
+        unread: false,
+        status: 'Offline',
+        timestamp: Date.now()
+    } as Conversation : null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Cooldown Timer
+    useEffect(() => {
+        // Load initial cooldown from localStorage
+        const storedCooldownEnd = localStorage.getItem('chat_cooldown_end');
+        if (storedCooldownEnd) {
+            const end = parseInt(storedCooldownEnd);
+            const now = Date.now();
+            if (end > now) {
+                setCooldownTime(Math.ceil((end - now) / 1000));
+            }
+        }
+    }, []);
+
     useEffect(() => {
         if (cooldownTime > 0) {
             const timer = setTimeout(() => setCooldownTime(c => c - 1), 1000);
@@ -31,44 +54,34 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     // Auto-select initial chat if provided
     useEffect(() => {
-        if (initialChatId && !selectedChat) {
-            const chat = conversations.find(c => c.id.toLowerCase() === initialChatId.toLowerCase());
-            if (chat) setSelectedChat(chat);
-            else {
-                // If opening a new chat that has no messages yet
-                setSelectedChat({
-                    id: initialChatId,
-                    name: `User ${initialChatId.substring(0, 6)}`,
-                    avatar: '1',
-                    lastMessage: '',
-                    time: 'Just now',
-                    unread: false,
-                    status: 'Offline',
-                    timestamp: Date.now()
-                });
-            }
+        if (initialChatId && !selectedChatId) {
+            setSelectedChatId(initialChatId);
         }
-    }, [initialChatId, conversations, selectedChat]);
+    }, [initialChatId, selectedChatId]);
 
     // Mark as read when opening a chat
     useEffect(() => {
-        if (selectedChat && selectedChat.unread) {
-            markAsRead(selectedChat.id);
+        if (selectedChatId && activeChat?.unread) {
+            markAsRead(selectedChatId);
         }
-    }, [selectedChat, messages]);
+    }, [selectedChatId, activeChat?.unread, messages]);
 
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [selectedChat, messages]);
+    }, [selectedChatId, messages]);
 
     const handleSendMessage = async () => {
-        if (!inputValue.trim() || !selectedChat || !address || cooldownTime > 0) return;
+        if (!inputValue.trim() || !selectedChatId || !address || cooldownTime > 0) return;
         const textToSent = inputValue.slice(0, 140); // Hard limit safety
         setInputValue(''); // Clear aggressively so it feels responsive
-        setCooldownTime(10); // Start 10 second slow-mode
-        await sendMessage(selectedChat.id, textToSent);
+
+        const newCooldown = 10;
+        setCooldownTime(newCooldown); // Start 10 second slow-mode
+        localStorage.setItem('chat_cooldown_end', (Date.now() + newCooldown * 1000).toString());
+
+        await sendMessage(selectedChatId, textToSent);
     };
 
     const handleDeleteSwipe = (msg: MessageData, info: any) => {
@@ -107,9 +120,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <div className="flex items-center gap-2">
-                            {selectedChat ? (
+                            {activeChat ? (
                                 <button
-                                    onClick={() => setSelectedChat(null)}
+                                    onClick={() => setSelectedChatId(null)}
                                     className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -122,7 +135,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 </svg>
                             )}
                             <h2 className="text-2xl font-bold text-white">
-                                {selectedChat ? selectedChat.name : 'Messages'}
+                                {activeChat ? activeChat.name : 'Messages'}
                             </h2>
                         </div>
 
@@ -141,7 +154,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 {/* Content */}
                 <div className="flex-1 overflow-hidden relative px-panel-gutter">
                     <AnimatePresence mode="wait">
-                        {!selectedChat ? (
+                        {!selectedChatId ? (
                             /* Chat List */
                             <motion.div
                                 key="list"
@@ -172,7 +185,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             </button>
 
                                             <button
-                                                onClick={() => setSelectedChat(chat)}
+                                                onClick={() => setSelectedChatId(chat.id)}
                                                 className="flex-1 text-left min-w-0 focus:outline-none"
                                             >
                                                 <div className="flex justify-between items-center mb-0.5">
@@ -205,7 +218,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                     className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar"
                                 >
                                     {messages
-                                        .filter(m => m.sender_id.toLowerCase() === selectedChat.id.toLowerCase() || m.receiver_id.toLowerCase() === selectedChat.id.toLowerCase())
+                                        .filter(m => m.sender_id.toLowerCase() === selectedChatId.toLowerCase() || m.receiver_id.toLowerCase() === selectedChatId.toLowerCase())
                                         .map((msg) => {
                                             const isMe = msg.sender_id.toLowerCase() === address?.toLowerCase();
                                             const timeString = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -226,7 +239,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                         whileDrag={{ scale: 0.95 }}
                                                         className={`max-w-[80%] flex flex-col z-10 ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
                                                     >
-                                                        <div className={`p-3 rounded-2xl text-[15px] shadow-sm ${isMe
+                                                        <div className={`py-3 px-4 rounded-2xl text-[15px] shadow-sm ${isMe
                                                             ? (msg.send_status === 'failed' ? 'bg-red-600 text-white rounded-tr-none' : 'bg-purple-700 text-white rounded-tr-none')
                                                             : 'bg-white/10 text-white/90 rounded-tl-none border border-white/5'
                                                             }`}>
