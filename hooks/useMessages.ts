@@ -27,6 +27,7 @@ export interface Conversation {
 export function useMessages(currentUserAddress: string | undefined | null) {
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [rawConversations, setRawConversations] = useState<any[]>([]);
     const [profiles, setProfiles] = useState<Record<string, { username: string, avatar: string }>>({});
     const [isLoading, setIsLoading] = useState(false);
 
@@ -38,105 +39,101 @@ export function useMessages(currentUserAddress: string | undefined | null) {
         return true;
     }, []);
 
-    // Fetch initial messages when user address is known
+    // Fetch initial messages and conversations
     useEffect(() => {
         if (!currentUserAddress) return;
-
         const currentAddrLower = currentUserAddress.toLowerCase();
 
-        const fetchMessages = async () => {
+        const fetchInitialData = async () => {
             setIsLoading(true);
-            const { data, error } = await supabase
+
+            // 1. Fetch Conversations sidebar
+            const { data: convoData } = await supabase
+                .from('conversations')
+                .select('*')
+                .or(`user_a.eq.${currentAddrLower},user_b.eq.${currentAddrLower}`)
+                .order('last_message_at', { ascending: false });
+
+            if (convoData) {
+                setRawConversations(convoData);
+            }
+
+            // 2. Fetch Recent Messages
+            const { data: msgData } = await supabase
                 .from('messages')
                 .select('*')
                 .or(`sender_id.ilike.${currentAddrLower},receiver_id.ilike.${currentAddrLower}`)
-                .order('created_at', { ascending: false }) // newest first for limit
+                .order('created_at', { ascending: false })
                 .limit(30);
 
-            if (error) {
-                console.error("Error fetching messages:", error);
-            } else if (data) {
-                // Reverse to get chronological order, then filter out deleted ones
-                const visible = data.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
+            if (msgData) {
+                const visible = msgData.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
                 setMessages(visible);
             }
             setIsLoading(false);
         };
 
-        fetchMessages();
+        fetchInitialData();
 
-        // Subscribe to real-time incoming or outgoing messages
-        const channel = supabase
+        // 3. Real-time Messages
+        const msgChannel = supabase
             .channel(`messages-realtime-${currentAddrLower}`)
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages' },
                 (payload) => {
                     const newMsg = payload.new as MessageData;
-                    if (
-                        newMsg.sender_id.toLowerCase() === currentAddrLower ||
-                        newMsg.receiver_id.toLowerCase() === currentAddrLower
-                    ) {
+                    if (isVisibleToMe(newMsg, currentAddrLower)) {
                         setMessages((prev) => {
                             if (prev.some(m => m.id === newMsg.id)) return prev;
-                            if (!isVisibleToMe(newMsg, currentAddrLower)) return prev;
                             const newArr = [...prev, newMsg];
-                            if (newArr.length > 50) return newArr.slice(newArr.length - 50);
-                            return newArr;
-                        });
-                    }
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'messages' },
-                (payload) => {
-                    const updatedMsg = payload.new as MessageData;
-                    if (
-                        updatedMsg.sender_id.toLowerCase() === currentAddrLower ||
-                        updatedMsg.receiver_id.toLowerCase() === currentAddrLower
-                    ) {
-                        setMessages((prev) => {
-                            if (!isVisibleToMe(updatedMsg, currentAddrLower)) {
-                                return prev.filter(m => m.id !== updatedMsg.id);
-                            }
-                            return prev.map(m => m.id === updatedMsg.id ? updatedMsg : m);
+                            return newArr.slice(-50);
                         });
                     }
                 }
             )
             .subscribe();
 
+        // 4. Real-time Conversations (sidebar updates)
+        const convoChannel = supabase
+            .channel(`conversations-realtime-${currentAddrLower}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'conversations' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                        const newConvo = payload.new;
+                        if (newConvo.user_a === currentAddrLower || newConvo.user_b === currentAddrLower) {
+                            setRawConversations(prev => {
+                                const filtered = prev.filter(c => c.id !== newConvo.id);
+                                return [newConvo, ...filtered].sort((a, b) =>
+                                    new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+                                );
+                            });
+                        }
+                    }
+                }
+            )
+            .subscribe();
+
         return () => {
-            supabase.removeChannel(channel);
+            supabase.removeChannel(msgChannel);
+            supabase.removeChannel(convoChannel);
         };
     }, [currentUserAddress, isVisibleToMe]);
 
-    // Derive conversations from messages
+    // Transform raw DB conversations into UI format
     useEffect(() => {
         if (!currentUserAddress) return;
         const currentAddrLower = currentUserAddress.toLowerCase();
 
-        const convoMap = new Map<string, { lastMsg: MessageData, unreadCount: number }>();
+        const transformed = rawConversations.map(c => {
+            const isA = c.user_a.toLowerCase() === currentAddrLower;
+            const otherId = isA ? c.user_b : c.user_a;
+            const profile = profiles[otherId.toLowerCase()];
+            const unreadCount = isA ? c.unread_count_a : c.unread_count_b;
 
-        // Sort messages to find the truly last one
-        const sortedMsgs = [...messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-        sortedMsgs.forEach(msg => {
-            const isMeSender = msg.sender_id.toLowerCase() === currentAddrLower;
-            const otherUser = isMeSender ? msg.receiver_id : msg.sender_id;
-            const otherUserLower = otherUser.toLowerCase();
-
-            const current = convoMap.get(otherUserLower);
-            convoMap.set(otherUserLower, {
-                lastMsg: msg,
-                unreadCount: (!isMeSender && !msg.is_read) ? (current?.unreadCount || 0) + 1 : (current?.unreadCount || 0)
-            });
-        });
-
-        // Convert map to Conversation array
-        const derivedConvos: Conversation[] = Array.from(convoMap.entries()).map(([otherId, data]) => {
-            const date = new Date(data.lastMsg.created_at);
+            const date = new Date(c.last_message_at);
             const now = new Date();
             const diffMs = now.getTime() - date.getTime();
             const diffMins = Math.floor(diffMs / 60000);
@@ -148,23 +145,20 @@ export function useMessages(currentUserAddress: string | undefined | null) {
             else if (diffHrs > 0) timeStr = `${diffHrs}h ago`;
             else if (diffMins > 0) timeStr = `${diffMins}m ago`;
 
-            const profile = profiles[otherId.toLowerCase()];
-
             return {
                 id: otherId,
                 name: profile?.username || `User ${otherId.substring(0, 6)}`,
                 avatar: profile?.avatar || '1',
-                lastMessage: data.lastMsg.content,
+                lastMessage: c.last_message_content,
                 time: timeStr,
-                unread: data.unreadCount > 0,
-                status: 'Offline', // placeholder
+                unread: unreadCount > 0,
+                status: 'Offline' as const,
                 timestamp: date.getTime()
             };
         });
 
-        derivedConvos.sort((a, b) => b.timestamp - a.timestamp);
-        setConversations(derivedConvos);
-    }, [messages, currentUserAddress, profiles]);
+        setConversations(transformed);
+    }, [rawConversations, currentUserAddress, profiles]);
 
     // Separate Profile Fetcher
     useEffect(() => {
@@ -236,24 +230,26 @@ export function useMessages(currentUserAddress: string | undefined | null) {
 
     const markAsRead = async (senderId: string) => {
         if (!currentUserAddress) return;
+        const currentAddrLower = currentUserAddress.toLowerCase();
 
-        // Mark messages where senderId equals the other person, and receiver is me
-        const { error } = await supabase
+        // 1. Mark individual messages as read (for message list UI)
+        await supabase
             .from('messages')
             .update({ is_read: true })
             .ilike('sender_id', senderId)
-            .ilike('receiver_id', currentUserAddress)
+            .ilike('receiver_id', currentAddrLower)
             .eq('is_read', false);
 
-        if (error) {
-            console.error("Error marking messages as read:", error);
-            return;
-        }
+        // 2. Clear unread count in conversations table (for sidebar UI)
+        await supabase.rpc('mark_conversation_read', {
+            me: currentAddrLower,
+            friend: senderId.toLowerCase()
+        });
 
-        // Optimistically update local state to reflect read
+        // 3. Optimistic update
         setMessages(prev => prev.map(m => {
             if (m.sender_id.toLowerCase() === senderId.toLowerCase() &&
-                m.receiver_id.toLowerCase() === currentUserAddress.toLowerCase() &&
+                m.receiver_id.toLowerCase() === currentAddrLower &&
                 !m.is_read) {
                 return { ...m, is_read: true };
             }
