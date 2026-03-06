@@ -34,8 +34,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     // Cooldown Timer
     useEffect(() => {
-        // Load initial cooldown from localStorage
-        const storedCooldownEnd = localStorage.getItem('chat_cooldown_end');
+        if (!address) return;
+        // Load initial cooldown from localStorage scoped to user
+        const storedCooldownEnd = localStorage.getItem(`chat_cooldown_end_${address.toLowerCase()}`);
         if (storedCooldownEnd) {
             const end = parseInt(storedCooldownEnd);
             const now = Date.now();
@@ -43,7 +44,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 setCooldownTime(Math.ceil((end - now) / 1000));
             }
         }
-    }, []);
+    }, [address]);
 
     useEffect(() => {
         if (cooldownTime > 0) {
@@ -58,6 +59,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
             setSelectedChatId(initialChatId);
         }
     }, [initialChatId, selectedChatId]);
+
+    // Reset selection if account changes
+    useEffect(() => {
+        if (address) {
+            setSelectedChatId(null);
+        }
+    }, [address]);
 
     // Mark as read when opening a chat
     useEffect(() => {
@@ -79,7 +87,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
         const newCooldown = 10;
         setCooldownTime(newCooldown); // Start 10 second slow-mode
-        localStorage.setItem('chat_cooldown_end', (Date.now() + newCooldown * 1000).toString());
+        localStorage.setItem(`chat_cooldown_end_${address.toLowerCase()}`, (Date.now() + newCooldown * 1000).toString());
 
         await sendMessage(selectedChatId, textToSent);
     };
