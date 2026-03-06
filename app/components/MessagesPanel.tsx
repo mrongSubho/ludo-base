@@ -55,15 +55,16 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     // Auto-select initial chat if provided
     useEffect(() => {
-        if (initialChatId && !selectedChatId) {
+        if (initialChatId) {
             setSelectedChatId(initialChatId);
         }
-    }, [initialChatId, selectedChatId]);
+    }, [initialChatId]);
 
     // Reset selection if account changes
     useEffect(() => {
         if (address) {
             setSelectedChatId(null);
+            setInputValue('');
         }
     }, [address]);
 
@@ -215,7 +216,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                         ) : (
                             /* Chat Detail */
                             <motion.div
-                                key="detail"
+                                key={`detail-${selectedChatId?.toLowerCase()}`}
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 20 }}
