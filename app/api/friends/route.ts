@@ -55,7 +55,7 @@ export async function GET(request: Request) {
             const orQuery = followingWallets.map((addr: string) => `wallet_address.ilike.${addr}`).join(',');
             const { data, error } = await supabase
                 .from('players')
-                .select('wallet_address, username, avatar_url, total_wins')
+                .select('wallet_address, username, avatar_url, total_wins, status, last_played_at')
                 .or(orQuery);
             if (error) {
                 console.error("Supabase Onchain Friends Fetch Error:", error);
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
         // 5. Fetch "Game Friends" (Recent Active Players) from Supabase
         const { data: gameFriends, error: gameError } = await supabase
             .from('players')
-            .select('wallet_address, username, avatar_url, total_wins')
+            .select('wallet_address, username, avatar_url, total_wins, status, last_played_at')
             .neq('wallet_address', wallet.toLowerCase())
             .order('last_played_at', { ascending: false, nullsFirst: false })
             .limit(20);
@@ -76,9 +76,23 @@ export async function GET(request: Request) {
             console.error("Supabase Game Friends Fetch Error:", gameError);
         }
 
+        // Self-Healing Status Logic: If 'Online' but last_played_at > 5 mins ago, force 'Offline'
+        const now = new Date().getTime();
+        const driftLimit = 5 * 60 * 1000; // 5 minutes
+
+        const healStatus = (list: any[]) => list.map(f => {
+            if (f.status === 'Online' && f.last_played_at) {
+                const lastSeen = new Date(f.last_played_at).getTime();
+                if (now - lastSeen > driftLimit) {
+                    return { ...f, status: 'Offline' };
+                }
+            }
+            return f;
+        });
+
         return NextResponse.json({
-            onchainFriends,
-            gameFriends: gameFriends || []
+            onchainFriends: healStatus(onchainFriends),
+            gameFriends: healStatus(gameFriends || [])
         });
     } catch (error) {
         console.error("Friends API failure:", error);

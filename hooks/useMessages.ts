@@ -239,7 +239,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             const fetchProfiles = async () => {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('wallet_address, username, avatar_url, status')
+                    .select('wallet_address, username, avatar_url, status, last_seen_at')
                     .in('wallet_address', uniqueIds);
 
                 if (error) {
@@ -248,14 +248,27 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                 }
 
                 if (data) {
+                    const now = new Date().getTime();
+                    const driftLimit = 5 * 60 * 1000;
+
                     setProfiles(prev => {
                         const next = { ...prev };
                         data.forEach(p => {
                             const addr = p.wallet_address.toLowerCase();
+                            let currentStatus = p.status || 'Offline';
+
+                            // Self-Healing
+                            if (currentStatus === 'Online' && p.last_seen_at) {
+                                const lastSeen = new Date(p.last_seen_at).getTime();
+                                if (now - lastSeen > driftLimit) {
+                                    currentStatus = 'Offline';
+                                }
+                            }
+
                             next[addr] = {
                                 username: (p.username && !p.username.startsWith('0x')) ? p.username : `User ${addr.substring(0, 6)}`,
                                 avatar: p.avatar_url || '1',
-                                status: p.status || 'Offline'
+                                status: currentStatus
                             };
                         });
                         return next;

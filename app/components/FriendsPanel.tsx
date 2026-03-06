@@ -9,7 +9,7 @@ interface FriendsPanelProps {
     onOpenProfile?: (address: string) => void;
 }
 
-type MainTab = 'game' | 'onchain' | 'requests';
+type MainTab = 'social' | 'global' | 'requests';
 type RequestTab = 'incoming' | 'sent';
 
 // Define the mock friend interfaces
@@ -55,7 +55,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
     const { profile, address: connectedAddress } = useCurrentUser();
     const userFid = (profile as any)?.fid;
 
-    const [activeMainTab, setActiveMainTab] = useState<MainTab>('game');
+    const [activeMainTab, setActiveMainTab] = useState<MainTab>('social');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
 
     const [gameFriends, setGameFriends] = useState<Friend[]>([]);
@@ -102,8 +102,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     status,
                     user_address,
                     friend_address,
-                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins, status),
-                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins, status)
+                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at),
+                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at)
                 `)
                 .eq('status', 'accepted')
                 .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
@@ -115,10 +115,20 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     const isRequester = item.user_address.toLowerCase() === connectedAddress.toLowerCase();
                     const p = isRequester ? item.receiver : item.requester;
                     const displayName = (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase();
+
+                    let currentStatus = p.status || 'Offline';
+                    if (currentStatus === 'Online' && p.last_played_at) {
+                        const now = new Date().getTime();
+                        const lastSeen = new Date(p.last_played_at).getTime();
+                        if (now - lastSeen > 5 * 60 * 1000) {
+                            currentStatus = 'Offline';
+                        }
+                    }
+
                     return {
                         ...p,
                         displayName,
-                        status: p.status || 'Offline'
+                        status: currentStatus
                     };
                 });
                 // These are "Social/Onchain" friends who accepted requests
@@ -370,16 +380,16 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     {/* Top-Level Segmented Control */}
                     <div className="flex bg-black/40 p-1 rounded-xl">
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'game' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
-                            onClick={() => setActiveMainTab('game')}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'social' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            onClick={() => setActiveMainTab('social')}
                         >
-                            Game Friends
+                            Social
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'onchain' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
-                            onClick={() => setActiveMainTab('onchain')}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'global' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            onClick={() => setActiveMainTab('global')}
                         >
-                            Onchain Friends
+                            Global
                         </button>
                         <button
                             className={`flex-1 py-1 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
@@ -401,21 +411,21 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                 <div className="flex-1 overflow-y-auto px-panel-gutter py-4 custom-scrollbar">
                     <AnimatePresence mode="wait">
 
-                        {activeMainTab === 'game' && (
-                            <motion.div key="game" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
-                                <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Active Players ({gameFriends.length})
-                                </div>
-                                {renderFriendList(gameFriends)}
-                            </motion.div>
-                        )}
-
-                        {activeMainTab === 'onchain' && (
-                            <motion.div key="onchain" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
+                        {activeMainTab === 'social' && (
+                            <motion.div key="social" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
                                 <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
                                     Social Friends ({onchainFriends.length})
                                 </div>
                                 {renderFriendList(onchainFriends)}
+                            </motion.div>
+                        )}
+
+                        {activeMainTab === 'global' && (
+                            <motion.div key="global" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
+                                <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
+                                    Global Players ({gameFriends.length})
+                                </div>
+                                {renderFriendList(gameFriends)}
                             </motion.div>
                         )}
 

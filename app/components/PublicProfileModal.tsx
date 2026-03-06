@@ -126,9 +126,18 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const powerPlayed = profile?.power_played || 0;
     const aiPlayed = profile?.ai_played || 0;
 
-    // Online Heuristics (Played within last 15 minutes)
+    // Online Status from DB heuristics (Self-Healing)
     const lastPlayedAt = profile?.last_played_at ? new Date(profile.last_played_at) : null;
-    const isOnline = lastPlayedAt ? (new Date().getTime() - lastPlayedAt.getTime()) < 15 * 60 * 1000 : false;
+    let isOnline = profile?.status === 'Online' || profile?.status === 'In Match';
+
+    // Force Offline if 'Online' but last seen > 5 minutes ago
+    if (profile?.status === 'Online' && lastPlayedAt) {
+        const now = new Date().getTime();
+        const driftLimit = 5 * 60 * 1000;
+        if (now - lastPlayedAt.getTime() > driftLimit) {
+            isOnline = false;
+        }
+    }
 
     const localTimeString = lastPlayedAt ? new Intl.DateTimeFormat('default', {
         hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short'
@@ -255,9 +264,16 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                             {/* Only show online status if verified friend */}
                             {!isFriendValidationLoading && isFriend && (
                                 <div className="absolute left-6 top-6 flex items-center gap-2">
-                                    <div className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' : 'bg-white/20'}`} />
-                                    <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">
-                                        {isOnline ? 'Online' : 'Offline'}
+                                    <div className={`w-2.5 h-2.5 rounded-full 
+                                        ${(profile?.status === 'Online' && isOnline) ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' :
+                                            profile?.status === 'In Match' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] animate-pulse' :
+                                                'bg-white/20'}`}
+                                    />
+                                    <span className={`text-[10px] uppercase tracking-widest font-bold 
+                                        ${(profile?.status === 'Online' && isOnline) ? 'text-green-400' :
+                                            profile?.status === 'In Match' ? 'text-orange-400' :
+                                                'text-white/50'}`}>
+                                        {(profile?.status === 'Online' && !isOnline) ? 'Offline' : (profile?.status || 'Offline')}
                                     </span>
                                 </div>
                             )}
