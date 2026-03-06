@@ -23,6 +23,7 @@ interface Friend {
 
 interface Request {
     id: string;
+    wallet_address: string;
     name: string;
     avatar: string;
     time: string;
@@ -59,64 +60,142 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
 
     const [gameFriends, setGameFriends] = useState<Friend[]>([]);
     const [onchainFriends, setOnchainFriends] = useState<Friend[]>([]);
+    const [pendingIncoming, setPendingIncoming] = useState<Request[]>([]);
+    const [pendingOutgoing, setPendingOutgoing] = useState<Request[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        async function fetchFriends() {
-            if (!connectedAddress) return;
-            setIsLoading(true);
-            try {
-                // 1. Fetch Farcaster Social Graph if FID is available
-                if (userFid) {
-                    const res = await fetch(`/api/friends?fid=${userFid}`);
-                    const data = await res.json();
-                    if (data.friends) {
-                        const formatted = data.friends.map((friend: any) => ({
-                            ...friend,
-                            displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
-                            status: 'Online'
-                        }));
-                        setGameFriends(formatted);
-                    }
+    const fetchFriends = React.useCallback(async () => {
+        if (!connectedAddress) return;
+        setIsLoading(true);
+        try {
+            // 1. Fetch Farcaster Social Graph if FID is available
+            if (userFid) {
+                const res = await fetch(`/api/friends?fid=${userFid}`);
+                const data = await res.json();
+                if (data.friends) {
+                    const formatted = data.friends.map((friend: any) => ({
+                        ...friend,
+                        displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
+                        status: 'Online'
+                    }));
+                    setGameFriends(formatted);
                 }
-
-                // 2. Fetch live friendships from Supabase (Onchain Friends)
-                const { data, error } = await supabase
-                    .from('friendships')
-                    .select(`
-                        status,
-                        friend:players!friendships_friend_address_fkey(
-                            wallet_address,
-                            username,
-                            avatar_url,
-                            total_wins
-                        )
-                    `)
-                    .ilike('user_address', connectedAddress);
-
-                if (error) throw error;
-
-                if (data) {
-                    const formatted = data.map((item: any) => {
-                        const p = item.friend;
-                        const displayName = (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase();
-                        return {
-                            ...p,
-                            displayName,
-                            status: item.status === 'accepted' ? 'Online' : 'Offline'
-                        };
-                    });
-                    setOnchainFriends(formatted);
-                }
-            } catch (err) {
-                console.error('Error fetching friends:', err);
-            } finally {
-                setIsLoading(false);
             }
+
+            // 2. Fetch live friendships from Supabase (Onchain Friends)
+            const { data, error } = await supabase
+                .from('friendships')
+                .select(`
+                    status,
+                    friend:players!friendships_friend_address_fkey(
+                        wallet_address,
+                        username,
+                        avatar_url,
+                        total_wins
+                    )
+                `)
+                .eq('status', 'accepted')
+                .ilike('user_address', connectedAddress);
+
+            if (error) throw error;
+
+            if (data) {
+                const formatted = data.map((item: any) => {
+                    const p = item.friend;
+                    const displayName = (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase();
+                    return {
+                        ...p,
+                        displayName,
+                        status: 'Offline' // Would need live presence hook for real status
+                    };
+                });
+                setOnchainFriends(formatted);
+            }
+
+            // 3. Fetch Pending Requests
+            const { data: requestsData, error: reqError } = await supabase
+                .from('friendships')
+                .select(`
+                    id,
+                    status,
+                    user_address,
+                    friend_address,
+                    created_at,
+                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url),
+                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url)
+                `)
+                .eq('status', 'pending')
+                .or(`user_address.ilike.${connectedAddress},friend_address.ilike.${connectedAddress}`);
+
+            if (reqError) throw reqError;
+
+            if (requestsData) {
+                const incoming: Request[] = [];
+                const outgoing: Request[] = [];
+
+                requestsData.forEach((req: any) => {
+                    const date = new Date(req.created_at);
+                    const timeStr = new Intl.DateTimeFormat('default', { month: 'short', day: 'numeric' }).format(date);
+
+                    if (req.friend_address.toLowerCase() === connectedAddress.toLowerCase()) {
+                        // Incoming (Someone added us)
+                        const p = req.requester;
+                        incoming.push({
+                            id: req.id,
+                            wallet_address: p.wallet_address,
+                            name: (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase(),
+                            avatar: p.avatar_url || '1',
+                            time: timeStr
+                        });
+                    } else {
+                        // Outgoing (We added someone)
+                        const p = req.receiver;
+                        outgoing.push({
+                            id: req.id,
+                            wallet_address: p.wallet_address,
+                            name: (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase(),
+                            avatar: p.avatar_url || '1',
+                            time: timeStr
+                        });
+                    }
+                });
+
+                setPendingIncoming(incoming);
+                setPendingOutgoing(outgoing);
+            }
+
+        } catch (err) {
+            console.error('Error fetching friends:', err);
+        } finally {
+            setIsLoading(false);
         }
+    }, [connectedAddress, userFid]);
+
+    useEffect(() => {
 
         fetchFriends();
     }, [connectedAddress, userFid]);
+
+    const handleAcceptRequest = async (id: string) => {
+        try {
+            const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
+            if (!error) {
+                setPendingIncoming(prev => prev.filter(r => r.id !== id));
+                // We could optimally refetch friends here, but the user will likely close the panel
+                fetchFriends(); // quick refresh
+            }
+        } catch (err) { console.error(err); }
+    };
+
+    const handleRejectCancelRequest = async (id: string, isIncoming: boolean) => {
+        try {
+            const { error } = await supabase.from('friendships').delete().eq('id', id);
+            if (!error) {
+                if (isIncoming) setPendingIncoming(prev => prev.filter(r => r.id !== id));
+                else setPendingOutgoing(prev => prev.filter(r => r.id !== id));
+            }
+        } catch (err) { console.error(err); }
+    };
 
     // Renders the list items for Game/Base Friends
     const renderFriendList = (friends: Friend[]) => {
@@ -182,17 +261,17 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
 
                 {isIncoming ? (
                     <div className="flex items-center gap-2">
-                        <button className="w-9 h-9 rounded-full bg-green-500/20 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all">
+                        <button onClick={() => handleAcceptRequest(req.id)} className="w-9 h-9 rounded-full bg-green-500/20 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all">
                             <AcceptIcon />
                         </button>
-                        <button className="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                        <button onClick={() => handleRejectCancelRequest(req.id, true)} className="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
                             <RejectIcon />
                         </button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-2">
                         <span className="text-[12px] text-white/50 pr-2">Pending</span>
-                        <button className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                        <button onClick={() => handleRejectCancelRequest(req.id, false)} className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
                             <RejectIcon />
                         </button>
                     </div>
@@ -300,7 +379,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                                         className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'incoming' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
                                         onClick={() => setActiveRequestTab('incoming')}
                                     >
-                                        Incoming (0)
+                                        Incoming ({pendingIncoming.length})
                                         {activeRequestTab === 'incoming' && (
                                             <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 rounded-t-full" />
                                         )}
@@ -309,7 +388,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                                         className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'sent' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
                                         onClick={() => setActiveRequestTab('sent')}
                                     >
-                                        Sent (0)
+                                        Sent ({pendingOutgoing.length})
                                         {activeRequestTab === 'sent' && (
                                             <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 rounded-t-full" />
                                         )}
@@ -318,8 +397,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
 
                                 <div className="mt-2">
                                     {activeRequestTab === 'incoming'
-                                        ? renderRequestList([], true)
-                                        : renderRequestList([], false)
+                                        ? renderRequestList(pendingIncoming, true)
+                                        : renderRequestList(pendingOutgoing, false)
                                     }
                                 </div>
 
