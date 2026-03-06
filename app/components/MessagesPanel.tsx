@@ -31,6 +31,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         timestamp: Date.now()
     } as Conversation : null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const lastAddressRef = useRef<string | undefined>(address);
 
     // Cooldown Timer
     useEffect(() => {
@@ -62,10 +63,11 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     // Reset selection if account changes
     useEffect(() => {
-        if (address) {
+        if (address && lastAddressRef.current && address.toLowerCase() !== lastAddressRef.current.toLowerCase()) {
             setSelectedChatId(null);
             setInputValue('');
         }
+        lastAddressRef.current = address;
     }, [address]);
 
     // Mark as read when opening a chat
