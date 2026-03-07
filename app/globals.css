@@ -1073,35 +1073,35 @@ a {
 /* ─── Snakes Mode Colored Player Cards ─── */
 /* Removed frosted color tints per user feedback */
 
-/* 1. Name-Specific Edge Alignment */
-.label-alex {
-  bottom: -22px !important;
-  top: auto !important;
+/* 1. Corner-Based Edge Alignment (Inside the board) */
+.label-top-inside {
+  top: 6px !important;
+  bottom: auto !important;
 }
 
-.label-gemini {
-  top: -22px !important;
-  bottom: auto !important;
+.label-bottom-inside {
+  bottom: 6px !important;
+  top: auto !important;
 }
 
 .home-player-label {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  width: 75%;
-  background: rgba(255, 255, 255, 0.15);
+  width: 70%;
+  /* Slightly narrower for better containment */
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  padding: 4px;
+  padding: 4px 8px;
   border-radius: 12px;
   font-size: 10px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
-  /* High z-index to stay above everything */
   pointer-events: none;
   letter-spacing: 0.5px;
   text-transform: uppercase;

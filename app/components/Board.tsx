@@ -145,13 +145,8 @@ function HomeBlock({
             </div>
             {player && (
                 <div
-                    className={`home-player-label ${player.name.toLowerCase().includes('alex') ? 'label-alex' :
-                        player.name.toLowerCase().includes('gemini') ? 'label-gemini' : ''
+                    className={`home-player-label ${(corner === 'TL' || corner === 'TR') ? 'label-top-inside' : 'label-bottom-inside'
                         }`}
-                    style={{
-                        ...(player.name.toLowerCase().includes('alex') ? { bottom: '0px', top: 'auto' } : {}),
-                        ...(player.name.toLowerCase().includes('gemini') ? { top: '0px', bottom: 'auto' } : {}),
-                    }}
                 >
                     {player.name}
                 </div>
