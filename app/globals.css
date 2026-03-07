@@ -1694,6 +1694,9 @@ a {
   left: 0;
   pointer-events: none;
   z-index: 6;
+  background: transparent !important;
+  /* Forces container transparency */
+  box-shadow: none !important;
 }
 
 /* The actual dot on the rotating container */

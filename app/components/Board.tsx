@@ -567,22 +567,11 @@ export default function Board({
                             <motion.div
                                 className="junction-timer-point"
                                 animate={{
-                                    rotate: ((localGameState.timeLeft / 15) * 360) - 90,
-                                    backgroundColor: {
-                                        green: '#4CAF50',
-                                        red: '#F44336',
-                                        blue: '#2196F3',
-                                        yellow: '#FFEB3B'
-                                    }[localGameState.currentPlayer] || '#cbd5e1'
+                                    rotate: ((localGameState.timeLeft / 15) * 360) - 90
                                 }}
                                 transition={{ duration: 1, ease: "linear" }}
                                 style={{
-                                    boxShadow: `0 0 15px ${{
-                                        green: '#4CAF50',
-                                        red: '#F44336',
-                                        blue: '#2196F3',
-                                        yellow: '#FFEB3B'
-                                    }[localGameState.currentPlayer] || '#cbd5e1'}`
+                                    backgroundColor: 'transparent' /* Container must be transparent */
                                 }}
                             >
                                 <div style={{
@@ -593,8 +582,18 @@ export default function Board({
                                     width: '8px',
                                     height: '8px',
                                     borderRadius: '50%',
-                                    background: 'inherit',
-                                    boxShadow: 'inherit',
+                                    backgroundColor: {
+                                        green: '#4CAF50',
+                                        red: '#F44336',
+                                        blue: '#2196F3',
+                                        yellow: '#FFEB3B'
+                                    }[localGameState.currentPlayer] || '#cbd5e1',
+                                    boxShadow: `0 0 15px ${{
+                                        green: '#4CAF50',
+                                        red: '#F44336',
+                                        blue: '#2196F3',
+                                        yellow: '#FFEB3B'
+                                    }[localGameState.currentPlayer] || '#cbd5e1'}`,
                                     zIndex: 10
                                 }} />
                             </motion.div>
