@@ -491,7 +491,11 @@ export default function Board({
                         <div className="finish-center-cosmic" />
 
                         {/* Minimalist Glass Finish Badge with Dynamic Star */}
-                        <div
+                        <motion.div
+                            key={localGameState.currentPlayer}
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
                             style={{
                                 width: '45%',
                                 height: '45%',
@@ -502,39 +506,11 @@ export default function Board({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+                                boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
                                 zIndex: 10,
                                 position: 'relative'
                             }}
                         >
-                            {/* Junction Timer Ring (Radial) */}
-                            <svg className="junction-timer-svg" viewBox="0 0 100 100">
-                                <circle
-                                    className="junction-timer-track"
-                                    cx="50" cy="50" r="46"
-                                />
-                                <motion.circle
-                                    className="junction-timer-progress"
-                                    cx="50" cy="50" r="46"
-                                    animate={{
-                                        stroke: {
-                                            green: '#4CAF50',
-                                            red: '#F44336',
-                                            blue: '#2196F3',
-                                            yellow: '#FFEB3B'
-                                        }[localGameState.currentPlayer] || '#cbd5e1'
-                                    }}
-                                    transition={{ duration: 0.5 }}
-                                    style={{
-                                        strokeDasharray: 289,
-                                        strokeDashoffset: 289 - (289 * (localGameState.timeLeft / 15)),
-                                        transform: 'rotate(-90deg)',
-                                        transformOrigin: '50% 50%',
-                                        transition: 'stroke-dashoffset 1s linear'
-                                    }}
-                                />
-                            </svg>
-
                             <motion.svg
                                 viewBox="0 0 24 24"
                                 className="star-rotate-anim"
@@ -552,14 +528,47 @@ export default function Board({
                                     rotate: { duration: 8, repeat: Infinity, ease: "linear" }
                                 }}
                                 style={{
-                                    width: '65%',
-                                    height: '65%',
-                                    filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.6))'
+                                    width: '80%', /* Premium sizing */
+                                    height: '80%',
+                                    filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.7))',
+                                    position: 'absolute',
+                                    zIndex: 2
                                 }}
                             >
                                 <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
                             </motion.svg>
-                        </div>
+                        </motion.div>
+
+                        {/* Junction Timer Ring (Radial) - Unified Motion Sync */}
+                        <svg className="junction-timer-svg" viewBox="0 0 100 100">
+                            <circle
+                                className="junction-timer-track"
+                                cx="50" cy="50" r="46"
+                            />
+                            <motion.circle
+                                className="junction-timer-progress"
+                                cx="50" cy="50" r="46"
+                                animate={{
+                                    strokeDashoffset: 289 - (289 * (localGameState.timeLeft / 15)),
+                                    stroke: {
+                                        green: '#4CAF50',
+                                        red: '#F44336',
+                                        blue: '#2196F3',
+                                        yellow: '#FFEB3B'
+                                    }[localGameState.currentPlayer] || '#cbd5e1'
+                                }}
+                                transition={{
+                                    strokeDashoffset: { duration: 1, ease: "linear" },
+                                    stroke: { duration: 0.5 }
+                                }}
+                                style={{
+                                    strokeDasharray: 289,
+                                    transform: 'rotate(-90deg)',
+                                    transformOrigin: '50% 50%',
+                                    fill: 'none'
+                                }}
+                            />
+                        </svg>
 
                         {/* Pulsing ambient outer ring */}
                         <motion.div
@@ -570,7 +579,7 @@ export default function Board({
                                 width: '70%',
                                 height: '70%',
                                 borderRadius: '50%',
-                                border: '1px dashed rgba(255,255,255,0.2)',
+                                border: '1px dashed rgba(255,255,255,0.15)',
                                 zIndex: 1
                             }}
                         />

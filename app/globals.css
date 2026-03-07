@@ -1659,25 +1659,28 @@ a {
 
 .junction-timer-svg {
   position: absolute;
-  inset: -10%;
-  /* Extend slightly outside the badge */
-  width: 120%;
-  height: 120%;
+  inset: -15%;
+  /* Orbital placement outside the star badge */
+  width: 130%;
+  height: 130%;
   pointer-events: none;
-  z-index: -1;
+  z-index: 5;
+  /* Ensure it stays above the cosmic overlay but doesn't obscure the star */
 }
 
 .junction-timer-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.1);
-  stroke-width: 4;
+  stroke: rgba(255, 255, 255, 0.08);
+  /* Subtle track */
+  stroke-width: 3;
 }
 
 .junction-timer-progress {
   fill: none;
-  stroke-width: 4;
+  stroke-width: 3;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+  /* Premium glow */
   transition: stroke 0.4s ease;
 }
 
