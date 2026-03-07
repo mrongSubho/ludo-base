@@ -1657,28 +1657,28 @@ a {
   z-index: -1;
 }
 
-.finish-center-cosmic {
-  background: var(--ludo-bg-cosmic) !important;
-  background-size: 400% 400%;
-  opacity: 0.5 !important;
-  /* Increased for better visibility */
+.junction-timer-svg {
   position: absolute;
-  inset: 0;
-  z-index: 5;
+  inset: -10%;
+  /* Extend slightly outside the badge */
+  width: 120%;
+  height: 120%;
+  pointer-events: none;
+  z-index: -1;
 }
 
-.star-rotate-anim {
-  animation: star-spin-anim 6s linear infinite !important;
+.junction-timer-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 4;
 }
 
-@keyframes star-spin-anim {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
+.junction-timer-progress {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+  transition: stroke 0.4s ease;
 }
 
 /* ── Home Blocks — muted modern colors ── */

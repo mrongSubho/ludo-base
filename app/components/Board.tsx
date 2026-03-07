@@ -491,10 +491,7 @@ export default function Board({
                         <div className="finish-center-cosmic" />
 
                         {/* Minimalist Glass Finish Badge with Dynamic Star */}
-                        <motion.div
-                            key={localGameState.currentPlayer}
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
+                        <div
                             style={{
                                 width: '45%',
                                 height: '45%',
@@ -510,6 +507,34 @@ export default function Board({
                                 position: 'relative'
                             }}
                         >
+                            {/* Junction Timer Ring (Radial) */}
+                            <svg className="junction-timer-svg" viewBox="0 0 100 100">
+                                <circle
+                                    className="junction-timer-track"
+                                    cx="50" cy="50" r="46"
+                                />
+                                <motion.circle
+                                    className="junction-timer-progress"
+                                    cx="50" cy="50" r="46"
+                                    animate={{
+                                        stroke: {
+                                            green: '#4CAF50',
+                                            red: '#F44336',
+                                            blue: '#2196F3',
+                                            yellow: '#FFEB3B'
+                                        }[localGameState.currentPlayer] || '#cbd5e1'
+                                    }}
+                                    transition={{ duration: 0.5 }}
+                                    style={{
+                                        strokeDasharray: 289,
+                                        strokeDashoffset: 289 - (289 * (localGameState.timeLeft / 15)),
+                                        transform: 'rotate(-90deg)',
+                                        transformOrigin: '50% 50%',
+                                        transition: 'stroke-dashoffset 1s linear'
+                                    }}
+                                />
+                            </svg>
+
                             <motion.svg
                                 viewBox="0 0 24 24"
                                 className="star-rotate-anim"
@@ -534,7 +559,7 @@ export default function Board({
                             >
                                 <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
                             </motion.svg>
-                        </motion.div>
+                        </div>
 
                         {/* Pulsing ambient outer ring */}
                         <motion.div
