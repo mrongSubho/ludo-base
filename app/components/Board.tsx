@@ -482,7 +482,6 @@ export default function Board({
                             alignItems: 'center',
                             justifyContent: 'center',
                             position: 'relative',
-                            overflow: 'hidden',
                             background: 'transparent', // Transparent to reveal cosmic overlay
                             borderRadius: '4px'
                         }}
