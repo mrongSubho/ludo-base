@@ -18,7 +18,14 @@ export const useAudio = () => {
                 stopAmbient();
             }
             if (audioCtx.current) {
-                audioCtx.current.close();
+                if (audioCtx.current.state !== 'closed') {
+                    try {
+                        audioCtx.current.close();
+                    } catch (e) {
+                        console.error('Failed to close AudioContext:', e);
+                    }
+                }
+                audioCtx.current = null;
             }
         };
     }, []);
@@ -28,7 +35,7 @@ export const useAudio = () => {
             audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
         if (audioCtx.current.state === 'suspended') {
-            audioCtx.current.resume();
+            audioCtx.current.resume().catch(e => console.error('Failed to resume AudioContext:', e));
         }
         return audioCtx.current;
     };

@@ -2,19 +2,20 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Board from './components/Board';
-import SnakesBoard from './components/SnakesBoard';
-// Unused slide-up panels were extracted to their own components or removed natively
-import WalletConnectCard from './components/WalletConnectCard';
-import GameLobby from './components/GameLobby';
-import { SettingsPanel } from './components/SettingsPanel';
-import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
-import { FooterNavPanel } from './components/FooterNavPanel';
-import PublicProfileModal from './components/PublicProfileModal';
+import Board from '../components/Board';
+import SnakesBoard from '../components/SnakesBoard';
+import WalletConnectCard from '../components/WalletConnectCard';
+import GameLobby from './GameLobbyTest';
+import { SettingsPanel } from '../components/SettingsPanel';
+import { HeaderNavPanel, TokenIcon } from '../components/HeaderNavPanel';
+import { FooterNavPanel } from '../components/FooterNavPanel';
+import PublicProfileModal from '../components/PublicProfileModal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import PresenceManager from './components/PresenceManager';
+import PresenceManager from '../components/PresenceManager';
+
+
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -161,14 +162,15 @@ export default function Page() {
           <WalletConnectCard />
         </div>
       ) : (
-        <div className={`app-shell dashboard-shell cosmic-core-bg`}>
+        <div className={`app-shell ${appState === 'dashboard' ? 'dashboard-shell cosmic-core-bg' : ''}`}>
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
-            <div className="dashboard-container relative">
+            <div className="dashboard-container relative overflow-hidden">
               {/* Cosmic Orbs (Rendered behind content) */}
               <div className="cosmic-orb cosmic-orb-1" />
               <div className="cosmic-orb cosmic-orb-2" />
               <div className="cosmic-orb cosmic-orb-3" />
+
 
               {/* Header */}
               <HeaderNavPanel

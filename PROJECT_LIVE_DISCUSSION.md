@@ -491,6 +491,20 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - No external audio assets needed for core signals.
   - Final loudness balancing is still needed.
 
+#### Live Discussion: useAudio.ts Deep Dive (Section 16)
+- What this file is in the system:
+  - Core audio engine hook used by board components.
+- Function behavior:
+  - `initAudio()` ensures the audio context exists and is resumed when required.
+  - Effect methods generate procedural SFX per event type.
+  - `playAmbient(theme)` builds theme-specific synth graphs and `stopAmbient()` safely disposes nodes.
+- How it affects gameplay/system:
+  - Binds feedback timing directly to turn/capture/win events.
+  - Keeps game responsive without shipping external audio files.
+- Next improvements:
+  - Add master gain normalization and dynamic compression.
+  - Add reduced-motion/reduced-audio accessibility preferences.
+
 ### 🟨 useMultiplayer.ts (app/hooks)
 - Key notes:
   - PeerJS-oriented hook for direct host/guest connection and state broadcast/listen.
@@ -498,6 +512,18 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Useful low-level peer sync helper.
   - Partially overlaps with context-based multiplayer architecture.
+
+#### Live Discussion: useMultiplayer.ts (app/hooks) Deep Dive (Section 17)
+- What this file is in the system:
+  - Lightweight PeerJS adapter for direct state-sync experiments.
+- Function behavior:
+  - Creates peer instance, exposes local ID, connects as host or guest, and forwards `STATE_UPDATE` messages.
+- How it affects gameplay/system:
+  - Enables fast multiplayer prototyping.
+  - Overlaps with context-based multiplayer flow, which can create architecture ambiguity.
+- Next improvements:
+  - Merge with `MultiplayerContext.tsx` or clearly split responsibilities.
+  - Add message schema validation and reconnect semantics.
 
 ## app/api/
 
@@ -509,6 +535,18 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Important fallback when frame context is unavailable.
   - Depends on `NEYNAR_API_KEY` and should include rate-limit handling.
 
+#### Live Discussion: farcaster/route.ts Deep Dive (Section 18)
+- What this file is in the system:
+  - Server fallback identity endpoint.
+- Function behavior:
+  - Accepts wallet query param, calls Neynar bulk lookup, returns normalized profile fields.
+- How it affects gameplay/system:
+  - Supports profile sync outside native frame context.
+  - Makes identity enrichment deterministic for wallet users.
+- Next improvements:
+  - Add strict input validation and standardized error body schema.
+  - Add server caching/rate-limit protections for repeated wallet lookups.
+
 ### 🟨 friends/route.ts
 - Key notes:
   - `GET()` fetches following list by FID from Neynar.
@@ -516,6 +554,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Smart bridge between social graph and app database.
   - Needs pagination/caching and robust failure handling.
+
+#### Live Discussion: friends/route.ts Deep Dive (Section 19)
+- What this file is in the system:
+  - Social graph bridge endpoint.
+- Function behavior:
+  - Pulls following users from Neynar by FID.
+  - Extracts verified wallet addresses and intersects with local `players` table.
+- How it affects gameplay/system:
+  - Converts external social graph into in-app friend candidates.
+  - Reduces noise by returning only users who already exist in our ecosystem.
+- Next improvements:
+  - Add paging support and response caching.
+  - Add retry strategy and partial-failure semantics for downstream API instability.
 
 ## hooks/
 
@@ -530,11 +581,36 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Clean shared multiplayer state for whole app.
   - Needs stronger anti-desync, reconnection, and message validation.
 
+#### Live Discussion: MultiplayerContext.tsx Deep Dive (Section 20)
+- What this file is in the system:
+  - Primary multiplayer state store for UI + board coordination.
+- Function behavior:
+  - `hostGame()` creates room, initializes host listeners, and syncs profile messages.
+  - `joinGame(roomId)` attaches as guest and mirrors incoming action stream.
+  - `sendAction()` is the generic outbound transport layer.
+  - `rollDice()` demonstrates an example authoritative action message.
+- How it affects gameplay/system:
+  - Central point of truth for room lifecycle and peer connectivity.
+  - Drives lobby-ready state and board event propagation.
+- Next improvements:
+  - Add ack/sequence IDs to prevent action reordering issues.
+  - Add reconnect + stale-connection cleanup policies.
+
 ### 🟩 useMultiplayer.ts (hooks)
 - Key notes:
   - Thin wrapper around `useMultiplayerContext()` so UI files consume a simple hook API.
 - Key enhancements:
   - Keeps import surface clean and consistent.
+
+#### Live Discussion: useMultiplayer.ts (hooks) Deep Dive (Section 21)
+- What this file is in the system:
+  - Convenience hook adapter over context API.
+- Function behavior:
+  - Returns `useMultiplayerContext()` directly to keep callers clean.
+- How it affects gameplay/system:
+  - Standardizes multiplayer imports throughout UI files.
+- Next improvements:
+  - Keep as-is unless context API becomes large enough to warrant segmented hooks.
 
 ### 🟨 useCurrentUser.ts
 - Key notes:
@@ -545,6 +621,20 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Strong fallback identity behavior for missing profiles.
   - Should include better error-state exposure for UI.
 
+#### Live Discussion: useCurrentUser.ts Deep Dive (Section 22)
+- What this file is in the system:
+  - Current user profile query + realtime subscription hook.
+- Function behavior:
+  - Reads profile once for connected wallet.
+  - Subscribes to player-row updates and refreshes local state on change.
+  - Computes fallback display name `Guest <LAST_6_CHARS>` when username is absent.
+- How it affects gameplay/system:
+  - Gives stable identity for headers/profile/social rows.
+  - Enables near-instant profile sync reflection after updates.
+- Next improvements:
+  - Add explicit loading/error states for better UI control.
+  - Add request cancellation guards for fast wallet switching.
+
 ## lib/
 
 ### 🟩 supabase.ts
@@ -553,6 +643,19 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Uses placeholders + warning logs when env is missing to keep builds from crashing.
 - Key enhancements:
   - Stable shared client setup across app/API.
+
+#### Live Discussion: supabase.ts Deep Dive (Section 23)
+- What this file is in the system:
+  - Shared Supabase client bootstrap module.
+- Function behavior:
+  - Reads env config and creates singleton client used across app and APIs.
+  - Falls back to placeholders with warning to avoid hard crash in misconfigured dev environments.
+- How it affects gameplay/system:
+  - Centralizes backend connectivity contract.
+  - Prevents repeated client creation and inconsistent config usage.
+- Next improvements:
+  - Fail fast in production when env vars are missing.
+  - Add environment health check utility for startup diagnostics.
 
 ### 🟨 matchRecorder.ts
 - Key notes:
@@ -565,6 +668,20 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Good first pass for post-match persistence.
   - Should be transactional/server-side hardened to avoid partial update drift.
 
+#### Live Discussion: matchRecorder.ts Deep Dive (Section 24)
+- What this file is in the system:
+  - Match result persistence helper.
+- Function behavior:
+  - Inserts match record.
+  - Updates winner wins/games.
+  - Updates other participants' games.
+- How it affects gameplay/system:
+  - Connects gameplay outcomes to progression and leaderboard-ready stats.
+  - Current multi-step write flow can partially succeed and drift stats.
+- Next improvements:
+  - Move to single RPC/transaction in database.
+  - Add idempotency key by room + winner to prevent duplicate writes.
+
 ## Styling & Assets
 
 ### 🟨 globals.css / page.module.css
@@ -574,11 +691,37 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - UI identity is strong and consistent.
   - Further component-level CSS decomposition can reduce global complexity.
 
+#### Live Discussion: globals.css / page.module.css Deep Dive (Section 25)
+- What these files are in the system:
+  - Global and page-scoped visual contract.
+- Function behavior:
+  - Define reusable panel, board, typography, and motion styles.
+  - Implement theme-affectable style layers used by multiple components.
+- How they affect gameplay/system:
+  - Ensure UI consistency across game, social, and dashboard surfaces.
+  - Large global style surface can increase regression risk during redesign.
+- Next improvements:
+  - Migrate repeated patterns into smaller design tokens/util classes.
+  - Add visual regression checks for board and panel states.
+
 ### 🟥 public assets (avatars/og/background parity)
 - Key notes:
   - Some referenced assets are still incomplete or placeholder in current flow.
 - Key enhancements:
   - Final asset pack is needed for fully polished production release.
+
+#### Live Discussion: public assets Deep Dive (Section 26)
+- What this area is in the system:
+  - Static visual resources for profile, branding, and environment themes.
+- Current behavior:
+  - Missing avatar files produce runtime 404s in friend/profile surfaces.
+  - Missing/inconsistent OG/background assets reduce share and first-load polish.
+- How it affects gameplay/system:
+  - Does not break game logic, but directly impacts perceived quality.
+  - Creates noisy logs and degraded social/panel presentation.
+- Next improvements:
+  - Add complete avatar set and align all referenced filenames.
+  - Add finalized OG image and validate all theme background mappings.
 
 ## Pending Focus (Next Discussion Order)
 

@@ -27,112 +27,54 @@
 }
 
 :root {
-  /* --- Default Pastel Theme --- */
-  --ludo-bg: #F8FAFC;
-  --ludo-card: rgba(255, 255, 255, 0.85);
-  --ludo-sage: #A8E6CF;
-  --ludo-rose: #FFD3B6;
-  --ludo-sky: #D4F1F4;
-  --ludo-amber: #FFEFBA;
-  --ludo-slate: #475569;
-  --ludo-blue: #0052FF;
-  --ludo-blue-soft: #E8EFFF;
-  --ludo-text: #1E293B;
-  --ludo-muted: #64748B;
-  --ludo-faint: #94A3B8;
-  --ludo-border: #E2E8F0;
+  /* --- Unified Cosmic Dashboard Theme (Default) --- */
+  --ludo-bg-cosmic:
+    radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 30%, rgba(200, 204, 214, 0.3) 0%, transparent 60%),
+    radial-gradient(ellipse at 30% 70%, rgba(255, 255, 255, 0.25) 0%, transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(220, 224, 234, 0.2) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
 
-  --ludo-sage-contrast: #2d4a3e;
-  --ludo-rose-contrast: #5a3a2a;
-  --ludo-sky-contrast: #2d4a4d;
-  --ludo-amber-contrast: #5a502a;
+  --ludo-bg: #5a5c63;
+  /* Gunmetal Base */
+  --ludo-card: #FFFFFF;
+  /* Pure White Pads for maximum contrast */
 
-  --ludo-bg-image: url('/backgrounds/pastel_bg.png');
-  --ludo-bg-rgb: 248, 250, 252;
-}
+  /* Vibrant Traditional Palette */
+  --ludo-sage: #4CAF50;
+  /* Pure Vibrant Green */
+  --ludo-rose: #F44336;
+  /* Pure Vibrant Red */
+  --ludo-sky: #2196F3;
+  /* Pure Vibrant Blue */
+  --ludo-amber: #FFEB3B;
+  /* Pure Vibrant Yellow */
 
-[data-theme="midnight"] {
-  --ludo-bg: #0F172A;
-  --ludo-card: rgba(30, 41, 59, 0.85);
-  --ludo-sage: #38BDF8;
-  /* Electric Blue */
-  --ludo-rose: #818CF8;
-  /* Indigo */
-  --ludo-sky: #94A3B8;
-  /* Steel */
-  --ludo-amber: #F1F5F9;
-  /* Off-white */
-  --ludo-slate: #F8FAFC;
-  --ludo-blue: #38BDF8;
-  --ludo-blue-soft: rgba(30, 41, 59, 0.5);
-  --ludo-text: #F1F5F9;
-  --ludo-muted: #94A3B8;
-  --ludo-faint: #64748B;
-  --ludo-border: #334155;
-
-  --ludo-sage-contrast: #082F49;
-  --ludo-rose-contrast: #1E1B4B;
-  --ludo-sky-contrast: #0F172A;
-  --ludo-amber-contrast: #1E293B;
-
-  --ludo-bg-image: url('/backgrounds/midnight_bg.png');
-  --ludo-bg-rgb: 15, 23, 42;
-}
-
-[data-theme="cyberpunk"] {
-  --ludo-bg: #050505;
-  --ludo-card: rgba(13, 13, 13, 0.85);
-  --ludo-sage: #39FF14;
-  /* Lime Neon */
-  --ludo-rose: #FF007F;
-  /* Pink Neon */
-  --ludo-sky: #00FFFF;
-  /* Cyan Neon */
-  --ludo-amber: #FFFF00;
-  /* Yellow Neon */
   --ludo-slate: #FFFFFF;
-  --ludo-blue: #00FFFF;
-  --ludo-blue-soft: rgba(0, 34, 34, 0.5);
+  --ludo-blue: #2196F3;
+  --ludo-blue-soft: rgba(33, 150, 243, 0.2);
   --ludo-text: #FFFFFF;
   --ludo-muted: #AAAAAA;
   --ludo-faint: #444444;
-  --ludo-border: #222222;
-
-  --ludo-sage-contrast: #000000;
-  --ludo-rose-contrast: #FFFFFF;
-  --ludo-sky-contrast: #000000;
-  --ludo-amber-contrast: #000000;
-
-  --ludo-bg-image: url('/backgrounds/cyberpunk_bg.png');
-  --ludo-bg-rgb: 5, 5, 5;
-}
-
-[data-theme="classic"] {
-  --ludo-bg: #EAEAEA;
-  --ludo-card: rgba(255, 255, 255, 0.9);
-  --ludo-sage: #4CAF50;
-  /* Traditional Green */
-  --ludo-rose: #F44336;
-  /* Traditional Red */
-  --ludo-sky: #2196F3;
-  /* Traditional Blue */
-  --ludo-amber: #FFEB3B;
-  /* Traditional Yellow */
-  --ludo-slate: #333333;
-  --ludo-blue: #2196F3;
-  --ludo-blue-soft: #E3F2FD;
-  --ludo-text: #000000;
-  --ludo-muted: #666666;
-  --ludo-faint: #999999;
-  --ludo-border: #CCCCCC;
+  --ludo-border: rgba(255, 255, 255, 0.2);
+  /* Sharper Grid Lines */
 
   --ludo-sage-contrast: #FFFFFF;
   --ludo-rose-contrast: #FFFFFF;
   --ludo-sky-contrast: #FFFFFF;
   --ludo-amber-contrast: #000000;
 
-  --ludo-bg-image: url('/backgrounds/classic_bg.png');
-  --ludo-bg-rgb: 234, 234, 234;
+  --ludo-bg-image: var(--ludo-bg-cosmic);
+  --ludo-bg-rgb: 90, 92, 99;
+
+  /* Consolidated Utility Tokens */
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.15);
+  --shadow-pill: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
 }
 
 /* ─── Step 2: Base styles ─── */
@@ -154,7 +96,7 @@ body {
   overflow-x: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--color-ludo-background);
-  background-image: var(--ludo-bg-image);
+  /* background-image: var(--ludo-bg-image); removed as per user request */
   background-size: cover;
   background-attachment: fixed;
   background-position: center;
@@ -166,7 +108,7 @@ body {
 /* ─── Match/Board Scoped Theme Wrapper ─── */
 .board-match-theme-wrapper {
   background: var(--ludo-bg);
-  background-image: var(--ludo-bg-image);
+  /* background-image: var(--ludo-bg-image); removed as per user request */
   background-size: cover;
   background-attachment: fixed;
   background-position: center;
@@ -180,36 +122,14 @@ a {
   text-decoration: none;
 }
 
-/* ─── Shadows (non-color tokens) ─── */
-:root {
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05);
-  --shadow-pill: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-pill: 9999px;
-}
 
 /* ─── App Shell ─── */
 /* ─── Phase 2: Glassmorphism & Neon Utilities ─── */
 
 .cosmic-core-bg {
-  /* Premium Silvery Frosted Glass Mesh */
-  background:
-    /* Bright top-left flare */
-    radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
-    /* Swirling wave 1 */
-    radial-gradient(ellipse at 60% 30%, rgba(200, 204, 214, 0.3) 0%, transparent 60%),
-    /* Swirling wave 2 */
-    radial-gradient(ellipse at 30% 70%, rgba(255, 255, 255, 0.25) 0%, transparent 50%),
-    /* Swirling wave 3 */
-    radial-gradient(circle at 80% 90%, rgba(220, 224, 234, 0.2) 0%, transparent 50%),
-    /* Static Noise Texture */
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E") !important;
-
-  background-color: #5a5c63 !important;
-  /* Rich gunmetal silver-grey base */
+  /* Inherits from Unified Cosmic Default Theme */
+  background: var(--ludo-bg-cosmic) !important;
+  background-color: var(--ludo-bg) !important;
   background-blend-mode: color-dodge, screen, screen, screen, overlay !important;
   position: relative;
   overflow: hidden;
@@ -1734,6 +1654,8 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.1);
+  /* Inner depth */
 }
 
 .board-home.green {
@@ -2089,6 +2011,56 @@ a {
 
 .blue-token {
   background: linear-gradient(135deg, #7BAFD4, #5B8FB4);
+}
+
+/* ─── Stacked Tokens & Blockades ─── */
+.token-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #1e293b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.token-blockade {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.blockade-glow {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, currentColor 0%, transparent 70%);
+  opacity: 0.3;
+  animation: blockadePulse 2s infinite ease-in-out;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes blockadePulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 0.4;
+  }
 }
 
 .token-on-grid {
@@ -3799,9 +3771,15 @@ a {
   padding: 0.75rem 1rem;
   /* py-3 px-4 */
 }
+
 @keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-33.33%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-33.33%);
+  }
 }
 
 .animate-marquee {

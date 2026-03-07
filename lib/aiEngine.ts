@@ -1,4 +1,5 @@
-import { Point, PlayerColor, SAFE_POSITIONS } from './gameLogic';
+import { PlayerColor, checkMultiCapture, getTeamForceAtPoint, getTeam } from './gameLogic';
+import { Point, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
 /**
  * AI Heuristics Engine
@@ -14,7 +15,8 @@ export function getBestMove(
     positions: Record<PlayerColor, number[]>,
     playerId: PlayerColor,
     roll: number,
-    playerPaths: Record<string, Point[]>
+    playerPaths: Record<string, Point[]>,
+    playerCount: string = '4P'
 ): number | null {
     const options: number[] = [];
 
@@ -55,26 +57,31 @@ export function getBestMove(
         // Capturing / Safe Zones Logic
         if (nextPos < 52) {
             const targetPoint = playerPaths[playerId][nextPos];
-            const isSafeSquare = SAFE_POSITIONS.includes(nextPos);
+            const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+            const teamId = getTeam(playerId, playerCount);
+            const actingForce = getTeamForceAtPoint(teamId, targetPoint, { positions } as any, playerPaths, playerCount) + 1;
+
+            // Check if any opponent has tokens here and compare forces
+            let maxOppForce = 0;
+            (['green', 'red', 'blue', 'yellow'] as const).forEach(color => {
+                const otherTeam = getTeam(color, playerCount);
+                if (otherTeam !== teamId) {
+                    const force = getTeamForceAtPoint(otherTeam, targetPoint, { positions } as any, playerPaths, playerCount);
+                    if (force > maxOppForce) maxOppForce = force;
+                }
+            });
 
             if (isSafeSquare) {
-                // Move to Safe Zone (+50)
                 score += 50;
-            } else {
-                // Check for Captures (+100)
-                (['green', 'red', 'blue', 'yellow'] as const).forEach(otherColor => {
-                    if (otherColor !== playerId) {
-                        positions[otherColor].forEach(otherPos => {
-                            if (otherPos >= 0 && otherPos < 52) {
-                                const otherPoint = playerPaths[otherColor][otherPos];
-                                if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
-                                    score += 100;
-                                }
-                            }
-                        });
-                    }
-                });
+            } else if (actingForce > 1 && actingForce > maxOppForce) {
+                score += 60; // Better than star square if we are reinforcing?
+            } else if (maxOppForce > 0 && actingForce < maxOppForce) {
+                score += 30; // Truce state - relatively safe but vulnerable to reinforcement
             }
+
+            // Check for Captures (+100 per token)
+            const captures = checkMultiCapture(playerId, nextPos, { positions, activeShields: [], activeTraps: [] } as any, playerPaths, playerCount);
+            score += captures.length * 100;
         }
 
         // Distance to finish (Higher is better, small incremental points)

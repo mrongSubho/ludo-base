@@ -1,14 +1,9 @@
 // Pure deterministic Ludo game logic
 import { GameState } from '../hooks/MultiplayerContext';
 
-export interface Point {
-    r: number;
-    c: number;
-}
+import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
-
-export const SAFE_POSITIONS = [0, 8, 13, 21, 26, 34, 39, 47];
 
 export function getNextPlayer(current: PlayerColor, playerCount: string): PlayerColor {
     const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
@@ -27,9 +22,14 @@ export function getNextPlayer(current: PlayerColor, playerCount: string): Player
     return order[(idx + 1) % 4];
 }
 
-export function getTeam(color: PlayerColor): number {
-    if (color === 'green' || color === 'yellow') return 1;
-    return 2;
+export function getTeam(color: PlayerColor, playerCount: string = '4P'): number {
+    if (playerCount === '2v2') {
+        if (color === 'green' || color === 'yellow') return 1;
+        return 2;
+    }
+    // In 4P FFA or 1v1, everyone is on their own team
+    const map: Record<PlayerColor, number> = { green: 1, red: 2, yellow: 3, blue: 4 };
+    return map[color];
 }
 
 export function calculateNextPosition(currentPos: number, steps: number): number {
@@ -41,40 +41,74 @@ export function calculateNextPosition(currentPos: number, steps: number): number
     return nextPos;
 }
 
-export function checkCapture(
+export function getTeamForceAtPoint(
+    team: number,
+    point: Point,
+    state: GameState,
+    playerPaths: Record<string, Point[]>,
+    playerCount: string = '4P'
+): number {
+    let force = 0;
+    for (const [color, positions] of Object.entries(state.positions)) {
+        if (getTeam(color as PlayerColor, playerCount) !== team) continue;
+        positions.forEach(pos => {
+            if (pos >= 0 && pos < 52) {
+                const pt = playerPaths[color][pos];
+                if (pt.r === point.r && pt.c === point.c) {
+                    force++;
+                }
+            }
+        });
+    }
+    return force;
+}
+
+export function checkMultiCapture(
     color: PlayerColor,
     nextPos: number,
     state: GameState,
-    playerPaths: Record<string, Point[]>
-): { capturedColor: PlayerColor; capturedIdx: number } | null {
-    if (nextPos < 0 || nextPos >= 52) return null;
+    playerPaths: Record<string, Point[]>,
+    playerCount: string = '4P'
+): { capturedColor: PlayerColor; capturedIdx: number }[] {
+    if (nextPos < 0 || nextPos >= 52) return [];
 
     const targetPoint = playerPaths[color][nextPos];
-    const isSafeSquare = SAFE_POSITIONS.includes(nextPos);
-    if (isSafeSquare) return null;
+    const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+    if (isSafeSquare) return [];
+
+    const actingTeam = getTeam(color, playerCount);
+    // Force AFTER move. 
+    // Wait, the state passed to checkMultiCapture is the state BEFORE the move.
+    // So we add 1 to the acting team's force.
+    const actingForce = getTeamForceAtPoint(actingTeam, targetPoint, state, playerPaths) + 1;
+    const captured: { capturedColor: PlayerColor; capturedIdx: number }[] = [];
 
     for (const [otherColor, positions] of Object.entries(state.positions)) {
-        if (otherColor === color) continue;
+        const otherColorTyped = otherColor as PlayerColor;
+        const otherTeam = getTeam(otherColorTyped, playerCount);
+        if (otherTeam === actingTeam) continue;
 
-        // In 2v2, don't capture teammate
-        if (getTeam(color) === getTeam(otherColor as PlayerColor)) continue;
+        const otherForce = getTeamForceAtPoint(otherTeam, targetPoint, state, playerPaths);
 
-        for (let i = 0; i < positions.length; i++) {
-            const otherPos = positions[i];
-            if (otherPos >= 0 && otherPos < 52) {
-                const otherPoint = playerPaths[otherColor][otherPos];
-                if (otherPoint.r === targetPoint.r && otherPoint.c === targetPoint.c) {
-                    // Check for Shield
-                    const hasShield = state.activeShields.some(s => s.color === otherColor && s.tokenIdx === i);
-                    if (hasShield) return null;
-
-                    return { capturedColor: otherColor as PlayerColor, capturedIdx: i };
+        // TRUCE Logic: Capture only if actingForce >= otherForce
+        if (otherForce > 0 && actingForce >= otherForce) {
+            // Check which tokens of this other color are at that point
+            positions.forEach((pos, i) => {
+                if (pos >= 0 && pos < 52) {
+                    const pt = playerPaths[otherColor][pos];
+                    if (pt.r === targetPoint.r && pt.c === targetPoint.c) {
+                        // Check for Shield
+                        const hasShield = state.activeShields.some(s => s.color === otherColor && s.tokenIdx === i);
+                        if (!hasShield) {
+                            captured.push({ capturedColor: otherColorTyped, capturedIdx: i });
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 
-    return null;
+    return captured;
 }
 
 export interface MoveResult {
@@ -122,10 +156,12 @@ export function processMove(
     }
 
     // Check Captures
-    const capture = checkCapture(color, nextPos, state, playerPaths);
-    if (capture) {
-        newPositions[capture.capturedColor] = [...newPositions[capture.capturedColor]];
-        newPositions[capture.capturedColor][capture.capturedIdx] = -1;
+    const captures = checkMultiCapture(color, nextPos, state, playerPaths, playerCount);
+    if (captures.length > 0) {
+        captures.forEach(c => {
+            newPositions[c.capturedColor] = [...newPositions[c.capturedColor]];
+            newPositions[c.capturedColor][c.capturedIdx] = -1;
+        });
         captured = true;
     }
 
@@ -169,4 +205,14 @@ export function processMove(
         captured,
         bonusRoll
     };
+}
+
+export function handleThreeSixes(
+    currentSixes: number,
+    roll: number
+): { isThreeSixes: boolean; nextSixes: number } {
+    if (roll !== 6) return { isThreeSixes: false, nextSixes: 0 };
+    const nextSixes = currentSixes + 1;
+    if (nextSixes === 3) return { isThreeSixes: true, nextSixes: 0 };
+    return { isThreeSixes: false, nextSixes };
 }

@@ -7,7 +7,7 @@ import { PlayerColor } from '@/hooks/MultiplayerContext';
 import {
     Corner, ColorCorner, CORNER_SLOTS, Point,
     shuffleColorCorner, buildPlayerPaths,
-    buildPathCellsDynamic
+    buildPathCellsDynamic, getGridCellInfo
 } from '@/lib/boardLayout';
 import { Player, PowerType, useGameEngine } from '@/hooks/useGameEngine';
 
@@ -157,22 +157,35 @@ function HomeBlock({
 function Token({
     color,
     onClick,
-    isDraggable
+    isDraggable,
+    count = 1,
+    isBlockade = false
 }: {
     color: string;
     onClick?: () => void;
     isDraggable?: boolean;
+    count?: number;
+    isBlockade?: boolean;
 }) {
     return (
         <motion.div
             layout
             initial={false}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className={`ludo-token ${color}-token ${isDraggable ? 'draggable' : ''}`}
+            className={`ludo-token ${color}-token ${isDraggable ? 'draggable' : ''} ${isBlockade ? 'token-blockade' : ''}`}
             onClick={onClick}
             whileHover={isDraggable ? { scale: 1.15, y: -4 } : { scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-        />
+        >
+            {count > 1 && (
+                <div className="token-count-badge">
+                    {count}
+                </div>
+            )}
+            {isBlockade && (
+                <div className="blockade-glow" />
+            )}
+        </motion.div>
     );
 }
 
@@ -296,53 +309,93 @@ export default function Board({
 
 
 
-    const [boardTheme, setBoardTheme] = useState('default');
-    useEffect(() => {
-        const savedTheme = localStorage.getItem('ludo-theme');
-        if (savedTheme) {
-            setBoardTheme(savedTheme);
-        }
-    }, []);
+    const [boardTheme] = useState('default');
+    // Theme switching is disabled visually as per user request
 
     const renderTokensOnPath = () => {
-        const tokens: React.ReactNode[] = [];
+        const coordGroups: Record<string, Record<PlayerColor, number[]>> = {};
+        const pointMap: Record<string, Point> = {};
 
         (['green', 'red', 'blue', 'yellow'] as const).forEach((color) => {
             if (!players.some(p => p.color === color)) return;
-            localGameState.positions[color].forEach((pos: number, idx: number) => {
-                if (pos >= 0 && pos < 58) { // Up to 57
+            localGameState.positions[color].forEach((pos, idx) => {
+                if (pos >= 0 && pos < 57) {
                     const point = playerPaths[color][pos];
                     if (!point) return;
-
-                    tokens.push(
-                        <motion.div
-                            key={`${color}-${idx}`}
-                            layout
-                            className="token-on-grid"
-                            style={{
-                                gridRow: point.r,
-                                gridColumn: point.c,
-                                zIndex: localGameState.currentPlayer === color ? 15 : 10
-                            }}
-                            initial={false}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        >
-                            <Token
-                                color={color}
-                                onClick={() => handleTokenClick(color, idx)}
-                                isDraggable={localGameState.currentPlayer === color && localGameState.gamePhase === 'moving'}
-                            />
-                        </motion.div>
-                    );
+                    const coordKey = `${point.r}-${point.c}`;
+                    if (!coordGroups[coordKey]) {
+                        coordGroups[coordKey] = { green: [], red: [], yellow: [], blue: [] };
+                        pointMap[coordKey] = point;
+                    }
+                    coordGroups[coordKey][color].push(idx);
                 }
             });
         });
 
-        return tokens;
+        return Object.entries(coordGroups).map(([coordKey, colorSets]) => {
+            const point = pointMap[coordKey];
+            const activeColors = (Object.entries(colorSets) as [PlayerColor, number[]][])
+                .filter(([, tokens]) => tokens.length > 0);
+
+            return (
+                <div
+                    key={coordKey}
+                    className="token-group-on-grid"
+                    style={{
+                        gridRow: point.r,
+                        gridColumn: point.c,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyItems: 'center',
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative'
+                    }}
+                >
+                    {activeColors.map(([color, tokens], colorIdx) => {
+                        const isMyTurn = localGameState.currentPlayer === color;
+                        const isDraggable = isMyTurn && localGameState.gamePhase === 'moving';
+                        const count = tokens.length;
+                        const isBlockade = count >= 2;
+
+                        // If multiple colors, offset them significantly for 'Truce State' visibility
+                        const offsetStyle = activeColors.length > 1 ? {
+                            transform: `scale(0.85) translate(${colorIdx * 10 - (activeColors.length - 1) * 5}px, ${colorIdx * 5 - (activeColors.length - 1) * 2.5}px)`,
+                            zIndex: isMyTurn ? 30 : 10 + colorIdx,
+                            position: 'absolute' as const
+                        } : {
+                            zIndex: isMyTurn ? 15 : 10
+                        };
+
+                        return (
+                            <motion.div
+                                key={`${coordKey}-${color}`}
+                                layout
+                                initial={false}
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                style={{ ...offsetStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                                <Token
+                                    color={color}
+                                    count={count}
+                                    isBlockade={isBlockade}
+                                    isDraggable={isDraggable}
+                                    onClick={() => {
+                                        if (isDraggable) {
+                                            handleTokenClick(color, tokens[0]);
+                                        }
+                                    }}
+                                />
+                            </motion.div>
+                        );
+                    })}
+                </div>
+            );
+        });
     };
 
     return (
-        <div data-theme={boardTheme} className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
+        <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
             {/* ── Top Player Row (Opponent: Yellow & Blue) ── */}
             <div className="player-row player-row-top">
                 {(['top-left', 'top-right'] as const).map((pos) => {
@@ -445,6 +498,7 @@ export default function Board({
 
                     {/* ── Path Squares ── */}
                     {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
+                        const cellInfo = getGridCellInfo(row, col, colorCorner);
                         const isPower = localGameState.powerTiles.some((pt: { r: number, c: number }) => pt.r === row && pt.c === col);
                         const trap = localGameState.activeTraps.find((t: { r: number, c: number }) => t.r === row && t.c === col);
 
@@ -454,7 +508,7 @@ export default function Board({
                                 className={`${cls} ${isPower ? 'power-cell' : ''}`}
                                 style={{ gridRow: row, gridColumn: col }}
                             >
-                                {cls.includes('star-cell') && <StarMarker />}
+                                {cellInfo.type === 'safe' && <StarMarker />}
                                 {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                                 {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
                                 {/* Directional arrow at home lane entries — dynamic per colorCorner */}

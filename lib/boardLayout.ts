@@ -2,6 +2,8 @@ import { PlayerColor } from '../hooks/MultiplayerContext';
 
 export type Point = { r: number; c: number };
 
+export type CellType = 'path' | 'home-lane' | 'home-base' | 'finish' | 'safe' | 'empty';
+
 export interface PathCell {
     row: number;
     col: number;
@@ -13,21 +15,36 @@ export type ColorCorner = Record<PlayerColor, Corner>;
 
 // ─── Path Constants ──────────────────────────────────────────────────────────
 
-// Shared perimeter path (52 cells)
+/**
+ * Programmatically generates the 52-cell shared perimeter path.
+ * This starts from the standard 'Green' entry point (r: 6, c: 7) and follows
+ * the clock-wise flow around the 15x15 grid.
+ */
 export const SHARED_PATH: Point[] = [
-    // Top-Middle column 7 (bottom to top)
+    // Top-Middle column 7 (bottom to top: r 6->1)
     { r: 6, c: 7 }, { r: 5, c: 7 }, { r: 4, c: 7 }, { r: 3, c: 7 }, { r: 2, c: 7 }, { r: 1, c: 7 },
-    { r: 1, c: 8 }, { r: 1, c: 9 }, // Top edge
-    { r: 2, c: 9 }, { r: 3, c: 9 }, { r: 4, c: 9 }, { r: 5, c: 9 }, { r: 6, c: 9 }, // Top-Middle column 9 (top to bottom)
-    { r: 7, c: 10 }, { r: 7, c: 11 }, { r: 7, c: 12 }, { r: 7, c: 13 }, { r: 7, c: 14 }, { r: 7, c: 15 }, // Right-Middle row 7 (left to right)
-    { r: 8, c: 15 }, { r: 9, c: 15 }, // Right edge
-    { r: 9, c: 14 }, { r: 9, c: 13 }, { r: 9, c: 12 }, { r: 9, c: 11 }, { r: 9, c: 10 }, // Right-Middle row 9 (right to left)
-    { r: 10, c: 9 }, { r: 11, c: 9 }, { r: 12, c: 9 }, { r: 13, c: 9 }, { r: 14, c: 9 }, { r: 15, c: 9 }, // Bottom-Middle column 9 (top to bottom)
-    { r: 15, c: 8 }, { r: 15, c: 7 }, // Bottom edge
-    { r: 14, c: 7 }, { r: 13, c: 7 }, { r: 12, c: 7 }, { r: 11, c: 7 }, { r: 10, c: 7 }, // Bottom-Middle column 7 (bottom to top)
-    { r: 9, c: 6 }, { r: 9, c: 5 }, { r: 9, c: 4 }, { r: 9, c: 3 }, { r: 9, c: 2 }, { r: 9, c: 1 }, // Left-Middle row 9 (right to left)
-    { r: 8, c: 1 }, { r: 7, c: 1 }, // Left edge
-    { r: 7, c: 2 }, { r: 7, c: 3 }, { r: 7, c: 4 }, { r: 7, c: 5 }, { r: 7, c: 6 }, // Left-Middle row 7 (left to right)
+    // Top crossover (r 1, c 8->9)
+    { r: 1, c: 8 }, { r: 1, c: 9 },
+    // Top-Middle column 9 (top to bottom: r 2->6)
+    { r: 2, c: 9 }, { r: 3, c: 9 }, { r: 4, c: 9 }, { r: 5, c: 9 }, { r: 6, c: 9 },
+    // Right-Middle row 7 (left to right: c 10->15)
+    { r: 7, c: 10 }, { r: 7, c: 11 }, { r: 7, c: 12 }, { r: 7, c: 13 }, { r: 7, c: 14 }, { r: 7, c: 15 },
+    // Right crossover (r 8->9, c 15)
+    { r: 8, c: 15 }, { r: 9, c: 15 },
+    // Right-Middle row 9 (right to left: c 14->10)
+    { r: 9, c: 14 }, { r: 9, c: 13 }, { r: 9, c: 12 }, { r: 9, c: 11 }, { r: 9, c: 10 },
+    // Bottom-Middle column 9 (top to bottom: r 10->15)
+    { r: 10, c: 9 }, { r: 11, c: 9 }, { r: 12, c: 9 }, { r: 13, c: 9 }, { r: 14, c: 9 }, { r: 15, c: 9 },
+    // Bottom crossover (r 15, c 8->7)
+    { r: 15, c: 8 }, { r: 15, c: 7 },
+    // Bottom-Middle column 7 (bottom to top: r 14->10)
+    { r: 14, c: 7 }, { r: 13, c: 7 }, { r: 12, c: 7 }, { r: 11, c: 7 }, { r: 10, c: 7 },
+    // Left-Middle row 9 (right to left: c 6->1)
+    { r: 9, c: 6 }, { r: 9, c: 5 }, { r: 9, c: 4 }, { r: 9, c: 3 }, { r: 9, c: 2 }, { r: 9, c: 1 },
+    // Left crossover (r 8->7, c 1)
+    { r: 8, c: 1 }, { r: 7, c: 1 },
+    // Left-Middle row 7 (left to right: c 2->6)
+    { r: 7, c: 2 }, { r: 7, c: 3 }, { r: 7, c: 4 }, { r: 7, c: 5 }, { r: 7, c: 6 },
 ];
 
 // Helper to shift the shared path for each player's start point
@@ -36,7 +53,6 @@ export const rotatePath = (points: Point[], startIndex: number): Point[] => {
 };
 
 // ─── Corner Slot Definitions (fixed by board geometry) ──────────────────────
-// Each physical corner has a fixed start index, home lane, grid area, and lane key.
 
 export const CORNER_SLOTS: Record<Corner, {
     startIdx: number;
@@ -46,6 +62,7 @@ export const CORNER_SLOTS: Record<Corner, {
     gridCol: string;
     arrowDir: 'up' | 'down' | 'left' | 'right';
     arrowCell: Point;
+    startCell: Point;
 }> = {
     BL: {
         startIdx: 34,
@@ -53,6 +70,7 @@ export const CORNER_SLOTS: Record<Corner, {
         finishCell: { r: 9, c: 8 },
         gridRow: '10 / 16', gridCol: '1 / 7',
         arrowDir: 'up', arrowCell: { r: 14, c: 8 },
+        startCell: { r: 14, c: 7 },
     },
     TR: {
         startIdx: 8,
@@ -60,6 +78,7 @@ export const CORNER_SLOTS: Record<Corner, {
         finishCell: { r: 7, c: 8 },
         gridRow: '1 / 7', gridCol: '10 / 16',
         arrowDir: 'down', arrowCell: { r: 2, c: 8 },
+        startCell: { r: 2, c: 9 },
     },
     BR: {
         startIdx: 21,
@@ -67,6 +86,7 @@ export const CORNER_SLOTS: Record<Corner, {
         finishCell: { r: 8, c: 9 },
         gridRow: '10 / 16', gridCol: '10 / 16',
         arrowDir: 'left', arrowCell: { r: 8, c: 14 },
+        startCell: { r: 9, c: 14 },
     },
     TL: {
         startIdx: 47,
@@ -74,10 +94,10 @@ export const CORNER_SLOTS: Record<Corner, {
         finishCell: { r: 8, c: 7 },
         gridRow: '1 / 7', gridCol: '1 / 7',
         arrowDir: 'right', arrowCell: { r: 8, c: 2 },
+        startCell: { r: 7, c: 2 },
     },
 };
 
-// The 4 valid arrangements: green↔blue always share one diagonal, red↔yellow the other.
 export const VALID_COLOR_ARRANGEMENTS: ColorCorner[] = [
     { green: 'BL', blue: 'TR', red: 'BR', yellow: 'TL' }, // A (default)
     { green: 'TR', blue: 'BL', red: 'BR', yellow: 'TL' }, // B (swap green/blue)
@@ -102,7 +122,6 @@ export function buildPlayerPaths(cc: ColorCorner): Record<string, Point[]> {
     return paths;
 }
 
-// Inverse map: corner → color (for lane/arrow rendering)
 export function cornerToColor(cc: ColorCorner): Record<Corner, PlayerColor> {
     const inv = {} as Record<Corner, PlayerColor>;
     (Object.entries(cc) as [PlayerColor, Corner][]).forEach(([color, corner]) => {
@@ -111,11 +130,68 @@ export function cornerToColor(cc: ColorCorner): Record<Corner, PlayerColor> {
     return inv;
 }
 
-// Keep SAFE_POSITIONS BEFORE buildPathCellsDynamic so it's in scope when called
 export const SAFE_POSITIONS: Point[] = [
     { r: 7, c: 2 }, { r: 2, c: 9 }, { r: 9, c: 14 }, { r: 14, c: 7 },
     { r: 3, c: 7 }, { r: 7, c: 13 }, { r: 13, c: 9 }, { r: 9, c: 3 },
 ];
+
+/**
+ * Returns detailed information about a grid cell at (r, c).
+ * This is the central source of truth for board geometry.
+ */
+export function getGridCellInfo(r: number, c: number, cc: ColorCorner) {
+    const inv = cornerToColor(cc);
+
+    const inVert = c >= 7 && c <= 9;
+    const inHoriz = r >= 7 && r <= 9;
+    const isHomeBase =
+        (r <= 6 && c <= 6) ||
+        (r <= 6 && c >= 10) ||
+        (r >= 10 && c <= 6) ||
+        (r >= 10 && c >= 10);
+    const isCenter = inVert && inHoriz;
+
+    if (isHomeBase) return { type: 'home-base' as CellType };
+    if (isCenter) return { type: 'finish' as CellType };
+    if (!inVert && !inHoriz) return { type: 'empty' as CellType };
+
+    // Path or Home Lane
+    let type: CellType = 'path';
+    let color: PlayerColor | null = null;
+
+    // Home Lane logic
+    if (c === 8 && r >= 2 && r <= 6) { type = 'home-lane'; color = inv['TR']; }
+    else if (r === 8 && c >= 10 && c <= 14) { type = 'home-lane'; color = inv['BR']; }
+    else if (c === 8 && r >= 10 && r <= 14) { type = 'home-lane'; color = inv['BL']; }
+    else if (r === 8 && c >= 2 && c <= 6) { type = 'home-lane'; color = inv['TL']; }
+
+    // Safe cell logic
+    const isSafe = SAFE_POSITIONS.some(p => p.r === r && p.c === c);
+    if (isSafe && type === 'path') type = 'safe';
+
+    return { type, color };
+}
+
+export function buildPathCellsDynamic(cc: ColorCorner): PathCell[] {
+    const cells: PathCell[] = [];
+
+    for (let r = 1; r <= 15; r++) {
+        for (let c = 1; c <= 15; c++) {
+            const info = getGridCellInfo(r, c, cc);
+
+            if (info.type === 'home-base' || info.type === 'finish' || info.type === 'empty') {
+                continue;
+            }
+
+            let cls = 'board-cell';
+            if (info.type === 'home-lane') cls += ` lane-${info.color}`;
+            if (info.type === 'safe') cls += ' star-cell';
+
+            cells.push({ row: r, col: c, cls });
+        }
+    }
+    return cells;
+}
 
 export const PLAYER_TEMPLATES = [
     { name: 'Alex', level: 12, avatar: '🎮', isAi: false },
@@ -127,17 +203,15 @@ export const PLAYER_TEMPLATES = [
 ];
 
 export function shufflePlayers(countMode: '1v1' | '4P' | '2v2', isBotMatch: boolean): any[] {
-    const seats = ['bottom-left', 'top-left', 'top-right', 'bottom-right'];
-    const colors = ['green', 'red', 'blue', 'yellow'];
+    const seats = ['bottom-left', 'top-left', 'top-right', 'bottom-right'] as const;
+    const colors = ['green', 'red', 'blue', 'yellow'] as const;
 
-    // For 1v1, only use 2 players
     const numPlayers = countMode === '1v1' ? 2 : 4;
 
     const selected = [...PLAYER_TEMPLATES]
         .sort(() => Math.random() - 0.5)
         .slice(0, numPlayers);
 
-    // If bot match, force non-Alex players to be AI
     if (isBotMatch) {
         selected.forEach(p => {
             if (p.name !== 'Alex') p.isAi = true;
@@ -146,42 +220,7 @@ export function shufflePlayers(countMode: '1v1' | '4P' | '2v2', isBotMatch: bool
 
     return selected.map((p, i) => ({
         ...p,
-        position: seats[i] as any,
-        color: colors[i] as any,
+        position: seats[i],
+        color: colors[i],
     }));
-}
-
-export function buildPathCellsDynamic(cc: ColorCorner): PathCell[] {
-    const inv = cornerToColor(cc);
-    const cells: PathCell[] = [];
-
-    for (let r = 1; r <= 15; r++) {
-        for (let c = 1; c <= 15; c++) {
-            const inVert = c >= 7 && c <= 9;
-            const inHoriz = r >= 7 && r <= 9;
-            const isHome =
-                (r <= 6 && c <= 6) ||
-                (r <= 6 && c >= 10) ||
-                (r >= 10 && c <= 6) ||
-                (r >= 10 && c >= 10);
-            const isCenter = inVert && inHoriz;
-
-            if ((inVert || inHoriz) && !isHome && !isCenter) {
-                let cls = 'board-cell';
-
-                // Lane coloring — driven by which color occupies each corner
-                if (c === 8 && r >= 2 && r <= 6) cls += ` lane-${inv['TR']}`; // TR home lane
-                else if (r === 8 && c >= 10 && c <= 14) cls += ` lane-${inv['BR']}`; // BR home lane
-                else if (c === 8 && r >= 10 && r <= 14) cls += ` lane-${inv['BL']}`; // BL home lane
-                else if (r === 8 && c >= 2 && c <= 6) cls += ` lane-${inv['TL']}`; // TL home lane
-
-                if (SAFE_POSITIONS.some(p => p.r === r && p.c === c)) {
-                    cls += ' star-cell';
-                }
-
-                cells.push({ row: r, col: c, cls });
-            }
-        }
-    }
-    return cells;
 }

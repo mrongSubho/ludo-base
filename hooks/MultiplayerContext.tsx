@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { useAccount } from 'wagmi';
+import { handleThreeSixes, getNextPlayer } from '@/lib/gameLogic';
 
 // --- Types ---
 export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME';
@@ -24,12 +25,14 @@ export interface GameState {
     status: 'waiting' | 'playing' | 'finished';
     winner: string | null;
     winners: string[];
+    captureMessage: string | null;
     timeLeft: number;
     strikes: Record<PlayerColor, number>;
     powerTiles: { r: number, c: number }[];
     playerPowers: Record<PlayerColor, PowerType | null>;
     activeTraps: { r: number, c: number, owner: PlayerColor }[];
     activeShields: { color: PlayerColor, tokenIdx: number }[];
+    consecutiveSixes: number;
     isStarted: boolean;
     lastUpdate: number;
 }
@@ -66,12 +69,14 @@ const INITIAL_GAME_STATE: GameState = {
     status: 'waiting',
     winner: null,
     winners: [],
+    captureMessage: null,
     timeLeft: 15,
     strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
     powerTiles: [],
     playerPowers: { green: null, red: null, yellow: null, blue: null },
     activeTraps: [],
     activeShields: [],
+    consecutiveSixes: 0,
     isStarted: false,
     lastUpdate: Date.now()
 };
@@ -152,11 +157,27 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
 
                 // Host handles Intents from Guest
                 if (data.type === 'REQUEST_ROLL') {
-                    // Host-as-Authority: Roll the dice and broadcast the result
                     const roll = Math.floor(Math.random() * 6) + 1;
-                    const updated = { ...gameState, diceValue: roll, isRolling: false };
-                    setGameState(updated as any);
-                    broadcastAction('ROLL_DICE', { value: roll });
+                    const { isThreeSixes, nextSixes } = handleThreeSixes(gameState.consecutiveSixes, roll);
+
+                    if (isThreeSixes) {
+                        const nextPlayer = getNextPlayer(gameState.currentPlayer, '4P');
+                        const updated = {
+                            ...gameState,
+                            diceValue: roll,
+                            consecutiveSixes: 0,
+                            gamePhase: 'rolling' as const,
+                            currentPlayer: nextPlayer,
+                            captureMessage: 'Three 6s! Turn passed.'
+                        };
+                        setGameState(updated);
+                        broadcastAction('ROLL_DICE', { value: roll });
+                        broadcastAction('TURN_SWITCH', { nextPlayer });
+                    } else {
+                        const updated = { ...gameState, diceValue: roll, consecutiveSixes: nextSixes };
+                        setGameState(updated);
+                        broadcastAction('ROLL_DICE', { value: roll });
+                    }
                 } else if (data.type === 'REQUEST_MOVE') {
                     // Phase 2 will handle logic, for now we just acknowledge
                     broadcastAction('MOVE_TOKEN', data.payload);

@@ -80,6 +80,7 @@ export function useGameEngine({
         activeTraps: [] as { r: number, c: number, owner: PlayerColor }[],
         activeShields: [] as { color: PlayerColor, tokenIdx: number }[],
         activeBoost: null as PlayerColor | null,
+        consecutiveSixes: 0,
         multiplayer: {
             targetId: '',
             isConnected: false,
@@ -96,6 +97,7 @@ export function useGameEngine({
                 ...networkGameState,
                 winner: networkGameState.winner as any,
                 winners: networkGameState.winners as any,
+                captureMessage: networkGameState.captureMessage || prev.captureMessage,
                 positions: networkGameState.positions || prev.positions
             }));
         }
@@ -144,6 +146,7 @@ export function useGameEngine({
             activeTraps: [],
             activeShields: [],
             activeBoost: null,
+            consecutiveSixes: 0,
             multiplayer: { targetId: '', isConnected: false, isHost: false, status: 'idle' }
         });
     }, [playerCount, gameMode, pathCells, isBotMatch, setColorLayout, setPlayers]);
@@ -228,6 +231,7 @@ export function useGameEngine({
                 ...newState,
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
                 strikes: { ...prev.strikes, [color]: 0 },
+                consecutiveSixes: (newState.currentPlayer !== color) ? 0 : prev.consecutiveSixes,
             };
         });
     }, [isHost, broadcastAction, playerPaths, playerCount, playMove, playCapture, playWin, triggerWinConfetti, recordWin]);
@@ -260,6 +264,26 @@ export function useGameEngine({
 
         setLocalGameState((prev) => {
             const color = prev.currentPlayer;
+            const isThreeSixes = roll === 6 && prev.consecutiveSixes === 2;
+
+            if (isThreeSixes) {
+                const nextPlayer = getNextPlayer(color);
+                const nextState = {
+                    ...prev,
+                    diceValue: roll,
+                    consecutiveSixes: 0,
+                    gamePhase: 'rolling' as const,
+                    currentPlayer: nextPlayer,
+                    captureMessage: "Three 6s! Turn passed.",
+                    timeLeft: 15
+                };
+                if (isHost) {
+                    broadcastAction('ROLL_DICE', { value: roll });
+                    broadcastAction('TURN_SWITCH', { nextPlayer });
+                }
+                return nextState;
+            }
+
             let hasValidMove = false;
             prev.positions[color].forEach((pos) => {
                 const nextPos = pos === -1 ? (roll === 6 ? 0 : -1) : pos + roll;
@@ -277,6 +301,7 @@ export function useGameEngine({
                         gamePhase: 'rolling',
                         currentPlayer: nextPlayer,
                         diceValue: null,
+                        consecutiveSixes: 0,
                         timeLeft: 15
                     }));
                 }, 1000);
@@ -285,6 +310,7 @@ export function useGameEngine({
             return {
                 ...prev,
                 diceValue: roll,
+                consecutiveSixes: roll === 6 ? prev.consecutiveSixes + 1 : 0,
                 gamePhase: hasValidMove ? 'moving' : 'rolling',
                 timeLeft: 15,
             };
@@ -332,7 +358,7 @@ export function useGameEngine({
                     const forcedRoll = Math.floor(Math.random() * 6) + 1;
                     handleRoll(forcedRoll);
                 } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
-                    const bestMoveIdx = getBestMove(localGameState.positions, localGameState.currentPlayer, localGameState.diceValue, playerPaths);
+                    const bestMoveIdx = getBestMove(localGameState.positions, localGameState.currentPlayer, localGameState.diceValue, playerPaths, playerCount);
                     if (bestMoveIdx === null) {
                         setLocalGameState(s => ({
                             ...s,
@@ -388,7 +414,7 @@ export function useGameEngine({
                 const timer = setTimeout(() => {
                     const color = localGameState.currentPlayer;
                     const diceValue = localGameState.diceValue!;
-                    const bestModeIdx = getBestMove(localGameState.positions, color, diceValue, playerPaths);
+                    const bestModeIdx = getBestMove(localGameState.positions, color, diceValue, playerPaths, playerCount);
 
                     if (bestModeIdx === null) {
                         setLocalGameState(s => ({
