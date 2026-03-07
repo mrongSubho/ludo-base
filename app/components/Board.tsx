@@ -144,8 +144,16 @@ function HomeBlock({
                 ))}
             </div>
             {player && (
-                <div className="home-player-label">
-                    {player.name.slice(0, 12)}
+                <div
+                    className={`home-player-label ${player.name.toLowerCase().includes('alex') ? 'label-alex' :
+                        player.name.toLowerCase().includes('gemini') ? 'label-gemini' : ''
+                        }`}
+                    style={{
+                        ...(player.name.toLowerCase().includes('alex') ? { bottom: '0px', top: 'auto' } : {}),
+                        ...(player.name.toLowerCase().includes('gemini') ? { top: '0px', bottom: 'auto' } : {}),
+                    }}
+                >
+                    {player.name}
                 </div>
             )}
         </div>
@@ -469,31 +477,83 @@ export default function Board({
                         );
                     })}
 
-                    {/* ── Center Finish Zone ── */}
+                    {/* ── Center Finish Zone — Dynamic Cosmic Overhaul ── */}
                     <div
                         className={`finish-center ${localGameState.invalidMove ? 'shake-feedback' : ''}`}
-                        style={{ gridRow: '7 / 10', gridColumn: '7 / 10' }}
+                        style={{
+                            gridRow: '7 / 10',
+                            gridColumn: '7 / 10',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            background: 'transparent', // Transparent to reveal cosmic overlay
+                            borderRadius: '4px'
+                        }}
                     >
-                        {(['green', 'red', 'blue', 'yellow'] as const).map((color) => {
-                            const isActive = players.some(p => p.color === color);
-                            const finishedCount = localGameState.positions[color].filter(p => p === 57).length;
-                            const triClass = {
-                                green: 'tri-bottom',
-                                red: 'tri-right',
-                                blue: 'tri-top',
-                                yellow: 'tri-left'
-                            }[color];
+                        {/* Cosmic Background Overlay (35% opacity) */}
+                        <div className="finish-center-cosmic" />
 
-                            return (
-                                <div key={color} className={`tri ${triClass}`} style={{ opacity: isActive ? 1 : 0.1 }}>
-                                    {finishedCount > 0 && isActive && (
-                                        <div className="finish-counter">
-                                            {finishedCount}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                        {/* Minimalist Glass Finish Badge with Dynamic Star */}
+                        <motion.div
+                            key={localGameState.currentPlayer}
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            style={{
+                                width: '45%',
+                                height: '45%',
+                                borderRadius: '50%',
+                                background: 'rgba(255, 255, 255, 0.25)',
+                                backdropFilter: 'blur(16px)',
+                                border: '2px solid rgba(255, 255, 255, 0.4)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+                                zIndex: 10,
+                                position: 'relative'
+                            }}
+                        >
+                            <motion.svg
+                                viewBox="0 0 24 24"
+                                className="star-rotate-anim"
+                                animate={{
+                                    fill: {
+                                        green: '#4CAF50',
+                                        red: '#F44336',
+                                        blue: '#2196F3',
+                                        yellow: '#FFEB3B'
+                                    }[localGameState.currentPlayer] || '#cbd5e1',
+                                    rotate: 360
+                                }}
+                                transition={{
+                                    fill: { duration: 0.5 },
+                                    rotate: { duration: 8, repeat: Infinity, ease: "linear" }
+                                }}
+                                style={{
+                                    width: '65%',
+                                    height: '65%',
+                                    filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.6))'
+                                }}
+                            >
+                                <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
+                            </motion.svg>
+                        </motion.div>
+
+                        {/* Pulsing ambient outer ring */}
+                        <motion.div
+                            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                            style={{
+                                position: 'absolute',
+                                width: '70%',
+                                height: '70%',
+                                borderRadius: '50%',
+                                border: '1px dashed rgba(255,255,255,0.2)',
+                                zIndex: 1
+                            }}
+                        />
                     </div>
 
                     {/* ── Path Squares ── */}

@@ -1073,49 +1073,40 @@ a {
 /* ─── Snakes Mode Colored Player Cards ─── */
 /* Removed frosted color tints per user feedback */
 
+/* 1. Name-Specific Edge Alignment */
+.label-alex {
+  bottom: -22px !important;
+  top: auto !important;
+}
+
+.label-gemini {
+  top: -22px !important;
+  bottom: auto !important;
+}
+
 .home-player-label {
   position: absolute;
-  background: rgba(0, 0, 0, 0.45);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 75%;
+  background: rgba(255, 255, 255, 0.15);
   color: white;
-  padding: 3px 8px;
-  border-radius: 10px;
+  padding: 4px;
+  border-radius: 12px;
   font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 5;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
+  /* High z-index to stay above everything */
   pointer-events: none;
-  letter-spacing: 0.3px;
-}
-
-/* Position labels at the outer edge of each corner */
-.board-home[data-corner='TL'] .home-player-label {
-  top: 6px;
-  left: 6px;
-  bottom: auto;
-  right: auto;
-}
-
-.board-home[data-corner='TR'] .home-player-label {
-  top: 6px;
-  right: 6px;
-  bottom: auto;
-  left: auto;
-}
-
-.board-home[data-corner='BL'] .home-player-label {
-  bottom: 6px;
-  left: 6px;
-  top: auto;
-  right: auto;
-}
-
-.board-home[data-corner='BR'] .home-player-label {
-  bottom: 6px;
-  right: 6px;
-  top: auto;
-  left: auto;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* ─── 2v2 Team Badges ─── */
@@ -1631,6 +1622,9 @@ a {
   border: none;
   border-radius: 0;
   box-shadow: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .board-grid {
@@ -1640,11 +1634,51 @@ a {
   aspect-ratio: 1;
   width: 100%;
   gap: 1px;
-  border-radius: 0;
-  /* Remove rounded corners for edge-to-edge */
-  overflow: hidden;
-  background: var(--color-ludo-border);
-  border: none;
+  border-radius: 24px;
+  background: rgba(44, 44, 52, 0.4);
+  /* Darker glass frame */
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  /* Sophisticated frame border */
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: visible !important;
+  /* Allow labels to overflow freely */
+}
+
+/* Ensure the background follows the rounding */
+.board-grid::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  /* Slight offset for frame depth */
+  border-radius: 26px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.finish-center-cosmic {
+  background: var(--ludo-bg-cosmic) !important;
+  background-size: 400% 400%;
+  opacity: 0.5 !important;
+  /* Increased for better visibility */
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+.star-rotate-anim {
+  animation: star-spin-anim 6s linear infinite !important;
+}
+
+@keyframes star-spin-anim {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Home Blocks — muted modern colors ── */
@@ -1656,6 +1690,23 @@ a {
   justify-content: center;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.1);
   /* Inner depth */
+}
+
+/* 4. Board Outer Corner Radius Update */
+.board-home[data-corner="TL"] {
+  border-top-left-radius: 20px;
+}
+
+.board-home[data-corner="TR"] {
+  border-top-right-radius: 20px;
+}
+
+.board-home[data-corner="BL"] {
+  border-bottom-left-radius: 20px;
+}
+
+.board-home[data-corner="BR"] {
+  border-bottom-right-radius: 20px;
 }
 
 .board-home.green {
@@ -1679,13 +1730,14 @@ a {
   height: 62%;
   flex-shrink: 0;
   aspect-ratio: 1;
-  background: var(--ludo-card);
+  background: #f3f4f6;
+  /* 3. Inner Token Base Area Color (Light Gray) */
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 14%;
   gap: 10%;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .token-dot {
@@ -1743,19 +1795,19 @@ a {
 
 /* ── Finish Lanes — translucent tints ── */
 .lane-green {
-  background: var(--ludo-fade-sage, color-mix(in srgb, var(--ludo-sage) 35%, transparent)) !important;
+  background: color-mix(in srgb, var(--ludo-sage) 90%, #f3f4f6) !important;
 }
 
 .lane-red {
-  background: var(--ludo-fade-rose, color-mix(in srgb, var(--ludo-rose) 35%, transparent)) !important;
+  background: color-mix(in srgb, var(--ludo-rose) 90%, #f3f4f6) !important;
 }
 
 .lane-blue {
-  background: var(--ludo-fade-sky, color-mix(in srgb, var(--ludo-sky) 35%, transparent)) !important;
+  background: color-mix(in srgb, var(--ludo-sky) 90%, #f3f4f6) !important;
 }
 
 .lane-yellow {
-  background: var(--ludo-fade-amber, color-mix(in srgb, var(--ludo-amber) 35%, transparent)) !important;
+  background: color-mix(in srgb, var(--ludo-amber) 90%, #f3f4f6) !important;
 }
 
 .board-cell.star-cell {
