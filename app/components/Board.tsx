@@ -538,36 +538,67 @@ export default function Board({
                             </motion.svg>
                         </motion.div>
 
-                        {/* Junction Timer Ring (Radial) - Unified Motion Sync */}
-                        <svg className="junction-timer-svg" viewBox="0 0 100 100">
-                            <circle
-                                className="junction-timer-track"
-                                cx="50" cy="50" r="46"
+                        {/* Junction Timer Ring - Premium Fade-Out implementation */}
+                        <div className="junction-timer-container">
+                            <div className="junction-timer-track-css" />
+                            <motion.div
+                                className="junction-timer-color-ring"
+                                style={{
+                                    background: `conic-gradient(
+                                        ${{
+                                            green: '#4CAF50',
+                                            red: '#F44336',
+                                            blue: '#2196F3',
+                                            yellow: '#FFEB3B'
+                                        }[localGameState.currentPlayer] || '#cbd5e1'} 0% 0%, 
+                                        ${{
+                                            green: '#4CAF50',
+                                            red: '#F44336',
+                                            blue: '#2196F3',
+                                            yellow: '#FFEB3B'
+                                        }[localGameState.currentPlayer] || '#cbd5e1'} ${(localGameState.timeLeft / 15) * 100}%, 
+                                        transparent ${((localGameState.timeLeft / 15) * 100) + 5}%
+                                    )`,
+                                    transform: 'rotate(-90deg)',
+                                    zIndex: 2
+                                }}
                             />
-                            <motion.circle
-                                className="junction-timer-progress"
-                                cx="50" cy="50" r="46"
+                            {/* Glowing Progress Point (The leading edge) */}
+                            <motion.div
+                                className="junction-timer-point"
                                 animate={{
-                                    strokeDashoffset: 289 - (289 * (localGameState.timeLeft / 15)),
-                                    stroke: {
+                                    rotate: ((localGameState.timeLeft / 15) * 360) - 90,
+                                    backgroundColor: {
                                         green: '#4CAF50',
                                         red: '#F44336',
                                         blue: '#2196F3',
                                         yellow: '#FFEB3B'
                                     }[localGameState.currentPlayer] || '#cbd5e1'
                                 }}
-                                transition={{
-                                    strokeDashoffset: { duration: 1, ease: "linear" },
-                                    stroke: { duration: 0.5 }
-                                }}
+                                transition={{ duration: 1, ease: "linear" }}
                                 style={{
-                                    strokeDasharray: 289,
-                                    transform: 'rotate(-90deg)',
-                                    transformOrigin: '50% 50%',
-                                    fill: 'none'
+                                    boxShadow: `0 0 15px ${{
+                                        green: '#4CAF50',
+                                        red: '#F44336',
+                                        blue: '#2196F3',
+                                        yellow: '#FFEB3B'
+                                    }[localGameState.currentPlayer] || '#cbd5e1'}`
                                 }}
-                            />
-                        </svg>
+                            >
+                                <div style={{
+                                    position: 'absolute',
+                                    right: '-4px', /* Aligns perfectly with the 84% ring edge */
+                                    top: '50%',
+                                    marginTop: '-4px',
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: 'inherit',
+                                    boxShadow: 'inherit',
+                                    zIndex: 10
+                                }} />
+                            </motion.div>
+                        </div>
 
                         {/* Pulsing ambient outer ring */}
                         <motion.div

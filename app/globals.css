@@ -1657,7 +1657,7 @@ a {
   z-index: -1;
 }
 
-.junction-timer-svg {
+.junction-timer-container {
   position: absolute;
   inset: 8%;
   /* Symmetrical fit within the 3x3 junction */
@@ -1668,21 +1668,47 @@ a {
   /* Layered below the main badge but above the cosmic background */
 }
 
-.junction-timer-track {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.08);
-  /* Subtle track */
-  stroke-width: 4;
-  /* Increased for outer frame presence */
+.junction-timer-track-css {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.08);
+  /* Replaces the SVG track */
 }
 
-.junction-timer-progress {
-  fill: none;
-  stroke-width: 4;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
-  /* Premium glow */
-  transition: stroke 0.4s ease;
+.junction-timer-color-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* Mask to create the ring shape */
+  mask-image: radial-gradient(transparent 58%, black 60%);
+  -webkit-mask-image: radial-gradient(transparent 58%, black 60%);
+  transition: background 0.5s ease;
+}
+
+.junction-timer-point {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* The actual dot on the rotating container */
+.junction-timer-point::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  /* Centers dot on the 4px stroke */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: inherit;
+  box-shadow: inherit;
 }
 
 /* ── Home Blocks — muted modern colors ── */
