@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
@@ -12,10 +12,8 @@ import {
 import { Player, PowerType, useGameEngine } from '@/hooks/useGameEngine';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
-// Diagonal-opposite pairs:  Green ↔ Blue  |  Red ↔ Yellow
-// Layout:  Green (top-left)  —  Red (top-right)
-//          Yellow (bottom-left) — Blue (bottom-right)
-
+// Layout:  Yellow (top-left) — Green (top-right)
+//          Blue (bottom-left) — Red (bottom-right)
 
 const PLAYER_TEMPLATES = [
     { name: 'Alex', level: 12, avatar: '🎮', isAi: false },
@@ -24,29 +22,21 @@ const PLAYER_TEMPLATES = [
     { name: 'Core', level: 10, avatar: '⚙️', isAi: true },
 ];
 
-// Fixed: color → corner position (diagonal pairs: green↔blue, red↔yellow)
 const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = [
-    { color: 'green', position: 'bottom-left' },
+    { color: 'green', position: 'top-right' },
     { color: 'red', position: 'bottom-right' },
     { color: 'yellow', position: 'top-left' },
-    { color: 'blue', position: 'top-right' },
+    { color: 'blue', position: 'bottom-left' },
 ];
 
 function shufflePlayers(playerCount: '1v1' | '4P' | '2v2' = '4P', isBotMatch: boolean = false): Player[] {
-    // In a 2-player game, we only want 2 diagonal colors. 
-    // Which 2? Either 'green'/'blue' or 'red'/'yellow'
-    const usePair1 = Math.random() > 0.5; // True: Green(0) & Blue(3), False: Red(1) & Yellow(2)
+    const usePair1 = Math.random() > 0.5;
     const activeIndices = playerCount === '1v1' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
 
-    // Separate human from bots
     const humanTemplate = PLAYER_TEMPLATES.find(p => !p.isAi)!;
     const botTemplates = PLAYER_TEMPLATES.filter(p => p.isAi);
 
     if (isBotMatch) {
-        // Enforce exact AI layout
-        // For 4P and 2v2: We have 4 slots. 1 Human + 3 Bots.
-        // For 1v1 (count '2'): We have 2 slots. 1 Human + 1 Bot.
-
         let assignedHuman = false;
         let botIndex = 0;
 
@@ -66,7 +56,6 @@ function shufflePlayers(playerCount: '1v1' | '4P' | '2v2' = '4P', isBotMatch: bo
         }).filter(Boolean) as Player[];
 
     } else {
-        // Normal multiplayer shuffle
         const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
         return COLOR_SEATS.map((seat, i) => {
             if (!activeIndices.includes(i)) return null;
@@ -78,8 +67,6 @@ function shufflePlayers(playerCount: '1v1' | '4P' | '2v2' = '4P', isBotMatch: bo
 const getTeam = (color: Player['color']) => {
     return (color === 'green' || color === 'blue') ? 1 : 2;
 };
-
-
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -122,7 +109,6 @@ function HomeBlock({
     onTokenClick: (tokenIndex: number) => void;
     playerCount?: '1v1' | '4P' | '2v2';
 }) {
-    const teamLetter = playerCount === '2v2' ? (getTeam(color) === 1 ? 'A' : 'B') : null;
     return (
         <div
             className={`board-home ${color}`}
@@ -154,8 +140,6 @@ function HomeBlock({
         </div>
     );
 }
-
-// ─── Token Component ──────────────────────────────────────────────────────────
 
 function Token({
     color,
@@ -192,8 +176,6 @@ function Token({
     );
 }
 
-// ─── Player Card ─────────────────────────────────────────────────────────────
-
 function PlayerCard({
     player,
     isActive,
@@ -219,7 +201,6 @@ function PlayerCard({
 
     return (
         <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
-            {/* Circular Avatar */}
             <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
                 {!player.isAi && (
                     <svg className="timer-ring" viewBox="0 0 52 52">
@@ -261,8 +242,6 @@ function PlayerCard({
     );
 }
 
-// ─── Main Board ──────────────────────────────────────────────────────────────
-
 export default function Board({
     showLeaderboard = false,
     onToggleLeaderboard,
@@ -279,7 +258,6 @@ export default function Board({
     onOpenProfile?: (address: string) => void;
 }) {
     const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount, isBotMatch));
-    // Single state for the color-corner mapping and derived paths (always in sync)
     const [colorLayout, setColorLayout] = useState<{
         colorCorner: ColorCorner;
         playerPaths: Record<string, Point[]>;
@@ -290,7 +268,6 @@ export default function Board({
     const { colorCorner, playerPaths } = colorLayout;
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
-    // Dynamic path cells re-computed whenever the color arrangement changes
     const pathCells = useMemo(() => buildPathCellsDynamic(colorCorner), [colorCorner]);
 
     const {
@@ -310,10 +287,39 @@ export default function Board({
         setColorLayout
     });
 
-
-
     const [boardTheme] = useState('default');
-    // Theme switching is disabled visually as per user request
+
+    // --- Smooth Junction Animation Logic ---
+    const smoothProgress = useMotionValue(localGameState.timeLeft / 15);
+    const prevPlayerRef = useRef(localGameState.currentPlayer);
+
+    useEffect(() => {
+        if (prevPlayerRef.current !== localGameState.currentPlayer) {
+            // New turn - jump to full progress instantly
+            smoothProgress.set(1);
+            prevPlayerRef.current = localGameState.currentPlayer;
+        }
+
+        // Animate the smoothProgress value to match the discrete timeLeft
+        animate(smoothProgress, localGameState.timeLeft / 15, {
+            duration: 1,
+            ease: "linear"
+        });
+    }, [localGameState.timeLeft, localGameState.currentPlayer, smoothProgress]);
+
+    // Derived transform for the background sweep (Inverse of progress)
+    // We want the wedge to grow clockwise from 12:00 (0deg)
+    const sweepProgress = useTransform(smoothProgress, [0, 1], [100, 0]);
+    // Derived rotation for the Progress Point (starts at -90deg for 12:00)
+    const pointRotation = useTransform(smoothProgress, [0, 1], [270, -90]);
+
+    // Derived color map for absolute synchronization
+    const activeColor = {
+        green: '#4CAF50',
+        red: '#F44336',
+        blue: '#2196F3',
+        yellow: '#FFEB3B'
+    }[localGameState.currentPlayer] || '#cbd5e1';
 
     const renderTokensOnPath = () => {
         const coordGroups: Record<string, Record<PlayerColor, number[]>> = {};
@@ -361,7 +367,6 @@ export default function Board({
                         const count = tokens.length;
                         const isBlockade = count >= 2;
 
-                        // If multiple colors, offset them significantly for 'Truce State' visibility
                         const offsetStyle = activeColors.length > 1 ? {
                             transform: `scale(0.85) translate(${colorIdx * 10 - (activeColors.length - 1) * 5}px, ${colorIdx * 5 - (activeColors.length - 1) * 2.5}px)`,
                             zIndex: isMyTurn ? 30 : 10 + colorIdx,
@@ -399,7 +404,7 @@ export default function Board({
 
     return (
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
-            {/* ── Top Player Row (Opponent: Yellow & Blue) ── */}
+            {/* ── Top Player Row  ── */}
             <div className="player-row player-row-top">
                 {(['top-left', 'top-right'] as const).map((pos) => {
                     const p = players.find(player => player.position === pos);
@@ -427,7 +432,6 @@ export default function Board({
                             {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
                                 <div className="ai-thinking-tag">Thinking...</div>
                             )}
-                            {/* Auto-play Mode Tag */}
                             {localGameState.currentPlayer === p.color && !p.isAi && (localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0) >= 3 && (
                                 <div className="ai-thinking-tag afk-tag">Auto-Play</div>
                             )}
@@ -472,7 +476,7 @@ export default function Board({
                         );
                     })}
 
-                    {/* ── Center Finish Zone — Dynamic Cosmic Overhaul ── */}
+                    {/* ── Center Finish Zone ── */}
                     <div
                         className={`finish-center ${localGameState.invalidMove ? 'shake-feedback' : ''}`}
                         style={{
@@ -482,16 +486,107 @@ export default function Board({
                             alignItems: 'center',
                             justifyContent: 'center',
                             position: 'relative',
-                            background: 'transparent', // Transparent to reveal cosmic overlay
-                            borderRadius: '4px'
+                            background: '#1a1a20',
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            // Define the active player color once as a CSS variable
+                            ['--active-player-color' as any]: {
+                                green: '#4CAF50',
+                                red: '#F44336',
+                                blue: '#2196F3',
+                                yellow: '#FFEB3B'
+                            }[localGameState.currentPlayer] || '#cbd5e1'
                         }}
+                        key={localGameState.currentPlayer}
                     >
-                        {/* Cosmic Background Overlay (35% opacity) */}
-                        <div className="finish-center-cosmic" />
+                        {/* 1. Cosmic Background Overlay */}
+                        <div className="finish-center-cosmic" style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '50%'
+                        }} />
 
-                        {/* Minimalist Glass Finish Badge with Dynamic Star */}
+                        {/* 2. Junction Background Fill (Erases clockwise from top) */}
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            pointerEvents: 'none',
+                            zIndex: 1
+                        }}>
+                            <motion.div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: useTransform(sweepProgress, (v) =>
+                                    `conic-gradient(transparent 0% ${v}%, ${activeColor} ${v}% 100%)`
+                                ),
+                                maskImage: 'radial-gradient(circle, transparent 42%, black 43%)',
+                                WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 43%)'
+                            }} />
+                            {/* Subtle darkening for depth */}
+                            <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'black',
+                                opacity: 0.1,
+                                maskImage: 'radial-gradient(circle, transparent 42%, black 43%)',
+                                WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 43%)'
+                            }}
+                            />
+                        </div>
+
+                        {/* 3. Timer Ring & Progress Point (84% diameter) */}
+                        <div className="junction-timer-container" style={{
+                            position: 'absolute',
+                            inset: '8%',
+                            width: '84%',
+                            height: '84%',
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%'
+                        }}>
+                            <div className="junction-timer-track-css" />
+                            <motion.div
+                                className="junction-timer-color-ring"
+                                style={{
+                                    background: useTransform(sweepProgress, (v) =>
+                                        `conic-gradient(${activeColor} 0% ${100 - v}%, transparent ${100 - v}% 100%)`
+                                    ),
+                                    zIndex: 2,
+                                    position: 'absolute',
+                                    inset: 0
+                                }}
+                            />
+                            {/* Glowing Progress Point */}
+                            <motion.div
+                                className="junction-timer-point"
+                                style={{
+                                    rotate: pointRotation,
+                                    position: 'absolute',
+                                    inset: 0,
+                                    zIndex: 10
+                                }}
+                            >
+                                <div style={{
+                                    position: 'absolute',
+                                    right: '-4px',
+                                    top: '50%',
+                                    marginTop: '-4px',
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    backgroundColor: activeColor,
+                                    boxShadow: `0 0 15px ${activeColor}`,
+                                }} />
+                            </motion.div>
+                        </div>
+
+                        {/* 4. Central Glass Badge with Rotating Star */}
                         <motion.div
-                            key={localGameState.currentPlayer}
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ type: 'spring', damping: 15, stiffness: 200 }}
@@ -499,13 +594,13 @@ export default function Board({
                                 width: '45%',
                                 height: '45%',
                                 borderRadius: '50%',
-                                background: 'rgba(255, 255, 255, 0.25)',
+                                background: 'rgba(255, 255, 255, 0.15)',
                                 backdropFilter: 'blur(16px)',
-                                border: '2px solid rgba(255, 255, 255, 0.4)',
+                                border: '1px solid rgba(255, 255, 255, 0.25)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                                 zIndex: 10,
                                 position: 'relative'
                             }}
@@ -514,12 +609,7 @@ export default function Board({
                                 viewBox="0 0 24 24"
                                 className="star-rotate-anim"
                                 animate={{
-                                    fill: {
-                                        green: '#4CAF50',
-                                        red: '#F44336',
-                                        blue: '#2196F3',
-                                        yellow: '#FFEB3B'
-                                    }[localGameState.currentPlayer] || '#cbd5e1',
+                                    fill: 'var(--active-player-color)',
                                     rotate: 360
                                 }}
                                 transition={{
@@ -527,9 +617,9 @@ export default function Board({
                                     rotate: { duration: 8, repeat: Infinity, ease: "linear" }
                                 }}
                                 style={{
-                                    width: '80%', /* Premium sizing */
-                                    height: '80%',
-                                    filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.7))',
+                                    width: '75%',
+                                    height: '75%',
+                                    filter: 'drop-shadow(0 0 8px var(--active-player-color))',
                                     position: 'absolute',
                                     zIndex: 2
                                 }}
@@ -538,177 +628,86 @@ export default function Board({
                             </motion.svg>
                         </motion.div>
 
-                        {/* Junction Timer Ring - Premium Fade-Out implementation */}
-                        <div className="junction-timer-container" style={{
-                            backgroundColor: {
-                                green: '#4CAF50',
-                                red: '#F44336',
-                                blue: '#2196F3',
-                                yellow: '#FFEB3B'
-                            }[localGameState.currentPlayer] || '#cbd5e1'
-                        }}
-                            <div className="junction-timer-track-css" />
+                        {/* 5. Ambient Pulse Ring */}
                         <motion.div
-                            className="junction-timer-color-ring"
+                            animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.4, 0.2] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                             style={{
-                                background: `conic-gradient(
-                                        ${{
-                                        green: '#4CAF50',
-                                        red: '#F44336',
-                                        blue: '#2196F3',
-                                        yellow: '#FFEB3B'
-                                    }[localGameState.currentPlayer] || '#cbd5e1'} 0% 0%, 
-                                        ${{
-                                        green: '#4CAF50',
-                                        red: '#F44336',
-                                        blue: '#2196F3',
-                                        yellow: '#FFEB3B'
-                                    }[localGameState.currentPlayer] || '#cbd5e1'} ${(localGameState.timeLeft / 15) * 100}%, 
-                                        transparent ${((localGameState.timeLeft / 15) * 100) + 5}%
-                                    )`,
-                                transform: 'rotate(-90deg)',
-                                zIndex: 2
-                            }}
-                        />
-                        <motion.div
-                            className="junction-timer-bg-fade"
-                            animate={{ opacity: 1 - (localGameState.timeLeft / 15) }}
-                            transition={{ duration: 0.5, ease: "linear" }}
-                            style={{
-                                backgroundColor: 'black',
                                 position: 'absolute',
-                                inset: 0,
-                                pointerEvents: 'none',
+                                width: '70%',
+                                height: '70%',
+                                borderRadius: '50%',
+                                border: '1px dashed rgba(255,255,255,0.1)',
                                 zIndex: 1
                             }}
                         />
-                        {/* Glowing Progress Point (The leading edge) */}
-                        <motion.div
-                            className="junction-timer-point"
-                            animate={{
-                                rotate: ((localGameState.timeLeft / 15) * 360) - 90
-                            }}
-                            transition={{ duration: 1, ease: "linear" }}
-                            style={{
-                                backgroundColor: 'transparent' /* Container must be transparent */
-                            }}
-                        >
-                            <div style={{
-                                position: 'absolute',
-                                right: '-4px', /* Aligns perfectly with the 84% ring edge */
-                                top: '50%',
-                                marginTop: '-4px',
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: {
-                                    green: '#4CAF50',
-                                    red: '#F44336',
-                                    blue: '#2196F3',
-                                    yellow: '#FFEB3B'
-                                }[localGameState.currentPlayer] || '#cbd5e1',
-                                boxShadow: `0 0 15px ${{
-                                    green: '#4CAF50',
-                                    red: '#F44336',
-                                    blue: '#2196F3',
-                                    yellow: '#FFEB3B'
-                                }[localGameState.currentPlayer] || '#cbd5e1'}`,
-                                zIndex: 10
-                            }} />
-                        </motion.div>
                     </div>
 
-                    {/* Pulsing ambient outer ring */}
-                    <motion.div
-                        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                        style={{
-                            position: 'absolute',
-                            width: '70%',
-                            height: '70%',
-                            borderRadius: '50%',
-                            border: '1px dashed rgba(255,255,255,0.15)',
-                            zIndex: 1
-                        }}
-                    />
+                    {/* ── Path Squares ── */}
+                    {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
+                        const cellInfo = getGridCellInfo(row, col, colorCorner);
+                        const isPower = localGameState.powerTiles.some((pt: { r: number, c: number }) => pt.r === row && pt.c === col);
+                        const trap = localGameState.activeTraps.find((t: { r: number, c: number }) => t.r === row && t.c === col);
+
+                        return (
+                            <div
+                                key={`${row}-${col}`}
+                                className={`${cls} ${isPower ? 'power-cell' : ''}`}
+                                style={{ gridRow: row, gridColumn: col }}
+                            >
+                                {cellInfo.type === 'safe' && <StarMarker />}
+                                {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
+                                {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
+                                {/* Directional arrow at home lane entries — dynamic per colorCorner */}
+                                {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([, corner]) => {
+                                    const slot = CORNER_SLOTS[corner];
+                                    if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
+                                        return <ArrowMarker key={`arrow-${row}-${col}`} dir={slot.arrowDir} />;
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                        );
+                    })}
+
+                    {/* ── Tokens ── */}
+                    {renderTokensOnPath()}
                 </div>
 
-                {/* ── Path Squares ── */}
-                {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
-                    const cellInfo = getGridCellInfo(row, col, colorCorner);
-                    const isPower = localGameState.powerTiles.some((pt: { r: number, c: number }) => pt.r === row && pt.c === col);
-                    const trap = localGameState.activeTraps.find((t: { r: number, c: number }) => t.r === row && t.c === col);
-
-                    return (
-                        <div
-                            key={`${row}-${col}`}
-                            className={`${cls} ${isPower ? 'power-cell' : ''}`}
-                            style={{ gridRow: row, gridColumn: col }}
+                {/* --- Status Notification --- */}
+                <AnimatePresence>
+                    {localGameState.captureMessage && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="capture-toast"
                         >
-                            {cellInfo.type === 'safe' && <StarMarker />}
-                            {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
-                            {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
-                            {/* Directional arrow at home lane entries — dynamic per colorCorner */}
-                            {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([, corner]) => {
-                                const slot = CORNER_SLOTS[corner];
-                                if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
-                                    return <ArrowMarker key={`arrow-${row}-${col}`} dir={slot.arrowDir} />;
-                                }
-                                return null;
-                            })}
-                        </div>
-                    );
-                })}
-
-                {/* ── Tokens ── */}
-                {renderTokensOnPath()}
+                            {localGameState.captureMessage}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
-            {/* --- Status Notification --- */}
+            {/* --- Celebration Overlay --- */}
             <AnimatePresence>
-                {localGameState.captureMessage && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="capture-toast"
-                    >
-                        {localGameState.captureMessage}
-                    </motion.div>
+                {localGameState.winner && (
+                    <div className="winner-overlay">
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="winner-card"
+                        >
+                            <span className="celebration-emoji">🏆</span>
+                            <h2 style={{ textTransform: 'capitalize' }}>{localGameState.winner} Wins!</h2>
+                            <p>Masterful play!</p>
+                            <button className="play-again-btn" onClick={resetGame}>Rematch</button>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
-        </div>
 
-            {/* --- Celebration Overlay --- */ }
-    <AnimatePresence>
-        {localGameState.winner && (
-            <div className="winner-overlay">
-                <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="winner-card"
-                >
-                    <span className="celebration-emoji">🏆</span>
-                    <h2 style={{ textTransform: 'capitalize' }}>{localGameState.winner} Fits the Crown!</h2>
-                    <p>A minimalist masterclass!</p>
-                    <div className="match-summary">
-                        <div className="summary-stat">
-                            <span>Tokens Home</span>
-                            <strong>4 / 4</strong>
-                        </div>
-                    </div>
-                    <button
-                        className="play-again-btn"
-                        onClick={resetGame}
-                    >
-                        Rematch
-                    </button>
-                </motion.div>
-            </div>
-        )}
-    </AnimatePresence>
-
-    {/* ── Bottom Player Row (You & Opponent: Green & Red) ── */ }
+            {/* ── Bottom Player Row ── */}
             <div className="player-row player-row-bottom">
                 {(['bottom-left', 'bottom-right'] as const).map((pos) => {
                     const p = players.find(player => player.position === pos);
@@ -759,16 +758,14 @@ export default function Board({
                 onOpenProfile={onOpenProfile || (() => { })}
             />
 
-    {/* ── Player Profile Sheet ── */ }
-    {
-        selectedPlayer && (
-            <PlayerProfileSheet
-                player={selectedPlayer}
-                wins={localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length}
-                onClose={() => setSelectedPlayer(null)}
-            />
-        )
-    }
-        </div >
+            {/* ── Player Profile Sheet ── */}
+            {selectedPlayer && (
+                <PlayerProfileSheet
+                    player={selectedPlayer}
+                    wins={localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length}
+                    onClose={() => setSelectedPlayer(null)}
+                />
+            )}
+        </div>
     );
-};
+}
