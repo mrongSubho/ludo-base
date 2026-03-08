@@ -1635,7 +1635,7 @@ a {
   width: 100%;
   gap: 1px;
   border-radius: 24px;
-  background: rgba(44, 44, 52, 0.4);
+  background: #1a1a20; /* Opaque Gunmetal background-proof */
   /* Darker glass frame */
   border: 2px solid rgba(255, 255, 255, 0.08);
   /* Sophisticated frame border */

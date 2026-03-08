@@ -179,42 +179,21 @@ function Token({
 function PlayerCard({
     player,
     isActive,
-    timeLeft,
-    strikes,
     power,
     onPowerClick,
-    onAvatarClick,
     teamLabel,
 }: {
     player: Player;
     isActive: boolean;
-    timeLeft: number;
-    strikes: number;
     power: PowerType | null;
     onPowerClick?: () => void;
-    onAvatarClick: () => void;
     teamLabel?: 'A' | 'B' | null;
 }) {
     const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
-    const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
-    const isWarning = isActive && !player.isAi && timeLeft <= 5;
 
     return (
-        <div className={`player-card player-card-corner ${player.position} ${isActive ? 'card-is-active' : ''}`}>
-            <div className={`avatar-circle-wrapper ${isWarning ? 'timer-warning' : ''}`}>
-                {!player.isAi && (
-                    <svg className="timer-ring" viewBox="0 0 52 52">
-                        <circle className="timer-ring-bg" cx="26" cy="26" r="23" />
-                        <circle
-                            className="timer-ring-progress"
-                            cx="26" cy="26" r="23"
-                            style={{
-                                strokeDasharray: 144.5,
-                                strokeDashoffset: 144.5 - (144.5 * progress) / 100
-                            }}
-                        />
-                    </svg>
-                )}
+        <div className={`player-card player-card-corner ${player.position}`}>
+            <div className="avatar-circle-wrapper">
                 {power && (
                     <div
                         className={`power-inventory-bubble ${isActive && onPowerClick ? 'power-ready' : ''}`}
@@ -225,9 +204,7 @@ function PlayerCard({
                 )}
                 <div
                     className={`avatar-circle ${player.color}`}
-                    onClick={onAvatarClick}
-                    style={{ cursor: 'pointer' }}
-                    title={`View ${player.name}'s profile`}
+                    title={player.name}
                 >
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
@@ -416,17 +393,8 @@ export default function Board({
                             <PlayerCard
                                 player={p}
                                 isActive={localGameState.currentPlayer === p.color}
-                                timeLeft={localGameState.timeLeft}
-                                strikes={localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
-                                onAvatarClick={() => {
-                                    if (!p.isAi && onOpenProfile && p.walletAddress) {
-                                        onOpenProfile(p.walletAddress);
-                                    } else {
-                                        setSelectedPlayer(p);
-                                    }
-                                }}
                                 teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
@@ -486,7 +454,6 @@ export default function Board({
                             alignItems: 'center',
                             justifyContent: 'center',
                             position: 'relative',
-                            background: '#1a1a20',
                             borderRadius: '50%',
                             overflow: 'hidden',
                             // Define the active player color once as a CSS variable
@@ -499,12 +466,17 @@ export default function Board({
                         }}
                         key={localGameState.currentPlayer}
                     >
-                        {/* 1. Cosmic Background Overlay */}
-                        <div className="finish-center-cosmic" style={{
+                        {/* 1. Cosmic Background Overlay (Sync with Lobby) */}
+                        <div className="finish-center-cosmic cosmic-core-bg" style={{
                             position: 'absolute',
                             inset: 0,
-                            borderRadius: '50%'
-                        }} />
+                            borderRadius: '50%',
+                            opacity: 0.5
+                        }}>
+                            {/* Dynamic Orbs for depth */}
+                            <div className="cosmic-orb cosmic-orb-1 opacity-40 scale-50" />
+                            <div className="cosmic-orb cosmic-orb-2 opacity-30 scale-50" />
+                        </div>
 
                         {/* 2. Junction Background Fill (Erases clockwise from top) */}
                         <div style={{
@@ -519,7 +491,7 @@ export default function Board({
                                 position: 'absolute',
                                 inset: 0,
                                 background: useTransform(sweepProgress, (v) =>
-                                    `conic-gradient(transparent 0% ${v}%, ${activeColor} ${v}% 100%)`
+                                    `conic-gradient(rgba(0,0,0,0) 0% ${v}%, ${activeColor} ${v + 0.5}% 100%)`
                                 ),
                                 maskImage: 'radial-gradient(circle, transparent 42%, black 43%)',
                                 WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 43%)'
@@ -554,7 +526,7 @@ export default function Board({
                                 className="junction-timer-color-ring"
                                 style={{
                                     background: useTransform(sweepProgress, (v) =>
-                                        `conic-gradient(${activeColor} 0% ${100 - v}%, transparent ${100 - v}% 100%)`
+                                        `conic-gradient(rgba(0,0,0,0) 0% ${v}%, ${activeColor} ${v + 0.5}% 100%)`
                                     ),
                                     zIndex: 2,
                                     position: 'absolute',
@@ -719,17 +691,8 @@ export default function Board({
                             <PlayerCard
                                 player={p}
                                 isActive={localGameState.currentPlayer === p.color}
-                                timeLeft={localGameState.timeLeft}
-                                strikes={localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
-                                onAvatarClick={() => {
-                                    if (!p.isAi && onOpenProfile && p.walletAddress) {
-                                        onOpenProfile(p.walletAddress);
-                                    } else {
-                                        setSelectedPlayer(p);
-                                    }
-                                }}
                                 teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
                             {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (

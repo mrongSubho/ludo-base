@@ -479,6 +479,177 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Add explicit fallback state when frame init fails.
   - Emit frame readiness status to analytics/debug tooling.
 
+### 🟨 HeaderNavPanel.tsx
+- Key notes:
+  - Renders top dashboard nav with token pill, user identity, unread DM badge, and settings trigger.
+  - Accepts `unreadCount`, `finalName`, and `finalAvatar` from parent state/hooks.
+- Key enhancements:
+  - Separates header responsibilities from page orchestration.
+  - Token balance and level are currently hardcoded UI values.
+
+#### Live Discussion: HeaderNavPanel.tsx Deep Dive (Section 16)
+- What this file is in the system:
+  - Top navigation and status surface for dashboard mode.
+- Function behavior:
+  - Displays user identity snapshot and unread messages signal.
+  - Emits `onMessagesClick` and `onSettingsClick` to parent orchestrator.
+- How it affects gameplay/system:
+  - Centralizes “global attention” indicators before entering match flow.
+  - Keeps notification UX stable regardless of active tab.
+- Next improvements:
+  - Bind token/level values to real backend stats.
+  - Add optimistic unread reset behavior when opening messages.
+
+### 🟨 FooterNavPanel.tsx
+- Key notes:
+  - Hosts bottom navigation tabs and opens slide panels for profile/friends/leaderboard/mission/market/messages.
+  - Polls pending friendship count every 15s for badge updates.
+- Key enhancements:
+  - Unified tab-to-panel routing logic.
+  - Could switch from polling to realtime channel for lower latency.
+
+#### Live Discussion: FooterNavPanel.tsx Deep Dive (Section 17)
+- What this file is in the system:
+  - Primary dashboard tab router.
+- Function behavior:
+  - Tracks active tab state from parent props and mounts corresponding panel components.
+  - Executes friend request badge query against `friendships`.
+- How it affects gameplay/system:
+  - Keeps social/navigation surfaces modular and centrally controlled.
+  - Makes dashboard extensible without bloating page-level render logic.
+- Next improvements:
+  - Replace pending-count polling with Supabase realtime subscriptions.
+  - Add centralized panel registry to reduce switch-case growth.
+
+### 🟨 SettingsPanel.tsx
+- Key notes:
+  - Dedicated full settings surface with audio toggles, theme switcher, support/about links, and sign out action.
+  - Reads/writes same audio preference keys (`ludo-sfx`, `ludo-music`).
+- Key enhancements:
+  - Better long-form settings UX than inline drawer.
+  - Some options are presentational placeholders (help/about links).
+
+#### Live Discussion: SettingsPanel.tsx Deep Dive (Section 18)
+- What this file is in the system:
+  - Expanded control center for account and preference management.
+- Function behavior:
+  - Maintains local UI state for SFX/music and persists to storage.
+  - Uses wagmi `disconnect()` for sign-out flow.
+- How it affects gameplay/system:
+  - Provides high-visibility preference controls outside active gameplay.
+  - Reduces friction for audio/theme adjustments and account exit.
+- Next improvements:
+  - Connect support/about actions to routed pages.
+  - Add account/session diagnostics in settings surface.
+
+### 🟨 PlayWithFriendsPanel.tsx
+- Key notes:
+  - Private lobby UX for host/join flows with room code generation, copy, and invite list.
+  - Fetches `onchainFriends` and `gameFriends` from `/api/friends?wallet=...`.
+- Key enhancements:
+  - Rich social-first lobby flow for private sessions.
+  - Uses permissive `any` props and should be fully typed.
+
+#### Live Discussion: PlayWithFriendsPanel.tsx Deep Dive (Section 19)
+- What this file is in the system:
+  - Friend-centric private-match orchestration panel.
+- Function behavior:
+  - Host tab: create/share room code and launch match when guest joins.
+  - Join tab: accept external room code and connect as guest.
+  - Nested friend tabs: switch between onchain and in-game friend lists.
+- How it affects gameplay/system:
+  - Bridges multiplayer transport with social discovery.
+  - Makes room-based invites understandable for non-technical users.
+- Next improvements:
+  - Strongly type panel props and friend payloads.
+  - Add invite tracking and delivery acknowledgement.
+
+### 🟨 QuickMatchPanel.tsx
+- Key notes:
+  - Quick matchmaking UI with searching/expanding/timeout/matched states.
+  - Integrates with `useMatchmaking` and starts search automatically on mount.
+- Key enhancements:
+  - Clear lifecycle UX for queue search and timeout fallback to AI.
+  - Search strategy depends heavily on backend queue health.
+
+#### Live Discussion: QuickMatchPanel.tsx Deep Dive (Section 20)
+- What this file is in the system:
+  - Real-time queue search experience for public matchmaking.
+- Function behavior:
+  - Starts queue join call, rotates tips, displays elapsed search time.
+  - On match found: countdown, join room, then start game.
+  - On timeout: offers AI fallback and retry.
+- How it affects gameplay/system:
+  - Converts backend queue status into user-readable flow.
+  - Directly influences retention during wait periods.
+- Next improvements:
+  - Add explicit network failure state recovery path.
+  - Expose queue bucket info (`mode/type/wager`) for debugging.
+
+### 🟨 PublicProfileModal.tsx
+- Key notes:
+  - Global user profile modal with friend request, block/unblock, report, and DM actions.
+  - Loads profile + friend validation + block status + pending request state.
+- Key enhancements:
+  - Consolidates user-to-user moderation and relationship actions.
+  - Contains heavy multi-query logic that can be modularized.
+
+#### Live Discussion: PublicProfileModal.tsx Deep Dive (Section 21)
+- What this file is in the system:
+  - Public-facing profile inspection and action center.
+- Function behavior:
+  - Fetches target player data from `players`.
+  - Cross-checks friendship via `/api/friends` and `friendships`.
+  - Handles `Add Friend`, `Unfriend`, `Block`, `Unblock`, and `Report` mutations.
+- How it affects gameplay/system:
+  - Enables social trust/safety controls inside game UX.
+  - Supports immediate DM and relationship decisions without page navigation.
+- Next improvements:
+  - Split data-loading and action-mutation logic into dedicated hooks/services.
+  - Add stronger optimistic rollback and action error states.
+
+### 🟨 PresenceManager.tsx
+- Key notes:
+  - Syncs player presence (`Online`, `In Match`, `Offline`) to Supabase.
+  - Uses 30s heartbeat and `beforeunload` best-effort offline update.
+- Key enhancements:
+  - Gives social panels near-realtime status signal.
+  - Presence cleanup still relies on DB-side timeout job for stale sessions.
+
+#### Live Discussion: PresenceManager.tsx Deep Dive (Section 22)
+- What this file is in the system:
+  - Presence heartbeat controller for user status freshness.
+- Function behavior:
+  - Derives status from current multiplayer/game state and writes into `players`.
+  - Sends periodic heartbeat and unload cleanup writes.
+- How it affects gameplay/system:
+  - Powers friend/message online indicators.
+  - Prevents “ghost online” states when paired with cleanup SQL.
+- Next improvements:
+  - Move heartbeat to channel-based presence if scaling beyond simple polling.
+  - Add throttling and backoff on transient write failures.
+
+### 🟨 GameLobbyTest.tsx / app/uitest/page.tsx
+- Key notes:
+  - UITest flow composes the new modular dashboard stack (`HeaderNavPanel`, `FooterNavPanel`, `SettingsPanel`, `PresenceManager`, lobby panels).
+  - Acts as active integration playground for new matchmaking/private-lobby UX.
+- Key enhancements:
+  - Useful staging area for iterative UI/flow testing.
+  - Divergence risk if test page behavior drifts from main app route.
+
+#### Live Discussion: UITest pages Deep Dive (Section 23)
+- What these files are in the system:
+  - Sandbox integration harness for live UX iteration.
+- Function behavior:
+  - Orchestrates updated dashboard state machine and panel interactions.
+  - Exercises matchmaking, private lobby, public profile modal, and settings flows together.
+- How they affect gameplay/system:
+  - Speed up validation of composite UX before full merge into main route.
+  - Can hide regressions if not kept synchronized with production entrypoint.
+- Next improvements:
+  - Define explicit parity checklist between UITest and main page.
+  - Use feature flags to reduce duplicate orchestration logic.
+
 ## app/hooks/
 
 ### 🟩 useAudio.ts
@@ -491,7 +662,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - No external audio assets needed for core signals.
   - Final loudness balancing is still needed.
 
-#### Live Discussion: useAudio.ts Deep Dive (Section 16)
+#### Live Discussion: useAudio.ts Deep Dive (Section 24)
 - What this file is in the system:
   - Core audio engine hook used by board components.
 - Function behavior:
@@ -513,7 +684,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Useful low-level peer sync helper.
   - Partially overlaps with context-based multiplayer architecture.
 
-#### Live Discussion: useMultiplayer.ts (app/hooks) Deep Dive (Section 17)
+#### Live Discussion: useMultiplayer.ts (app/hooks) Deep Dive (Section 25)
 - What this file is in the system:
   - Lightweight PeerJS adapter for direct state-sync experiments.
 - Function behavior:
@@ -525,6 +696,28 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Merge with `MultiplayerContext.tsx` or clearly split responsibilities.
   - Add message schema validation and reconnect semantics.
 
+### 🟨 useMessages.ts
+- Key notes:
+  - Messaging hook handling conversations, messages, unread counts, profile hydration, and realtime subscriptions.
+  - Applies visibility filtering for per-user soft deletion flags.
+- Key enhancements:
+  - Strong foundation for realtime chat.
+  - Complex state flow would benefit from reducer-based architecture.
+
+#### Live Discussion: useMessages.ts Deep Dive (Section 26)
+- What this file is in the system:
+  - End-to-end messaging state engine for chat UI.
+- Function behavior:
+  - Loads initial conversation/message snapshots.
+  - Subscribes to realtime inserts/updates for messages and conversations.
+  - Hydrates participant profiles and computes sidebar/unread presentation model.
+- How it affects gameplay/system:
+  - Enables persistent social communication channels.
+  - Keeps conversation lists fresh without full refreshes.
+- Next improvements:
+  - Add message pagination/windowing for large histories.
+  - Add delivery/read receipts and retry workflow for failed sends.
+
 ## app/api/
 
 ### 🟨 farcaster/route.ts
@@ -535,7 +728,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Important fallback when frame context is unavailable.
   - Depends on `NEYNAR_API_KEY` and should include rate-limit handling.
 
-#### Live Discussion: farcaster/route.ts Deep Dive (Section 18)
+#### Live Discussion: farcaster/route.ts Deep Dive (Section 27)
 - What this file is in the system:
   - Server fallback identity endpoint.
 - Function behavior:
@@ -549,24 +742,106 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 
 ### 🟨 friends/route.ts
 - Key notes:
-  - `GET()` fetches following list by FID from Neynar.
-  - Intersects following wallets with local Supabase `players` to return only in-app registered friends.
+  - `GET()` accepts `wallet` and resolves user's Farcaster profile + following graph from Neynar.
+  - Returns two datasets: `onchainFriends` (social graph intersection) and `gameFriends` (recent active players).
 - Key enhancements:
   - Smart bridge between social graph and app database.
+  - Includes status self-healing from `last_played_at`.
   - Needs pagination/caching and robust failure handling.
 
-#### Live Discussion: friends/route.ts Deep Dive (Section 19)
+#### Live Discussion: friends/route.ts Deep Dive (Section 28)
 - What this file is in the system:
   - Social graph bridge endpoint.
 - Function behavior:
-  - Pulls following users from Neynar by FID.
-  - Extracts verified wallet addresses and intersects with local `players` table.
+  - Resolves FID from wallet, fetches following users, then extracts verified wallets.
+  - Intersects with local `players` table and separately fetches `gameFriends`.
+  - Applies “online status drift” correction from `last_played_at`.
 - How it affects gameplay/system:
   - Converts external social graph into in-app friend candidates.
   - Reduces noise by returning only users who already exist in our ecosystem.
 - Next improvements:
   - Add paging support and response caching.
   - Add retry strategy and partial-failure semantics for downstream API instability.
+
+### 🟨 match/record/route.ts
+- Key notes:
+  - Server route for recording match outcome and updating player stats.
+  - Mirrors logic from `matchRecorder.ts` but executed via API boundary.
+- Key enhancements:
+  - Allows server-side authorized writes with service role.
+  - Still multi-step and non-transactional.
+
+#### Live Discussion: match/record/route.ts Deep Dive (Section 29)
+- What this file is in the system:
+  - Backend endpoint for post-match persistence.
+- Function behavior:
+  - Validates payload.
+  - Inserts `matches` row.
+  - Updates winner and participants aggregate stats.
+- How it affects gameplay/system:
+  - Decouples client from direct DB mutation for sensitive write path.
+  - Currently vulnerable to partial-update drift under failure.
+- Next improvements:
+  - Move all updates into a single DB transaction/RPC.
+  - Add idempotency and request authentication checks.
+
+### 🟨 matchmaking/join/route.ts
+- Key notes:
+  - Enqueues player into matchmaking bucket through `join_matchmaking` RPC.
+  - Supports immediate matched response or search ticket response.
+- Key enhancements:
+  - Atomic join path via RPC reduces race conditions.
+  - Depends on migration/RPC availability.
+
+#### Live Discussion: matchmaking/join/route.ts Deep Dive (Section 30)
+- What this file is in the system:
+  - Queue entrypoint for quick-match lifecycle.
+- Function behavior:
+  - Validates join request and calls `join_matchmaking`.
+  - Returns matched/searching payload to UI.
+- How it affects gameplay/system:
+  - Core backend trigger for public matchmaking.
+  - If RPC missing/misaligned, quick match fully fails (observed in runtime logs).
+- Next improvements:
+  - Add schema-version check and friendly fallback errors.
+  - Add join throttling and abuse controls.
+
+### 🟨 matchmaking/status/route.ts
+- Key notes:
+  - Poll endpoint that returns queue ticket state (`status`, `match_id`).
+- Key enhancements:
+  - Lightweight and compatible with client polling.
+  - Should evolve to push/realtime for large-scale efficiency.
+
+#### Live Discussion: matchmaking/status/route.ts Deep Dive (Section 31)
+- What this file is in the system:
+  - Matchmaking progress lookup API.
+- Function behavior:
+  - Reads queue row by `ticketId` and returns current state.
+- How it affects gameplay/system:
+  - Powers searching->matched transition in `useMatchmaking`.
+- Next improvements:
+  - Add strict ownership validation on ticket reads.
+  - Add short-term caching headers for poll efficiency.
+
+### 🟨 matchmaking/cancel/route.ts
+- Key notes:
+  - Cancellation endpoint marks searching ticket as `cancelled`.
+  - Used on timeout, manual cancel, unmount, and visibility changes.
+- Key enhancements:
+  - Prevents stale search tickets from accumulating.
+  - Could include broader cleanup semantics for abandoned sessions.
+
+#### Live Discussion: matchmaking/cancel/route.ts Deep Dive (Section 32)
+- What this file is in the system:
+  - Queue cancellation API for matchmaking lifecycle cleanup.
+- Function behavior:
+  - Validates `ticketId` and updates queue row conditionally (`status='searching'`).
+- How it affects gameplay/system:
+  - Keeps queue quality healthy by pruning abandoned search entries.
+- Next improvements:
+  - Add cancellation reason tracking for analytics.
+  - Add background job to expire stale tickets defensively.
 
 ## hooks/
 
@@ -581,7 +856,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Clean shared multiplayer state for whole app.
   - Needs stronger anti-desync, reconnection, and message validation.
 
-#### Live Discussion: MultiplayerContext.tsx Deep Dive (Section 20)
+#### Live Discussion: MultiplayerContext.tsx Deep Dive (Section 33)
 - What this file is in the system:
   - Primary multiplayer state store for UI + board coordination.
 - Function behavior:
@@ -602,7 +877,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Keeps import surface clean and consistent.
 
-#### Live Discussion: useMultiplayer.ts (hooks) Deep Dive (Section 21)
+#### Live Discussion: useMultiplayer.ts (hooks) Deep Dive (Section 34)
 - What this file is in the system:
   - Convenience hook adapter over context API.
 - Function behavior:
@@ -621,7 +896,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Strong fallback identity behavior for missing profiles.
   - Should include better error-state exposure for UI.
 
-#### Live Discussion: useCurrentUser.ts Deep Dive (Section 22)
+#### Live Discussion: useCurrentUser.ts Deep Dive (Section 35)
 - What this file is in the system:
   - Current user profile query + realtime subscription hook.
 - Function behavior:
@@ -635,6 +910,52 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Add explicit loading/error states for better UI control.
   - Add request cancellation guards for fast wallet switching.
 
+### 🟨 useGameEngine.ts
+- Key notes:
+  - New orchestration hook extracted from board component.
+  - Integrates pure logic modules (`gameLogic`, `aiEngine`, `boardLayout`) with multiplayer context and audio.
+- Key enhancements:
+  - Major architecture improvement toward modular gameplay engine.
+  - Still needs complete migration to avoid old/new logic overlap.
+
+#### Live Discussion: useGameEngine.ts Deep Dive (Section 36)
+- What this file is in the system:
+  - Central game state orchestration layer for classic/power multiplayer flow.
+- Function behavior:
+  - Owns local game state.
+  - Syncs guest state from context host updates.
+  - Delegates deterministic move logic to `processMove`.
+  - Delegates bot decisions to `getBestMove`.
+  - Coordinates persistence, effects, and network broadcasts.
+- How it affects gameplay/system:
+  - Reduces monolithic burden in `Board.tsx`.
+  - Enables reusable engine logic for future UI variants.
+- Next improvements:
+  - Finish migrating all board-side logic into this hook.
+  - Add state-machine tests for engine transitions.
+
+### 🟨 useMatchmaking.ts
+- Key notes:
+  - Client queue lifecycle hook for quick match flow.
+  - Manages search status state, timers, polling, timeout, and cancellation.
+- Key enhancements:
+  - Clear staged lifecycle model (`searching -> expanding -> timeout/matched`).
+  - Relies on polling instead of push events.
+
+#### Live Discussion: useMatchmaking.ts Deep Dive (Section 37)
+- What this file is in the system:
+  - Frontend state machine for matchmaking queue UX.
+- Function behavior:
+  - `startSearch()` joins queue and begins elapsed timer + status polling.
+  - `cancelSearch()` terminates queue ticket and resets local state.
+  - Auto-cancels on unmount and visibility loss.
+- How it affects gameplay/system:
+  - Keeps queue interactions deterministic from user perspective.
+  - Prevents ghost queue entries when users navigate away.
+- Next improvements:
+  - Replace polling with realtime subscriptions.
+  - Add exponential backoff for status fetch failures.
+
 ## lib/
 
 ### 🟩 supabase.ts
@@ -644,7 +965,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Stable shared client setup across app/API.
 
-#### Live Discussion: supabase.ts Deep Dive (Section 23)
+#### Live Discussion: supabase.ts Deep Dive (Section 38)
 - What this file is in the system:
   - Shared Supabase client bootstrap module.
 - Function behavior:
@@ -668,7 +989,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Good first pass for post-match persistence.
   - Should be transactional/server-side hardened to avoid partial update drift.
 
-#### Live Discussion: matchRecorder.ts Deep Dive (Section 24)
+#### Live Discussion: matchRecorder.ts Deep Dive (Section 39)
 - What this file is in the system:
   - Match result persistence helper.
 - Function behavior:
@@ -682,6 +1003,155 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - Move to single RPC/transaction in database.
   - Add idempotency key by room + winner to prevent duplicate writes.
 
+### 🟨 boardLayout.ts
+- Key notes:
+  - Pure board geometry module for path generation, safe-cell definitions, and dynamic lane mapping.
+  - Exports reusable types and helpers used by engine/logic layers.
+- Key enhancements:
+  - Strong separation of board math from UI rendering.
+  - Reduces geometry regressions by centralizing rules.
+
+#### Live Discussion: boardLayout.ts Deep Dive (Section 40)
+- What this file is in the system:
+  - Source of truth for classic-board coordinate system.
+- Function behavior:
+  - Generates shared path, corner slots, player paths, and cell classification.
+  - Provides `shufflePlayers()` and arrangement helpers for session setup.
+- How it affects gameplay/system:
+  - Keeps engine logic and UI aligned on geometry.
+  - Enables future board skins without rewriting movement math.
+- Next improvements:
+  - Add snapshot tests for generated path/cell maps.
+  - Separate player template data from geometry constants.
+
+### 🟨 gameLogic.ts
+- Key notes:
+  - Deterministic core move processor (`processMove`) with capture/trap/team-win logic.
+  - Includes utility functions for turn flow and three-sixes handling.
+- Key enhancements:
+  - Critical step toward testable pure rules engine.
+  - Some behaviors still coupled to broader `GameState` shape.
+
+#### Live Discussion: gameLogic.ts Deep Dive (Section 41)
+- What this file is in the system:
+  - Rule engine for classic/power move resolution.
+- Function behavior:
+  - Validates movement.
+  - Resolves traps and multi-capture with team-force logic.
+  - Computes bonus roll and next player.
+  - Handles win conditions for FFA and 2v2.
+- How it affects gameplay/system:
+  - Creates deterministic move outcomes independent of UI.
+  - Simplifies debugging and future automated testing.
+- Next improvements:
+  - Add exhaustive tests for capture/force/truce edge cases.
+  - Decouple from context-level `GameState` typing.
+
+### 🟨 aiEngine.ts
+- Key notes:
+  - Heuristic decision module selecting optimal token move.
+  - Scores by win potential, capture value, safety, reinforcement, and progress.
+- Key enhancements:
+  - Reusable AI strategy independent from component lifecycle.
+  - Can be extended with difficulty levels.
+
+#### Live Discussion: aiEngine.ts Deep Dive (Section 42)
+- What this file is in the system:
+  - Bot move selection engine.
+- Function behavior:
+  - Enumerates valid move options for roll.
+  - Computes weighted score per move.
+  - Returns highest-scoring token index.
+- How it affects gameplay/system:
+  - Controls automated player behavior and timeout auto-play quality.
+  - Directly affects match pacing and perceived fairness.
+- Next improvements:
+  - Add configurable difficulty profiles.
+  - Add deterministic seed mode for repeatable tests.
+
+### 🟨 snakesLogic.ts
+- Key notes:
+  - Deterministic Snakes & Ladders rules (ladders, snakes, bounce-back, bonus turn).
+  - Includes next-player helper for active color set.
+- Key enhancements:
+  - Moves variant logic out of component UI code.
+  - Improves consistency and testability for snakes mode.
+
+#### Live Discussion: snakesLogic.ts Deep Dive (Section 43)
+- What this file is in the system:
+  - Pure rule module for Snakes & Ladders movement resolution.
+- Function behavior:
+  - `calculateSnakesMove()` resolves overshoot bounce and snake/ladder slide in deterministic order.
+  - `getNextPlayerSnakes()` rotates turns among active participants.
+- How it affects gameplay/system:
+  - Guarantees predictable results for each roll state.
+  - Supports cleaner component refactors in `SnakesBoard.tsx`.
+- Next improvements:
+  - Add detailed tests for chained edge scenarios near `100`.
+  - Add optional hooks for animation-step generation.
+
+## migrations/
+
+### 🟨 add_status_columns.sql
+- Key notes:
+  - Adds `status` and `last_seen_at` to `players` for presence features.
+  - Adds indexes for status and last-seen lookup performance.
+- Key enhancements:
+  - Enables online/offline/in-match UX surfaces.
+  - Requires migration parity across environments.
+
+#### Live Discussion: add_status_columns.sql Deep Dive (Section 44)
+- What this file is in the system:
+  - Presence schema migration.
+- Function behavior:
+  - Extends `players` table with status heartbeat fields.
+  - Adds query indexes to support friend/message panels.
+- How it affects gameplay/system:
+  - Foundation for realtime social presence indicators.
+- Next improvements:
+  - Add explicit enum/check constraints for status values.
+
+### 🟨 status_cleanup_job.sql
+- Key notes:
+  - Defines `update_offline_status()` function for idle-status cleanup.
+  - Designed for minute-level scheduling (for example via `pg_cron`).
+- Key enhancements:
+  - Prevents “forever online” ghost presence.
+  - Scheduling setup must be validated per deployment.
+
+#### Live Discussion: status_cleanup_job.sql Deep Dive (Section 45)
+- What this file is in the system:
+  - DB-side presence self-healing routine.
+- Function behavior:
+  - Marks stale active users as `Offline` when `last_seen_at` exceeds threshold.
+- How it affects gameplay/system:
+  - Keeps social status trustworthy even when unload writes fail.
+- Next improvements:
+  - Align threshold with heartbeat cadence and product expectations.
+
+## supabase/migrations/
+
+### 🟨 20240304_matchmaking_queue.sql
+- Key notes:
+  - Creates `matchmaking_queue` table and `join_matchmaking` RPC.
+  - RPC uses advisory lock + row locking to reduce race conditions in bucket matching.
+- Key enhancements:
+  - Core backend primitive for quick-match flow.
+  - Must be present in DB, otherwise `/api/matchmaking/join` fails.
+
+#### Live Discussion: 20240304_matchmaking_queue.sql Deep Dive (Section 46)
+- What this file is in the system:
+  - Matchmaking schema + atomic matching procedure.
+- Function behavior:
+  - Places or matches users within same queue bucket (`mode/type/wager`).
+  - Returns JSON payload for searching or matched state.
+- How it affects gameplay/system:
+  - Central dependency for quick-match viability.
+  - Missing migration immediately breaks queue joining.
+- Next improvements:
+  - Add queue cleanup for expired tickets and stale matched rows.
+  - Add telemetry fields for queue-time analytics.
+
 ## Styling & Assets
 
 ### 🟨 globals.css / page.module.css
@@ -691,7 +1161,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
   - UI identity is strong and consistent.
   - Further component-level CSS decomposition can reduce global complexity.
 
-#### Live Discussion: globals.css / page.module.css Deep Dive (Section 25)
+#### Live Discussion: globals.css / page.module.css Deep Dive (Section 47)
 - What these files are in the system:
   - Global and page-scoped visual contract.
 - Function behavior:
@@ -710,7 +1180,7 @@ Legend: `🟩 Done` `🟨 Partial` `🟥 Pending`
 - Key enhancements:
   - Final asset pack is needed for fully polished production release.
 
-#### Live Discussion: public assets Deep Dive (Section 26)
+#### Live Discussion: public assets Deep Dive (Section 48)
 - What this area is in the system:
   - Static visual resources for profile, branding, and environment themes.
 - Current behavior:
