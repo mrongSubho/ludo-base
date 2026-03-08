@@ -156,19 +156,23 @@ export default function Page() {
 
       <PresenceManager />
 
+      <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-1]">
+        <div className="cosmic-orb cosmic-orb-1 opacity-40 scale-150" />
+        <div className="cosmic-orb cosmic-orb-2 opacity-30 scale-125" />
+        <div className="cosmic-orb cosmic-orb-3 opacity-20 scale-110" />
+      </div>
+
       {!isConnected ? (
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
           <WalletConnectCard />
         </div>
       ) : (
-        <div className={`app-shell dashboard-shell cosmic-core-bg`}>
+        <div className="app-shell dashboard-shell">
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
             <div className="dashboard-container relative">
               {/* Cosmic Orbs (Rendered behind content) */}
-              <div className="cosmic-orb cosmic-orb-1" />
-              <div className="cosmic-orb cosmic-orb-2" />
-              <div className="cosmic-orb cosmic-orb-3" />
+
 
               {/* Header */}
               <HeaderNavPanel
@@ -290,9 +294,9 @@ export default function Page() {
               )}
             </>
           )}
-
         </div>
       )}
     </>
   );
 }
+

@@ -491,7 +491,7 @@ export default function Board({
                                 position: 'absolute',
                                 inset: 0,
                                 background: useTransform(sweepProgress, (v) =>
-                                    `conic-gradient(rgba(0,0,0,0) 0% ${v}%, ${activeColor} ${v + 0.5}% 100%)`
+                                    `conic-gradient(#000000 0% ${v}%, ${activeColor} ${v + 0.2}% 100%)`
                                 ),
                                 maskImage: 'radial-gradient(circle, transparent 42%, black 43%)',
                                 WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 43%)'
@@ -526,7 +526,7 @@ export default function Board({
                                 className="junction-timer-color-ring"
                                 style={{
                                     background: useTransform(sweepProgress, (v) =>
-                                        `conic-gradient(rgba(0,0,0,0) 0% ${v}%, ${activeColor} ${v + 0.5}% 100%)`
+                                        `conic-gradient(#000000 0% ${v}%, ${activeColor} ${v + 0.2}% 100%)`
                                     ),
                                     zIndex: 2,
                                     position: 'absolute',

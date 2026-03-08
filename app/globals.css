@@ -95,8 +95,9 @@ body {
   padding: 0;
   overflow-x: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--color-ludo-background);
-  /* background-image: var(--ludo-bg-image); removed as per user request */
+  background-color: var(--ludo-bg);
+  background: var(--ludo-bg-cosmic) !important;
+  background-blend-mode: color-dodge, screen, screen, screen, overlay !important;
   background-size: cover;
   background-attachment: fixed;
   background-position: center;
@@ -107,8 +108,9 @@ body {
 
 /* ─── Match/Board Scoped Theme Wrapper ─── */
 .board-match-theme-wrapper {
-  background: var(--ludo-bg);
-  /* background-image: var(--ludo-bg-image); removed as per user request */
+  background: transparent !important;
+  box-shadow: none !important;
+  background-image: none !important;
   background-size: cover;
   background-attachment: fixed;
   background-position: center;
@@ -127,10 +129,6 @@ a {
 /* ─── Phase 2: Glassmorphism & Neon Utilities ─── */
 
 .cosmic-core-bg {
-  /* Inherits from Unified Cosmic Default Theme */
-  background: var(--ludo-bg-cosmic) !important;
-  background-color: var(--ludo-bg) !important;
-  background-blend-mode: color-dodge, screen, screen, screen, overlay !important;
   position: relative;
   overflow: hidden;
 }
@@ -250,6 +248,7 @@ a {
   max-width: 500px;
   margin: 0 auto;
   padding: 0;
+  background: transparent !important;
   position: relative;
   overflow-x: hidden;
 }
@@ -1032,6 +1031,7 @@ a {
 
 /* ─── Board Outer (positions player cards around the board) ─── */
 .board-outer {
+  background: transparent !important;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1635,8 +1635,10 @@ a {
   width: 100%;
   gap: 1px;
   border-radius: 24px;
-  background: #1a1a20; /* Opaque Gunmetal background-proof */
-  /* Darker glass frame */
+  background: #1a1a20;
+  /* Cut hole for junction (approx 20% of board size) */
+  mask-image: radial-gradient(circle at center, transparent 13%, black 14%);
+  -webkit-mask-image: radial-gradient(circle at center, transparent 13%, black 14%);
   border: 2px solid rgba(255, 255, 255, 0.08);
   /* Sophisticated frame border */
   box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
@@ -3403,10 +3405,11 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  /* Glassy and subtle */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 100px;
   z-index: 50;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
