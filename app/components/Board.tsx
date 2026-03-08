@@ -70,8 +70,8 @@ const getTeam = (color: Player['color']) => {
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
-const StarMarker = () => (
-    <svg className="star-svg" viewBox="0 0 24 24" fill="currentColor">
+const StarMarker = ({ color }: { color?: string }) => (
+    <svg className="star-svg" viewBox="0 0 24 24" fill="currentColor" style={{ color }}>
         <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
     </svg>
 );
@@ -416,7 +416,7 @@ export default function Board({
                 })}
             </div>
 
-            <div className="board-wrapper">
+            <div className="board-wrapper" style={{ position: 'relative' }}>
                 <div className="board-grid">
                     {/* ── Corner Homes ── */}
                     {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
@@ -444,178 +444,7 @@ export default function Board({
                         );
                     })}
 
-                    {/* ── Center Finish Zone ── */}
-                    <div
-                        className={`finish-center ${localGameState.invalidMove ? 'shake-feedback' : ''}`}
-                        style={{
-                            gridRow: '7 / 10',
-                            gridColumn: '7 / 10',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                            // Define the active player color once as a CSS variable
-                            ['--active-player-color' as any]: {
-                                green: '#4CAF50',
-                                red: '#F44336',
-                                blue: '#2196F3',
-                                yellow: '#FFEB3B'
-                            }[localGameState.currentPlayer] || '#cbd5e1'
-                        }}
-                        key={localGameState.currentPlayer}
-                    >
-                        {/* 1. Cosmic Background Overlay (Sync with Lobby) */}
-                        <div className="finish-center-cosmic cosmic-core-bg" style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: '50%',
-                            opacity: 0.5
-                        }}>
-                            {/* Dynamic Orbs for depth */}
-                            <div className="cosmic-orb cosmic-orb-1 opacity-40 scale-50" />
-                            <div className="cosmic-orb cosmic-orb-2 opacity-30 scale-50" />
-                        </div>
-
-                        {/* 2. Junction Background Fill (Erases clockwise from top) */}
-                        <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                            pointerEvents: 'none',
-                            zIndex: 1
-                        }}>
-                            <motion.div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                background: useTransform(sweepProgress, (v) =>
-                                    `conic-gradient(#000000 0% ${v}%, ${activeColor} ${v + 0.2}% 100%)`
-                                ),
-                                maskImage: 'radial-gradient(circle, transparent 42%, black 43%)',
-                                WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 43%)'
-                            }} />
-                            {/* Subtle darkening for depth */}
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                background: 'black',
-                                opacity: 0.1,
-                                maskImage: 'radial-gradient(circle, transparent 42%, black 43%)',
-                                WebkitMaskImage: 'radial-gradient(circle, transparent 42%, black 43%)'
-                            }}
-                            />
-                        </div>
-
-                        {/* 3. Timer Ring & Progress Point (84% diameter) */}
-                        <div className="junction-timer-container" style={{
-                            position: 'absolute',
-                            inset: '8%',
-                            width: '84%',
-                            height: '84%',
-                            pointerEvents: 'none',
-                            zIndex: 2,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '50%'
-                        }}>
-                            <div className="junction-timer-track-css" />
-                            <motion.div
-                                className="junction-timer-color-ring"
-                                style={{
-                                    background: useTransform(sweepProgress, (v) =>
-                                        `conic-gradient(#000000 0% ${v}%, ${activeColor} ${v + 0.2}% 100%)`
-                                    ),
-                                    zIndex: 2,
-                                    position: 'absolute',
-                                    inset: 0
-                                }}
-                            />
-                            {/* Glowing Progress Point */}
-                            <motion.div
-                                className="junction-timer-point"
-                                style={{
-                                    rotate: pointRotation,
-                                    position: 'absolute',
-                                    inset: 0,
-                                    zIndex: 10
-                                }}
-                            >
-                                <div style={{
-                                    position: 'absolute',
-                                    right: '-4px',
-                                    top: '50%',
-                                    marginTop: '-4px',
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '50%',
-                                    backgroundColor: activeColor,
-                                    boxShadow: `0 0 15px ${activeColor}`,
-                                }} />
-                            </motion.div>
-                        </div>
-
-                        {/* 4. Central Glass Badge with Rotating Star */}
-                        <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                            style={{
-                                width: '45%',
-                                height: '45%',
-                                borderRadius: '50%',
-                                background: 'rgba(255, 255, 255, 0.15)',
-                                backdropFilter: 'blur(16px)',
-                                border: '1px solid rgba(255, 255, 255, 0.25)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                                zIndex: 10,
-                                position: 'relative'
-                            }}
-                        >
-                            <motion.svg
-                                viewBox="0 0 24 24"
-                                className="star-rotate-anim"
-                                animate={{
-                                    fill: 'var(--active-player-color)',
-                                    rotate: 360
-                                }}
-                                transition={{
-                                    fill: { duration: 0.5 },
-                                    rotate: { duration: 8, repeat: Infinity, ease: "linear" }
-                                }}
-                                style={{
-                                    width: '75%',
-                                    height: '75%',
-                                    filter: 'drop-shadow(0 0 8px var(--active-player-color))',
-                                    position: 'absolute',
-                                    zIndex: 2
-                                }}
-                            >
-                                <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
-                            </motion.svg>
-                        </motion.div>
-
-                        {/* 5. Ambient Pulse Ring */}
-                        <motion.div
-                            animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.4, 0.2] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                            style={{
-                                position: 'absolute',
-                                width: '70%',
-                                height: '70%',
-                                borderRadius: '50%',
-                                border: '1px dashed rgba(255,255,255,0.1)',
-                                zIndex: 1
-                            }}
-                        />
-                    </div>
-
-                    {/* ── Path Squares ── */}
+                    {/* ── Path Squares (Now inside board-grid) ── */}
                     {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
                         const cellInfo = getGridCellInfo(row, col, colorCorner);
                         const isPower = localGameState.powerTiles.some((pt: { r: number, c: number }) => pt.r === row && pt.c === col);
@@ -644,6 +473,158 @@ export default function Board({
 
                     {/* ── Tokens ── */}
                     {renderTokensOnPath()}
+                </div>
+
+                {/* ── Center Finish Zone (Sibling to grid to avoid clipping) ── */}
+                <div
+                    className={`finish-center ${localGameState.invalidMove ? 'shake-feedback' : ''}`}
+                    style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '20%', // 3 cells / 15 cells = 20%
+                        height: '20%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '16px',
+                        overflow: 'visible',
+                        background: 'transparent',
+                        boxShadow: 'none',
+                        zIndex: 10,
+                        // Define the active player color once as a CSS variable
+                        ['--active-player-color' as any]: {
+                            green: '#4CAF50',
+                            red: '#F44336',
+                            blue: '#2196F3',
+                            yellow: '#FFEB3B'
+                        }[localGameState.currentPlayer] || '#cbd5e1'
+                    }}
+                    key={localGameState.currentPlayer}
+                >
+                    {/* 1. Junction Corner Reflections (Reveal cosmic background) */}
+                    <div className="finish-center-corner-glimpse" style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: '16px',
+                        opacity: 0.8,
+                        overflow: 'hidden',
+                        zIndex: 0
+                    }}>
+                        <div className="cosmic-orb cosmic-orb-1 opacity-60 scale-50" />
+                        <div className="cosmic-orb cosmic-orb-2 opacity-40 scale-50" />
+                    </div>
+
+                    {/* 2. Glass Functional Core (GameLobby Style - Near Opaque) */}
+                    <div className="finish-center-functional-core glass-panel" style={{
+                        position: 'absolute',
+                        inset: '1%',
+                        borderRadius: '50%',
+                        background: 'rgba(26, 28, 41, 0.95)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        zIndex: 1,
+                        overflow: 'hidden',
+                        boxShadow: '0 0 50px rgba(0,0,0,0.8)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        {/* Ambient Heart Pulse (Neutral/Subtle) */}
+                        <motion.div
+                            animate={{ scale: [1, 1.05, 1], opacity: [0.05, 0.1, 0.05] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                            style={{
+                                position: 'absolute',
+                                inset: '15%',
+                                borderRadius: '50%',
+                                background: `radial-gradient(circle, white 0%, transparent 70%)`,
+                                zIndex: 0
+                            }}
+                        />
+
+                        {/* Center Star Badge (Animated & Dynamic Color) */}
+                        <motion.div
+                            animate={{
+                                scale: [1, 1.15, 1],
+                                rotate: [0, 8, 0, -8, 0]
+                            }}
+                            transition={{
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                            }}
+                            style={{
+                                position: 'absolute',
+                                inset: '25%',
+                                zIndex: 10,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                        >
+                            <div className="glass-core" style={{
+                                width: '100%',
+                                height: '100%',
+                                borderRadius: '50%',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                backdropFilter: 'blur(8px)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: activeColor,
+                                boxShadow: `0 0 30px -5px ${activeColor}66`
+                            }}>
+                                <StarMarker color={activeColor} />
+                            </div>
+                        </motion.div>
+                    </div>
+
+                    {/* 3. Timer Ring & Progress Point */}
+                    <div className="junction-timer-container" style={{
+                        position: 'absolute',
+                        inset: '6%',
+                        width: '88%',
+                        height: '88%',
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%'
+                    }}>
+                        <div className="junction-timer-track-css" />
+                        <motion.div
+                            className="junction-timer-color-ring"
+                            style={{
+                                background: useTransform(sweepProgress, (v) =>
+                                    `conic-gradient(#000000 0% ${v}%, ${activeColor} ${v + 0.2}% 100%)`
+                                ),
+                                zIndex: 2,
+                                position: 'absolute',
+                                inset: 0
+                            }}
+                        />
+                        <motion.div
+                            className="junction-timer-point"
+                            style={{ rotate: pointRotation, position: 'absolute', inset: 0, zIndex: 10 }}
+                        >
+                            <div style={{
+                                position: 'absolute',
+                                right: '-4px',
+                                top: '50%',
+                                marginTop: '-4px',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: activeColor,
+                                boxShadow: `0 0 15px ${activeColor}`,
+                            }} />
+                        </motion.div>
+                    </div>
                 </div>
 
                 {/* --- Status Notification --- */}
@@ -722,13 +703,15 @@ export default function Board({
             />
 
             {/* ── Player Profile Sheet ── */}
-            {selectedPlayer && (
-                <PlayerProfileSheet
-                    player={selectedPlayer}
-                    wins={localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length}
-                    onClose={() => setSelectedPlayer(null)}
-                />
-            )}
-        </div>
+            {
+                selectedPlayer && (
+                    <PlayerProfileSheet
+                        player={selectedPlayer}
+                        wins={localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length}
+                        onClose={() => setSelectedPlayer(null)}
+                    />
+                )
+            }
+        </div >
     );
 }

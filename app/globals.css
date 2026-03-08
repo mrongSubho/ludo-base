@@ -27,16 +27,16 @@
 }
 
 :root {
-  /* --- Unified Cosmic Dashboard Theme (Default) --- */
+  /* --- Unified Cosmic Midnight Theme (Default) --- */
   --ludo-bg-cosmic:
-    radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
-    radial-gradient(ellipse at 60% 30%, rgba(200, 204, 214, 0.3) 0%, transparent 60%),
-    radial-gradient(ellipse at 30% 70%, rgba(255, 255, 255, 0.25) 0%, transparent 50%),
-    radial-gradient(circle at 80% 90%, rgba(220, 224, 234, 0.2) 0%, transparent 50%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+    radial-gradient(circle at 10% 10%, rgba(30, 32, 45, 0.8) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 30%, rgba(20, 22, 35, 0.6) 0%, transparent 60%),
+    radial-gradient(ellipse at 30% 70%, rgba(15, 17, 30, 0.7) 0%, transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(25, 27, 40, 0.5) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
 
-  --ludo-bg: #5a5c63;
-  /* Gunmetal Base */
+  --ludo-bg: #0f111a;
+  /* Deep Midnight Gunmetal */
   --ludo-card: #FFFFFF;
   /* Pure White Pads for maximum contrast */
 
@@ -56,7 +56,7 @@
   --ludo-text: #FFFFFF;
   --ludo-muted: #AAAAAA;
   --ludo-faint: #444444;
-  --ludo-border: rgba(255, 255, 255, 0.2);
+  --ludo-border: rgba(255, 255, 255, 0.15);
   /* Sharper Grid Lines */
 
   --ludo-sage-contrast: #FFFFFF;
@@ -65,11 +65,11 @@
   --ludo-amber-contrast: #000000;
 
   --ludo-bg-image: var(--ludo-bg-cosmic);
-  --ludo-bg-rgb: 90, 92, 99;
+  --ludo-bg-rgb: 15, 17, 26;
 
   /* Consolidated Utility Tokens */
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.15);
-  --shadow-pill: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-pill: 0 2px 12px rgba(0, 0, 0, 0.25);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -1635,28 +1635,37 @@ a {
   width: 100%;
   gap: 1px;
   border-radius: 24px;
-  background: #1a1a20;
-  /* Cut hole for junction (approx 20% of board size) */
-  mask-image: radial-gradient(circle at center, transparent 13%, black 14%);
-  -webkit-mask-image: radial-gradient(circle at center, transparent 13%, black 14%);
+  /* Removed mask-image from parent to prevent clipping children (junction) */
   border: 2px solid rgba(255, 255, 255, 0.08);
   /* Sophisticated frame border */
   box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
   position: relative;
   overflow: visible !important;
-  /* Allow labels to overflow freely */
+  /* Allow labels and junction children to overflow freely */
 }
 
-/* Ensure the background follows the rounding */
+/* Dark Background Layer with Junction Hole */
 .board-grid::before {
   content: "";
   position: absolute;
-  inset: -2px;
-  /* Slight offset for frame depth */
-  border-radius: 26px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
-  pointer-events: none;
+  inset: 0;
+  background: var(--ludo-bg, #0f111a);
+  /* Use theme bg */
+  border-radius: 24px;
   z-index: -1;
+  /* Keep behind path cells and junction */
+
+  /* Cut square hole for junction (20% of board size: 3/15) */
+  mask-image: linear-gradient(black, black), linear-gradient(black, black);
+  -webkit-mask-image: linear-gradient(black, black), linear-gradient(black, black);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  mask-size: 100% 100%, 20% 20%;
+  mask-position: center;
+  mask-repeat: no-repeat;
+
+  /* Sophisticated frame inner shadow */
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
 }
 
 .junction-timer-container {
@@ -1860,8 +1869,7 @@ a {
 .star-svg {
   width: 58%;
   height: 58%;
-  color: #E0A83A;
-  filter: drop-shadow(0 1px 2px rgba(224, 168, 58, 0.35));
+  /* Removed hardcoded gold to allow dynamic turn-based coloring */
 }
 
 /* ── Center Finish Zone — muted triangles ── */
