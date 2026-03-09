@@ -10,8 +10,8 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const ticketId = searchParams.get('ticketId');
 
-        if (!ticketId) {
-            return NextResponse.json({ error: 'Missing ticketId' }, { status: 400 });
+        if (!ticketId || ticketId === 'undefined') {
+            return NextResponse.json({ error: 'Missing or invalid ticketId' }, { status: 400 });
         }
 
         const { data, error } = await supabase

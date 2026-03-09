@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Turbopack config
-  turbopack: {},
+  turbopack: {
+    root: '.',
+  },
 
   webpack: (config) => {
     config.resolve.fallback = {
