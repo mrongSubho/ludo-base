@@ -216,12 +216,31 @@ export const QuickMatchPanel = ({
                                 className="flex flex-col items-center justify-center w-full px-4"
                             >
                                 {/* AI Proposal Header */}
-                                <div className="space-y-4 text-center mb-8">
-                                    <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.2)]">
-                                        <span className="text-4xl">🤖</span>
+                                <div className="space-y-4 text-center mb-8 w-full flex flex-col items-center">
+                                    <div className="w-20 h-20 rounded-3xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                                        <motion.svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="w-10 h-10 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]"
+                                            animate={{ y: [-2, 2, -2] }}
+                                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                        >
+                                            <rect x="3" y="10" width="18" height="10" rx="2" />
+                                            <circle cx="12" cy="6" r="2" />
+                                            <path d="M12 8v2" />
+                                            <line x1="8" y1="15" x2="8.01" y2="15" strokeWidth="3" />
+                                            <line x1="16" y1="15" x2="16.01" y2="15" strokeWidth="3" />
+                                        </motion.svg>
                                     </div>
                                     <h3 className="text-3xl font-black text-white italic tracking-tighter">NO MATCH FOUND</h3>
-                                    <p className="text-white/60 text-sm font-medium px-4">The network is currently quiet. Want to hone your skills against our advanced AI?</p>
+                                    <p className="text-white/60 text-sm font-medium px-4">
+                                        The network is currently quiet.<br />
+                                        Want to charge-up your skills against our advanced AI?
+                                    </p>
                                 </div>
 
                                 <div className="w-full max-w-sm space-y-4 relative z-10">
@@ -229,11 +248,15 @@ export const QuickMatchPanel = ({
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
                                         onClick={handlePlayVsAi}
-                                        className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black rounded-2xl transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] flex flex-col items-center justify-center gap-1"
+                                        className="w-full py-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-2xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] flex flex-col items-center justify-center gap-1"
                                     >
                                         <span className="text-xl italic tracking-tighter">PLAY VS AI</span>
                                         <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Offline Mode</span>
                                     </motion.button>
+
+                                    <div className="w-full py-2">
+                                        <hr className="border-white/10" />
+                                    </div>
 
                                     <button
                                         onClick={startSearch}
@@ -354,8 +377,24 @@ export const QuickMatchPanel = ({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-purple-600 flex items-center justify-center text-6xl">
-                                    <span>🤖</span>
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-purple-600 flex items-center justify-center">
+                                    <motion.svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="w-16 h-16 md:w-24 md:h-24 text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.8)]"
+                                        animate={{ y: [-4, 4, -4] }}
+                                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                    >
+                                        <rect x="3" y="8" width="18" height="10" rx="2" />
+                                        <circle cx="12" cy="4" r="2" />
+                                        <path d="M12 6v2" />
+                                        <line x1="8" y1="13" x2="8.01" y2="13" strokeWidth="3" />
+                                        <line x1="16" y1="13" x2="16.01" y2="13" strokeWidth="3" />
+                                    </motion.svg>
                                 </div>
                                 <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-purple text-center">
                                     Rival

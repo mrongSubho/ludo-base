@@ -194,14 +194,6 @@ function PlayerCard({
     return (
         <div className={`player-card player-card-corner ${player.position}`}>
             <div className="avatar-circle-wrapper">
-                {power && (
-                    <div
-                        className={`power-inventory-bubble ${isActive && onPowerClick ? 'power-ready' : ''}`}
-                        onClick={isActive && onPowerClick ? onPowerClick : undefined}
-                    >
-                        {powerEmojis[power]}
-                    </div>
-                )}
                 <div
                     className={`avatar-circle ${player.color}`}
                     title={player.name}
@@ -209,11 +201,6 @@ function PlayerCard({
                     <span className="avatar-emoji">{player.avatar}</span>
                 </div>
                 <div className="avatar-level-badge">{player.level}</div>
-                {teamLabel && (
-                    <div className={`team-badge team-${teamLabel.toLowerCase()}`}>
-                        {teamLabel}
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -395,22 +382,7 @@ export default function Board({
                                 isActive={localGameState.currentPlayer === p.color}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
-                                teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
-                            {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
-                                <div className="ai-thinking-tag">Thinking...</div>
-                            )}
-                            {localGameState.currentPlayer === p.color && !p.isAi && (localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0) >= 3 && (
-                                <div className="ai-thinking-tag afk-tag">Auto-Play</div>
-                            )}
-                            {localGameState.currentPlayer === p.color && (
-                                <div className="player-dice-wrapper">
-                                    <Dice
-                                        onRoll={handleRoll}
-                                        disabled={localGameState.gamePhase !== 'rolling' || !!localGameState.winner || (p.isAi && !localGameState.winner)}
-                                    />
-                                </div>
-                            )}
                         </div>
                     );
                 })}
@@ -614,14 +586,14 @@ export default function Board({
                         >
                             <div style={{
                                 position: 'absolute',
-                                right: '-4px',
+                                right: '0px',
                                 top: '50%',
-                                marginTop: '-4px',
-                                width: '8px',
-                                height: '8px',
+                                marginTop: '-0.5px',
+                                width: '1px',
+                                height: '1px',
                                 borderRadius: '50%',
                                 backgroundColor: activeColor,
-                                boxShadow: `0 0 15px ${activeColor}`,
+                                boxShadow: `0 0 8px 3px ${activeColor}`,
                             }} />
                         </motion.div>
                     </div>
@@ -674,23 +646,7 @@ export default function Board({
                                 isActive={localGameState.currentPlayer === p.color}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
-                                teamLabel={playerCount === '2v2' ? (getTeam(p.color) === 1 ? 'A' : 'B') : null}
                             />
-                            {localGameState.currentPlayer === p.color && localGameState.isThinking && p.isAi && (
-                                <div className="ai-thinking-tag">Thinking...</div>
-                            )}
-                            {/* Auto-play Mode Tag */}
-                            {localGameState.currentPlayer === p.color && !p.isAi && (localGameState.strikes[p.color as keyof typeof localGameState.strikes] || 0) >= 3 && (
-                                <div className="ai-thinking-tag afk-tag">Auto-Play</div>
-                            )}
-                            {localGameState.currentPlayer === p.color && (
-                                <div className="player-dice-wrapper">
-                                    <Dice
-                                        onRoll={handleRoll}
-                                        disabled={localGameState.gamePhase !== 'rolling' || !!localGameState.winner || (p.isAi && !localGameState.winner)}
-                                    />
-                                </div>
-                            )}
                         </div>
                     );
                 })}
