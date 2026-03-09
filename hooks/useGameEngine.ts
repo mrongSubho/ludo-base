@@ -46,6 +46,7 @@ export function useGameEngine({
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const { address } = useAccount();
     const hasRecordedWin = useRef<boolean>(false);
+    const activeColorsArr = initialPlayers.map(p => p.color as PlayerColor);
 
     const {
         gameState: networkGameState,
@@ -109,13 +110,15 @@ export function useGameEngine({
         return positions[color].every((pos) => pos === 57);
     }, []);
 
-    const getNextPlayer = useCallback((current: Player['color']): Player['color'] => {
-        const order: Player['color'][] = ['green', 'red', 'blue', 'yellow'];
-        const activeColors = initialPlayers.map(p => p.color);
-        const activeOrder = order.filter(c => activeColors.includes(c));
+    const getNextPlayer = useCallback((current: PlayerColor): PlayerColor => {
+        if (playerCount === '1v1' && activeColorsArr.length === 2) {
+            return activeColorsArr.find(c => c !== current) || activeColorsArr[0];
+        }
+        const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+        const activeOrder = order.filter(c => activeColorsArr.includes(c));
         const idx = activeOrder.indexOf(current);
         return activeOrder[(idx + 1) % activeOrder.length];
-    }, [initialPlayers]);
+    }, [activeColorsArr, playerCount]);
 
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2'
@@ -214,7 +217,8 @@ export function useGameEngine({
                 tokenIndex,
                 steps,
                 playerPaths,
-                playerCount
+                playerCount,
+                activeColorsArr
             );
 
             if (newState.positions[color][tokenIndex] !== prev.positions[color][tokenIndex]) playMove();

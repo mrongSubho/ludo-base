@@ -5,11 +5,16 @@ import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } fr
 
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 
-export function getNextPlayer(current: PlayerColor, playerCount: string): PlayerColor {
+export function getNextPlayer(current: PlayerColor, playerCount: string, activeColors?: PlayerColor[]): PlayerColor {
     const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
     const idx = order.indexOf(current);
-    // 1v1 Mode: only 2 diagonal colors are active.
-    // E.g., if green is active, its opponent is blue
+
+    // 1v1 Mode: alternate between the two active colors
+    if (playerCount === '1v1' && activeColors && activeColors.length === 2) {
+        return activeColors.find(c => c !== current) || activeColors[0];
+    }
+
+    // Fallback for legacy 1v1 pairs
     if (playerCount === '1v1') {
         const opposingPairs: Record<PlayerColor, PlayerColor> = {
             green: 'blue',
@@ -123,7 +128,8 @@ export function processMove(
     tokenIndex: number,
     steps: number,
     playerPaths: Record<string, Point[]>,
-    playerCount: string
+    playerCount: string,
+    activeColors?: PlayerColor[]
 ): MoveResult {
     if (state.winner) return { newState: state, captured: false, bonusRoll: false };
 
@@ -188,7 +194,7 @@ export function processMove(
     }
 
     const bonusRoll = captured || steps === 6;
-    const nextPlayer = bonusRoll ? color : getNextPlayer(color, playerCount);
+    const nextPlayer = bonusRoll ? color : getNextPlayer(color, playerCount, activeColors);
 
     return {
         newState: {
