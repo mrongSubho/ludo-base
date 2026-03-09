@@ -98,21 +98,70 @@ export const CORNER_SLOTS: Record<Corner, {
     },
 };
 
-export const VALID_COLOR_ARRANGEMENTS: ColorCorner[] = [
-    { green: 'BL', blue: 'TR', red: 'BR', yellow: 'TL' }, // A (default)
-    { green: 'TR', blue: 'BL', red: 'BR', yellow: 'TL' }, // B (swap green/blue)
-    { green: 'BL', blue: 'TR', red: 'TL', yellow: 'BR' }, // C (swap red/yellow)
-    { green: 'TR', blue: 'BL', red: 'TL', yellow: 'BR' }, // D (swap both)
+/** Two valid diagonal axes for 2v2. Each entry = [axis corners for pair1, axis corners for pair2] */
+const DIAGONAL_AXES: [readonly [Corner, Corner], readonly [Corner, Corner]][] = [
+    [['BL', 'TR'], ['BR', 'TL']],  // Axis A
+    [['BR', 'TL'], ['BL', 'TR']],  // Axis B (swapped)
 ];
 
+/**
+ * 2v2 mode: Strict team pairings — Green+Blue vs Red+Yellow.
+ * Teammates always land on diagonally opposite corners.
+ * Which diagonal axis each team gets is randomized per match.
+ */
+export function assignCorners2v2(): ColorCorner {
+    // Fixed team pairings per spec
+    const teamGB: [PlayerColor, PlayerColor] = ['green', 'blue'];
+    const teamRY: [PlayerColor, PlayerColor] = ['red', 'yellow'];
+
+    // Pick a random diagonal axis
+    const axis = DIAGONAL_AXES[Math.floor(Math.random() * 2)];
+    // Randomly assign which team gets which diagonal axis
+    const [axisGB, axisRY] = Math.random() < 0.5 ? [axis[0], axis[1]] : [axis[1], axis[0]];
+
+    // Within each axis, randomly assign which teammate gets which corner
+    const cc: Partial<ColorCorner> = {};
+    const [gb0, gb1] = Math.random() < 0.5 ? axisGB : [axisGB[1], axisGB[0]];
+    cc[teamGB[0]] = gb0;
+    cc[teamGB[1]] = gb1;
+    const [ry0, ry1] = Math.random() < 0.5 ? axisRY : [axisRY[1], axisRY[0]];
+    cc[teamRY[0]] = ry0;
+    cc[teamRY[1]] = ry1;
+
+    return cc as ColorCorner;
+}
+
+/**
+ * 1v1 / 4P free-for-all: Full Fisher-Yates shuffle of corners — no pairing constraints.
+ */
+export function assignCornersFFA(_playerCount: '1v1' | '4P' = '4P'): ColorCorner {
+    const cc: Partial<ColorCorner> = {};
+    const allColors: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
+    const corners: Corner[] = ['BL', 'TR', 'BR', 'TL'];
+
+    // Fisher-Yates shuffle corners
+    for (let i = corners.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [corners[i], corners[j]] = [corners[j], corners[i]];
+    }
+
+    // Assign all 4 colors to corners (ensures board grid is always complete)
+    allColors.forEach((color, i) => { cc[color] = corners[i]; });
+    return cc as ColorCorner;
+}
+
+/** @deprecated Use assignCornersFFA() or assignCorners2v2() instead */
 export function shuffleColorCorner(): ColorCorner {
-    return VALID_COLOR_ARRANGEMENTS[Math.floor(Math.random() * 4)];
+    return assignCornersFFA();
 }
 
 export function buildPlayerPaths(cc: ColorCorner): Record<string, Point[]> {
     const paths: Record<string, Point[]> = {};
     (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).forEach(color => {
-        const slot = CORNER_SLOTS[cc[color]];
+        const corner = cc[color];
+        if (!corner) return; // Skip players not in this match (e.g. 1v1)
+
+        const slot = CORNER_SLOTS[corner];
         paths[color] = [
             ...rotatePath(SHARED_PATH, slot.startIdx),
             ...slot.homeCells,
@@ -202,25 +251,99 @@ export const PLAYER_TEMPLATES = [
     { name: 'Emma', level: 10, avatar: '🦊', isAi: false },
 ];
 
-export function shufflePlayers(countMode: '1v1' | '4P' | '2v2', isBotMatch: boolean): any[] {
-    const seats = ['bottom-left', 'top-left', 'top-right', 'bottom-right'] as const;
-    const colors = ['green', 'red', 'blue', 'yellow'] as const;
+type Position = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
-    const numPlayers = countMode === '1v1' ? 2 : 4;
+const COLOR_SEATS: { color: PlayerColor; position: Position }[] = [
+    { color: 'green', position: 'top-right' },
+    { color: 'red', position: 'bottom-right' },
+    { color: 'yellow', position: 'top-left' },
+    { color: 'blue', position: 'bottom-left' },
+];
 
-    const selected = [...PLAYER_TEMPLATES]
-        .sort(() => Math.random() - 0.5)
-        .slice(0, numPlayers);
+const CORNER_TO_POSITION: Record<Corner, Position> = {
+    'TL': 'top-left',
+    'TR': 'top-right',
+    'BL': 'bottom-left',
+    'BR': 'bottom-right',
+};
 
-    if (isBotMatch) {
-        selected.forEach(p => {
-            if (p.name !== 'Alex') p.isAi = true;
+export function shufflePlayers(
+    playerCount: '1v1' | '4P' | '2v2' = '4P',
+    isBotMatch: boolean = false,
+    cc?: ColorCorner
+) {
+    // 1. Determine active colors from cc if provided, otherwise default to all
+    const activeColors: PlayerColor[] = cc ? (Object.keys(cc) as PlayerColor[]) : ['green', 'red', 'blue', 'yellow'];
+
+    // 2. Determine which indices are active based on playerCount (legacy fallback)
+    const usePair1 = Math.random() > 0.5;
+    const activeIndices = playerCount === '1v1' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
+
+    const humanTemplate = PLAYER_TEMPLATES.find(p => !p.isAi)!;
+    const botTemplates = PLAYER_TEMPLATES.filter(p => p.isAi);
+
+    // If cc is provided, we ignore COLOR_SEATS and use the dynamic mapping
+    if (cc) {
+        let activeColorEntries = Object.entries(cc) as [PlayerColor, Corner][];
+
+        // REFINEMENT: For 1v1, we MUST filter to exactly 2 diagonal players
+        if (playerCount === '1v1') {
+            const axis = DIAGONAL_AXES[Math.floor(Math.random() * 2)][0]; // ['BL', 'TR'] or ['BR', 'TL']
+            activeColorEntries = activeColorEntries.filter(([, corner]) => axis.includes(corner));
+        }
+
+        let humanAssigned = false;
+        let botIndex = 0;
+        const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
+
+        return activeColorEntries.map(([color, corner], i) => {
+            let template;
+            if (isBotMatch) {
+                if (!humanAssigned) {
+                    template = humanTemplate;
+                    humanAssigned = true;
+                } else {
+                    template = botTemplates[botIndex % botTemplates.length];
+                    botIndex++;
+                }
+            } else {
+                template = templates[i % templates.length];
+            }
+
+            return {
+                ...template,
+                color,
+                position: CORNER_TO_POSITION[corner],
+                isAi: template.isAi
+            };
         });
     }
 
-    return selected.map((p, i) => ({
-        ...p,
-        position: seats[i],
-        color: colors[i],
-    }));
+    // Legacy fallback (preserving original logic for snakes or other modes not yet converted)
+    if (isBotMatch) {
+        let assignedHuman = false;
+        let botIndex = 0;
+
+        return COLOR_SEATS.map((seat, i) => {
+            if (!activeIndices.includes(i)) return null;
+
+            let template;
+            if (!assignedHuman) {
+                template = humanTemplate;
+                assignedHuman = true;
+            } else {
+                template = botTemplates[botIndex % botTemplates.length];
+                botIndex++;
+            }
+
+            return { ...template, ...seat, isAi: template.isAi };
+        }).filter(Boolean);
+
+    } else {
+        const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
+        return COLOR_SEATS.map((seat, i) => {
+            if (!activeIndices.includes(i)) return null;
+            return { ...templates[i], ...seat };
+        }).filter(Boolean);
+    }
 }

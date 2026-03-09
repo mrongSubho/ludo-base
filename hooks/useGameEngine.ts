@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { useMultiplayerContext, PlayerColor } from '@/hooks/MultiplayerContext';
 import { processMove } from '@/lib/gameLogic';
 import { getBestMove } from '@/lib/aiEngine';
-import { Point, PathCell, ColorCorner, shuffleColorCorner, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
+import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
 
@@ -27,8 +27,11 @@ interface UseGameEngineProps {
     isBotMatch: boolean;
     playerPaths: Record<string, Point[]>;
     pathCells: PathCell[];
-    setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
-    setColorLayout: React.Dispatch<React.SetStateAction<{ colorCorner: ColorCorner; playerPaths: Record<string, Point[]>; }>>;
+    setBoardConfig: React.Dispatch<React.SetStateAction<{
+        players: Player[];
+        colorCorner: ColorCorner;
+        playerPaths: Record<string, Point[]>;
+    }>>;
 }
 
 export function useGameEngine({
@@ -38,8 +41,7 @@ export function useGameEngine({
     isBotMatch,
     playerPaths,
     pathCells,
-    setPlayers,
-    setColorLayout
+    setBoardConfig
 }: UseGameEngineProps) {
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const { address } = useAccount();
@@ -116,10 +118,16 @@ export function useGameEngine({
     }, [initialPlayers]);
 
     const resetGame = useCallback(() => {
-        const newCC = shuffleColorCorner();
-        const newPlayers = shufflePlayers(playerCount, isBotMatch);
-        setPlayers(newPlayers);
-        setColorLayout({ colorCorner: newCC, playerPaths: buildPlayerPaths(newCC) });
+        const newCC = playerCount === '2v2'
+            ? assignCorners2v2()
+            : assignCornersFFA(playerCount as '1v1' | '4P');
+        const newPlayers = shufflePlayers(playerCount, isBotMatch, newCC) as Player[];
+
+        setBoardConfig({
+            players: newPlayers,
+            colorCorner: newCC,
+            playerPaths: buildPlayerPaths(newCC)
+        });
         setLocalGameState({
             positions: {
                 green: [-1, -1, -1, -1],
@@ -149,7 +157,7 @@ export function useGameEngine({
             consecutiveSixes: 0,
             multiplayer: { targetId: '', isConnected: false, isHost: false, status: 'idle' }
         });
-    }, [playerCount, gameMode, pathCells, isBotMatch, setColorLayout, setPlayers]);
+    }, [playerCount, gameMode, pathCells, isBotMatch, setBoardConfig]);
 
     const recordWin = useCallback(async (winnerColor: Player['color']) => {
         const player = initialPlayers.find(p => p.color === winnerColor);
