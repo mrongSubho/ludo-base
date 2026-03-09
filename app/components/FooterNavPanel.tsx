@@ -117,13 +117,13 @@ export const FooterNavPanel = ({
                             {isActive && (
                                 <motion.div
                                     layoutId="active-nav-bg"
-                                    className="absolute inset-0 bg-purple-600/10 rounded-[20px] backdrop-blur-sm -z-10"
-                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    className="absolute inset-0 bg-white/[0.08] border border-white/10 rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
+                                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
                                 />
                             )}
                             {/* Hover Background */}
                             {!isActive && (
-                                <div className="absolute inset-0 bg-purple-600/10 rounded-[20px] backdrop-blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                <div className="absolute inset-0 bg-white/[0.04] border border-white/5 rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
                             )}
 
                             <div className="relative inline-flex items-center justify-center">

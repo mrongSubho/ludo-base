@@ -266,8 +266,13 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: var(--ludo-bg);
-  box-shadow: var(--shadow-card);
+  /* Lighter translucent background with high blur */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  /* Subtle bottom border */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -332,12 +337,14 @@ a {
   border-radius: var(--radius-sm);
   color: var(--color-ludo-text);
   opacity: 0.6;
-  transition: opacity 0.2s, background 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .settings-dots-btn:hover {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.08);
+  /* Refined hover state */
+  transform: translateY(-1px);
 }
 
 .settings-dots-btn svg {
@@ -356,7 +363,7 @@ a {
   border-radius: var(--radius-sm);
   color: var(--color-ludo-text);
   opacity: 0.8;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   display: flex;
   align-items: center;
@@ -365,7 +372,8 @@ a {
 
 .dm-btn:hover {
   opacity: 1;
-  background: rgba(var(--color-ludo-bg-rgb), 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  /* Refined hover state */
   transform: translateY(-1px);
 }
 
@@ -894,70 +902,73 @@ a {
   justify-content: space-around;
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  background: var(--ludo-bg);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  /* Lighter translucent background with high blur */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  /* Subtle top border */
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
   z-index: 100;
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
 }
 
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: none;
   border: none;
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-
-
 .nav-item.active {
   color: #FFFFFF;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
-  position: relative;
 }
 
 .nav-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 2px;
-  background: #FFFFFF;
-  border-radius: 2px;
-  box-shadow: 0 0 5px #FFFFFF;
+  display: none;
+  /* Removed old custom underline style */
 }
 
 .nav-item .nav-icon {
   width: 22px;
   height: 22px;
   color: var(--color-ludo-faint);
-  transition: color 0.2s ease, filter 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item.active .nav-icon {
   color: #FFFFFF;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
+  transform: translateY(-2px);
+}
+
+.nav-item:hover:not(.active) .nav-icon {
+  color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
 }
 
 .nav-item .nav-label {
   font-size: 10px;
   font-weight: 500;
   color: var(--color-ludo-faint);
-  transition: color 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item.active .nav-label {
   color: #FFFFFF;
   font-weight: 600;
+}
+
+.nav-item:hover:not(.active) .nav-label {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* ─── Farcaster Frame Responsive ─── */
