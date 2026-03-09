@@ -1226,6 +1226,46 @@ a {
   box-shadow: 0 0 0 2px var(--color-ludo-blue), 0 4px 14px rgba(0, 82, 255, 0.3);
 }
 
+/* ─── Synchronized Turn Glows ─── */
+@keyframes active-pulse {
+  0% {
+    box-shadow: 0 0 0 0px var(--glow-color);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px var(--glow-color);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0px var(--glow-color);
+  }
+}
+
+.avatar-circle.active-glow {
+  animation: active-pulse 2s infinite ease-in-out;
+  border-width: 3px;
+}
+
+.avatar-circle.green.active-glow {
+  --glow-color: rgba(76, 175, 137, 0.6);
+  border-color: #4CAF89;
+}
+
+.avatar-circle.red.active-glow {
+  --glow-color: rgba(224, 138, 94, 0.6);
+  border-color: #E08A5E;
+}
+
+.avatar-circle.yellow.active-glow {
+  --glow-color: rgba(245, 158, 11, 0.6);
+  border-color: #F59E0B;
+}
+
+.avatar-circle.blue.active-glow {
+  --glow-color: rgba(0, 82, 255, 0.6);
+  border-color: #0052FF;
+}
+
 .player-dice-wrapper {
   position: absolute;
   top: 50%;

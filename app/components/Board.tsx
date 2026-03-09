@@ -4,6 +4,8 @@ import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor } from '@/hooks/MultiplayerContext';
+import { useAccount } from 'wagmi';
+import { supabase } from '@/lib/supabase';
 import {
     Corner, ColorCorner, CORNER_SLOTS, Point,
     shuffleColorCorner, assignCorners2v2, assignCornersFFA,
@@ -114,6 +116,16 @@ function Token({
     );
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const getDisplayName = (player: Player) => {
+    if (player.isAi) return player.name;
+    if (player.name && !player.name.startsWith('0x')) return player.name;
+    if (player.walletAddress) {
+        return `Guest ${player.walletAddress.slice(-6).toUpperCase()}`;
+    }
+    return player.name || 'Guest';
+};
+
 function PlayerCard({
     player,
     isActive,
@@ -133,10 +145,18 @@ function PlayerCard({
         <div className={`player-card player-card-corner ${player.position}`}>
             <div className="avatar-circle-wrapper">
                 <div
-                    className={`avatar-circle ${player.color}`}
-                    title={player.name}
+                    className={`avatar-circle ${player.color} ${isActive ? 'active-glow' : ''}`}
+                    title={getDisplayName(player)}
                 >
-                    <span className="avatar-emoji">{player.avatar}</span>
+                    {player.avatar && (player.avatar.startsWith('http') || player.avatar.startsWith('/')) ? (
+                        <img
+                            src={player.avatar}
+                            alt={player.name}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <span className="avatar-emoji">{player.avatar || '👤'}</span>
+                    )}
                 </div>
                 <div className="avatar-level-badge">{player.level}</div>
             </div>
@@ -159,6 +179,7 @@ export default function Board({
     isBotMatch?: boolean;
     onOpenProfile?: (address: string) => void;
 }) {
+    const { address } = useAccount();
     // ─── Unified Board Initialization ──────────────────────────────────────────
     const [boardConfig, setBoardConfig] = useState(() => {
         // 1. Generate core layout mapping first
@@ -173,6 +194,44 @@ export default function Board({
             playerPaths: buildPlayerPaths(cc)
         };
     });
+
+    // ─── Real Profile Syncing ──────────────────────────────────────────────────
+    useEffect(() => {
+        const syncMyProfile = async () => {
+            if (!address) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('players')
+                    .select('username, avatar_url, total_wins')
+                    .eq('wallet_address', address.toLowerCase())
+                    .single();
+
+                if (data && !error) {
+                    setBoardConfig(prev => ({
+                        ...prev,
+                        players: prev.players.map(p => {
+                            // Replace the first non-AI player (usually the local user)
+                            if (!p.isAi && (p.name === 'Alex' || p.walletAddress === address.toLowerCase())) {
+                                return {
+                                    ...p,
+                                    name: data.username || p.name,
+                                    avatar: data.avatar_url || p.avatar,
+                                    walletAddress: address.toLowerCase(),
+                                    level: Math.max(p.level, Math.floor(data.total_wins / 5) + 1)
+                                };
+                            }
+                            return p;
+                        })
+                    }));
+                }
+            } catch (err) {
+                console.error("Board: Profile sync failed", err);
+            }
+        };
+
+        syncMyProfile();
+    }, [address]);
 
     const { players, colorCorner, playerPaths } = boardConfig;
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
@@ -631,7 +690,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-top-inside ${uiSlots.TL}`}
                                 style={{ position: 'absolute', top: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {p.name}
+                                {getDisplayName(p)}
                             </div>
                         ) : null;
                     })()}
@@ -641,7 +700,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-top-inside ${uiSlots.TR}`}
                                 style={{ position: 'absolute', top: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {p.name}
+                                {getDisplayName(p)}
                             </div>
                         ) : null;
                     })()}
@@ -651,7 +710,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-bottom-inside ${uiSlots.BL}`}
                                 style={{ position: 'absolute', bottom: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {p.name}
+                                {getDisplayName(p)}
                             </div>
                         ) : null;
                     })()}
@@ -661,7 +720,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-bottom-inside ${uiSlots.BR}`}
                                 style={{ position: 'absolute', bottom: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {p.name}
+                                {getDisplayName(p)}
                             </div>
                         ) : null;
                     })()}
