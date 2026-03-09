@@ -373,8 +373,7 @@ export default function Board({
                             />
                             {isMyTurn && (
                                 <Dice
-                                    onRoll={(val) => handleRoll(p.color, val)}
-                                    isRolling={localGameState.isRolling}
+                                    onRoll={(val) => handleRoll(val)}
                                     disabled={!canRoll}
                                 />
                             )}
@@ -710,8 +709,7 @@ export default function Board({
                             />
                             {isMyTurn && (
                                 <Dice
-                                    onRoll={(val) => handleRoll(p.color, val)}
-                                    isRolling={localGameState.isRolling}
+                                    onRoll={(val) => handleRoll(val)}
                                     disabled={!canRoll}
                                 />
                             )}

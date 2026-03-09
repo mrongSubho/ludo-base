@@ -258,35 +258,39 @@ export function useGameEngine({
     }, []);
 
     const handleRoll = useCallback((value?: number, isRemote = false) => {
-        if (localGameState.gamePhase !== 'rolling' || localGameState.isThinking || localGameState.winner) return;
+        if (localGameState.winner) return;
 
-        if (!isHost && !isRemote) {
+        if (isLobbyConnected && !isHost && !isRemote) {
             sendIntent('REQUEST_ROLL');
             return;
         }
 
-        const roll = value || Math.floor(Math.random() * 6) + 1;
-        if (isHost && !isRemote) {
-            broadcastAction('ROLL_DICE', { value: roll });
+        const rollValue = value || Math.floor(Math.random() * 6) + 1;
+
+        if (isHost && isLobbyConnected && !isRemote) {
+            broadcastAction('ROLL_DICE', { value: rollValue });
         }
 
         setLocalGameState((prev) => {
+            if (prev.gamePhase !== 'rolling' || prev.isThinking || prev.winner) {
+                return prev;
+            }
+
             const color = prev.currentPlayer;
-            const isThreeSixes = roll === 6 && prev.consecutiveSixes === 2;
+            const isThreeSixes = rollValue === 6 && prev.consecutiveSixes === 2;
 
             if (isThreeSixes) {
                 const nextPlayer = getNextPlayer(color);
                 const nextState = {
                     ...prev,
-                    diceValue: roll,
+                    diceValue: rollValue,
                     consecutiveSixes: 0,
                     gamePhase: 'rolling' as const,
                     currentPlayer: nextPlayer,
                     captureMessage: "Three 6s! Turn passed.",
                     timeLeft: 15
                 };
-                if (isHost) {
-                    broadcastAction('ROLL_DICE', { value: roll });
+                if (isHost && isLobbyConnected) {
                     broadcastAction('TURN_SWITCH', { nextPlayer });
                 }
                 return nextState;
@@ -294,14 +298,14 @@ export function useGameEngine({
 
             let hasValidMove = false;
             prev.positions[color].forEach((pos) => {
-                const nextPos = pos === -1 ? (roll === 6 ? 0 : -1) : pos + roll;
+                const nextPos = pos === -1 ? (rollValue === 6 ? 0 : -1) : pos + rollValue;
                 if (nextPos <= 57 && nextPos !== -1) hasValidMove = true;
             });
 
             if (!hasValidMove && !isRemote) {
                 const nextPlayer = getNextPlayer(color);
                 setTimeout(() => {
-                    if (isHost) {
+                    if (isHost && isLobbyConnected) {
                         broadcastAction('TURN_SWITCH', { nextPlayer });
                     }
                     setLocalGameState(s => ({
@@ -317,13 +321,13 @@ export function useGameEngine({
 
             return {
                 ...prev,
-                diceValue: roll,
-                consecutiveSixes: roll === 6 ? prev.consecutiveSixes + 1 : 0,
+                diceValue: rollValue,
+                consecutiveSixes: rollValue === 6 ? prev.consecutiveSixes + 1 : 0,
                 gamePhase: hasValidMove ? 'moving' : 'rolling',
                 timeLeft: 15,
             };
         });
-    }, [getNextPlayer, isHost, broadcastAction, sendIntent, localGameState.gamePhase, localGameState.isThinking, localGameState.winner]);
+    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, sendIntent, localGameState.winner]);
 
     const handleTokenClick = (color: Player['color'], tokenIndex: number) => {
         if (localGameState.currentPlayer !== color || localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
