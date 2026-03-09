@@ -352,19 +352,32 @@ export default function Board({
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
             {/* ── Top Player Row  ── */}
             <div className="player-row player-row-top">
-                {(['top-left', 'top-right'] as const).map((pos) => {
-                    const p = players.find(player => player.position === pos);
+                {(['TL', 'TR'] as const).map((corner) => {
+                    const color = uiSlots[corner];
+                    const p = players.find(player => player.color === color);
                     if (!p) {
-                        return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
+                        return <div key={`empty-${corner}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
+                    const isMyTurn = localGameState.currentPlayer === p.color;
+                    const canRoll = isMyTurn && localGameState.gamePhase === 'rolling';
+                    // TL: Dice on Right (flex-row), TR: Dice on Left (flex-row-reverse)
+                    const flexDir = corner === 'TL' ? 'flex-row' : 'flex-row-reverse';
+
                     return (
-                        <div key={p.color} className={`player-wrapper ${localGameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col items-center gap-1`}>
+                        <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-3`}>
                             <PlayerCard
                                 player={p}
-                                isActive={localGameState.currentPlayer === p.color}
+                                isActive={isMyTurn}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                             />
+                            {isMyTurn && (
+                                <Dice
+                                    onRoll={(val) => handleRoll(p.color, val)}
+                                    isRolling={localGameState.isRolling}
+                                    disabled={!canRoll}
+                                />
+                            )}
                         </div>
                     );
                 })}
@@ -676,19 +689,32 @@ export default function Board({
 
             {/* ── Bottom Player Row ── */}
             <div className="player-row player-row-bottom">
-                {(['bottom-left', 'bottom-right'] as const).map((pos) => {
-                    const p = players.find(player => player.position === pos);
+                {(['BL', 'BR'] as const).map((corner) => {
+                    const color = uiSlots[corner];
+                    const p = players.find(player => player.color === color);
                     if (!p) {
-                        return <div key={`empty-${pos}`} className="player-placeholder" style={{ width: 140 }}></div>;
+                        return <div key={`empty-${corner}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
+                    const isMyTurn = localGameState.currentPlayer === p.color;
+                    const canRoll = isMyTurn && localGameState.gamePhase === 'rolling';
+                    // BL: Dice on Right (flex-row), BR: Dice on Left (flex-row-reverse)
+                    const flexDir = corner === 'BL' ? 'flex-row' : 'flex-row-reverse';
+
                     return (
-                        <div key={p.color} className={`player-wrapper ${localGameState.currentPlayer === p.color ? 'active-turn' : ''} wrapper-${p.position} flex flex-col-reverse items-center gap-1`}>
+                        <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-3`}>
                             <PlayerCard
                                 player={p}
-                                isActive={localGameState.currentPlayer === p.color}
+                                isActive={isMyTurn}
                                 power={localGameState.playerPowers[p.color]}
                                 onPowerClick={() => handleUsePower(p.color)}
                             />
+                            {isMyTurn && (
+                                <Dice
+                                    onRoll={(val) => handleRoll(p.color, val)}
+                                    isRolling={localGameState.isRolling}
+                                    disabled={!canRoll}
+                                />
+                            )}
                         </div>
                     );
                 })}
