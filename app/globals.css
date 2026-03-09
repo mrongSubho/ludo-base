@@ -828,7 +828,7 @@ a {
 
 .player-wrapper.active-turn {
   transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(168, 230, 207, 0.3);
+  /* No box-shadow here — square wrapper should never cast a shadow */
 }
 
 .ai-thinking-tag {
@@ -1070,6 +1070,8 @@ a {
   z-index: 10;
   transition: all 0.3s ease;
   transform-origin: center center;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* New corner-avatar style overrides the old pill card */
