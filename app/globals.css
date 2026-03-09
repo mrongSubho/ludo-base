@@ -1926,7 +1926,9 @@ a {
 .star-svg {
   width: 58%;
   height: 58%;
-  /* Removed hardcoded gold to allow dynamic turn-based coloring */
+  color: #F59E0B;
+  /* Restore gold color */
+  fill: currentColor;
 }
 
 /* ── Center Finish Zone — muted triangles ── */

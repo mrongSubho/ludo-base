@@ -35,6 +35,10 @@ export interface GameState {
     consecutiveSixes: number;
     isStarted: boolean;
     lastUpdate: number;
+    initialBoardConfig?: {
+        players: any[];
+        colorCorner: any;
+    };
 }
 
 interface MultiplayerContextType {
@@ -50,6 +54,7 @@ interface MultiplayerContextType {
     broadcastAction: (type: GameActionType, payload?: any) => void;
     myAddress?: string;
     updateGameState: (newState: Partial<GameState>) => void;
+    participants: Record<string, { username: string; avatar_url: string }>;
 }
 
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
@@ -87,6 +92,7 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
     const [isHost, setIsHost] = useState(false);
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
+    const [participants, setParticipants] = useState<Record<string, { username: string; avatar_url: string }>>({});
     const { address: myAddress } = useAccount();
 
     const peerRef = useRef<Peer | null>(null);
@@ -97,7 +103,11 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
 
         // Update local state if it's a state-changing action
         if (type === 'START_GAME') {
-            setGameState(prev => ({ ...prev, isStarted: true }));
+            setGameState(prev => ({
+                ...prev,
+                isStarted: true,
+                initialBoardConfig: payload.initialBoardConfig
+            }));
         }
 
         connection.send({ type, ...payload, gameState: type === 'SYNC_STATE' ? gameState : undefined });
@@ -182,7 +192,23 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                     // Phase 2 will handle logic, for now we just acknowledge
                     broadcastAction('MOVE_TOKEN', data.payload);
                 } else if (data.type === 'SYNC_PROFILE') {
-                    // Logic to store guest address
+                    console.log('👤 Syncing profile for:', data.address);
+                    setParticipants(prev => ({
+                        ...prev,
+                        [data.address.toLowerCase()]: {
+                            username: data.username || 'Guest',
+                            avatar_url: data.avatar_url || ''
+                        }
+                    }));
+                    // Send host profile back to guest
+                    if (myAddress) {
+                        conn.send({
+                            type: 'SYNC_PROFILE',
+                            address: myAddress,
+                            username: 'Host', // In real app, fetch from Supabase
+                            avatar_url: ''
+                        });
+                    }
                 }
             });
 
@@ -232,7 +258,11 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 } else if (data.type === 'ROLL_DICE') {
                     setGameState(prev => ({ ...prev, diceValue: data.value, isRolling: false }));
                 } else if (data.type === 'START_GAME') {
-                    setGameState(prev => ({ ...prev, isStarted: true }));
+                    setGameState(prev => ({
+                        ...prev,
+                        isStarted: true,
+                        initialBoardConfig: data.initialBoardConfig
+                    }));
                 } else if (data.type === 'MOVE_TOKEN') {
                     // Move logic will be reactive in Phase 2
                 }
@@ -278,7 +308,8 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             sendIntent,
             broadcastAction,
             myAddress,
-            updateGameState
+            updateGameState,
+            participants
         }}>
             {children}
         </MultiplayerContext.Provider>

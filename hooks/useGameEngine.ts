@@ -272,7 +272,7 @@ export function useGameEngine({
         }
 
         setLocalGameState((prev) => {
-            if (prev.gamePhase !== 'rolling' || prev.isThinking || prev.winner) {
+            if (prev.gamePhase !== 'rolling' || prev.winner) {
                 return prev;
             }
 

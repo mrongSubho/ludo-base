@@ -15,6 +15,7 @@ import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import PresenceManager from './components/PresenceManager';
+import { assignCornersFFA, assignCorners2v2, shufflePlayers } from '@/lib/boardLayout';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -139,7 +140,11 @@ export default function Page() {
 
   const handlePlayNow = () => {
     if (isHost) {
-      broadcastAction('START_GAME', {});
+      const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
+      const players = shufflePlayers(playerCount, isBotMatch, cc);
+      broadcastAction('START_GAME', {
+        initialBoardConfig: { players, colorCorner: cc }
+      });
     }
     setAppState('game');
   };
@@ -262,7 +267,14 @@ export default function Page() {
                 {selectedMode === 'snakes' ? (
                   <SnakesBoard playerCount={playerCount as any} onOpenProfile={(addr) => setSelectedProfileAddress(addr)} />
                 ) : (
-                  <Board playerCount={playerCount} gameMode={selectedMode as any} isBotMatch={isBotMatch} onOpenProfile={(addr) => setSelectedProfileAddress(addr)} />
+                  <Board
+                    playerCount={playerCount}
+                    gameMode={selectedMode as any}
+                    isBotMatch={isBotMatch}
+                    onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
+                    initialPlayers={gameState?.initialBoardConfig?.players}
+                    initialColorCorner={gameState?.initialBoardConfig?.colorCorner}
+                  />
                 )}
               </main>
 

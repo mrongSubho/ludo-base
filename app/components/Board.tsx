@@ -13,6 +13,7 @@ import {
     shufflePlayers
 } from '@/lib/boardLayout';
 import { Player, PowerType, useGameEngine } from '@/hooks/useGameEngine';
+import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
 // Layout:  Yellow (top-left) — Green (top-right)
@@ -170,7 +171,9 @@ export default function Board({
     playerCount = '4P',
     gameMode = 'classic',
     isBotMatch = false,
-    onOpenProfile
+    onOpenProfile,
+    initialPlayers,
+    initialColorCorner
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -178,22 +181,42 @@ export default function Board({
     gameMode?: 'classic' | 'power' | 'snakes';
     isBotMatch?: boolean;
     onOpenProfile?: (address: string) => void;
+    initialPlayers?: Player[];
+    initialColorCorner?: ColorCorner;
 }) {
     const { address } = useAccount();
+    const { participants } = useMultiplayer();
     // ─── Unified Board Initialization ──────────────────────────────────────────
     const [boardConfig, setBoardConfig] = useState(() => {
+        if (initialPlayers && initialColorCorner) {
+            return {
+                players: initialPlayers,
+                colorCorner: initialColorCorner,
+                playerPaths: buildPlayerPaths(initialColorCorner)
+            };
+        }
         // 1. Generate core layout mapping first
         const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
 
         // 2. Generate players based EXACTLY on that mapping
-        const initialPlayers = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
+        const generatedPlayers = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
 
         return {
-            players: initialPlayers,
+            players: generatedPlayers,
             colorCorner: cc,
             playerPaths: buildPlayerPaths(cc)
         };
     });
+
+    useEffect(() => {
+        if (initialPlayers && initialColorCorner) {
+            setBoardConfig({
+                players: initialPlayers,
+                colorCorner: initialColorCorner,
+                playerPaths: buildPlayerPaths(initialColorCorner)
+            });
+        }
+    }, [initialPlayers, initialColorCorner]);
 
     // ─── Real Profile Syncing ──────────────────────────────────────────────────
     useEffect(() => {
@@ -232,6 +255,26 @@ export default function Board({
 
         syncMyProfile();
     }, [address]);
+
+    // ─── Multiplayer Profile Sync ──────────────────────────────────────────────
+    useEffect(() => {
+        if (!participants || Object.keys(participants).length === 0) return;
+
+        setBoardConfig(prev => ({
+            ...prev,
+            players: prev.players.map(p => {
+                const pData = participants[p.walletAddress?.toLowerCase() || ''];
+                if (pData) {
+                    return {
+                        ...p,
+                        name: pData.username || p.name,
+                        avatar: pData.avatar_url || p.avatar
+                    };
+                }
+                return p;
+            })
+        }));
+    }, [participants]);
 
     const { players, colorCorner, playerPaths } = boardConfig;
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
