@@ -180,7 +180,12 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                     const activeColors = gameState.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor);
 
                     if (isThreeSixes) {
-                        const nextPlayer = getNextPlayer(gameState.currentPlayer, gameState.playerCount, activeColors);
+                        const nextPlayer = getNextPlayer(
+                            gameState.currentPlayer,
+                            gameState.playerCount,
+                            activeColors,
+                            gameState.initialBoardConfig?.colorCorner
+                        );
                         const updated = {
                             ...gameState,
                             diceValue: roll,

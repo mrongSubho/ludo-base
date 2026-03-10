@@ -324,13 +324,15 @@ export default function Board({
         handleRoll,
         handleTokenClick,
         handleUsePower,
-        resetGame
+        resetGame,
+        getNextPlayer
     } = useGameEngine({
         initialPlayers: players,
         playerCount,
         gameMode,
         isBotMatch,
         playerPaths,
+        colorCorner,
         pathCells,
         setBoardConfig
     });

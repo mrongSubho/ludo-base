@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useMultiplayerContext, PlayerColor } from '@/hooks/MultiplayerContext';
-import { processMove } from '@/lib/gameLogic';
+import { handleThreeSixes, processMove, getNextPlayer as getNextPlayerCore } from '@/lib/gameLogic';
 import { getBestMove } from '@/lib/aiEngine';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
@@ -26,6 +26,7 @@ interface UseGameEngineProps {
     gameMode: 'classic' | 'power' | 'snakes';
     isBotMatch: boolean;
     playerPaths: Record<string, Point[]>;
+    colorCorner: ColorCorner;
     pathCells: PathCell[];
     setBoardConfig: React.Dispatch<React.SetStateAction<{
         players: Player[];
@@ -40,6 +41,7 @@ export function useGameEngine({
     gameMode,
     isBotMatch,
     playerPaths,
+    colorCorner,
     pathCells,
     setBoardConfig
 }: UseGameEngineProps) {
@@ -122,14 +124,13 @@ export function useGameEngine({
     }, []);
 
     const getNextPlayer = useCallback((current: PlayerColor): PlayerColor => {
-        if (playerCount === '1v1' && activeColorsArr.length === 2) {
-            return activeColorsArr.find(c => c !== current) || activeColorsArr[0];
-        }
-        const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
-        const activeOrder = order.filter(c => activeColorsArr.includes(c));
-        const idx = activeOrder.indexOf(current);
-        return activeOrder[(idx + 1) % activeOrder.length];
-    }, [activeColorsArr, playerCount]);
+        return getNextPlayerCore(
+            current,
+            playerCount,
+            activeColorsArr,
+            colorCorner
+        );
+    }, [activeColorsArr, playerCount, colorCorner]);
 
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2'

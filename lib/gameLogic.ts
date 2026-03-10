@@ -5,25 +5,37 @@ import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } fr
 
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 
-export function getNextPlayer(current: PlayerColor, playerCount: string, activeColors?: PlayerColor[]): PlayerColor {
+export function getNextPlayer(
+    current: PlayerColor,
+    playerCount: string,
+    activeColors?: PlayerColor[],
+    colorCorner?: Record<PlayerColor, string>
+): PlayerColor {
+    // Physical corner order: Bottom-Left -> Bottom-Right -> Top-Right -> Top-Left
+    const cornerOrder = ['BL', 'BR', 'TR', 'TL'];
+
+    if (colorCorner && activeColors && activeColors.length > 0) {
+        // 1. Get current physical corner
+        const currentCorner = colorCorner[current];
+
+        // 2. Identify all occupied corners
+        const occupiedCorners = activeColors.map(c => colorCorner[c]);
+
+        // 3. Filter order to only include active corners
+        const activeOrder = cornerOrder.filter(corner => occupiedCorners.includes(corner));
+
+        // 4. Find next in sequence
+        const currentIdx = activeOrder.indexOf(currentCorner);
+        const nextCorner = activeOrder[(currentIdx + 1) % activeOrder.length];
+
+        // 5. Find color for that corner
+        const nextColor = Object.entries(colorCorner).find(([_, corner]) => corner === nextCorner)?.[0] as PlayerColor;
+        if (nextColor) return nextColor;
+    }
+
+    // Fallback logic if mapping is missing
     const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
     const idx = order.indexOf(current);
-
-    // 1v1 Mode: alternate between the two active colors
-    if (playerCount === '1v1' && activeColors && activeColors.length === 2) {
-        return activeColors.find(c => c !== current) || activeColors[0];
-    }
-
-    // Fallback for legacy 1v1 pairs
-    if (playerCount === '1v1') {
-        const opposingPairs: Record<PlayerColor, PlayerColor> = {
-            green: 'blue',
-            blue: 'green',
-            red: 'yellow',
-            yellow: 'red'
-        };
-        return opposingPairs[current];
-    }
     return order[(idx + 1) % 4];
 }
 
