@@ -35,6 +35,8 @@ export interface GameState {
     consecutiveSixes: number;
     isStarted: boolean;
     lastUpdate: number;
+    playerCount: '1v1' | '4P' | '2v2';
+    lastAction?: { type: GameActionType, payload: any };
     initialBoardConfig?: {
         players: any[];
         colorCorner: any;
@@ -83,7 +85,8 @@ const INITIAL_GAME_STATE: GameState = {
     activeShields: [],
     consecutiveSixes: 0,
     isStarted: false,
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
+    playerCount: '4P'
 };
 
 const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
@@ -106,11 +109,16 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             setGameState(prev => ({
                 ...prev,
                 isStarted: true,
+                playerCount: payload.playerCount || prev.playerCount,
                 initialBoardConfig: payload.initialBoardConfig
             }));
         }
 
-        connection.send({ type, ...payload, gameState: type === 'SYNC_STATE' ? gameState : undefined });
+        connection.send({
+            type,
+            ...payload,
+            gameState: type === 'SYNC_STATE' ? gameState : { ...gameState, lastAction: { type, payload } }
+        });
     };
 
     const sendIntent = (type: GameIntentType, payload?: any) => {
@@ -169,9 +177,10 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 if (data.type === 'REQUEST_ROLL') {
                     const roll = Math.floor(Math.random() * 6) + 1;
                     const { isThreeSixes, nextSixes } = handleThreeSixes(gameState.consecutiveSixes, roll);
+                    const activeColors = gameState.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor);
 
                     if (isThreeSixes) {
-                        const nextPlayer = getNextPlayer(gameState.currentPlayer, '4P');
+                        const nextPlayer = getNextPlayer(gameState.currentPlayer, gameState.playerCount, activeColors);
                         const updated = {
                             ...gameState,
                             diceValue: roll,
@@ -188,7 +197,8 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                         setGameState(updated);
                         broadcastAction('ROLL_DICE', { value: roll });
                     }
-                } else if (data.type === 'REQUEST_MOVE') {
+                }
+                else if (data.type === 'REQUEST_MOVE') {
                     // Phase 2 will handle logic, for now we just acknowledge
                     broadcastAction('MOVE_TOKEN', data.payload);
                 } else if (data.type === 'SYNC_PROFILE') {
@@ -256,15 +266,43 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 if (data.type === 'SYNC_STATE') {
                     setGameState(data.gameState);
                 } else if (data.type === 'ROLL_DICE') {
-                    setGameState(prev => ({ ...prev, diceValue: data.value, isRolling: false }));
+                    setGameState(prev => ({
+                        ...prev,
+                        diceValue: data.value,
+                        gamePhase: 'moving',
+                        lastAction: { type: 'ROLL_DICE', payload: data }
+                    }));
                 } else if (data.type === 'START_GAME') {
                     setGameState(prev => ({
                         ...prev,
                         isStarted: true,
-                        initialBoardConfig: data.initialBoardConfig
+                        playerCount: data.playerCount || prev.playerCount,
+                        initialBoardConfig: data.initialBoardConfig,
+                        lastAction: { type: 'START_GAME', payload: data }
+                    }));
+                } else if (data.type === 'SYNC_PROFILE') {
+                    setParticipants(prev => ({
+                        ...prev,
+                        [data.address.toLowerCase()]: {
+                            username: data.username || 'Opponent',
+                            avatar_url: data.avatar_url || ''
+                        }
                     }));
                 } else if (data.type === 'MOVE_TOKEN') {
-                    // Move logic will be reactive in Phase 2
+                    const payload = data.payload || data;
+                    const { color, tokenIndex, targetPosition } = payload;
+                    setGameState(prev => {
+                        if (!color || tokenIndex === undefined) return prev;
+                        const newPos = { ...prev.positions };
+                        newPos[color as PlayerColor] = [...newPos[color as PlayerColor]];
+                        newPos[color as PlayerColor][tokenIndex] = targetPosition;
+                        return {
+                            ...prev,
+                            positions: newPos,
+                            lastUpdate: Date.now(),
+                            lastAction: { type: 'MOVE_TOKEN', payload }
+                        };
+                    });
                 }
             });
 

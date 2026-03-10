@@ -143,7 +143,8 @@ export default function Page() {
       const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
       const players = shufflePlayers(playerCount, isBotMatch, cc);
       broadcastAction('START_GAME', {
-        initialBoardConfig: { players, colorCorner: cc }
+        initialBoardConfig: { players, colorCorner: cc },
+        playerCount
       });
     }
     setAppState('game');

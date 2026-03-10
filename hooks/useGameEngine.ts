@@ -92,9 +92,20 @@ export function useGameEngine({
         }
     });
 
+    const [processedActionUpdate, setProcessedActionUpdate] = useState<number>(0);
+
     // Sync local state with context state for Guests
     useEffect(() => {
         if (!isHost && isLobbyConnected && networkGameState) {
+            const { lastUpdate, lastAction } = networkGameState;
+
+            if (lastUpdate > processedActionUpdate) {
+                setProcessedActionUpdate(lastUpdate);
+                if (lastAction?.type === 'MOVE_TOKEN') {
+                    playMove();
+                }
+            }
+
             setLocalGameState(prev => ({
                 ...prev,
                 ...networkGameState,
@@ -104,8 +115,8 @@ export function useGameEngine({
                 positions: networkGameState.positions || prev.positions
             }));
         }
-    }, [isHost, isLobbyConnected, networkGameState]);
-
+    }, [isHost, isLobbyConnected, networkGameState, processedActionUpdate, playMove]);
+    Line: 96
     const checkWin = useCallback((positions: typeof localGameState.positions, color: Player['color']) => {
         return positions[color].every((pos) => pos === 57);
     }, []);
