@@ -16,6 +16,7 @@ import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import PresenceManager from './components/PresenceManager';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers } from '@/lib/boardLayout';
+import { Player } from '@/hooks/useGameEngine';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -80,7 +81,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
-  const { gameState, broadcastAction, isHost, isLobbyConnected } = useMultiplayer();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants } = useMultiplayer();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -130,10 +131,12 @@ export default function Page() {
 
   // --- Multiplayer Game Start Sync ---
   useEffect(() => {
+    console.log('🔄 Page State Check:', { isStarted: gameState?.isStarted, appState, isHost });
     if (gameState?.isStarted && appState !== 'game') {
+      console.log('🏁 TRANSITIONING TO GAME!');
       setAppState('game');
     }
-  }, [gameState?.isStarted, appState]);
+  }, [gameState?.isStarted, appState, isHost]);
 
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
@@ -141,10 +144,36 @@ export default function Page() {
   const handlePlayNow = () => {
     if (isHost) {
       const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
-      const players = shufflePlayers(playerCount, isBotMatch, cc);
+      let players = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
+
+      // Map participants to human slots
+      if (isLobbyConnected && !isBotMatch) {
+        const attendeeAddresses = Object.keys(participants);
+        // Add Host themselves if not in participants
+        if (address && !attendeeAddresses.map(a => a.toLowerCase()).includes(address.toLowerCase())) {
+          attendeeAddresses.unshift(address.toLowerCase());
+        }
+
+        let attendeeIndex = 0;
+        players = players.map(p => {
+          if (p && !p.isAi && attendeeIndex < attendeeAddresses.length) {
+            const addr = attendeeAddresses[attendeeIndex++];
+            const profileData = participants[addr];
+            return {
+              ...p,
+              walletAddress: addr,
+              name: profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : 'Guest'),
+              avatar: profileData?.avatar_url || p.avatar
+            } as Player;
+          }
+          return p;
+        });
+      }
+
       broadcastAction('START_GAME', {
         initialBoardConfig: { players, colorCorner: cc },
-        playerCount
+        playerCount,
+        isBotMatch
       });
     }
     setAppState('game');
@@ -201,9 +230,8 @@ export default function Page() {
                   wager={betAmount}
                   setWager={setBetAmount}
                   onStartGame={(isBot?: boolean) => {
-                    if (isBot) setIsBotMatch(true);
-                    else setIsBotMatch(false);
-                    setAppState('game');
+                    setIsBotMatch(!!isBot);
+                    handlePlayNow();
                   }}
                 />
               </main>

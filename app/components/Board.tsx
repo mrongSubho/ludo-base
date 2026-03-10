@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from '
 import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
-import { PlayerColor } from '@/lib/types';
+import { PlayerColor, PowerType } from '@/lib/types';
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import {
@@ -12,7 +12,7 @@ import {
     buildPlayerPaths, buildPathCellsDynamic, getGridCellInfo,
     shufflePlayers
 } from '@/lib/boardLayout';
-import { Player, PowerType, useGameEngine } from '@/hooks/useGameEngine';
+import { useGameEngine, Player } from '@/hooks/useGameEngine';
 import { getTeammateColor } from '@/lib/gameLogic';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
@@ -290,8 +290,10 @@ export default function Board({
     const CORNER_ORDER: Corner[] = ['TL', 'TR', 'BR', 'BL'];
 
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useMemo(() => {
-        // 1. Identify local player color (first human player in offline/bot mode)
-        const localPlayer = players.find(p => !p.isAi) || players[0];
+        // 1. Identify local player color
+        const localPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase())
+            || players.find(p => !p.isAi)
+            || players[0];
         const localColor = localPlayer?.color as PlayerColor;
 
         // 2. Where did the server place the local player?
@@ -416,11 +418,13 @@ export default function Board({
                 >
                     {activeColors.map(([color, tokens], colorIdx) => {
                         const isMyTurn = localGameState.currentPlayer === color;
-                        const teammate = getTeammateColor(localGameState.currentPlayer as any, playerCount);
-                        const selfFinished = localGameState.positions[localGameState.currentPlayer as any].every(p => p === 57);
-                        const isTeammateTurnShortcut = teammate === color && selfFinished;
-
-                        const isDraggable = (isMyTurn || isTeammateTurnShortcut) && localGameState.gamePhase === 'moving';
+                        const teammate = getTeammateColor(localGameState.currentPlayer, playerCount);
+                        const posMap = localGameState.positions as Record<PlayerColor, number[]>;
+                        const isSelfFinished = posMap[localGameState.currentPlayer as PlayerColor].every((p: number) => p === 57);
+                        const isTeammateColor = teammate === color;
+                        const canHelpTeammate = isTeammateColor && isSelfFinished;
+                        const isDraggable = (isMyTurn && localGameState.gamePhase === 'moving') ||
+                            (canHelpTeammate && localGameState.gamePhase === 'moving');
                         const count = tokens.length;
                         const isBlockade = count >= 2;
 

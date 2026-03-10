@@ -195,7 +195,6 @@ export default function GameLobby({
                                     isLobbyConnected={isLobbyConnected}
                                     onStartMatch={() => {
                                         setShowPrivateOptions(false);
-                                        broadcastAction('START_GAME', {});
                                         onStartGame();
                                     }}
                                 />

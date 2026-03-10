@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback, useMemo } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { useAccount } from 'wagmi';
 import {
@@ -26,6 +26,8 @@ interface MultiplayerContextType {
     myAddress?: string;
     updateGameState: (newState: Partial<GameState>) => void;
     participants: Record<string, { username: string; avatar_url: string }>;
+    lastIntent: { type: GameIntentType; payload?: any; timestamp: number } | null;
+    clearIntent: () => void;
 }
 
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
@@ -65,6 +67,7 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     const [isHost, setIsHost] = useState(false);
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar_url: string }>>({});
+    const [lastIntent, setLastIntent] = useState<{ type: GameIntentType; payload?: any; timestamp: number } | null>(null);
     const { address: myAddress } = useAccount();
 
     const peerRef = useRef<Peer | null>(null);
@@ -103,13 +106,14 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const updateGameState = (newState: Partial<GameState>) => {
+    const updateGameState = useCallback((newState: Partial<GameState>) => {
         setGameState(prev => ({
             ...prev,
             ...newState,
+            isStarted: prev.isStarted || newState.isStarted || false,
             lastUpdate: Date.now()
         }));
-    };
+    }, []);
 
     // --- Peer Setup ---
 
@@ -180,10 +184,8 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                         setGameState(updated);
                         broadcastAction('ROLL_DICE', { value: roll });
                     }
-                }
-                else if (data.type === 'REQUEST_MOVE') {
-                    // Phase 2 will handle logic, for now we just acknowledge
-                    broadcastAction('MOVE_TOKEN', data.payload);
+                } else if (data.type === 'REQUEST_MOVE' || data.type === 'REQUEST_ROLL') {
+                    setLastIntent({ type: data.type, payload: data.payload, timestamp: Date.now() });
                 } else if (data.type === 'SYNC_PROFILE') {
                     console.log('👤 Syncing profile for:', data.address);
                     setParticipants(prev => ({
@@ -247,7 +249,10 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
 
                 // Guest handles Actions from Host
                 if (data.type === 'SYNC_STATE') {
-                    setGameState(data.gameState);
+                    setGameState(prev => ({
+                        ...data.gameState,
+                        isStarted: prev.isStarted || data.gameState.isStarted
+                    }));
                 } else if (data.type === 'ROLL_DICE') {
                     setGameState(prev => ({
                         ...prev,
@@ -256,12 +261,14 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                         lastAction: { type: 'ROLL_DICE', payload: data }
                     }));
                 } else if (data.type === 'START_GAME') {
+                    console.log('🚀 GUEST: Received START_GAME!', data);
                     setGameState(prev => ({
                         ...prev,
                         isStarted: true,
                         playerCount: data.playerCount || prev.playerCount,
                         initialBoardConfig: data.initialBoardConfig,
-                        lastAction: { type: 'START_GAME', payload: data }
+                        lastAction: { type: 'START_GAME', payload: data },
+                        lastUpdate: Date.now()
                     }));
                 } else if (data.type === 'SYNC_PROFILE') {
                     setParticipants(prev => ({
@@ -297,11 +304,16 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // --- Heartbeat Logic ---
+    const gameStateRef = useRef(gameState);
+    useEffect(() => {
+        gameStateRef.current = gameState;
+    }, [gameState]);
+
     useEffect(() => {
         if (isHost && isLobbyConnected) {
             heartbeatTimerRef.current = setInterval(() => {
                 console.log('💓 Heartbeat: Syncing state...');
-                broadcastAction('SYNC_STATE', { gameState });
+                broadcastAction('SYNC_STATE', { gameState: gameStateRef.current });
             }, 5000);
         } else {
             if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
@@ -309,7 +321,7 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
         };
-    }, [isHost, isLobbyConnected, gameState]);
+    }, [isHost, isLobbyConnected, broadcastAction]);
 
     useEffect(() => {
         return () => {
@@ -317,21 +329,29 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         };
     }, []);
 
+    const contextValue = useMemo(() => ({
+        roomId,
+        connection,
+        isLobbyConnected,
+        isHost,
+        gameState,
+        hostGame,
+        joinGame,
+        sendIntent,
+        broadcastAction,
+        myAddress,
+        updateGameState,
+        participants,
+        lastIntent,
+        clearIntent: () => setLastIntent(null)
+    }), [
+        roomId, connection, isLobbyConnected, isHost, gameState,
+        hostGame, joinGame, sendIntent, broadcastAction, myAddress,
+        updateGameState, participants, lastIntent
+    ]);
+
     return (
-        <MultiplayerContext.Provider value={{
-            roomId,
-            connection,
-            isLobbyConnected,
-            isHost,
-            gameState,
-            hostGame,
-            joinGame,
-            sendIntent,
-            broadcastAction,
-            myAddress,
-            updateGameState,
-            participants
-        }}>
+        <MultiplayerContext.Provider value={contextValue}>
             {children}
         </MultiplayerContext.Provider>
     );

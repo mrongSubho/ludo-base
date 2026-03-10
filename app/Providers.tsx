@@ -16,7 +16,11 @@ const config = createConfig({
     connectors: [
         coinbaseWallet({
             appName: "Ludo Base",
-            preference: 'smartWalletOnly',
+            preference: {
+                options: 'smartWalletOnly',
+                // @ts-ignore - disabling telemetry to fix inlined script error
+                telemetry: false
+            } as any,
         }),
         injected(),
     ],
@@ -36,6 +40,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 <OnchainKitProvider
                     apiKey="YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
                     chain={base}
+                    config={{ analytics: false }}
                 >
                     <FrameProvider>
                         <MultiplayerProvider>

@@ -55,7 +55,10 @@ export function useGameEngine({
         sendIntent,
         broadcastAction,
         roomId,
-        isLobbyConnected
+        isLobbyConnected,
+        updateGameState,
+        lastIntent,
+        clearIntent
     } = useMultiplayerContext();
 
     const [localGameState, setLocalGameState] = useState({
@@ -90,34 +93,13 @@ export function useGameEngine({
             isConnected: false,
             isHost: false,
             status: 'idle' as 'idle' | 'host' | 'guest'
-        }
+        },
+        isStarted: false,
+        lastUpdate: Date.now()
     });
 
     const [processedActionUpdate, setProcessedActionUpdate] = useState<number>(0);
 
-    // Sync local state with context state for Guests
-    useEffect(() => {
-        if (!isHost && isLobbyConnected && networkGameState) {
-            const { lastUpdate, lastAction } = networkGameState;
-
-            if (lastUpdate > processedActionUpdate) {
-                setProcessedActionUpdate(lastUpdate);
-                if (lastAction?.type === 'MOVE_TOKEN') {
-                    playMove();
-                }
-            }
-
-            setLocalGameState(prev => ({
-                ...prev,
-                ...networkGameState,
-                winner: networkGameState.winner as any,
-                winners: networkGameState.winners as any,
-                captureMessage: networkGameState.captureMessage || prev.captureMessage,
-                positions: networkGameState.positions || prev.positions
-            }));
-        }
-    }, [isHost, isLobbyConnected, networkGameState, processedActionUpdate, playMove]);
-    Line: 96
     const checkWin = useCallback((positions: typeof localGameState.positions, color: Player['color']) => {
         return positions[color].every((pos) => pos === 57);
     }, []);
@@ -180,7 +162,9 @@ export function useGameEngine({
             activeShields: [],
             activeBoost: null,
             consecutiveSixes: 0,
-            multiplayer: { targetId: '', isConnected: false, isHost: false, status: 'idle' }
+            multiplayer: { targetId: '', isConnected: false, isHost: false, status: 'idle' },
+            isStarted: true,
+            lastUpdate: Date.now()
         });
     }, [playerCount, gameMode, pathCells, isBotMatch, setBoardConfig]);
 
@@ -240,7 +224,8 @@ export function useGameEngine({
                 steps,
                 playerPaths,
                 playerCount,
-                activeColorsArr
+                activeColorsArr,
+                colorCorner
             );
 
             if (newState.positions[color][tokenIndex] !== prev.positions[color][tokenIndex]) playMove();
@@ -266,6 +251,7 @@ export function useGameEngine({
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
                 strikes: { ...prev.strikes, [color]: 0 },
                 consecutiveSixes: (newState.currentPlayer !== color) ? 0 : prev.consecutiveSixes,
+                lastUpdate: Date.now()
             };
         });
     }, [isHost, broadcastAction, playerPaths, playerCount, playMove, playCapture, playWin, triggerWinConfetti, recordWin]);
@@ -341,7 +327,7 @@ export function useGameEngine({
                     setLocalGameState(s => ({
                         ...s,
                         gamePhase: 'rolling',
-                        currentPlayer: nextPlayer,
+                        currentPlayer: getNextPlayer(s.currentPlayer),
                         diceValue: null,
                         consecutiveSixes: 0,
                         timeLeft: 15
@@ -355,6 +341,7 @@ export function useGameEngine({
                 consecutiveSixes: rollValue === 6 ? prev.consecutiveSixes + 1 : 0,
                 gamePhase: hasValidMove ? 'moving' : 'rolling',
                 timeLeft: 15,
+                lastUpdate: Date.now()
             };
         });
     }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, sendIntent, localGameState.winner, playerCount]);
@@ -392,52 +379,53 @@ export function useGameEngine({
         }
     }, [localGameState.currentPlayer, localGameState.winner, localGameState.strikes, playTurn, localGameState.gamePhase, initialPlayers]);
 
-    // --- HUMAN TURN TIMER & AFK AUTO-PLAY LOGIC ---
+    // --- TURN TIMER & AFK AUTO-PLAY LOGIC ---
     useEffect(() => {
         if (localGameState.winner) return;
 
+        // Visual Countdown (Unified for Humans & AI)
+        const interval = setInterval(() => {
+            setLocalGameState(prev => {
+                if (prev.timeLeft <= 0) return prev;
+                return { ...prev, timeLeft: prev.timeLeft - 1 };
+            });
+        }, 1000);
+
+        // AFK Logic (Humans only)
         const currentPlayerInfo = initialPlayers.find(p => p.color === localGameState.currentPlayer);
         const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
 
-        if (!isCurrentlyBot) {
-            if (localGameState.timeLeft <= 0) {
-                setLocalGameState(prev => ({
-                    ...prev,
-                    strikes: { ...prev.strikes, [prev.currentPlayer]: prev.strikes[prev.currentPlayer] + 1 },
-                }));
+        if (!isCurrentlyBot && localGameState.timeLeft <= 0) {
+            setLocalGameState(prev => ({
+                ...prev,
+                strikes: { ...prev.strikes, [prev.currentPlayer]: prev.strikes[prev.currentPlayer] + 1 },
+            }));
 
-                if (localGameState.gamePhase === 'rolling') {
-                    const forcedRoll = Math.floor(Math.random() * 6) + 1;
-                    handleRoll(forcedRoll);
-                } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
-                    const bestMoveIdx = getBestMove(localGameState.positions, localGameState.currentPlayer, localGameState.diceValue, playerPaths, playerCount);
-                    if (bestMoveIdx === null) {
-                        setLocalGameState(s => ({
-                            ...s,
-                            gamePhase: 'rolling',
-                            currentPlayer: getNextPlayer(s.currentPlayer),
-                            timeLeft: 15
-                        }));
-                    } else {
-                        moveToken(localGameState.currentPlayer, bestMoveIdx, localGameState.diceValue);
-                    }
+            if (localGameState.gamePhase === 'rolling') {
+                const forcedRoll = Math.floor(Math.random() * 6) + 1;
+                handleRoll(forcedRoll);
+            } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
+                const bestMoveIdx = getBestMove(localGameState.positions, localGameState.currentPlayer, localGameState.diceValue, playerPaths, playerCount);
+                if (bestMoveIdx === null) {
+                    setLocalGameState(s => ({
+                        ...s,
+                        gamePhase: 'rolling',
+                        currentPlayer: getNextPlayer(s.currentPlayer),
+                        timeLeft: 15
+                    }));
+                } else {
+                    moveToken(localGameState.currentPlayer, bestMoveIdx, localGameState.diceValue);
                 }
-                return;
             }
-
-            const interval = setInterval(() => {
-                setLocalGameState(prev => ({ ...prev, timeLeft: prev.timeLeft - 1 }));
-            }, 1000);
-
-            return () => clearInterval(interval);
         }
+
+        return () => clearInterval(interval);
     }, [
         localGameState.timeLeft,
         localGameState.currentPlayer,
         localGameState.gamePhase,
         localGameState.winner,
         localGameState.diceValue,
-        localGameState.strikes,
         handleRoll,
         moveToken,
         initialPlayers,
@@ -454,15 +442,22 @@ export function useGameEngine({
 
         if (isCurrentlyBot) {
             if (localGameState.gamePhase === 'rolling') {
+                // Generate a random delay between 3000ms (3s) and 6000ms (6s)
+                const randomDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
+
                 const timer = setTimeout(() => {
                     setLocalGameState(s => ({ ...s, isThinking: true }));
                     const newValue = Math.floor(Math.random() * 6) + 1;
                     handleRoll(newValue);
-                }, 4000);
+                }, randomDelay);
+
                 return () => clearTimeout(timer);
             }
 
             if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
+                // Generate a random delay between 1500ms (1.5s) and 3000ms (3s)
+                const moveDelay = Math.floor(Math.random() * (3000 - 1500 + 1)) + 1500;
+
                 const timer = setTimeout(() => {
                     const color = localGameState.currentPlayer;
                     const teammate = getTeammateColor(color, playerCount);
@@ -484,7 +479,8 @@ export function useGameEngine({
                         setLocalGameState(s => ({ ...s, isThinking: false }));
                         moveToken(targetColor, bestMoveIdx, diceValue);
                     }
-                }, 1000);
+                }, moveDelay);
+
                 return () => clearTimeout(timer);
             }
         }
@@ -498,8 +494,67 @@ export function useGameEngine({
         localGameState.strikes,
         initialPlayers,
         playerPaths,
-        getNextPlayer
+        getNextPlayer,
+        playerCount
     ]);
+
+    // --- HOST: Sync local state to Context ---
+    const lastSyncedUpdate = useRef(0);
+    useEffect(() => {
+        if (isHost && isLobbyConnected && localGameState.lastUpdate > lastSyncedUpdate.current) {
+            lastSyncedUpdate.current = localGameState.lastUpdate;
+            updateGameState(localGameState);
+        }
+    }, [isHost, isLobbyConnected, localGameState, updateGameState]);
+
+    // --- HOST: Handle incoming Intents from Guests ---
+    useEffect(() => {
+        if (isHost && isLobbyConnected && lastIntent) {
+            console.log('🎮 Host processing intent:', lastIntent.type, lastIntent.payload);
+            const { type, payload } = lastIntent;
+
+            if (type === 'REQUEST_ROLL') {
+                handleRoll(undefined, false); // Host rolls
+            } else if (type === 'REQUEST_MOVE') {
+                const { color, tokenIndex, diceValue } = payload;
+                if (localGameState.diceValue === diceValue && localGameState.currentPlayer === color) {
+                    moveToken(color, tokenIndex, diceValue, false);
+                }
+            }
+            clearIntent();
+        }
+    }, [isHost, isLobbyConnected, lastIntent, localGameState, handleRoll, moveToken, clearIntent]);
+
+    // --- GUEST: Sync local state from networkGameState ---
+    useEffect(() => {
+        if (!isHost && isLobbyConnected && networkGameState) {
+            const { lastUpdate } = networkGameState;
+
+            if (lastUpdate > processedActionUpdate) {
+                setProcessedActionUpdate(lastUpdate);
+
+                setLocalGameState(prev => ({
+                    ...prev,
+                    ...networkGameState,
+                    // Ensure functions/refs aren't overwritten if they were in state (though usually not)
+                    positions: networkGameState.positions || prev.positions,
+                    currentPlayer: networkGameState.currentPlayer || prev.currentPlayer,
+                    diceValue: networkGameState.diceValue,
+                    gamePhase: networkGameState.gamePhase || prev.gamePhase,
+                    winner: networkGameState.winner as any,
+                    winners: networkGameState.winners as any,
+                    isStarted: networkGameState.isStarted ?? prev.isStarted,
+                }));
+
+                // Sound effects for Guest
+                if (networkGameState.lastAction?.type === 'MOVE_TOKEN') {
+                    playMove();
+                } else if (networkGameState.lastAction?.type === 'ROLL_DICE') {
+                    // Could add roll sound here
+                }
+            }
+        }
+    }, [isHost, isLobbyConnected, networkGameState, processedActionUpdate, playMove]);
 
     return {
         localGameState,

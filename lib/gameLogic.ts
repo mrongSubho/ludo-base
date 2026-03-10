@@ -163,7 +163,8 @@ export function processMove(
     steps: number,
     playerPaths: Record<string, Point[]>,
     playerCount: string,
-    activeColors?: PlayerColor[]
+    activeColors?: PlayerColor[],
+    colorCorner?: ColorCorner
 ): MoveResult {
     if (state.winner) return { newState: state, captured: false, bonusRoll: false };
 
@@ -228,7 +229,7 @@ export function processMove(
     }
 
     const bonusRoll = captured || steps === 6;
-    const nextPlayer = bonusRoll ? color : getNextPlayer(color, playerCount, activeColors);
+    const nextPlayer = bonusRoll ? color : getNextPlayer(color, playerCount, activeColors, colorCorner);
 
     return {
         newState: {

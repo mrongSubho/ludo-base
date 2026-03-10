@@ -107,6 +107,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Global Gutter for Rounded Elements (Guaranteed Minimum) ─── */
+div[class*="rounded"] {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
 /* ─── Match/Board Scoped Theme Wrapper ─── */
 .board-match-theme-wrapper {
   background: transparent !important;
@@ -124,6 +130,8 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+
 
 
 /* ─── App Shell ─── */
