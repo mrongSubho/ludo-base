@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, animate } from '
 import Dice from './Dice';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
-import { PlayerColor } from '@/hooks/MultiplayerContext';
+import { PlayerColor } from '@/lib/types';
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import {
@@ -13,6 +13,7 @@ import {
     shufflePlayers
 } from '@/lib/boardLayout';
 import { Player, PowerType, useGameEngine } from '@/hooks/useGameEngine';
+import { getTeammateColor } from '@/lib/gameLogic';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
@@ -50,6 +51,7 @@ function HomeBlock({
     gridCol,
     tokensInHome,
     onTokenClick,
+    isDraggable,
 }: {
     color: 'green' | 'red' | 'yellow' | 'blue';
     corner: Corner;
@@ -57,6 +59,7 @@ function HomeBlock({
     gridCol: string;
     tokensInHome: number[];
     onTokenClick: (tokenIndex: number) => void;
+    isDraggable?: boolean;
 }) {
     return (
         <div
@@ -71,7 +74,7 @@ function HomeBlock({
                             <Token
                                 color={color}
                                 onClick={() => onTokenClick(idx)}
-                                isDraggable={false}
+                                isDraggable={isDraggable}
                             />
                         )}
                         {!tokensInHome.includes(idx) && <span className="token-dot-placeholder" />}
@@ -413,7 +416,11 @@ export default function Board({
                 >
                     {activeColors.map(([color, tokens], colorIdx) => {
                         const isMyTurn = localGameState.currentPlayer === color;
-                        const isDraggable = isMyTurn && localGameState.gamePhase === 'moving';
+                        const teammate = getTeammateColor(localGameState.currentPlayer as any, playerCount);
+                        const selfFinished = localGameState.positions[localGameState.currentPlayer as any].every(p => p === 57);
+                        const isTeammateTurnShortcut = teammate === color && selfFinished;
+
+                        const isDraggable = (isMyTurn || isTeammateTurnShortcut) && localGameState.gamePhase === 'moving';
                         const count = tokens.length;
                         const isBlockade = count >= 2;
 
@@ -507,6 +514,13 @@ export default function Board({
                                 .map((pos: number, idx: number) => pos === -1 ? idx : -1)
                                 .filter((idx: number) => idx !== -1);
 
+                            const isMyTurn = localGameState.currentPlayer === color;
+                            const teammate = getTeammateColor(localGameState.currentPlayer as any, playerCount);
+                            const selfFinished = localGameState.positions[localGameState.currentPlayer as any].every(p => p === 57);
+                            const isTeammateTurnShortcut = teammate === color && selfFinished;
+
+                            const isDraggable = (isMyTurn || isTeammateTurnShortcut) && localGameState.gamePhase === 'moving' && localGameState.diceValue === 6;
+
                             return (
                                 <div key={color} style={{ opacity: isActive ? 1 : 0.2, display: 'contents' }}>
                                     <HomeBlock
@@ -516,6 +530,7 @@ export default function Board({
                                         gridCol={gridInfo.col}
                                         tokensInHome={tokensInHome}
                                         onTokenClick={isActive ? (idx) => handleTokenClick(color, idx) : () => { }}
+                                        isDraggable={isDraggable}
                                     />
                                 </div>
                             );

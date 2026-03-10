@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import confetti from 'canvas-confetti';
-import { useMultiplayerContext, PlayerColor } from '@/hooks/MultiplayerContext';
-import { handleThreeSixes, processMove, getNextPlayer as getNextPlayerCore } from '@/lib/gameLogic';
+import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
+import { PlayerColor, PowerType } from '@/lib/types';
+import { handleThreeSixes, processMove, getNextPlayer as getNextPlayerCore, getTeammateColor } from '@/lib/gameLogic';
 import { getBestMove } from '@/lib/aiEngine';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
@@ -17,8 +18,6 @@ export interface Player {
     isAi?: boolean;
     walletAddress?: string;
 }
-
-export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
 interface UseGameEngineProps {
     initialPlayers: Player[];
@@ -124,13 +123,24 @@ export function useGameEngine({
     }, []);
 
     const getNextPlayer = useCallback((current: PlayerColor): PlayerColor => {
+        // Calculate which colors stay in the turn rotation
+        const activeForTurns = activeColorsArr.filter(color => {
+            const hasTokens = localGameState.positions[color].some(p => p !== 57);
+            if (playerCount === '2v2') {
+                const teammate = getTeammateColor(color, playerCount);
+                const teammateHasTokens = teammate ? localGameState.positions[teammate].some(p => p !== 57) : false;
+                return hasTokens || teammateHasTokens;
+            }
+            return hasTokens;
+        });
+
         return getNextPlayerCore(
             current,
             playerCount,
-            activeColorsArr,
+            activeForTurns,
             colorCorner
         );
-    }, [activeColorsArr, playerCount, colorCorner]);
+    }, [activeColorsArr, playerCount, colorCorner, localGameState.positions]);
 
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2'
@@ -293,6 +303,10 @@ export function useGameEngine({
             }
 
             const color = prev.currentPlayer;
+            const teammate = getTeammateColor(color, playerCount);
+            const isSelfFinished = prev.positions[color].every(p => p === 57);
+            const targetColor = (playerCount === '2v2' && isSelfFinished && teammate) ? teammate : color;
+
             const isThreeSixes = rollValue === 6 && prev.consecutiveSixes === 2;
 
             if (isThreeSixes) {
@@ -313,7 +327,7 @@ export function useGameEngine({
             }
 
             let hasValidMove = false;
-            prev.positions[color].forEach((pos) => {
+            prev.positions[targetColor].forEach((pos) => {
                 const nextPos = pos === -1 ? (rollValue === 6 ? 0 : -1) : pos + rollValue;
                 if (nextPos <= 57 && nextPos !== -1) hasValidMove = true;
             });
@@ -343,10 +357,20 @@ export function useGameEngine({
                 timeLeft: 15,
             };
         });
-    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, sendIntent, localGameState.winner]);
+    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, sendIntent, localGameState.winner, playerCount]);
 
-    const handleTokenClick = (color: Player['color'], tokenIndex: number) => {
-        if (localGameState.currentPlayer !== color || localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
+    const handleTokenClick = useCallback((color: Player['color'], tokenIndex: number) => {
+        const actingPlayer = localGameState.currentPlayer;
+        const teammate = getTeammateColor(actingPlayer, playerCount);
+        const isSelfFinished = localGameState.positions[actingPlayer].every(p => p === 57);
+
+        const isSelf = actingPlayer === color;
+        const isTeammate = teammate === color;
+
+        // Validation for 2v2 teammate assistance
+        if (!isSelf && (!isTeammate || !isSelfFinished)) return;
+
+        if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
 
         if (!isHost && isLobbyConnected) {
             sendIntent('REQUEST_MOVE', { color, tokenIndex, diceValue: localGameState.diceValue });
@@ -354,7 +378,7 @@ export function useGameEngine({
         }
 
         moveToken(color, tokenIndex, localGameState.diceValue);
-    };
+    }, [localGameState, playerCount, isHost, isLobbyConnected, sendIntent, moveToken]);
 
     // --- TURN NOTIFICATION BEEP ---
     useEffect(() => {
@@ -441,10 +465,14 @@ export function useGameEngine({
             if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const timer = setTimeout(() => {
                     const color = localGameState.currentPlayer;
-                    const diceValue = localGameState.diceValue!;
-                    const bestModeIdx = getBestMove(localGameState.positions, color, diceValue, playerPaths, playerCount);
+                    const teammate = getTeammateColor(color, playerCount);
+                    const isSelfFinished = localGameState.positions[color].every(p => p === 57);
+                    const targetColor = (playerCount === '2v2' && isSelfFinished && teammate) ? teammate : color;
 
-                    if (bestModeIdx === null) {
+                    const diceValue = localGameState.diceValue!;
+                    const bestMoveIdx = getBestMove(localGameState.positions, targetColor as any, diceValue, playerPaths, playerCount);
+
+                    if (bestMoveIdx === null) {
                         setLocalGameState(s => ({
                             ...s,
                             isThinking: false,
@@ -454,7 +482,7 @@ export function useGameEngine({
                         }));
                     } else {
                         setLocalGameState(s => ({ ...s, isThinking: false }));
-                        moveToken(color, bestModeIdx, diceValue);
+                        moveToken(targetColor, bestMoveIdx, diceValue);
                     }
                 }, 1000);
                 return () => clearTimeout(timer);
@@ -479,6 +507,7 @@ export function useGameEngine({
         handleTokenClick,
         handleUsePower,
         resetGame,
-        checkWin
+        checkWin,
+        getNextPlayer
     };
 }

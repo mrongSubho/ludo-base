@@ -3,45 +3,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { useAccount } from 'wagmi';
-import { handleThreeSixes, getNextPlayer } from '@/lib/gameLogic';
-
-// --- Types ---
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME';
-export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE';
-
-export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
-export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
-
-export interface GameState {
-    positions: {
-        green: number[];
-        red: number[];
-        yellow: number[];
-        blue: number[];
-    };
-    currentPlayer: 'green' | 'red' | 'yellow' | 'blue';
-    diceValue: number | null;
-    gamePhase: 'rolling' | 'moving';
-    status: 'waiting' | 'playing' | 'finished';
-    winner: string | null;
-    winners: string[];
-    captureMessage: string | null;
-    timeLeft: number;
-    strikes: Record<PlayerColor, number>;
-    powerTiles: { r: number, c: number }[];
-    playerPowers: Record<PlayerColor, PowerType | null>;
-    activeTraps: { r: number, c: number, owner: PlayerColor }[];
-    activeShields: { color: PlayerColor, tokenIdx: number }[];
-    consecutiveSixes: number;
-    isStarted: boolean;
-    lastUpdate: number;
-    playerCount: '1v1' | '4P' | '2v2';
-    lastAction?: { type: GameActionType, payload: any };
-    initialBoardConfig?: {
-        players: any[];
-        colorCorner: any;
-    };
-}
+import {
+    PlayerColor,
+    GameState,
+    GameActionType,
+    GameIntentType,
+    PowerType
+} from '@/lib/types';
+import { handleThreeSixes, getNextPlayer, getTeammateColor } from '@/lib/gameLogic';
 
 interface MultiplayerContextType {
     roomId: string;
@@ -177,7 +146,16 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 if (data.type === 'REQUEST_ROLL') {
                     const roll = Math.floor(Math.random() * 6) + 1;
                     const { isThreeSixes, nextSixes } = handleThreeSixes(gameState.consecutiveSixes, roll);
-                    const activeColors = gameState.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor);
+                    const allColors = gameState.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor) || [];
+                    const activeColors = allColors.filter(color => {
+                        const hasTokens = gameState.positions[color].some(p => p !== 57);
+                        if (gameState.playerCount === '2v2') {
+                            const teammate = getTeammateColor(color, gameState.playerCount);
+                            const teammateHasTokens = teammate ? gameState.positions[teammate].some(p => p !== 57) : false;
+                            return hasTokens || teammateHasTokens;
+                        }
+                        return hasTokens;
+                    });
 
                     if (isThreeSixes) {
                         const nextPlayer = getNextPlayer(

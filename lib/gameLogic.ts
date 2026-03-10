@@ -1,9 +1,16 @@
-// Pure deterministic Ludo game logic
-import { GameState } from '../hooks/MultiplayerContext';
-
+import { GameState, PlayerColor } from './types';
 import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
-export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
+export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
+    if (playerCount !== '2v2') return null;
+    const teams: Record<PlayerColor, PlayerColor> = {
+        green: 'yellow',
+        yellow: 'green',
+        red: 'blue',
+        blue: 'red'
+    };
+    return teams[color];
+}
 
 export function getNextPlayer(
     current: PlayerColor,
@@ -11,26 +18,41 @@ export function getNextPlayer(
     activeColors?: PlayerColor[],
     colorCorner?: Record<PlayerColor, string>
 ): PlayerColor {
-    // Physical corner order: Bottom-Left -> Bottom-Right -> Top-Right -> Top-Left
+    // Physical corner order: Bottom-Left -> Bottom-Right -> Top-Right -> Top-Left (Anti-Clockwise)
     const cornerOrder = ['BL', 'BR', 'TR', 'TL'];
 
     if (colorCorner && activeColors && activeColors.length > 0) {
         // 1. Get current physical corner
         const currentCorner = colorCorner[current];
 
-        // 2. Identify all occupied corners
+        // 2. Identify all occupied corners by "active" participants
+        // In 2v2, a participant is active if either they or their teammate have tokens left
         const occupiedCorners = activeColors.map(c => colorCorner[c]);
 
         // 3. Filter order to only include active corners
         const activeOrder = cornerOrder.filter(corner => occupiedCorners.includes(corner));
 
-        // 4. Find next in sequence
-        const currentIdx = activeOrder.indexOf(currentCorner);
-        const nextCorner = activeOrder[(currentIdx + 1) % activeOrder.length];
-
-        // 5. Find color for that corner
-        const nextColor = Object.entries(colorCorner).find(([_, corner]) => corner === nextCorner)?.[0] as PlayerColor;
-        if (nextColor) return nextColor;
+        if (activeOrder.length > 0) {
+            // 4. Find next in sequence
+            const currentIdx = activeOrder.indexOf(currentCorner);
+            // If current corner isn't in activeOrder (e.g. just finished in FFA), 
+            // find its position in cornerOrder and find next active one
+            if (currentIdx === -1) {
+                let checkIdx = cornerOrder.indexOf(currentCorner);
+                for (let i = 1; i <= 4; i++) {
+                    const nextC = cornerOrder[(checkIdx + i) % 4];
+                    if (occupiedCorners.includes(nextC)) {
+                        const nextColor = Object.entries(colorCorner).find(([_, corner]) => corner === nextC)?.[0] as PlayerColor;
+                        if (nextColor) return nextColor;
+                    }
+                }
+            } else {
+                const nextCorner = activeOrder[(currentIdx + 1) % activeOrder.length];
+                // 5. Find color for that corner
+                const nextColor = Object.entries(colorCorner).find(([_, corner]) => corner === nextCorner)?.[0] as PlayerColor;
+                if (nextColor) return nextColor;
+            }
+        }
     }
 
     // Fallback logic if mapping is missing

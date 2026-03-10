@@ -1,4 +1,4 @@
-import { PlayerColor } from '../hooks/MultiplayerContext';
+import { PlayerColor } from './types';
 
 export type Point = { r: number; c: number };
 
