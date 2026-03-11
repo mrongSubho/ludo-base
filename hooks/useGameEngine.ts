@@ -47,6 +47,10 @@ export function useGameEngine({
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const { address } = useAccount();
     const hasRecordedWin = useRef<boolean>(false);
+    
+    // HUMAN AUTO-MOVE REF
+    const autoMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     const activeColorsArr = useMemo(() => initialPlayers.map(p => p.color as PlayerColor), [initialPlayers]);
 
     const {
@@ -243,6 +247,12 @@ export function useGameEngine({
     }, []);
 
     const moveToken = useCallback((color: Player['color'], tokenIndex: number, steps: number, isRemote = false) => {
+        // Cancel the human auto-move timeout if they manually moved
+        if (autoMoveTimeoutRef.current) {
+            clearTimeout(autoMoveTimeoutRef.current);
+            autoMoveTimeoutRef.current = null;
+        }
+
         setLocalGameState((prev) => {
             if (prev.winner) return prev;
 
@@ -351,13 +361,18 @@ export function useGameEngine({
                 return nextState;
             }
 
-            let hasValidMove = false;
-            prev.positions[targetColor].forEach((pos) => {
+            let validMovesCount = 0;
+            let lastValidTokenIndex = -1;
+            
+            prev.positions[targetColor].forEach((pos, idx) => {
                 const nextPos = pos === -1 ? (rollValue === 6 ? 0 : -1) : pos + rollValue;
-                if (nextPos <= 57 && nextPos !== -1) hasValidMove = true;
+                if (nextPos <= 57 && nextPos !== -1) {
+                    validMovesCount++;
+                    lastValidTokenIndex = idx;
+                }
             });
 
-            if (!hasValidMove && !isRemote) {
+            if (validMovesCount === 0 && !isRemote) {
                 const nextPlayer = getNextPlayer(color);
                 setTimeout(() => {
                     if (isHost && isLobbyConnected) {
@@ -374,16 +389,49 @@ export function useGameEngine({
                 }, 1000);
             }
 
+            // HUMAN AUTO-MOVE LOGIC (1.5s)
+            // Conditions for Auto-Move for humans:
+            // 1. Exactly one valid move exists.
+            // 2. OR Multiple valid moves exist, but ALL of them are "bringing out from home" (pos === -1),
+            //    which means they all lead to the same result (position 0).
+            const allValidAreFromHome = validMovesCount > 0 && prev.positions[targetColor].every((pos, idx) => {
+                const nextPos = pos === -1 ? (rollValue === 6 ? 0 : -1) : pos + rollValue;
+                // If it's a valid move, it MUST be from home
+                if (nextPos <= 57 && nextPos !== -1) {
+                    return pos === -1;
+                }
+                return true; // Not a valid move, so doesn't break the rule
+            });
+
+            if ((validMovesCount === 1 || allValidAreFromHome) && !isRemote) {
+                const currentPlayerInfo = initialPlayers.find(p => p.color === color);
+                const isBot = currentPlayerInfo?.isAi;
+                // We only do this for humans. Bots already have their own orchestrator.
+                if (!isBot) {
+                    if (autoMoveTimeoutRef.current) clearTimeout(autoMoveTimeoutRef.current);
+                    
+                    autoMoveTimeoutRef.current = setTimeout(() => {
+                        // Use the first valid token index we found (or the single one)
+                        // lastValidTokenIndex was set in the loop above
+                        if (!isHost && isLobbyConnected) {
+                            sendIntent('REQUEST_MOVE', { color: targetColor, tokenIndex: lastValidTokenIndex, diceValue: rollValue });
+                        } else {
+                            moveToken(targetColor, lastValidTokenIndex, rollValue);
+                        }
+                    }, 1500);
+                }
+            }
+
             return {
                 ...prev,
                 diceValue: rollValue,
                 consecutiveSixes: rollValue === 6 ? prev.consecutiveSixes + 1 : 0,
-                gamePhase: hasValidMove ? 'moving' : 'rolling',
+                gamePhase: validMovesCount > 0 ? 'moving' : 'rolling',
                 timeLeft: 15,
                 lastUpdate: Date.now()
             };
         });
-    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, initialPlayers, address, localGameState.currentPlayer, localGameState.winner, playerCount]);
+    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, initialPlayers, address, localGameState.currentPlayer, localGameState.winner, playerCount, sendIntent, moveToken]);
 
     const handleTokenClick = useCallback((color: Player['color'], tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
