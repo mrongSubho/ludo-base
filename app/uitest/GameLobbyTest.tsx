@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayWithFriendsPanel } from '../components/PlayWithFriendsPanel';
+import { MultiplayerMatchPanel } from '../components/MultiplayerMatchPanel';
 import { QuickMatchPanel } from '../components/QuickMatchPanel';
+import { OfflineMatchPanel } from '../components/OfflineMatchPanel';
 import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
 
 interface GameLobbyProps {
@@ -35,7 +36,8 @@ export default function GameLobby({
     } = useMultiplayerContext();
 
     // Configuration State
-    const [showPrivateOptions, setShowPrivateOptions] = useState(false);
+    const [showMultiplayerOptions, setShowMultiplayerOptions] = useState(false);
+    const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [inputRoomId, setInputRoomId] = useState('');
 
@@ -172,27 +174,52 @@ export default function GameLobby({
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    onClick={() => setShowPrivateOptions(true)}
+                                    onClick={() => setShowMultiplayerOptions(true)}
                                     className="group relative flex-1 py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10"
                                 >
-                                    <span className="relative text-md lg:text-lg italic tracking-tighter">WITH FRIENDS</span>
+                                    <span className="relative text-md lg:text-lg italic tracking-tighter">MULTIPLAYER MATCH</span>
+                                </motion.button>
+                            </div>
+
+                            <div className="w-full flex justify-center pt-4">
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setShowOfflineOptions(true)}
+                                    className="group relative w-[70%] py-4 bg-white/10 hover:bg-white/20 text-white font-black rounded-full border border-white/20 transition-all overflow-hidden shadow-lg z-10 backdrop-blur-md"
+                                >
+                                    <span className="relative text-sm italic tracking-tighter">OFFLINE MATCH</span>
                                 </motion.button>
                             </div>
                         </div>
 
                         <AnimatePresence>
-                            {showPrivateOptions && (
-                                <PlayWithFriendsPanel
-                                    onClose={() => setShowPrivateOptions(false)}
+                            {showMultiplayerOptions && (
+                                <MultiplayerMatchPanel
+                                    onClose={() => setShowMultiplayerOptions(false)}
                                     onJoin={(code: string) => joinGame(code)}
                                     onHost={hostGame}
                                     currentRoomId={roomId}
                                     isHost={isHost}
                                     isLobbyConnected={isLobbyConnected}
                                     onStartMatch={() => {
-                                        setShowPrivateOptions(false);
+                                        setShowMultiplayerOptions(false);
                                         broadcastAction('START_GAME', {});
                                         onStartGame();
+                                    }}
+                                />
+                            )}
+                        </AnimatePresence>
+
+                        <AnimatePresence>
+                            {showOfflineOptions && (
+                                <OfflineMatchPanel
+                                    gameMode={gameMode}
+                                    matchType={matchType}
+                                    onClose={() => setShowOfflineOptions(false)}
+                                    onStartOfflineGame={() => {
+                                        setShowOfflineOptions(false);
+                                        onStartGame(true); // true = isBotMatch
                                     }}
                                 />
                             )}
@@ -205,7 +232,7 @@ export default function GameLobby({
                         gameMode={gameMode}
                         matchType={matchType}
                         wager={wager}
-                        onStartGame={(isBotMatch: boolean) => onStartGame(isBotMatch)}
+                        onStartGame={(isBotMatch) => onStartGame(isBotMatch)}
                         onCancel={() => setIsQuickMatchActive(false)}
                     />
                 )}

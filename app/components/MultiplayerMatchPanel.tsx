@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 
-export const PlayWithFriendsPanel = ({ onClose, onJoin, onHost, currentRoomId, isHost, isLobbyConnected, onStartMatch }: any) => {
+export const MultiplayerMatchPanel = ({ onClose, onJoin, onHost, currentRoomId, isHost, isLobbyConnected, onStartMatch }: any) => {
     const [activeTab, setActiveTab] = useState<'host' | 'join'>('host');
     const [roomCode, setRoomCode] = useState('');
 
