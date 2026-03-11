@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DiceProps {
@@ -21,8 +21,20 @@ const DOT_POSITIONS = {
 export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }: DiceProps) {
     const [localIsRolling, setLocalIsRolling] = useState(false);
     const [value, setValue] = useState<number | null>(null);
+    const [displayedValue, setDisplayedValue] = useState<number>(6); // Default face
 
     const isRolling = externalIsRolling || localIsRolling;
+
+    // Handle face cycling during roll
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isRolling) {
+            interval = setInterval(() => {
+                setDisplayedValue(Math.floor(Math.random() * 6) + 1);
+            }, 80); // Fast cycling for motion feel
+        }
+        return () => clearInterval(interval);
+    }, [isRolling]);
 
     const roll = () => {
         if (isRolling || disabled) return;
@@ -33,15 +45,20 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
         setTimeout(() => {
             const newValue = Math.floor(Math.random() * 6) + 1;
             setValue(newValue);
+            setDisplayedValue(newValue);
             setLocalIsRolling(false);
             onRoll(newValue);
-        }, 800);
+        }, 1000); // Slightly longer for the new animation feel
     };
 
     const renderDots = (num: number) => {
         const positions = DOT_POSITIONS[num as keyof typeof DOT_POSITIONS] || [];
         return positions.map(([cx, cy], i) => (
-            <circle key={i} cx={cx} cy={cy} r="8" fill="#1E293B" className="dice-dot-svg" />
+            <g key={i}>
+                {/* Dot Inner Shadow / Hole effect */}
+                <circle cx={cx} cy={cy + 0.5} r="9.5" fill="rgba(0,0,0,0.1)" />
+                <circle cx={cx} cy={cy} r="8.5" fill="#0F172A" className="dice-dot-svg" />
+            </g>
         ));
     };
 
@@ -52,75 +69,91 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                 onClick={roll}
                 disabled={disabled || isRolling}
                 title={disabled ? (isRolling ? "Rolling..." : "Wait for your turn") : "Roll Dice"}
-                style={{ width: 42, height: 42 }}
+                style={{ width: 48, height: 48 }}
             >
                 <motion.svg
                     viewBox="0 0 100 100"
                     className="dice-svg"
-                    animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [1, 1.15, 0.95, 1.1, 1] } : {}}
-                    transition={{ repeat: isRolling ? Infinity : 0, duration: 0.5, ease: "easeInOut" }}
+                    animate={isRolling ? { 
+                        rotate: [0, 90, 180, 270, 360],
+                        y: [0, -10, 0, -5, 0],
+                        scale: [1, 1.1, 0.95, 1.05, 1],
+                    } : { rotate: 0, y: 0, scale: 1 }}
+                    transition={isRolling ? { 
+                        rotate: { repeat: Infinity, duration: 0.6, ease: "linear" },
+                        y: { repeat: Infinity, duration: 0.4, ease: "easeInOut" },
+                        scale: { repeat: Infinity, duration: 0.4 }
+                    } : { duration: 0.3, type: "spring", stiffness: 300 }}
                 >
                     <defs>
                         <linearGradient id="diceBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#FEFEFE" />
-                            <stop offset="40%" stopColor="#F8F6F0" />
-                            <stop offset="100%" stopColor="#E8E4DA" />
+                            <stop offset="0%" stopColor="#FFFFFF" />
+                            <stop offset="30%" stopColor="#F8F8F5" />
+                            <stop offset="100%" stopColor="#E5E2D8" />
                         </linearGradient>
-                        <radialGradient id="diceShine" cx="35%" cy="30%" r="60%">
-                            <stop offset="0%" stopColor="rgba(255,255,255,0.6)" />
-                            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                        </radialGradient>
-                        <filter id="diceShadow" x="-10%" y="-10%" width="120%" height="130%">
-                            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="rgba(0,0,0,0.15)" />
+                        
+                        <linearGradient id="diceBevelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="rgba(0,0,0,0.12)" />
+                            <stop offset="100%" stopColor="rgba(255,255,255,1)" />
+                        </linearGradient>
+
+                        <filter id="diceInnerShadow">
+                            <feOffset dx="0" dy="2" />
+                            <feGaussianBlur stdDeviation="2" result="offset-blur" />
+                            <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+                            <feFlood floodColor="black" floodOpacity="0.4" result="color" />
+                            <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+                            <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+                        </filter>
+
+                        <filter id="diceOuterShadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="6" stdDeviation="5" floodColor="rgba(0,0,0,0.18)" />
+                            <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="rgba(0,0,0,0.12)" />
                         </filter>
                     </defs>
 
-                    {/* Outer shadow body */}
+                    {/* Main Body with stronger shadow */}
                     <rect
-                        x="5" y="5" width="90" height="90" rx="18" ry="18"
+                        x="3" y="3" width="94" height="94" rx="26" ry="26"
                         fill="url(#diceBodyGrad)"
-                        stroke="#D4D0C8"
-                        strokeWidth="1.5"
-                        filter="url(#diceShadow)"
+                        filter="url(#diceOuterShadow)"
                     />
 
-                    {/* Inner 3D shine overlay */}
+                    {/* Recessed Face - Much more pronounced bevel */}
                     <rect
-                        x="5" y="5" width="90" height="90" rx="18" ry="18"
-                        fill="url(#diceShine)"
+                        x="10" y="10" width="80" height="80" rx="20" ry="20"
+                        fill="rgba(0,0,0,0.04)"
+                        filter="url(#diceInnerShadow)"
                     />
 
-                    {/* Subtle inner border */}
+                    {/* Bright Highlights on the edges to simulate material catch-light */}
                     <rect
-                        x="9" y="9" width="82" height="82" rx="14" ry="14"
+                        x="11" y="11" width="78" height="78" rx="19" ry="19"
                         fill="none"
-                        stroke="rgba(255,255,255,0.6)"
-                        strokeWidth="1"
+                        stroke="rgba(255,255,255,0.9)"
+                        strokeWidth="1.5"
+                    />
+
+                    {/* Subtle surface shine over the whole thing */}
+                    <rect
+                        x="3" y="3" width="94" height="94" rx="26" ry="26"
+                        fill="none"
+                        stroke="url(#diceBevelGrad)"
+                        strokeWidth="1.2"
+                        opacity="0.6"
                     />
 
                     {/* Dots / Face */}
                     <AnimatePresence mode="wait">
-                        {!isRolling && value && (
-                            <motion.g
-                                key={`face-${value}`}
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.5 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {renderDots(value)}
-                            </motion.g>
-                        )}
-                        {(!value || isRolling) && (
-                            <motion.g
-                                key="face-empty"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 0.4 }}
-                                exit={{ opacity: 0 }}
-                            >
-                                {renderDots(6)}
-                            </motion.g>
-                        )}
+                        <motion.g
+                            key={`face-${isRolling ? 'rolling-' + displayedValue : displayedValue}`}
+                            initial={isRolling ? { opacity: 0.4 } : { opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={isRolling ? { opacity: 0.4 } : { opacity: 0, scale: 0.5 }}
+                            transition={{ duration: isRolling ? 0.05 : 0.2 }}
+                        >
+                            {renderDots(displayedValue)}
+                        </motion.g>
                     </AnimatePresence>
                 </motion.svg>
             </button>
@@ -147,9 +180,9 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                 }
 
                 .dice-svg {
-                    width: 42px;
-                    height: 42px;
-                    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12)) drop-shadow(0 1px 2px rgba(0,0,0,0.08));
+                    width: 48px;
+                    height: 48px;
+                    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.2));
                 }
 
                 .dice-dot-svg {
@@ -174,15 +207,7 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
                 }
 
                 .rolling {
-                    animation: diceShake 0.15s infinite alternate ease-in-out;
-                }
-
-                @keyframes diceShake {
-                    0% { transform: translate(0.5px, 0.5px) rotate(0deg); }
-                    25% { transform: translate(-1px, -1px) rotate(-2deg); }
-                    50% { transform: translate(1px, 0px) rotate(1deg); }
-                    75% { transform: translate(-0.5px, 1px) rotate(-1deg); }
-                    100% { transform: translate(1px, -1px) rotate(2deg); }
+                    /* CSS animation removed in favor of smoother Framer Motion tumble */
                 }
             `}</style>
         </div>
