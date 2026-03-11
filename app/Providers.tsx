@@ -10,6 +10,7 @@ import { ReactNode } from "react";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
 import { MultiplayerProvider } from "@/hooks/MultiplayerContext";
+import { GameDataProvider } from "@/hooks/GameDataContext";
 
 const config = createConfig({
     chains: [base, baseSepolia],
@@ -43,10 +44,12 @@ export function Providers({ children }: { children: ReactNode }) {
                     config={{ analytics: false }}
                 >
                     <FrameProvider>
-                        <MultiplayerProvider>
-                            <ProfileSyncer />
-                            {children}
-                        </MultiplayerProvider>
+                        <GameDataProvider>
+                            <MultiplayerProvider>
+                                <ProfileSyncer />
+                                {children}
+                            </MultiplayerProvider>
+                        </GameDataProvider>
                     </FrameProvider>
                 </OnchainKitProvider>
             </QueryClientProvider>

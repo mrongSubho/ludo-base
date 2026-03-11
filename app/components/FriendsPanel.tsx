@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useGameData } from '@/hooks/GameDataContext';
 
 interface FriendsPanelProps {
     onClose: () => void;
@@ -57,8 +58,15 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
 
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('social');
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
+    const { friends: globalFriends, isBooting: isLoadingGlobal } = useGameData();
 
-    const [gameFriends, setGameFriends] = useState<Friend[]>([]);
+    // Use Context for game friends
+    const gameFriends = globalFriends.gameFriends.map((f: any) => ({
+        ...f,
+        displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "Guest " + f.wallet_address.slice(-6).toUpperCase(),
+        status: f.status || 'Offline'
+    }));
+
     const [onchainFriends, setOnchainFriends] = useState<Friend[]>([]);
     const [pendingIncoming, setPendingIncoming] = useState<Request[]>([]);
     const [pendingOutgoing, setPendingOutgoing] = useState<Request[]>([]);
@@ -68,32 +76,6 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
         if (!connectedAddress) return;
         setIsLoading(true);
         try {
-            // 1. Fetch Farcaster Social Graph if Wallet is available
-            if (connectedAddress) {
-                const res = await fetch(`/api/friends?wallet=${connectedAddress}`);
-                const data = await res.json();
-
-                // Parse Onchain Friends (followed users on Farcaster who are on our platform)
-                if (data.onchainFriends) {
-                    const formatted = data.onchainFriends.map((friend: any) => ({
-                        ...friend,
-                        displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
-                        status: friend.status || 'Offline'
-                    }));
-                    setOnchainFriends(formatted);
-                }
-
-                // Parse Game Friends (recent active players globally)
-                if (data.gameFriends) {
-                    const formatted = data.gameFriends.map((friend: any) => ({
-                        ...friend,
-                        displayName: (friend.username && !friend.username.startsWith('0x')) ? friend.username : "Guest " + friend.wallet_address.slice(-6).toUpperCase(),
-                        status: friend.status || 'Offline'
-                    }));
-                    setGameFriends(formatted);
-                }
-            }
-
             // 2. Fetch live friendships from Supabase (Onchain Friends)
             const currentAddrLower = connectedAddress.toLowerCase();
             const { data, error } = await supabase
@@ -131,13 +113,22 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                         status: currentStatus
                     };
                 });
-                // These are "Social/Onchain" friends who accepted requests
-                // We keep them in onchainFriends state
-                // But wait, the tabs are labeled: Game Friends | Onchain Friends
-                // Let's ensure they match the rendering below
-                setOnchainFriends(prev => {
-                    // Merge or replace? For accepted friends, let's keep them distinct
-                    return formatted;
+                // Merge Supabase friends with Farcaster friends from Context
+                setOnchainFriends(() => {
+                    const fromContext = globalFriends.onchainFriends.map((f: any) => ({
+                        ...f,
+                        displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "Guest " + f.wallet_address.slice(-6).toUpperCase(),
+                        status: f.status || 'Offline'
+                    }));
+                    
+                    const merged = [...formatted];
+                    fromContext.forEach((f) => {
+                        if (!merged.some(m => m.wallet_address === f.wallet_address)) {
+                            merged.push(f);
+                        }
+                    });
+                    
+                    return merged;
                 });
             }
 
@@ -217,7 +208,6 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                             : f
                         );
 
-                    setGameFriends(prev => updateList(prev));
                     setOnchainFriends(prev => updateList(prev));
                 }
             )

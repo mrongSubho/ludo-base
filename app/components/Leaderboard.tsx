@@ -2,18 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
+import { useGameData } from '@/hooks/GameDataContext';
 
 const ITEMS_PER_PAGE = 20;
 
-const getTierFromWins = (wins: number) => {
-    if (wins >= 100) return { tier: 'Legendary' as const, stage: wins >= 150 ? 'III' as const : (wins >= 125 ? 'II' as const : 'I' as const) };
-    if (wins >= 50) return { tier: 'Platinum' as const, stage: wins >= 80 ? 'III' as const : (wins >= 65 ? 'II' as const : 'I' as const) };
-    if (wins >= 20) return { tier: 'Gold' as const, stage: wins >= 40 ? 'III' as const : (wins >= 30 ? 'II' as const : 'I' as const) };
-    if (wins >= 5) return { tier: 'Silver' as const, stage: wins >= 15 ? 'III' as const : (wins >= 10 ? 'II' as const : 'I' as const) };
-    return { tier: 'Rookie' as const, stage: wins >= 3 ? 'III' as const : (wins >= 1 ? 'II' as const : 'I' as const) };
-};
+// getTierFromWins moved to GameDataContext
 
 type LeaderboardTab = 'tier' | 'daily' | 'monthly';
 
@@ -38,48 +32,33 @@ interface LeaderboardProps {
 
 export default function Leaderboard({ isOpen, onClose, onOpenProfile }: LeaderboardProps) {
     const { address } = useAccount();
+    const { leaderboard: rawLeaders, isBooting: isLoading } = useGameData();
+
     const [activeTab, setActiveTab] = useState<LeaderboardTab>('tier');
     const [scope, setScope] = useState<'global' | 'friends'>('global');
     const [showQuarterInfo, setShowQuarterInfo] = useState(false);
     const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
 
-    const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
+    
+    // Format leaders from Context
+    const leaders: LeaderboardEntry[] = rawLeaders.map(player => ({
+        id: player.wallet_address,
+        name: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + player.wallet_address.slice(-6).toUpperCase(),
+        avatar: player.avatar_url,
+        wins: player.total_wins,
+        lastWin: new Date(player.last_played_at).getTime(),
+        isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
+        tier: player.tier,
+        stage: player.stage
+    }));
+
+    const paginatedLeaders = leaders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(leaders.length / ITEMS_PER_PAGE) || 1;
 
     useEffect(() => {
-        const fetchLeaderboard = async () => {
-            setIsLoading(true);
-            const from = (currentPage - 1) * ITEMS_PER_PAGE;
-            const to = from + ITEMS_PER_PAGE - 1;
-
-            const { data, count, error } = await supabase
-                .from('players')
-                .select('*', { count: 'exact' })
-                .order('total_wins', { ascending: false })
-                .range(from, to);
-
-            if (!error && data) {
-                const formattedData = data.map(player => ({
-                    id: player.wallet_address,
-                    name: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + player.wallet_address.slice(-6).toUpperCase(),
-                    avatar: player.avatar_url,
-                    wins: player.total_wins,
-                    lastWin: new Date(player.last_played_at).getTime(),
-                    isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
-                    ...getTierFromWins(player.total_wins)
-                }));
-                setLeaders(formattedData);
-                if (count) setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
-            }
-            setIsLoading(false);
-        };
-
-        if (isOpen) {
-            fetchLeaderboard();
-        }
-    }, [isOpen, activeTab, scope, currentPage, address]);
+        if (!isOpen) setCurrentPage(1);
+    }, [isOpen]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -236,7 +215,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                             ) : (
                                 <div className="space-y-3 px-panel-gutter pb-4">
                                     <AnimatePresence mode="popLayout">
-                                        {leaders.map((entry, idx) => {
+                                        {paginatedLeaders.map((entry, idx) => {
                                             const tierStyles = getTierConfig(entry.tier);
                                             const isMe = entry.isCurrentUser;
                                             const rank = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;

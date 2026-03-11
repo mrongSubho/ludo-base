@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
+import { useGameData } from '@/hooks/GameDataContext';
 
 export const PlayWithFriendsPanel = ({ onClose, onJoin, onHost, currentRoomId, isHost, isLobbyConnected, onStartMatch }: any) => {
     const [activeTab, setActiveTab] = useState<'host' | 'join'>('host');
@@ -8,25 +9,8 @@ export const PlayWithFriendsPanel = ({ onClose, onJoin, onHost, currentRoomId, i
 
     // Dual-Tab Friends State
     const [friendTab, setFriendTab] = useState<'game' | 'onchain'>('game');
-    const { address, isConnected } = useAccount();
-    const [friendsData, setFriendsData] = useState({ onchainFriends: [], gameFriends: [] });
-    const [isLoadingFriends, setIsLoadingFriends] = useState(false);
+    const { friends: friendsData, isBooting: isLoadingFriends } = useGameData();
 
-    useEffect(() => {
-        if (isConnected && address && activeTab === 'host' && !isLobbyConnected) {
-            setIsLoadingFriends(true);
-            fetch(`/api/friends?wallet=${address}`)
-                .then(res => res.json())
-                .then(data => {
-                    setFriendsData({
-                        onchainFriends: data.onchainFriends || [],
-                        gameFriends: data.gameFriends || []
-                    });
-                })
-                .catch(console.error)
-                .finally(() => setIsLoadingFriends(false));
-        }
-    }, [isConnected, address, activeTab, isLobbyConnected]);
 
     return (
         <>

@@ -2,15 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { supabase } from '@/lib/supabase';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { sdk } from '@farcaster/frame-sdk';
+import { useGameData } from '@/hooks/GameDataContext';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileSyncer() {
     const { address, isConnected } = useAccount();
     const { data: onchainName } = useName({ address: address as `0x${string}` });
     const { data: onchainAvatar } = useAvatar({ ensName: onchainName ?? '' }, { enabled: !!onchainName });
     const [fcContext, setFcContext] = useState<any>(null);
+    const { updateMyProfileOptimistic, isBootComplete, myProfile } = useGameData();
 
     useEffect(() => {
         const loadSdk = async () => {
@@ -57,18 +59,24 @@ export default function ProfileSyncer() {
                     updateData.username = finalName;
                 }
 
-                const { error } = await supabase
-                    .from('players')
-                    .upsert(updateData, { onConflict: 'wallet_address' });
-
-                if (error) {
-                    console.error('❌ Supabase Sync Error:', error.message);
+                // Optimization: Don't dispatch update if nothing changed
+                const isNameDifferent = updateData.username && myProfile?.username !== updateData.username;
+                const isAvatarDifferent = updateData.avatar_url && myProfile?.avatar_url !== updateData.avatar_url;
+                
+                // Always update `last_played_at`, but we don't need a loud optimistic re-render just for that unless it's their very first boot.
+                if (!myProfile || isNameDifferent || isAvatarDifferent) {
+                     updateMyProfileOptimistic(updateData);
+                } else {
+                     // Silently touch last_played_at
+                     supabase.from('players').upsert(updateData, { onConflict: 'wallet_address' }).then();
                 }
             }
         }
 
-        syncProfile();
-    }, [isConnected, address, onchainName, onchainAvatar, fcContext]);
+        if (isBootComplete) {
+            syncProfile();
+        }
+    }, [isConnected, address, onchainName, onchainAvatar, fcContext, isBootComplete, myProfile, updateMyProfileOptimistic]);
 
     return null;
 }

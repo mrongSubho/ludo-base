@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { useMessages, Conversation, MessageData } from '@/hooks/useMessages';
+import { useGameData, Conversation, MessageData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface MessagesPanelProps {
@@ -15,7 +15,8 @@ interface MessagesPanelProps {
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
     const { address } = useCurrentUser();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markAsRead, deleteMessageLocal } = useMessages(address, selectedChatId);
+    const { messages, conversations, sendMessage, markChatAsRead, deleteMessageLocal } = useGameData();
+    const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
 

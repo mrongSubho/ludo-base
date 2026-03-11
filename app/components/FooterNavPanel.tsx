@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useGameData } from '@/hooks/GameDataContext';
 
 // Panel Imports
 import UserProfilePanel from './UserProfilePanel';
@@ -75,6 +76,7 @@ export const FooterNavPanel = ({
     onOpenProfile
 }: FooterNavPanelProps) => {
     const { address: connectedAddress } = useCurrentUser();
+    const { totalUnreadCount } = useGameData();
     const [pendingCount, setPendingCount] = useState(0);
 
     useEffect(() => {
@@ -127,10 +129,10 @@ export const FooterNavPanel = ({
                             )}
 
                             <div className="relative inline-flex items-center justify-center">
-                                {/* Pending Friend Requests Badge */}
-                                {tab.id === 'friends' && pendingCount > 0 && (
+                                {/* Pending Friend Requests + Unread Messages Badge */}
+                                {tab.id === 'friends' && (pendingCount + totalUnreadCount) > 0 && (
                                     <div className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold px-1 py-0 rounded-full border border-[#131520] z-20 shadow-md min-w-[16px] text-center">
-                                        {pendingCount > 9 ? '9+' : pendingCount}
+                                        {(pendingCount + totalUnreadCount) > 9 ? '9+' : (pendingCount + totalUnreadCount)}
                                     </div>
                                 )}
                                 <Icon />
