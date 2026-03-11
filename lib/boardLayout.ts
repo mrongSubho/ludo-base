@@ -163,7 +163,7 @@ export function buildPlayerPaths(cc: ColorCorner): Record<string, Point[]> {
 
         const slot = CORNER_SLOTS[corner];
         paths[color] = [
-            ...rotatePath(SHARED_PATH, slot.startIdx),
+            ...rotatePath(SHARED_PATH, slot.startIdx).slice(0, 51),
             ...slot.homeCells,
             slot.finishCell,
         ];
