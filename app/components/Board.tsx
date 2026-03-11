@@ -330,7 +330,8 @@ export default function Board({
         handleTokenClick,
         handleUsePower,
         resetGame,
-        getNextPlayer
+        getNextPlayer,
+        cancelAfk
     } = useGameEngine({
         initialPlayers: players,
         playerCount,
@@ -417,23 +418,28 @@ export default function Board({
                     }}
                 >
                     {activeColors.map(([color, tokens], colorIdx) => {
-                        const isMyTurn = localGameState.currentPlayer === color;
-                        const teammate = getTeammateColor(localGameState.currentPlayer, playerCount);
-                        const posMap = localGameState.positions as Record<PlayerColor, number[]>;
-                        const isSelfFinished = posMap[localGameState.currentPlayer as PlayerColor].every((p: number) => p === 57);
+                        const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+                        const myColor = myPlayer?.color;
+                        const isItsMyTurn = localGameState.currentPlayer === myColor;
+
+                        const teammate = getTeammateColor(myColor as PlayerColor, playerCount);
                         const isTeammateColor = teammate === color;
-                        const canHelpTeammate = isTeammateColor && isSelfFinished;
-                        const isDraggable = (isMyTurn && localGameState.gamePhase === 'moving') ||
-                            (canHelpTeammate && localGameState.gamePhase === 'moving');
+                        const posMap = localGameState.positions as Record<PlayerColor, number[]>;
+                        const isSelfFinished = myColor ? posMap[myColor].every((p: number) => p === 57) : false;
+
+                        const canHelpTeammate = isTeammateColor && isSelfFinished && playerCount === '2v2';
+                        const isDraggable = isItsMyTurn && localGameState.gamePhase === 'moving' &&
+                            (color === myColor || canHelpTeammate);
                         const count = tokens.length;
                         const isBlockade = count >= 2;
 
+                        const isColorTurn = localGameState.currentPlayer === color;
                         const offsetStyle = activeColors.length > 1 ? {
                             transform: `scale(0.85) translate(${colorIdx * 10 - (activeColors.length - 1) * 5}px, ${colorIdx * 5 - (activeColors.length - 1) * 2.5}px)`,
-                            zIndex: isMyTurn ? 30 : 10 + colorIdx,
+                            zIndex: isColorTurn ? 30 : 10 + colorIdx,
                             position: 'absolute' as const
                         } : {
-                            zIndex: isMyTurn ? 15 : 10
+                            zIndex: isColorTurn ? 15 : 10
                         };
 
                         return (
@@ -473,8 +479,11 @@ export default function Board({
                     if (!p) {
                         return <div key={`empty-${corner}`} className="player-placeholder" style={{ width: 140 }}></div>;
                     }
+                    const myPlayer = players.find(pl => address && pl.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(pl => !pl.isAi);
+                    const isMyColor = p.color === myPlayer?.color;
                     const isMyTurn = localGameState.currentPlayer === p.color;
-                    const canRoll = isMyTurn && localGameState.gamePhase === 'rolling';
+                    const isCurrentlyBot = p.isAi;
+                    const canRoll = isMyTurn && isMyColor && !isCurrentlyBot && localGameState.gamePhase === 'rolling';
                     // TL: Dice on Right (flex-row), TR: Dice on Left (flex-row-reverse)
                     const flexDir = corner === 'TL' ? 'flex-row' : 'flex-row-reverse';
 
@@ -498,7 +507,16 @@ export default function Board({
             </div>
 
             {/* ── Board Area: relative container for rotating board + static overlay ── */}
-            <div className="board-area" style={{ position: 'relative', width: '100%' }}>
+            <div 
+                className="board-area" 
+                style={{ position: 'relative', width: '100%', cursor: 'pointer' }}
+                onClick={() => {
+                    const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+                    if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying) {
+                        cancelAfk(myPlayer.color);
+                    }
+                }}
+            >
                 <div
                     className="board-wrapper"
                     style={{
@@ -514,13 +532,13 @@ export default function Board({
                             const slot = CORNER_SLOTS[colorCorner[color as PlayerColor]];
                             const gridInfo = { row: slot.gridRow, col: slot.gridCol };
 
-                            const tokensInHome = localGameState.positions[color]
+                            const tokensInHome = localGameState.positions[color as PlayerColor]
                                 .map((pos: number, idx: number) => pos === -1 ? idx : -1)
                                 .filter((idx: number) => idx !== -1);
 
                             const isMyTurn = localGameState.currentPlayer === color;
-                            const teammate = getTeammateColor(localGameState.currentPlayer as any, playerCount);
-                            const selfFinished = localGameState.positions[localGameState.currentPlayer as any].every(p => p === 57);
+                            const teammate = getTeammateColor(localGameState.currentPlayer as PlayerColor, playerCount);
+                            const selfFinished = localGameState.positions[localGameState.currentPlayer as PlayerColor].every((p: number) => p === 57);
                             const isTeammateTurnShortcut = teammate === color && selfFinished;
 
                             const isDraggable = (isMyTurn || isTeammateTurnShortcut) && localGameState.gamePhase === 'moving' && localGameState.diceValue === 6;
@@ -789,6 +807,67 @@ export default function Board({
                         ) : null;
                     })()}
                 </div>
+
+                {/* --- Idle Warning Overlay --- */}
+                <AnimatePresence>
+                    {localGameState.idleWarning && (() => {
+                        const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+                        if (localGameState.idleWarning.player === myPlayer?.color) {
+                            return (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        zIndex: 50,
+                                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderRadius: '16px',
+                                        color: '#fff',
+                                        backdropFilter: 'blur(4px)'
+                                    }}
+                                >
+                                    <motion.div 
+                                        initial={{ scale: 0.8, y: 20 }}
+                                        animate={{ scale: 1, y: 0 }}
+                                        style={{ textAlign: 'center', padding: '32px', background: '#1e293b', borderRadius: '16px', border: '2px solid #ef4444' }}
+                                    >
+                                        <h2 style={{ fontSize: '24px', margin: '0 0 12px 0', color: '#ef4444', fontWeight: 'bold' }}>Are you still there?</h2>
+                                        <p style={{ fontSize: '18px', margin: '0 0 24px 0', opacity: 0.9 }}>
+                                            Auto-kicking in <span style={{ fontWeight: 'bold', fontSize: '24px' }}>{localGameState.idleWarning.timeLeft}s</span>
+                                        </p>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (myPlayer?.color) cancelAfk(myPlayer.color);
+                                            }}
+                                            style={{
+                                                padding: '12px 32px',
+                                                background: '#3b82f6',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                fontSize: '18px',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
+                                            }}
+                                        >
+                                            I'm Back!
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            );
+                        }
+                        return null;
+                    })()}
+                </AnimatePresence>
+
             </div>{/* end board-area */}
 
             {/* --- Celebration Overlay --- */}

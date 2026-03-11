@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
@@ -47,7 +47,7 @@ export function useGameEngine({
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const { address } = useAccount();
     const hasRecordedWin = useRef<boolean>(false);
-    const activeColorsArr = initialPlayers.map(p => p.color as PlayerColor);
+    const activeColorsArr = useMemo(() => initialPlayers.map(p => p.color as PlayerColor), [initialPlayers]);
 
     const {
         gameState: networkGameState,
@@ -88,6 +88,13 @@ export function useGameEngine({
         activeShields: [] as { color: PlayerColor, tokenIdx: number }[],
         activeBoost: null as PlayerColor | null,
         consecutiveSixes: 0,
+        afkStats: {
+            green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+            red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+            yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+            blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        } as Record<PlayerColor, { isAutoPlaying: boolean; consecutiveTurns: number; totalTriggers: number; isKicked: boolean }>,
+        idleWarning: null as { player: PlayerColor; timeLeft: number } | null,
         multiplayer: {
             targetId: '',
             isConnected: false,
@@ -162,6 +169,13 @@ export function useGameEngine({
             activeShields: [],
             activeBoost: null,
             consecutiveSixes: 0,
+            afkStats: {
+                green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+            },
+            idleWarning: null,
             multiplayer: { targetId: '', isConnected: false, isHost: false, status: 'idle' },
             isStarted: true,
             lastUpdate: Date.now()
@@ -172,9 +186,24 @@ export function useGameEngine({
         const player = initialPlayers.find(p => p.color === winnerColor);
         if (!player) return;
 
+        // --- Reward Integrity ---
+        const myPlayer = initialPlayers.find(p => p.walletAddress?.toLowerCase() === address?.toLowerCase());
+        const isMeKicked = myPlayer ? localGameState.afkStats[myPlayer.color].isKicked : false;
+        
+        // If the local user was kicked, they forfeit all stats and rewards 
+        // regardless of whether their AI replacement or teammate won.
+        if (isMeKicked) {
+            console.log("Kicked player forfeited rewards.");
+            return;
+        }
+
         const data = localStorage.getItem('ludo-leaderboard');
         const stats = data ? JSON.parse(data) : {};
 
+        // In 2v2, if a kicked teammate's AI replacement finishes, the active human teammate still gets rewards.
+        // We ensure we attribute the win based on the active player.
+        
+        // Update stats for the winner
         if (!stats[player.name]) {
             stats[player.name] = { name: player.name, color: player.color, wins: 0, lastWin: 0 };
         }
@@ -194,7 +223,7 @@ export function useGameEngine({
 
             await recordMatchResult(address, roomId || 'local', gameMode, participants);
         }
-    }, [initialPlayers, address, roomId, gameMode]);
+    }, [initialPlayers, address, roomId, gameMode, localGameState.afkStats]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;
@@ -268,16 +297,26 @@ export function useGameEngine({
             };
         });
     }, []);
-
     const handleRoll = useCallback((value?: number, isRemote = false) => {
         if (localGameState.winner) return;
 
-        if (isLobbyConnected && !isHost && !isRemote) {
-            sendIntent('REQUEST_ROLL');
-            return;
-        }
-
         const rollValue = value || Math.floor(Math.random() * 6) + 1;
+
+        // --- Interaction Guard: Only owner can roll ---
+        const myPlayer = initialPlayers.find(p => 
+            (address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || 
+            (!address && !p.isAi)
+        );
+        const isMyTurn = localGameState.currentPlayer === myPlayer?.color;
+        const isCurrentlyBot = initialPlayers.find(p => p.color === localGameState.currentPlayer)?.isAi 
+            || localGameState.afkStats[localGameState.currentPlayer]?.isKicked;
+        const isLocalGame = !localGameState.multiplayer.isConnected;
+
+        // If not remote, not host-orchestrated AI (or local AI), and not my turn -> Block
+        if (!isRemote && !isMyTurn && !isCurrentlyBot) return;
+        
+        // If it's an AI trying to roll, ensure only the Host (or local player) processes it
+        if (!isRemote && isCurrentlyBot && !isHost && !isLocalGame) return;
 
         if (isHost && isLobbyConnected && !isRemote) {
             broadcastAction('ROLL_DICE', { value: rollValue });
@@ -344,69 +383,185 @@ export function useGameEngine({
                 lastUpdate: Date.now()
             };
         });
-    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, sendIntent, localGameState.winner, playerCount]);
+    }, [getNextPlayer, isHost, isLobbyConnected, broadcastAction, initialPlayers, address, localGameState.currentPlayer, localGameState.winner, playerCount]);
 
     const handleTokenClick = useCallback((color: Player['color'], tokenIndex: number) => {
-        const actingPlayer = localGameState.currentPlayer;
-        const teammate = getTeammateColor(actingPlayer, playerCount);
-        const isSelfFinished = localGameState.positions[actingPlayer].every(p => p === 57);
-
-        const isSelf = actingPlayer === color;
-        const isTeammate = teammate === color;
-
-        // Validation for 2v2 teammate assistance
-        if (!isSelf && (!isTeammate || !isSelfFinished)) return;
-
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
 
+        // --- Identification ---
+        const actingPlayerColor = localGameState.currentPlayer;
+        const myPlayer = initialPlayers.find(p => 
+            (address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || 
+            (!address && !p.isAi)
+        );
+        const myColor = myPlayer?.color;
+        const isMyTurn = actingPlayerColor === myColor;
+        const isCurrentlyBot = initialPlayers.find(p => p.color === actingPlayerColor)?.isAi;
+
+        // --- 2v2 Teammate Logic ---
+        const teammateColor = getTeammateColor(myColor as PlayerColor, playerCount);
+        const allMyTokensFinished = myColor ? localGameState.positions[myColor].every(pos => pos === 57) : false;
+        const isTeammateAssist = playerCount === '2v2' && color === teammateColor && allMyTokensFinished && isMyTurn;
+
+        // --- Guard ---
+        // 1. If it's my turn, I can only move MY tokens OR Teammate tokens (if finished)
+        // 2. If it's NOT my turn, I can't move anything (including teammate's turn)
+        // 3. If I have been kicked (turned to bot), block interaction
+        if (!isMyTurn) return;
+        if (isCurrentlyBot) return;
+        if (color !== myColor && !isTeammateAssist) return;
+
+        // Host/Guest Intent logic
         if (!isHost && isLobbyConnected) {
             sendIntent('REQUEST_MOVE', { color, tokenIndex, diceValue: localGameState.diceValue });
             return;
         }
 
         moveToken(color, tokenIndex, localGameState.diceValue);
-    }, [localGameState, playerCount, isHost, isLobbyConnected, sendIntent, moveToken]);
+    }, [localGameState, playerCount, isHost, isLobbyConnected, sendIntent, moveToken, address, initialPlayers]);
 
     // --- TURN NOTIFICATION BEEP ---
     useEffect(() => {
         if (localGameState.winner) return;
 
         const currentPlayerInfo = initialPlayers.find(p => p.color === localGameState.currentPlayer);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats[localGameState.currentPlayer].isKicked;
 
-        if (!isCurrentlyBot && localGameState.gamePhase === 'rolling') {
+        if (!isCurrentlyBot && localGameState.gamePhase === 'rolling' && !localGameState.afkStats[localGameState.currentPlayer].isAutoPlaying) {
             playTurn();
         }
-    }, [localGameState.currentPlayer, localGameState.winner, localGameState.strikes, playTurn, localGameState.gamePhase, initialPlayers]);
+    }, [localGameState.currentPlayer, localGameState.winner, localGameState.afkStats, playTurn, localGameState.gamePhase, initialPlayers]);
 
     // --- TURN TIMER & AFK AUTO-PLAY LOGIC ---
     useEffect(() => {
         if (localGameState.winner) return;
 
-        // Visual Countdown (Unified for Humans & AI)
         const interval = setInterval(() => {
             setLocalGameState(prev => {
+                // If the Idle Warning prompt is active, tick its countdown instead
+                if (prev.idleWarning) {
+                    if (prev.idleWarning.timeLeft <= 0) {
+                        // 10s ultimatum expired -> Kick the player
+                        const kickedPlayer = prev.idleWarning.player;
+                        return {
+                            ...prev,
+                            idleWarning: null,
+                            afkStats: {
+                                ...prev.afkStats,
+                                [kickedPlayer]: { ...prev.afkStats[kickedPlayer], isKicked: true, isAutoPlaying: false }
+                            },
+                        };
+                    }
+                    return {
+                        ...prev,
+                        idleWarning: { ...prev.idleWarning, timeLeft: prev.idleWarning.timeLeft - 1 }
+                    };
+                }
+
+                // Normal Turn Timer
                 if (prev.timeLeft <= 0) return prev;
                 return { ...prev, timeLeft: prev.timeLeft - 1 };
             });
         }, 1000);
 
-        // AFK Logic (Humans only)
-        const currentPlayerInfo = initialPlayers.find(p => p.color === localGameState.currentPlayer);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
+        // AFK Logic (Humans only) -> kicks in when timeLeft hits 0
+        setLocalGameState(prev => {
+            if (prev.winner || prev.idleWarning) return prev; // Do nothing if paused by warning or won
 
-        if (!isCurrentlyBot && localGameState.timeLeft <= 0) {
-            setLocalGameState(prev => ({
-                ...prev,
-                strikes: { ...prev.strikes, [prev.currentPlayer]: prev.strikes[prev.currentPlayer] + 1 },
-            }));
+            const color = prev.currentPlayer;
+            const currentPlayerInfo = initialPlayers.find(p => p.color === color);
+            const isOriginalBot = currentPlayerInfo?.isAi;
+            const isKicked = prev.afkStats[color].isKicked;
+            const isCurrentlyBot = isOriginalBot || isKicked; // Striking logic only applies to active humans
 
+            if (!isCurrentlyBot && prev.timeLeft <= 0) {
+                const stats = prev.afkStats[color];
+                let nextStats = { ...stats };
+                let nextWarning: { player: PlayerColor; timeLeft: number } | null = prev.idleWarning;
+
+                if (!stats.isAutoPlaying) {
+                    // 1st missed turn in sequence
+                    nextStats.isAutoPlaying = true;
+                    nextStats.consecutiveTurns = 1;
+                    nextStats.totalTriggers += 1;
+                } else {
+                    // Consecutive missed turn
+                    nextStats.consecutiveTurns += 1;
+                }
+
+                // Global Strike Limit Check
+                if (nextStats.totalTriggers >= 3) {
+                    nextStats.isKicked = true;
+                    nextStats.isAutoPlaying = false;
+                } 
+                // Consecutive Limit Check
+                else if (nextStats.consecutiveTurns >= 4) {
+                    // Pause the turn and trigger the warning
+                    nextWarning = { player: color as PlayerColor, timeLeft: 10 };
+                }
+
+                if (nextWarning) {
+                    // Match Paused for 10s prompt
+                    return {
+                        ...prev,
+                        afkStats: { ...prev.afkStats, [color]: nextStats },
+                        idleWarning: nextWarning
+                    };
+                }
+
+                if (nextStats.isKicked) {
+                    // They converted to bot implicitly on next tick
+                    return {
+                        ...prev,
+                        afkStats: { ...prev.afkStats, [color]: nextStats },
+                    };
+                }
+
+                // Execute Auto-Play for the AFK Human (Random Moves, Anti-Exploit)
+                if (prev.gamePhase === 'rolling') {
+                    const forcedRoll = Math.floor(Math.random() * 6) + 1;
+                    // We must call handleRoll carefully to avoid render cycle issues down the line,
+                    // so we do this in setTimeout inside the useEffect body, not inside setLocalGameState.
+                    // Wait, setLocalGameState updater shouldn't have side effects. Let's fix this below.
+                }
+
+                return {
+                    ...prev,
+                    afkStats: { ...prev.afkStats, [color]: nextStats }
+                };
+            }
+            return prev;
+        });
+
+        return () => clearInterval(interval);
+    }, [localGameState.winner, initialPlayers]);
+
+    // Handle the Side-Effects of AFK Timeouts
+    useEffect(() => {
+        if (localGameState.winner || localGameState.idleWarning) return;
+
+        const color = localGameState.currentPlayer;
+        const currentPlayerInfo = initialPlayers.find(p => p.color === color);
+        const isOriginalBot = currentPlayerInfo?.isAi;
+        const isKicked = localGameState.afkStats[color].isKicked;
+        const isCurrentlyBot = isOriginalBot || isKicked;
+        
+        // If it's a human technically in auto-play mode (but not kicked) and time ran out
+        if (!isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
+            
             if (localGameState.gamePhase === 'rolling') {
                 const forcedRoll = Math.floor(Math.random() * 6) + 1;
                 handleRoll(forcedRoll);
             } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
-                const bestMoveIdx = getBestMove(localGameState.positions, localGameState.currentPlayer, localGameState.diceValue, playerPaths, playerCount);
-                if (bestMoveIdx === null) {
+                // ANTI-EXPLOIT: Random Move Logic instead of best move
+                const diceValue = localGameState.diceValue;
+                const options: number[] = [];
+                localGameState.positions[color].forEach((pos, idx) => {
+                    if (pos === -1 && diceValue === 6) options.push(idx);
+                    else if (pos !== -1 && pos + diceValue <= 57) options.push(idx);
+                });
+
+                if (options.length === 0) {
                     setLocalGameState(s => ({
                         ...s,
                         gamePhase: 'rolling',
@@ -414,31 +569,40 @@ export function useGameEngine({
                         timeLeft: 15
                     }));
                 } else {
-                    moveToken(localGameState.currentPlayer, bestMoveIdx, localGameState.diceValue);
+                    // Random array element
+                    const randomIdx = options[Math.floor(Math.random() * options.length)];
+                    moveToken(color, randomIdx, diceValue);
                 }
             }
         }
-
-        return () => clearInterval(interval);
     }, [
         localGameState.timeLeft,
         localGameState.currentPlayer,
         localGameState.gamePhase,
         localGameState.winner,
         localGameState.diceValue,
+        localGameState.afkStats,
+        localGameState.idleWarning,
         handleRoll,
         moveToken,
         initialPlayers,
         playerPaths,
-        getNextPlayer
+        getNextPlayer,
+        playerCount
     ]);
 
     // --- AI ORCHESTRATION ---
     useEffect(() => {
         if (localGameState.winner) return;
 
+        // In networked matches, only the Host orchestrates the AI.
+        // In local matches, the local client orchestrates.
+        if (localGameState.multiplayer.isConnected && !localGameState.multiplayer.isHost) {
+            return;
+        }
+
         const currentPlayerInfo = initialPlayers.find(p => p.color === localGameState.currentPlayer);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.strikes[localGameState.currentPlayer] >= 3;
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats[localGameState.currentPlayer].isKicked;
 
         if (isCurrentlyBot) {
             if (localGameState.gamePhase === 'rolling') {
@@ -489,14 +653,33 @@ export function useGameEngine({
         localGameState.gamePhase,
         localGameState.winner,
         localGameState.diceValue,
+        localGameState.afkStats,
         moveToken,
         handleRoll,
-        localGameState.strikes,
         initialPlayers,
         playerPaths,
         getNextPlayer,
         playerCount
     ]);
+
+    // --- INTERRUPT AFK AUTO-PLAY ---
+    const cancelAfk = useCallback((color: PlayerColor) => {
+        setLocalGameState(prev => {
+            const stats = prev.afkStats[color];
+            // Only allow cancellation if they haven't been fully kicked yet
+            if (stats.isAutoPlaying && !stats.isKicked) {
+                return {
+                    ...prev,
+                    afkStats: {
+                        ...prev.afkStats,
+                        [color]: { ...stats, isAutoPlaying: false, consecutiveTurns: 0 }
+                    },
+                    idleWarning: prev.idleWarning?.player === color ? null : prev.idleWarning
+                };
+            }
+            return prev;
+        });
+    }, []);
 
     // --- HOST: Sync local state to Context ---
     const lastSyncedUpdate = useRef(0);
@@ -563,6 +746,7 @@ export function useGameEngine({
         handleUsePower,
         resetGame,
         checkWin,
-        getNextPlayer
+        getNextPlayer,
+        cancelAfk
     };
 }
