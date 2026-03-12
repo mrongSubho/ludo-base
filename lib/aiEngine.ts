@@ -1,4 +1,5 @@
-import { PlayerColor, checkMultiCapture, getTeamForceAtPoint, getTeam } from './gameLogic';
+import { PlayerColor } from '@/lib/types';
+import { checkMultiCapture, getTeamForceAtPoint, getTeam } from './gameLogic';
 import { Point, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
 /**

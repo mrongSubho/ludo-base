@@ -106,6 +106,67 @@ export function useMatchmaking({
         }
     }, [playerId, gameMode, matchType, wager, onMatchFound]);
 
+    // --- Hybrid Search (from a private lobby) ---
+    const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string) => {
+        setStatus('searching');
+        setSearchTime(0);
+
+        try {
+            const response = await fetch('/api/matchmaking/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerId,
+                    gameMode,
+                    matchType: lobbyMatchType,
+                    wager,
+                    roomCode,       // Include existing room for direct joins
+                    slotsNeeded,    // How many slots to fill
+                    isHybrid: true
+                })
+            });
+            const data = await response.json();
+
+            if (data.status === 'matched') {
+                setStatus('matched');
+                onMatchFound(data.match_id);
+            } else {
+                setTicketId(data.ticket_id);
+
+                // Timer + Polling (same as normal search)
+                timerRef.current = setInterval(() => {
+                    setSearchTime(prev => {
+                        const newTime = prev + 1;
+                        if (newTime === 16) setStatus('expanding');
+                        if (newTime >= 26) {
+                            setStatus('timeout');
+                            if (timerRef.current) clearInterval(timerRef.current);
+                        }
+                        return newTime;
+                    });
+                }, 1000);
+
+                pollingRef.current = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch(`/api/matchmaking/status?ticketId=${data.ticket_id}`);
+                        const statusData = await statusRes.json();
+                        if (statusData.status === 'matched') {
+                            setStatus('matched');
+                            onMatchFound(statusData.match_id);
+                            if (timerRef.current) clearInterval(timerRef.current);
+                            if (pollingRef.current) clearInterval(pollingRef.current);
+                        }
+                    } catch (err) {
+                        console.error('❌ [Matchmaking] Hybrid polling error:', err);
+                    }
+                }, 3000);
+            }
+        } catch (err) {
+            console.error('❌ [Matchmaking] Hybrid search error:', err);
+            setStatus('error');
+        }
+    }, [playerId, gameMode, wager, onMatchFound]);
+
     // Visibility Change Handling (Heartbeat & Cancellation)
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -141,6 +202,8 @@ export function useMatchmaking({
         status,
         searchTime,
         startSearch,
+        startHybridSearch,
         cancelSearch
     };
 }
+

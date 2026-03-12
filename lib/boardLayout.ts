@@ -260,7 +260,7 @@ const COLOR_SEATS: { color: PlayerColor; position: Position }[] = [
     { color: 'blue', position: 'bottom-left' },
 ];
 
-const CORNER_TO_POSITION: Record<Corner, Position> = {
+export const CORNER_TO_POSITION: Record<Corner, Position> = {
     'TL': 'top-left',
     'TR': 'top-right',
     'BL': 'bottom-left',

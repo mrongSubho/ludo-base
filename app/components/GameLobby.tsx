@@ -32,7 +32,12 @@ export default function GameLobby({
         isHost,
         hostGame,
         joinGame,
-        broadcastAction
+        broadcastAction,
+        lobbyState,
+        sendInvite,
+        swapPlayers,
+        kickPlayer,
+        startQuickMatch
     } = useMultiplayerContext();
 
     // Configuration State
@@ -113,15 +118,10 @@ export default function GameLobby({
 
                         {/* Wager & Start */}
                         <div className="w-full flex flex-col space-y-4 pt-2">
-
-                            {/* NEW WAGER SECTION */}
                             <div className="p-8 pb-10 rounded-[40px] glass-panel space-y-6 flex flex-col items-center shadow-2xl border-white/20">
-                                {/* Label */}
                                 <div className="inline-block px-8 py-2.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-md mb-2">
                                     <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                                 </div>
-
-                                {/* Stepper + Input */}
                                 <div className="flex items-center justify-between w-full px-2">
                                     <button
                                         onClick={() => setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100)))}
@@ -129,7 +129,6 @@ export default function GameLobby({
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
-
                                     <div className="flex-1 flex flex-col items-center justify-center relative -mt-4">
                                         <input
                                             type="number"
@@ -139,7 +138,6 @@ export default function GameLobby({
                                             style={{ margin: 0 }}
                                         />
                                     </div>
-
                                     <button
                                         onClick={() => setWager(wager + (wager >= 1000 ? 1000 : 100))}
                                         className="w-14 h-14 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 transition-colors active:scale-95 shadow-lg backdrop-blur-md"
@@ -147,8 +145,6 @@ export default function GameLobby({
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </button>
                                 </div>
-
-                                {/* Quick Select Chips */}
                                 <div className="flex gap-2 justify-center flex-wrap pt-2">
                                     {[0, 1000, 10000, 100000, 1000000].map(val => (
                                         <button
@@ -202,14 +198,19 @@ export default function GameLobby({
                                 <MultiplayerMatchPanel
                                     onClose={() => setShowMultiplayerOptions(false)}
                                     onJoin={(code: string) => joinGame(code)}
-                                    onHost={hostGame}
+                                    onHost={() => hostGame(matchType, gameMode, wager)}
                                     currentRoomId={roomId}
                                     isHost={isHost}
                                     isLobbyConnected={isLobbyConnected}
+                                    lobbyState={lobbyState}
                                     onStartMatch={() => {
                                         setShowMultiplayerOptions(false);
                                         onStartGame();
                                     }}
+                                    onSwapPlayers={swapPlayers}
+                                    onKickPlayer={kickPlayer}
+                                    onSendInvite={sendInvite}
+                                    onQuickMatch={startQuickMatch}
                                 />
                             )}
                         </AnimatePresence>
@@ -222,7 +223,7 @@ export default function GameLobby({
                                     onClose={() => setShowOfflineOptions(false)}
                                     onStartOfflineGame={() => {
                                         setShowOfflineOptions(false);
-                                        onStartGame(true); // true = isBotMatch
+                                        onStartGame(true);
                                     }}
                                 />
                             )}
@@ -230,13 +231,16 @@ export default function GameLobby({
                     </motion.div>
                 )}
 
-                {isQuickMatchActive && (
+                {(isQuickMatchActive || lobbyState?.status === 'quickmatch') && (
                     <QuickMatchPanel
                         gameMode={gameMode}
                         matchType={matchType}
                         wager={wager}
                         onStartGame={(isBotMatch) => onStartGame(isBotMatch)}
                         onCancel={() => setIsQuickMatchActive(false)}
+                        isHybrid={lobbyState?.status === 'quickmatch'}
+                        roomCode={roomId}
+                        slotsNeeded={lobbyState?.slots.filter(s => s.status === 'empty').length}
                     />
                 )}
             </AnimatePresence>

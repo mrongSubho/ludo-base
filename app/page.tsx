@@ -8,6 +8,7 @@ import SnakesBoard from './components/SnakesBoard';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { SettingsPanel } from './components/SettingsPanel';
+import { InviteNotification } from './components/InviteNotification';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
 import PublicProfileModal from './components/PublicProfileModal';
@@ -15,7 +16,7 @@ import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import PresenceManager from './components/PresenceManager';
-import { assignCornersFFA, assignCorners2v2, shufflePlayers } from '@/lib/boardLayout';
+import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
@@ -81,7 +82,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants } = useMultiplayer();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState } = useMultiplayer();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -144,30 +145,54 @@ export default function Page() {
   const handlePlayNow = () => {
     if (isHost) {
       const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
-      let players = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
+      let players: Player[] = [];
 
-      // Map participants to human slots
-      if (isLobbyConnected && !isBotMatch) {
-        const attendeeAddresses = Object.keys(participants);
-        // Add Host themselves if not in participants
-        if (address && !attendeeAddresses.map(a => a.toLowerCase()).includes(address.toLowerCase())) {
-          attendeeAddresses.unshift(address.toLowerCase());
-        }
+      if (isLobbyConnected && lobbyState && !isBotMatch) {
+        // --- MULTIPLAYER LOBBY START ---
+        // Map Lobby Slots directly to Player objects
+        players = lobbyState.slots
+          .filter(slot => slot.status === 'joined')
+          .map(slot => {
+            const addr = slot.playerId || '';
+            const profileData = participants[addr.toLowerCase()];
+            const corner = cc[slot.color];
 
-        let attendeeIndex = 0;
-        players = players.map(p => {
-          if (p && !p.isAi && attendeeIndex < attendeeAddresses.length) {
-            const addr = attendeeAddresses[attendeeIndex++];
-            const profileData = participants[addr];
             return {
-              ...p,
-              walletAddress: addr,
-              name: profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : 'Guest'),
-              avatar: profileData?.avatar_url || p.avatar
+              name: slot.playerName || profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : 'Guest'),
+              avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
+              level: 1, // Default level
+              isAi: false,
+              color: slot.color,
+              position: corner ? CORNER_TO_POSITION[corner] : 'bottom-left',
+              walletAddress: addr
             } as Player;
+          });
+      } else {
+        // --- OFFLINE / BOT MATCH START ---
+        players = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
+
+        // Legacy mapping for simple multiplayer without lobby (if still reachable)
+        if (isLobbyConnected && !isBotMatch && !lobbyState) {
+          const attendeeAddresses = Object.keys(participants);
+          if (address && !attendeeAddresses.map(a => a.toLowerCase()).includes(address.toLowerCase())) {
+            attendeeAddresses.unshift(address.toLowerCase());
           }
-          return p;
-        });
+
+          let attendeeIndex = 0;
+          players = players.map(p => {
+            if (p && !p.isAi && attendeeIndex < attendeeAddresses.length) {
+              const addr = attendeeAddresses[attendeeIndex++];
+              const profileData = participants[addr];
+              return {
+                ...p,
+                walletAddress: addr,
+                name: profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : 'Guest'),
+                avatar: profileData?.avatar_url || p.avatar
+              } as Player;
+            }
+            return p;
+          });
+        }
       }
 
       broadcastAction('START_GAME', {
@@ -190,6 +215,7 @@ export default function Page() {
       </AnimatePresence>
 
       <PresenceManager />
+      <InviteNotification />
 
       <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-1]">
         <div className="cosmic-orb cosmic-orb-1 opacity-40 scale-150" />

@@ -34,3 +34,48 @@ export interface GameState {
         colorCorner: any;
     };
 }
+
+// --- Lobby System Types ---
+
+export interface LobbySlot {
+    slotIndex: number;           // 0-3
+    role: 'host' | 'teammate' | 'opponent';
+    color: PlayerColor;
+    status: 'empty' | 'invited' | 'joined';
+    playerId?: string;           // wallet address
+    playerName?: string;
+    playerAvatar?: string;
+    peerId?: string;             // PeerJS peer ID for this connection
+}
+
+export interface LobbyState {
+    roomCode: string;
+    hostId: string;
+    matchType: '1v1' | '2v2' | '4P';
+    gameMode: 'classic' | 'power';
+    entryFee: number;
+    slots: LobbySlot[];
+    status: 'forming' | 'ready' | 'quickmatch' | 'starting';
+    createdAt: number;
+}
+
+export interface InvitePayload {
+    roomCode: string;
+    hostName: string;
+    hostAvatar?: string;
+    matchType: '1v1' | '2v2' | '4P';
+    gameMode: 'classic' | 'power';
+    entryFee: number;
+}
+
+export type LobbyActionType =
+    | 'LOBBY_SYNC'
+    | 'LOBBY_JOIN'
+    | 'LOBBY_LEAVE'
+    | 'LOBBY_SWAP'
+    | 'LOBBY_KICK'
+    | 'LOBBY_QUICKMATCH_START'
+    | 'LOBBY_QUICKMATCH_FOUND'
+    | 'INVITE_SEND'
+    | 'INVITE_ACCEPT'
+    | 'INVITE_REJECT';

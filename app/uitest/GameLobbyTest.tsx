@@ -32,7 +32,12 @@ export default function GameLobby({
         isHost,
         hostGame,
         joinGame,
-        broadcastAction
+        broadcastAction,
+        lobbyState,
+        swapPlayers,
+        kickPlayer,
+        sendInvite,
+        startQuickMatch
     } = useMultiplayerContext();
 
     // Configuration State
@@ -198,15 +203,20 @@ export default function GameLobby({
                                 <MultiplayerMatchPanel
                                     onClose={() => setShowMultiplayerOptions(false)}
                                     onJoin={(code: string) => joinGame(code)}
-                                    onHost={hostGame}
+                                    onHost={() => hostGame(matchType, gameMode, wager)}
                                     currentRoomId={roomId}
                                     isHost={isHost}
                                     isLobbyConnected={isLobbyConnected}
+                                    lobbyState={lobbyState}
                                     onStartMatch={() => {
                                         setShowMultiplayerOptions(false);
                                         broadcastAction('START_GAME', {});
                                         onStartGame();
                                     }}
+                                    onSwapPlayers={swapPlayers}
+                                    onKickPlayer={kickPlayer}
+                                    onSendInvite={sendInvite}
+                                    onQuickMatch={startQuickMatch}
                                 />
                             )}
                         </AnimatePresence>

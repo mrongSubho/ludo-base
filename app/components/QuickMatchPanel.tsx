@@ -21,6 +21,9 @@ interface QuickMatchPanelProps {
     wager: number;
     onStartGame: (isBotMatch?: boolean) => void;
     onCancel: () => void;
+    isHybrid?: boolean;
+    roomCode?: string;
+    slotsNeeded?: number;
 }
 
 export const QuickMatchPanel = ({
@@ -28,7 +31,10 @@ export const QuickMatchPanel = ({
     matchType,
     wager,
     onStartGame,
-    onCancel
+    onCancel,
+    isHybrid = false,
+    roomCode,
+    slotsNeeded = 1
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
     const { joinGame } = useMultiplayerContext();
@@ -38,6 +44,12 @@ export const QuickMatchPanel = ({
 
     const onMatchFound = useCallback((id: string) => {
         console.log('🎉 Match found! Starting countdown...');
+        if (isHybrid) {
+            // In hybrid mode, we don't need a countdown, the players will join the PeerJS lobby
+            // The Lobby UI will update automatically
+            onCancel(); 
+            return;
+        }
         setCountdown(3);
         const timer = setInterval(() => {
             setCountdown(prev => {
@@ -50,9 +62,9 @@ export const QuickMatchPanel = ({
                 return prev ? prev - 1 : null;
             });
         }, 1000);
-    }, [joinGame, onStartGame]);
+    }, [joinGame, onStartGame, isHybrid, onCancel]);
 
-    const { status, searchTime, startSearch, cancelSearch } = useMatchmaking({
+    const { status, searchTime, startSearch, startHybridSearch, cancelSearch } = useMatchmaking({
         playerId: address || 'guest',
         gameMode,
         matchType,
@@ -65,14 +77,18 @@ export const QuickMatchPanel = ({
         let mounted = true;
 
         if (mounted) {
-            startSearch();
+            if (isHybrid && roomCode) {
+                startHybridSearch(roomCode, slotsNeeded, matchType);
+            } else {
+                startSearch();
+            }
         }
 
         return () => {
             mounted = false;
             cancelSearch(); // ALWAYS cancel if the panel unmounts mid-search
         };
-    }, [startSearch, cancelSearch]);
+    }, [startSearch, startHybridSearch, cancelSearch, isHybrid, roomCode, slotsNeeded, matchType]);
 
     // Tip rotation logic
     useEffect(() => {
@@ -187,7 +203,7 @@ export const QuickMatchPanel = ({
                                         transition={{ duration: 2, repeat: Infinity }}
                                         className="text-2xl font-black text-white italic tracking-tighter"
                                     >
-                                        {status === 'expanding' ? "EXPANDING SEARCH..." : "SEARCHING..."}
+                                        {isHybrid ? "FILLING REMAINING SLOTS..." : (status === 'expanding' ? "EXPANDING SEARCH..." : "SEARCHING...")}
                                     </motion.h3>
 
                                     <div className="h-4">
@@ -207,8 +223,8 @@ export const QuickMatchPanel = ({
                             </motion.div>
                         )}
 
-                        {/* 2. TIMEOUT RESOLUTION MODAL */}
-                        {status === 'timeout' && (
+                        {/* 2. TIMEOUT RESOLUTION MODAL (Only for non-hybrid) */}
+                        {status === 'timeout' && !isHybrid && (
                             <motion.div
                                 key="timeout"
                                 initial={{ opacity: 0, scale: 0.9 }}

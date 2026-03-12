@@ -1,5 +1,5 @@
 // Deterministic Snakes & Ladders game logic
-import { PlayerColor } from '../hooks/MultiplayerContext';
+import { PlayerColor } from '@/lib/types';
 
 export const LADDERS = [
     { start: 4, end: 14 }, { start: 9, end: 31 }, { start: 20, end: 38 },

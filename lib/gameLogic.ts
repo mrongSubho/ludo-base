@@ -1,4 +1,4 @@
-import { GameState, PlayerColor } from './types';
+import { GameState, PlayerColor, LobbySlot, LobbyState } from './types';
 import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
@@ -256,4 +256,159 @@ export function handleThreeSixes(
     const nextSixes = currentSixes + 1;
     if (nextSixes === 3) return { isThreeSixes: true, nextSixes: 0 };
     return { isThreeSixes: false, nextSixes };
+}
+
+// --- Lobby Management Helpers ---
+
+const LOBBY_COLORS: Record<string, PlayerColor[]> = {
+    '1v1': ['green', 'red'],
+    '2v2': ['green', 'yellow', 'red', 'blue'],
+    '4P': ['green', 'red', 'yellow', 'blue'],
+};
+
+const LOBBY_ROLES: Record<string, Array<'host' | 'teammate' | 'opponent'>> = {
+    '1v1': ['host', 'opponent'],
+    '2v2': ['host', 'teammate', 'opponent', 'opponent'],
+    '4P': ['host', 'opponent', 'opponent', 'opponent'],
+};
+
+/**
+ * Generate the correct slot array for the given match type.
+ * Slot 0 is always the Host.
+ */
+export function createLobbySlots(matchType: '1v1' | '2v2' | '4P'): LobbySlot[] {
+    const colors = LOBBY_COLORS[matchType];
+    const roles = LOBBY_ROLES[matchType];
+    return colors.map((color, i) => ({
+        slotIndex: i,
+        role: roles[i],
+        color,
+        status: i === 0 ? 'joined' : 'empty' as const,
+    }));
+}
+
+/** Count of filled (joined) slots */
+export function getJoinedCount(slots: LobbySlot[]): number {
+    return slots.filter(s => s.status === 'joined').length;
+}
+
+/** Indices of empty slots */
+export function getEmptySlots(slots: LobbySlot[]): number[] {
+    return slots.filter(s => s.status === 'empty').map(s => s.slotIndex);
+}
+
+/** All slots must be 'joined' to start */
+export function canStartMatch(lobbyState: LobbyState): boolean {
+    return lobbyState.slots.every(s => s.status === 'joined');
+}
+
+/**
+ * Can trigger hybrid quick match?
+ * - 2v2: teammate must have joined (at least 2 players)
+ * - 4P: at least 2 players total
+ * - 1v1: never (only 2 slots, so either full or not)
+ */
+export function canQuickMatch(lobbyState: LobbyState): boolean {
+    const joined = getJoinedCount(lobbyState.slots);
+    if (lobbyState.matchType === '2v2') {
+        // Teammate slot (index 1) must be filled
+        return lobbyState.slots[1].status === 'joined' && joined < lobbyState.slots.length;
+    }
+    if (lobbyState.matchType === '4P') {
+        return joined >= 2 && joined < lobbyState.slots.length;
+    }
+    return false; // 1v1 doesn't support hybrid
+}
+
+/**
+ * Generate a 6-character uppercase alphanumeric room code.
+ */
+export function generateRoomCode(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+/**
+ * STRICTLY SYNCHRONOUS slot assignment. Returns null if room is full.
+ * This prevents the hybrid matchmaking race condition — callers must
+ * check the return value before accepting a PeerJS connection.
+ *
+ * Assignment rules:
+ * - 2v2: First joiner → teammate slot (index 1), then opponent slots
+ * - 4P: Sequential fill of non-host slots
+ * - 1v1: Single opponent slot
+ */
+export function assignJoinerToSlot(
+    slots: LobbySlot[],
+    matchType: '1v1' | '2v2' | '4P',
+    playerId: string,
+    playerName: string,
+    playerAvatar: string,
+    peerId: string
+): LobbySlot[] | null {
+    // Check if player is already in the lobby
+    if (slots.some(s => s.playerId === playerId)) return null;
+
+    let targetIndex = -1;
+
+    if (matchType === '2v2') {
+        // Priority: teammate slot first, then opponent slots
+        if (slots[1].status === 'empty') {
+            targetIndex = 1;
+        } else {
+            targetIndex = slots.findIndex((s, i) => i > 1 && s.status === 'empty');
+        }
+    } else {
+        // 1v1 or 4P: first available empty slot
+        targetIndex = slots.findIndex((s, i) => i > 0 && s.status === 'empty');
+    }
+
+    if (targetIndex === -1) return null; // Room is full
+
+    const newSlots = slots.map(s => ({ ...s }));
+    newSlots[targetIndex] = {
+        ...newSlots[targetIndex],
+        status: 'joined',
+        playerId,
+        playerName,
+        playerAvatar,
+        peerId,
+    };
+    return newSlots;
+}
+
+/** Remove a player from their slot (kick or leave). Resets slot to empty. */
+export function removePlayerFromSlot(slots: LobbySlot[], playerId: string): LobbySlot[] {
+    return slots.map(s => {
+        if (s.playerId === playerId) {
+            return {
+                ...s,
+                status: 'empty' as const,
+                playerId: undefined,
+                playerName: undefined,
+                playerAvatar: undefined,
+                peerId: undefined,
+            };
+        }
+        return { ...s };
+    });
+}
+
+/** Swap two players' slot positions. Host privilege only. */
+export function swapSlots(slots: LobbySlot[], indexA: number, indexB: number): LobbySlot[] {
+    if (indexA < 0 || indexB < 0 || indexA >= slots.length || indexB >= slots.length) return slots;
+    const newSlots = slots.map(s => ({ ...s }));
+
+    // Swap player data, keep role/color/slotIndex intact
+    const aPlayer = { playerId: newSlots[indexA].playerId, playerName: newSlots[indexA].playerName, playerAvatar: newSlots[indexA].playerAvatar, peerId: newSlots[indexA].peerId, status: newSlots[indexA].status };
+    const bPlayer = { playerId: newSlots[indexB].playerId, playerName: newSlots[indexB].playerName, playerAvatar: newSlots[indexB].playerAvatar, peerId: newSlots[indexB].peerId, status: newSlots[indexB].status };
+
+    newSlots[indexA] = { ...newSlots[indexA], ...bPlayer };
+    newSlots[indexB] = { ...newSlots[indexB], ...aPlayer };
+
+    return newSlots;
 }

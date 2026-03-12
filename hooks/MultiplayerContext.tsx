@@ -3,26 +3,52 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback, useMemo } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { useAccount } from 'wagmi';
+import { supabase } from '@/lib/supabase';
+import { useGameData } from './GameDataContext';
 import {
     PlayerColor,
     GameState,
     GameActionType,
     GameIntentType,
-    PowerType
+    LobbyState,
+    LobbySlot,
+    InvitePayload,
+    LobbyActionType,
 } from '@/lib/types';
-import { handleThreeSixes, getNextPlayer, getTeammateColor } from '@/lib/gameLogic';
+import {
+    handleThreeSixes,
+    getNextPlayer,
+    getTeammateColor,
+    createLobbySlots,
+    assignJoinerToSlot,
+    removePlayerFromSlot,
+    swapSlots as swapSlotsLogic,
+    canStartMatch,
+    generateRoomCode,
+} from '@/lib/gameLogic';
+
+// ---------- Context Type ----------
 
 interface MultiplayerContextType {
     roomId: string;
-    connection: DataConnection | null;
+    connection: DataConnection | null;           // kept for backward compat (first guest)
+    connections: Map<string, DataConnection>;    // all guest connections (keyed by peerId)
     isLobbyConnected: boolean;
     isHost: boolean;
     gameState: GameState;
-    hostGame: () => void;
+    lobbyState: LobbyState | null;
+    pendingInvite: InvitePayload | null;
+    hostGame: (matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power', entryFee: number) => void;
     joinGame: (targetRoomId: string) => void;
     sendIntent: (type: GameIntentType, payload?: any) => void;
-    // Actions only the host should call directly
     broadcastAction: (type: GameActionType, payload?: any) => void;
+    broadcastLobbyAction: (type: LobbyActionType, payload?: any) => void;
+    swapPlayers: (indexA: number, indexB: number) => void;
+    kickPlayer: (slotIndex: number) => void;
+    sendInvite: (friendId: string, friendName?: string) => void;
+    acceptInvite: () => void;
+    rejectInvite: () => void;
+    startQuickMatch: () => void;
     myAddress?: string;
     updateGameState: (newState: Partial<GameState>) => void;
     participants: Record<string, { username: string; avatar_url: string }>;
@@ -31,8 +57,6 @@ interface MultiplayerContextType {
 }
 
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
-
-const generateShortId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
 const INITIAL_GAME_STATE: GameState = {
     positions: {
@@ -60,23 +84,50 @@ const INITIAL_GAME_STATE: GameState = {
     playerCount: '4P'
 };
 
+// ---------- Provider ----------
+
 const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     const [roomId, setRoomId] = useState('');
-    const [connection, setConnection] = useState<DataConnection | null>(null);
+    const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
     const [isHost, setIsHost] = useState(false);
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
+    const [lobbyState, setLobbyState] = useState<LobbyState | null>(null);
+    const [pendingInvite, setPendingInvite] = useState<InvitePayload | null>(null);
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar_url: string }>>({});
     const [lastIntent, setLastIntent] = useState<{ type: GameIntentType; payload?: any; timestamp: number } | null>(null);
     const { address: myAddress } = useAccount();
+    const { myProfile } = useGameData();
 
     const peerRef = useRef<Peer | null>(null);
     const heartbeatTimerRef = useRef<any>(null);
+    const lobbyStateRef = useRef(lobbyState);
+    const connectionsRef = useRef(connections);
 
-    const broadcastAction = (type: GameActionType, payload?: any) => {
-        if (!isHost || !connection || !connection.open) return;
+    // Keep refs in sync
+    useEffect(() => { lobbyStateRef.current = lobbyState; }, [lobbyState]);
+    useEffect(() => { connectionsRef.current = connections; }, [connections]);
 
-        // Update local state if it's a state-changing action
+    // Legacy compat: first connection
+    const connection = useMemo(() => {
+        const iter = connections.values();
+        const first = iter.next();
+        return first.done ? null : first.value;
+    }, [connections]);
+
+    // ─── Broadcast Helpers ───
+
+    const broadcastToAll = useCallback((data: any) => {
+        connectionsRef.current.forEach((conn) => {
+            if (conn.open) {
+                conn.send(data);
+            }
+        });
+    }, []);
+
+    const broadcastAction = useCallback((type: GameActionType, payload?: any) => {
+        if (!isHost) return;
+
         if (type === 'START_GAME') {
             setGameState(prev => ({
                 ...prev,
@@ -86,16 +137,22 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             }));
         }
 
-        connection.send({
+        broadcastToAll({
             type,
             ...payload,
             gameState: type === 'SYNC_STATE' ? gameState : { ...gameState, lastAction: { type, payload } }
         });
-    };
+    }, [isHost, gameState, broadcastToAll]);
 
-    const sendIntent = (type: GameIntentType, payload?: any) => {
+    const broadcastLobbyAction = useCallback((type: LobbyActionType, payload?: any) => {
+        if (!isHost) return;
+        broadcastToAll({ type, lobbyState: lobbyStateRef.current, ...payload });
+    }, [isHost, broadcastToAll]);
+
+    // ─── Intent System ───
+
+    const sendIntent = useCallback((type: GameIntentType, payload?: any) => {
         if (isHost) {
-            // If host, process directly
             if (type === 'REQUEST_ROLL') {
                 const roll = Math.floor(Math.random() * 6) + 1;
                 setGameState(prev => ({ ...prev, diceValue: roll, gamePhase: 'moving' }));
@@ -104,7 +161,7 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         } else if (connection && connection.open) {
             connection.send({ type, payload });
         }
-    };
+    }, [isHost, connection, broadcastAction]);
 
     const updateGameState = useCallback((newState: Partial<GameState>) => {
         setGameState(prev => ({
@@ -115,15 +172,103 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         }));
     }, []);
 
-    // --- Peer Setup ---
+    // ─── Guest Data Handler (extracted for reuse) ───
 
-    const hostGame = () => {
+    const handleGuestData = useCallback((data: any, conn: DataConnection) => {
+        console.log('📩 Host received data:', data.type, data);
+
+        if (data.type === 'REQUEST_ROLL') {
+            setGameState(prev => {
+                const roll = Math.floor(Math.random() * 6) + 1;
+                const { isThreeSixes, nextSixes } = handleThreeSixes(prev.consecutiveSixes, roll);
+                const allColors = prev.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor) || [];
+                const activeColors = allColors.filter((color: PlayerColor) => {
+                    const hasTokens = prev.positions[color].some(p => p !== 57);
+                    if (prev.playerCount === '2v2') {
+                        const teammate = getTeammateColor(color, prev.playerCount);
+                        const teammateHasTokens = teammate ? prev.positions[teammate].some(p => p !== 57) : false;
+                        return hasTokens || teammateHasTokens;
+                    }
+                    return hasTokens;
+                });
+
+                if (isThreeSixes) {
+                    const nextPlayer = getNextPlayer(prev.currentPlayer, prev.playerCount, activeColors, prev.initialBoardConfig?.colorCorner);
+                    const updated: GameState = {
+                        ...prev,
+                        diceValue: roll,
+                        consecutiveSixes: 0,
+                        gamePhase: 'rolling',
+                        currentPlayer: nextPlayer,
+                        captureMessage: 'Three 6s! Turn passed.'
+                    };
+                    // Deferred broadcast
+                    setTimeout(() => {
+                        broadcastToAll({ type: 'ROLL_DICE', value: roll, gameState: { ...updated, lastAction: { type: 'ROLL_DICE', payload: { value: roll } } } });
+                        broadcastToAll({ type: 'TURN_SWITCH', nextPlayer, gameState: updated });
+                    }, 0);
+                    return updated;
+                } else {
+                    const updated = { ...prev, diceValue: roll, consecutiveSixes: nextSixes };
+                    setTimeout(() => {
+                        broadcastToAll({ type: 'ROLL_DICE', value: roll, gameState: { ...updated, lastAction: { type: 'ROLL_DICE', payload: { value: roll } } } });
+                    }, 0);
+                    return updated;
+                }
+            });
+        } else if (data.type === 'REQUEST_MOVE') {
+            setLastIntent({ type: data.type, payload: data.payload, timestamp: Date.now() });
+        } else if (data.type === 'SYNC_PROFILE') {
+            console.log('👤 Syncing profile for:', data.address);
+            setParticipants(prev => ({
+                ...prev,
+                [data.address.toLowerCase()]: {
+                    username: data.username || 'Guest',
+                    avatar_url: data.avatar_url || ''
+                }
+            }));
+            if (myAddress) {
+                conn.send({
+                    type: 'SYNC_PROFILE',
+                    address: myAddress,
+                    username: 'Host',
+                    avatar_url: ''
+                });
+            }
+        }
+    }, [broadcastToAll, myAddress]);
+
+    // ─── Host: Setup Peer & Accept Connections ───
+
+    const hostGame = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power', entryFee: number) => {
         if (peerRef.current) peerRef.current.destroy();
 
         setIsHost(true);
-        const customRoomId = generateShortId();
+        const customRoomId = generateRoomCode();
         const peer = new Peer(customRoomId);
         peerRef.current = peer;
+
+        // Initialize lobby
+        const slots = createLobbySlots(matchType);
+        // Fill host slot
+        slots[0] = {
+            ...slots[0],
+            playerId: myAddress?.toLowerCase(),
+            playerName: 'Host',
+            peerId: customRoomId,
+        };
+
+        const lobby: LobbyState = {
+            roomCode: customRoomId,
+            hostId: myAddress?.toLowerCase() || '',
+            matchType,
+            gameMode,
+            entryFee,
+            slots,
+            status: 'forming',
+            createdAt: Date.now(),
+        };
+        setLobbyState(lobby);
 
         peer.on('open', (id) => {
             console.log('🎲 Host Peer opened:', id);
@@ -131,100 +276,102 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         });
 
         peer.on('connection', (conn) => {
-            console.log('🔗 Lobby connection:', conn.peer);
-            setConnection(conn);
-            setIsLobbyConnected(true);
+            console.log('🔗 Incoming connection from:', conn.peer);
 
             conn.on('open', () => {
+                // Synchronously check capacity before accepting
+                const currentLobby = lobbyStateRef.current;
+                if (!currentLobby) {
+                    conn.send({ type: 'LOBBY_JOIN', status: 'error', reason: 'No lobby' });
+                    conn.close();
+                    return;
+                }
+
+                const updatedSlots = assignJoinerToSlot(
+                    currentLobby.slots,
+                    currentLobby.matchType,
+                    conn.peer, // Use peerId as temporary playerId until SYNC_PROFILE arrives
+                    'Guest',
+                    '',
+                    conn.peer
+                );
+
+                if (!updatedSlots) {
+                    // Room is full — reject the connection (race condition guard)
+                    conn.send({ type: 'LOBBY_JOIN', status: 'error', reason: 'Room is full' });
+                    conn.close();
+                    return;
+                }
+
+                // Accept the connection
+                const newLobby: LobbyState = {
+                    ...currentLobby,
+                    slots: updatedSlots,
+                    status: canStartMatch({ ...currentLobby, slots: updatedSlots }) ? 'ready' : 'forming',
+                };
+                setLobbyState(newLobby);
+                lobbyStateRef.current = newLobby; // Sync ref immediately
+
+                // Add to connections map
+                setConnections(prev => {
+                    const next = new Map(prev);
+                    next.set(conn.peer, conn);
+                    return next;
+                });
+                setIsLobbyConnected(true);
+
+                // Send profile & lobby state to new guest
                 if (myAddress) {
                     conn.send({ type: 'SYNC_PROFILE', address: myAddress });
                 }
-                // Initial sync
+                conn.send({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+
+                // Broadcast updated lobby to ALL existing connections
+                connectionsRef.current.forEach((existingConn) => {
+                    if (existingConn.open && existingConn.peer !== conn.peer) {
+                        existingConn.send({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+                    }
+                });
+
+                // Also send SYNC_STATE
                 conn.send({ type: 'SYNC_STATE', gameState });
             });
 
             conn.on('data', (data: any) => {
-                console.log('📩 Host received data:', data.type, data);
-
-                // Host handles Intents from Guest
-                if (data.type === 'REQUEST_ROLL') {
-                    const roll = Math.floor(Math.random() * 6) + 1;
-                    const { isThreeSixes, nextSixes } = handleThreeSixes(gameState.consecutiveSixes, roll);
-                    const allColors = gameState.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor) || [];
-                    const activeColors = allColors.filter(color => {
-                        const hasTokens = gameState.positions[color].some(p => p !== 57);
-                        if (gameState.playerCount === '2v2') {
-                            const teammate = getTeammateColor(color, gameState.playerCount);
-                            const teammateHasTokens = teammate ? gameState.positions[teammate].some(p => p !== 57) : false;
-                            return hasTokens || teammateHasTokens;
-                        }
-                        return hasTokens;
-                    });
-
-                    if (isThreeSixes) {
-                        const nextPlayer = getNextPlayer(
-                            gameState.currentPlayer,
-                            gameState.playerCount,
-                            activeColors,
-                            gameState.initialBoardConfig?.colorCorner
-                        );
-                        const updated = {
-                            ...gameState,
-                            diceValue: roll,
-                            consecutiveSixes: 0,
-                            gamePhase: 'rolling' as const,
-                            currentPlayer: nextPlayer,
-                            captureMessage: 'Three 6s! Turn passed.'
-                        };
-                        setGameState(updated);
-                        broadcastAction('ROLL_DICE', { value: roll });
-                        broadcastAction('TURN_SWITCH', { nextPlayer });
-                    } else {
-                        const updated = { ...gameState, diceValue: roll, consecutiveSixes: nextSixes };
-                        setGameState(updated);
-                        broadcastAction('ROLL_DICE', { value: roll });
-                    }
-                } else if (data.type === 'REQUEST_MOVE' || data.type === 'REQUEST_ROLL') {
-                    setLastIntent({ type: data.type, payload: data.payload, timestamp: Date.now() });
-                } else if (data.type === 'SYNC_PROFILE') {
-                    console.log('👤 Syncing profile for:', data.address);
-                    setParticipants(prev => ({
-                        ...prev,
-                        [data.address.toLowerCase()]: {
-                            username: data.username || 'Guest',
-                            avatar_url: data.avatar_url || ''
-                        }
-                    }));
-                    // Send host profile back to guest
-                    if (myAddress) {
-                        conn.send({
-                            type: 'SYNC_PROFILE',
-                            address: myAddress,
-                            username: 'Host', // In real app, fetch from Supabase
-                            avatar_url: ''
-                        });
-                    }
-                }
+                handleGuestData(data, conn);
             });
 
             conn.on('close', () => {
-                console.log('❌ Connection closed');
-                setIsLobbyConnected(false);
-                setConnection(null);
+                console.log('❌ Connection closed:', conn.peer);
+                // Remove from connections
+                setConnections(prev => {
+                    const next = new Map(prev);
+                    next.delete(conn.peer);
+                    if (next.size === 0) setIsLobbyConnected(false);
+                    return next;
+                });
+
+                // Remove from lobby
+                setLobbyState(prev => {
+                    if (!prev) return prev;
+                    const updated = removePlayerFromSlot(prev.slots, conn.peer);
+                    const newLobby: LobbyState = { ...prev, slots: updated, status: 'forming' };
+                    lobbyStateRef.current = newLobby;
+                    // Broadcast updated lobby
+                    setTimeout(() => {
+                        connectionsRef.current.forEach((c) => {
+                            if (c.open) c.send({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+                        });
+                    }, 0);
+                    return newLobby;
+                });
             });
-
-            // Heartbeat system: Host broadcasts full state every 5 seconds
-            const heartbeat = setInterval(() => {
-                if (isHost && conn.open) {
-                    conn.send({ type: 'SYNC_STATE', gameState });
-                }
-            }, 5000);
-
-            return () => clearInterval(heartbeat);
         });
-    };
+    }, [myAddress, gameState, handleGuestData]);
 
-    const joinGame = (targetRoomId: string) => {
+    // ─── Guest: Join ───
+
+    const joinGame = useCallback((targetRoomId: string) => {
         if (!targetRoomId) return;
         if (peerRef.current) peerRef.current.destroy();
 
@@ -237,7 +384,7 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             const conn = peer.connect(targetRoomId);
 
             conn.on('open', () => {
-                setConnection(conn);
+                setConnections(new Map([[conn.peer, conn]]));
                 setIsLobbyConnected(true);
                 if (myAddress) {
                     conn.send({ type: 'SYNC_PROFILE', address: myAddress });
@@ -247,8 +394,12 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             conn.on('data', (data: any) => {
                 console.log('📩 Guest received data:', data.type, data);
 
-                // Guest handles Actions from Host
-                if (data.type === 'SYNC_STATE') {
+                if (data.type === 'LOBBY_SYNC') {
+                    setLobbyState(data.lobbyState);
+                } else if (data.type === 'LOBBY_JOIN' && data.status === 'error') {
+                    console.error('🚫 Join rejected:', data.reason);
+                    setIsLobbyConnected(false);
+                } else if (data.type === 'SYNC_STATE') {
                     setGameState(prev => ({
                         ...data.gameState,
                         isStarted: prev.isStarted || data.gameState.isStarted
@@ -298,22 +449,143 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
 
             conn.on('close', () => {
                 setIsLobbyConnected(false);
-                setConnection(null);
+                setConnections(new Map());
             });
         });
-    };
+    }, [myAddress]);
 
-    // --- Heartbeat Logic ---
-    const gameStateRef = useRef(gameState);
+    // ─── Lobby Actions (Host-only) ───
+
+    const swapPlayers = useCallback((indexA: number, indexB: number) => {
+        if (!isHost || !lobbyState) return;
+        const newSlots = swapSlotsLogic(lobbyState.slots, indexA, indexB);
+        const newLobby = { ...lobbyState, slots: newSlots };
+        setLobbyState(newLobby);
+        lobbyStateRef.current = newLobby;
+        broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+    }, [isHost, lobbyState, broadcastToAll]);
+
+    const kickPlayer = useCallback((slotIndex: number) => {
+        if (!isHost || !lobbyState) return;
+        const slot = lobbyState.slots[slotIndex];
+        if (!slot || slot.role === 'host' || slot.status !== 'joined') return;
+
+        // Close the peer connection
+        const peerId = slot.peerId;
+        if (peerId) {
+            const conn = connectionsRef.current.get(peerId);
+            if (conn) conn.close();
+        }
+
+        const newSlots = removePlayerFromSlot(lobbyState.slots, slot.playerId || '');
+        const newLobby: LobbyState = { ...lobbyState, slots: newSlots, status: 'forming' };
+        setLobbyState(newLobby);
+        lobbyStateRef.current = newLobby;
+        broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+    }, [isHost, lobbyState, broadcastToAll]);
+
+    // ─── Invite System (Supabase Realtime) ───
+
+    // Listener for incoming invites
     useEffect(() => {
-        gameStateRef.current = gameState;
-    }, [gameState]);
+        if (!myAddress) return;
+        const lowerAddr = myAddress.toLowerCase();
+
+        const channel = supabase
+            .channel(`invites-${lowerAddr}`)
+            .on('broadcast', { event: 'game-invite' }, ({ payload }) => {
+                console.log('🎁 Received game invite:', payload);
+                setPendingInvite(payload as InvitePayload);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [myAddress]);
+
+    const sendInvite = useCallback((friendId: string, friendName?: string) => {
+        if (!lobbyState || !myAddress) return;
+        const lowerFriendId = friendId.toLowerCase();
+
+        // Mark the next empty slot as 'invited'
+        setLobbyState(prev => {
+            if (!prev) return prev;
+            const emptyIdx = prev.slots.findIndex(s => s.status === 'empty');
+            if (emptyIdx === -1) return prev;
+            const newSlots = prev.slots.map((s, i) => {
+                if (i === emptyIdx) return { ...s, status: 'invited' as const, playerId: friendId, playerName: friendName || 'Invited' };
+                return s;
+            });
+            const newLobby = { ...prev, slots: newSlots };
+            lobbyStateRef.current = newLobby;
+            broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+            return newLobby;
+        });
+
+        // Supabase Realtime broadcast
+        const invitePayload: InvitePayload = {
+            roomCode: lobbyState.roomCode,
+            hostName: myProfile?.username || 'Host',
+            hostAvatar: myProfile?.avatar_url || '',
+            matchType: lobbyState.matchType,
+            gameMode: lobbyState.gameMode,
+            entryFee: lobbyState.entryFee
+        };
+
+        supabase
+            .channel(`invites-${lowerFriendId}`)
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    supabase
+                        .channel(`invites-${lowerFriendId}`)
+                        .send({
+                            type: 'broadcast',
+                            event: 'game-invite',
+                            payload: invitePayload
+                        })
+                        .then(() => {
+                            console.log(`📨 Invite sent to ${friendId} for room ${lobbyState.roomCode}`);
+                        });
+                }
+            });
+    }, [lobbyState, broadcastToAll, myAddress, myProfile]);
+
+    const acceptInvite = useCallback(() => {
+        if (!pendingInvite) return;
+        joinGame(pendingInvite.roomCode);
+        setPendingInvite(null);
+    }, [pendingInvite, joinGame]);
+
+    const rejectInvite = useCallback(() => {
+        setPendingInvite(null);
+    }, []);
+
+    // ─── Quick Match (Hybrid) ───
+
+    const startQuickMatch = useCallback(() => {
+        if (!isHost || !lobbyState) return;
+        setLobbyState(prev => {
+            if (!prev) return prev;
+            const newLobby = { ...prev, status: 'quickmatch' as const };
+            lobbyStateRef.current = newLobby;
+            broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+            return newLobby;
+        });
+        // TODO: Wire to useMatchmaking's startHybridSearch
+        console.log('🔍 Quick Match started for lobby', lobbyState.roomCode);
+    }, [isHost, lobbyState, broadcastToAll]);
+
+    // ─── Heartbeat ───
+
+    const gameStateRef = useRef(gameState);
+    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
     useEffect(() => {
         if (isHost && isLobbyConnected) {
             heartbeatTimerRef.current = setInterval(() => {
                 console.log('💓 Heartbeat: Syncing state...');
-                broadcastAction('SYNC_STATE', { gameState: gameStateRef.current });
+                broadcastToAll({ type: 'SYNC_STATE', gameState: gameStateRef.current });
             }, 5000);
         } else {
             if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
@@ -321,33 +593,48 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
         };
-    }, [isHost, isLobbyConnected, broadcastAction]);
+    }, [isHost, isLobbyConnected, broadcastToAll]);
 
+    // ─── Cleanup ───
     useEffect(() => {
         return () => {
             if (peerRef.current) peerRef.current.destroy();
         };
     }, []);
 
+    // ─── Context Value ───
+
     const contextValue = useMemo(() => ({
         roomId,
         connection,
+        connections,
         isLobbyConnected,
         isHost,
         gameState,
+        lobbyState,
+        pendingInvite,
         hostGame,
         joinGame,
         sendIntent,
         broadcastAction,
+        broadcastLobbyAction,
+        swapPlayers,
+        kickPlayer,
+        sendInvite,
+        acceptInvite,
+        rejectInvite,
+        startQuickMatch,
         myAddress,
         updateGameState,
         participants,
         lastIntent,
         clearIntent: () => setLastIntent(null)
     }), [
-        roomId, connection, isLobbyConnected, isHost, gameState,
-        hostGame, joinGame, sendIntent, broadcastAction, myAddress,
-        updateGameState, participants, lastIntent
+        roomId, connection, connections, isLobbyConnected, isHost, gameState,
+        lobbyState, pendingInvite,
+        hostGame, joinGame, sendIntent, broadcastAction, broadcastLobbyAction,
+        swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch,
+        myAddress, updateGameState, participants, lastIntent
     ]);
 
     return (
