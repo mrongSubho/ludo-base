@@ -82,7 +82,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState } = useMultiplayer();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useMultiplayer();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -205,6 +205,7 @@ export default function Page() {
   };
 
   const handleBackToSubMenu = () => {
+    leaveGame();
     setAppState('dashboard');
   };
 
@@ -355,6 +356,28 @@ export default function Page() {
                       >
                         Quit Game
                       </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Host Migration Overlay ── */}
+              {!isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
+                <div className="absolute inset-0 z-[1000] bg-black/60 backdrop-blur-xl flex items-center justify-center">
+                  <div className="text-center p-8 bg-[#1a1c29]/80 border border-white/10 rounded-3xl shadow-2xl max-w-md">
+                    <div className="w-20 h-20 mx-auto mb-6 relative">
+                      <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-blue-400">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                         </svg>
+                      </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Host Migrating</h2>
+                    <p className="text-white/60 mb-6">Host disconnected. Re-assigning a new host to continue your match...</p>
+                    <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-sm font-medium">
+                      Don't leave, your wager is safe!
                     </div>
                   </div>
                 </div>

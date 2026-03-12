@@ -767,7 +767,6 @@ export function useGameEngine({
                 setLocalGameState(prev => ({
                     ...prev,
                     ...networkGameState,
-                    // Ensure functions/refs aren't overwritten if they were in state (though usually not)
                     positions: networkGameState.positions || prev.positions,
                     currentPlayer: networkGameState.currentPlayer || prev.currentPlayer,
                     diceValue: networkGameState.diceValue,
@@ -775,6 +774,15 @@ export function useGameEngine({
                     winner: networkGameState.winner as any,
                     winners: networkGameState.winners as any,
                     isStarted: networkGameState.isStarted ?? prev.isStarted,
+                    // Expanded Sync Fields
+                    timeLeft: networkGameState.timeLeft ?? prev.timeLeft,
+                    strikes: networkGameState.strikes || prev.strikes,
+                    afkStats: networkGameState.afkStats || prev.afkStats,
+                    playerPowers: networkGameState.playerPowers || prev.playerPowers,
+                    activeTraps: networkGameState.activeTraps || prev.activeTraps,
+                    activeShields: networkGameState.activeShields || prev.activeShields,
+                    consecutiveSixes: networkGameState.consecutiveSixes ?? prev.consecutiveSixes,
+                    powerTiles: networkGameState.powerTiles || prev.powerTiles,
                 }));
 
                 // Sound effects for Guest

@@ -291,14 +291,17 @@ export default function Board({
 
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useMemo(() => {
         // 1. Identify local player color
-        const localPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase())
+        const myAddrLower = address?.toLowerCase();
+        const localPlayer = players.find(p => myAddrLower && p.walletAddress?.toLowerCase() === myAddrLower)
             || players.find(p => !p.isAi)
             || players[0];
+            
         const localColor = localPlayer?.color as PlayerColor;
 
         // 2. Where did the server place the local player?
-        const localServerCorner = colorCorner[localColor] || 'BL';
-        const localServerIndex = CORNER_ORDER.indexOf(localServerCorner);
+        // Fallback to 'BL' if not found, but it should always be found if players are sync'd
+        const localServerCorner = (colorCorner && localColor) ? colorCorner[localColor] : 'BL';
+        const localServerIndex = CORNER_ORDER.indexOf(localServerCorner as Corner);
 
         // 3. We want the local player at BL (index 3).
         //    Offset = (target - server + 4) % 4

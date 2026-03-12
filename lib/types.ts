@@ -25,6 +25,9 @@ export interface GameState {
     activeTraps: { r: number, c: number, owner: PlayerColor }[];
     activeShields: { color: PlayerColor, tokenIdx: number }[];
     consecutiveSixes: number;
+    afkStats: Record<PlayerColor, { isAutoPlaying: boolean; consecutiveTurns: number; totalTriggers: number; isKicked: boolean }>;
+    idleWarning: { player: PlayerColor; timeLeft: number } | null;
+    participantPeers: Record<string, string>; // walletAddress -> peerId
     isStarted: boolean;
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';

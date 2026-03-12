@@ -201,11 +201,8 @@ export const MultiplayerMatchPanel = ({
                 {/* Header */}
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                            Lobby
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                            Multiplayer Lobby
                         </h2>
                         <button
                             onClick={onClose}

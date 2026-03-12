@@ -54,6 +54,7 @@ interface MultiplayerContextType {
     participants: Record<string, { username: string; avatar_url: string }>;
     lastIntent: { type: GameIntentType; payload?: any; timestamp: number } | null;
     clearIntent: () => void;
+    leaveGame: () => void;
 }
 
 const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
@@ -79,6 +80,14 @@ const INITIAL_GAME_STATE: GameState = {
     activeTraps: [],
     activeShields: [],
     consecutiveSixes: 0,
+    afkStats: {
+        green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+    },
+    idleWarning: null,
+    participantPeers: {},
     isStarted: false,
     lastUpdate: Date.now(),
     playerCount: '4P'
@@ -154,14 +163,19 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     const sendIntent = useCallback((type: GameIntentType, payload?: any) => {
         if (isHost) {
             if (type === 'REQUEST_ROLL') {
+                // Host roll guard
+                if (gameState.gamePhase !== 'rolling') return;
+                
                 const roll = Math.floor(Math.random() * 6) + 1;
                 setGameState(prev => ({ ...prev, diceValue: roll, gamePhase: 'moving' }));
                 broadcastAction('ROLL_DICE', { value: roll });
             }
         } else if (connection && connection.open) {
+            // Guest guard: only send roll request if we think it's rolling phase
+            if (type === 'REQUEST_ROLL' && gameState.gamePhase !== 'rolling') return;
             connection.send({ type, payload });
         }
-    }, [isHost, connection, broadcastAction]);
+    }, [isHost, connection, broadcastAction, gameState.gamePhase]);
 
     const updateGameState = useCallback((newState: Partial<GameState>) => {
         setGameState(prev => ({
@@ -178,6 +192,8 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         console.log('📩 Host received data:', data.type, data);
 
         if (data.type === 'REQUEST_ROLL') {
+            if (gameState.gamePhase !== 'rolling') return;
+            
             setGameState(prev => {
                 const roll = Math.floor(Math.random() * 6) + 1;
                 const { isThreeSixes, nextSixes } = handleThreeSixes(prev.consecutiveSixes, roll);
@@ -231,12 +247,38 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 conn.send({
                     type: 'SYNC_PROFILE',
                     address: myAddress,
-                    username: 'Host',
-                    avatar_url: ''
+                    username: myProfile?.username || 'Host',
+                    avatar_url: myProfile?.avatar_url || ''
                 });
             }
+
+            // --- PEER DISCOVERY FOR MIGRATION ---
+            // Add guest peer to host's discovery map
+            setGameState(prev => ({
+                ...prev,
+                participantPeers: {
+                    ...prev.participantPeers,
+                    [data.address.toLowerCase()]: conn.peer
+                }
+            }));
+
+            // Broadcast updated peer map to ALL guests so they know each other
+            setTimeout(() => {
+                const updatedPeers = {
+                    ...gameStateRef.current.participantPeers,
+                    [data.address.toLowerCase()]: conn.peer,
+                    [myAddress?.toLowerCase() || '']: peerRef.current?.id || ''
+                };
+                broadcastToAll({
+                    type: 'SYNC_STATE',
+                    gameState: {
+                        ...gameStateRef.current,
+                        participantPeers: updatedPeers
+                    }
+                });
+            }, 200);
         }
-    }, [broadcastToAll, myAddress]);
+    }, [broadcastToAll, myAddress, myProfile]);
 
     // ─── Host: Setup Peer & Accept Connections ───
 
@@ -369,6 +411,89 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         });
     }, [myAddress, gameState, handleGuestData]);
 
+    const initiateMigration = useCallback(() => {
+        console.log('🔄 Initiating Host Migration...');
+        const state = gameStateRef.current;
+        const lobby = lobbyStateRef.current;
+        if (!lobby || !state.isStarted) return;
+
+        // 1. Identify valid participants (those with peer IDs)
+        // We look at the slots to determine the order of succession
+        const sortedParticipants = lobby.slots
+            .filter(s => s.status === 'joined' && s.playerId)
+            .sort((a, b) => a.slotIndex - b.slotIndex);
+
+        // Filter out the dead host (who was at index 0 usually)
+        const currentHostId = lobby.hostId.toLowerCase();
+        const survivors = sortedParticipants.filter(p => p.playerId?.toLowerCase() !== currentHostId);
+
+        if (survivors.length === 0) {
+            console.log('💀 No survivors for migration.');
+            return;
+        }
+
+        const nextHost = survivors[0];
+        const isMeNext = nextHost.playerId?.toLowerCase() === myAddress?.toLowerCase();
+
+        if (isMeNext) {
+            console.log('👑 I am the new Host! Re-hosting match...');
+            setIsHost(true);
+            const peer = new Peer(); 
+            peerRef.current = peer;
+            
+            peer.on('open', (newId) => {
+                setRoomId(newId);
+                const currentLobby = lobbyStateRef.current;
+                if (!currentLobby) return;
+
+                const newLobby: LobbyState = {
+                    ...currentLobby,
+                    hostId: myAddress || '',
+                    roomCode: newId,
+                    status: 'starting'
+                };
+                setLobbyState(newLobby);
+                
+                // Re-hydrate game state with new host's peer ID in the map
+                setGameState(prev => ({
+                    ...prev,
+                    participantPeers: {
+                        ...prev.participantPeers,
+                        [myAddress?.toLowerCase() || '']: newId
+                    }
+                }));
+
+                // BROADCAST NEW HOST INFO VIA SUPABASE
+                supabase
+                    .channel(`migration-${lobby.roomCode}`)
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            supabase.channel(`migration-${lobby.roomCode}`).send({
+                                type: 'broadcast',
+                                event: 'host-migrated',
+                                payload: {
+                                    oldRoomCode: lobby.roomCode,
+                                    newRoomCode: newId,
+                                    newHostAddress: myAddress
+                                }
+                            });
+                        }
+                    });
+            });
+
+            peer.on('connection', (newConn) => {
+                newConn.on('open', () => {
+                    setConnections(prev => new Map(prev).set(newConn.peer, newConn));
+                    setIsLobbyConnected(true);
+                    newConn.send({ type: 'SYNC_STATE', gameState: gameStateRef.current });
+                });
+                newConn.on('data', (d) => handleGuestData(d, newConn));
+            });
+        } else {
+            console.log(`⏳ Waiting for ${nextHost.playerName} to re-host...`);
+        }
+    }, [myAddress, handleGuestData]);
+
     // ─── Guest: Join ───
 
     const joinGame = useCallback((targetRoomId: string) => {
@@ -387,7 +512,12 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 setConnections(new Map([[conn.peer, conn]]));
                 setIsLobbyConnected(true);
                 if (myAddress) {
-                    conn.send({ type: 'SYNC_PROFILE', address: myAddress });
+                    conn.send({
+                        type: 'SYNC_PROFILE',
+                        address: myAddress,
+                        username: myProfile?.username || 'Guest',
+                        avatar_url: myProfile?.avatar_url || ''
+                    });
                 }
             });
 
@@ -448,11 +578,36 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
             });
 
             conn.on('close', () => {
+                console.log('📡 Host connection closed.');
                 setIsLobbyConnected(false);
                 setConnections(new Map());
+
+                // HOST MIGRATION TRIGGER
+                if (gameStateRef.current.isStarted && !gameStateRef.current.winner) {
+                    initiateMigration();
+                }
             });
         });
-    }, [myAddress]);
+    }, [myAddress, myProfile, initiateMigration]);
+
+    // ─── Migration Signaling (Guest) ───
+    useEffect(() => {
+        if (!lobbyState || isHost) return;
+
+        const channel = supabase
+            .channel(`migration-${lobbyState.roomCode}`)
+            .on('broadcast', { event: 'host-migrated' }, ({ payload }) => {
+                console.log('🔄 MIGRATION SIGNAL RECEIVED:', payload);
+                if (payload.newRoomCode) {
+                    joinGame(payload.newRoomCode);
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [lobbyState?.roomCode, isHost, joinGame]);
 
     // ─── Lobby Actions (Host-only) ───
 
@@ -561,6 +716,8 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         setPendingInvite(null);
     }, []);
 
+
+
     // ─── Quick Match (Hybrid) ───
 
     const startQuickMatch = useCallback(() => {
@@ -575,6 +732,21 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         // TODO: Wire to useMatchmaking's startHybridSearch
         console.log('🔍 Quick Match started for lobby', lobbyState.roomCode);
     }, [isHost, lobbyState, broadcastToAll]);
+
+    const leaveGame = useCallback(() => {
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+        setIsHost(false);
+        setIsLobbyConnected(false);
+        setRoomId('');
+        setConnections(new Map());
+        setGameState(INITIAL_GAME_STATE);
+        setLobbyState(null);
+        setParticipants({});
+        console.log('🚪 Left game and cleaned up resources.');
+    }, []);
 
     // ─── Heartbeat ───
 
@@ -628,13 +800,14 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         updateGameState,
         participants,
         lastIntent,
-        clearIntent: () => setLastIntent(null)
+        clearIntent: () => setLastIntent(null),
+        leaveGame
     }), [
         roomId, connection, connections, isLobbyConnected, isHost, gameState,
         lobbyState, pendingInvite,
         hostGame, joinGame, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch,
-        myAddress, updateGameState, participants, lastIntent
+        myAddress, updateGameState, participants, lastIntent, leaveGame
     ]);
 
     return (
