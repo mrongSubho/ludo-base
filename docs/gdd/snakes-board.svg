@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0b0f14"/><stop offset="100%" stop-color="#141a22"/></linearGradient></defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="60" y="60" width="1480" height="780" rx="24" fill="#141a22" stroke="#00e5ff" stroke-opacity="0.35" stroke-width="3"/>
+  <text x="100" y="140" fill="#00e5ff" font-family="Menlo, monospace" font-size="54">Ludo Base</text>
+  <text x="100" y="225" fill="#ffffff" font-family="Menlo, monospace" font-size="42">Snakes and Ladders Match</text>
+  <text x="100" y="290" fill="#c7d2da" font-family="Menlo, monospace" font-size="24">Professional placeholder visual for the final Snakes and Ladders gameplay capture.</text>
+  <text x="100" y="330" fill="#8ea3b1" font-family="Menlo, monospace" font-size="22">Recommended final capture: board grid, turn timer, event state, active player.</text>
+</svg>

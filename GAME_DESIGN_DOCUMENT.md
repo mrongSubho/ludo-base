@@ -39,11 +39,12 @@ The sections below are intentionally included so the document can evolve from a 
 Current asset status:
 - screenshot and GIF slots are now standardized under `docs/gdd/`;
 - the folder structure and capture guide are in place;
-- actual captures still need to be generated and dropped into those exact filenames.
+- temporary professional placeholders have been generated for the current document;
+- real product captures can replace those files in place later.
 
 ### Dashboard Overview
 
-![Dashboard Overview](docs/gdd/dashboard-overview.png)
+![Dashboard Overview](docs/gdd/dashboard-overview.svg)
 
 Preferred capture:
 - top navigation;
@@ -53,7 +54,7 @@ Preferred capture:
 
 ### Lobby and Match Setup
 
-![Lobby and Match Setup](docs/gdd/lobby-flow.png)
+![Lobby and Match Setup](docs/gdd/lobby-flow.svg)
 
 Preferred capture:
 - host lobby slots;
@@ -63,7 +64,7 @@ Preferred capture:
 
 ### Classic Board Match
 
-![Classic Board Match](docs/gdd/classic-board.png)
+![Classic Board Match](docs/gdd/classic-board.svg)
 
 Preferred capture:
 - token layout;
@@ -73,7 +74,7 @@ Preferred capture:
 
 ### Snakes and Ladders Match
 
-![Snakes and Ladders Match](docs/gdd/snakes-board.png)
+![Snakes and Ladders Match](docs/gdd/snakes-board.svg)
 
 Preferred capture:
 - full board grid;
@@ -82,7 +83,7 @@ Preferred capture:
 
 ### Profile and Social Surface
 
-![Profile and Social Surface](docs/gdd/social-surface.png)
+![Profile and Social Surface](docs/gdd/social-surface.svg)
 
 Preferred capture:
 - profile panel;
@@ -479,11 +480,11 @@ To make this GDD presentation-ready for collaborators, the repo should eventuall
 ```text
 docs/
   gdd/
-    dashboard-overview.png
-    lobby-flow.png
-    classic-board.png
-    snakes-board.png
-    social-surface.png
+    dashboard-overview.svg
+    lobby-flow.svg
+    classic-board.svg
+    snakes-board.svg
+    social-surface.svg
     quickmatch-flow.gif
     shuffled-board-layout.gif
     invite-to-match.gif
