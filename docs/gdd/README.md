@@ -58,4 +58,4 @@ Capture a social/profile state with:
 - Avoid empty states unless the screen is specifically designed to demonstrate one.
 - Use production-like wallet/profile names where possible.
 - Replace files in place so markdown links remain stable.
-- Current repo state includes professional placeholder assets for all referenced filenames.
+- Current repo state includes real deployment captures for the public entry flow and placeholders for authenticated-only states.

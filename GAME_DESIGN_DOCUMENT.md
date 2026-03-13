@@ -39,8 +39,8 @@ The sections below are intentionally included so the document can evolve from a 
 Current asset status:
 - screenshot and GIF slots are now standardized under `docs/gdd/`;
 - the folder structure and capture guide are in place;
-- temporary professional placeholders have been generated for the current document;
-- real product captures can replace those files in place later.
+- real captures from the public Vercel deployment are now in place for the unauthenticated entry flow;
+- authenticated-only screens remain temporary placeholders until a wallet-authenticated capture path is available.
 
 ### Dashboard Overview
 
