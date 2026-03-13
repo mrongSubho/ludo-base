@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BiMessageSquareEdit } from "react-icons/bi";
 
 import { useGameData, Conversation, MessageData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -159,9 +160,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-purple-400">
-                                        <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
-                                    </svg>
+                                    <BiMessageSquareEdit className="w-6 h-6 text-purple-400" />
                                     <h2 className="text-white font-black text-2xl italic tracking-tighter uppercase">Messages</h2>
                                 </div>
                             )}
@@ -193,9 +192,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             >
                                 {conversations.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full text-white/40 mt-10">
-                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12 mb-4 opacity-50">
-                                            <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
-                                        </svg>
+                                        <BiMessageSquareEdit className="w-12 h-12 mb-4 opacity-50" />
                                         <p>No messages yet.</p>
                                     </div>
                                 ) : (

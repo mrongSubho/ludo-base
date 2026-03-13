@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { BiMessageSquareEdit } from "react-icons/bi";
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -12,9 +13,7 @@ export const TokenIcon = () => (
 );
 
 const HeaderMessageIcon = () => (
-    <svg className="dm-icon" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2.001c-5.523 0-10 4.145-10 9.259 0 2.914 1.451 5.515 3.738 7.379V22l4.133-2.27c.666.185 1.367.283 2.083.283 5.523 0 10-4.145 10-9.259 0-5.114-4.477-9.259-10-9.259Zm1.161 12.333L10.324 11.2l-5.508 3.133 6.059-6.433 2.837 3.133 5.508-3.133-6.059 6.434Z" />
-    </svg>
+    <BiMessageSquareEdit className="dm-icon" />
 );
 
 // ─── Component ───────────────────────────────────────────────────────────────
