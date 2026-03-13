@@ -44,8 +44,6 @@ Current asset status:
 
 ### Dashboard Overview
 
-![Dashboard Overview](docs/gdd/dashboard-overview.svg)
-
 Preferred capture:
 - top navigation;
 - footer navigation;
@@ -54,7 +52,10 @@ Preferred capture:
 
 ### Lobby and Match Setup
 
-![Lobby and Match Setup](docs/gdd/lobby-flow.svg)
+<p align="center">
+  <img src="docs/gdd/dashboard-overview.svg" alt="Dashboard Overview" width="280" />
+  <img src="docs/gdd/lobby-flow.svg" alt="Lobby and Match Setup" width="280" />
+</p>
 
 Preferred capture:
 - host lobby slots;
@@ -64,8 +65,6 @@ Preferred capture:
 
 ### Classic Board Match
 
-![Classic Board Match](docs/gdd/classic-board.svg)
-
 Preferred capture:
 - token layout;
 - player cards;
@@ -74,7 +73,9 @@ Preferred capture:
 
 ### Snakes and Ladders Match
 
-![Snakes and Ladders Match](docs/gdd/snakes-board.svg)
+<p align="center">
+  <img src="docs/gdd/snakes-board.svg" alt="Snakes and Ladders Match" width="320" />
+</p>
 
 Preferred capture:
 - full board grid;
@@ -83,7 +84,10 @@ Preferred capture:
 
 ### Profile and Social Surface
 
-![Profile and Social Surface](docs/gdd/social-surface.svg)
+<p align="center">
+  <img src="docs/gdd/classic-board.svg" alt="Classic Board Match" width="280" />
+  <img src="docs/gdd/social-surface.svg" alt="Profile and Social Surface" width="280" />
+</p>
 
 Preferred capture:
 - profile panel;
