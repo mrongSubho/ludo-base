@@ -2,6 +2,11 @@
 
 A Next.js 16 Farcaster-ready Ludo game with wallet integration, multiplayer hooks, social panels, and a glassmorphism dashboard UI.
 
+## Documentation
+
+- [Game Design Document](./GAME_DESIGN_DOCUMENT.md)
+- [GDD Visual Asset Guide](./docs/gdd/README.md)
+
 ## Current State (March 2026)
 
 The UI and lobby were recently refined across multiple commits and now include:

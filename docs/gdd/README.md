@@ -1,0 +1,60 @@
+# GDD Visual Assets
+
+This folder is the source of truth for Game Design Document visuals referenced by `GAME_DESIGN_DOCUMENT.md`.
+
+## Required Files
+
+Static screenshots:
+- `dashboard-overview.png`
+- `lobby-flow.png`
+- `classic-board.png`
+- `snakes-board.png`
+- `social-surface.png`
+
+Animated captures:
+- `quickmatch-flow.gif`
+- `shuffled-board-layout.gif`
+- `invite-to-match.gif`
+
+## Capture Guidance
+
+### `dashboard-overview.png`
+Capture the home dashboard with:
+- header visible
+- footer visible
+- one slide panel open
+- consistent final theme applied
+
+### `lobby-flow.png`
+Capture a multiplayer lobby with:
+- host slot visible
+- at least one invited or connected player
+- match settings visible
+- private-lobby state, not an empty shell
+
+### `classic-board.png`
+Capture an active Classic or Power match with:
+- dice visible
+- player cards visible
+- token state visible
+- a shuffled corner assignment if possible
+
+### `snakes-board.png`
+Capture an active Snakes & Ladders match with:
+- current player indicator
+- message/feedback area
+- timer or turn-state feedback
+
+### `social-surface.png`
+Capture a social/profile state with:
+- profile panel or public profile modal
+- friends or message context
+- realistic identity data, not placeholders if avoidable
+
+## Capture Standards
+
+- Prefer mobile-first framing first.
+- Use one consistent visual theme across all screenshots.
+- Avoid empty states unless the screen is specifically designed to demonstrate one.
+- Use production-like wallet/profile names where possible.
+- Replace files in place so markdown links remain stable.
