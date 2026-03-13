@@ -39,8 +39,8 @@ The sections below are intentionally included so the document can evolve from a 
 Current asset status:
 - screenshot and GIF slots are now standardized under `docs/gdd/`;
 - the folder structure and capture guide are in place;
-- real captures from the public Vercel deployment are now in place for the unauthenticated entry flow;
-- authenticated-only screens remain temporary placeholders until a wallet-authenticated capture path is available.
+- real captures from the live Vercel deployment are now in place for dashboard, multiplayer lobby, profile, and classic board states;
+- `snakes-board` and the GIF motion slots still remain placeholder-only.
 
 ### Dashboard Overview
 
