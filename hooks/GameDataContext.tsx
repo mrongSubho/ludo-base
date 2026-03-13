@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
+import { Peer, DataConnection } from 'peerjs';
+import { encryptMessage, decryptMessage, deriveSharedKey } from '@/lib/encryption';
 
 // --- TYPES ---
 
@@ -64,6 +66,7 @@ interface GameDataContextType {
     messages: MessageData[];
     conversations: Conversation[];
     totalUnreadCount: number;
+    isP2PActive: boolean;
 
     // Actions
     updateMyProfileOptimistic: (updates: Partial<UserProfile>) => void;
@@ -98,6 +101,11 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({});
     const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+
+    // P2P State
+    const [peer, setPeer] = useState<Peer | null>(null);
+    const [connections, setConnections] = useState<Record<string, DataConnection>>({});
+    const [isP2PActive, setIsP2PActive] = useState(false);
 
     // Initial Hydration from LocalStorage for ultra-fast UI
     useEffect(() => {
@@ -318,6 +326,86 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         };
     }, [address, isBootComplete]);
 
+    // --- PEERJS LIFECYCLE ---
+    useEffect(() => {
+        if (!address || typeof window === 'undefined') return;
+        
+        const lowerAddr = address.toLowerCase();
+        console.log("📡 [P2P] Initializing Peer with ID:", lowerAddr);
+        
+        const newPeer = new Peer(lowerAddr, {
+            debug: 1 // 1 for errors, 2 for warnings, 3 for full
+        });
+
+        newPeer.on('open', (id) => {
+            console.log("✅ [P2P] Connection opened with ID:", id);
+            setIsP2PActive(true);
+        });
+
+        newPeer.on('connection', (conn) => {
+            console.log("🤝 [P2P] Incoming connection from:", conn.peer);
+            setupConnectionListeners(conn);
+        });
+
+        newPeer.on('error', (err) => {
+            console.error("❌ [P2P] Peer Error:", err);
+            if (err.type === 'unavailable-id') {
+                // This happens if another tab is open with the same account
+                console.warn("[P2P] Duplicate peer ID detected. Disabling P2P for this tab.");
+            }
+        });
+
+        setPeer(newPeer);
+
+        return () => {
+            newPeer.destroy();
+            setPeer(null);
+            setIsP2PActive(false);
+        };
+    }, [address]);
+
+    const setupConnectionListeners = (conn: DataConnection) => {
+        conn.on('open', () => {
+            setConnections(prev => ({ ...prev, [conn.peer]: conn }));
+        });
+
+        conn.on('data', async (data: any) => {
+            console.log("📩 [P2P] Received data:", data);
+            if (data.type === 'encrypted-message' && address) {
+                try {
+                    const key = await deriveSharedKey(address, conn.peer);
+                    const plainText = await decryptMessage(data.payload, key);
+                    
+                    const newMsg: MessageData = {
+                        ...data.metadata,
+                        content: plainText,
+                        is_read: false,
+                        created_at: new Date().toISOString(),
+                    };
+
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === newMsg.id)) return prev;
+                        return [...prev, newMsg].slice(-50);
+                    });
+                } catch (err) {
+                    console.error("❌ [P2P] Decryption failed:", err);
+                }
+            }
+        });
+
+        conn.on('close', () => {
+            setConnections(prev => {
+                const next = { ...prev };
+                delete next[conn.peer];
+                return next;
+            });
+        });
+
+        conn.on('error', (err) => {
+            console.error(`❌ [P2P] Conn error with ${conn.peer}:`, err);
+        });
+    };
+
     // Transform Conversations to UI Format
     useEffect(() => {
         if (!address) return;
@@ -385,12 +473,13 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const sendMessage = useCallback(async (receiverId: string, content: string) => {
         if (!address) return;
         const lowerAddr = address.toLowerCase();
+        const targetId = receiverId.toLowerCase();
 
-        const tempId = 'temp-' + Date.now();
+        const tempId = 'msg-' + Math.random().toString(36).substring(2, 11);
         const optimisticMsg: MessageData = {
             id: tempId,
             sender_id: lowerAddr,
-            receiver_id: receiverId.toLowerCase(),
+            receiver_id: targetId,
             content: content,
             is_read: false,
             created_at: new Date().toISOString(),
@@ -401,18 +490,58 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
         setMessages(prev => [...prev, optimisticMsg]);
 
-        const { data, error } = await supabase.from('messages').insert({
-            sender_id: lowerAddr,
-            receiver_id: receiverId.toLowerCase(),
-            content: content
-        }).select().single();
+        try {
+            // 1. Encrypt Message
+            const key = await deriveSharedKey(lowerAddr, targetId);
+            const encrypted = await encryptMessage(content, key);
 
-        if (error) {
+            // 2. Try P2P first
+            let p2pSent = false;
+            let conn = connections[targetId];
+
+            if (!conn && peer) {
+                console.log("🔗 [P2P] Attempting to connect to:", targetId);
+                conn = peer.connect(targetId);
+                setupConnectionListeners(conn);
+                // Wait a bit for connection
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'encrypted-message',
+                    payload: encrypted,
+                    metadata: {
+                        id: tempId,
+                        sender_id: lowerAddr,
+                        receiver_id: targetId
+                    }
+                });
+                p2pSent = true;
+                console.log("⚡ [P2P] Message sent directly!");
+            }
+
+            // 3. Fallback to Supabase (as encrypted relay)
+            const { data, error } = await supabase.from('messages').insert({
+                sender_id: lowerAddr,
+                receiver_id: targetId,
+                content: JSON.stringify(encrypted) // Store as JSON string in Supabase
+            }).select().single();
+
+            if (error && !p2pSent) {
+                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
+            } else if (data || p2pSent) {
+                setMessages(prev => prev.map(m => m.id === tempId ? { 
+                    ...(data || optimisticMsg), 
+                    content: content, // Keep original text in UI
+                    send_status: 'sent' 
+                } : m));
+            }
+        } catch (err) {
+            console.error("❌ Send Error:", err);
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
-        } else if (data) {
-            setMessages(prev => prev.map(m => m.id === tempId ? { ...data, send_status: 'sent' } : m));
         }
-    }, [address]);
+    }, [address, peer, connections]);
 
     const markChatAsRead = useCallback(async (senderId: string) => {
         if (!address) return;
@@ -481,6 +610,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         messages,
         conversations,
         totalUnreadCount,
+        isP2PActive,
         updateMyProfileOptimistic,
         sendMessage,
         markChatAsRead,

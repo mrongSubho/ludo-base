@@ -15,7 +15,8 @@ interface MessagesPanelProps {
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
     const { address } = useCurrentUser();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, deleteMessageLocal } = useGameData();
+    const { selectedChatId: selectedChatIdHook, setSelectedChatId: setSelectedChatIdHook } = { selectedChatId: null, setSelectedChatId: (id: string | null) => {} }; // Mocking hook usage if it were there, but using local state for now
+    const { messages, conversations, sendMessage, markChatAsRead, deleteMessageLocal, isP2PActive } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
@@ -148,6 +149,12 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
                                             • {activeChat.status}
                                         </span>
+                                        {isP2PActive && activeChat.status === 'Online' && (
+                                            <div className="flex items-center gap-1 ml-2 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_5px_#22d3ee]" />
+                                                <span className="text-[8px] font-black text-cyan-400 tracking-tighter uppercase italic">ENCRYPTED P2P RELAY</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             ) : (
