@@ -102,10 +102,26 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({});
     const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
-    // P2P State
+    const [isP2PActive, setIsP2PActive] = useState(false);
     const [peer, setPeer] = useState<Peer | null>(null);
     const [connections, setConnections] = useState<Record<string, DataConnection>>({});
-    const [isP2PActive, setIsP2PActive] = useState(false);
+
+    // --- DECRYPTION HELPER ---
+    const decryptStoredContent = useCallback(async (content: string, otherId: string) => {
+        if (!address) return content;
+        try {
+            // Check if content is likely an encrypted JSON string
+            if (content.startsWith('{"iv":')) {
+                const encryptedData = JSON.parse(content);
+                const key = await deriveSharedKey(address.toLowerCase(), otherId.toLowerCase());
+                return await decryptMessage(encryptedData, key);
+            }
+            return content;
+        } catch (e) {
+            console.warn("Decryption failed for message content", e);
+            return "[Encrypted Message]";
+        }
+    }, [address]);
 
     // Initial Hydration from LocalStorage for ultra-fast UI
     useEffect(() => {
@@ -203,13 +219,21 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
                 // Process Messages
                 if (msgRes.data) {
+                    const decryptedMessages = await Promise.all(msgRes.data.map(async (m: any) => {
+                        const otherId = m.sender_id.toLowerCase() === lowerAddr ? m.receiver_id : m.sender_id;
+                        return {
+                            ...m,
+                            content: await decryptStoredContent(m.content, otherId)
+                        };
+                    }));
+
                     const isVisibleToMe = (msg: MessageData, myAddr: string) => {
                         const low = myAddr.toLowerCase();
                         if (msg.sender_id.toLowerCase() === low && msg.deleted_by_sender) return false;
                         if (msg.receiver_id.toLowerCase() === low && msg.deleted_by_receiver) return false;
                         return true;
                     };
-                    const visible = msgRes.data.reverse().filter(m => isVisibleToMe(m, lowerAddr));
+                    const visible = decryptedMessages.reverse().filter(m => isVisibleToMe(m, lowerAddr));
                     setMessages(visible);
                 }
 
@@ -241,8 +265,13 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages' },
-                (payload) => {
-                    const newMsg = payload.new as MessageData;
+                async (payload) => {
+                    const rawMsg = payload.new as MessageData;
+                    const otherId = rawMsg.sender_id.toLowerCase() === lowerAddr ? rawMsg.receiver_id : rawMsg.sender_id;
+                    const decryptedContent = await decryptStoredContent(rawMsg.content, otherId);
+                    
+                    const newMsg = { ...rawMsg, content: decryptedContent };
+                    
                     const isVisibleToMe = (msg: MessageData, myAddr: string) => {
                         const low = myAddr.toLowerCase();
                         if (msg.sender_id.toLowerCase() === low && msg.deleted_by_sender) return false;
@@ -406,49 +435,54 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         });
     };
 
-    // Transform Conversations to UI Format
     useEffect(() => {
         if (!address) return;
         const lowerAddr = address.toLowerCase();
 
-        const transformed = rawConversations.map(c => {
-            const isA = c.user_a.toLowerCase() === lowerAddr;
-            const otherId = isA ? c.user_b : c.user_a;
-            const profile = profilesMap[otherId.toLowerCase()];
-            const unreadCount = isA ? c.unread_count_a : c.unread_count_b;
+        const transformConvos = async () => {
+            const transformed = await Promise.all(rawConversations.map(async (c) => {
+                const isA = c.user_a.toLowerCase() === lowerAddr;
+                const otherId = isA ? c.user_b : c.user_a;
+                const profile = profilesMap[otherId.toLowerCase()];
+                const unreadCount = isA ? c.unread_count_a : c.unread_count_b;
 
-            const date = new Date(c.last_message_at);
-            const now = new Date();
-            const diffMs = now.getTime() - date.getTime();
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHrs = Math.floor(diffMins / 60);
-            const diffDays = Math.floor(diffHrs / 24);
+                const date = new Date(c.last_message_at);
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHrs = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHrs / 24);
 
-            let timeStr = 'Just now';
-            if (diffDays > 0) timeStr = `${diffDays}d ago`;
-            else if (diffHrs > 0) timeStr = `${diffHrs}h ago`;
-            else if (diffMins > 0) timeStr = `${diffMins}m ago`;
+                let timeStr = 'Just now';
+                if (diffDays > 0) timeStr = `${diffDays}d ago`;
+                else if (diffHrs > 0) timeStr = `${diffHrs}h ago`;
+                else if (diffMins > 0) timeStr = `${diffMins}m ago`;
 
-            return {
-                id: otherId,
-                name: (profile?.username && !profile.username.startsWith('0x')) ? profile.username : `User ${otherId.substring(0, 6)}`,
-                avatar: profile?.avatar_url || '1',
-                lastMessage: c.last_message_content,
-                time: timeStr,
-                unread: unreadCount > 0,
-                status: (profile?.status || 'Offline') as 'Online' | 'Offline' | 'In Match',
-                timestamp: date.getTime()
-            };
-        });
+                const decryptedLastMsg = await decryptStoredContent(c.last_message_content, otherId);
 
-        setConversations(transformed);
+                return {
+                    id: otherId,
+                    name: (profile?.username && !profile.username.startsWith('0x')) ? profile.username : `User ${otherId.substring(0, 6)}`,
+                    avatar: profile?.avatar_url || '1',
+                    lastMessage: decryptedLastMsg,
+                    time: timeStr,
+                    unread: unreadCount > 0,
+                    status: (profile?.status || 'Offline') as 'Online' | 'Offline' | 'In Match',
+                    timestamp: date.getTime()
+                };
+            }));
 
-        const total = rawConversations.reduce((sum, c) => {
-            const isA = c.user_a.toLowerCase() === lowerAddr;
-            return sum + (isA ? c.unread_count_a : c.unread_count_b);
-        }, 0);
-        setTotalUnreadCount(total);
-    }, [rawConversations, address, profilesMap]);
+            setConversations(transformed);
+
+            const total = rawConversations.reduce((sum, c) => {
+                const isA = c.user_a.toLowerCase() === lowerAddr;
+                return sum + (isA ? c.unread_count_a : c.unread_count_b);
+            }, 0);
+            setTotalUnreadCount(total);
+        };
+
+        transformConvos();
+    }, [rawConversations, address, profilesMap, decryptStoredContent]);
 
 
     // --- ACTIONS ---

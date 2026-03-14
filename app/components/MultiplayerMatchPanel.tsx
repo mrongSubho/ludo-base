@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { LobbyState, LobbySlot } from '@/lib/types';
@@ -176,6 +176,13 @@ export const MultiplayerMatchPanel = ({
         }
     };
 
+    // Auto-generate code when switching to Host tab if none exists
+    useEffect(() => {
+        if (activeTab === 'host' && !currentRoomId && !lobbyState) {
+            onHost();
+        }
+    }, [activeTab, currentRoomId, lobbyState, onHost]);
+
     return (
         <>
             <motion.div
@@ -250,12 +257,10 @@ export const MultiplayerMatchPanel = ({
                                                 {currentRoomId}
                                             </span>
                                         ) : (
-                                            <button
-                                                onClick={onHost}
-                                                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 rounded-xl font-bold text-white shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-colors"
-                                            >
-                                                Generate Code
-                                            </button>
+                                            <div className="flex items-center gap-2 px-6 py-3 bg-white/5 rounded-xl border border-white/10 animate-pulse">
+                                                <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                                                <span className="text-sm font-bold text-white/40 uppercase tracking-widest">Generating...</span>
+                                            </div>
                                         )}
                                         {currentRoomId && (
                                             <button
