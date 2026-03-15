@@ -26,6 +26,7 @@ import {
     canStartMatch,
     generateRoomCode,
 } from '@/lib/gameLogic';
+import { generateRandomNonce, sha256 } from '@/lib/encryption';
 
 // ---------- Context Type ----------
 
@@ -102,6 +103,12 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     const [isHost, setIsHost] = useState(false);
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
     const [lobbyState, setLobbyState] = useState<LobbyState | null>(null);
+    const lobbyStateRef = useRef<LobbyState | null>(null);
+
+    // --- Provably Fair Dice State ---
+    const [commitments, setCommitments] = useState<Record<string, string>>({});
+    const [reveals, setReveals] = useState<Record<string, string>>({});
+    const [myPendingNonce, setMyPendingNonce] = useState<string | null>(null);
     const [pendingInvite, setPendingInvite] = useState<InvitePayload | null>(null);
     const [participants, setParticipants] = useState<Record<string, { username: string; avatar_url: string }>>({});
     const [lastIntent, setLastIntent] = useState<{ type: GameIntentType; payload?: any; timestamp: number } | null>(null);
@@ -110,12 +117,13 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
 
     const peerRef = useRef<Peer | null>(null);
     const heartbeatTimerRef = useRef<any>(null);
-    const lobbyStateRef = useRef(lobbyState);
     const connectionsRef = useRef(connections);
+    const gameStateRef = useRef(gameState);
 
     // Keep refs in sync
     useEffect(() => { lobbyStateRef.current = lobbyState; }, [lobbyState]);
     useEffect(() => { connectionsRef.current = connections; }, [connections]);
+    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
     // Legacy compat: first connection
     const connection = useMemo(() => {
@@ -158,24 +166,147 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
         broadcastToAll({ type, lobbyState: lobbyStateRef.current, ...payload });
     }, [isHost, broadcastToAll]);
 
+    // ─── Provably Fair Dice Logic ───
+
+    const initiateDiceRoll = useCallback(async () => {
+        if (gameState.gamePhase !== 'rolling') return;
+        
+        const nonce = generateRandomNonce();
+        const hash = await sha256(nonce);
+        setMyPendingNonce(nonce);
+        
+        // Reset old fair-play state
+        setCommitments({});
+        setReveals({});
+
+        if (isHost) {
+            setCommitments(prev => ({ ...prev, [myAddress || 'host']: hash }));
+            broadcastAction('DICE_COMMIT', { hash, sender: myAddress || 'host' });
+        } else if (connection?.open) {
+            connection.send({ type: 'DICE_COMMIT', payload: { hash, sender: myAddress } });
+        }
+    }, [gameState.gamePhase, isHost, myAddress, connection, broadcastAction]);
+
+    const finalizeDiceRoll = useCallback(async (allReveals: Record<string, string>) => {
+        if (!isHost) return;
+
+        // Verify commitments
+        const entries = Object.entries(allReveals);
+        for (const [addr, nonce] of entries) {
+            const expectedHash = commitments[addr];
+            const actualHash = await sha256(nonce);
+            if (actualHash !== expectedHash) {
+                console.error(`🚨 CHEAT DETECTED! Player ${addr} sent mismatching nonce.`);
+                return;
+            }
+        }
+
+        // Combine nonces to derive roll
+        const combined = entries.map(([_, n]) => n).sort().join(':');
+        const rollHash = await sha256(combined);
+        // Use last few characters of hash to get a number 1-6
+        const roll = (parseInt(rollHash.substring(0, 8), 16) % 6) + 1;
+
+        console.log("🎲 Fair Dice Result:", roll, "from", entries.length, "participants");
+
+        setGameState(prev => {
+            const { isThreeSixes, nextSixes } = handleThreeSixes(prev.consecutiveSixes, roll);
+            const allColors = prev.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor) || [];
+            const activeColors = allColors.filter((color: PlayerColor) => {
+                const hasTokens = prev.positions[color].some(p => p !== 57);
+                if (prev.playerCount === '2v2') {
+                    const teammate = getTeammateColor(color, prev.playerCount);
+                    const teammateHasTokens = teammate ? prev.positions[teammate].some(p => p !== 57) : false;
+                    return hasTokens || teammateHasTokens;
+                }
+                return hasTokens;
+            });
+
+            if (isThreeSixes) {
+                const nextPlayer = getNextPlayer(prev.currentPlayer, prev.playerCount, activeColors, prev.initialBoardConfig?.colorCorner);
+                const updated: GameState = {
+                    ...prev,
+                    diceValue: roll,
+                    consecutiveSixes: 0,
+                    gamePhase: 'rolling',
+                    currentPlayer: nextPlayer,
+                    captureMessage: 'Three 6s! Turn passed.'
+                };
+                setTimeout(() => {
+                    broadcastToAll({ type: 'ROLL_DICE', value: roll, gameState: { ...updated, lastAction: { type: 'ROLL_DICE', payload: { value: roll } } } });
+                    broadcastToAll({ type: 'TURN_SWITCH', nextPlayer, gameState: updated });
+                }, 0);
+                return updated;
+            } else {
+                const updated = { ...prev, diceValue: roll, consecutiveSixes: nextSixes, gamePhase: 'moving' as const };
+                setTimeout(() => {
+                    broadcastToAll({ type: 'ROLL_DICE', value: roll, gameState: { ...updated, lastAction: { type: 'ROLL_DICE', payload: { value: roll } } } });
+                }, 0);
+                return updated;
+            }
+        });
+    }, [isHost, commitments, broadcastToAll]);
+
+    // ─── Provably Fair Internal Handlers ───
+
+    const handleCommitReceived = useCallback(async (sender: string, hash: string) => {
+        setCommitments(prev => {
+            const next = { ...prev, [sender.toLowerCase()]: hash };
+            
+            // If Host and all participants have committed, trigger Reveal Phase
+            if (isHost && lobbyStateRef.current) {
+                const joinedParticipants = lobbyStateRef.current.slots
+                    .filter(s => s.status === 'joined')
+                    .map(s => s.playerId?.toLowerCase())
+                    .filter(Boolean) as string[];
+
+                const allCommitted = joinedParticipants.every(p => next[p]);
+                if (allCommitted) {
+                    broadcastAction('DICE_REVEAL_SIGNAL');
+                    // Host also reveals immediately
+                    if (myPendingNonce) {
+                        setReveals(r => ({ ...r, [myAddress?.toLowerCase() || 'host']: myPendingNonce }));
+                        broadcastAction('DICE_REVEAL', { nonce: myPendingNonce, sender: myAddress || 'host' });
+                    }
+                }
+            }
+            return next;
+        });
+    }, [isHost, myPendingNonce, myAddress, broadcastAction]);
+
+    const handleRevealReceived = useCallback(async (sender: string, nonce: string) => {
+        setReveals(prev => {
+            const next = { ...prev, [sender.toLowerCase()]: nonce };
+            
+            // If Host and all participants have revealed, finalize
+            if (isHost && lobbyStateRef.current) {
+                const joinedParticipants = lobbyStateRef.current.slots
+                    .filter(s => s.status === 'joined')
+                    .map(s => s.playerId?.toLowerCase())
+                    .filter(Boolean) as string[];
+
+                const allRevealed = joinedParticipants.every(p => next[p]);
+                if (allRevealed) {
+                    finalizeDiceRoll(next);
+                }
+            }
+            return next;
+        });
+    }, [isHost, finalizeDiceRoll]);
+
     // ─── Intent System ───
 
     const sendIntent = useCallback((type: GameIntentType, payload?: any) => {
         if (isHost) {
             if (type === 'REQUEST_ROLL') {
-                // Host roll guard
                 if (gameState.gamePhase !== 'rolling') return;
-                
-                const roll = Math.floor(Math.random() * 6) + 1;
-                setGameState(prev => ({ ...prev, diceValue: roll, gamePhase: 'moving' }));
-                broadcastAction('ROLL_DICE', { value: roll });
+                initiateDiceRoll();
             }
         } else if (connection && connection.open) {
-            // Guest guard: only send roll request if we think it's rolling phase
             if (type === 'REQUEST_ROLL' && gameState.gamePhase !== 'rolling') return;
             connection.send({ type, payload });
         }
-    }, [isHost, connection, broadcastAction, gameState.gamePhase]);
+    }, [isHost, connection, initiateDiceRoll, gameState.gamePhase]);
 
     const updateGameState = useCallback((newState: Partial<GameState>) => {
         setGameState(prev => ({
@@ -193,45 +324,11 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
 
         if (data.type === 'REQUEST_ROLL') {
             if (gameState.gamePhase !== 'rolling') return;
-            
-            setGameState(prev => {
-                const roll = Math.floor(Math.random() * 6) + 1;
-                const { isThreeSixes, nextSixes } = handleThreeSixes(prev.consecutiveSixes, roll);
-                const allColors = prev.initialBoardConfig?.players.map((p: any) => p.color as PlayerColor) || [];
-                const activeColors = allColors.filter((color: PlayerColor) => {
-                    const hasTokens = prev.positions[color].some(p => p !== 57);
-                    if (prev.playerCount === '2v2') {
-                        const teammate = getTeammateColor(color, prev.playerCount);
-                        const teammateHasTokens = teammate ? prev.positions[teammate].some(p => p !== 57) : false;
-                        return hasTokens || teammateHasTokens;
-                    }
-                    return hasTokens;
-                });
-
-                if (isThreeSixes) {
-                    const nextPlayer = getNextPlayer(prev.currentPlayer, prev.playerCount, activeColors, prev.initialBoardConfig?.colorCorner);
-                    const updated: GameState = {
-                        ...prev,
-                        diceValue: roll,
-                        consecutiveSixes: 0,
-                        gamePhase: 'rolling',
-                        currentPlayer: nextPlayer,
-                        captureMessage: 'Three 6s! Turn passed.'
-                    };
-                    // Deferred broadcast
-                    setTimeout(() => {
-                        broadcastToAll({ type: 'ROLL_DICE', value: roll, gameState: { ...updated, lastAction: { type: 'ROLL_DICE', payload: { value: roll } } } });
-                        broadcastToAll({ type: 'TURN_SWITCH', nextPlayer, gameState: updated });
-                    }, 0);
-                    return updated;
-                } else {
-                    const updated = { ...prev, diceValue: roll, consecutiveSixes: nextSixes };
-                    setTimeout(() => {
-                        broadcastToAll({ type: 'ROLL_DICE', value: roll, gameState: { ...updated, lastAction: { type: 'ROLL_DICE', payload: { value: roll } } } });
-                    }, 0);
-                    return updated;
-                }
-            });
+            initiateDiceRoll();
+        } else if (data.type === 'DICE_COMMIT') {
+            handleCommitReceived(data.payload.sender, data.payload.hash);
+        } else if (data.type === 'DICE_REVEAL') {
+            handleRevealReceived(data.payload.sender, data.payload.nonce);
         } else if (data.type === 'REQUEST_MOVE') {
             setLastIntent({ type: data.type, payload: data.payload, timestamp: Date.now() });
         } else if (data.type === 'SYNC_PROFILE') {
@@ -519,63 +616,82 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                         avatar_url: myProfile?.avatar_url || ''
                     });
                 }
-            });
 
-            conn.on('data', (data: any) => {
-                console.log('📩 Guest received data:', data.type, data);
-
-                if (data.type === 'LOBBY_SYNC') {
-                    setLobbyState(data.lobbyState);
-                } else if (data.type === 'LOBBY_JOIN' && data.status === 'error') {
-                    console.error('🚫 Join rejected:', data.reason);
-                    setIsLobbyConnected(false);
-                } else if (data.type === 'SYNC_STATE') {
-                    setGameState(prev => ({
-                        ...data.gameState,
-                        isStarted: prev.isStarted || data.gameState.isStarted
-                    }));
-                } else if (data.type === 'ROLL_DICE') {
-                    setGameState(prev => ({
-                        ...prev,
-                        diceValue: data.value,
-                        gamePhase: 'moving',
-                        lastAction: { type: 'ROLL_DICE', payload: data }
-                    }));
-                } else if (data.type === 'START_GAME') {
-                    console.log('🚀 GUEST: Received START_GAME!', data);
-                    setGameState(prev => ({
-                        ...prev,
-                        isStarted: true,
-                        playerCount: data.playerCount || prev.playerCount,
-                        initialBoardConfig: data.initialBoardConfig,
-                        lastAction: { type: 'START_GAME', payload: data },
-                        lastUpdate: Date.now()
-                    }));
-                } else if (data.type === 'SYNC_PROFILE') {
-                    setParticipants(prev => ({
-                        ...prev,
-                        [data.address.toLowerCase()]: {
-                            username: data.username || 'Opponent',
-                            avatar_url: data.avatar_url || ''
-                        }
-                    }));
-                } else if (data.type === 'MOVE_TOKEN') {
-                    const payload = data.payload || data;
-                    const { color, tokenIndex, targetPosition } = payload;
-                    setGameState(prev => {
-                        if (!color || tokenIndex === undefined) return prev;
-                        const newPos = { ...prev.positions };
-                        newPos[color as PlayerColor] = [...newPos[color as PlayerColor]];
-                        newPos[color as PlayerColor][tokenIndex] = targetPosition;
-                        return {
+                conn.on('data', (data: any) => {
+                    console.log('📩 Guest received message:', data.type);
+                    if (data.type === 'START_GAME') {
+                        console.log('🚀 GUEST: Received START_GAME!', data);
+                        setGameState(prev => ({
                             ...prev,
-                            positions: newPos,
-                            lastUpdate: Date.now(),
-                            lastAction: { type: 'MOVE_TOKEN', payload }
-                        };
-                    });
-                }
-            });
+                            isStarted: true,
+                            playerCount: data.playerCount || prev.playerCount,
+                            initialBoardConfig: data.initialBoardConfig,
+                            lastAction: { type: 'START_GAME', payload: data },
+                            lastUpdate: Date.now()
+                        }));
+                    } else if (data.type === 'DICE_COMMIT') {
+                        // Host has committed, Guest also commits
+                        (async () => {
+                            const nonce = generateRandomNonce();
+                            const hash = await sha256(nonce);
+                            setMyPendingNonce(nonce);
+                            setCommitments(prev => ({ 
+                                ...prev, 
+                                [data.sender.toLowerCase()]: data.hash, // Host's commit
+                                [myAddress?.toLowerCase() || '']: hash // My commit
+                            }));
+                            conn.send({ type: 'DICE_COMMIT', payload: { hash, sender: myAddress } });
+                        })();
+                    } else if (data.type === 'DICE_REVEAL_SIGNAL') {
+                        // Host says everyone has committed, now reveal
+                        if (myPendingNonce) {
+                            setReveals(prev => ({ ...prev, [myAddress?.toLowerCase() || '']: myPendingNonce }));
+                            conn.send({ type: 'DICE_REVEAL', payload: { nonce: myPendingNonce, sender: myAddress } });
+                        }
+                    } else if (data.type === 'DICE_REVEAL') {
+                        setReveals(prev => ({ ...prev, [data.sender.toLowerCase()]: data.nonce }));
+                    } else if (data.type === 'LOBBY_SYNC') {
+                        setLobbyState(data.lobbyState);
+                    } else if (data.type === 'LOBBY_JOIN' && data.status === 'error') {
+                        console.error('🚫 Join rejected:', data.reason);
+                        setIsLobbyConnected(false);
+                    } else if (data.type === 'SYNC_STATE') {
+                        setGameState(prev => ({
+                            ...data.gameState,
+                            isStarted: prev.isStarted || data.gameState.isStarted
+                        }));
+                    } else if (data.type === 'ROLL_DICE') {
+                        setGameState(prev => ({
+                            ...prev,
+                            diceValue: data.value,
+                            gamePhase: 'moving',
+                            lastAction: { type: 'ROLL_DICE', payload: data }
+                        }));
+                    } else if (data.type === 'SYNC_PROFILE') {
+                        setParticipants(prev => ({
+                            ...prev,
+                            [data.address.toLowerCase()]: {
+                                username: data.username || 'Opponent',
+                                avatar_url: data.avatar_url || ''
+                            }
+                        }));
+                    } else if (data.type === 'MOVE_TOKEN') {
+                        const payload = data.payload || data;
+                        const { color, tokenIndex, targetPosition } = payload;
+                        setGameState(prev => {
+                            if (!color || tokenIndex === undefined) return prev;
+                            const newPos = { ...prev.positions };
+                            newPos[color as PlayerColor] = [...newPos[color as PlayerColor]];
+                            newPos[color as PlayerColor][tokenIndex] = targetPosition;
+                            return {
+                                ...prev,
+                                positions: newPos,
+                                lastUpdate: Date.now(),
+                                lastAction: { type: 'MOVE_TOKEN', payload }
+                            };
+                        });
+                    }
+                });
 
             conn.on('close', () => {
                 console.log('📡 Host connection closed.');
@@ -586,6 +702,7 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
                 if (gameStateRef.current.isStarted && !gameStateRef.current.winner) {
                     initiateMigration();
                 }
+            });
             });
         });
     }, [myAddress, myProfile, initiateMigration]);
@@ -749,9 +866,6 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     // ─── Heartbeat ───
-
-    const gameStateRef = useRef(gameState);
-    useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
     useEffect(() => {
         if (isHost && isLobbyConnected) {

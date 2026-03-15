@@ -1,8 +1,8 @@
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME';
-export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL';
+export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL';
 
 export interface GameState {
     positions: {

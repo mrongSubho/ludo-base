@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface DiceProps {
     onRoll: (value: number) => void;
+    currentValue?: number | null;
     isRolling?: boolean;
     disabled?: boolean;
 }
@@ -18,12 +19,18 @@ const DOT_POSITIONS = {
     6: [[25, 20], [25, 50], [25, 80], [75, 20], [75, 50], [75, 80]]
 };
 
-export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }: DiceProps) {
+export default function Dice({ onRoll, currentValue, isRolling: externalIsRolling, disabled }: DiceProps) {
     const [localIsRolling, setLocalIsRolling] = useState(false);
-    const [value, setValue] = useState<number | null>(null);
-    const [displayedValue, setDisplayedValue] = useState<number>(6); // Default face
+    const [displayedValue, setDisplayedValue] = useState<number>(currentValue ?? 6); // Default face, or use currentValue if provided
 
     const isRolling = externalIsRolling || localIsRolling;
+
+    // Sync with external value when not rolling
+    useEffect(() => {
+        if (!isRolling && currentValue !== undefined && currentValue !== null) {
+            setDisplayedValue(currentValue);
+        }
+    }, [currentValue, isRolling]);
 
     // Handle face cycling during roll
     useEffect(() => {
@@ -44,7 +51,6 @@ export default function Dice({ onRoll, isRolling: externalIsRolling, disabled }:
         // Simulate rolling duration
         setTimeout(() => {
             const newValue = Math.floor(Math.random() * 6) + 1;
-            setValue(newValue);
             setDisplayedValue(newValue);
             setLocalIsRolling(false);
             onRoll(newValue);

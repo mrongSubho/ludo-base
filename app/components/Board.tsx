@@ -502,6 +502,7 @@ export default function Board({
                                 <Dice
                                     onRoll={(val) => handleRoll(val)}
                                     disabled={!canRoll}
+                                    currentValue={localGameState.diceValue}
                                 />
                             )}
                         </div>
@@ -916,6 +917,7 @@ export default function Board({
                                 <Dice
                                     onRoll={(val) => handleRoll(val)}
                                     disabled={!canRoll}
+                                    currentValue={localGameState.diceValue}
                                 />
                             )}
                         </div>
