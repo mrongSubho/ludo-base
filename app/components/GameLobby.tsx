@@ -47,6 +47,8 @@ export default function GameLobby({
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [inputRoomId, setInputRoomId] = useState('');
 
+    const handleCancelQuickMatch = useCallback(() => setIsQuickMatchActive(false), []);
+
     return (
         <div className="relative w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center">
             {/* Main Game Branding */}
@@ -255,7 +257,7 @@ export default function GameLobby({
                         matchType={matchType}
                         wager={wager}
                         onStartGame={onStartGame}
-                        onCancel={useCallback(() => setIsQuickMatchActive(false), [])}
+                        onCancel={handleCancelQuickMatch}
                         isHybrid={lobbyState?.status === 'quickmatch'}
                         roomCode={roomId}
                         slotsNeeded={lobbyState?.slots.filter(s => s.status === 'empty').length}

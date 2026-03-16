@@ -209,6 +209,11 @@ export default function Page() {
     setAppState('dashboard');
   };
 
+  const onStartGame = useCallback((isBot?: boolean) => {
+    setIsBotMatch(!!isBot);
+    handlePlayNow();
+  }, [handlePlayNow]);
+
   return (
     <>
       <AnimatePresence>
@@ -256,10 +261,7 @@ export default function Page() {
                   setMatchType={setPlayerCount as any}
                   wager={betAmount}
                   setWager={setBetAmount}
-                  onStartGame={useCallback((isBot?: boolean) => {
-                    setIsBotMatch(!!isBot);
-                    handlePlayNow();
-                  }, [handlePlayNow])}
+                  onStartGame={onStartGame}
                 />
               </main>
 
