@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Turbopack config
   turbopack: {
-    root: '.',
+    root: typeof process !== 'undefined' ? process.cwd() : '.',
   },
 
   webpack: (config) => {
