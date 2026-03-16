@@ -12,7 +12,7 @@ import { FooterNavPanel } from '../components/FooterNavPanel';
 import PublicProfileModal from '../components/PublicProfileModal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
-import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from '../components/PresenceManager';
 
 
@@ -80,7 +80,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
-  const { gameState, broadcastAction, isHost, isLobbyConnected } = useMultiplayer();
+  const { gameState, broadcastAction, isHost, isLobbyConnected } = useTeamUp();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -128,7 +128,7 @@ export default function Page() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // --- Multiplayer Game Start Sync ---
+  // --- TeamUp Game Start Sync ---
   useEffect(() => {
     if (gameState?.isStarted && appState !== 'game') {
       setAppState('game');

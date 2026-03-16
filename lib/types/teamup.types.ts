@@ -1,4 +1,4 @@
-// lib/types/multiplayer.types.ts
+// lib/types/teamup.types.ts
 
 export interface GameConfig {
   mode: 'classic' | 'power' | 'snakes';

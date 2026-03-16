@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import confetti from 'canvas-confetti';
-import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
+import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType } from '@/lib/types';
 import { handleThreeSixes, processMove, getNextPlayer as getNextPlayerCore, getTeammateColor } from '@/lib/gameLogic';
 import { getBestMove } from '@/lib/aiEngine';
@@ -63,7 +63,7 @@ export function useGameEngine({
         updateGameState,
         lastIntent,
         clearIntent
-    } = useMultiplayerContext();
+    } = useTeamUpContext();
 
     const [localGameState, setLocalGameState] = useState({
         positions: {
@@ -99,7 +99,7 @@ export function useGameEngine({
             blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
         } as Record<PlayerColor, { isAutoPlaying: boolean; consecutiveTurns: number; totalTriggers: number; isKicked: boolean }>,
         idleWarning: null as { player: PlayerColor; timeLeft: number } | null,
-        multiplayer: {
+        teamup: {
             targetId: '',
             isConnected: false,
             isHost: false,
@@ -180,7 +180,7 @@ export function useGameEngine({
                 blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
             },
             idleWarning: null,
-            multiplayer: { targetId: '', isConnected: false, isHost: false, status: 'idle' },
+            teamup: { targetId: '', isConnected: false, isHost: false, status: 'idle' },
             isStarted: true,
             lastUpdate: Date.now()
         });
@@ -320,7 +320,7 @@ export function useGameEngine({
         const isMyTurn = localGameState.currentPlayer === myPlayer?.color;
         const isCurrentlyBot = initialPlayers.find(p => p.color === localGameState.currentPlayer)?.isAi 
             || localGameState.afkStats[localGameState.currentPlayer]?.isKicked;
-        const isLocalGame = !localGameState.multiplayer.isConnected;
+        const isLocalGame = !localGameState.teamup.isConnected;
 
         // If not remote, not host-orchestrated AI (or local AI), and not my turn -> Block
         if (!isRemote && !isMyTurn && !isCurrentlyBot) return;
@@ -645,7 +645,7 @@ export function useGameEngine({
 
         // In networked matches, only the Host orchestrates the AI.
         // In local matches, the local client orchestrates.
-        if (localGameState.multiplayer.isConnected && !localGameState.multiplayer.isHost) {
+        if (localGameState.teamup.isConnected && !localGameState.teamup.isHost) {
             return;
         }
 

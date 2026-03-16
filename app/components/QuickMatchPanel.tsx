@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
-import { CompetitiveGameWrapper } from './Multiplayer/CompetitiveGameWrapper';
+import { useTeamUpContext } from '@/hooks/TeamUpContext';
+import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -38,7 +38,7 @@ export const QuickMatchPanel = ({
     slotsNeeded = 1
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
-    const { joinGame } = useMultiplayerContext();
+    const { joinGame } = useTeamUpContext();
 
     const [countdown, setCountdown] = useState<number | null>(null);
     const [currentTipIndex, setCurrentTipIndex] = useState(0);
@@ -148,7 +148,7 @@ export const QuickMatchPanel = ({
                 </div>
 
                 <div className="flex-1 overflow-y-auto w-full relative">
-                    <CompetitiveGameWrapper mode="quick">
+                    <TeamUpWrapper mode="quick" entryFee={wager}>
                         <div className="px-panel-gutter py-8 space-y-12 flex flex-col items-center justify-center min-h-[400px]">
 
                             <AnimatePresence mode="wait">
@@ -310,7 +310,7 @@ export const QuickMatchPanel = ({
                                 )}
                             </AnimatePresence>
                         </div>
-                    </CompetitiveGameWrapper>
+                    </TeamUpWrapper>
                 </div>
 
                 {/* Sticky Bottom Actions */}

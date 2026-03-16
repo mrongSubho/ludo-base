@@ -1,11 +1,11 @@
 import { renderHook, act } from '@testing-library/react';
 import { useCompetitiveConnection } from '../hooks/useCompetitiveConnection';
-import { EdgeServerClient } from '../lib/multiplayer/edge-server-client';
-import { PeerJSGameplay } from '../lib/multiplayer/peerjs-gameplay';
+import { EdgeServerClient } from '../lib/teamup/edge-server-client';
+import { PeerJSGameplay } from '../lib/teamup/peerjs-gameplay';
 
 // Mock dependencies
-jest.mock('../lib/multiplayer/edge-server-client');
-jest.mock('../lib/multiplayer/peerjs-gameplay');
+jest.mock('../lib/teamup/edge-server-client');
+jest.mock('../lib/teamup/peerjs-gameplay');
 
 describe('useCompetitiveConnection', () => {
     const mockOnSuccess = jest.fn();

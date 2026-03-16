@@ -30,7 +30,7 @@ import { generateRandomNonce, sha256 } from '@/lib/encryption';
 
 // ---------- Context Type ----------
 
-interface MultiplayerContextType {
+interface TeamUpContextType {
     roomId: string;
     connection: DataConnection | null;           // kept for backward compat (first guest)
     connections: Map<string, DataConnection>;    // all guest connections (keyed by peerId)
@@ -59,7 +59,7 @@ interface MultiplayerContextType {
     validationToken?: string;
 }
 
-const MultiplayerContext = createContext<MultiplayerContextType | undefined>(undefined);
+const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
 
 const INITIAL_GAME_STATE: GameState = {
     positions: {
@@ -97,7 +97,7 @@ const INITIAL_GAME_STATE: GameState = {
 
 // ---------- Provider ----------
 
-const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
+const TeamUpProvider = ({ children }: { children: ReactNode }) => {
     const [roomId, setRoomId] = useState('');
     const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
@@ -943,18 +943,18 @@ const MultiplayerProvider = ({ children }: { children: ReactNode }) => {
     ]);
 
     return (
-        <MultiplayerContext.Provider value={contextValue}>
+        <TeamUpContext.Provider value={contextValue}>
             {children}
-        </MultiplayerContext.Provider>
+        </TeamUpContext.Provider>
     );
 };
 
-export { MultiplayerProvider };
+export { TeamUpProvider };
 
-export const useMultiplayerContext = () => {
-    const context = useContext(MultiplayerContext);
+export const useTeamUpContext = () => {
+    const context = useContext(TeamUpContext);
     if (!context) {
-        throw new Error('useMultiplayerContext must be used within a MultiplayerProvider');
+        throw new Error('useTeamUpContext must be used within a TeamUpProvider');
     }
     return context;
 };

@@ -14,7 +14,7 @@ import {
 } from '@/lib/boardLayout';
 import { useGameEngine, Player } from '@/hooks/useGameEngine';
 import { getTeammateColor } from '@/lib/gameLogic';
-import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { useTeamUp } from '@/hooks/useTeamUp';
 
 // ─── Full-Screen 15×15 Ludo Board ────────────────────────────────────────────
 // Layout:  Yellow (top-left) — Green (top-right)
@@ -188,7 +188,7 @@ export default function Board({
     initialColorCorner?: ColorCorner;
 }) {
     const { address } = useAccount();
-    const { participants } = useMultiplayer();
+    const { participants } = useTeamUp();
     // ─── Unified Board Initialization ──────────────────────────────────────────
     const [boardConfig, setBoardConfig] = useState(() => {
         if (initialPlayers && initialColorCorner) {
@@ -259,7 +259,7 @@ export default function Board({
         syncMyProfile();
     }, [address]);
 
-    // ─── Multiplayer Profile Sync ──────────────────────────────────────────────
+    // ─── TeamUp Profile Sync ──────────────────────────────────────────────
     useEffect(() => {
         if (!participants || Object.keys(participants).length === 0) return;
 

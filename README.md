@@ -1,6 +1,6 @@
 # Ludo Base
 
-A Next.js 16 Farcaster-ready Ludo game with wallet integration, multiplayer hooks, social panels, and a glassmorphism dashboard UI.
+A Next.js 16 Farcaster-ready Ludo game with wallet integration, teamup hooks, social panels, and a glassmorphism dashboard UI.
 
 ## Documentation
 
@@ -54,7 +54,7 @@ The UI and lobby were recently refined across multiple commits and now include:
 - `app/components/Board.tsx`: core Ludo gameplay.
 - `app/components/SnakesBoard.tsx`: snakes-and-ladders variant.
 - `app/globals.css`: theme tokens + glass dashboard/background system.
-- `hooks/MultiplayerContext.tsx`: room host/join + multiplayer context state.
+- `hooks/TeamUpContext.tsx`: room host/join + teamup context state.
 - `lib/matchRecorder.ts`: match result persistence helpers.
 
 ## UI Standards
@@ -71,7 +71,7 @@ The UI and lobby were recently refined across multiple commits and now include:
 - Use absolute repo-relative paths in docs and tickets, for example:
   - `app/components/GameLobby.tsx`
   - `app/globals.css`
-  - `hooks/MultiplayerContext.tsx`
+  - `hooks/TeamUpContext.tsx`
 - Keep naming consistent with existing structure (`PascalCase` for React component files, `camelCase` for utilities/hooks where applicable).
 - Prefer explicit path references in changelogs and implementation notes so updates are traceable.
 
@@ -120,4 +120,4 @@ Create `.env.local` with required values for your deployment context (wallet/net
 ## Notes
 
 - Some panels still use placeholder/mock data while backend wiring is expanded.
-- Multiplayer and match persistence flows exist but still need continued hardening for reconnection and edge cases.
+- TeamUp and match persistence flows exist but still need continued hardening for reconnection and edge cases.

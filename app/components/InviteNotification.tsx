@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InvitePayload } from '@/lib/types';
-import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
+import { useTeamUpContext } from '@/hooks/TeamUpContext';
 
 export const InviteNotification = () => {
-    const { pendingInvite, acceptInvite, rejectInvite } = useMultiplayerContext();
+    const { pendingInvite, acceptInvite, rejectInvite } = useTeamUpContext();
     const [countdown, setCountdown] = useState(15);
 
     // Auto-dismiss after 15 seconds

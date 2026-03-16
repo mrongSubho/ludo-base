@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch, canQuickMatch } from '@/lib/gameLogic';
-import { CompetitiveGameWrapper } from './Multiplayer/CompetitiveGameWrapper';
 
 // Color map for slot cards
 const SLOT_COLORS: Record<string, { bg: string; border: string; text: string; glow: string }> = {
@@ -19,7 +18,7 @@ const ROLE_LABELS: Record<string, string> = {
     opponent: '⚔️ OPPONENT',
 };
 
-interface MultiplayerMatchPanelProps {
+interface TeamUpMatchPanelProps {
     onClose: () => void;
     onJoin: (code: string) => void;
     onHost: () => void;
@@ -143,7 +142,7 @@ const SlotCard = ({
 };
 
 // --- Main Panel ---
-export const MultiplayerMatchPanel = ({
+export const TeamUpMatchPanel = ({
     onClose,
     onJoin,
     onHost,
@@ -156,7 +155,7 @@ export const MultiplayerMatchPanel = ({
     onKickPlayer,
     onSendInvite,
     onQuickMatch,
-}: MultiplayerMatchPanelProps) => {
+}: TeamUpMatchPanelProps) => {
     const [activeTab, setActiveTab] = useState<'host' | 'join'>('host');
     const [roomCode, setRoomCode] = useState('');
     const [swapSource, setSwapSource] = useState<number | null>(null);
@@ -210,7 +209,7 @@ export const MultiplayerMatchPanel = ({
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                            Multiplayer Lobby
+                            TeamUp Lobby
                         </h2>
                         <button
                             onClick={onClose}
@@ -223,7 +222,6 @@ export const MultiplayerMatchPanel = ({
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <CompetitiveGameWrapper mode="friends">
                         <div className="px-panel-gutter py-4 space-y-5">
                             {/* Tabs */}
                             <div className="flex bg-white/5 rounded-full p-1 mb-2">
@@ -440,7 +438,6 @@ export const MultiplayerMatchPanel = ({
                                 )}
                             </AnimatePresence>
                         </div>
-                    </CompetitiveGameWrapper>
                 </div>
 
                 {/* Action Bar (Host only, when lobby exists) */}

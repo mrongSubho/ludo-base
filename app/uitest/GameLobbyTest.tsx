@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MultiplayerMatchPanel } from '../components/MultiplayerMatchPanel';
+import { TeamUpMatchPanel } from '../components/TeamUpMatchPanel';
 import { QuickMatchPanel } from '../components/QuickMatchPanel';
 import { OfflineMatchPanel } from '../components/OfflineMatchPanel';
-import { useMultiplayerContext } from '@/hooks/MultiplayerContext';
+import { useTeamUpContext } from '@/hooks/TeamUpContext';
 
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
@@ -38,10 +38,10 @@ export default function GameLobby({
         kickPlayer,
         sendInvite,
         startQuickMatch
-    } = useMultiplayerContext();
+    } = useTeamUpContext();
 
     // Configuration State
-    const [showMultiplayerOptions, setShowMultiplayerOptions] = useState(false);
+    const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [inputRoomId, setInputRoomId] = useState('');
@@ -179,7 +179,7 @@ export default function GameLobby({
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    onClick={() => setShowMultiplayerOptions(true)}
+                                    onClick={() => setShowTeamUpOptions(true)}
                                     className="group relative flex-1 py-5 bg-white text-black font-black rounded-full transition-all overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:shadow-[0_0_40px_rgba(255,255,255,0.8)] z-10"
                                 >
                                     <span className="relative text-md lg:text-lg italic tracking-tighter">MULTIPLAYER MATCH</span>
@@ -199,9 +199,9 @@ export default function GameLobby({
                         </div>
 
                         <AnimatePresence>
-                            {showMultiplayerOptions && (
-                                <MultiplayerMatchPanel
-                                    onClose={() => setShowMultiplayerOptions(false)}
+                            {showTeamUpOptions && (
+                                <TeamUpMatchPanel
+                                    onClose={() => setShowTeamUpOptions(false)}
                                     onJoin={(code: string) => joinGame(code)}
                                     onHost={() => hostGame(matchType, gameMode, wager)}
                                     currentRoomId={roomId}
@@ -209,7 +209,7 @@ export default function GameLobby({
                                     isLobbyConnected={isLobbyConnected}
                                     lobbyState={lobbyState}
                                     onStartMatch={() => {
-                                        setShowMultiplayerOptions(false);
+                                        setShowTeamUpOptions(false);
                                         broadcastAction('START_GAME', {});
                                         onStartGame();
                                     }}

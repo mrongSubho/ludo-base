@@ -1,5 +1,5 @@
-// lib/multiplayer/edge-server-client.ts
-import { MatchRequest, MatchResponse, ValidationResult } from '../types/multiplayer.types';
+// lib/teamup/edge-server-client.ts
+import { MatchRequest, MatchResponse, ValidationResult } from '../types/teamup.types';
 
 export class EdgeServerClient {
   private socket: WebSocket | null = null;

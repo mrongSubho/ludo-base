@@ -1,8 +1,8 @@
-# WebTransport-First Competitive Multiplayer Architecture
+# WebTransport-First Competitive TeamUp Architecture
 
 ## Executive Summary
 
-This design implements a hybrid multiplayer architecture for Ludo Base that prioritizes competitive integrity by using WebTransport for matchmaking infrastructure while maintaining PeerJS for gameplay. This approach delivers sub-20ms matchmaking latency with 100% browser compatibility through automatic fallback mechanisms.
+This design implements a hybrid teamup architecture for Ludo Base that prioritizes competitive integrity by using WebTransport for matchmaking infrastructure while maintaining PeerJS for gameplay. This approach delivers sub-20ms matchmaking latency with 100% browser compatibility through automatic fallback mechanisms.
 
 ## Architecture Overview
 
@@ -182,10 +182,10 @@ const QuickMatchPanel = ({ gameMode, matchType, wager }: Props) => {
 };
 ```
 
-### 2. Multiplayer Match (With Friends) Flow
+### 2. TeamUp Match (With Friends) Flow
 
 ```typescript
-// MultiplayerMatchPanel.tsx - Host path
+// TeamUpMatchPanel.tsx - Host path
 const hostCompetitiveMatch = async () => {
   const connection = useCompetitiveConnection();
 

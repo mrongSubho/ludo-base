@@ -1,4 +1,4 @@
-# Multiplayer Implementation: Current vs My Approach
+# TeamUp Implementation: Current vs My Approach
 
 ## Executive Summary
 
@@ -256,7 +256,7 @@ enum NetworkMode {
   DEDICATED = 'dedicated' // Competitive/ranked
 }
 
-class MultiplayerManager {
+class TeamUpManager {
   async createGame(mode: NetworkMode) {
     if (mode === NetworkMode.P2P) {
       return this.createP2PGame();

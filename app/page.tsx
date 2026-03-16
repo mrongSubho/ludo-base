@@ -14,7 +14,7 @@ import { FooterNavPanel } from './components/FooterNavPanel';
 import PublicProfileModal from './components/PublicProfileModal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
-import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
@@ -82,7 +82,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useMultiplayer();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useTeamUp();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -130,7 +130,7 @@ export default function Page() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // --- Multiplayer Game Start Sync ---
+  // --- TeamUp Game Start Sync ---
   useEffect(() => {
     console.log('🔄 Page State Check:', { isStarted: gameState?.isStarted, appState, isHost });
     if (gameState?.isStarted && appState !== 'game') {
@@ -171,7 +171,7 @@ export default function Page() {
         // --- OFFLINE / BOT MATCH START ---
         players = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
 
-        // Legacy mapping for simple multiplayer without lobby (if still reachable)
+        // Legacy mapping for simple teamup without lobby (if still reachable)
         if (isLobbyConnected && !isBotMatch && !lobbyState) {
           const attendeeAddresses = Object.keys(participants);
           if (address && !attendeeAddresses.map(a => a.toLowerCase()).includes(address.toLowerCase())) {

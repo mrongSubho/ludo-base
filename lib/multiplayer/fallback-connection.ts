@@ -1,6 +1,6 @@
-// lib/multiplayer/fallback-connection.ts
+// lib/teamup/fallback-connection.ts
 import { EdgeServerClient } from './edge-server-client';
-import { MatchResponse } from '../types/multiplayer.types';
+import { MatchResponse } from '../types/teamup.types';
 
 export class FallbackConnectionManager {
   private edgeClient: EdgeServerClient | null = null;

@@ -26,7 +26,7 @@ Capture the home dashboard with:
 - consistent final theme applied
 
 ### `lobby-flow.svg`
-Capture a multiplayer lobby with:
+Capture a teamup lobby with:
 - host slot visible
 - at least one invited or connected player
 - match settings visible
@@ -58,5 +58,5 @@ Capture a social/profile state with:
 - Avoid empty states unless the screen is specifically designed to demonstrate one.
 - Use production-like wallet/profile names where possible.
 - Replace files in place so markdown links remain stable.
-- Current repo state includes real deployment captures for dashboard, multiplayer lobby, profile, and classic board states.
+- Current repo state includes real deployment captures for dashboard, teamup lobby, profile, and classic board states.
 - Remaining placeholder-only assets are `snakes-board.svg` and the three GIF files.

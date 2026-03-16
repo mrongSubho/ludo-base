@@ -2376,8 +2376,8 @@ a {
   white-space: nowrap;
 }
 
-/* ─── Multiplayer Bar ─── */
-.multiplayer-bar {
+/* ─── TeamUp Bar ─── */
+.teamup-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;

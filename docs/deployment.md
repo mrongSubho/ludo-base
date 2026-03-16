@@ -1,6 +1,6 @@
-# Hybrid Multiplayer Deployment Guide
+# Hybrid TeamUp Deployment Guide
 
-This document outlines the infrastructure and configuration required to deploy the Ludo Hybrid Multiplayer system (WebRTC + PeerJS).
+This document outlines the infrastructure and configuration required to deploy the Ludo Hybrid TeamUp system (WebRTC + PeerJS).
 
 ## Architecture Overview
 
@@ -20,7 +20,7 @@ You need to deploy a WebRTC-compatible signaling server that supports the `Match
 ### 2. PeerJS Server
 While PeerJS works P2P, a relay server (TURN/STUN) is required for NAT traversal.
 - **Recommendation**: Use PeerJS Cloud or host your own `peerjs-server`.
-- **STUN/TURN**: Add your TURN server credentials to `lib/multiplayer/edge-server-client.ts` or via environment variables.
+- **STUN/TURN**: Add your TURN server credentials to `lib/teamup/edge-server-client.ts` or via environment variables.
 
 ## Environment Variables
 
@@ -38,7 +38,7 @@ NEXT_PUBLIC_STUN_SERVERS=stun:stun.l.google.com:19302,turn:your-turn-server.com
 
 1. **Commit-Reveal Dice**: Cryptographically ensures the host cannot manipulate dice rolls.
 2. **Server-Validated Entry**: The Edge Server verifies that players have enough balance before matching.
-3. **Validation Tokens**: The `MultiplayerContext` verifies that every connecting peer has been authorized by the Edge Server.
+3. **Validation Tokens**: The `TeamUpContext` verifies that every connecting peer has been authorized by the Edge Server.
 
 ## Verification
 

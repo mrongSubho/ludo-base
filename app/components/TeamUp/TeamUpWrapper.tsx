@@ -1,19 +1,19 @@
-// app/components/Multiplayer/CompetitiveGameWrapper.tsx
+// app/components/TeamUp/TeamUpWrapper.tsx
 import React, { ReactNode, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCompetitiveConnection } from '../../../hooks/useCompetitiveConnection';
 
-interface CompetitiveGameWrapperProps {
+interface TeamUpWrapperProps {
   children: ReactNode;
   mode: 'quick' | 'friends';
   entryFee?: number;
 }
 
-export const CompetitiveGameWrapper = ({ 
+export const TeamUpWrapper = ({ 
   children, 
   mode, 
   entryFee 
-}: CompetitiveGameWrapperProps) => {
+}: TeamUpWrapperProps) => {
   const { 
     findCompetitiveMatch, 
     match, 
@@ -29,7 +29,7 @@ export const CompetitiveGameWrapper = ({
   }, [mode, entryFee, findCompetitiveMatch]);
 
   return (
-    <div className="competitive-wrapper w-full h-full relative overflow-hidden">
+    <div className="team-up-wrapper w-full h-full relative overflow-hidden">
       <AnimatePresence mode="wait">
         {loading && (
           <motion.div 
@@ -130,7 +130,7 @@ export const CompetitiveGameWrapper = ({
       </AnimatePresence>
 
       <style jsx>{`
-        .competitive-wrapper {
+        .team-up-wrapper {
           background: #020617;
         }
       `}</style>

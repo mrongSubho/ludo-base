@@ -9,7 +9,7 @@ import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
-import { MultiplayerProvider } from "@/hooks/MultiplayerContext";
+import { TeamUpProvider } from "@/hooks/TeamUpContext";
 import { GameDataProvider } from "@/hooks/GameDataContext";
 
 const config = createConfig({
@@ -45,10 +45,10 @@ export function Providers({ children }: { children: ReactNode }) {
                 >
                     <FrameProvider>
                         <GameDataProvider>
-                            <MultiplayerProvider>
+                            <TeamUpProvider>
                                 <ProfileSyncer />
                                 {children}
-                            </MultiplayerProvider>
+                            </TeamUpProvider>
                         </GameDataProvider>
                     </FrameProvider>
                 </OnchainKitProvider>

@@ -1,4 +1,4 @@
-// lib/multiplayer/peerjs-gameplay.ts
+// lib/teamup/peerjs-gameplay.ts
 import Peer, { DataConnection } from 'peerjs';
 
 export class PeerJSGameplay {

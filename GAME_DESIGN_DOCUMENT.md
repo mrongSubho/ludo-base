@@ -3,7 +3,7 @@
 **Project:** Ludo Base
 **Document Type:** Game Design Document (GDD)
 **Document Status:** Working Draft
-**Product State:** Playable prototype with competitive multiplayer, social, and backend integration work
+**Product State:** Playable prototype with competitive teamup, social, and backend integration work
 **Last Updated:** March 16, 2026
 
 ## Document Control
@@ -19,15 +19,15 @@
 ### Intended Audience
 
 - Product and design collaborators defining game direction
-- Engineering contributors implementing gameplay, multiplayer, and backend systems
+- Engineering contributors implementing gameplay, teamup, and backend systems
 - QA and test contributors validating rules, sync behavior, and progression flows
 - External reviewers who need a professional overview of the project state
 
 ## 1. Executive Summary
 
-Ludo Base is a mobile-first competitive social board game platform built around modernized Ludo and Snakes & Ladders play. The product combines classic turn-based board mechanics with competitive multiplayer featuring sub-20ms matchmaking, private lobbies, wallet-linked identity, social discovery, persistent profiles, and a stylized game dashboard.
+Ludo Base is a mobile-first competitive social board game platform built around modernized Ludo and Snakes & Ladders play. The product combines classic turn-based board mechanics with competitive teamup featuring sub-20ms matchmaking, private lobbies, wallet-linked identity, social discovery, persistent profiles, and a stylized game dashboard.
 
-The current implementation supports a playable core loop, alternate board modes, AI opponents, competitive matchmaking with server-validated integrity, real-time lobby flow, profile sync, and a large portion of the supporting UI shell. The system uses a hybrid WebRTC UDP + PeerJS architecture that provides competitive integrity while maintaining reliable gameplay through a modular architecture with extracted game rules, board layout helpers, multiplayer context, and shared data layers.
+The current implementation supports a playable core loop, alternate board modes, AI opponents, competitive matchmaking with server-validated integrity, real-time lobby flow, profile sync, and a large portion of the supporting UI shell. The system uses a hybrid WebRTC UDP + PeerJS architecture that provides competitive integrity while maintaining reliable gameplay through a modular architecture with extracted game rules, board layout helpers, teamup context, and shared data layers.
 
 This document is intended to serve two purposes:
 - present the project in a professional GDD format;
@@ -40,7 +40,7 @@ The sections below are intentionally included so the document can evolve from a 
 Current asset status:
 - screenshot and GIF slots are now standardized under `docs/gdd/`;
 - the folder structure and capture guide are in place;
-- real captures from the live Vercel deployment are now in place for dashboard, multiplayer lobby, profile, and classic board states;
+- real captures from the live Vercel deployment are now in place for dashboard, teamup lobby, profile, and classic board states;
 - `snakes-board` and the GIF motion slots still remain placeholder-only.
 
 ### Dashboard Overview
@@ -62,7 +62,7 @@ Preferred capture:
 - host lobby slots;
 - invite state;
 - quick-match state;
-- offline versus multiplayer entry options.
+- offline versus teamup entry options.
 
 ### Classic Board Match
 
@@ -115,7 +115,7 @@ Create a polished, socially driven board game experience where familiar tabletop
 - **Readable Strategy:** Rules should remain clear even when board seats, corners, or teams are dynamically assigned.
 - **Fast Session Start:** Users should be able to start offline, host privately, or search publicly with minimal friction.
 - **Social Presence:** Identity, status, invites, and direct interaction should feel native to the product, not bolted on.
-- **Deterministic Core Rules:** Move resolution, turn transitions, win states, and multiplayer sync must be logically defensible.
+- **Deterministic Core Rules:** Move resolution, turn transitions, win states, and teamup sync must be logically defensible.
 - **Mobile-First Presentation:** The game should feel like an app product, not a generic web page with a board embedded in it.
 
 ## 3. Current Scope
@@ -125,7 +125,7 @@ Create a polished, socially driven board game experience where familiar tabletop
 - Classic Ludo board flow
 - Power mode variant support
 - Snakes & Ladders mode
-- Offline play, bot-assisted play, and multiplayer routing
+- Offline play, bot-assisted play, and teamup routing
 - Private room hosting and joining
 - Competitive quick-match queue flow with server validation
 - WebRTC UDP + PeerJS hybrid architecture for competitive integrity
@@ -234,7 +234,7 @@ The board system now supports:
 - dynamic path generation from seat assignment;
 - matching of rendered home blocks, movement cells, and player cards to the same corner model.
 
-This is important because the visual board, the movement engine, and multiplayer payloads must all agree on the same board geometry. The current layout module is now the source of truth for that agreement.
+This is important because the visual board, the movement engine, and teamup payloads must all agree on the same board geometry. The current layout module is now the source of truth for that agreement.
 
 ### 6.3 Snakes Board Layout
 
@@ -242,11 +242,11 @@ Snakes & Ladders uses a different spatial model. Rather than a path around a per
 
 The implementation separates visual stepping from final resolved position, which allows movement animation to remain readable before snake and ladder jumps are applied.
 
-## 7. Multiplayer and Social Design
+## 7. TeamUp and Social Design
 
-### 7.1 Multiplayer Model
+### 7.1 TeamUp Model
 
-The multiplayer system uses a hybrid architecture with competitive integrity features:
+The teamup system uses a hybrid architecture with competitive integrity features:
 
 - **WebRTC UDP for matchmaking**: Sub-20ms competitive matchmaking via edge servers with server-validated game configurations
 - **PeerJS for gameplay**: Reliable, ordered game state sync with proven P2P connectivity
@@ -260,7 +260,7 @@ This architecture provides competitive integrity while maintaining reliable game
 
 The pre-game experience now supports three entry paths:
 - offline match setup;
-- private multiplayer lobby;
+- private teamup lobby;
 - competitive quick-match queue search.
 
 The lobby system already supports:
@@ -366,12 +366,12 @@ Current architectural split:
 - pure rules in `gameLogic.ts` and `snakesLogic.ts`;
 - board geometry in `boardLayout.ts`;
 - AI decision-making in `aiEngine.ts`;
-- multiplayer runtime in `MultiplayerContext.tsx`;
+- teamup runtime in `TeamUpContext.tsx`;
 - app-wide data hydration in `GameDataContext.tsx`.
 
-This direction is correct. It improves maintainability, testability, and multiplayer safety.
+This direction is correct. It improves maintainability, testability, and teamup safety.
 
-### 10.1.1 Multiplayer Runtime Diagram
+### 10.1.1 TeamUp Runtime Diagram
 
 ```mermaid
 flowchart TD
@@ -379,13 +379,13 @@ flowchart TD
     B --> C[GameLobby.tsx]
     C --> D[OfflineMatchPanel.tsx]
     C --> E[QuickMatchPanel.tsx]
-    C --> F[MultiplayerMatchPanel.tsx]
+    C --> F[TeamUpMatchPanel.tsx]
     E --> G[useMatchmaking.ts]
     G --> H[matchmaking API routes]
     E --> I[useCompetitiveConnection.ts]
     I --> J[Edge Server via WebRTC UDP]
     I --> K[PeerJS Gameplay]
-    F --> L[MultiplayerContext.tsx]
+    F --> L[TeamUpContext.tsx]
     L --> M[Host Peer Runtime]
     L --> N[Guest Peer Runtime]
     M --> O[initialBoardConfig]
@@ -445,7 +445,7 @@ The codebase also includes targeted API routes for profile enrichment, friends l
 
 - critical backend features depend on migration parity across environments;
 - some persistence flows are still multi-step and non-transactional;
-- multiplayer logic remains complex and should be split into smaller modules over time;
+- teamup logic remains complex and should be split into smaller modules over time;
 - parts of the social and progression layers are still mock-driven or only partially authoritative;
 - board and engine migration is improved but not yet complete.
 
@@ -454,7 +454,7 @@ The codebase also includes targeted API routes for profile enrichment, friends l
 ### 11.1 Strong Areas
 
 - modular direction of gameplay architecture;
-- functional multiplayer lobby concept;
+- functional teamup lobby concept;
 - competitive quick-match with server validation;
 - WebRTC UDP + PeerJS hybrid architecture for competitive integrity;
 - sub-20ms matchmaking via edge servers;
@@ -468,7 +468,7 @@ The codebase also includes targeted API routes for profile enrichment, friends l
 - transactional match persistence;
 - migration verification and deployment discipline;
 - exhaustive gameplay rule tests;
-- multiplayer sequencing and acknowledgement safety;
+- teamup sequencing and acknowledgement safety;
 - message moderation and safety enforcement;
 - completion of static assets and polish details;
 - edge server infrastructure for production WebRTC deployment.
@@ -477,11 +477,11 @@ The codebase also includes targeted API routes for profile enrichment, friends l
 
 ### 12.1 Immediate Priorities
 
-1. Finish sync-safe turn handling between `Board.tsx`, `useGameEngine.ts`, and `MultiplayerContext.tsx`.
+1. Finish sync-safe turn handling between `Board.tsx`, `useGameEngine.ts`, and `TeamUpContext.tsx`.
 2. Move sensitive match-result writes fully into hardened server-side transactional flow.
 3. Verify and stabilize matchmaking migrations and queue behavior across environments.
 4. Replace remaining mock-driven social and profile surfaces with authoritative data paths.
-5. Add deterministic tests for movement rules, board layout generation, AI, and multiplayer transitions.
+5. Add deterministic tests for movement rules, board layout generation, AI, and teamup transitions.
 
 ### 12.2 Secondary Priorities
 
@@ -522,7 +522,7 @@ docs/
 - Capture at mobile-first aspect ratios first, then desktop if needed.
 - Avoid placeholder data where possible; show realistic wallet/profile states.
 - Use the same theme across all screenshots for consistency.
-- Capture one active multiplayer lobby with filled slots so the product reads as social and live.
+- Capture one active teamup lobby with filled slots so the product reads as social and live.
 
 ## 14. Technical Appendix: File-by-File Implementation Notes
 
@@ -536,11 +536,11 @@ Defines the global metadata, mobile viewport behavior, and root app wrapper. It 
 
 #### `Providers.tsx`
 **Status:** Implemented  
-Composes wagmi, React Query, OnchainKit, frame readiness, multiplayer, and background profile sync. This file is effectively the root dependency graph for wallet-aware gameplay.
+Composes wagmi, React Query, OnchainKit, frame readiness, teamup, and background profile sync. This file is effectively the root dependency graph for wallet-aware gameplay.
 
 #### `page.tsx`
 **Status:** Partial / Active  
-Acts as the top-level app shell that decides whether the user is in dashboard flow, lobby flow, invite flow, or active match flow. It also prepares shuffled multiplayer board configuration before a game starts.
+Acts as the top-level app shell that decides whether the user is in dashboard flow, lobby flow, invite flow, or active match flow. It also prepares shuffled teamup board configuration before a game starts.
 
 ### 14.2 Core Board Components
 
@@ -551,7 +551,7 @@ Primary Classic and Power board renderer. It is increasingly presentation-focuse
 What it does:
 - renders the main board, tokens, home areas, and player identity cards;
 - consumes dynamic board configuration instead of assuming fixed seats;
-- renders synchronized multiplayer participant identity;
+- renders synchronized teamup participant identity;
 - delegates most turn logic to `useGameEngine.ts`.
 
 How it works in the current system:
@@ -609,16 +609,16 @@ High-level coordinator for offline matches, private lobbies, and quick match. It
 **Status:** Partial / Active  
 Frontend queue search surface with searching, matched, timeout, retry, and AI fallback states.
 
-#### `MultiplayerMatchPanel.tsx`
+#### `TeamUpMatchPanel.tsx`
 **Status:** Partial / Active
 Host-driven lobby control center with slot cards, invites, swap and kick controls, start-state validation, and competitive match verification.
 
-#### `app/components/Multiplayer/CompetitiveGameWrapper.tsx`
+#### `app/components/TeamUp/CompetitiveGameWrapper.tsx`
 **Status:** Implemented
 UI wrapper that provides competitive connection status and "Verified Competitive Session" badge.
 
 What it does:
-- wraps multiplayer game content with competitive verification;
+- wraps teamup game content with competitive verification;
 - displays real-time connection status with "Edge Verified UDP" indicator;
 - provides fallback connection status when WebRTC unavailable;
 - manages competitive match loading and error states;
@@ -698,7 +698,7 @@ Integration playground for validating complex dashboard and lobby flows outside 
 **Status:** Implemented  
 Procedural audio engine for move, capture, turn, strike, win, and theme-based ambient playback.
 
-#### `useMultiplayer.ts` (app-level)
+#### `useTeamUp.ts` (app-level)
 **Status:** Partial / Legacy Utility  
 PeerJS-oriented helper used for direct sync experiments. It overlaps somewhat with the newer context-driven runtime.
 
@@ -706,9 +706,9 @@ PeerJS-oriented helper used for direct sync experiments. It overlaps somewhat wi
 **Status:** Partial / Active  
 Conversation, unread-count, profile-hydration, and realtime messaging state engine.
 
-#### `MultiplayerContext.tsx`
+#### `TeamUpContext.tsx`
 **Status:** Partial / Critical
-Primary multiplayer runtime service.
+Primary teamup runtime service.
 
 What it does:
 - hosts rooms and lobby state;
@@ -720,7 +720,7 @@ What it does:
 - implements provably fair dice roll system with cryptographic commitment/reveal protocol.
 
 Why it matters:
-- this file is the multiplayer backbone;
+- this file is the teamup backbone;
 - the current architecture correctly treats host state as authoritative.
 
 #### `useCompetitiveConnection.ts`
@@ -750,7 +750,7 @@ Main gameplay orchestration layer for Classic and Power mode.
 What it does:
 - owns match-state progression;
 - applies deterministic move logic via shared rules;
-- coordinates AI, multiplayer sync, AFK handling, and persistence side effects;
+- coordinates AI, teamup sync, AFK handling, and persistence side effects;
 - reduces the burden on `Board.tsx`.
 
 #### `GameDataContext.tsx`
@@ -816,7 +816,7 @@ Why it matters:
 
 #### `gameLogic.ts`
 **Status:** Partial / Critical
-Deterministic rules engine for Classic and Power mode plus some multiplayer lobby helpers.
+Deterministic rules engine for Classic and Power mode plus some teamup lobby helpers.
 
 #### `encryption.ts`
 **Status:** Partial / Foundation
@@ -830,7 +830,7 @@ Heuristic bot move selector based on move value, safety, progress, and capture o
 **Status:** Partial / Active
 Pure rules module for Snakes & Ladders movement resolution.
 
-#### `lib/multiplayer/edge-server-client.ts`
+#### `lib/teamup/edge-server-client.ts`
 **Status:** Implemented
 WebRTC UDP client for connecting to edge servers for competitive matchmaking.
 
@@ -841,7 +841,7 @@ What it does:
 - validates competitive game configurations via server;
 - provides automatic fallback when WebRTC unavailable.
 
-#### `lib/multiplayer/peerjs-gameplay.ts`
+#### `lib/teamup/peerjs-gameplay.ts`
 **Status:** Implemented
 Enhanced PeerJS client for reliable gameplay state synchronization.
 
@@ -852,7 +852,7 @@ What it does:
 - provides secure state sync with cryptographic validation;
 - implements provably fair dice roll protocol with commitment/reveal.
 
-#### `lib/multiplayer/fallback-connection.ts`
+#### `lib/teamup/fallback-connection.ts`
 **Status:** Implemented
 Fallback connection manager for network compatibility.
 
@@ -862,9 +862,9 @@ What it does:
 - maintains competitive integrity during connection migrations;
 - provides seamless experience across different network conditions.
 
-#### `lib/types/multiplayer.types.ts`
+#### `lib/types/teamup.types.ts`
 **Status:** Implemented
-Type definitions for multiplayer architecture including validation tokens and competitive features.
+Type definitions for teamup architecture including validation tokens and competitive features.
 
 ### 14.10 Database and Migration Layer
 
@@ -895,5 +895,5 @@ Some avatar and presentation assets still need completion or parity fixes. These
 If this file is going to remain the main professional project document, the next formatting upgrades should be:
 - add a short revision history table at the top;
 - add screenshots or GIF references for dashboard, board, and lobby flows;
-- add one diagram for multiplayer data flow and one for board layout generation;
+- add one diagram for teamup data flow and one for board layout generation;
 - split Appendix sections further only when a file becomes important enough to deserve its own mini-spec.

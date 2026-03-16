@@ -3,11 +3,11 @@
 import { useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
-import { useMultiplayer } from '@/hooks/useMultiplayer';
+import { useTeamUp } from '@/hooks/useTeamUp';
 
 export default function PresenceManager() {
     const { address, isConnected } = useAccount();
-    const { gameState } = useMultiplayer();
+    const { gameState } = useTeamUp();
     const lastStatusRef = useRef<string | null>(null);
 
     useEffect(() => {

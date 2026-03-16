@@ -1,9 +1,9 @@
 // hooks/useCompetitiveConnection.ts
 import { useState, useEffect, useCallback } from 'react';
-import { EdgeServerClient } from '../lib/multiplayer/edge-server-client';
-import { PeerJSGameplay } from '../lib/multiplayer/peerjs-gameplay';
-import { FallbackConnectionManager } from '../lib/multiplayer/fallback-connection';
-import { GameConfig } from '../lib/types/multiplayer.types';
+import { EdgeServerClient } from '../lib/teamup/edge-server-client';
+import { PeerJSGameplay } from '../lib/teamup/peerjs-gameplay';
+import { FallbackConnectionManager } from '../lib/teamup/fallback-connection';
+import { GameConfig } from '../lib/types/teamup.types';
 
 export interface CompetitiveMatch {
   matchId: string;
