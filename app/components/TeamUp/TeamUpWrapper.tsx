@@ -23,7 +23,8 @@ export const TeamUpWrapper = ({
   } = useCompetitiveConnection();
 
   useEffect(() => {
-    if (mode) {
+    // Only attempt competitive connection for quick matches with a wager
+    if (mode === 'quick' && entryFee && entryFee > 0) {
       findCompetitiveMatch(mode, entryFee);
     }
   }, [mode, entryFee, findCompetitiveMatch]);
