@@ -38,16 +38,24 @@ export const QuickMatchPanel = ({
     slotsNeeded = 1
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
-    const { joinGame } = useTeamUpContext();
+    const { hostGame, joinGame } = useTeamUpContext();
 
     const [countdown, setCountdown] = useState<number | null>(null);
     const [currentTipIndex, setCurrentTipIndex] = useState(0);
+    const [guestId] = useState(() => {
+        if (typeof window === 'undefined') return 'guest';
+        // Try to get existing session ID or create new one
+        let id = sessionStorage.getItem('ludo_guest_id');
+        if (!id) {
+            id = `gst_${Math.random().toString(36).substring(2, 10)}`;
+            sessionStorage.setItem('ludo_guest_id', id);
+        }
+        return id;
+    });
 
-    const onMatchFound = useCallback((id: string) => {
-        console.log('🎉 Match found! Starting countdown...');
+    const onMatchFound = useCallback((id: string, isHost: boolean) => {
+        console.log(`🎉 Match found! I am ${isHost ? 'HOST' : 'GUEST'}. Starting countdown...`);
         if (isHybrid) {
-            // In hybrid mode, we don't need a countdown, the players will join the PeerJS lobby
-            // The Lobby UI will update automatically
             onCancel(); 
             return;
         }
@@ -56,17 +64,21 @@ export const QuickMatchPanel = ({
             setCountdown(prev => {
                 if (prev === 1) {
                     clearInterval(timer);
-                    joinGame(id);
+                    if (isHost) {
+                        hostGame(matchType, gameMode, wager, undefined, id);
+                    } else {
+                        joinGame(id);
+                    }
                     onStartGame();
                     return null;
                 }
                 return prev ? prev - 1 : null;
             });
         }, 1000);
-    }, [joinGame, onStartGame, isHybrid, onCancel]);
+    }, [joinGame, hostGame, onStartGame, isHybrid, onCancel, matchType, gameMode, wager]);
 
     const { status, searchTime, startSearch, startHybridSearch, cancelSearch } = useMatchmaking({
-        playerId: address || 'guest',
+        playerId: address || guestId,
         gameMode,
         matchType,
         wager,

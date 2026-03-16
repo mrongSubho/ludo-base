@@ -7,7 +7,7 @@ interface UseMatchmakingProps {
     gameMode: string;
     matchType: string;
     wager: number;
-    onMatchFound: (matchId: string) => void;
+    onMatchFound: (matchId: string, isHost: boolean) => void;
 }
 
 export function useMatchmaking({
@@ -59,7 +59,7 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 setStatus('matched');
-                onMatchFound(data.match_id);
+                onMatchFound(data.match_id, false);
             } else {
                 setTicketId(data.ticket_id);
 
@@ -91,7 +91,7 @@ export function useMatchmaking({
 
                         if (statusData.status === 'matched') {
                             setStatus('matched');
-                            onMatchFound(statusData.match_id);
+                            onMatchFound(statusData.match_id, true);
                             if (timerRef.current) clearInterval(timerRef.current);
                             if (pollingRef.current) clearInterval(pollingRef.current);
                         }
@@ -129,7 +129,7 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 setStatus('matched');
-                onMatchFound(data.match_id);
+                onMatchFound(data.match_id, false);
             } else {
                 setTicketId(data.ticket_id);
 
@@ -152,7 +152,7 @@ export function useMatchmaking({
                         const statusData = await statusRes.json();
                         if (statusData.status === 'matched') {
                             setStatus('matched');
-                            onMatchFound(statusData.match_id);
+                            onMatchFound(statusData.match_id, true);
                             if (timerRef.current) clearInterval(timerRef.current);
                             if (pollingRef.current) clearInterval(pollingRef.current);
                         }

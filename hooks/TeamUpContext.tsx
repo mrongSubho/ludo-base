@@ -39,7 +39,7 @@ interface TeamUpContextType {
     gameState: GameState;
     lobbyState: LobbyState | null;
     pendingInvite: InvitePayload | null;
-    hostGame: (matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power', entryFee: number, validationToken?: string) => void;
+    hostGame: (matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power', entryFee: number, validationToken?: string, forcedRoomId?: string) => void;
     joinGame: (targetRoomId: string, validationToken?: string) => void;
     sendIntent: (type: GameIntentType, payload?: any) => void;
     broadcastAction: (type: GameActionType, payload?: any) => void;
@@ -393,12 +393,12 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
 
     // ─── Host: Setup Peer & Accept Connections ───
 
-    const hostGame = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power', entryFee: number, token?: string) => {
+    const hostGame = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power', entryFee: number, token?: string, forcedRoomId?: string) => {
         if (peerRef.current) peerRef.current.destroy();
 
         setIsHost(true);
         setValidationToken(token);
-        const customRoomId = generateRoomCode();
+        const customRoomId = forcedRoomId || generateRoomCode();
         const peer = new Peer(customRoomId);
         peerRef.current = peer;
 
