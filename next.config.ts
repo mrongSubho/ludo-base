@@ -1,11 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Turbopack config
-  turbopack: {
-    root: typeof process !== 'undefined' ? process.cwd() : '.',
-  },
-
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

@@ -45,7 +45,6 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <Providers>{children}</Providers>
-        <script src="http://127.0.0.1:4000/dev-editor-inspector.js"></script>
       </body>
     </html>
   );
