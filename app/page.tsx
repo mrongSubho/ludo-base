@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
@@ -256,10 +256,10 @@ export default function Page() {
                   setMatchType={setPlayerCount as any}
                   wager={betAmount}
                   setWager={setBetAmount}
-                  onStartGame={(isBot?: boolean) => {
+                  onStartGame={useCallback((isBot?: boolean) => {
                     setIsBotMatch(!!isBot);
                     handlePlayNow();
-                  }}
+                  }, [handlePlayNow])}
                 />
               </main>
 

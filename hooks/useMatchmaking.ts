@@ -45,7 +45,17 @@ export function useMatchmaking({
         if (pollingRef.current) clearInterval(pollingRef.current);
     }, [ticketId]);
 
+    const lastSearchRef = useRef<string>('');
+
     const startSearch = useCallback(async () => {
+        const criteria = `${playerId}-${gameMode}-${matchType}-${wager}`;
+        if (status === 'searching' || status === 'expanding' || status === 'matched') {
+            if (lastSearchRef.current === criteria) return;
+            // If criteria changed, cancel old and continue
+            await cancelSearch();
+        }
+        
+        lastSearchRef.current = criteria;
         setStatus('searching');
         setSearchTime(0);
 
@@ -104,7 +114,7 @@ export function useMatchmaking({
             console.error('❌ [Matchmaking] Error starting search:', err);
             setStatus('error');
         }
-    }, [playerId, gameMode, matchType, wager, onMatchFound]);
+    }, [playerId, gameMode, matchType, wager, onMatchFound, status, cancelSearch]);
 
     // --- Hybrid Search (from a private lobby) ---
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string) => {

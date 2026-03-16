@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TeamUpMatchPanel } from './TeamUpMatchPanel';
 import { QuickMatchPanel } from './QuickMatchPanel';
@@ -254,8 +254,8 @@ export default function GameLobby({
                         gameMode={gameMode}
                         matchType={matchType}
                         wager={wager}
-                        onStartGame={(isBotMatch) => onStartGame(isBotMatch)}
-                        onCancel={() => setIsQuickMatchActive(false)}
+                        onStartGame={onStartGame}
+                        onCancel={useCallback(() => setIsQuickMatchActive(false), [])}
                         isHybrid={lobbyState?.status === 'quickmatch'}
                         roomCode={roomId}
                         slotsNeeded={lobbyState?.slots.filter(s => s.status === 'empty').length}
