@@ -235,7 +235,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                             </button>
                         </div>
                         <div className="mt-4 flex flex-col items-center justify-center text-center">
-                            <p className="text-white/60 font-bold tracking-widest uppercase text-xs">Ludo Base Superstar</p>
+                            <p className="text-white/60 font-bold tracking-widest uppercase text-xs">Ludo Base : The Onchain Arena</p>
                             <p className="text-white/30 text-xs">Version 1.0.0</p>
                         </div>
                     </div>

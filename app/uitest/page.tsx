@@ -51,8 +51,8 @@ const SplashScreen = () => (
       <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
         LUDO BASE
       </h1>
-      <p className="text-purple-300 font-medium tracking-[0.3em] uppercase text-sm mb-12 text-center">
-        Superstar Edition
+      <p className="text-cyan-400 font-black tracking-[0.4em] uppercase text-[10px] mb-12 text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+        The Onchain Arena
       </p>
 
       {/* Loading Bar Illusion */}
