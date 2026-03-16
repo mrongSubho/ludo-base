@@ -2,116 +2,106 @@
 import { MatchRequest, MatchResponse, ValidationResult } from '../types/multiplayer.types';
 
 export class EdgeServerClient {
-  private pc: RTCPeerConnection | null = null;
-  private dataChannel: RTCDataChannel | null = null;
+  private socket: WebSocket | null = null;
   private edgeServerUrl: string;
+  private messageHandlers: Map<string, (data: any) => void> = new Map();
 
   constructor(edgeServerUrl: string) {
     this.edgeServerUrl = edgeServerUrl;
   }
 
   async connect(): Promise<void> {
-    this.pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
-
-    this.dataChannel = this.pc.createDataChannel('matchmaking', {
-      ordered: true,
-      maxRetransmits: 3
-    });
-
     return new Promise((resolve, reject) => {
-      if (!this.pc) return reject(new Error('PC not initialized'));
+      this.socket = new WebSocket(this.edgeServerUrl);
 
-      this.pc.createOffer()
-        .then(async (offer) => {
-          await this.pc?.setLocalDescription(offer);
-          
-          // Send offer to edge server through HTTPS signaling
-          const response = await fetch(`${this.edgeServerUrl}/api/signaling`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'offer', offer })
-          });
+      this.socket.onopen = () => {
+        console.log('📡 [EdgeServer] Connected to matchmaking server');
+        resolve();
+      };
 
-          if (!response.ok) {
-            throw new Error(`Signaling failed: ${response.statusText}`);
+      this.socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const handler = this.messageHandlers.get(data.type);
+          if (handler) {
+            handler(data);
           }
+        } catch (e) {
+          console.error('❌ [EdgeServer] Failed to parse message:', e);
+        }
+      };
 
-          const { answer } = await response.json();
-          await this.pc?.setRemoteDescription(new RTCSessionDescription(answer));
-          
-          this.dataChannel!.onopen = () => {
-            console.log('📡 [EdgeServer] Matchmaking channel open');
-            resolve();
-          };
+      this.socket.onerror = (err) => {
+        console.error('❌ [EdgeServer] WebSocket error:', err);
+        reject(err);
+      };
 
-          this.dataChannel!.onerror = (err) => {
-            console.error('❌ [EdgeServer] Data channel error:', err);
-            reject(err);
-          };
-        })
-        .catch(reject);
+      this.socket.onclose = () => {
+        console.log('📡 [EdgeServer] Connection closed');
+      };
     });
   }
 
   async findMatch(request: MatchRequest): Promise<MatchResponse> {
     return new Promise((resolve, reject) => {
-      if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-        return reject(new Error('Data channel not ready'));
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+        return reject(new Error('Matchmaking server not connected'));
       }
 
-      const message = JSON.stringify({
-        type: 'find_match',
-        ...request
-      });
+      const requestId = Math.random().toString(36).substring(7);
 
-      this.dataChannel.onmessage = (event) => {
-        const response = JSON.parse(event.data);
-        if (response.type === 'match_found') {
-          resolve(response.data);
-        } else if (response.type === 'error') {
-          reject(new Error(response.message));
+      const handler = (data: any) => {
+        if (data.requestId === requestId) {
+          this.messageHandlers.delete('match_found');
+          this.messageHandlers.delete('match_error');
+          if (data.type === 'match_found') {
+            resolve(data.data);
+          } else {
+            reject(new Error(data.message || 'Matchmaking error'));
+          }
         }
       };
 
-      this.dataChannel.send(message);
+      this.messageHandlers.set('match_found', handler);
+      this.messageHandlers.set('match_error', handler);
+
+      this.socket.send(JSON.stringify({
+        type: 'find_match',
+        requestId,
+        ...request
+      }));
     });
   }
 
   async validateGameResult(result: any): Promise<ValidationResult> {
     return new Promise((resolve, reject) => {
-      if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
-        return reject(new Error('Data channel not ready'));
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+        return reject(new Error('Matchmaking server not connected'));
       }
 
-      const message = JSON.stringify({
-        type: 'validate_result',
-        result
-      });
+      const requestId = Math.random().toString(36).substring(7);
 
-      this.dataChannel.onmessage = (event) => {
-        const response = JSON.parse(event.data);
-        if (response.type === 'validation_result') {
-          resolve(response.data);
-        } else if (response.type === 'error') {
-          reject(new Error(response.message));
+      const handler = (data: any) => {
+        if (data.requestId === requestId) {
+          this.messageHandlers.delete('validation_result');
+          resolve(data.data);
         }
       };
 
-      this.dataChannel.send(message);
+      this.messageHandlers.set('validation_result', handler);
+
+      this.socket.send(JSON.stringify({
+        type: 'validate_result',
+        requestId,
+        result
+      }));
     });
   }
 
   disconnect(): void {
-    if (this.dataChannel) {
-      this.dataChannel.close();
-      this.dataChannel = null;
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
     }
-    if (this.pc) {
-      this.pc.close();
-      this.pc = null;
-    }
-    console.log('📡 [EdgeServer] Disconnected');
   }
 }
