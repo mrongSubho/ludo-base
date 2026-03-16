@@ -22,6 +22,14 @@ export function useMatchmaking({
     const [searchTime, setSearchTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    const statusRef = useRef<MatchmakingStatus>(status);
+    const onMatchFoundRef = useRef(onMatchFound);
+
+    // Keep refs synced
+    useEffect(() => {
+        statusRef.current = status;
+        onMatchFoundRef.current = onMatchFound;
+    }, [status, onMatchFound]);
 
     const cancelSearch = useCallback(async () => {
         if (!ticketId) return;
@@ -43,14 +51,20 @@ export function useMatchmaking({
         setSearchTime(0);
         if (timerRef.current) clearInterval(timerRef.current);
         if (pollingRef.current) clearInterval(pollingRef.current);
+        lastSearchRef.current = ''; // Clear so we can restart with same criteria
     }, [ticketId]);
 
     const lastSearchRef = useRef<string>('');
 
     const startSearch = useCallback(async () => {
         const criteria = `${playerId}-${gameMode}-${matchType}-${wager}`;
-        if (status === 'searching' || status === 'expanding' || status === 'matched') {
-            if (lastSearchRef.current === criteria) return;
+        const currentStatus = statusRef.current;
+        
+        if (currentStatus === 'searching' || currentStatus === 'expanding' || currentStatus === 'matched') {
+            if (lastSearchRef.current === criteria) {
+                console.log('📡 [Matchmaking] Already searching with same criteria, skipping...');
+                return;
+            }
             // If criteria changed, cancel old and continue
             await cancelSearch();
         }
@@ -69,7 +83,7 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 setStatus('matched');
-                onMatchFound(data.match_id, false);
+                onMatchFoundRef.current(data.match_id, false);
             } else {
                 setTicketId(data.ticket_id);
 
@@ -86,7 +100,9 @@ export function useMatchmaking({
                         // Phase 3: Timeout (26s)
                         if (newTime >= 26) {
                             setStatus('timeout');
+                            lastSearchRef.current = ''; 
                             if (timerRef.current) clearInterval(timerRef.current);
+                            if (pollingRef.current) clearInterval(pollingRef.current);
                         }
 
                         return newTime;
@@ -101,7 +117,7 @@ export function useMatchmaking({
 
                         if (statusData.status === 'matched') {
                             setStatus('matched');
-                            onMatchFound(statusData.match_id, true);
+                            onMatchFoundRef.current(statusData.match_id, true);
                             if (timerRef.current) clearInterval(timerRef.current);
                             if (pollingRef.current) clearInterval(pollingRef.current);
                         }
@@ -114,7 +130,7 @@ export function useMatchmaking({
             console.error('❌ [Matchmaking] Error starting search:', err);
             setStatus('error');
         }
-    }, [playerId, gameMode, matchType, wager, onMatchFound, status, cancelSearch]);
+    }, [playerId, gameMode, matchType, wager, cancelSearch]);
 
     // --- Hybrid Search (from a private lobby) ---
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string) => {
@@ -139,7 +155,7 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 setStatus('matched');
-                onMatchFound(data.match_id, false);
+                onMatchFoundRef.current(data.match_id, false);
             } else {
                 setTicketId(data.ticket_id);
 
@@ -162,7 +178,7 @@ export function useMatchmaking({
                         const statusData = await statusRes.json();
                         if (statusData.status === 'matched') {
                             setStatus('matched');
-                            onMatchFound(statusData.match_id, true);
+                            onMatchFoundRef.current(statusData.match_id, true);
                             if (timerRef.current) clearInterval(timerRef.current);
                             if (pollingRef.current) clearInterval(pollingRef.current);
                         }
@@ -175,7 +191,7 @@ export function useMatchmaking({
             console.error('❌ [Matchmaking] Hybrid search error:', err);
             setStatus('error');
         }
-    }, [playerId, gameMode, wager, onMatchFound]);
+    }, [playerId, gameMode, wager]);
 
     // Visibility Change Handling (Heartbeat & Cancellation)
     useEffect(() => {
@@ -198,7 +214,7 @@ export function useMatchmaking({
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, [status, cancelSearch]);
+    }, [cancelSearch]);
 
     // Independent unmount cleanup for timers
     useEffect(() => {

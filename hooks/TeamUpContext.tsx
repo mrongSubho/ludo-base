@@ -325,7 +325,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         console.log('📩 Host received data:', data.type, data);
 
         if (data.type === 'REQUEST_ROLL') {
-            if (gameState.gamePhase !== 'rolling') return;
+            if (gameStateRef.current.gamePhase !== 'rolling') return;
             initiateDiceRoll();
         } else if (data.type === 'DICE_COMMIT') {
             handleCommitReceived(data.payload.sender, data.payload.hash);
@@ -389,7 +389,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                 });
             }, 200);
         }
-    }, [broadcastToAll, myAddress, myProfile]);
+    }, [broadcastToAll, myAddress, myProfile, validationToken, initiateDiceRoll, handleCommitReceived, handleRevealReceived]);
 
     // ─── Host: Setup Peer & Accept Connections ───
 
@@ -488,7 +488,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                 });
 
                 // Also send SYNC_STATE
-                conn.send({ type: 'SYNC_STATE', gameState });
+                conn.send({ type: 'SYNC_STATE', gameState: gameStateRef.current });
             });
 
             conn.on('data', (data: any) => {
@@ -521,7 +521,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                 });
             });
         });
-    }, [myAddress, gameState, handleGuestData]);
+    }, [myAddress, handleGuestData]);
 
     const initiateMigration = useCallback(() => {
         console.log('🔄 Initiating Host Migration...');
