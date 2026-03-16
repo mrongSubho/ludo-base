@@ -1,0 +1,139 @@
+// app/components/Multiplayer/CompetitiveGameWrapper.tsx
+import React, { ReactNode, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useCompetitiveConnection } from '../../../hooks/useCompetitiveConnection';
+
+interface CompetitiveGameWrapperProps {
+  children: ReactNode;
+  mode: 'quick' | 'friends';
+  entryFee?: number;
+}
+
+export const CompetitiveGameWrapper = ({ 
+  children, 
+  mode, 
+  entryFee 
+}: CompetitiveGameWrapperProps) => {
+  const { 
+    findCompetitiveMatch, 
+    match, 
+    loading, 
+    error,
+    isFallback
+  } = useCompetitiveConnection();
+
+  useEffect(() => {
+    if (mode) {
+      findCompetitiveMatch(mode, entryFee);
+    }
+  }, [mode, entryFee, findCompetitiveMatch]);
+
+  return (
+    <div className="competitive-wrapper w-full h-full relative overflow-hidden">
+      <AnimatePresence mode="wait">
+        {loading && (
+          <motion.div 
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0F172A]/90 backdrop-blur-xl"
+          >
+            <div className="relative w-24 h-24 mb-6">
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full"
+              />
+              <motion.div 
+                animate={{ rotate: -360 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-2 border-4 border-t-purple-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl">🎲</span>
+              </div>
+            </div>
+            
+            <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+              Finding Opponents
+            </h3>
+            <p className="text-slate-400 mt-2 text-sm">
+              Securing connection via UDP Edge Node...
+            </p>
+            
+            <div className="mt-8 flex gap-2">
+              {[0, 1, 2].map(i => (
+                <motion.div
+                  key={i}
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                  className="w-2 h-2 rounded-full bg-blue-500"
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {error && (
+          <motion.div 
+            key="error"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0F172A]/95 p-6"
+          >
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+              <span className="text-2xl text-red-500">⚠️</span>
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Connection Match Failed</h3>
+            <p className="text-slate-400 text-center max-w-xs mb-6">
+              {error}
+            </p>
+            <button 
+              onClick={() => findCompetitiveMatch(mode, entryFee)}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/20"
+            >
+              Retry Connection
+            </button>
+          </motion.div>
+        )}
+
+        {match && (
+          <motion.div 
+            key="game"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full h-full relative"
+          >
+            {children}
+            
+            {/* Verified Badge Overlay */}
+            <motion.div 
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="absolute top-4 right-4 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md"
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+                {isFallback ? 'Lobby Secured' : 'Edge Verified UDP'}
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {!loading && !error && !match && (
+          <motion.div key="default" className="w-full h-full">
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <style jsx>{`
+        .competitive-wrapper {
+          background: #020617;
+        }
+      `}</style>
+    </div>
+  );
+};
