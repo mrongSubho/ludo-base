@@ -3,24 +3,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { getProgression } from '@/lib/progression';
 
 export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
     const { profile, address, displayName: finalName } = useCurrentUser();
 
     const finalAvatar = profile?.avatar_url || null;
 
+    const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
+
     const [isPublic, setIsPublic] = useState(true);
     const [allowRequests, setAllowRequests] = useState(true);
 
-    // Animate the donut chart on mount
+    // Animate the donut chart based on XP progress
     const [chartProgress, setChartProgress] = useState(0);
     useEffect(() => {
-        const timer = setTimeout(() => setChartProgress(78), 200); // 78% win rate
+        const timer = setTimeout(() => setChartProgress(progression.progressPercentage), 200);
         return () => clearTimeout(timer);
-    }, []);
+    }, [progression.progressPercentage]);
 
 
-    // Calculate SVG stroke offset for the 78% chart
+    // Calculate SVG stroke offset
     const radius = 36;
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference - (chartProgress / 100) * circumference;
@@ -87,9 +90,11 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                         <div className="flex flex-col items-center w-full max-w-[200px]">
                             <h2 className="text-2xl font-bold text-white py-1">{finalName}</h2>
                             <div className="flex items-center gap-2 mt-2 bg-black/40 px-3 py-1 rounded-full border border-white/10">
-                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-purple-600lip-text bg-gradient-to-r from-gray-300 to-slate-400">Silver II</span>
+                                <span className={`text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${getProgression(profile?.xp || 0, profile?.rating || 0).tier === 'Arena Master' ? 'from-orange-400 to-red-600' : 'from-gray-300 to-slate-400'}`}>
+                                    {progression.tier} {progression.subRank}
+                                </span>
                                 <div className="w-1 h-1 bg-white/30 rounded-full" />
-                                <span className="text-[11px] text-white/70 font-bold">Lv. 8</span>
+                                <span className="text-[11px] text-white/70 font-bold">Lv. {progression.level}</span>
                             </div>
                         </div>
                     </div>
@@ -139,10 +144,10 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                             />
                                         </svg>
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                            <span className="text-[10px] font-black text-white">{chartProgress}%</span>
+                                            <span className="text-[10px] font-black text-white">{Math.round(chartProgress)}%</span>
                                         </div>
                                     </div>
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Win Rate</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Level Progress</span>
                                 </div>
 
                                 {/* Matches */}

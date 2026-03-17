@@ -21,6 +21,7 @@ const HeaderMessageIcon = () => (
 interface HeaderNavPanelProps {
     finalAvatar: string | null;
     finalName: string;
+    level: number;
     unreadCount: number;
     onMessagesClick: () => void;
     onSettingsClick: () => void;
@@ -29,6 +30,7 @@ interface HeaderNavPanelProps {
 export const HeaderNavPanel = ({
     finalAvatar,
     finalName,
+    level,
     unreadCount,
     onMessagesClick,
     onSettingsClick
@@ -49,7 +51,7 @@ export const HeaderNavPanel = ({
                 </div>
                 <div className="user-info-mini">
                     <span className="user-name-mini">{finalName}</span>
-                    <span className="user-level-mini">Lv.8</span>
+                    <span className="user-level-mini">Lv.{level}</span>
                 </div>
             </div>
             <div className="header-right">

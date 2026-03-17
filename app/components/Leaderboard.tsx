@@ -19,9 +19,10 @@ interface LeaderboardEntry {
     lastWin: number;
     isCurrentUser?: boolean;
 
-    // Advanced Ranking Fields
-    tier: 'Legendary' | 'Platinum' | 'Gold' | 'Silver' | 'Rookie';
-    stage: 'I' | 'II' | 'III';
+    // Advanced Ranking Fields (Updated)
+    tierName: string;
+    subRank: string;
+    level: number;
 }
 
 interface LeaderboardProps {
@@ -49,8 +50,9 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
         wins: player.total_wins,
         lastWin: new Date(player.last_played_at).getTime(),
         isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
-        tier: player.tier,
-        stage: player.stage
+        tierName: player.tierName,
+        subRank: player.subRank,
+        level: player.level
     }));
 
     const paginatedLeaders = leaders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -71,13 +73,15 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
         return <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center">{rank}</div>;
     };
 
-    const getTierConfig = (tier: LeaderboardEntry['tier']) => {
-        switch (tier) {
-            case 'Legendary': return { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', shadow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', dot: 'bg-red-400' };
-            case 'Platinum': return { color: 'text-cyan-400', bg: 'bg-purple-600yan-500/10', border: 'border-cyan-500/20', shadow: '', dot: 'bg-purple-600yan-400' };
+    const getTierConfig = (tierName: string) => {
+        switch (tierName) {
+            case 'Arena Master': return { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', shadow: 'shadow-[0_0_15px_rgba(251,146,60,0.3)]', dot: 'bg-orange-400' };
+            case 'Diamond': return { color: 'text-cyan-300', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', shadow: 'shadow-[0_0_15px_rgba(103,232,249,0.3)]', dot: 'bg-cyan-300' };
+            case 'Platinum': return { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', shadow: '', dot: 'bg-blue-400' };
             case 'Gold': return { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', shadow: '', dot: 'bg-yellow-400' };
             case 'Silver': return { color: 'text-slate-300', bg: 'bg-slate-500/10', border: 'border-slate-500/20', shadow: '', dot: 'bg-slate-300' };
-            case 'Rookie': return { color: 'text-amber-700', bg: 'bg-purple-600mber-900/20', border: 'border-amber-900/30', shadow: '', dot: 'bg-purple-600mber-700' };
+            case 'Bronze': return { color: 'text-amber-600', bg: 'bg-amber-900/20', border: 'border-amber-900/30', shadow: '', dot: 'bg-amber-600' };
+            default: return { color: 'text-white/40', bg: 'bg-white/5', border: 'border-white/10', shadow: '', dot: 'bg-white/20' };
         }
     }
 
@@ -216,7 +220,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                 <div className="space-y-3 px-panel-gutter pb-4">
                                     <AnimatePresence mode="popLayout">
                                         {paginatedLeaders.map((entry, idx) => {
-                                            const tierStyles = getTierConfig(entry.tier);
+                                            const tierStyles = getTierConfig(entry.tierName);
                                             const isMe = entry.isCurrentUser;
                                             const rank = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
 
@@ -276,8 +280,9 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <div className={`w-2 h-2 rounded-full ${tierStyles?.dot} ${tierStyles?.shadow}`} />
                                                                 <span className={`text-[11px] font-bold tracking-widest uppercase ${tierStyles?.color}`}>
-                                                                    {entry.tier} {entry.stage}
+                                                                    {entry.tierName} {entry.subRank}
                                                                 </span>
+                                                                <span className="text-[9px] text-white/30 font-bold ml-1">Lv.{entry.level}</span>
                                                             </div>
                                                         ) : null}
                                                     </button>

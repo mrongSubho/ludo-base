@@ -15,11 +15,15 @@ export interface UserProfile {
     total_wins: number;
     last_played_at: string;
     status?: string;
+    xp?: number;
+    rating?: number;
 }
 
 export interface LeaderboardEntry extends UserProfile {
-    tier: 'Legendary' | 'Platinum' | 'Gold' | 'Silver' | 'Rookie';
-    stage: 'I' | 'II' | 'III';
+    // New Tier structure
+    tierName: string;
+    subRank: string;
+    level: number;
 }
 
 export interface Friend {
@@ -78,13 +82,7 @@ interface GameDataContextType {
 const GameDataContext = createContext<GameDataContextType | undefined>(undefined);
 
 // --- HELPER CONVERSIONS ---
-const getTierFromWins = (wins: number) => {
-    if (wins >= 100) return { tier: 'Legendary' as const, stage: wins >= 150 ? 'III' as const : (wins >= 125 ? 'II' as const : 'I' as const) };
-    if (wins >= 50) return { tier: 'Platinum' as const, stage: wins >= 80 ? 'III' as const : (wins >= 65 ? 'II' as const : 'I' as const) };
-    if (wins >= 20) return { tier: 'Gold' as const, stage: wins >= 40 ? 'III' as const : (wins >= 30 ? 'II' as const : 'I' as const) };
-    if (wins >= 5) return { tier: 'Silver' as const, stage: wins >= 15 ? 'III' as const : (wins >= 10 ? 'II' as const : 'I' as const) };
-    return { tier: 'Rookie' as const, stage: wins >= 3 ? 'III' as const : (wins >= 1 ? 'II' as const : 'I' as const) };
-};
+import { getProgression } from '@/lib/progression';
 
 export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const { address } = useAccount();
@@ -185,10 +183,15 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
                 // Process Leaderboard
                 if (leaderboardRes.data) {
-                    const formattedLeaders = leaderboardRes.data.map(p => ({
-                        ...p,
-                        ...getTierFromWins(p.total_wins)
-                    }));
+                    const formattedLeaders = leaderboardRes.data.map(p => {
+                        const prog = getProgression(p.xp || 0, p.rating || 0);
+                        return {
+                            ...p,
+                            tierName: prog.tier,
+                            subRank: prog.subRank,
+                            level: prog.level
+                        };
+                    });
                     setLeaderboard(formattedLeaders);
                     localStorage.setItem(`cache_leaderboard`, JSON.stringify(formattedLeaders));
 
@@ -335,7 +338,13 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                         const idx = prev.findIndex(p => p.wallet_address === addr);
                         if (idx !== -1) {
                             const newArr = [...prev];
-                            newArr[idx] = { ...updatedPlayer, ...getTierFromWins(updatedPlayer.total_wins) };
+                            const prog = getProgression(updatedPlayer.xp || 0, updatedPlayer.rating || 0);
+                            newArr[idx] = { 
+                                ...updatedPlayer, 
+                                tierName: prog.tier,
+                                subRank: prog.subRank,
+                                level: prog.level
+                            };
                             
                             // Re-sort in case wins changed
                             newArr.sort((a, b) => b.total_wins - a.total_wins);

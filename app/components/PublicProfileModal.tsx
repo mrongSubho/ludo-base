@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { getProgression } from '@/lib/progression';
 
 interface PublicProfileModalProps {
     isOpen: boolean;
@@ -116,6 +117,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     }, [isOpen, userAddress, currentUserAddress]);
 
     // Derived Display Values
+    const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
+
     const displayName = profile?.username && !profile.username.startsWith('0x')
         ? profile.username
         : `User ${userAddress?.substring(0, 6).toUpperCase()}`;
@@ -310,11 +313,19 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         {displayName}
                                     </h3>
 
-                                    <div className="h-8 mb-5 flex items-center justify-center">
+                                    <div className="h-8 mb-5 flex flex-col items-center justify-center">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest px-2 py-0.5 bg-purple-400/10 rounded-full border border-purple-400/20">
+                                                {progression.tier} {progression.subRank}
+                                            </span>
+                                            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
+                                                Lv. {progression.level}
+                                            </span>
+                                        </div>
                                         {!isFriendValidationLoading && isFriend && (
-                                            <div className="bg-black/40 px-3 py-1 rounded-full border border-white/5 flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                                                <span className="text-xs text-white/50 font-mono">
+                                            <div className="bg-black/40 px-3 py-0.5 rounded-full border border-white/5 flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400/50" />
+                                                <span className="text-[9px] text-white/40 font-mono">
                                                     {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
                                                 </span>
                                             </div>
