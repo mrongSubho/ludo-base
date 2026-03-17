@@ -25,6 +25,9 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        if (data?.status === 'matched') {
+            console.log(`🎉 [Matchmaking] Match found for ticket ${ticketId}! Match ID: ${data.match_id}`);
+        }
         return NextResponse.json(data);
     } catch (err: any) {
         console.error('❌ [Matchmaking] Unexpected error:', err);

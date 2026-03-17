@@ -28,6 +28,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        console.log('✅ [Matchmaking] RPC Result:', data);
         return NextResponse.json(data);
     } catch (err: any) {
         console.error('❌ [Matchmaking] Unexpected error:', err);

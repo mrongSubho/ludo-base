@@ -77,8 +77,10 @@ export const QuickMatchPanel = ({
         }, 1000);
     }, [joinGame, hostGame, onStartGame, isHybrid, onCancel, matchType, gameMode, wager]);
 
+    const effectivePlayerId = React.useMemo(() => address || guestId, [address, guestId]);
+
     const { status, searchTime, startSearch, startHybridSearch, cancelSearch } = useMatchmaking({
-        playerId: address || guestId,
+        playerId: effectivePlayerId,
         gameMode,
         matchType,
         wager,

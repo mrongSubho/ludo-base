@@ -69,6 +69,7 @@ export function useMatchmaking({
             await cancelSearch();
         }
         
+        console.log(`📡 [Matchmaking] Starting NEW search. Criteria: ${criteria}`);
         lastSearchRef.current = criteria;
         setStatus('searching');
         setSearchTime(0);
