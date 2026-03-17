@@ -10,6 +10,7 @@ export function useCurrentUser() {
         displayName: string;
         xp?: number;
         rating?: number;
+        coins?: number;
     } | null>(null);
 
     useEffect(() => {
@@ -17,7 +18,7 @@ export function useCurrentUser() {
             if (isConnected && address) {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('username, avatar_url, xp, rating')
+                    .select('username, avatar_url, xp, rating, coins')
                     .or(`wallet_address.ilike.${address},wallet_address.eq.${address.toLowerCase()},wallet_address.eq.${address}`)
                     .limit(1);
 
@@ -55,6 +56,7 @@ export function useCurrentUser() {
                             avatar_url: payload.new.avatar_url,
                             xp: payload.new.xp,
                             rating: payload.new.rating,
+                            coins: payload.new.coins,
                             displayName: (payload.new.username && !payload.new.username.startsWith('0x')) ? payload.new.username : "Guest " + address.slice(-6).toUpperCase()
                         });
                     }

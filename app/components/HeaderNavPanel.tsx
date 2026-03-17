@@ -22,6 +22,7 @@ interface HeaderNavPanelProps {
     finalAvatar: string | null;
     finalName: string;
     level: number;
+    coins: number;
     unreadCount: number;
     onMessagesClick: () => void;
     onSettingsClick: () => void;
@@ -31,6 +32,7 @@ export const HeaderNavPanel = ({
     finalAvatar,
     finalName,
     level,
+    coins,
     unreadCount,
     onMessagesClick,
     onSettingsClick
@@ -40,7 +42,7 @@ export const HeaderNavPanel = ({
             <div className="header-left">
                 <div className="token-pill shimmer-effect">
                     <TokenIcon />
-                    <span>1,250</span>
+                    <span>{coins.toLocaleString()}</span>
                 </div>
             </div>
             <div className="header-center">

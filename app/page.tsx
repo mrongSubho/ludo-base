@@ -245,16 +245,15 @@ export default function Page() {
 
 
               {/* Header */}
-              <HeaderNavPanel
-                finalAvatar={finalAvatar}
-                finalName={finalName || 'Player'}
-                level={level}
-                unreadCount={totalUnreadCount}
-                onMessagesClick={() => {
-                  toggle('messages');
-                }}
-                onSettingsClick={() => toggle('settings')}
-              />
+                <HeaderNavPanel
+                    finalAvatar={profile?.avatar_url || null}
+                    finalName={finalName}
+                    level={calculateLevel(profile?.xp || 0).level}
+                    coins={profile?.coins || 0}
+                    unreadCount={totalUnreadCount}
+                    onMessagesClick={() => toggle('messages')}
+                    onSettingsClick={() => toggle('settings')}
+                />
 
               <main className="dash-main pb-safe-footer px-safe">
 

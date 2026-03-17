@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { supabase } from '@/lib/supabase';
 
 type MissionTab = 'daily' | 'weekly';
 
@@ -11,7 +13,8 @@ interface Mission {
     title: string;
     description: string;
     target: number;
-    current: number;
+    progress?: number;
+    is_claimed?: boolean;
     rewardType: 'coins' | 'gems';
     rewardAmount: number;
 }
@@ -22,26 +25,75 @@ interface MissionPanelProps {
 }
 
 export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
+    const { address } = useCurrentUser();
     const [activeTab, setActiveTab] = useState<MissionTab>('daily');
+    const [missions, setMissions] = useState<Mission[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [claimingId, setClaimingId] = useState<string | null>(null);
 
-    // MOCK DATA: Interactive Missions
-    const getMissions = (tab: MissionTab): Mission[] => {
-        if (tab === 'daily') {
-            return [
-                { id: 'd1', type: 'play', title: 'Warm Up', description: 'Play 3 classic matches.', target: 3, current: 3, rewardType: 'coins', rewardAmount: 500 },
-                { id: 'd2', type: 'win', title: 'Champion', description: 'Win 2 matches in any mode.', target: 2, current: 1, rewardType: 'gems', rewardAmount: 5 },
-                { id: 'd3', type: 'social', title: 'Friendly Fire', description: 'Send a match invite to a friend.', target: 1, current: 0, rewardType: 'coins', rewardAmount: 200 }
-            ];
-        } else {
-            return [
-                { id: 'w1', type: 'streak', title: 'Unstoppable', description: 'Achieve a 5-win streak.', target: 5, current: 2, rewardType: 'gems', rewardAmount: 50 },
-                { id: 'w2', type: 'play', title: 'Marathon', description: 'Play 50 total matches.', target: 50, current: 28, rewardType: 'coins', rewardAmount: 5000 },
-                { id: 'w3', type: 'win', title: 'Dominator', description: 'Eliminate 100 opponent tokens.', target: 100, current: 100, rewardType: 'gems', rewardAmount: 20 }
-            ];
+    const fetchMissions = async () => {
+        if (!address) return;
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/missions/list?wallet=${address}`);
+            if (response.ok) {
+                const data = await response.json();
+                setMissions(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch missions:', err);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const missions = getMissions(activeTab);
+    useEffect(() => {
+        if (isOpen && address) {
+            fetchMissions();
+        }
+    }, [isOpen, address]);
+
+    // Listener for real-time updates from GameDataContext
+    useEffect(() => {
+        const handleUpdate = () => {
+            if (isOpen) fetchMissions();
+        };
+        window.addEventListener('mission-update', handleUpdate);
+        return () => window.removeEventListener('mission-update', handleUpdate);
+    }, [isOpen]);
+
+    const handleClaim = async (missionId: string) => {
+        if (!address || claimingId) return;
+        setClaimingId(missionId);
+        try {
+            const response = await fetch('/api/missions/claim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: address, missionId })
+            });
+            if (response.ok) {
+                // Refetch to update status
+                await fetchMissions();
+            } else {
+                const err = await response.json();
+                alert(err.error || 'Failed to claim');
+            }
+        } catch (err) {
+            console.error('Claim error:', err);
+        } finally {
+            setClaimingId(null);
+        }
+    };
+
+    const handleGo = (missionId: string) => {
+        onClose();
+        // Dynamic navigation based on mission
+        if (missionId.includes('play') || missionId.includes('win')) {
+            // Stay on dashboard/lobby
+        } else if (missionId.includes('social') || missionId.includes('poke')) {
+            // Open friends or social panel if possible
+        }
+    };
 
     // Helpers for rendering aesthetic badges
     const getTypeBadge = (type: Mission['type']) => {
@@ -131,7 +183,11 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
 
                         {/* Missions Content */}
                         <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-4 custom-scrollbar relative">
-                            {missions.length === 0 ? (
+                            {isLoading && missions.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                                </div>
+                            ) : missions.filter(m => activeTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily')).length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
                                     <span className="text-6xl mb-4">✨</span>
                                     <h3 className="text-xl font-bold text-white mb-2">All Caught Up!</h3>
@@ -140,9 +196,10 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                             ) : (
                                 <div className="space-y-4 pb-safe-footer">
                                     <AnimatePresence mode="popLayout">
-                                        {missions.map((mission) => {
-                                            const isCompleted = mission.current >= mission.target;
-                                            const progressPercent = Math.min((mission.current / mission.target) * 100, 100);
+                                        {missions.filter(m => activeTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily')).map((mission) => {
+                                            const isCompleted = (mission.progress || 0) >= mission.target;
+                                            const isClaimed = (mission as any).is_claimed;
+                                            const progressPercent = Math.min(((mission.progress || 0) / mission.target) * 100, 100);
                                             const badge = getTypeBadge(mission.type);
 
                                             return (
@@ -202,28 +259,36 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                                             <div className="flex items-end justify-between mb-1.5 px-0.5">
                                                                 <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
                                                                 <span className={`text-xs font-black ${isCompleted ? 'text-green-400' : 'text-white'}`}>
-                                                                    {mission.current} <span className="text-white/30 text-[10px]">/ {mission.target}</span>
+                                                                    {mission.progress || 0} <span className="text-white/30 text-[10px]">/ {mission.target}</span>
                                                                 </span>
                                                             </div>
                                                             {/* Custom CSS Progress Bar */}
                                                             <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-purple-600'}`}
+                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-purple-600'}`}
                                                                     style={{ width: `${progressPercent}%` }}
                                                                 />
                                                             </div>
                                                         </div>
-
+                                                        
                                                         {/* Action Button */}
                                                         <button
+                                                            onClick={isClaimed ? undefined : isCompleted ? () => handleClaim(mission.id) : () => handleGo(mission.id)}
+                                                            disabled={claimingId === mission.id || isClaimed}
                                                             className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
-                                                                ${isCompleted
-                                                                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.2)]'
+                                                                ${isClaimed
+                                                                    ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
+                                                                    : isCompleted
+                                                                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
                                                                     : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
                                                                 }
                                                             `}
                                                         >
-                                                            {isCompleted ? (
+                                                            {claimingId === mission.id ? (
+                                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            ) : isClaimed ? (
+                                                                'Claimed'
+                                                            ) : isCompleted ? (
                                                                 <>
                                                                     Claim <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                                                 </>

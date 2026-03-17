@@ -17,6 +17,7 @@ export interface UserProfile {
     status?: string;
     xp?: number;
     rating?: number;
+    coins?: number;
 }
 
 export interface LeaderboardEntry extends UserProfile {
@@ -333,7 +334,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                         localStorage.setItem(`cache_profile_${lowerAddr}`, JSON.stringify(updatedPlayer));
                     }
 
-                    // Update Leaderboard entry if they are in the Top 50
+                    // Update Leaderboard entry
                     setLeaderboard(prev => {
                         const idx = prev.findIndex(p => p.wallet_address === addr);
                         if (idx !== -1) {
@@ -346,7 +347,6 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                                 level: prog.level
                             };
                             
-                            // Re-sort in case wins changed
                             newArr.sort((a, b) => b.total_wins - a.total_wins);
                             localStorage.setItem(`cache_leaderboard`, JSON.stringify(newArr));
                             return newArr;
@@ -357,10 +357,25 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
             )
             .subscribe();
 
+        // 4. Missions Realtime (Optional but helpful)
+        const missionsChannel = supabase
+            .channel(`gamedata-missions-${lowerAddr}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'player_missions', filter: `player_id=eq.${lowerAddr}` },
+                (payload) => {
+                    // We can emit an event or just let the MissionPanel refetch if needed.
+                    // For now, simple revalidation is often enough, but Realtime is cooler.
+                    window.dispatchEvent(new CustomEvent('mission-update'));
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(msgChannel);
             supabase.removeChannel(convoChannel);
             supabase.removeChannel(playersChannel);
+            supabase.removeChannel(missionsChannel);
         };
     }, [address, isBootComplete]);
 
