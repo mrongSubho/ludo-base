@@ -169,7 +169,7 @@ export const FooterNavPanel = ({
                     />
                 )}
                 {activeTab === 'mission' && (
-                    <MissionPanel key="mission" isOpen={true} onClose={onCloseTab} />
+                    <MissionPanel key="mission" isOpen={true} onClose={onCloseTab} onSwitchTab={onToggleTab} />
                 )}
                 {activeTab === 'marketplace' && (
                     <MarketplacePanel key="marketplace" isOpen={true} onClose={onCloseTab} />

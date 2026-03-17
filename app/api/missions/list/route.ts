@@ -5,7 +5,7 @@ const DAILY_MISSIONS = [
     { id: 'daily_bonus', type: 'social', title: 'Daily Bonus', description: 'Claim your daily 100 coins!', target: 1, rewardType: 'coins', rewardAmount: 100 },
     { id: 'daily_play_3', type: 'play', title: 'Warm Up', description: 'Play 3 matches today.', target: 3, rewardType: 'coins', rewardAmount: 100 },
     { id: 'daily_win_1', type: 'win', title: 'Champion', description: 'Win at least one match today.', target: 1, rewardType: 'coins', rewardAmount: 100 },
-    { id: 'daily_poke_back', type: 'social', title: 'Poke Back!', description: 'Poke back a friend who poked you.', target: 1, rewardType: 'coins', rewardAmount: 100 },
+    { id: 'daily_poke_back', type: 'social', title: 'Poke Back!', description: 'Poke back friends who poked you (Max 20/day).', target: 20, rewardType: 'coins', rewardAmount: 100 },
     { id: 'daily_capture_2', type: 'play', title: 'Token Hunter', description: 'Capture 2 opponent tokens in any match.', target: 2, rewardType: 'coins', rewardAmount: 50 }
 ];
 
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
         // 3. Process and Reset Missions if needed
         const processedMissions = [];
-        const updateBatch = [];
+        const updateBatch: any[] = [];
 
         for (const def of DAILY_MISSIONS) {
             const userMission = userMissions?.find(m => m.mission_id === def.id);
@@ -46,7 +46,12 @@ export async function GET(request: Request) {
                     is_claimed: false,
                     last_updated: new Date().toISOString()
                 };
-                processedMissions.push({ ...def, ...newMission });
+                processedMissions.push({ 
+                    ...def, 
+                    ...newMission,
+                    id: def.id,
+                    db_id: null 
+                });
                 await supabase.from('player_missions').insert(newMission);
             } else {
                 const lastUpdated = new Date(userMission.last_updated);
@@ -59,14 +64,24 @@ export async function GET(request: Request) {
                         is_claimed: false,
                         last_updated: new Date().toISOString()
                     };
-                    processedMissions.push({ ...def, ...resetMission });
+                    processedMissions.push({ 
+                        ...def, 
+                        ...resetMission,
+                        id: def.id, 
+                        db_id: userMission.id 
+                    });
                     updateBatch.push(supabase.from('player_missions').update({
                         progress: 0,
                         is_claimed: false,
                         last_updated: new Date().toISOString()
                     }).eq('id', userMission.id));
                 } else {
-                    processedMissions.push({ ...def, ...userMission });
+                    processedMissions.push({ 
+                        ...def, 
+                        ...userMission,
+                        id: def.id, 
+                        db_id: userMission.id
+                    });
                 }
             }
         }

@@ -22,9 +22,10 @@ interface Mission {
 interface MissionPanelProps {
     isOpen: boolean;
     onClose: () => void;
+    onSwitchTab?: (tab: any) => void;
 }
 
-export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
+export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPanelProps) {
     const { address } = useCurrentUser();
     const [activeTab, setActiveTab] = useState<MissionTab>('daily');
     const [missions, setMissions] = useState<Mission[]>([]);
@@ -88,11 +89,10 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
     const handleGo = (missionId: string) => {
         onClose();
         // Dynamic navigation based on mission
-        if (missionId.includes('play') || missionId.includes('win')) {
-            // Stay on dashboard/lobby
-        } else if (missionId.includes('social') || missionId.includes('poke')) {
-            // Open friends or social panel if possible
+        if (missionId.includes('social') || missionId.includes('poke')) {
+            if (onSwitchTab) onSwitchTab('friends');
         }
+        // For 'play' or 'win', closing stays on dashboard which is correct
     };
 
     // Helpers for rendering aesthetic badges
@@ -270,8 +270,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                                                 />
                                                             </div>
                                                         </div>
-                                                        
-                                                        {/* Action Button */}
+                                                                                                               {/* Action Button */}
                                                         <button
                                                             onClick={isClaimed ? undefined : isCompleted ? () => handleClaim(mission.id) : () => handleGo(mission.id)}
                                                             disabled={claimingId === mission.id || isClaimed}
@@ -279,7 +278,7 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                                                 ${isClaimed
                                                                     ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
                                                                     : isCompleted
-                                                                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                                                                    ? 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
                                                                     : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
                                                                 }
                                                             `}
@@ -289,10 +288,10 @@ export default function MissionPanel({ isOpen, onClose }: MissionPanelProps) {
                                                             ) : isClaimed ? (
                                                                 'Claimed'
                                                             ) : isCompleted ? (
-                                                                <>
-                                                                    Claim <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                                </>
-                                                            ) : 'Go'}
+                                                                <span className="flex items-center gap-1">
+                                                                    CLAIM <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                                </span>
+                                                            ) : 'GO'}
                                                         </button>
                                                     </div>
                                                 </motion.div>
