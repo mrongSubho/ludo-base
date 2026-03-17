@@ -70,7 +70,22 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
     const [onchainFriends, setOnchainFriends] = useState<Friend[]>([]);
     const [pendingIncoming, setPendingIncoming] = useState<Request[]>([]);
     const [pendingOutgoing, setPendingOutgoing] = useState<Request[]>([]);
+    const [incomingPokes, setIncomingPokes] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [pokingId, setPokingId] = useState<string | null>(null);
+
+    const fetchPokes = React.useCallback(async () => {
+        if (!connectedAddress) return;
+        try {
+            const res = await fetch(`/api/social/poke?wallet=${connectedAddress}`);
+            if (res.ok) {
+                const data = await res.json();
+                setIncomingPokes(data);
+            }
+        } catch (err) {
+            console.error('Fetch pokes error:', err);
+        }
+    }, [connectedAddress]);
 
     const fetchFriends = React.useCallback(async () => {
         if (!connectedAddress) return;
@@ -180,16 +195,18 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     }
                 });
 
-                setPendingIncoming(incoming);
-                setPendingOutgoing(outgoing);
-            }
-
-        } catch (err) {
-            console.error('Error fetching friends:', err);
-        } finally {
-            setIsLoading(false);
+            setPendingIncoming(incoming);
+            setPendingOutgoing(outgoing);
         }
-    }, [connectedAddress, userFid]);
+
+        await fetchPokes();
+
+    } catch (err) {
+        console.error('Error fetching friends:', err);
+    } finally {
+        setIsLoading(false);
+    }
+}, [connectedAddress, userFid, fetchPokes]);
 
     useEffect(() => {
         fetchFriends();
@@ -213,10 +230,23 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
             )
             .subscribe();
 
+        // 5. Real-time Poke Updates
+        const pokeChannel = supabase
+            .channel('pokes-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${connectedAddress.toLowerCase()}` },
+                () => {
+                    fetchPokes();
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(channel);
+            supabase.removeChannel(pokeChannel);
         };
-    }, [connectedAddress, userFid, fetchFriends]);
+    }, [connectedAddress, userFid, fetchFriends, fetchPokes]);
 
     const handleAcceptRequest = async (id: string) => {
         try {
@@ -239,48 +269,101 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
         } catch (err) { console.error(err); }
     };
 
+    const handlePoke = async (friendAddress: string) => {
+        if (!connectedAddress || pokingId) return;
+        setPokingId(friendAddress);
+        try {
+            const response = await fetch('/api/social/poke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sender: connectedAddress.toLowerCase(), receiver: friendAddress })
+            });
+            if (response.ok) {
+                await fetchPokes();
+                // Trigger mission update event if it was a poke-back
+                window.dispatchEvent(new CustomEvent('mission-update'));
+            } else {
+                const err = await response.json();
+                alert(err.error || 'Failed to poke');
+            }
+        } catch (err) {
+            console.error('Poke error:', err);
+        } finally {
+            setPokingId(null);
+        }
+    };
+
     // Renders the list items for Game/Base Friends
     const renderFriendList = (friends: Friend[]) => {
         if (friends.length === 0) {
             return <div className="text-center text-white/50 py-8 text-sm">No friends here yet.</div>;
         }
 
-        return friends.map((friend) => (
-            <div key={friend.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => onOpenProfile?.(friend.wallet_address)}
-                        className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:scale-105 transition-transform"
-                    >
-                        <img
-                            src={friend.avatar_url || '/default-avatar.png'}
-                            alt={friend.displayName}
-                            className="w-full h-full object-cover"
-                        />
-                        <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
-              ${friend.status === 'Online' ? 'bg-green-500' : friend.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
-                        />
-                    </button>
-                    <button
-                        onClick={() => onOpenProfile?.(friend.wallet_address)}
-                        className="flex flex-col text-left focus:outline-none hover:opacity-80 transition-opacity"
-                    >
-                        <span className="text-white font-medium text-[15px]">{friend.displayName}</span>
-                        <span className={`text-[12px] font-medium 
-              ${friend.status === 'Online' ? 'text-green-400' : friend.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
-                            {friend.status}
-                        </span>
-                    </button>
-                </div>
+        return friends.map((friend) => {
+            const hasIncomingPoke = incomingPokes.some(p => p.sender_id.toLowerCase() === friend.wallet_address.toLowerCase());
+            const isPoking = pokingId === friend.wallet_address;
 
-                <button
-                    onClick={() => onDM?.(friend.wallet_address)}
-                    className="w-10 h-10 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
-                >
-                    <DMIcon />
-                </button>
-            </div>
-        ));
+            return (
+                <div key={friend.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => onOpenProfile?.(friend.wallet_address)}
+                            className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:scale-105 transition-transform"
+                        >
+                            <img
+                                src={friend.avatar_url || '/default-avatar.png'}
+                                alt={friend.displayName}
+                                className="w-full h-full object-cover"
+                            />
+                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
+                  ${friend.status === 'Online' ? 'bg-green-500' : friend.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
+                            />
+                        </button>
+                        <button
+                            onClick={() => onOpenProfile?.(friend.wallet_address)}
+                            className="flex flex-col text-left focus:outline-none hover:opacity-80 transition-opacity"
+                        >
+                            <span className="text-white font-medium text-[15px]">{friend.displayName}</span>
+                            <span className={`text-[12px] font-medium 
+                  ${friend.status === 'Online' ? 'text-green-400' : friend.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
+                                {friend.status}
+                            </span>
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {/* Poke Button */}
+                        <button
+                            onClick={() => handlePoke(friend.wallet_address)}
+                            disabled={isPoking}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5
+                                ${hasIncomingPoke 
+                                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 animate-pulse' 
+                                    : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white border border-white/5'
+                                }
+                                ${isPoking ? 'opacity-50 cursor-not-allowed' : ''}
+                            `}
+                        >
+                            {isPoking ? (
+                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : hasIncomingPoke ? (
+                                <>Poke Back 👋</>
+                            ) : (
+                                <>Poke 👋</>
+                            )}
+                        </button>
+
+                        {/* DM Button */}
+                        <button
+                            onClick={() => onDM?.(friend.wallet_address)}
+                            className="w-10 h-10 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
+                        >
+                            <DMIcon />
+                        </button>
+                    </div>
+                </div>
+            );
+        });
     };
 
     // Renders the list items for Requests (Incoming / Sent)
