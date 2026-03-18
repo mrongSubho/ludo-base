@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
+import { useSoundEffects } from '../hooks/useSoundEffects';
 
 interface ActionDiceProps {
     onSelectQuickMatch: () => void;
@@ -27,6 +28,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     onSelectTeamUp,
     onSelectOfflineMatch
 }) => {
+    const { playDiceRoll, playDiceLand, playClick } = useSoundEffects();
     const controls = useAnimation();
     const shadowControls = useAnimation();
     
@@ -60,6 +62,8 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 
     const performRoll = (dragDirX: number, dragDirY: number) => {
         if (isRolling) return; // Prevent double rolls
+        
+        playDiceRoll();
         
         // Haptic Feedback: Initial swipe/thwack
         if (typeof window !== 'undefined' && navigator.vibrate) {
@@ -125,6 +129,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 
         // Landing impact after 1.0s matches shadow sequence
         setTimeout(() => {
+            playDiceLand();
             if (typeof window !== 'undefined' && navigator.vibrate) {
                 navigator.vibrate([30, 50, 30]); // Thud-thud-thud
             }
@@ -159,6 +164,8 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const handleFaceClick = (index: number) => {
         if (isRolling) return;
         if (index !== activeIndex && index !== -1) return;
+        
+        playClick();
         
         const activeFaceId = faces[activeIndex].id;
         

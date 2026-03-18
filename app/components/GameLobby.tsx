@@ -7,6 +7,7 @@ import { QuickMatchPanel } from './QuickMatchPanel';
 import { OfflineMatchPanel } from './OfflineMatchPanel';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { ActionDice } from './ActionDice';
+import { useSoundEffects } from '../hooks/useSoundEffects';
 
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
@@ -43,6 +44,7 @@ export default function GameLobby({
     } = useTeamUpContext();
 
     // Configuration State
+    const { playSelect, playCoin } = useSoundEffects();
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
@@ -76,7 +78,10 @@ export default function GameLobby({
                                     {(['classic', 'power'] as const).map(mode => (
                                         <button
                                             key={mode}
-                                            onClick={() => setGameMode(mode)}
+                                            onClick={() => {
+                                                playSelect();
+                                                setGameMode(mode);
+                                            }}
                                             className={`relative px-8 py-4 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center min-w-[150px] ${gameMode === mode
                                                 ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-cyan-900/10'
                                                 : 'border-white/20 hover:border-white/40 bg-white/5'
@@ -104,7 +109,10 @@ export default function GameLobby({
                                     {(['1v1', '2v2', '4P'] as const).map(type => (
                                         <button
                                             key={type}
-                                            onClick={() => setMatchType(type)}
+                                            onClick={() => {
+                                                playSelect();
+                                                setMatchType(type);
+                                            }}
                                             className={`w-14 h-14 rounded-full border transition-all duration-300 glass-panel flex items-center justify-center ${matchType === type
                                                 ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-cyan-900/10'
                                                 : 'border-white/10 hover:border-white/30 bg-white/5'
@@ -123,19 +131,19 @@ export default function GameLobby({
                                 <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                             </div>
                             <div className="flex items-center justify-between w-full px-2 mb-4">
-                                <button onClick={() => setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100)))} className="w-12 h-12 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 shadow-lg backdrop-blur-md">
+                                <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-12 h-12 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 shadow-lg backdrop-blur-md">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                 </button>
                                 <div className="flex-1 flex flex-col items-center justify-center relative">
                                     <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                                 </div>
-                                <button onClick={() => setWager(wager + (wager >= 1000 ? 1000 : 100))} className="w-12 h-12 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 shadow-lg backdrop-blur-md">
+                                <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} className="w-12 h-12 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 shadow-lg backdrop-blur-md">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                 </button>
                             </div>
                             <div className="flex gap-2 justify-center flex-wrap">
                                 {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                    <button key={val} onClick={() => setWager(val)} className={`px-4 py-2 rounded-full border transition-all active:scale-95 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val ? 'border-cyan-400 bg-cyan-900/10 text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.2)]' : 'bg-white/5 hover:bg-white/15 border-white/10 text-white/90'}`}>
+                                    <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-4 py-2 rounded-full border transition-all active:scale-95 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val ? 'border-cyan-400 bg-cyan-900/10 text-cyan-400 shadow-[0_0_10px_rgba(0,255,255,0.2)]' : 'bg-white/5 hover:bg-white/15 border-white/10 text-white/90'}`}>
                                         {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                     </button>
                                 ))}
