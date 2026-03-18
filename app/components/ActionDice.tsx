@@ -10,10 +10,10 @@ interface ActionDiceProps {
 }
 
 const FACES = [
-    { id: 'quick', label: 'QUICK MATCH', color: 'text-cyan-600', dotColor: 'bg-cyan-400', pips: 1 },
-    { id: 'team', label: 'TEAM UP', color: 'text-purple-600', dotColor: 'bg-purple-400', pips: 2 },
-    { id: 'offline', label: 'OFFLINE MATCH', color: 'text-emerald-600', dotColor: 'bg-emerald-400', pips: 3 },
-    { id: 'team2', label: 'TEAM UP', color: 'text-purple-600', dotColor: 'bg-purple-400', pips: 4 },
+    { id: 'quick', label: 'QUICK MATCH', color: 'text-cyan-400', dotColor: 'bg-cyan-400', pips: 1 },
+    { id: 'team', label: 'TEAM UP', color: 'text-purple-400', dotColor: 'bg-purple-400', pips: 2 },
+    { id: 'offline', label: 'OFFLINE MATCH', color: 'text-emerald-400', dotColor: 'bg-emerald-400', pips: 3 },
+    { id: 'team2', label: 'TEAM UP', color: 'text-purple-400', dotColor: 'bg-purple-400', pips: 4 },
 ];
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
@@ -29,33 +29,38 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const baseRotateX = -15;
     const baseRotateY = -15;
 
-    const handlePanEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        const threshold = 20;
-        let newIndex = currentIndex;
+    const performRotation = (direction: -1 | 1) => {
+        const newIndex = currentIndex + direction;
+        setCurrentIndex(newIndex);
+        
+        // Animate Dice
+        controls.start({
+            rotateY: (newIndex * -90) + baseRotateY,
+            transition: { type: 'spring', stiffness: 150, damping: 20 }
+        });
+        
+        // Animate Shadow (shrink and grow back to simulate tumbling)
+        shadowControls.start({
+            scale: [1, 0.4, 1],
+            opacity: [0.6, 0.2, 0.6],
+            transition: { duration: 0.5, ease: "easeInOut" }
+        });
+    };
+
+    const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+        const threshold = 30; // pixels
         
         if (info.offset.x < -threshold) {
-            // swiped left -> rotate right
-            newIndex = currentIndex + 1;
+            // dragged left -> rotate right
+            performRotation(1);
         } else if (info.offset.x > threshold) {
-            // swiped right -> rotate left
-            newIndex = currentIndex - 1;
-        }
-
-        if (newIndex !== currentIndex) {
-            setCurrentIndex(newIndex);
-            
-            // Animate Dice
-            // We maintain the initial -15deg Y offset while rotating by 90deg increments
+            // dragged right -> rotate left
+            performRotation(-1);
+        } else {
+            // snap back to current
             controls.start({
-                rotateY: (newIndex * -90) + baseRotateY,
-                transition: { type: 'spring', stiffness: 150, damping: 20 }
-            });
-            
-            // Animate Shadow (shrink and grow back to simulate tumbling)
-            shadowControls.start({
-                scale: [1, 0.4, 1],
-                opacity: [0.6, 0.2, 0.6],
-                transition: { duration: 0.5, ease: "easeInOut" }
+                rotateY: (currentIndex * -90) + baseRotateY,
+                transition: { type: 'spring', stiffness: 300, damping: 25 }
             });
         }
     };
@@ -85,11 +90,12 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to Roll</span>
             </div>
 
-            {/* Left Chevron */}
+            {/* Left Chevron (Clickable) */}
             <motion.div
                 animate={{ x: [-5, 5, -5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute left-6 md:left-24 text-white/50 pointer-events-none z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
+                className="absolute left-6 md:left-24 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                onClick={() => performRotation(-1)}
             >
                 <ChevronLeft />
             </motion.div>
@@ -101,7 +107,10 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     className="w-full h-full relative"
                     animate={controls}
                     initial={{ rotateX: baseRotateX, rotateY: baseRotateY, rotateZ: 0 }} 
-                    onPanEnd={handlePanEnd}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.1}
+                    onDragEnd={handleDragEnd}
                     style={{ transformStyle: 'preserve-3d' }}
                 >
                     {/* Front Face */}
@@ -135,13 +144,13 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     
                     {/* Top Face (Solid Plastic Cap) */}
                     <div 
-                        className="absolute w-full h-full rounded-2xl bg-[#E2E8F0] border border-white shadow-[inset_0_-4px_10px_rgba(0,0,0,0.1),inset_0_4px_10px_rgba(255,255,255,1)]"
+                        className="absolute w-full h-full rounded-2xl bg-[#E2E8F0] border border-white shadow-[inset_0_-4px_10px_rgba(0,0,0,0.1),inset_0_4px_10px_rgba(255,255,255,1)] pointer-events-none"
                         style={{ transform: "rotateX(90deg) translateZ(var(--tz))", backfaceVisibility: 'hidden' }}
                     />
                     
                     {/* Bottom Face (Solid Plastic Cap) */}
                     <div 
-                        className="absolute w-full h-full rounded-2xl bg-[#CBD5E1] border border-gray-400 shadow-[inset_0_4px_10px_rgba(0,0,0,0.2)]"
+                        className="absolute w-full h-full rounded-2xl bg-[#CBD5E1] border border-gray-400 shadow-[inset_0_4px_10px_rgba(0,0,0,0.2)] pointer-events-none"
                         style={{ transform: "rotateX(-90deg) translateZ(var(--tz))", backfaceVisibility: 'hidden' }}
                     />
                 </motion.div>
@@ -154,11 +163,12 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 style={{ opacity: 0.6 }}
             />
 
-            {/* Right Chevron */}
+            {/* Right Chevron (Clickable) */}
             <motion.div
                 animate={{ x: [5, -5, 5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute right-6 md:right-24 text-white/50 pointer-events-none z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
+                className="absolute right-6 md:right-24 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                onClick={() => performRotation(1)}
             >
                 <ChevronRight />
             </motion.div>
@@ -169,11 +179,9 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform: string, onClick: () => void, isActive: boolean }) => {
     return (
         <div
-            onClick={isActive ? onClick : undefined}
             className={`absolute w-full h-full flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-300 select-none overflow-hidden
                 bg-white border border-gray-100
                 shadow-[inset_0_-8px_16px_rgba(0,0,0,0.08),inset_0_4px_8px_rgba(255,255,255,1),0_4px_12px_rgba(0,0,0,0.1)]
-                ${isActive ? 'cursor-pointer' : ''}
             `}
             style={{ 
                 transform,
@@ -186,22 +194,26 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
                 <DiceDots count={face.pips} dotColor={face.dotColor} />
             </div>
 
-            {/* Pill shaped text container for legibility over dots */}
-            <div className={`relative z-10 mt-1 px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-gray-100 ${isActive ? 'scale-105' : 'scale-100'} transition-transform`}>
-                <div className={`text-[11px] font-black uppercase tracking-tight text-center leading-none ${face.color}`}>
+            {/* Attractive Cyber-Glass Button replacing raw text & pill */}
+            <button 
+                onClick={(e) => {
+                    if (isActive) {
+                        e.stopPropagation();
+                        onClick();
+                    }
+                }}
+                className={`relative z-10 px-4 py-2 mt-[2px] rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center text-center backdrop-blur-md drop-shadow-md
+                    ${isActive 
+                        ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.4)] bg-cyan-900/40 hover:bg-cyan-900/60 hover:shadow-[0_0_20px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 cursor-pointer' 
+                        : 'border-white/20 bg-gray-500/20 scale-90 opacity-60 pointer-events-none'
+                    }
+                `}
+            >
+                <span className={`block text-[11px] font-black italic tracking-wider drop-shadow-md ${isActive ? 'text-cyan-400' : 'text-gray-200'}`}>
                     {face.label}
-                </div>
-            </div>
+                </span>
+            </button>
             
-            {isActive ? (
-                <div className="relative z-10 mt-2 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 shadow-sm">
-                    <span className="text-[7px] font-bold uppercase tracking-[0.2em] text-gray-500">
-                        TAP TO START
-                    </span>
-                </div>
-            ) : (
-                <div className="relative z-10 mt-2 w-6 h-1 rounded-full bg-gray-200" />
-            )}
         </div>
     );
 };
