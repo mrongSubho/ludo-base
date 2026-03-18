@@ -37,10 +37,6 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const [activeIndex, setActiveIndex] = useState(0);
     const [isRolling, setIsRolling] = useState(false);
 
-    // Initial resting tilt
-    const baseRotateX = -15;
-    const baseRotateY = -15;
-
     const [faces, setFaces] = useState<any[]>([]);
 
     const generateRandomFaces = () => {
@@ -58,8 +54,8 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 
     useEffect(() => {
         setFaces(generateRandomFaces());
-        setCurrentRotateX(baseRotateX);
-        setCurrentRotateY(baseRotateY);
+        setCurrentRotateX(0);
+        setCurrentRotateY(0);
     }, []);
 
     const performRoll = (dragDirX: number, dragDirY: number) => {
@@ -78,18 +74,18 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         const newFaceIndex = Math.floor(Math.random() * 6);
         setActiveIndex(newFaceIndex);
         
-        // Base Euler alignments to bring face to the Front upright (without Z-rolls)
+        // Pure 90-degree increment Targets for the Motor
         const align = [
             { rx: 0, ry: 0 },       // Front
             { rx: 0, ry: -90 },     // Right
             { rx: 0, ry: 180 },     // Back
             { rx: 0, ry: 90 },      // Left
-            { rx: 90, ry: 0 },      // Top    (Swapped from -90 to +90 to accurately bring top to front)
-            { rx: -90, ry: 0 }      // Bottom (Swapped from +90 to -90 to accurately bring bottom to front)
+            { rx: -90, ry: 0 },     // Top
+            { rx: 90, ry: 0 }       // Bottom
         ][newFaceIndex];
 
-        const alignX = align.rx + baseRotateX;
-        const alignY = align.ry + baseRotateY;
+        const alignX = align.rx;
+        const alignY = align.ry;
 
         const normalize = (current: number, target: number) => {
              let diff = (target - current) % 360;
@@ -175,6 +171,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 
     return (
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
+            {/* TIER 1: The Camera (Perspective) */}
             
             <div className="absolute top-0 w-full flex items-center justify-center gap-2">
                 <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Tumble Dice</span>
@@ -201,25 +198,30 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     transition={{ duration: 0.8, ease: "easeOut" }}
                 />
 
-                <motion.div
-                    className="w-full h-full relative"
-                    animate={controls}
-                    initial={{ rotateX: baseRotateX, rotateY: baseRotateY, rotateZ: 0 }} 
-                    drag
-                    dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                    dragElastic={0.2}
-                    onDragEnd={handleDragEnd}
-                    style={{ transformStyle: 'preserve-3d' }}
-                >
-                    <DiceFace face={faces[0]} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
-                    <DiceFace face={faces[1]} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
-                    <DiceFace face={faces[2]} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
-                    <DiceFace face={faces[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
+                {/* TIER 2: The Tripod (Static Tilt) */}
+                <div style={{ transform: 'rotateX(-15deg) rotateY(-15deg)', transformStyle: 'preserve-3d' }} className="w-full h-full absolute inset-0">
                     
-                    {/* Top & Bottom physical rotation explicitly flipped 180deg to guarantee upright text on Y pitch */}
-                    <DiceFace face={faces[4]} transform="rotateX(90deg) rotateZ(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
-                    <DiceFace face={faces[5]} transform="rotateX(-90deg) rotateZ(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
-                </motion.div>
+                    {/* TIER 3: The Motor (Animated Roll) */}
+                    <motion.div
+                        className="w-full h-full relative"
+                        animate={controls}
+                        initial={{ rotateX: 0, rotateY: 0, rotateZ: 0 }} 
+                        drag
+                        dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                        dragElastic={0.2}
+                        onDragEnd={handleDragEnd}
+                        style={{ transformStyle: 'preserve-3d' }}
+                    >
+                        <DiceFace face={faces[0]} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
+                        <DiceFace face={faces[1]} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
+                        <DiceFace face={faces[2]} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
+                        <DiceFace face={faces[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
+                        
+                        {/* Top & Bottom explicitly flat - Motor 90deg snaps guarantee strictly upright orientations now! */}
+                        <DiceFace face={faces[4]} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
+                        <DiceFace face={faces[5]} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
+                    </motion.div>
+                </div>
             </div>
 
             <motion.div 
