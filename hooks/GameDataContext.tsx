@@ -393,7 +393,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
             console.log("📡 [P2P] Initializing Peer with ID:", lowerAddr);
             
             currentPeer = new Peer(lowerAddr, {
-                debug: 0 // Set to 0 to prevent PeerJS from throwing console.errors that trigger Next.js overlays
+                debug: 1 // Increased debug level slightly for better error insight if needed
             });
 
             currentPeer.on('open', (id) => {
@@ -410,14 +410,27 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                 setupConnectionListeners(conn);
             });
 
+            currentPeer.on('disconnected', () => {
+                if (isDestroyed) return;
+                console.warn("⚠️ [P2P] Peer disconnected from server. Attempting to reconnect...");
+                setIsP2PActive(false);
+                currentPeer?.reconnect();
+            });
+
             currentPeer.on('error', (err) => {
                 if (isDestroyed) return;
-                console.error("❌ [P2P] Peer Error caught safely:", err.message);
+                console.error("❌ [P2P] Peer Error caught safely:", err.message, "Type:", err.type);
+                
+                setIsP2PActive(false);
+
                 if (err.type === 'unavailable-id') {
                     console.warn("⚠️ [P2P] ID taken, likely due to hot reload or strict mode. Retrying in 2s...");
                     currentPeer?.destroy();
-                    setIsP2PActive(false);
                     retryTimeout = setTimeout(initPeer, 2000);
+                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+                    console.warn(`⚠️ [P2P] Critical error (${err.type}). Re-initializing in 5s...`);
+                    currentPeer?.destroy();
+                    retryTimeout = setTimeout(initPeer, 5000);
                 }
             });
 
