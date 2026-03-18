@@ -16,14 +16,10 @@ const BASE_ACTIONS = [
     { id: 'offline', label: 'OFFLINE MATCH' }
 ];
 
-// Aesthetic palettes matching the game UI
-const COLOR_PALETTES = [
-    { text: 'text-cyan-400', dot: 'bg-cyan-400', border: 'border-cyan-400', shadow: 'shadow-[0_0_15px_rgba(0,255,255,0.4)]', bg: 'bg-cyan-900/20', hover: 'hover:bg-cyan-900/40' },
-    { text: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-400', shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.4)]', bg: 'bg-purple-900/20', hover: 'hover:bg-purple-900/40' },
-    { text: 'text-emerald-400', dot: 'bg-emerald-400', border: 'border-emerald-400', shadow: 'shadow-[0_0_15px_rgba(16,185,129,0.4)]', bg: 'bg-emerald-900/20', hover: 'hover:bg-emerald-900/40' },
-    { text: 'text-amber-400', dot: 'bg-amber-400', border: 'border-amber-400', shadow: 'shadow-[0_0_15px_rgba(251,191,36,0.4)]', bg: 'bg-amber-900/20', hover: 'hover:bg-amber-900/40' },
-    { text: 'text-rose-400', dot: 'bg-rose-400', border: 'border-rose-400', shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.4)]', bg: 'bg-rose-900/20', hover: 'hover:bg-rose-900/40' },
-    { text: 'text-indigo-400', dot: 'bg-indigo-400', border: 'border-indigo-400', shadow: 'shadow-[0_0_15px_rgba(99,102,241,0.4)]', bg: 'bg-indigo-900/20', hover: 'hover:bg-indigo-900/40' },
+// Aesthetic palettes focusing strictly on cyan text (req 2), but random base dot colors.
+const DOT_COLORS = [
+    'bg-cyan-400', 'bg-purple-400', 'bg-emerald-400', 
+    'bg-amber-400', 'bg-rose-400', 'bg-indigo-400'
 ];
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
@@ -34,84 +30,137 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const controls = useAnimation();
     const shadowControls = useAnimation();
     
-    // We track the raw rotation (which can be 360, 720, etc.)
+    // We track total rotations to ensure spins continuously add up
+    const [currentRotateX, setCurrentRotateX] = useState(0);
     const [currentRotateY, setCurrentRotateY] = useState(0);
-    // Which logical index (0 to 3) is currently facing front?
+    const [currentRotateZ, setCurrentRotateZ] = useState(0);
+
     const [activeIndex, setActiveIndex] = useState(0);
 
     // Initial resting tilt
     const baseRotateX = -15;
     const baseRotateY = -15;
+    const baseRotateZ = 0;
 
-    // State for exactly 6 randomized faces
     const [faces, setFaces] = useState<any[]>([]);
 
-    useEffect(() => {
-        // Generate random faces on mount
+    const generateRandomFaces = () => {
         const pips = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5);
         const actions = [...BASE_ACTIONS, ...BASE_ACTIONS].sort(() => Math.random() - 0.5);
-        const palettes = [...COLOR_PALETTES].sort(() => Math.random() - 0.5);
-
-        const randomizedFaces = pips.map((pipCount, i) => ({
+        const dotColors = [...DOT_COLORS].sort(() => Math.random() - 0.5);
+        
+        return pips.map((pipCount, i) => ({
             pips: pipCount,
             id: actions[i].id,
             label: actions[i].label,
-            palette: palettes[i]
+            dotColor: dotColors[i]
         }));
-        
-        setFaces(randomizedFaces);
+    };
+
+    useEffect(() => {
+        // Initial setup
+        setFaces(generateRandomFaces());
+        setCurrentRotateX(baseRotateX);
+        setCurrentRotateY(baseRotateY);
+        setCurrentRotateZ(baseRotateZ);
     }, []);
 
-    const performRotation = (direction: -1 | 1) => {
-        // Spin randomly 360+ degrees (1 turn = 90deg. so 4 to 7 turns = 360, 450, 540, 630)
-        const turns = Math.floor(Math.random() * 4) + 4; // Between 4 and 7 face turns
-        const totalTurnDegrees = turns * 90 * direction;
+    const performRoll = (dragDirX: number, dragDirY: number) => {
+        // Generate entirely new faces for the dice on every roll (req 1)
+        const newFaces = generateRandomFaces();
+        setFaces(newFaces);
+
+        // Randomly target one of the 6 faces (0=front, 1=right, 2=back, 3=left, 4=top, 5=bottom)
+        const newFaceIndex = Math.floor(Math.random() * 6);
+        setActiveIndex(newFaceIndex);
         
-        const newRotateY = currentRotateY + totalTurnDegrees;
-        setCurrentRotateY(newRotateY);
-        
-        // Calculate the logical index (0 to 3) for the 4 Y-axis faces
-        // rotateY positive = left swipe (moves right face to front, technically index - 1)
-        // A full 360 is 4 faces.
-        let rawIndex = Math.round(newRotateY / -90);
-        // Normalize to positive 0-3
-        rawIndex = ((rawIndex % 4) + 4) % 4;
-        setActiveIndex(rawIndex);
-        
+        // Target orientations relative to the container for each face to be pointing Front (+Z) and Upright (-Y for text up)
+        const align = [
+            { rx: 0, ry: 0, rz: 0 },       // Front
+            { rx: 0, ry: -90, rz: 0 },     // Right
+            { rx: 0, ry: 180, rz: 0 },     // Back
+            { rx: 0, ry: 90, rz: 0 },      // Left
+            { rx: -90, ry: 0, rz: 180 },   // Top (tumble forward, spin 180 to upright)
+            { rx: 90, ry: 0, rz: 180 }     // Bottom (tumble back, spin 180 to upright)
+        ][newFaceIndex];
+
+        // Ensure we preserve the isometric resting perspective
+        const alignX = align.rx + baseRotateX;
+        const alignY = align.ry + baseRotateY;
+        const alignZ = align.rz + baseRotateZ;
+
+        // Find the "nearest" angle so we seamlessly pick up where we left off
+        const normalize = (current: number, target: number) => {
+             let diff = (target - current) % 360;
+             if (diff > 180) diff -= 360;
+             if (diff < -180) diff += 360;
+             return current + diff;
+        };
+
+        const nearestX = normalize(currentRotateX, alignX);
+        const nearestY = normalize(currentRotateY, alignY);
+        const nearestZ = normalize(currentRotateZ, alignZ);
+
+        // 2/3/4 spins randomly in a single slide (req 6)
+        const spinsX = Math.floor(Math.random() * 3) + 2; 
+        const spinsY = Math.floor(Math.random() * 3) + 2;
+
+        // Determine tumble directions (favor user drag if present, otherwise chaotic)
+        const dirX = dragDirY !== 0 ? dragDirY : (Math.random() > 0.5 ? 1 : -1); 
+        const dirY = dragDirX !== 0 ? dragDirX : (Math.random() > 0.5 ? 1 : -1);
+
+        const targetX = nearestX + (360 * spinsX * dirX);
+        const targetY = nearestY + (360 * spinsY * dirY);
+        // Z only snaps to correct orientation; tumbling primarily occurs on X & Y
+        const targetZ = nearestZ;
+
+        setCurrentRotateX(targetX);
+        setCurrentRotateY(targetY);
+        setCurrentRotateZ(targetZ);
+
         // Animate Dice
         controls.start({
-            rotateY: newRotateY + baseRotateY,
-            transition: { type: 'spring', stiffness: 120, damping: 25 }
+            rotateX: targetX,
+            rotateY: targetY,
+            rotateZ: targetZ,
+            transition: { type: 'spring', stiffness: 50, damping: 20 }
         });
         
-        // Animate Shadow (shrink and grow back to simulate tumbling)
+        // Animate Shadow
         shadowControls.start({
             scale: [1, 0.4, 0.4, 1],
             opacity: [0.6, 0.2, 0.2, 0.6],
-            transition: { duration: 0.8, ease: "easeInOut" }
+            transition: { duration: 1.0, ease: "easeInOut" }
         });
     };
 
     const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        const threshold = 30; // pixels
+        const threshold = 20; // pixels
         
-        if (info.offset.x < -threshold) {
-            // dragged left -> rotate right
-            performRotation(1);
-        } else if (info.offset.x > threshold) {
-            // dragged right -> rotate left
-            performRotation(-1);
+        const isHorizontal = Math.abs(info.offset.x) > Math.abs(info.offset.y);
+        
+        if (isHorizontal) {
+             if (info.offset.x < -threshold) performRoll(1, 0);       // Swipe left
+             else if (info.offset.x > threshold) performRoll(-1, 0);  // Swipe right
+             else resetToCurrent();
         } else {
-            // snap back to current
-            controls.start({
-                rotateY: currentRotateY + baseRotateY,
-                transition: { type: 'spring', stiffness: 300, damping: 25 }
-            });
+             if (info.offset.y < -threshold) performRoll(0, 1);       // Swipe up
+             else if (info.offset.y > threshold) performRoll(0, -1);  // Swipe down
+             else resetToCurrent();
         }
     };
 
+    const resetToCurrent = () => {
+        controls.start({
+            rotateX: currentRotateX,
+            rotateY: currentRotateY,
+            rotateZ: currentRotateZ,
+            transition: { type: 'spring', stiffness: 300, damping: 25 }
+        });
+    };
+
     const handleFaceClick = (index: number) => {
-        // Only allow clicks if this face is the current active Y-axis face
+        // Only allow clicks if this face is the current active front-facing target
         if (index !== activeIndex && index !== -1) return;
         
         const activeFaceId = faces[activeIndex].id;
@@ -126,31 +175,28 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     return (
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
             
-            {/* Header Text */}
             <div className="absolute top-0 w-full flex items-center justify-center gap-2">
-                <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Random Spin</span>
+                <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Tumble Dice</span>
             </div>
 
-            {/* Left Chevron (Clickable) */}
             <motion.div
                 animate={{ x: [-5, 5, -5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                 className="absolute left-6 md:left-24 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
-                onClick={() => performRotation(-1)}
+                onClick={() => performRoll(-1, 0)}
             >
                 <ChevronLeft />
             </motion.div>
 
-            {/* 128x128px Solid Core Container */}
             <div className="relative w-32 h-32 mt-8 mb-4 cursor-grab active:cursor-grabbing [--tz:64px]">
                 
                 <motion.div
                     className="w-full h-full relative"
                     animate={controls}
-                    initial={{ rotateX: baseRotateX, rotateY: baseRotateY, rotateZ: 0 }} 
-                    drag="x"
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.1}
+                    initial={{ rotateX: baseRotateX, rotateY: baseRotateY, rotateZ: baseRotateZ }} 
+                    drag
+                    dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                    dragElastic={0.2}
                     onDragEnd={handleDragEnd}
                     style={{ transformStyle: 'preserve-3d' }}
                 >
@@ -163,27 +209,25 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     {/* Left Face (3) */}
                     <DiceFace face={faces[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} />
                     
-                    {/* Top Face (4) - Added dots and text per user request, but it's permanently on top (inactive interaction) */}
-                    <DiceFace face={faces[4]} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => {}} isActive={false} />
+                    {/* Top Face (4) */}
+                    <DiceFace face={faces[4]} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} />
                     
                     {/* Bottom Face (5) */}
-                    <DiceFace face={faces[5]} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => {}} isActive={false} />
+                    <DiceFace face={faces[5]} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} />
                 </motion.div>
             </div>
 
-            {/* Table Drop Shadow */}
             <motion.div 
                 animate={shadowControls}
                 className="w-24 h-4 rounded-[100%] bg-black/80 blur-md pointer-events-none mt-2 transition-all" 
                 style={{ opacity: 0.6 }}
             />
 
-            {/* Right Chevron (Clickable) */}
             <motion.div
                 animate={{ x: [5, -5, 5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                 className="absolute right-6 md:right-24 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
-                onClick={() => performRotation(1)}
+                onClick={() => performRoll(1, 0)}
             >
                 <ChevronRight />
             </motion.div>
@@ -206,10 +250,9 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
         >
             {/* Dots Background */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <DiceDots count={face.pips} dotColor={face.palette.dot} />
+                <DiceDots count={face.pips} dotColor={face.dotColor} />
             </div>
 
-            {/* Cyber-Glass Button precisely matching the GameLobby 'classic/power' selector style */}
             <button 
                 onClick={(e) => {
                     if (isActive) {
@@ -217,14 +260,14 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
                         onClick();
                     }
                 }}
-                className={`relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-md drop-shadow-md z-10
+                className={`relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10
                     ${isActive 
-                        ? `${face.palette.border} ${face.palette.shadow} ${face.palette.bg} ${face.palette.hover} hover:scale-[1.10] active:scale-95 cursor-pointer` 
-                        : 'border-white/20 bg-gray-500/20 scale-[0.85] opacity-60 pointer-events-none'
+                        ? 'border-cyan-400/80 shadow-[0_0_15px_rgba(0,255,255,0.3)] bg-cyan-900/10 hover:bg-cyan-900/20 hover:scale-[1.10] active:scale-95 cursor-pointer' 
+                        : 'border-white/20 bg-gray-500/10 scale-[0.85] opacity-50 pointer-events-none'
                     }
                 `}
             >
-                <span className={`block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-md ${isActive ? face.palette.text : 'text-gray-200'}`}>
+                <span className={`block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400`}>
                     {face.label}
                 </span>
             </button>
@@ -232,7 +275,6 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
     );
 };
 
-// Expanded DiceDots logic to support all 6 sides
 const DiceDots = ({ count, dotColor }: { count: number, dotColor: string }) => {
     const dotClass = `w-[22px] h-[22px] rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] ${dotColor} opacity-90`;
     
