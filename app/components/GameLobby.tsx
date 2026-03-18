@@ -51,19 +51,7 @@ export default function GameLobby({
 
     return (
         <div className="relative w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center">
-            {/* Main Game Branding */}
-            <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-12 text-center"
-            >
-                <h1 className="text-3xl lg:text-5xl font-black italic tracking-tighter text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] mb-2">
-                    LUDO BASE
-                </h1>
-                <div className="inline-block px-4 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full backdrop-blur-md">
-                    <span className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.3em]">The Onchain Arena</span>
-                </div>
-            </motion.div>
+            {/* Main Game Branding removed as requested */}
 
             <AnimatePresence mode="wait">
                 {/* 1. INITIAL SETUP PANEL */}

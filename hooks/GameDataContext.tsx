@@ -384,34 +384,56 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         if (!address || typeof window === 'undefined') return;
         
         const lowerAddr = address.toLowerCase();
-        console.log("📡 [P2P] Initializing Peer with ID:", lowerAddr);
-        
-        const newPeer = new Peer(lowerAddr, {
-            debug: 1 // 1 for errors, 2 for warnings, 3 for full
-        });
+        let currentPeer: Peer | null = null;
+        let isDestroyed = false;
+        let retryTimeout: NodeJS.Timeout;
 
-        newPeer.on('open', (id) => {
-            console.log("✅ [P2P] Connection opened with ID:", id);
-            setIsP2PActive(true);
-        });
+        const initPeer = () => {
+            if (isDestroyed) return;
+            console.log("📡 [P2P] Initializing Peer with ID:", lowerAddr);
+            
+            currentPeer = new Peer(lowerAddr, {
+                debug: 0 // Set to 0 to prevent PeerJS from throwing console.errors that trigger Next.js overlays
+            });
 
-        newPeer.on('connection', (conn) => {
-            console.log("🤝 [P2P] Incoming connection from:", conn.peer);
-            setupConnectionListeners(conn);
-        });
+            currentPeer.on('open', (id) => {
+                if (isDestroyed) {
+                    currentPeer?.destroy();
+                    return;
+                }
+                console.log("✅ [P2P] Connection opened with ID:", id);
+                setIsP2PActive(true);
+            });
 
-        newPeer.on('error', (err) => {
-            console.error("❌ [P2P] Peer Error:", err);
-            if (err.type === 'unavailable-id') {
-                // This happens if another tab is open with the same account
-                console.warn("[P2P] Duplicate peer ID detected. Disabling P2P for this tab.");
-            }
-        });
+            currentPeer.on('connection', (conn) => {
+                console.log("🤝 [P2P] Incoming connection from:", conn.peer);
+                setupConnectionListeners(conn);
+            });
 
-        setPeer(newPeer);
+            currentPeer.on('error', (err) => {
+                if (isDestroyed) return;
+                console.error("❌ [P2P] Peer Error caught safely:", err.message);
+                if (err.type === 'unavailable-id') {
+                    console.warn("⚠️ [P2P] ID taken, likely due to hot reload or strict mode. Retrying in 2s...");
+                    currentPeer?.destroy();
+                    setIsP2PActive(false);
+                    retryTimeout = setTimeout(initPeer, 2000);
+                }
+            });
+
+            setPeer(currentPeer);
+        };
+
+        // Delay initial creation slightly to allow Strict Mode unmounts to cleanly destroy previous instances on the PeerServer
+        const initialDelay = setTimeout(initPeer, 300);
 
         return () => {
-            newPeer.destroy();
+            isDestroyed = true;
+            clearTimeout(initialDelay);
+            clearTimeout(retryTimeout);
+            if (currentPeer) {
+                currentPeer.destroy();
+            }
             setPeer(null);
             setIsP2PActive(false);
         };
