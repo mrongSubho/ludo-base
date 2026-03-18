@@ -35,6 +35,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const [currentRotateY, setCurrentRotateY] = useState(0);
 
     const [activeIndex, setActiveIndex] = useState(0);
+    const [isRolling, setIsRolling] = useState(false);
 
     // Initial resting tilt
     const baseRotateX = -15;
@@ -62,6 +63,15 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     }, []);
 
     const performRoll = (dragDirX: number, dragDirY: number) => {
+        if (isRolling) return; // Prevent double rolls
+        
+        // Haptic Feedback: Initial swipe/thwack
+        if (typeof window !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(40); 
+        }
+        
+        setIsRolling(true);
+
         const newFaces = generateRandomFaces();
         setFaces(newFaces);
 
@@ -74,8 +84,8 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             { rx: 0, ry: -90 },     // Right
             { rx: 0, ry: 180 },     // Back
             { rx: 0, ry: 90 },      // Left
-            { rx: -90, ry: 0 },     // Top
-            { rx: 90, ry: 0 }       // Bottom
+            { rx: 90, ry: 0 },      // Top    (Swapped from -90 to +90 to accurately bring top to front)
+            { rx: -90, ry: 0 }      // Bottom (Swapped from +90 to -90 to accurately bring bottom to front)
         ][newFaceIndex];
 
         const alignX = align.rx + baseRotateX;
@@ -116,6 +126,14 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             opacity: [0.6, 0.2, 0.2, 0.6],
             transition: { duration: 1.0, ease: "easeInOut" }
         });
+
+        // Landing impact after 1.0s matches shadow sequence
+        setTimeout(() => {
+            if (typeof window !== 'undefined' && navigator.vibrate) {
+                navigator.vibrate([30, 50, 30]); // Thud-thud-thud
+            }
+            setIsRolling(false);
+        }, 1000);
     };
 
     const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -143,6 +161,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     };
 
     const handleFaceClick = (index: number) => {
+        if (isRolling) return;
         if (index !== activeIndex && index !== -1) return;
         
         const activeFaceId = faces[activeIndex].id;
@@ -170,8 +189,18 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 <ChevronLeft />
             </motion.div>
 
-            <div className="relative w-32 h-32 mt-8 mb-4 cursor-grab active:cursor-grabbing [--tz:64px]">
+            <div className="relative w-32 h-32 mt-8 mb-4 cursor-grab active:cursor-grabbing [--tz:64px] flex items-center justify-center">
                 
+                {/* Victory Landing Aura */}
+                <motion.div 
+                    className={`absolute w-32 h-32 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300 ${faces[activeIndex]?.dotColor || 'bg-cyan-400'}`}
+                    animate={{
+                        scale: isRolling ? 0.5 : 1.8,
+                        opacity: isRolling ? 0 : 0.6,
+                    }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+
                 <motion.div
                     className="w-full h-full relative"
                     animate={controls}
@@ -182,14 +211,14 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     onDragEnd={handleDragEnd}
                     style={{ transformStyle: 'preserve-3d' }}
                 >
-                    <DiceFace face={faces[0]} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} />
-                    <DiceFace face={faces[1]} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} />
-                    <DiceFace face={faces[2]} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} />
-                    <DiceFace face={faces[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} />
+                    <DiceFace face={faces[0]} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
+                    <DiceFace face={faces[1]} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
+                    <DiceFace face={faces[2]} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
+                    <DiceFace face={faces[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
                     
                     {/* Top & Bottom physical rotation explicitly flipped 180deg to guarantee upright text on Y pitch */}
-                    <DiceFace face={faces[4]} transform="rotateX(90deg) rotateZ(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} />
-                    <DiceFace face={faces[5]} transform="rotateX(-90deg) rotateZ(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} />
+                    <DiceFace face={faces[4]} transform="rotateX(90deg) rotateZ(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
+                    <DiceFace face={faces[5]} transform="rotateX(-90deg) rotateZ(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
                 </motion.div>
             </div>
 
@@ -211,7 +240,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     );
 };
 
-const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform: string, onClick: () => void, isActive: boolean }) => {
+const DiceFace = ({ face, transform, onClick, isActive, isRolling }: { face: any, transform: string, onClick: () => void, isActive: boolean, isRolling: boolean }) => {
     return (
         <div
             className={`absolute w-full h-full flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-300 select-none overflow-hidden
@@ -228,15 +257,23 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
                 <DiceDots count={face.pips} dotColor={face.dotColor} />
             </div>
 
+            {/* Dynamic Light Sheen - Sweeps across face while tumbling */}
+            <motion.div 
+                className="absolute w-[200%] h-[200%] pointer-events-none bg-gradient-to-tr from-transparent via-white/50 to-transparent mix-blend-overlay z-0"
+                initial={{ x: '-120%', y: '-120%' }}
+                animate={isRolling ? { x: ['-120%', '120%'], y: ['-120%', '120%'] } : { x: '-120%', y: '-120%' }}
+                transition={isRolling ? { repeat: Infinity, duration: 0.4, ease: "linear" } : { duration: 0 }}
+            />
+
             <button 
                 onClick={(e) => {
-                    if (isActive) {
+                    if (isActive && !isRolling) {
                         e.stopPropagation();
                         onClick();
                     }
                 }}
                 className={`relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10
-                    ${isActive 
+                    ${isActive && !isRolling
                         ? 'border-cyan-400/80 shadow-[0_0_15px_rgba(0,255,255,0.3)] bg-cyan-900/10 hover:bg-cyan-900/20 hover:scale-[1.10] active:scale-95 cursor-pointer' 
                         : 'border-white/20 bg-gray-500/10 scale-[0.85] opacity-50 pointer-events-none'
                     }
@@ -250,58 +287,32 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
     );
 };
 
-// Perfect standard center-aligned dice pip geometry using Flexbox
+// Perfect standard center-aligned dice pip geometry using absolute percentages
 const DiceDots = ({ count, dotColor }: { count: number, dotColor: string }) => {
-    const dotClass = `w-[20px] h-[20px] rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] ${dotColor} opacity-80`;
+    const dotClass = `absolute w-[20px] h-[20px] rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] ${dotColor} opacity-80`;
     
-    const Wrapper = ({ children }: { children: React.ReactNode }) => (
-        <div className="w-[84px] h-[84px] flex flex-col justify-between absolute pointer-events-none">
-            {children}
+    // Abstract dot placement component
+    const Dot = ({ t, l }: { t: string, l: string }) => (
+        <div className={dotClass} style={{ top: t, left: l, transform: 'translate(-50%, -50%)' }} />
+    );
+
+    // Standard dice positions
+    const C = '50%';
+    const L = '22%'; const R = '78%';
+    const T = '22%'; const B = '78%';
+    const M = '50%';
+
+    return (
+        <div className="absolute inset-0 pointer-events-none">
+            {count === 1 && <Dot t={C} l={C} />}
+            {count === 2 && <><Dot t={T} l={L} /><Dot t={B} l={R} /></>}
+            {count === 3 && <><Dot t={T} l={L} /><Dot t={C} l={C} /><Dot t={B} l={R} /></>}
+            {count === 4 && <><Dot t={T} l={L} /><Dot t={T} l={R} /><Dot t={B} l={L} /><Dot t={B} l={R} /></>}
+            {count === 5 && <><Dot t={T} l={L} /><Dot t={T} l={R} /><Dot t={C} l={C} /><Dot t={B} l={L} /><Dot t={B} l={R} /></>}
+            {count === 6 && <><Dot t={T} l={L} /><Dot t={T} l={R} /><Dot t={M} l={L} /><Dot t={M} l={R} /><Dot t={B} l={L} /><Dot t={B} l={R} /></>}
         </div>
     );
-
-    if (count === 1) return <div className={`absolute ${dotClass}`} />;
-    
-    if (count === 2) return (
-        <Wrapper>
-            <div className="flex justify-start"><div className={dotClass} /></div>
-            <div className="flex justify-end"><div className={dotClass} /></div>
-        </Wrapper>
-    );
-    
-    if (count === 3) return (
-        <Wrapper>
-            <div className="flex justify-start"><div className={dotClass} /></div>
-            <div className="flex justify-center"><div className={dotClass} /></div>
-            <div className="flex justify-end"><div className={dotClass} /></div>
-        </Wrapper>
-    );
-    
-    if (count === 4) return (
-        <Wrapper>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-        </Wrapper>
-    );
-
-    if (count === 5) return (
-        <Wrapper>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-            <div className="flex justify-center"><div className={dotClass} /></div>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-        </Wrapper>
-    );
-
-    if (count === 6) return (
-        <Wrapper>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-            <div className="flex justify-between"><div className={dotClass} /><div className={dotClass} /></div>
-        </Wrapper>
-    );
-    
-    return null;
-}
+};
 
 const ChevronLeft = () => (
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
