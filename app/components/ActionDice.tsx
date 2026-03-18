@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
 
 interface ActionDiceProps {
@@ -9,11 +9,21 @@ interface ActionDiceProps {
     onSelectOfflineMatch: () => void;
 }
 
-const FACES = [
-    { id: 'quick', label: 'QUICK MATCH', color: 'text-cyan-400', dotColor: 'bg-cyan-400', pips: 1 },
-    { id: 'team', label: 'TEAM UP', color: 'text-purple-400', dotColor: 'bg-purple-400', pips: 2 },
-    { id: 'offline', label: 'OFFLINE MATCH', color: 'text-emerald-400', dotColor: 'bg-emerald-400', pips: 3 },
-    { id: 'team2', label: 'TEAM UP', color: 'text-purple-400', dotColor: 'bg-purple-400', pips: 4 },
+// All possible actions
+const BASE_ACTIONS = [
+    { id: 'quick', label: 'QUICK MATCH' },
+    { id: 'team', label: 'TEAM UP' },
+    { id: 'offline', label: 'OFFLINE MATCH' }
+];
+
+// Aesthetic palettes matching the game UI
+const COLOR_PALETTES = [
+    { text: 'text-cyan-400', dot: 'bg-cyan-400', border: 'border-cyan-400', shadow: 'shadow-[0_0_15px_rgba(0,255,255,0.4)]', bg: 'bg-cyan-900/20', hover: 'hover:bg-cyan-900/40' },
+    { text: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-400', shadow: 'shadow-[0_0_15px_rgba(168,85,247,0.4)]', bg: 'bg-purple-900/20', hover: 'hover:bg-purple-900/40' },
+    { text: 'text-emerald-400', dot: 'bg-emerald-400', border: 'border-emerald-400', shadow: 'shadow-[0_0_15px_rgba(16,185,129,0.4)]', bg: 'bg-emerald-900/20', hover: 'hover:bg-emerald-900/40' },
+    { text: 'text-amber-400', dot: 'bg-amber-400', border: 'border-amber-400', shadow: 'shadow-[0_0_15px_rgba(251,191,36,0.4)]', bg: 'bg-amber-900/20', hover: 'hover:bg-amber-900/40' },
+    { text: 'text-rose-400', dot: 'bg-rose-400', border: 'border-rose-400', shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.4)]', bg: 'bg-rose-900/20', hover: 'hover:bg-rose-900/40' },
+    { text: 'text-indigo-400', dot: 'bg-indigo-400', border: 'border-indigo-400', shadow: 'shadow-[0_0_15px_rgba(99,102,241,0.4)]', bg: 'bg-indigo-900/20', hover: 'hover:bg-indigo-900/40' },
 ];
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
@@ -23,27 +33,62 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 }) => {
     const controls = useAnimation();
     const shadowControls = useAnimation();
-    const [currentIndex, setCurrentIndex] = useState(0);
+    
+    // We track the raw rotation (which can be 360, 720, etc.)
+    const [currentRotateY, setCurrentRotateY] = useState(0);
+    // Which logical index (0 to 3) is currently facing front?
+    const [activeIndex, setActiveIndex] = useState(0);
 
     // Initial resting tilt
     const baseRotateX = -15;
     const baseRotateY = -15;
 
+    // State for exactly 6 randomized faces
+    const [faces, setFaces] = useState<any[]>([]);
+
+    useEffect(() => {
+        // Generate random faces on mount
+        const pips = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5);
+        const actions = [...BASE_ACTIONS, ...BASE_ACTIONS].sort(() => Math.random() - 0.5);
+        const palettes = [...COLOR_PALETTES].sort(() => Math.random() - 0.5);
+
+        const randomizedFaces = pips.map((pipCount, i) => ({
+            pips: pipCount,
+            id: actions[i].id,
+            label: actions[i].label,
+            palette: palettes[i]
+        }));
+        
+        setFaces(randomizedFaces);
+    }, []);
+
     const performRotation = (direction: -1 | 1) => {
-        const newIndex = currentIndex + direction;
-        setCurrentIndex(newIndex);
+        // Spin randomly 360+ degrees (1 turn = 90deg. so 4 to 7 turns = 360, 450, 540, 630)
+        const turns = Math.floor(Math.random() * 4) + 4; // Between 4 and 7 face turns
+        const totalTurnDegrees = turns * 90 * direction;
+        
+        const newRotateY = currentRotateY + totalTurnDegrees;
+        setCurrentRotateY(newRotateY);
+        
+        // Calculate the logical index (0 to 3) for the 4 Y-axis faces
+        // rotateY positive = left swipe (moves right face to front, technically index - 1)
+        // A full 360 is 4 faces.
+        let rawIndex = Math.round(newRotateY / -90);
+        // Normalize to positive 0-3
+        rawIndex = ((rawIndex % 4) + 4) % 4;
+        setActiveIndex(rawIndex);
         
         // Animate Dice
         controls.start({
-            rotateY: (newIndex * -90) + baseRotateY,
-            transition: { type: 'spring', stiffness: 150, damping: 20 }
+            rotateY: newRotateY + baseRotateY,
+            transition: { type: 'spring', stiffness: 120, damping: 25 }
         });
         
         // Animate Shadow (shrink and grow back to simulate tumbling)
         shadowControls.start({
-            scale: [1, 0.4, 1],
-            opacity: [0.6, 0.2, 0.6],
-            transition: { duration: 0.5, ease: "easeInOut" }
+            scale: [1, 0.4, 0.4, 1],
+            opacity: [0.6, 0.2, 0.2, 0.6],
+            transition: { duration: 0.8, ease: "easeInOut" }
         });
     };
 
@@ -59,35 +104,31 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         } else {
             // snap back to current
             controls.start({
-                rotateY: (currentIndex * -90) + baseRotateY,
+                rotateY: currentRotateY + baseRotateY,
                 transition: { type: 'spring', stiffness: 300, damping: 25 }
             });
         }
     };
 
     const handleFaceClick = (index: number) => {
-        const normalizedIndex = ((currentIndex % 4) + 4) % 4;
+        // Only allow clicks if this face is the current active Y-axis face
+        if (index !== activeIndex && index !== -1) return;
         
-        // Prevent clicking faces that are not active/front
-        if (index !== normalizedIndex && index !== -1) {
-            return;
-        }
-        
-        const activeFaceId = FACES[normalizedIndex].id;
+        const activeFaceId = faces[activeIndex].id;
         
         if (activeFaceId === 'quick') onSelectQuickMatch();
-        else if (activeFaceId === 'team' || activeFaceId === 'team2') onSelectTeamUp();
+        else if (activeFaceId === 'team') onSelectTeamUp();
         else if (activeFaceId === 'offline') onSelectOfflineMatch();
     };
 
-    const getNormalized = () => ((currentIndex % 4) + 4) % 4;
+    if (faces.length === 0) return null; // Hydration guard
 
     return (
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
             
             {/* Header Text */}
-            <div className="absolute top-0 w-full text-center">
-                <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to Roll</span>
+            <div className="absolute top-0 w-full flex items-center justify-center gap-2">
+                <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Random Spin</span>
             </div>
 
             {/* Left Chevron (Clickable) */}
@@ -113,46 +154,20 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     onDragEnd={handleDragEnd}
                     style={{ transformStyle: 'preserve-3d' }}
                 >
-                    {/* Front Face */}
-                    <DiceFace 
-                        face={FACES[0]} 
-                        transform="translateZ(var(--tz))" 
-                        onClick={() => handleFaceClick(0)}
-                        isActive={getNormalized() === 0}
-                    />
-                    {/* Right Face */}
-                    <DiceFace 
-                        face={FACES[1]} 
-                        transform="rotateY(90deg) translateZ(var(--tz))" 
-                        onClick={() => handleFaceClick(1)}
-                        isActive={getNormalized() === 1}
-                    />
-                    {/* Back Face */}
-                    <DiceFace 
-                        face={FACES[2]} 
-                        transform="rotateY(180deg) translateZ(var(--tz))" 
-                        onClick={() => handleFaceClick(2)}
-                        isActive={getNormalized() === 2}
-                    />
-                    {/* Left Face */}
-                    <DiceFace 
-                        face={FACES[3]} 
-                        transform="rotateY(-90deg) translateZ(var(--tz))" 
-                        onClick={() => handleFaceClick(3)}
-                        isActive={getNormalized() === 3}
-                    />
+                    {/* Front Face (0) */}
+                    <DiceFace face={faces[0]} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} />
+                    {/* Right Face (1) */}
+                    <DiceFace face={faces[1]} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} />
+                    {/* Back Face (2) */}
+                    <DiceFace face={faces[2]} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} />
+                    {/* Left Face (3) */}
+                    <DiceFace face={faces[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} />
                     
-                    {/* Top Face (Solid Plastic Cap) */}
-                    <div 
-                        className="absolute w-full h-full rounded-2xl bg-[#E2E8F0] border border-white shadow-[inset_0_-4px_10px_rgba(0,0,0,0.1),inset_0_4px_10px_rgba(255,255,255,1)] pointer-events-none"
-                        style={{ transform: "rotateX(90deg) translateZ(var(--tz))", backfaceVisibility: 'hidden' }}
-                    />
+                    {/* Top Face (4) - Added dots and text per user request, but it's permanently on top (inactive interaction) */}
+                    <DiceFace face={faces[4]} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => {}} isActive={false} />
                     
-                    {/* Bottom Face (Solid Plastic Cap) */}
-                    <div 
-                        className="absolute w-full h-full rounded-2xl bg-[#CBD5E1] border border-gray-400 shadow-[inset_0_4px_10px_rgba(0,0,0,0.2)] pointer-events-none"
-                        style={{ transform: "rotateX(-90deg) translateZ(var(--tz))", backfaceVisibility: 'hidden' }}
-                    />
+                    {/* Bottom Face (5) */}
+                    <DiceFace face={faces[5]} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => {}} isActive={false} />
                 </motion.div>
             </div>
 
@@ -191,10 +206,10 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
         >
             {/* Dots Background */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <DiceDots count={face.pips} dotColor={face.dotColor} />
+                <DiceDots count={face.pips} dotColor={face.palette.dot} />
             </div>
 
-            {/* Attractive Cyber-Glass Button replacing raw text & pill */}
+            {/* Cyber-Glass Button precisely matching the GameLobby 'classic/power' selector style */}
             <button 
                 onClick={(e) => {
                     if (isActive) {
@@ -202,25 +217,24 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
                         onClick();
                     }
                 }}
-                className={`relative z-10 px-4 py-2 mt-[2px] rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center text-center backdrop-blur-md drop-shadow-md
+                className={`relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-md drop-shadow-md z-10
                     ${isActive 
-                        ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.4)] bg-cyan-900/40 hover:bg-cyan-900/60 hover:shadow-[0_0_20px_rgba(0,255,255,0.6)] hover:scale-110 active:scale-95 cursor-pointer' 
-                        : 'border-white/20 bg-gray-500/20 scale-90 opacity-60 pointer-events-none'
+                        ? `${face.palette.border} ${face.palette.shadow} ${face.palette.bg} ${face.palette.hover} hover:scale-[1.10] active:scale-95 cursor-pointer` 
+                        : 'border-white/20 bg-gray-500/20 scale-[0.85] opacity-60 pointer-events-none'
                     }
                 `}
             >
-                <span className={`block text-[11px] font-black italic tracking-wider drop-shadow-md ${isActive ? 'text-cyan-400' : 'text-gray-200'}`}>
+                <span className={`block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-md ${isActive ? face.palette.text : 'text-gray-200'}`}>
                     {face.label}
                 </span>
             </button>
-            
         </div>
     );
 };
 
+// Expanded DiceDots logic to support all 6 sides
 const DiceDots = ({ count, dotColor }: { count: number, dotColor: string }) => {
-    // Large, colored dots to act as the primary visual
-    const dotClass = `w-7 h-7 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] ${dotColor} opacity-90`;
+    const dotClass = `w-[22px] h-[22px] rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] ${dotColor} opacity-90`;
     
     if (count === 1) return <div className={dotClass} />;
     
@@ -239,7 +253,25 @@ const DiceDots = ({ count, dotColor }: { count: number, dotColor: string }) => {
     );
     
     if (count === 4) return (
-        <div className="grid grid-cols-2 grid-rows-2 gap-[1.2rem] p-4">
+        <div className="grid grid-cols-2 grid-rows-2 gap-3 p-4">
+            <div className={dotClass} /><div className={dotClass} />
+            <div className={dotClass} /><div className={dotClass} />
+        </div>
+    );
+
+    if (count === 5) return (
+        <div className="relative w-full h-full p-4">
+            <div className="grid grid-cols-2 grid-rows-2 gap-3 h-full">
+                <div className={dotClass} /><div className={dotClass} />
+                <div className={dotClass} /><div className={dotClass} />
+            </div>
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${dotClass}`} />
+        </div>
+    );
+
+    if (count === 6) return (
+        <div className="grid grid-cols-2 grid-rows-3 gap-y-1 gap-x-3 p-3">
+            <div className={dotClass} /><div className={dotClass} />
             <div className={dotClass} /><div className={dotClass} />
             <div className={dotClass} /><div className={dotClass} />
         </div>
