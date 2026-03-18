@@ -10,10 +10,10 @@ interface ActionDiceProps {
 }
 
 const FACES = [
-    { id: 'quick', label: 'QUICK MATCH', color: 'text-cyan-600', pips: 1 },
-    { id: 'team', label: 'TEAM UP', color: 'text-purple-600', pips: 2 },
-    { id: 'offline', label: 'OFFLINE MATCH', color: 'text-emerald-600', pips: 3 },
-    { id: 'team2', label: 'TEAM UP', color: 'text-purple-600', pips: 4 },
+    { id: 'quick', label: 'QUICK MATCH', color: 'text-cyan-600', dotColor: 'bg-cyan-400', pips: 1 },
+    { id: 'team', label: 'TEAM UP', color: 'text-purple-600', dotColor: 'bg-purple-400', pips: 2 },
+    { id: 'offline', label: 'OFFLINE MATCH', color: 'text-emerald-600', dotColor: 'bg-emerald-400', pips: 3 },
+    { id: 'team2', label: 'TEAM UP', color: 'text-purple-600', dotColor: 'bg-purple-400', pips: 4 },
 ];
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
@@ -24,6 +24,10 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const controls = useAnimation();
     const shadowControls = useAnimation();
     const [currentIndex, setCurrentIndex] = useState(0);
+
+    // Initial resting tilt
+    const baseRotateX = -15;
+    const baseRotateY = -15;
 
     const handlePanEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         const threshold = 20;
@@ -41,9 +45,10 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             setCurrentIndex(newIndex);
             
             // Animate Dice
+            // We maintain the initial -15deg Y offset while rotating by 90deg increments
             controls.start({
-                rotateY: newIndex * -90,
-                transition: { type: 'spring', stiffness: 200, damping: 20 }
+                rotateY: (newIndex * -90) + baseRotateY,
+                transition: { type: 'spring', stiffness: 150, damping: 20 }
             });
             
             // Animate Shadow (shrink and grow back to simulate tumbling)
@@ -84,42 +89,68 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             <motion.div
                 animate={{ x: [-5, 5, -5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute left-6 md:left-24 text-white/50 pointer-events-none z-10"
+                className="absolute left-6 md:left-24 text-white/50 pointer-events-none z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
             >
                 <ChevronLeft />
             </motion.div>
 
-            {/* THE FIX: 
-              We removed the outer tilting wrapper. 
-              The dimensions (w-32 h-32) and the CSS variables (--tz) are now on a simple container. 
-            */}
-            <div className="relative w-32 h-32 md:w-36 md:h-36 mt-8 mb-4 cursor-grab active:cursor-grabbing [--tz:64px] md:[--tz:72px]">
+            {/* 128x128px Solid Core Container */}
+            <div className="relative w-32 h-32 mt-8 mb-4 cursor-grab active:cursor-grabbing [--tz:64px]">
                 
-                {/* THE FIX:
-                  The static 3D tilt is now applied directly to the Framer Motion element 
-                  using the `initial` prop. Framer Motion will perfectly merge this 
-                  with the `rotateY` animations.
-                */}
                 <motion.div
                     className="w-full h-full relative"
                     animate={controls}
-                    // Apply the permanent tilt here!
-                    initial={{ rotateX: 15, rotateZ: -5, rotateY: 0 }} 
+                    initial={{ rotateX: baseRotateX, rotateY: baseRotateY, rotateZ: 0 }} 
                     onPanEnd={handlePanEnd}
                     style={{ transformStyle: 'preserve-3d' }}
                 >
-                    {/* The faces now read the --tz variable perfectly */}
-                    <DiceFace face={FACES[0]} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={getNormalized() === 0} />
-                    <DiceFace face={FACES[1]} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={getNormalized() === 1} />
-                    <DiceFace face={FACES[2]} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={getNormalized() === 2} />
-                    <DiceFace face={FACES[3]} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={getNormalized() === 3} />
+                    {/* Front Face */}
+                    <DiceFace 
+                        face={FACES[0]} 
+                        transform="translateZ(var(--tz))" 
+                        onClick={() => handleFaceClick(0)}
+                        isActive={getNormalized() === 0}
+                    />
+                    {/* Right Face */}
+                    <DiceFace 
+                        face={FACES[1]} 
+                        transform="rotateY(90deg) translateZ(var(--tz))" 
+                        onClick={() => handleFaceClick(1)}
+                        isActive={getNormalized() === 1}
+                    />
+                    {/* Back Face */}
+                    <DiceFace 
+                        face={FACES[2]} 
+                        transform="rotateY(180deg) translateZ(var(--tz))" 
+                        onClick={() => handleFaceClick(2)}
+                        isActive={getNormalized() === 2}
+                    />
+                    {/* Left Face */}
+                    <DiceFace 
+                        face={FACES[3]} 
+                        transform="rotateY(-90deg) translateZ(var(--tz))" 
+                        onClick={() => handleFaceClick(3)}
+                        isActive={getNormalized() === 3}
+                    />
+                    
+                    {/* Top Face (Solid Plastic Cap) */}
+                    <div 
+                        className="absolute w-full h-full rounded-2xl bg-[#E2E8F0] border border-white shadow-[inset_0_-4px_10px_rgba(0,0,0,0.1),inset_0_4px_10px_rgba(255,255,255,1)]"
+                        style={{ transform: "rotateX(90deg) translateZ(var(--tz))", backfaceVisibility: 'hidden' }}
+                    />
+                    
+                    {/* Bottom Face (Solid Plastic Cap) */}
+                    <div 
+                        className="absolute w-full h-full rounded-2xl bg-[#CBD5E1] border border-gray-400 shadow-[inset_0_4px_10px_rgba(0,0,0,0.2)]"
+                        style={{ transform: "rotateX(-90deg) translateZ(var(--tz))", backfaceVisibility: 'hidden' }}
+                    />
                 </motion.div>
             </div>
 
             {/* Table Drop Shadow */}
             <motion.div 
                 animate={shadowControls}
-                className="w-24 h-4 md:w-28 md:h-5 rounded-[100%] bg-black/80 blur-md pointer-events-none mt-2 transition-all" 
+                className="w-24 h-4 rounded-[100%] bg-black/80 blur-md pointer-events-none mt-2 transition-all" 
                 style={{ opacity: 0.6 }}
             />
 
@@ -127,7 +158,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             <motion.div
                 animate={{ x: [5, -5, 5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute right-6 md:right-24 text-white/50 pointer-events-none z-10"
+                className="absolute right-6 md:right-24 text-white/50 pointer-events-none z-10 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
             >
                 <ChevronRight />
             </motion.div>
@@ -139,10 +170,10 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
     return (
         <div
             onClick={isActive ? onClick : undefined}
-            className={`absolute w-full h-full flex flex-col items-center justify-center p-3 rounded-[24px] md:rounded-[28px] transition-all duration-300 select-none overflow-hidden
-                bg-gradient-to-br from-white to-gray-200
-                shadow-[inset_0_-4px_8px_rgba(0,0,0,0.15),inset_0_4px_8px_rgba(255,255,255,0.9),0_0_10px_rgba(0,0,0,0.3)]
-                ${isActive ? 'cursor-pointer hover:brightness-105 shadow-[inset_0_-4px_8px_rgba(0,0,0,0.15),inset_0_4px_8px_rgba(255,255,255,0.9),0_0_25px_rgba(255,255,255,0.4)]' : ''}
+            className={`absolute w-full h-full flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-300 select-none overflow-hidden
+                bg-white border border-gray-100
+                shadow-[inset_0_-8px_16px_rgba(0,0,0,0.08),inset_0_4px_8px_rgba(255,255,255,1),0_4px_12px_rgba(0,0,0,0.1)]
+                ${isActive ? 'cursor-pointer' : ''}
             `}
             style={{ 
                 transform,
@@ -150,41 +181,45 @@ const DiceFace = ({ face, transform, onClick, isActive }: { face: any, transform
                 WebkitBackfaceVisibility: 'hidden' 
             }}
         >
-            {/* Ghost Pips Background */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.06] flex items-center justify-center">
-                <GhostPips count={face.pips} />
+            {/* Dots Background */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <DiceDots count={face.pips} dotColor={face.dotColor} />
             </div>
 
-            <div className={`relative z-10 text-lg md:text-xl font-black italic tracking-tighter text-center leading-tight ${face.color}`}>
-                {face.label}
+            {/* Pill shaped text container for legibility over dots */}
+            <div className={`relative z-10 mt-1 px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.1)] border border-gray-100 ${isActive ? 'scale-105' : 'scale-100'} transition-transform`}>
+                <div className={`text-[11px] font-black uppercase tracking-tight text-center leading-none ${face.color}`}>
+                    {face.label}
+                </div>
             </div>
             
             {isActive ? (
-                <div className="relative z-10 mt-2 px-2.5 py-1 rounded-full bg-black/5 border border-black/10 shadow-sm">
-                    <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-[0.2em] text-black/60">
+                <div className="relative z-10 mt-2 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 shadow-sm">
+                    <span className="text-[7px] font-bold uppercase tracking-[0.2em] text-gray-500">
                         TAP TO START
                     </span>
                 </div>
             ) : (
-                <div className="relative z-10 mt-2 w-6 h-1 rounded-full bg-black/10" />
+                <div className="relative z-10 mt-2 w-6 h-1 rounded-full bg-gray-200" />
             )}
         </div>
     );
 };
 
-const GhostPips = ({ count }: { count: number }) => {
-    const dotClass = "w-6 h-6 md:w-8 md:h-8 bg-black rounded-full shadow-inner";
+const DiceDots = ({ count, dotColor }: { count: number, dotColor: string }) => {
+    // Large, colored dots to act as the primary visual
+    const dotClass = `w-7 h-7 rounded-full shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] ${dotColor} opacity-90`;
     
     if (count === 1) return <div className={dotClass} />;
     
     if (count === 2) return (
-        <div className="flex w-full h-full p-6 justify-between items-center rotate-45">
+        <div className="flex w-full h-full p-4 justify-between items-center rotate-45">
             <div className={dotClass} /><div className={dotClass} />
         </div>
     );
     
     if (count === 3) return (
-        <div className="flex w-full h-full p-4 justify-between rotate-45">
+        <div className="flex w-full h-full p-3 justify-between rotate-45">
             <div className={`self-start ${dotClass}`} />
             <div className={`self-center ${dotClass}`} />
             <div className={`self-end ${dotClass}`} />
@@ -192,7 +227,7 @@ const GhostPips = ({ count }: { count: number }) => {
     );
     
     if (count === 4) return (
-        <div className="grid grid-cols-2 grid-rows-2 gap-[2rem] p-4">
+        <div className="grid grid-cols-2 grid-rows-2 gap-[1.2rem] p-4">
             <div className={dotClass} /><div className={dotClass} />
             <div className={dotClass} /><div className={dotClass} />
         </div>
