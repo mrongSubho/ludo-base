@@ -144,6 +144,35 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         });
     }, []);
 
+    // ─── Supabase Game Engine Relay ───
+
+    const processedActionIds = useRef<Set<string>>(new Set());
+
+    const relayViaSupabase = useCallback((type: string, data: any) => {
+        if (!lobbyStateRef.current?.roomCode) return;
+        
+        const actionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const payload = {
+            ...data,
+            actionId,
+            sender: myAddress?.toLowerCase() || 'host'
+        };
+
+        // Add to local processed set to avoid duplicate execution
+        processedActionIds.current.add(actionId);
+
+        supabase
+            .channel(`game-room-${lobbyStateRef.current.roomCode}`)
+            .send({
+                type: 'broadcast',
+                event: 'game-action',
+                payload
+            })
+            .then((status) => {
+                if (status !== 'ok') console.error('🚨 Supabase Relay Error:', status);
+            });
+    }, [myAddress]);
+
     const broadcastAction = useCallback((type: GameActionType, payload?: any) => {
         if (!isHost) return;
 
@@ -156,17 +185,22 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
             }));
         }
 
-        broadcastToAll({
+        const actionData = {
             type,
             ...payload,
             gameState: type === 'SYNC_STATE' ? gameState : { ...gameState, lastAction: { type, payload } }
-        });
-    }, [isHost, gameState, broadcastToAll]);
+        };
+
+        broadcastToAll(actionData);
+        relayViaSupabase('game-action', actionData);
+    }, [isHost, gameState, broadcastToAll, relayViaSupabase]);
 
     const broadcastLobbyAction = useCallback((type: LobbyActionType, payload?: any) => {
         if (!isHost) return;
-        broadcastToAll({ type, lobbyState: lobbyStateRef.current, ...payload });
-    }, [isHost, broadcastToAll]);
+        const actionData = { type, lobbyState: lobbyStateRef.current, ...payload };
+        broadcastToAll(actionData);
+        relayViaSupabase('lobby-action', actionData);
+    }, [isHost, broadcastToAll, relayViaSupabase]);
 
     // ─── Provably Fair Dice Logic ───
 
@@ -317,6 +351,71 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
             isStarted: prev.isStarted || newState.isStarted || false,
             lastUpdate: Date.now()
         }));
+    }, []);
+
+    // ─── Game Engine Action Processor (Universal) ───
+
+    const processGameAction = useCallback((data: any) => {
+        const { type, actionId } = data;
+        
+        // De-duplication check
+        if (actionId && processedActionIds.current.has(actionId)) return;
+        if (actionId) {
+            processedActionIds.current.add(actionId);
+            // Prune old action IDs
+            if (processedActionIds.current.size > 100) {
+                const arr = Array.from(processedActionIds.current);
+                processedActionIds.current = new Set(arr.slice(-50));
+            }
+        }
+
+        console.log('🕹️ Processing action:', type, data);
+
+        if (type === 'START_GAME') {
+            setGameState(prev => ({
+                ...prev,
+                isStarted: true,
+                playerCount: data.playerCount || prev.playerCount,
+                initialBoardConfig: data.initialBoardConfig,
+                lastUpdate: Date.now()
+            }));
+        } else if (type === 'ROLL_DICE') {
+            setGameState(prev => ({
+                ...prev,
+                diceValue: data.value,
+                gamePhase: 'moving',
+                lastAction: { type: 'ROLL_DICE', payload: data }
+            }));
+        } else if (type === 'MOVE_TOKEN') {
+            const payload = data.payload || data;
+            const { color, tokenIndex, targetPosition } = payload;
+            setGameState(prev => {
+                if (!color || tokenIndex === undefined) return prev;
+                const newPos = { ...prev.positions };
+                newPos[color as PlayerColor] = [...newPos[color as PlayerColor]];
+                newPos[color as PlayerColor][tokenIndex] = targetPosition;
+                return {
+                    ...prev,
+                    positions: newPos,
+                    lastUpdate: Date.now(),
+                    lastAction: { type: 'MOVE_TOKEN', payload }
+                };
+            });
+        } else if (type === 'TURN_SWITCH') {
+            setGameState(prev => ({
+                ...prev,
+                currentPlayer: data.nextPlayer,
+                gamePhase: 'rolling',
+                consecutiveSixes: 0
+            }));
+        } else if (type === 'SYNC_STATE') {
+            setGameState(prev => ({
+                ...data.gameState,
+                isStarted: prev.isStarted || data.gameState.isStarted
+            }));
+        } else if (type === 'LOBBY_SYNC') {
+            setLobbyState(data.lobbyState);
+        }
     }, []);
 
     // ─── Guest Data Handler (extracted for reuse) ───
@@ -635,79 +734,8 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                 }
 
                 conn.on('data', (data: any) => {
-                    console.log('📩 Guest received message:', data.type);
-                    if (data.type === 'START_GAME') {
-                        console.log('🚀 GUEST: Received START_GAME!', data);
-                        setGameState(prev => ({
-                            ...prev,
-                            isStarted: true,
-                            playerCount: data.playerCount || prev.playerCount,
-                            initialBoardConfig: data.initialBoardConfig,
-                            lastAction: { type: 'START_GAME', payload: data },
-                            lastUpdate: Date.now()
-                        }));
-                    } else if (data.type === 'DICE_COMMIT') {
-                        // Host has committed, Guest also commits
-                        (async () => {
-                            const nonce = generateRandomNonce();
-                            const hash = await sha256(nonce);
-                            setMyPendingNonce(nonce);
-                            setCommitments(prev => ({ 
-                                ...prev, 
-                                [data.sender.toLowerCase()]: data.hash, // Host's commit
-                                [myAddress?.toLowerCase() || '']: hash // My commit
-                            }));
-                            conn.send({ type: 'DICE_COMMIT', payload: { hash, sender: myAddress } });
-                        })();
-                    } else if (data.type === 'DICE_REVEAL_SIGNAL') {
-                        // Host says everyone has committed, now reveal
-                        if (myPendingNonce) {
-                            setReveals(prev => ({ ...prev, [myAddress?.toLowerCase() || '']: myPendingNonce }));
-                            conn.send({ type: 'DICE_REVEAL', payload: { nonce: myPendingNonce, sender: myAddress } });
-                        }
-                    } else if (data.type === 'DICE_REVEAL') {
-                        setReveals(prev => ({ ...prev, [data.sender.toLowerCase()]: data.nonce }));
-                    } else if (data.type === 'LOBBY_SYNC') {
-                        setLobbyState(data.lobbyState);
-                    } else if (data.type === 'LOBBY_JOIN' && data.status === 'error') {
-                        console.error('🚫 Join rejected:', data.reason);
-                        setIsLobbyConnected(false);
-                    } else if (data.type === 'SYNC_STATE') {
-                        setGameState(prev => ({
-                            ...data.gameState,
-                            isStarted: prev.isStarted || data.gameState.isStarted
-                        }));
-                    } else if (data.type === 'ROLL_DICE') {
-                        setGameState(prev => ({
-                            ...prev,
-                            diceValue: data.value,
-                            gamePhase: 'moving',
-                            lastAction: { type: 'ROLL_DICE', payload: data }
-                        }));
-                    } else if (data.type === 'SYNC_PROFILE') {
-                        setParticipants(prev => ({
-                            ...prev,
-                            [data.address.toLowerCase()]: {
-                                username: data.username || 'Opponent',
-                                avatar_url: data.avatar_url || ''
-                            }
-                        }));
-                    } else if (data.type === 'MOVE_TOKEN') {
-                        const payload = data.payload || data;
-                        const { color, tokenIndex, targetPosition } = payload;
-                        setGameState(prev => {
-                            if (!color || tokenIndex === undefined) return prev;
-                            const newPos = { ...prev.positions };
-                            newPos[color as PlayerColor] = [...newPos[color as PlayerColor]];
-                            newPos[color as PlayerColor][tokenIndex] = targetPosition;
-                            return {
-                                ...prev,
-                                positions: newPos,
-                                lastUpdate: Date.now(),
-                                lastAction: { type: 'MOVE_TOKEN', payload }
-                            };
-                        });
-                    }
+                    console.log('📩 Guest received message via P2P:', data.type);
+                    processGameAction(data);
                 });
 
             conn.on('close', () => {
@@ -724,12 +752,18 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         });
     }, [myAddress, myProfile, initiateMigration]);
 
-    // ─── Migration Signaling (Guest) ───
+    // ─── Realtime Relay Listener (Supabase) ───
     useEffect(() => {
-        if (!lobbyState || isHost) return;
+        if (!lobbyState?.roomCode) return;
 
+        console.log(`📡 Subscribing to Supabase Game Channel: game-room-${lobbyState.roomCode}`);
         const channel = supabase
-            .channel(`migration-${lobbyState.roomCode}`)
+            .channel(`game-room-${lobbyState.roomCode}`)
+            .on('broadcast', { event: 'game-action' }, ({ payload }) => {
+                console.log('🛰️ Action received via Supabase Relay:', payload.type);
+                processGameAction(payload);
+            })
+            // Re-join migration listener for room migrations
             .on('broadcast', { event: 'host-migrated' }, ({ payload }) => {
                 console.log('🔄 MIGRATION SIGNAL RECEIVED:', payload);
                 if (payload.newRoomCode) {
@@ -741,7 +775,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [lobbyState?.roomCode, isHost, joinGame]);
+    }, [lobbyState?.roomCode, processGameAction, joinGame]);
 
     // ─── Lobby Actions (Host-only) ───
 
