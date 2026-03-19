@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export type MatchmakingStatus = 'idle' | 'searching' | 'expanding' | 'timeout' | 'matched' | 'error';
 
@@ -88,7 +89,7 @@ export function useMatchmaking({
             } else {
                 setTicketId(data.ticket_id);
 
-                // Start Timer (Phase 1/2)
+                // Start Timer (Phase 1/2) - No longer starts polling here
                 timerRef.current = setInterval(() => {
                     setSearchTime(prev => {
                         const newTime = prev + 1;
@@ -103,29 +104,11 @@ export function useMatchmaking({
                             setStatus('timeout');
                             lastSearchRef.current = ''; 
                             if (timerRef.current) clearInterval(timerRef.current);
-                            if (pollingRef.current) clearInterval(pollingRef.current);
                         }
 
                         return newTime;
                     });
                 }, 1000);
-
-                // Start Polling (Phase 4)
-                pollingRef.current = setInterval(async () => {
-                    try {
-                        const statusRes = await fetch(`/api/matchmaking/status?ticketId=${data.ticket_id}`);
-                        const statusData = await statusRes.json();
-
-                        if (statusData.status === 'matched') {
-                            setStatus('matched');
-                            onMatchFoundRef.current(statusData.match_id, true);
-                            if (timerRef.current) clearInterval(timerRef.current);
-                            if (pollingRef.current) clearInterval(pollingRef.current);
-                        }
-                    } catch (err) {
-                        console.error('❌ [Matchmaking] Polling error:', err);
-                    }
-                }, 3000);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Error starting search:', err);
@@ -160,7 +143,7 @@ export function useMatchmaking({
             } else {
                 setTicketId(data.ticket_id);
 
-                // Timer + Polling (same as normal search)
+                // Timer (same as normal search)
                 timerRef.current = setInterval(() => {
                     setSearchTime(prev => {
                         const newTime = prev + 1;
@@ -172,27 +155,51 @@ export function useMatchmaking({
                         return newTime;
                     });
                 }, 1000);
-
-                pollingRef.current = setInterval(async () => {
-                    try {
-                        const statusRes = await fetch(`/api/matchmaking/status?ticketId=${data.ticket_id}`);
-                        const statusData = await statusRes.json();
-                        if (statusData.status === 'matched') {
-                            setStatus('matched');
-                            onMatchFoundRef.current(statusData.match_id, true);
-                            if (timerRef.current) clearInterval(timerRef.current);
-                            if (pollingRef.current) clearInterval(pollingRef.current);
-                        }
-                    } catch (err) {
-                        console.error('❌ [Matchmaking] Hybrid polling error:', err);
-                    }
-                }, 3000);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Hybrid search error:', err);
             setStatus('error');
         }
     }, [playerId, gameMode, wager]);
+
+    // --- Supabase Realtime Subscription for Matchmaking Status ---
+    useEffect(() => {
+        if (!ticketId || (status !== 'searching' && status !== 'expanding')) return;
+
+        console.log(`📡 [Matchmaking] Subscribing to Realtime updates for ticket: ${ticketId}`);
+        
+        const channel = supabase
+            .channel(`matchm-status-${ticketId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'matchmaking_queue',
+                    filter: `id=eq.${ticketId}`
+                },
+                (payload: any) => {
+                    const newData = payload.new;
+                    console.log('📡 [Matchmaking] Realtime update received:', newData.status);
+                    
+                    if (newData.status === 'matched') {
+                        setStatus('matched');
+                        onMatchFoundRef.current(newData.match_id, true);
+                        if (timerRef.current) clearInterval(timerRef.current);
+                    }
+                }
+            )
+            .subscribe((status: string) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ [Matchmaking] Realtime subscription active.');
+                }
+            });
+
+        return () => {
+            console.log('📡 [Matchmaking] Cleaning up Realtime subscription.');
+            supabase.removeChannel(channel);
+        };
+    }, [ticketId, status]);
 
     // Visibility Change Handling (Heartbeat & Cancellation)
     useEffect(() => {

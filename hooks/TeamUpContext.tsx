@@ -775,23 +775,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
 
     // ─── Invite System (Supabase Realtime) ───
 
-    // Listener for incoming invites
-    useEffect(() => {
-        if (!myAddress) return;
-        const lowerAddr = myAddress.toLowerCase();
-
-        const channel = supabase
-            .channel(`invites-${lowerAddr}`)
-            .on('broadcast', { event: 'game-invite' }, ({ payload }) => {
-                console.log('🎁 Received game invite:', payload);
-                setPendingInvite(payload as InvitePayload);
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [myAddress]);
+    // Note: Invite listening is now handled by the global <InviteNotification /> component.
 
     const sendInvite = useCallback((friendId: string, friendName?: string) => {
         if (!lobbyState || !myAddress) return;
@@ -812,30 +796,24 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
             return newLobby;
         });
 
-        // Supabase Realtime broadcast
-        const invitePayload: InvitePayload = {
-            roomCode: lobbyState.roomCode,
-            hostName: myProfile?.username || 'Host',
-            hostAvatar: myProfile?.avatar_url || '',
-            matchType: lobbyState.matchType,
-            gameMode: lobbyState.gameMode,
-            entryFee: lobbyState.entryFee
+        // Supabase DB insertion (the "Final Bridge")
+        const inviteData = {
+            room_code: lobbyState.roomCode,
+            host_address: myAddress.toLowerCase(),
+            guest_address: lowerFriendId,
+            match_type: lobbyState.matchType,
+            entry_fee: lobbyState.entryFee,
+            status: 'pending'
         };
 
         supabase
-            .channel(`invites-${lowerFriendId}`)
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    supabase
-                        .channel(`invites-${lowerFriendId}`)
-                        .send({
-                            type: 'broadcast',
-                            event: 'game-invite',
-                            payload: invitePayload
-                        })
-                        .then(() => {
-                            console.log(`📨 Invite sent to ${friendId} for room ${lobbyState.roomCode}`);
-                        });
+            .from('game_invites')
+            .insert(inviteData)
+            .then(({ error }) => {
+                if (error) {
+                    console.error('🚨 Error sending invite:', error);
+                } else {
+                    console.log(`📨 Invite recorded for ${friendId} in room ${lobbyState.roomCode}`);
                 }
             });
     }, [lobbyState, broadcastToAll, myAddress, myProfile]);

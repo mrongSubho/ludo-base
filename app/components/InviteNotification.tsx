@@ -1,105 +1,119 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { InvitePayload } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
+import { useAccount } from 'wagmi';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
+import { useSoundEffects } from '../hooks/useSoundEffects';
 
 export const InviteNotification = () => {
-    const { pendingInvite, acceptInvite, rejectInvite } = useTeamUpContext();
-    const [countdown, setCountdown] = useState(15);
+    const { address } = useAccount();
+    const { joinGame } = useTeamUpContext();
+    const { playSelect } = useSoundEffects();
+    const [invite, setInvite] = useState<any>(null);
+    const [hostProfile, setHostProfile] = useState<{ username: string; avatar_url: string } | null>(null);
 
-    // Auto-dismiss after 15 seconds
     useEffect(() => {
-        if (!pendingInvite) {
-            setCountdown(15);
-            return;
-        }
+        if (!address) return;
+        const lowerAddr = address.toLowerCase();
 
-        setCountdown(15);
-        const timer = setInterval(() => {
-            setCountdown(prev => {
-                if (prev <= 1) {
-                    rejectInvite();
-                    return 15;
+        // 1. Listen for NEW inserts into game_invites where guest_address matches
+        const channel = supabase
+            .channel('global-invites')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'game_invites',
+                    filter: `guest_address=eq.${lowerAddr}`
+                },
+                async (payload) => {
+                    console.log('🎁 Global Invite Received:', payload);
+                    const newInvite = payload.new;
+                    
+                    // 2. Fetch Host Profile
+                    const { data: profile } = await supabase
+                        .from('players')
+                        .select('username, avatar_url')
+                        .eq('wallet_address', newInvite.host_address.toLowerCase())
+                        .single();
+
+                    setHostProfile(profile || { username: 'Host', avatar_url: '' });
+                    setInvite(newInvite);
+                    playSelect();
+
+                    // Auto-hide after 15 seconds
+                    setTimeout(() => setInvite(null), 15000);
                 }
-                return prev - 1;
-            });
-        }, 1000);
+            )
+            .subscribe();
 
-        return () => clearInterval(timer);
-    }, [pendingInvite, rejectInvite]);
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [address, playSelect]);
+
+    const handleAccept = () => {
+        if (invite) {
+            joinGame(invite.room_code);
+            setInvite(null);
+        }
+    };
 
     return (
         <AnimatePresence>
-            {pendingInvite && (
+            {invite && (
                 <motion.div
-                    initial={{ y: -120, opacity: 0, scale: 0.95 }}
-                    animate={{ y: 0, opacity: 1, scale: 1 }}
-                    exit={{ y: -120, opacity: 0, scale: 0.95 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-                    className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[420px] z-[300] pointer-events-auto"
+                    initial={{ opacity: 0, y: -100, x: '-50%' }}
+                    animate={{ opacity: 1, y: 20, x: '-50%' }}
+                    exit={{ opacity: 0, y: -100, x: '-50%' }}
+                    className="fixed top-0 left-1/2 z-[200] w-[calc(100%-32px)] max-w-[400px]"
                 >
-                    <div className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-[0_0_40px_rgba(255,255,255,0.1)] overflow-hidden">
-                        {/* Countdown Bar */}
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 rounded-t-3xl overflow-hidden">
-                            <motion.div
-                                initial={{ width: '100%' }}
-                                animate={{ width: '0%' }}
-                                transition={{ duration: 15, ease: 'linear' }}
-                                className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500"
-                            />
-                        </div>
-
-                        <div className="flex items-start gap-4">
-                            {/* Host Avatar */}
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-600 to-cyan-500 flex items-center justify-center shrink-0 border border-white/20 shadow-lg">
-                                {pendingInvite.hostAvatar ? (
-                                    <img src={pendingInvite.hostAvatar} alt="host" className="w-full h-full rounded-2xl object-cover" />
-                                ) : (
-                                    <span className="text-2xl">🎮</span>
-                                )}
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-white font-black text-lg tracking-tight truncate">
-                                    {pendingInvite.hostName} invites you!
-                                </h3>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                                        {pendingInvite.matchType}
-                                    </span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                                        {pendingInvite.gameMode}
-                                    </span>
-                                    {pendingInvite.entryFee > 0 && (
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">
-                                            {pendingInvite.entryFee >= 1000 ? `${pendingInvite.entryFee / 1000}k` : pendingInvite.entryFee} entry
-                                        </span>
+                    <div className="bg-slate-900/90 backdrop-blur-2xl border border-cyan-500/30 rounded-[32px] p-6 shadow-[0_0_50px_rgba(34,211,238,0.2)] overflow-hidden relative">
+                        {/* Glowing Background Pulse */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />
+                        
+                        <div className="flex items-center gap-4 relative z-10">
+                            {/* Host Avatar Pod */}
+                            <div className="relative w-16 h-16 shrink-0">
+                                <div className="absolute inset-0 bg-cyan-500/20 rounded-full animate-pulse" />
+                                <div className="w-full h-full rounded-full border-2 border-cyan-400/50 overflow-hidden bg-slate-800">
+                                    {hostProfile?.avatar_url ? (
+                                        <img src={hostProfile.avatar_url} alt="host" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-2xl font-black text-cyan-400">
+                                            {hostProfile?.username?.[0] || 'H'}
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Timer Badge */}
-                            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0 border border-white/10">
-                                <span className="text-sm font-black text-white/70">{countdown}</span>
+                            <div className="flex-1">
+                                <span className="block text-[10px] font-black text-cyan-400 tracking-[0.2em] uppercase mb-1">Incoming Signal</span>
+                                <h4 className="text-white font-black italic uppercase tracking-tight text-lg leading-tight">
+                                    {hostProfile?.username || 'WARRIOR'} <span className="text-white/40 not-italic font-medium">invites you</span>
+                                </h4>
+                                <div className="flex gap-3 mt-1">
+                                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{invite.match_type}</span>
+                                    <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">{invite.entry_fee?.toLocaleString()} LUDO</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 mt-4">
+                        <div className="flex gap-3 mt-6 relative z-10">
                             <button
-                                onClick={rejectInvite}
-                                className="flex-1 py-3 bg-white/10 hover:bg-white/15 border border-white/10 text-white/80 font-black uppercase tracking-widest text-xs rounded-xl transition-all"
+                                onClick={handleAccept}
+                                className="flex-1 py-3 bg-cyan-500 text-slate-950 font-black italic uppercase tracking-tighter rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-lg shadow-cyan-500/20"
                             >
-                                Decline
+                                Accept Entry
                             </button>
                             <button
-                                onClick={acceptInvite}
-                                className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+                                onClick={() => setInvite(null)}
+                                className="px-6 py-3 bg-white/5 border border-white/10 text-white/60 font-black italic uppercase tracking-tighter rounded-2xl hover:bg-white/10 transition-all"
                             >
-                                Accept ✓
+                                Ignore
                             </button>
                         </div>
                     </div>

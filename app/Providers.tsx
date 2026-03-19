@@ -11,6 +11,7 @@ import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
 import { TeamUpProvider } from "@/hooks/TeamUpContext";
 import { GameDataProvider } from "@/hooks/GameDataContext";
+import { InviteNotification } from "./components/InviteNotification";
 
 const config = createConfig({
     chains: [base, baseSepolia],
@@ -47,6 +48,7 @@ export function Providers({ children }: { children: ReactNode }) {
                         <GameDataProvider>
                             <TeamUpProvider>
                                 <ProfileSyncer />
+                                <InviteNotification />
                                 {children}
                             </TeamUpProvider>
                         </GameDataProvider>
