@@ -630,10 +630,10 @@ export default function SnakesBoard({
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                             className="absolute inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm"
                         >
-                            <div className="bg-purple-600 border border-white/10 p-8 rounded-2xl shadow-2xl text-center">
+                            <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl text-center">
                                 <h2 className="text-4xl font-extrabold text-white mb-2 uppercase">{gameState.winner} Escapes!</h2>
                                 <p className="text-white/60 mb-6 font-medium">Conquered the snakes and climbed to exactly 100!</p>
-                                <button onClick={() => window.location.reload()} className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full transition-all">
+                                <button onClick={() => window.location.reload()} className="bg-white/20 hover:bg-white/30 border border-white/10 text-white font-bold py-3 px-8 rounded-full transition-all">
                                     Play Again
                                 </button>
                             </div>

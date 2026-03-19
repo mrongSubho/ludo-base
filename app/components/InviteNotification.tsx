@@ -40,7 +40,7 @@ export const InviteNotification = () => {
                     transition={{ type: 'spring', damping: 25, stiffness: 250 }}
                     className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[420px] z-[300] pointer-events-auto"
                 >
-                    <div className="relative bg-purple-900/90 backdrop-blur-2xl border border-purple-500/30 rounded-3xl p-5 shadow-[0_0_40px_rgba(147,51,234,0.3)] overflow-hidden">
+                    <div className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-[0_0_40px_rgba(255,255,255,0.1)] overflow-hidden">
                         {/* Countdown Bar */}
                         <div className="absolute top-0 left-0 right-0 h-1 bg-white/10 rounded-t-3xl overflow-hidden">
                             <motion.div

@@ -363,7 +363,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                         {/* DM Button */}
                         <button
                             onClick={() => onDM?.(friend.wallet_address)}
-                            className="w-10 h-10 rounded-full bg-purple-600/20 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
+                            className="w-10 h-10 rounded-full bg-white/5 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
                         >
                             <DMIcon />
                         </button>
@@ -429,7 +429,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 /* Unified global panel layout: top-64, bottom-80, bg-purple-6000 glass */
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2">

@@ -102,7 +102,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         <div className="w-full flex justify-center pt-4 pb-2">
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
@@ -232,7 +232,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     exit={{ opacity: 0, scale: 0.95 }}
                                                     key={entry.id}
                                                     className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${isMe
-                                                        ? 'bg-purple-600/20 border-2 border-purple-400/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]'
+                                                        ? 'bg-white/5 border-2 border-purple-400/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]'
                                                         : 'bg-white/5 border border-white/10 hover:bg-white/10'
                                                         }`}
                                                 >

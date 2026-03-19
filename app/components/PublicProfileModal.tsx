@@ -267,11 +267,10 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                     {/* Pop-up Modal Container */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm bg-purple-900/40 backdrop-blur-xl border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
                     >
                         {/* Header Gradient */}
                         <div className="h-16 bg-gradient-to-b from-purple-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />

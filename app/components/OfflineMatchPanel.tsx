@@ -32,7 +32,7 @@ export const OfflineMatchPanel = ({
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-[15%] bottom-[15%] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[420px] bg-slate-900/40 backdrop-blur-2xl border border-white/10 rounded-[40px] z-[110] flex flex-col shadow-2xl overflow-hidden p-8"
+                className="fixed top-[15%] bottom-[15%] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[420px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[40px] z-[110] flex flex-col shadow-2xl overflow-hidden p-8"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">

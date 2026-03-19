@@ -338,7 +338,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
                     >
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-4 pb-2">
@@ -455,7 +455,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
                                             <div className="relative z-10">{item.previewIcon}</div>
                                             {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-600/10 blur-md animate-pulse" />}
-                                            {item.rarity === 'rare' && <div className="absolute inset-0 bg-purple-600/10 blur-md animate-pulse" />}
+                                            {item.rarity === 'rare' && <div className="absolute inset-0 bg-white/5 blur-md animate-pulse" />}
                                             <div className="absolute top-0.5 left-0.5 flex gap-1">
                                                 <div className="px-1 py-0 rounded-sm bg-black/60 border border-white/5 backdrop-blur-md">
                                                     <span className="text-[6px] font-black text-white/50 tracking-tighter">ITEM</span>
@@ -569,7 +569,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <h4 className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-3 px-2">Properties</h4>
                                                     <div className="grid grid-cols-3 gap-2">
                                                         {selectedItem.traits.map((trait, i) => (
-                                                            <div key={i} className="bg-purple-600/10 border border-purple-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
+                                                            <div key={i} className="bg-white/5 border border-purple-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
                                                                 <span className="text-[8px] text-purple-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
                                                                 <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
                                                                 <span className="text-[9px] text-purple-400 font-mono">{trait.rarity_percent}% rarity</span>

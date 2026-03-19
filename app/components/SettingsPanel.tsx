@@ -101,7 +101,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2">
@@ -139,7 +139,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                             {/* SFX */}
                             <div className="flex items-center justify-between p-4 border-b border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
                                         <SoundIcon />
                                     </div>
                                     <span className="text-sm font-medium text-white">Sound Effects</span>

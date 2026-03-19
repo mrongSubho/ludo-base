@@ -140,9 +140,9 @@ export const QuickMatchPanel = ({
             <motion.div
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
-                exit={{ y: '100%' }}
+                exit={{ y: '100%', opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-purple-600/20 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[40px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Header / Title */}
                 <div className="w-full flex justify-center pt-4 pb-2">
@@ -198,7 +198,7 @@ export const QuickMatchPanel = ({
                                                         : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
                                                 }}
                                                 transition={{ duration: 3, repeat: Infinity }}
-                                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-purple-600/20 border-purple-600/40'}`}
+                                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-white/5 border-purple-600/40'}`}
                                             >
                                                 <span className="text-4xl font-black text-white italic">{searchTime}s</span>
                                                 <span className={`text-[10px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-purple-400'}`}>Elapsed</span>
@@ -379,7 +379,7 @@ export const QuickMatchPanel = ({
                                 <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-cyan text-center">
                                     {finalName}
                                 </h3>
-                                <div className="mt-2 bg-purple-600/20 px-4 py-1 rounded-full border border-purple-600/50">
+                                <div className="mt-2 bg-white/5 px-4 py-1 rounded-full border border-purple-600/50">
                                     <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">Lv. 8</span>
                                 </div>
                             </motion.div>
