@@ -151,7 +151,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                     <button
                                         key={tab}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTab === tab ? 'bg-purple-700 text-white shadow-lg scale-[1.02]' : 'text-white/30 hover:text-white/60'}`}
+                                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTab === tab ? 'bg-cyan-700 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)] scale-[1.02]' : 'text-white/30 hover:text-white/60'}`}
                                     >
                                         {tab === 'tier' ? (
                                             <>
@@ -203,7 +203,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative">
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center h-full space-y-4">
-                                    <div className="w-10 h-10 border-4 border-purple-600/30 border-t-purple-600 rounded-full animate-spin" />
+                                    <div className="w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
                                     <p className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Syncing Throne...</p>
                                 </div>
                             ) : leaders.length === 0 ? (
@@ -232,7 +232,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     exit={{ opacity: 0, scale: 0.95 }}
                                                     key={entry.id}
                                                     className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${isMe
-                                                        ? 'bg-white/5 border-2 border-purple-400/50 shadow-[0_0_20px_rgba(99,102,241,0.2)]'
+                                                        ? 'bg-white/5 border-2 border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
                                                         : 'bg-white/5 border border-white/10 hover:bg-white/10'
                                                         }`}
                                                 >
@@ -246,9 +246,9 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
 
                                                     <button
                                                         onClick={() => onOpenProfile(entry.id)}
-                                                        className="relative hover:scale-105 transition-transform active:scale-95 text-left focus:outline-none focus:ring-2 focus:ring-purple-500/50 rounded-full"
+                                                        className="relative hover:scale-105 transition-transform active:scale-95 text-left focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-full"
                                                     >
-                                                        <div className={`w-12 h-12 rounded-full overflow-hidden bg-purple-900 flex-shrink-0 border-2 ${isMe ? 'border-purple-400' : 'border-white/10'}`}>
+                                                        <div className={`w-12 h-12 rounded-full overflow-hidden bg-cyan-900 flex-shrink-0 border-2 ${isMe ? 'border-cyan-400' : 'border-white/10'}`}>
                                                             {entry.avatar ? (
                                                                 <img
                                                                     src={entry.avatar}
@@ -262,7 +262,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                             )}
                                                         </div>
                                                         {isMe && (
-                                                            <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-purple-300">
+                                                            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-cyan-300">
                                                                 YOU
                                                             </div>
                                                         )}
@@ -272,7 +272,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                         onClick={() => onOpenProfile(entry.id)}
                                                         className="flex flex-col flex-1 min-w-0 text-left hover:opacity-80 transition-opacity focus:outline-none rounded-lg"
                                                     >
-                                                        <span className={`font-bold text-[15px] truncate w-full ${isMe ? 'text-purple-100' : 'text-white'}`}>
+                                                        <span className={`font-bold text-[15px] truncate w-full ${isMe ? 'text-cyan-100' : 'text-white'}`}>
                                                             {entry.name}
                                                         </span>
 
@@ -287,8 +287,8 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                         ) : null}
                                                     </button>
 
-                                                    <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-purple-600/50 border-purple-600/30' : 'bg-black/40 border-white/5'}`}>
-                                                        <span className={`text-lg font-black leading-none ${isMe ? 'text-purple-300' : 'text-purple-400'}`}>
+                                                    <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-cyan-600/50 border-cyan-600/30' : 'bg-black/40 border-white/5'}`}>
+                                                        <span className={`text-lg font-black leading-none ${isMe ? 'text-cyan-300' : 'text-cyan-400'}`}>
                                                             {entry.wins}
                                                         </span>
                                                         <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">Wins</span>
@@ -312,7 +312,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     <button
                                                         key={page}
                                                         onClick={() => setCurrentPage(page)}
-                                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${currentPage === page ? 'bg-purple-700 text-white shadow-[0_0_10px_rgba(79,70,229,0.4)]' : 'bg-transparent text-white/50 hover:bg-white/5'}`}
+                                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${currentPage === page ? 'bg-cyan-700 text-white shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 'bg-transparent text-white/50 hover:bg-white/5'}`}
                                                     >
                                                         {page}
                                                     </button>

@@ -44,14 +44,14 @@ const SplashScreen = () => (
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-purple-600 to-teal-400 opacity-20 blur-xl"
+          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-cyan-600 to-teal-400 opacity-20 blur-xl"
         />
-        <div className="absolute inset-0 bg-gradient-to-tr from-purple-600 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(99,102,241,0.4)] flex items-center justify-center border border-white/20">
+        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(34,211,238,0.4)] flex items-center justify-center border border-white/20">
           <span className="text-5xl drop-shadow-lg">🎲</span>
         </div>
       </div>
 
-      <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
+      <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
         LUDO BASE
       </h1>
       <p className="text-cyan-400 font-black tracking-[0.4em] uppercase text-[10px] mb-12 text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
@@ -64,7 +64,7 @@ const SplashScreen = () => (
           initial={{ width: "0%" }}
           animate={{ width: "100%" }}
           transition={{ duration: 1.5, ease: "easeInOut" }}
-          className="h-full bg-gradient-to-r from-purple-600 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(45,212,191,0.6)]"
+          className="h-full bg-gradient-to-r from-cyan-600 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.6)]"
         />
       </div>
     </motion.div>
@@ -226,10 +226,11 @@ export default function Page() {
       <PresenceManager />
       <InviteNotification />
 
-      <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-1]">
-        <div className="cosmic-orb cosmic-orb-1 opacity-50 scale-150" />
-        <div className="cosmic-orb cosmic-orb-2 opacity-40 scale-125" />
-        <div className="cosmic-orb cosmic-orb-3 opacity-30 scale-110" />
+      <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]">
+        {/* Subdued orbs to prevent washout while keeping depth */}
+        <div className="cosmic-orb cosmic-orb-1 opacity-20 scale-100" />
+        <div className="cosmic-orb cosmic-orb-2 opacity-15 scale-75" />
+        <div className="cosmic-orb cosmic-orb-3 opacity-10 scale-50" />
       </div>
 
       {!isConnected ? (
@@ -341,8 +342,8 @@ export default function Page() {
 
               {/* ── Quit Match Warning Overlay ── */}
               {showQuitWarning && (
-                <div className="absolute inset-0 z-[999] bg-black/80 backdrop-blur-md flex items-center justify-center">
-                  <div className="bg-[#1a1c29] border border-white/10 p-8 rounded-2xl shadow-2xl max-w-sm w-[90%] text-center">
+                <div className="absolute inset-0 z-[999] bg-black/60 backdrop-blur-md flex items-center justify-center">
+                  <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-2xl shadow-2xl max-w-sm w-[90%] text-center">
                     <h2 className="text-2xl font-bold text-white mb-3">Leave Match?</h2>
                     <p className="text-white/70 mb-8 font-medium">All progress will be lost. Are you sure you want to quit?</p>
                     <div className="flex gap-4 justify-center">
@@ -357,7 +358,7 @@ export default function Page() {
                           setShowQuitWarning(false);
                           handleBackToSubMenu();
                         }}
-                        className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600 hover:bg-red-500 transition-colors"
+                        className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600/80 hover:bg-red-500 transition-colors"
                       >
                         Quit Game
                       </button>
@@ -368,20 +369,20 @@ export default function Page() {
 
               {/* ── Host Migration Overlay ── */}
               {!isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
-                <div className="absolute inset-0 z-[1000] bg-black/60 backdrop-blur-xl flex items-center justify-center">
-                  <div className="text-center p-8 bg-[#1a1c29]/80 border border-white/10 rounded-3xl shadow-2xl max-w-md">
+                <div className="absolute inset-0 z-[1000] bg-black/40 backdrop-blur-xl flex items-center justify-center">
+                  <div className="text-center p-8 bg-white/5 border border-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-md">
                     <div className="w-20 h-20 mx-auto mb-6 relative">
-                      <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+                      <div className="absolute inset-0 border-4 border-cyan-400/30 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-t-cyan-400 rounded-full animate-spin"></div>
                       <div className="absolute inset-0 flex items-center justify-center">
-                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-blue-400">
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-cyan-400">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                          </svg>
                       </div>
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Host Migrating</h2>
                     <p className="text-white/60 mb-6">Host disconnected. Re-assigning a new host to continue your match...</p>
-                    <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-sm font-medium">
+                    <div className="px-4 py-2 bg-cyan-400/10 border border-cyan-400/20 rounded-xl text-cyan-400 text-sm font-medium">
                       Don't leave, your wager is safe!
                     </div>
                   </div>

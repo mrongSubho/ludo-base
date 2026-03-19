@@ -8,7 +8,7 @@ import ThemeSwitcher from './ThemeSwitcher';
 // ─── Settings Drawer Icons ───────────────────────────────────────────────────
 
 const SoundIcon = () => (
-    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
         <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -16,7 +16,7 @@ const SoundIcon = () => (
 );
 
 const HelpIcon = () => (
-    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -24,13 +24,13 @@ const HelpIcon = () => (
 );
 
 const MessageIcon = () => (
-    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
 );
 
 const InfoIcon = () => (
-    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="16" x2="12" y2="12" />
         <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -38,7 +38,7 @@ const InfoIcon = () => (
 );
 
 const FileTextIcon = () => (
-    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="16" y1="13" x2="8" y2="13" />
@@ -48,7 +48,7 @@ const FileTextIcon = () => (
 );
 
 const ShieldIcon = () => (
-    <svg className="w-5 h-5 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </svg>
 );
@@ -112,7 +112,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-cyan-400">
                                 <circle cx="12" cy="12" r="3" />
                                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                             </svg>
@@ -145,7 +145,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                     <span className="text-sm font-medium text-white">Sound Effects</span>
                                 </div>
                                 <button
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${soundEffectsOn ? 'bg-purple-600' : 'bg-white/10'}`}
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${soundEffectsOn ? 'bg-cyan-600' : 'bg-white/10'}`}
                                     onClick={toggleSfx}
                                 >
                                     <motion.div
@@ -197,13 +197,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Support</h3>
                         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
                             <button className="flex items-center gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
-                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-cyan-600/20 flex items-center justify-center">
                                     <HelpIcon />
                                 </div>
                                 <span className="text-sm font-medium text-white">Help Center</span>
                             </button>
                             <button className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors">
-                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-cyan-600/20 flex items-center justify-center">
                                     <MessageIcon />
                                 </div>
                                 <span className="text-sm font-medium text-white">Feedback Form</span>
@@ -216,19 +216,19 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">About</h3>
                         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
                             <button className="flex items-center gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
-                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-cyan-600/20 flex items-center justify-center">
                                     <InfoIcon />
                                 </div>
                                 <span className="text-sm font-medium text-white">About Us</span>
                             </button>
                             <button className="flex items-center gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
-                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-cyan-600/20 flex items-center justify-center">
                                     <FileTextIcon />
                                 </div>
                                 <span className="text-sm font-medium text-white">Terms of Services</span>
                             </button>
                             <button className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors">
-                                <div className="w-8 h-8 rounded-full bg-purple-600/20 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-cyan-600/20 flex items-center justify-center">
                                     <ShieldIcon />
                                 </div>
                                 <span className="text-sm font-medium text-white">Privacy Policy</span>

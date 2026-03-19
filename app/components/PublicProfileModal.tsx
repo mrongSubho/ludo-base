@@ -273,7 +273,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
                     >
                         {/* Header Gradient */}
-                        <div className="h-16 bg-gradient-to-b from-purple-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
+                        <div className="h-16 bg-gradient-to-b from-cyan-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
 
                         {/* Top Controls */}
                         <div className="flex justify-end p-4 relative z-10 w-full pl-6 pr-4">
@@ -306,14 +306,14 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         <div className="px-6 pb-6 pt-0 flex flex-col items-center relative z-10">
                             {isProfileLoading ? (
                                 <div className="py-12 flex flex-col items-center justify-center space-y-4">
-                                    <div className="w-8 h-8 border-3 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                                    <div className="w-8 h-8 border-3 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                                     <span className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Decrypting Hex...</span>
                                 </div>
                             ) : (
                                 <>
                                     {/* Avatar */}
                                     <div className="relative mb-4 mt-2">
-                                        <div className="w-24 h-24 rounded-full overflow-hidden bg-[#1a1c29] border-4 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                                        <div className="w-24 h-24 rounded-full overflow-hidden bg-[#1a1c29] border-4 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
                                             <img
                                                 src={displayAvatar.startsWith('http') ? displayAvatar : `/avatars/${displayAvatar}.png`}
                                                 alt={displayName}
@@ -329,7 +329,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                                     <div className="h-8 mb-5 flex flex-col items-center justify-center">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest px-2 py-0.5 bg-purple-400/10 rounded-full border border-purple-400/20">
+                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 bg-cyan-400/10 rounded-full border border-cyan-400/20">
                                                 {progression.tier} {progression.subRank}
                                             </span>
                                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
@@ -338,7 +338,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         </div>
                                         {!isFriendValidationLoading && isFriend && (
                                             <div className="bg-black/40 px-3 py-0.5 rounded-full border border-white/5 flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400/50" />
+                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
                                                 <span className="text-[9px] text-white/40 font-mono">
                                                     {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
                                                 </span>
@@ -349,7 +349,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     {/* Stats Grid */}
                                     <div className="grid grid-cols-2 gap-3 w-full mb-3">
                                         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
-                                            <span className="text-2xl font-black text-purple-400">{displayWins}</span>
+                                            <span className="text-2xl font-black text-cyan-400">{displayWins}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
                                         </div>
                                         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
@@ -399,7 +399,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             </div>
                                                             <div className="flex items-end justify-between h-8 gap-1">
                                                                 {monthlyGraphHeights.map((h, i) => (
-                                                                    <div key={i} className="flex-1 bg-white/10 rounded-t-sm hover:bg-purple-500/50 transition-colors" style={{ height: `${h}%` }} />
+                                                                    <div key={i} className="flex-1 bg-white/10 rounded-t-sm hover:bg-cyan-500/50 transition-colors" style={{ height: `${h}%` }} />
                                                                 ))}
                                                             </div>
                                                         </div>

@@ -120,7 +120,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: '-100%', opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                /* Unified global panel layout: top-64, bottom-80, bg-purple-6000 glass */
+                /* Unified global panel layout: top-64, bottom-80, bg-cyan-6000 glass */
                 className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
@@ -160,7 +160,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <BiMessageSquareEdit className="w-6 h-6 text-purple-400" />
+                                    <BiMessageSquareEdit className="w-6 h-6 text-cyan-400" />
                                     <h2 className="text-white font-black text-2xl italic tracking-tighter uppercase">Messages</h2>
                                 </div>
                             )}
@@ -275,7 +275,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                         className={`max-w-[80%] flex flex-col z-10 ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
                                                     >
                                                         <div className={`py-3 px-4 rounded-2xl text-[15px] shadow-sm ${isMe
-                                                            ? (msg.send_status === 'failed' ? 'bg-red-600 text-white rounded-tr-none' : 'bg-purple-700 text-white rounded-tr-none')
+                                                            ? (msg.send_status === 'failed' ? 'bg-red-600 text-white rounded-tr-none' : 'bg-cyan-700 text-white rounded-tr-none')
                                                             : 'bg-white/10 text-white/90 rounded-tl-none border border-white/5'
                                                             }`}>
                                                             {msg.content}
@@ -314,7 +314,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                                             disabled={cooldownTime > 0}
                                             placeholder={cooldownTime > 0 ? `Wait ${cooldownTime}s...` : "Type a message..."}
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-purple-600/50 transition-colors disabled:opacity-50"
+                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
                                         />
                                         <div className={`absolute right-16 top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'
                                             }`}>
@@ -323,7 +323,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         <button
                                             onClick={handleSendMessage}
                                             disabled={!inputValue.trim() || cooldownTime > 0}
-                                            className="w-12 h-12 flex items-center justify-center rounded-xl bg-purple-700 text-white disabled:opacity-50 disabled:bg-white/10 transition-all hover:bg-purple-600 relative overflow-hidden"
+                                            className="w-12 h-12 flex items-center justify-center rounded-xl bg-cyan-700 text-white disabled:opacity-50 disabled:bg-white/10 transition-all hover:bg-cyan-600 relative overflow-hidden"
                                         >
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                                                 <line x1="22" y1="2" x2="11" y2="13"></line>

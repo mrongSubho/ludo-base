@@ -152,7 +152,7 @@ export const QuickMatchPanel = ({
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-cyan-400">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <polyline points="12 6 12 12 16 14"></polyline>
                             </svg>
@@ -181,12 +181,12 @@ export const QuickMatchPanel = ({
                                             <motion.div
                                                 animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
                                                 transition={{ duration: 2, repeat: Infinity }}
-                                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-purple-600/30'}`}
+                                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/30' : 'border-cyan-600/30'}`}
                                             />
                                             <motion.div
                                                 animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
                                                 transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-purple-600/20'}`}
+                                                className={`absolute inset-0 rounded-full border-2 ${status === 'expanding' ? 'border-amber-500/20' : 'border-cyan-600/20'}`}
                                             />
 
                                             {/* Center Glowing Orb */}
@@ -198,10 +198,10 @@ export const QuickMatchPanel = ({
                                                         : ["0 0 50px rgba(99,102,241,0.2)", "0 0 80px rgba(99,102,241,0.4)", "0 0 50px rgba(99,102,241,0.2)"]
                                                 }}
                                                 transition={{ duration: 3, repeat: Infinity }}
-                                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-white/5 border-purple-600/40'}`}
+                                                className={`w-40 h-40 rounded-full backdrop-blur-3xl border flex flex-col items-center justify-center transition-colors duration-1000 ${status === 'expanding' ? 'bg-amber-500/20 border-amber-500/40' : 'bg-white/5 border-cyan-600/40'}`}
                                             >
                                                 <span className="text-4xl font-black text-white italic">{searchTime}s</span>
-                                                <span className={`text-[10px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-purple-400'}`}>Elapsed</span>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest mt-1 transition-colors duration-1000 ${status === 'expanding' ? 'text-amber-400' : 'text-cyan-400'}`}>Elapsed</span>
                                             </motion.div>
 
                                             {/* Rotating Scan Line */}
@@ -281,7 +281,7 @@ export const QuickMatchPanel = ({
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={handlePlayVsAi}
-                                                className="w-full py-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-2xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] flex flex-col items-center justify-center gap-1"
+                                                className="w-full py-5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-black rounded-2xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] flex flex-col items-center justify-center gap-1"
                                             >
                                                 <span className="text-xl italic tracking-tighter">PLAY VS AI</span>
                                                 <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Offline Mode</span>
@@ -354,7 +354,7 @@ export const QuickMatchPanel = ({
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-2xl overflow-hidden"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/30 to-purple-900/30" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/30 to-cyan-800/30" />
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -369,7 +369,7 @@ export const QuickMatchPanel = ({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-purple-600 shadow-[0_0_50px_rgba(99,102,241,0.5)] overflow-hidden bg-purple-600 flex items-center justify-center text-6xl">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-cyan-600 shadow-[0_0_50px_rgba(34,211,238,0.5)] overflow-hidden bg-cyan-600 flex items-center justify-center text-6xl">
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} alt={finalName} className="w-full h-full object-cover" />
                                     ) : (
@@ -379,8 +379,8 @@ export const QuickMatchPanel = ({
                                 <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-cyan text-center">
                                     {finalName}
                                 </h3>
-                                <div className="mt-2 bg-white/5 px-4 py-1 rounded-full border border-purple-600/50">
-                                    <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">Lv. 8</span>
+                                <div className="mt-2 bg-white/5 px-4 py-1 rounded-full border border-cyan-600/50">
+                                    <span className="text-xs font-bold text-cyan-300 uppercase tracking-widest">Lv. 8</span>
                                 </div>
                             </motion.div>
 
@@ -412,7 +412,7 @@ export const QuickMatchPanel = ({
                                 transition={{ type: "spring", damping: 20, stiffness: 100 }}
                                 className="flex flex-col items-center z-10"
                             >
-                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-purple-600 flex items-center justify-center">
+                                <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-amber-500 shadow-[0_0_50px_rgba(245,158,11,0.5)] overflow-hidden bg-cyan-600 flex items-center justify-center">
                                     <motion.svg
                                         viewBox="0 0 24 24"
                                         fill="none"
@@ -431,7 +431,7 @@ export const QuickMatchPanel = ({
                                         <line x1="16" y1="13" x2="16.01" y2="13" strokeWidth="3" />
                                     </motion.svg>
                                 </div>
-                                <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-purple text-center">
+                                <h3 className="mt-6 text-2xl md:text-4xl font-black text-white italic tracking-tighter neon-glow-cyan text-center">
                                     Rival
                                 </h3>
                                 <div className="mt-2 bg-amber-500/20 px-4 py-1 rounded-full border border-amber-500/50">

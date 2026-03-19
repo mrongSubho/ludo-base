@@ -572,7 +572,11 @@ export default function Board({
                                 <div
                                     key={`${row}-${col}`}
                                     className={`${cls} ${isPower ? 'power-cell' : ''}`}
-                                    style={{ gridRow: row, gridColumn: col }}
+                                    style={{ 
+                                        gridRow: row, 
+                                        gridColumn: col,
+                                        backgroundColor: cls.includes('lane-') ? undefined : '#f3f4f6'
+                                    }}
                                 >
                                     {cellInfo.type === 'safe' && <StarMarker />}
                                     {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
@@ -630,8 +634,9 @@ export default function Board({
                             overflow: 'hidden',
                             zIndex: 0
                         }}>
-                            <div className="cosmic-orb cosmic-orb-1 opacity-60 scale-50" />
-                            <div className="cosmic-orb cosmic-orb-2 opacity-40 scale-50" />
+                            {/* Authentic Subdued Cosmic Orbs */}
+                            <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                            <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                         </div>
 
                         {/* 2. Glass Functional Core (GameLobby Style - Near Opaque) */}
@@ -639,10 +644,10 @@ export default function Board({
                             position: 'absolute',
                             inset: '1%',
                             borderRadius: '50%',
-                            background: 'rgba(26, 28, 41, 0.95)',
+                            background: 'rgba(0, 0, 0, 0.35)',
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
                             zIndex: 1,
                             overflow: 'hidden',
                             boxShadow: '0 0 50px rgba(0,0,0,0.8)',
@@ -826,41 +831,41 @@ export default function Board({
                                         position: 'absolute',
                                         inset: 0,
                                         zIndex: 50,
-                                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                                        backgroundColor: 'rgba(0, 0, 0, 0.65)',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         borderRadius: '16px',
                                         color: '#fff',
-                                        backdropFilter: 'blur(4px)'
+                                        backdropFilter: 'blur(20px)',
+                                        WebkitBackdropFilter: 'blur(20px)'
                                     }}
                                 >
                                     <motion.div 
                                         initial={{ scale: 0.8, y: 20 }}
                                         animate={{ scale: 1, y: 0 }}
-                                        style={{ textAlign: 'center', padding: '32px', background: '#1e293b', borderRadius: '16px', border: '2px solid #ef4444' }}
+                                        style={{ 
+                                            textAlign: 'center', 
+                                            padding: '32px', 
+                                            background: 'rgba(255, 255, 255, 0.05)', 
+                                            backdropFilter: 'blur(40px)',
+                                            WebkitBackdropFilter: 'blur(40px)',
+                                            borderRadius: '24px', 
+                                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                                            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+                                        }}
                                     >
-                                        <h2 style={{ fontSize: '24px', margin: '0 0 12px 0', color: '#ef4444', fontWeight: 'bold' }}>Are you still there?</h2>
-                                        <p style={{ fontSize: '18px', margin: '0 0 24px 0', opacity: 0.9 }}>
-                                            Auto-kicking in <span style={{ fontWeight: 'bold', fontSize: '24px' }}>{localGameState.idleWarning.timeLeft}s</span>
+                                        <h2 style={{ fontSize: '24px', margin: '0 0 12px 0', color: '#ef4444', fontWeight: 'bold', textShadow: '0 0 20px rgba(239, 68, 68, 0.3)' }}>Are you still there?</h2>
+                                        <p style={{ fontSize: '18px', margin: '0 0 24px 0', opacity: 0.7, color: 'rgba(255,255,255,0.8)' }}>
+                                            Auto-kicking in <span style={{ fontWeight: 'bold', fontSize: '24px', color: '#fff' }}>{localGameState.idleWarning.timeLeft}s</span>
                                         </p>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (myPlayer?.color) cancelAfk(myPlayer.color);
                                             }}
-                                            style={{
-                                                padding: '12px 32px',
-                                                background: '#3b82f6',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '8px',
-                                                fontSize: '18px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer',
-                                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
-                                            }}
+                                            className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-bold transition-all duration-300"
                                         >
                                             I'm Back!
                                         </button>

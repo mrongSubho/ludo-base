@@ -23,17 +23,17 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
         >
             {/* Animated Flare Decorators to match Lobby */}
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 blur-[60px] rounded-full animate-pulse" />
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-white/5 blur-[60px] rounded-full animate-pulse transition-all duration-1000 group-hover:bg-purple-600/30" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-white/5 blur-[60px] rounded-full animate-pulse transition-all duration-1000 group-hover:bg-cyan-600/30" />
 
             {/* Dice Header Area */}
             <div className="relative flex flex-col items-center">
                 <div className="absolute inset-x-0 inset-y-0 bg-white/20 blur-3xl rounded-full scale-150 animate-pulse" />
-                <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.2)] relative z-10 overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-black/50 to-black/35 flex items-center justify-center border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.2)] relative z-10 overflow-hidden group-hover:scale-105 transition-transform duration-500">
                     <span className="text-5xl drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">🎲</span>
                 </div>
 
                 {/* Mode Label Style Title */}
-                <div className="mt-8 inline-block px-6 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md relative z-10 shadow-lg">
+                <div className="mt-8 inline-block px-6 py-2 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md relative z-10 shadow-lg">
                     <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.3em] text-center drop-shadow-md">
                         Arena Entrance
                     </h3>
@@ -55,7 +55,7 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
                 {mounted ? (
                     <div className="group/btn relative w-full flex justify-center">
                         {/* Custom Glow behind button */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-purple-600 blur-xl opacity-20 group-hover/btn:opacity-40 transition-opacity pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-cyan-600 blur-xl opacity-20 group-hover/btn:opacity-40 transition-opacity pointer-events-none" />
 
                         <Wallet className="w-full flex justify-center">
                             <ConnectWallet

@@ -183,16 +183,16 @@ export const TeamUpMatchPanel = ({
                                     ) : (
                                         <motion.div
                                             onClick={() => { playSelect(); setView('roster'); }}
-                                            className="h-full flex flex-col items-center justify-center p-6 rounded-[2.5rem] bg-white/5 border-2 border-dashed border-white/10 hover:border-purple-500/50 hover:bg-white/10 transition-all cursor-pointer group relative"
+                                            className="h-full flex flex-col items-center justify-center p-6 rounded-[2.5rem] bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-white/10 transition-all cursor-pointer group relative"
                                         >
-                                            <div className="absolute -top-3 bg-slate-900 border border-white/20 group-hover:border-purple-500/50 px-5 py-1 rounded-full transition-colors">
-                                                <span className="text-[9px] text-white/40 group-hover:text-purple-400 font-black tracking-[0.2em] uppercase">Vacant Pod</span>
+                                            <div className="absolute -top-3 bg-slate-900 border border-white/20 group-hover:border-cyan-500/50 px-5 py-1 rounded-full transition-colors">
+                                                <span className="text-[9px] text-white/40 group-hover:text-cyan-400 font-black tracking-[0.2em] uppercase">Vacant Pod</span>
                                             </div>
                                             <div className="relative w-20 h-20 flex items-center justify-center mb-3">
-                                                <DashedRadarRing color="#a855f7" />
-                                                <PlusIcon className="w-8 h-8 text-white/20 group-hover:text-purple-400 group-hover:scale-110 transition-all z-10" />
+                                                <DashedRadarRing color="#22d3ee" />
+                                                <PlusIcon className="w-8 h-8 text-white/20 group-hover:text-cyan-400 group-hover:scale-110 transition-all z-10" />
                                             </div>
-                                            <span className="text-sm font-black text-white/30 group-hover:text-purple-400 italic uppercase tracking-[0.1em] transition-all">
+                                            <span className="text-sm font-black text-white/30 group-hover:text-cyan-400 italic uppercase tracking-[0.1em] transition-all">
                                                 {invitationPending ? 'SIGNAL_BROADCASTING...' : 'SUMMON REINFORCEMENTS'}
                                             </span>
                                         </motion.div>

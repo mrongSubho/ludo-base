@@ -129,7 +129,7 @@ const getPlayerNameColorClass = (color?: string) => {
         case 'green': return 'text-green-600 dark:text-green-400';
         case 'red': return 'text-red-500 dark:text-red-400';
         case 'yellow': return 'text-amber-500 dark:text-amber-400';
-        case 'blue': return 'text-purple-600 dark:text-blue-400';
+        case 'blue': return 'text-cyan-400 dark:text-cyan-400';
         default: return 'text-slate-800 dark:text-slate-200';
     }
 };

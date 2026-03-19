@@ -100,7 +100,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         switch (type) {
             case 'play': return {
                 icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M7 7h.01"></path><path d="M17 7h.01"></path><path d="M12 12h.01"></path><path d="M7 17h.01"></path><path d="M17 17h.01"></path></svg>,
-                color: 'text-purple-400',
+                color: 'text-cyan-400',
                 bg: 'bg-white/5'
             };
             case 'win': return {
@@ -115,7 +115,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
             };
             case 'social': return {
                 icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-                color: 'text-purple-400',
+                color: 'text-cyan-400',
                 bg: 'bg-white/5'
             };
         }
@@ -171,7 +171,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                         key={tab}
                                         onClick={() => setActiveTab(tab as MissionTab)}
                                         className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all ${activeTab === tab
-                                            ? 'bg-purple-600/80 text-white shadow-lg border border-purple-600/30'
+                                            ? 'bg-cyan-600/80 text-white shadow-lg border border-cyan-600/30'
                                             : 'text-white/40 hover:text-white/70'
                                             }`}
                                     >
@@ -185,7 +185,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                         <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-4 custom-scrollbar relative">
                             {isLoading && missions.length === 0 ? (
                                 <div className="flex items-center justify-center h-full">
-                                    <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                                    <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                                 </div>
                             ) : missions.filter(m => activeTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily')).length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
@@ -265,7 +265,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                             {/* Custom CSS Progress Bar */}
                                                             <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                                                 <div
-                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-purple-600'}`}
+                                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
                                                                     style={{ width: `${progressPercent}%` }}
                                                                 />
                                                             </div>

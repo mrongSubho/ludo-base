@@ -47,13 +47,13 @@ export const InviteNotification = () => {
                                 initial={{ width: '100%' }}
                                 animate={{ width: '0%' }}
                                 transition={{ duration: 15, ease: 'linear' }}
-                                className="h-full bg-gradient-to-r from-cyan-400 to-purple-500"
+                                className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500"
                             />
                         </div>
 
                         <div className="flex items-start gap-4">
                             {/* Host Avatar */}
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-cyan-500 flex items-center justify-center shrink-0 border border-white/20 shadow-lg">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-600 to-cyan-500 flex items-center justify-center shrink-0 border border-white/20 shadow-lg">
                                 {pendingInvite.hostAvatar ? (
                                     <img src={pendingInvite.hostAvatar} alt="host" className="w-full h-full rounded-2xl object-cover" />
                                 ) : (
@@ -67,7 +67,7 @@ export const InviteNotification = () => {
                                     {pendingInvite.hostName} invites you!
                                 </h3>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-500/30">
                                         {pendingInvite.matchType}
                                     </span>
                                     <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full border border-cyan-500/30">
@@ -97,7 +97,7 @@ export const InviteNotification = () => {
                             </button>
                             <button
                                 onClick={acceptInvite}
-                                className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+                                className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)]"
                             >
                                 Accept ✓
                             </button>

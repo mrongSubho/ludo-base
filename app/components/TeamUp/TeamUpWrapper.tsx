@@ -49,14 +49,14 @@ export const TeamUpWrapper = ({
               <motion.div 
                 animate={{ rotate: -360 }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-2 border-4 border-t-purple-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full"
+                className="absolute inset-2 border-4 border-t-cyan-500 border-r-transparent border-b-cyan-500 border-l-transparent rounded-full"
               />
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-2xl">🎲</span>
               </div>
             </div>
             
-            <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+            <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">
               Finding Opponents
             </h3>
             <p className="text-slate-400 mt-2 text-sm">

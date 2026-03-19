@@ -199,8 +199,8 @@ a {
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.03);
-  /* Very light silver tint for the wash */
+  background: rgba(0, 0, 0, 0.35);
+  /* Dark frosted glass at 35% opacity */
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -213,8 +213,8 @@ a {
 }
 
 .neon-glow-purple {
-  color: #b026ff;
-  text-shadow: 0 0 5px rgba(176, 38, 255, 0.5), 0 0 10px rgba(176, 38, 255, 0.3);
+  color: #00FFFF;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3);
 }
 
 .shimmer-effect {
@@ -1886,7 +1886,7 @@ a {
 
 /* ── Path Cells ── */
 .board-cell {
-  background: var(--ludo-card);
+  background: #f3f4f6; /* Off-white pathway for Layout A */
   position: relative;
   transition: background 0.15s ease;
   display: flex;
@@ -1921,7 +1921,7 @@ a {
 }
 
 .board-cell.star-cell {
-  background: rgba(var(--ludo-bg-rgb), 0.3);
+  background: #f3f4f6;
 }
 
 /* ── Star / Safe Cells ── */
@@ -1929,7 +1929,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ludo-card) !important;
+  background: #f3f4f6 !important;
 }
 
 .star-svg {
@@ -2276,9 +2276,9 @@ a {
 .winner-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2286,14 +2286,17 @@ a {
 }
 
 .winner-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
   padding: 40px;
-  border-radius: var(--radius-xl);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  border-radius: 32px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
   text-align: center;
   max-width: 320px;
   width: 90%;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
 .celebration-emoji {
@@ -3289,7 +3292,7 @@ a {
 }
 
 .mode-card.active.selection-glow-purple {
-  box-shadow: 0 0 0 2px #a855f7, 0 8px 24px rgba(168, 85, 247, 0.2);
+  box-shadow: 0 0 0 2px #22d3ee, 0 8px 24px rgba(34, 211, 238, 0.2);
 }
 
 .mode-icon-wrapper {

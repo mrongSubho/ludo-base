@@ -19,7 +19,7 @@ const BASE_ACTIONS = [
 
 // Removed cyan from dots per request so text stands out
 const DOT_COLORS = [
-    'bg-blue-500', 'bg-purple-400', 'bg-emerald-400', 
+    'bg-blue-500', 'bg-emerald-500', 'bg-emerald-400', 
     'bg-amber-400', 'bg-rose-400', 'bg-indigo-400'
 ];
 
@@ -283,12 +283,12 @@ const DiceFace = ({ face, transform, onClick, isActive, isRolling }: { face: any
                 }}
                 className={`relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10
                     ${isActive && !isRolling
-                        ? 'border-cyan-400/80 shadow-[0_0_15px_rgba(0,255,255,0.3)] bg-cyan-900/10 hover:bg-cyan-900/20 hover:scale-[1.10] active:scale-95 cursor-pointer' 
-                        : 'border-white/20 bg-gray-500/10 scale-[0.85] opacity-50 pointer-events-none'
+                        ? 'border-cyan-400/80 shadow-[0_0_15px_rgba(0,255,255,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95 cursor-pointer' 
+                        : 'border-white/10 bg-slate-900/40 scale-[0.85] opacity-50 pointer-events-none'
                     }
                 `}
             >
-                <span className={`block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400`}>
+                <span className={`block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isActive && !isRolling ? 'text-cyan-400' : 'text-white/60'}`}>
                     {face.label}
                 </span>
             </button>

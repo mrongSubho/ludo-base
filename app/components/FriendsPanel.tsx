@@ -316,7 +316,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => onOpenProfile?.(friend.wallet_address)}
-                            className="relative w-12 h-12 rounded-full overflow-hidden bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500/50 hover:scale-105 transition-transform"
+                            className="relative w-12 h-12 rounded-full overflow-hidden bg-cyan-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 hover:scale-105 transition-transform"
                         >
                             <img
                                 src={friend.avatar_url || '/default-avatar.png'}
@@ -363,7 +363,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                         {/* DM Button */}
                         <button
                             onClick={() => onDM?.(friend.wallet_address)}
-                            className="w-10 h-10 rounded-full bg-white/5 text-purple-400 flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
+                            className="w-10 h-10 rounded-full bg-white/5 text-cyan-400 flex items-center justify-center hover:bg-cyan-600 hover:text-white transition-all shadow-sm"
                         >
                             <DMIcon />
                         </button>
@@ -382,7 +382,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
         return requests.map((req) => (
             <div key={req.id} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
                 <button onClick={() => onOpenProfile?.(req.wallet_address)} className="flex items-center gap-3 hover:opacity-80 transition-opacity focus:outline-none text-left">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-purple-900 border-2 border-transparent">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-cyan-900 border-2 border-transparent">
                         <img src={req.avatar.startsWith('http') ? req.avatar : `/avatars/${req.avatar}.png`} alt={req.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col">
@@ -428,7 +428,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                /* Unified global panel layout: top-64, bottom-80, bg-purple-6000 glass */
+                /* Unified global panel layout: top-64, bottom-80, bg-cyan-6000 glass */
                 className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
             >
                 {/* Handle Bar */}
@@ -440,7 +440,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                 <div className="px-panel-gutter pb-4 border-b border-white/10">
                     <div className="flex items-center justify-between mb-6 mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-purple-400">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-cyan-400">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
                                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -459,19 +459,19 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     {/* Top-Level Segmented Control */}
                     <div className="flex bg-black/40 p-1 rounded-xl">
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'social' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'social' ? 'bg-cyan-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('social')}
                         >
                             Social
                         </button>
                         <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'global' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'global' ? 'bg-cyan-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('global')}
                         >
                             Global
                         </button>
                         <button
-                            className={`flex-1 py-1 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-purple-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
+                            className={`flex-1 py-1 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-cyan-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
                             onClick={() => setActiveMainTab('requests')}
                         >
                             <span className="flex items-center justify-center gap-1.5">
@@ -519,7 +519,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                                     >
                                         Incoming ({pendingIncoming.length})
                                         {activeRequestTab === 'incoming' && (
-                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 rounded-t-full" />
+                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-600 rounded-t-full" />
                                         )}
                                     </button>
                                     <button
@@ -528,7 +528,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                                     >
                                         Sent ({pendingOutgoing.length})
                                         {activeRequestTab === 'sent' && (
-                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600 rounded-t-full" />
+                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-600 rounded-t-full" />
                                         )}
                                     </button>
                                 </div>
