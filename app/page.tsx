@@ -227,9 +227,9 @@ export default function Page() {
       <InviteNotification />
 
       <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-1]">
-        <div className="cosmic-orb cosmic-orb-1 opacity-40 scale-150" />
-        <div className="cosmic-orb cosmic-orb-2 opacity-30 scale-125" />
-        <div className="cosmic-orb cosmic-orb-3 opacity-20 scale-110" />
+        <div className="cosmic-orb cosmic-orb-1 opacity-50 scale-150" />
+        <div className="cosmic-orb cosmic-orb-2 opacity-40 scale-125" />
+        <div className="cosmic-orb cosmic-orb-3 opacity-30 scale-110" />
       </div>
 
       {!isConnected ? (

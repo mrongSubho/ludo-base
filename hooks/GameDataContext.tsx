@@ -18,6 +18,7 @@ export interface UserProfile {
     xp?: number;
     rating?: number;
     coins?: number;
+    peer_id?: string;
 }
 
 export interface LeaderboardEntry extends UserProfile {
@@ -390,10 +391,13 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
         const initPeer = () => {
             if (isDestroyed) return;
-            console.log("📡 [P2P] Initializing Peer with ID:", lowerAddr);
             
-            currentPeer = new Peer(lowerAddr, {
-                debug: 1 // Increased debug level slightly for better error insight if needed
+            // Generate a truly unique ID to avoid library-internal collisions on the PeerServer
+            const uniqueId = `${lowerAddr}-${Math.random().toString(36).substring(2, 7)}`;
+            console.log("📡 [P2P] Initializing Peer with Unique ID:", uniqueId);
+            
+            currentPeer = new Peer(uniqueId, {
+                debug: 1
             });
 
             currentPeer.on('open', (id) => {
@@ -403,6 +407,18 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                 }
                 console.log("✅ [P2P] Connection opened with ID:", id);
                 setIsP2PActive(true);
+                
+                // Sync the unique Peer ID to Supabase so others can find us
+                supabase.from('players')
+                    .update({ peer_id: id, status: 'Online' })
+                    .eq('wallet_address', lowerAddr)
+                    .then(({ error }) => {
+                        if (error) console.error("❌ [P2P] Failed to sync peer_id:", error);
+                        else console.log("🔗 [P2P] Peer ID synced to database.");
+                    });
+                
+                // Update local profile too
+                setMyProfile(prev => prev ? { ...prev, peer_id: id, status: 'Online' } : prev);
             });
 
             currentPeer.on('connection', (conn) => {
@@ -411,34 +427,38 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
             });
 
             currentPeer.on('disconnected', () => {
-                if (isDestroyed) return;
-                console.warn("⚠️ [P2P] Peer disconnected from server. Attempting to reconnect...");
+                if (isDestroyed || currentPeer?.destroyed) return;
+                console.warn("⚠️ [P2P] Peer disconnected. Attempting to reconnect...");
                 setIsP2PActive(false);
                 currentPeer?.reconnect();
             });
 
             currentPeer.on('error', (err) => {
                 if (isDestroyed) return;
-                console.error("❌ [P2P] Peer Error caught safely:", err.message, "Type:", err.type);
                 
-                setIsP2PActive(false);
-
+                // We handle 'unavailable-id' here just in case, though it should be impossible now
                 if (err.type === 'unavailable-id') {
-                    console.warn("⚠️ [P2P] ID taken, likely due to hot reload or strict mode. Retrying in 2s...");
+                    console.warn("⚠️ [P2P] ID collision detected. Regenerating in 2s...");
+                    setIsP2PActive(false);
                     currentPeer?.destroy();
                     retryTimeout = setTimeout(initPeer, 2000);
-                } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
-                    console.warn(`⚠️ [P2P] Critical error (${err.type}). Re-initializing in 5s...`);
-                    currentPeer?.destroy();
-                    retryTimeout = setTimeout(initPeer, 5000);
+                } else {
+                    console.error("❌ [P2P] Peer Error:", err.message, "Type:", err.type);
+                    setIsP2PActive(false);
+
+                    if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+                        console.warn(`⚠️ [P2P] Recovery attempt in 5s...`);
+                        currentPeer?.destroy();
+                        retryTimeout = setTimeout(initPeer, 5000);
+                    }
                 }
             });
 
             setPeer(currentPeer);
         };
 
-        // Delay initial creation slightly to allow Strict Mode unmounts to cleanly destroy previous instances on the PeerServer
-        const initialDelay = setTimeout(initPeer, 300);
+        // Delay initial creation slightly for clean mount transitions
+        const initialDelay = setTimeout(initPeer, 500);
 
         return () => {
             isDestroyed = true;
@@ -446,6 +466,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
             clearTimeout(retryTimeout);
             if (currentPeer) {
                 currentPeer.destroy();
+                // Clear the Peer ID from Supabase on unmount
+                supabase.from('players').update({ peer_id: null, status: 'Offline' }).eq('wallet_address', lowerAddr);
             }
             setPeer(null);
             setIsP2PActive(false);
@@ -590,11 +612,14 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
             // 2. Try P2P first
             let p2pSent = false;
-            let conn = connections[targetId];
+            const targetProfile = profilesMap[targetId];
+            const targetPeerId = targetProfile?.peer_id;
+            
+            let conn = targetPeerId ? connections[targetPeerId] : null;
 
-            if (!conn && peer) {
-                console.log("🔗 [P2P] Attempting to connect to:", targetId);
-                conn = peer.connect(targetId);
+            if (!conn && peer && targetPeerId) {
+                console.log("🔗 [P2P] Attempting to connect to:", targetPeerId, `(Wallet: ${targetId})`);
+                conn = peer.connect(targetPeerId);
                 setupConnectionListeners(conn);
                 // Wait a bit for connection
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -611,7 +636,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                     }
                 });
                 p2pSent = true;
-                console.log("⚡ [P2P] Message sent directly!");
+                console.log("⚡ [P2P] Message sent directly via unique ID!");
             }
 
             // 3. Fallback to Supabase (as encrypted relay)
