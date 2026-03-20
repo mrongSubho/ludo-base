@@ -14,7 +14,7 @@ type LeaderboardTab = 'tier' | 'daily' | 'monthly';
 interface LeaderboardEntry {
     id: string;
     name: string;
-    avatar: string;
+    avatar: string | null;
     wins: number;
     lastWin: number;
     isCurrentUser?: boolean;
@@ -47,8 +47,8 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
         id: player.wallet_address,
         name: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + player.wallet_address.slice(-6).toUpperCase(),
         avatar: player.avatar_url,
-        wins: player.total_wins,
-        lastWin: new Date(player.last_played_at).getTime(),
+        wins: player.total_wins || 0,
+        lastWin: new Date(player.last_played_at || Date.now()).getTime(),
         isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
         tierName: player.tierName,
         subRank: player.subRank,
@@ -94,7 +94,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                        className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
                     />
 
                     <motion.div
@@ -102,8 +102,14 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        /* Unified global panel layout: top-64, bottom-80, Cosmic Theme */
+                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
                     >
+                        {/* Authentic Subdued Cosmic Orbs */}
+                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+
                         <div className="w-full flex justify-center pt-4 pb-2">
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>

@@ -262,7 +262,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm"
+                        className="fixed top-[64px] bottom-[80px] left-0 right-0 z-[200] bg-transparent"
                     />
 
                     {/* Pop-up Modal Container */}
@@ -270,8 +270,13 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
+                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
                     >
+                        {/* Authentic Subdued Cosmic Orbs */}
+                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+
                         {/* Header Gradient */}
                         <div className="h-16 bg-gradient-to-b from-cyan-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
 

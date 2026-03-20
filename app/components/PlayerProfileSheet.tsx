@@ -64,7 +64,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
             {/* Dim backdrop — very faint so board stays visible */}
             <motion.div
                 key="profile-backdrop"
-                className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[120]"
+                className="fixed top-[64px] bottom-[80px] left-0 right-0 bg-transparent z-[120]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -73,8 +73,16 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
             {/* Compact floating popup */}
             <motion.div
                 key="profile-popup"
-                className="profile-popup"
-                style={{ ...verticalAnchor, ...horizAnchor }}
+                className="profile-popup relative"
+                style={{ 
+                    ...verticalAnchor, 
+                    ...horizAnchor,
+                    background: 'var(--ludo-bg-cosmic)',
+                    backgroundColor: '#252733',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '24px',
+                    overflow: 'hidden'
+                }}
                 initial={{ opacity: 0, x: slideX }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: slideX }}

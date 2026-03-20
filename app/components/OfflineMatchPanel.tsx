@@ -23,7 +23,7 @@ export const OfflineMatchPanel = ({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
                 onClick={onClose}
             />
 
@@ -32,8 +32,14 @@ export const OfflineMatchPanel = ({
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-[15%] bottom-[15%] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[420px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[40px] z-[110] flex flex-col shadow-2xl overflow-hidden p-8"
+                /* Unified global panel layout: Cosmic Theme */
+                className="fixed top-[15%] bottom-[15%] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[420px] border border-white/10 rounded-[40px] z-[110] flex flex-col shadow-2xl overflow-hidden p-8"
+                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
             >
+                {/* Authentic Subdued Cosmic Orbs */}
+                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">

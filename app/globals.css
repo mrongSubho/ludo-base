@@ -142,42 +142,39 @@ a {
   overflow: hidden;
 }
 
-/* Pulsing Cosmic Orbs - Updated to match bright silver flares */
+/* Pulsing Cosmic Orbs - Shifted from bright white to deep colored tones to prevent washout */
 .cosmic-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.8;
+  filter: blur(80px);
+  opacity: 0.6;
   animation: drift-orb 20s infinite alternate ease-in-out;
   pointer-events: none;
 }
 
 .cosmic-orb-1 {
-  width: 350px;
-  height: 350px;
-  background: rgba(255, 255, 255, 0.3);
-  /* Top Flare */
-  top: -50px;
+  width: 400px;
+  height: 400px;
+  background: rgba(6, 182, 212, 0.15); /* Cyan Flare */
+  top: -100px;
   left: 20%;
   animation-duration: 25s;
 }
 
 .cosmic-orb-2 {
-  width: 450px;
-  height: 450px;
-  background: rgba(255, 255, 255, 0.25);
-  /* Bottom Right Flare */
-  bottom: -100px;
+  width: 500px;
+  height: 500px;
+  background: rgba(13, 148, 136, 0.12); /* Teal Flare */
+  bottom: -150px;
   right: -50px;
   animation-duration: 30s;
   animation-delay: -5s;
 }
 
 .cosmic-orb-3 {
-  width: 300px;
-  height: 300px;
-  background: rgba(230, 235, 245, 0.2);
-  /* Center Left Flare */
+  width: 350px;
+  height: 350px;
+  background: rgba(59, 130, 246, 0.1); /* Blue Flare */
   top: 40%;
   left: 10%;
   animation-duration: 22s;
@@ -275,8 +272,8 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  /* Darker translucent background with high blur */
-  background: rgba(0, 0, 0, 0.15);
+  /* Updated translucent background (25%) - Forced */
+  background: rgba(0, 0, 0, 0.25) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle bottom border */
@@ -911,8 +908,8 @@ a {
   justify-content: space-around;
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  /* Darker translucent background with high blur */
-  background: rgba(0, 0, 0, 0.15);
+  /* Updated translucent background (25%) - Forced */
+  background: rgba(0, 0, 0, 0.25) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle top border */
@@ -949,35 +946,41 @@ a {
 .nav-item .nav-icon {
   width: 22px;
   height: 22px;
-  color: var(--color-ludo-faint);
+  color: rgba(255, 255, 255, 0.45) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item.active .nav-icon {
-  color: #FFFFFF;
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
+  /* Cyan active color override */
+  color: #06b6d4 !important;
+  filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.5));
   transform: translateY(-2px);
 }
 
 .nav-item:hover:not(.active) .nav-icon {
-  color: rgba(255, 255, 255, 0.8);
+  /* Cyan hover preview override */
+  color: #06b6d4 !important;
+  opacity: 0.9 !important;
   transform: translateY(-1px);
 }
 
 .nav-item .nav-label {
   font-size: 10px;
   font-weight: 500;
-  color: var(--color-ludo-faint);
+  /* Default to white (subtle) - forced override */
+  color: rgba(255, 255, 255, 0.7) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item.active .nav-label {
-  color: #FFFFFF;
+  /* Cyan active label override */
+  color: #06b6d4 !important;
   font-weight: 600;
 }
 
 .nav-item:hover:not(.active) .nav-label {
-  color: rgba(255, 255, 255, 0.8);
+  /* Cyan hover label override */
+  color: #06b6d4 !important;
 }
 
 /* ─── Farcaster Frame Responsive ─── */
@@ -3226,9 +3229,7 @@ a {
 }
 
 .dash-header {
-  background: transparent;
-  backdrop-filter: none;
-  border-bottom: none;
+  /* Removed transparent override to respect .header background */
   padding: 20px 24px 10px;
 }
 

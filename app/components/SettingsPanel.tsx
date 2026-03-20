@@ -93,7 +93,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
             />
 
             <motion.div
@@ -101,8 +101,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                /* Unified global panel layout: top-64, bottom-80, Cosmic Theme */
+                className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
+                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
             >
+                {/* Authentic Subdued Cosmic Orbs */}
+                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-4 pb-2">
                     <div className="w-12 h-1.5 bg-white/20 rounded-full" />
