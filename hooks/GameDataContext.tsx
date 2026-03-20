@@ -10,19 +10,18 @@ import { encryptMessage, decryptMessage, deriveSharedKey } from '@/lib/encryptio
 
 export interface UserProfile {
     wallet_address: string;
-    username: string;
-    avatar_url: string;
-    total_wins: number;
-    last_played_at: string;
-    status?: string;
-    xp?: number;
-    rating?: number;
-    coins?: number;
-    peer_id?: string;
+    username: string | null;
+    avatar_url: string | null;
+    total_wins: number | null;
+    last_played_at: string | null;
+    status?: string | null;
+    xp?: number | null;
+    rating?: number | null;
+    coins?: number | null;
+    peer_id?: string | null;
 }
 
 export interface LeaderboardEntry extends UserProfile {
-    // New Tier structure
     tierName: string;
     subRank: string;
     level: number;
@@ -160,7 +159,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                     msgRes
                 ] = await Promise.all([
                     // 1. Fetch My Profile
-                    supabase.from('players').select('*').eq('wallet_address', lowerAddr).single(),
+                    supabase.from('players').select('*').eq('wallet_address', lowerAddr).maybeSingle(),
                     
                     // 2. Fetch Top 50 Leaderboard
                     supabase.from('players').select('*').order('total_wins', { ascending: false }).limit(50),
@@ -348,7 +347,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                                 level: prog.level
                             };
                             
-                            newArr.sort((a, b) => b.total_wins - a.total_wins);
+                            newArr.sort((a, b) => (b.total_wins || 0) - (a.total_wins || 0));
                             localStorage.setItem(`cache_leaderboard`, JSON.stringify(newArr));
                             return newArr;
                         }
@@ -491,6 +490,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                         content: plainText,
                         is_read: false,
                         created_at: new Date().toISOString(),
+                        deleted_by_sender: false, // Ensure these fields are present
+                        deleted_by_receiver: false, // Ensure these fields are present
                     };
 
                     setMessages(prev => {
@@ -573,8 +574,18 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         const lowerAddr = address.toLowerCase();
 
         setMyProfile(prev => {
-            if (!prev) return prev;
-            const merged = { ...prev, ...updates };
+            const base = prev || {
+                wallet_address: lowerAddr,
+                username: null,
+                avatar_url: null,
+                total_wins: 0,
+                last_played_at: new Date().toISOString(),
+                xp: 0,
+                rating: 0,
+                coins: 1000,
+                peer_id: null
+            };
+            const merged = { ...base, ...updates };
             localStorage.setItem(`cache_profile_${lowerAddr}`, JSON.stringify(merged));
             return merged;
         });
