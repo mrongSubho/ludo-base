@@ -272,7 +272,7 @@ a {
   justify-content: space-between;
   padding: 12px 20px;
   /* Updated translucent background (25%) - Forced */
-  background: rgba(0, 0, 0, 0.18) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle bottom border */
@@ -909,7 +909,7 @@ a {
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 200 !important;
   /* Updated translucent background (25%) - Forced */
-  background: rgba(0, 0, 0, 0.18) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle top border */
