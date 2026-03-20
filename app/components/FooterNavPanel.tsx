@@ -6,13 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 
-// Panel Imports
-import UserProfilePanel from './UserProfilePanel';
-import FriendsPanel from './FriendsPanel';
-import Leaderboard from './Leaderboard';
-import MissionPanel from './MissionPanel';
-import MarketplacePanel from './MarketplacePanel';
-import MessagesPanel from './MessagesPanel';
+// Tab Type
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -55,8 +50,6 @@ const ShopIcon = () => (
 );
 
 // ─── Component ───────────────────────────────────────────────────────────────
-
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
 
 interface FooterNavPanelProps {
     activeTab: Tab;
@@ -143,50 +136,6 @@ export const FooterNavPanel = ({
                     );
                 })}
             </nav>
-
-            {/* Slide-up Panels for footer tabs */}
-            <AnimatePresence mode="wait">
-                {activeTab === 'profile' && (
-                    <UserProfilePanel key="profile" onClose={onCloseTab} />
-                )}
-                {activeTab === 'friends' && (
-                    <FriendsPanel
-                        key="friends"
-                        onClose={onCloseTab}
-                        onDM={(friendId) => {
-                            onSelectChat(friendId);
-                            onToggleTab('messages');
-                        }}
-                        onOpenProfile={onOpenProfile}
-                    />
-                )}
-                {activeTab === 'leaderboard' && (
-                    <Leaderboard
-                        key="leaderboard"
-                        isOpen={true}
-                        onClose={onCloseTab}
-                        onOpenProfile={onOpenProfile}
-                    />
-                )}
-                {activeTab === 'mission' && (
-                    <MissionPanel key="mission" isOpen={true} onClose={onCloseTab} onSwitchTab={onToggleTab} />
-                )}
-                {activeTab === 'marketplace' && (
-                    <MarketplacePanel key="marketplace" isOpen={true} onClose={onCloseTab} />
-                )}
-
-                {activeTab === 'messages' && (
-                    <MessagesPanel
-                        key="messages"
-                        onClose={() => {
-                            onCloseTab();
-                            onSelectChat(null);
-                        }}
-                        initialChatId={selectedChatId}
-                        onOpenProfile={onOpenProfile}
-                    />
-                )}
-            </AnimatePresence>
         </>
     );
 };

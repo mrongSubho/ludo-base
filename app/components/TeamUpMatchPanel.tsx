@@ -99,7 +99,7 @@ export const TeamUpMatchPanel = ({
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                 /* Unified global panel layout: Cosmic Theme */
                 className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[440px] z-[110] flex flex-col items-center border border-white/10 rounded-[40px] p-8 shadow-2xl overflow-hidden"
-                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
+                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
             >
                 {/* Authentic Subdued Cosmic Orbs */}
                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />

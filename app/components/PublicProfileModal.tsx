@@ -271,7 +271,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
-                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
+                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />

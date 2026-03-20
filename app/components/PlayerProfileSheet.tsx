@@ -78,7 +78,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                     ...verticalAnchor, 
                     ...horizAnchor,
                     background: 'var(--ludo-bg-cosmic)',
-                    backgroundColor: '#252733',
+                    backgroundColor: '#1c1c1c',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '24px',
                     overflow: 'hidden'

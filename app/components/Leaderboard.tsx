@@ -97,15 +97,17 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
                     />
 
-                    <motion.div
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        /* Unified global panel layout: top-64, bottom-80, Cosmic Theme */
-                        className="fixed top-[64px] bottom-[80px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[468px] border border-white/10 rounded-[32px] z-[110] flex flex-col shadow-2xl overflow-hidden"
-                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#252733' }}
-                    >
+                    <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
+                        <div className="w-full max-w-[500px] relative h-full">
+                            <motion.div
+                                initial={{ y: '100%', opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: '100%', opacity: 0 }}
+                                transition={{ type: 'spring', damping: 32, stiffness: 180, mass: 1 }}
+                                /* Unified global panel layout: top-64, bottom-80 sandwich */
+                                className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
+                                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+                            >
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
@@ -336,9 +338,11 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                 </div>
                             )}
                         </div>
-                    </motion.div>
-                </>
-            )}
+                        </motion.div>
+                    </div>
+                </div>
+            </>
+        )}
         </AnimatePresence>
     );
 }

@@ -11,6 +11,12 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { InviteNotification } from './components/InviteNotification';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
+import UserProfilePanel from './components/UserProfilePanel';
+import FriendsPanel from './components/FriendsPanel';
+import Leaderboard from './components/Leaderboard';
+import MissionPanel from './components/MissionPanel';
+import MarketplacePanel from './components/MarketplacePanel';
+import MessagesPanel from './components/MessagesPanel';
 import PublicProfileModal from './components/PublicProfileModal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
@@ -279,8 +285,47 @@ export default function Page() {
                 onOpenProfile={(uid) => setSelectedProfileAddress(uid)}
               />
 
-              {/* Settings Drawer */}
+              {/* Universal Panel Layer (Sandwich Layout) */}
               <AnimatePresence mode="wait">
+                {activeTab === 'profile' && (
+                  <UserProfilePanel key="profile" onClose={closeTab} />
+                )}
+                {activeTab === 'friends' && (
+                  <FriendsPanel
+                    key="friends"
+                    onClose={closeTab}
+                    onDM={(friendId: string) => {
+                      setSelectedChatId(friendId);
+                      toggle('messages');
+                    }}
+                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                  />
+                )}
+                {activeTab === 'leaderboard' && (
+                  <Leaderboard
+                    key="leaderboard"
+                    isOpen={true}
+                    onClose={closeTab}
+                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                  />
+                )}
+                {activeTab === 'mission' && (
+                  <MissionPanel key="mission" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
+                )}
+                {activeTab === 'marketplace' && (
+                  <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />
+                )}
+                {activeTab === 'messages' && (
+                  <MessagesPanel
+                    key="messages"
+                    onClose={() => {
+                        closeTab();
+                        setSelectedChatId(null);
+                    }}
+                    initialChatId={selectedChatId}
+                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                  />
+                )}
                 {activeTab === 'settings' && (
                   <SettingsPanel key="settings" onClose={closeTab} />
                 )}

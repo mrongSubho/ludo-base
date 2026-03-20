@@ -13,7 +13,11 @@ export interface CompetitiveMatch {
 }
 
 export const useCompetitiveConnection = () => {
-  const [edgeClient, setEdgeClient] = useState<EdgeServerClient | null>(null);
+  const [edgeClient] = useState(() => {
+    const edgeUrl = (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_EDGE_SERVER_URL) 
+      || 'https://edge.ludo.game';
+    return new EdgeServerClient(edgeUrl);
+  });
   const [gameplayClient, setGameplayClient] = useState<PeerJSGameplay | null>(null);
   const [fallbackManager] = useState(() => new FallbackConnectionManager());
   const [match, setMatch] = useState<CompetitiveMatch | null>(null);
@@ -21,17 +25,13 @@ export const useCompetitiveConnection = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const edgeUrl = process.env.NEXT_PUBLIC_EDGE_SERVER_URL || 'https://edge.ludo.game';
-    const client = new EdgeServerClient(edgeUrl);
-    setEdgeClient(client);
-
     return () => {
-      client.disconnect();
+      edgeClient.disconnect();
       if (gameplayClient) {
         gameplayClient.disconnect();
       }
     };
-  }, [gameplayClient]);
+  }, [edgeClient, gameplayClient]);
 
   const findCompetitiveMatch = useCallback(async (mode: 'quick' | 'friends', entryFee?: number) => {
     setLoading(true);

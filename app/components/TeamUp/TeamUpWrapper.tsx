@@ -38,13 +38,18 @@ export const TeamUpWrapper = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0F172A]/90 backdrop-blur-xl"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
+            style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
           >
-            <div className="relative w-24 h-24 mb-6">
+            {/* Authentic Subdued Cosmic Orbs */}
+            <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+            <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+            
+            <div className="relative w-24 h-24 mb-6 z-10">
               <motion.div 
                 animate={{ rotate: 360 }}
                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent rounded-full"
+                className="absolute inset-0 border-4 border-t-cyan-500 border-r-transparent border-b-cyan-500 border-l-transparent rounded-full"
               />
               <motion.div 
                 animate={{ rotate: -360 }}
@@ -56,7 +61,7 @@ export const TeamUpWrapper = ({
               </div>
             </div>
             
-            <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">
+            <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-cyan-400">
               Finding Opponents
             </h3>
             <p className="text-slate-400 mt-2 text-sm">
@@ -69,7 +74,7 @@ export const TeamUpWrapper = ({
                   key={i}
                   animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
                   transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                  className="w-2 h-2 rounded-full bg-blue-500"
+                  className="w-2 h-2 rounded-full bg-cyan-500"
                 />
               ))}
             </div>
@@ -81,9 +86,14 @@ export const TeamUpWrapper = ({
             key="error"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0F172A]/95 p-6"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center overflow-hidden p-6"
+            style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
           >
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+            {/* Authentic Subdued Cosmic Orbs */}
+            <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+            <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20 z-10">
               <span className="text-2xl text-red-500">⚠️</span>
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Connection Match Failed</h3>
@@ -92,7 +102,7 @@ export const TeamUpWrapper = ({
             </p>
             <button 
               onClick={() => findCompetitiveMatch(mode, entryFee)}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/20"
+              className="bg-white hover:bg-white/90 text-black px-8 py-3 rounded-xl font-black italic tracking-tighter uppercase transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-white/20"
             >
               Retry Connection
             </button>
@@ -130,11 +140,6 @@ export const TeamUpWrapper = ({
         )}
       </AnimatePresence>
 
-      <style jsx>{`
-        .team-up-wrapper {
-          background: #020617;
-        }
-      `}</style>
     </div>
   );
 };

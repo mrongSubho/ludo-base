@@ -27,15 +27,14 @@
 }
 
 :root {
-  /* --- Unified Cosmic Midnight Theme (Default) --- */
   --ludo-bg-cosmic:
-    radial-gradient(circle at 10% 10%, rgba(40, 42, 55, 0.4) 0%, transparent 40%),
-    radial-gradient(ellipse at 60% 30%, rgba(30, 32, 45, 0.3) 0%, transparent 60%),
-    radial-gradient(ellipse at 30% 70%, rgba(25, 27, 40, 0.4) 0%, transparent 50%),
-    radial-gradient(circle at 80% 90%, rgba(40, 45, 60, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 10% 10%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 30%, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse at 30% 70%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.35'/%3E%3C/svg%3E");
 
-  --ludo-bg: #0f111a;
+  --ludo-bg: #0d0d0d;
   /* Darkened base to make grain and flares pop */
   --ludo-card: rgba(255, 255, 255, 0.03);
   /* Translucent silver card base */
@@ -65,7 +64,7 @@
   --ludo-amber-contrast: #000000;
 
   --ludo-bg-image: var(--ludo-bg-cosmic);
-  --ludo-bg-rgb: 15, 17, 26;
+  --ludo-bg-rgb: 13, 13, 13;
 
   /* Consolidated Utility Tokens */
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
@@ -147,7 +146,7 @@ a {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.6;
+  opacity: 0.8;
   animation: drift-orb 20s infinite alternate ease-in-out;
   pointer-events: none;
 }
@@ -155,7 +154,7 @@ a {
 .cosmic-orb-1 {
   width: 400px;
   height: 400px;
-  background: rgba(6, 182, 212, 0.15); /* Cyan Flare */
+  background: rgba(6, 182, 212, 0.4); /* Cyan Flare - Boosted */
   top: -100px;
   left: 20%;
   animation-duration: 25s;
@@ -164,7 +163,7 @@ a {
 .cosmic-orb-2 {
   width: 500px;
   height: 500px;
-  background: rgba(13, 148, 136, 0.12); /* Teal Flare */
+  background: rgba(13, 148, 136, 0.35); /* Teal Flare - Boosted */
   bottom: -150px;
   right: -50px;
   animation-duration: 30s;
@@ -174,7 +173,7 @@ a {
 .cosmic-orb-3 {
   width: 350px;
   height: 350px;
-  background: rgba(59, 130, 246, 0.1); /* Blue Flare */
+  background: rgba(59, 130, 246, 0.3); /* Blue Flare - Boosted */
   top: 40%;
   left: 10%;
   animation-duration: 22s;
@@ -273,7 +272,7 @@ a {
   justify-content: space-between;
   padding: 12px 20px;
   /* Updated translucent background (25%) - Forced */
-  background: rgba(0, 0, 0, 0.25) !important;
+  background: rgba(0, 0, 0, 0.18) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle bottom border */
@@ -281,7 +280,7 @@ a {
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200 !important;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
 }
@@ -908,8 +907,9 @@ a {
   justify-content: space-around;
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  z-index: 200 !important;
   /* Updated translucent background (25%) - Forced */
-  background: rgba(0, 0, 0, 0.25) !important;
+  background: rgba(0, 0, 0, 0.18) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle top border */
@@ -919,13 +919,14 @@ a {
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
 }
-
 .nav-item {
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 8px 14px;
+  padding: 8px 4px;
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
