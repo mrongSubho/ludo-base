@@ -38,24 +38,69 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 
     const [activeIndex, setActiveIndex] = useState(0);
     const [isRolling, setIsRolling] = useState(false);
-
     const [faces, setFaces] = useState<any[]>([]);
 
-    const generateRandomFaces = () => {
+    // Shuffle Bag for fair distribution
+    const [resultsPool, setResultsPool] = useState<string[]>([]);
+
+    const getNextResult = () => {
+        let currentPool = [...resultsPool];
+        if (currentPool.length === 0) {
+            // Priority: Quick Match first if pool is fresh, then randomized but complete
+            currentPool = ['quick', 'team', 'offline', 'quick', 'team', 'offline'].sort(() => Math.random() - 0.5);
+        }
+        const result = currentPool.pop()!;
+        setResultsPool(currentPool);
+        return result;
+    };
+
+    const generateRandomFaces = (targetActionId?: string, targetIndex?: number) => {
         const pips = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5);
-        const actions = [...BASE_ACTIONS, ...BASE_ACTIONS].sort(() => Math.random() - 0.5);
+        
+        // Always 2 of each to maintain visual balance
+        let actionsPool = ['quick', 'quick', 'team', 'team', 'offline', 'offline'];
+        
+        // If we have a target, ensure it's at the targetIndex
+        let finalActions: string[] = [];
+        if (targetActionId && targetIndex !== undefined) {
+            // Remove one instance of targetActionId from pool
+            const idx = actionsPool.indexOf(targetActionId);
+            if (idx > -1) actionsPool.splice(idx, 1);
+            
+            // Randomly shuffle the rest
+            actionsPool.sort(() => Math.random() - 0.5);
+            
+            // Insert target at proper index
+            actionsPool.splice(targetIndex, 0, targetActionId);
+            finalActions = actionsPool;
+        } else {
+            finalActions = actionsPool.sort(() => Math.random() - 0.5);
+        }
+
         const dotColors = [...DOT_COLORS].sort(() => Math.random() - 0.5);
         
-        return pips.map((pipCount, i) => ({
-            pips: pipCount,
-            id: actions[i].id,
-            label: actions[i].label,
-            dotColor: dotColors[i]
-        }));
+        return pips.map((pipCount, i) => {
+            const actionId = finalActions[i];
+            const action = BASE_ACTIONS.find(a => a.id === actionId)!;
+            return {
+                pips: pipCount,
+                id: action.id,
+                label: action.label,
+                dotColor: dotColors[i]
+            };
+        });
     };
 
     useEffect(() => {
-        setFaces(generateRandomFaces());
+        // Initial setup: favored towards Quick Match
+        const firstResult = 'quick';
+        const initialFaces = generateRandomFaces(firstResult, 0);
+        setFaces(initialFaces);
+        setActiveIndex(0);
+        
+        // Prepare rest of the pool
+        setResultsPool(['team', 'offline', 'quick', 'team', 'offline'].sort(() => Math.random() - 0.5));
+        
         setCurrentRotateX(0);
         setCurrentRotateY(0);
     }, []);
@@ -72,10 +117,13 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         
         setIsRolling(true);
 
-        const newFaces = generateRandomFaces();
-        setFaces(newFaces);
-
+        // 1. Determine the result logically first
+        const targetId = getNextResult();
         const newFaceIndex = Math.floor(Math.random() * 6);
+        
+        // 2. Generate faces where the target face index matches that ID
+        const newFaces = generateRandomFaces(targetId, newFaceIndex);
+        setFaces(newFaces);
         setActiveIndex(newFaceIndex);
         
         // Pure 90-degree increment Targets for the Motor
