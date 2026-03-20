@@ -83,8 +83,8 @@ export default function GameLobby({
                                                 setGameMode(mode);
                                             }}
                                             className={`relative px-8 py-4 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center min-w-[150px] ${gameMode === mode
-                                                ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-[rgba(0,0,0,0.35)]'
-                                                : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.35)]'
+                                                ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-[rgba(0,0,0,0.5)]'
+                                                : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
                                                 }`}
                                         >
                                             <div className="relative z-10 text-center">
@@ -114,8 +114,8 @@ export default function GameLobby({
                                                 setMatchType(type);
                                             }}
                                             className={`w-14 h-14 rounded-full border transition-all duration-300 glass-panel flex items-center justify-center ${matchType === type
-                                                ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-[rgba(0,0,0,0.35)]'
-                                                : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.35)]'
+                                                ? 'border-cyan-400 shadow-[0_0_15px_rgba(0,255,255,0.2)] bg-[rgba(0,0,0,0.5)]'
+                                                : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.5)]'
                                                 }`}
                                         >
                                             <span className={`block text-xl font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>

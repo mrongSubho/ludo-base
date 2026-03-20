@@ -199,8 +199,8 @@ a {
 }
 
 .glass-panel {
-  background: rgba(0, 0, 0, 0.35);
-  /* Dark frosted glass at 35% opacity */
+  background: rgba(0, 0, 0, 0.5);
+  /* Dark frosted glass at 50% opacity */
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -275,8 +275,8 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  /* Lighter translucent background with high blur */
-  background: rgba(255, 255, 255, 0.03);
+  /* Darker translucent background with high blur */
+  background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle bottom border */
@@ -911,8 +911,8 @@ a {
   justify-content: space-around;
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  /* Lighter translucent background with high blur */
-  background: rgba(255, 255, 255, 0.03);
+  /* Darker translucent background with high blur */
+  background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle top border */

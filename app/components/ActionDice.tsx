@@ -274,24 +274,22 @@ const DiceFace = ({ face, transform, onClick, isActive, isRolling }: { face: any
                 transition={isRolling ? { repeat: Infinity, duration: 0.4, ease: "linear" } : { duration: 0 }}
             />
 
-            <button 
-                onClick={(e) => {
-                    if (isActive && !isRolling) {
+            {/* Only show the Action Label Button on the ACTIVE face while NOT rolling */}
+            {isActive && !isRolling && (
+                <button 
+                    onClick={(e) => {
                         e.stopPropagation();
                         onClick();
-                    }
-                }}
-                className={`relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10
-                    ${isActive && !isRolling
-                        ? 'border-cyan-400/80 shadow-[0_0_15px_rgba(0,255,255,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95 cursor-pointer' 
-                        : 'border-white/10 bg-slate-900/40 scale-[0.85] opacity-50 pointer-events-none'
-                    }
-                `}
-            >
-                <span className={`block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isActive && !isRolling ? 'text-cyan-400' : 'text-white/60'}`}>
-                    {face.label}
-                </span>
-            </button>
+                    }}
+                    className="relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10
+                        border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95 cursor-pointer
+                    "
+                >
+                    <span className="block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400">
+                        {face.label}
+                    </span>
+                </button>
+            )}
         </div>
     );
 };
