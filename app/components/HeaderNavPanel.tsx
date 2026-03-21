@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { BiMessageSquareEdit } from "react-icons/bi";
+import { HiOutlineAtSymbol } from "react-icons/hi";
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ export const TokenIcon = () => (
 );
 
 const HeaderMessageIcon = () => (
-    <BiMessageSquareEdit className="dm-icon" />
+    <HiOutlineAtSymbol className="dm-icon" />
 );
 
 // ─── Component ───────────────────────────────────────────────────────────────

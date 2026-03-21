@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BiMessageSquareEdit } from "react-icons/bi";
+import { HiOutlineAtSymbol } from "react-icons/hi";
 
 import { useGameData, Conversation, MessageData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -162,7 +162,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         </>
                                     ) : (
                                         <div className="flex items-center gap-2">
-                                            <BiMessageSquareEdit className="w-6 h-6 text-cyan-400" />
+                                            <HiOutlineAtSymbol className="w-6 h-6 text-cyan-400" />
                                             <h2 className="text-white font-black text-2xl italic tracking-tighter uppercase">Messages</h2>
                                         </div>
                                     )}
@@ -189,7 +189,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 >
                                     {conversations.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center h-full text-white/40 mt-10">
-                                            <BiMessageSquareEdit className="w-12 h-12 mb-4 opacity-50" />
+                                            <HiOutlineAtSymbol className="w-12 h-12 mb-4 opacity-50" />
                                             <p>No messages yet.</p>
                                         </div>
                                     ) : (

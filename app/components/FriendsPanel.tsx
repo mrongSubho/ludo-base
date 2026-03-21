@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { BiMessageSquareEdit } from "react-icons/bi";
+import { HiOutlineAtSymbol } from "react-icons/hi";
 import { useGameData } from '@/hooks/GameDataContext';
 
 interface FriendsPanelProps {
@@ -34,7 +34,7 @@ interface Request {
 
 // SVG Icons
 const DMIcon = () => (
-    <BiMessageSquareEdit className="w-5 h-5" />
+    <HiOutlineAtSymbol className="w-5 h-5" />
 );
 
 const PokeIcon = () => (
