@@ -194,6 +194,24 @@ a {
   }
 }
 
+@keyframes slow-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-slow-rotate {
+  animation: slow-rotate 8s linear infinite;
+}
+
+@keyframes loading-bar {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 1.5s ease-in-out forwards;
+}
+
 .glass-panel {
   background: rgba(0, 0, 0, 0.5);
   /* Dark frosted glass at 50% opacity */

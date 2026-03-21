@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProgression } from '@/lib/progression';
@@ -71,7 +70,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
             // 1.5 Fetch block status
             try {
-                const { data: blockData } = await supabase
+                const { data: blockData } = await (supabase as any)
                     .from('user_blocks')
                     .select('id')
                     .eq('blocker_address', currentUserAddress)
@@ -208,7 +207,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Block') {
-                const { error } = await supabase.from('user_blocks').insert({
+                const { error } = await (supabase as any).from('user_blocks').insert({
                     blocker_address: currentUserAddress.toLowerCase(),
                     blocked_address: userAddress.toLowerCase()
                 });
@@ -217,7 +216,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     setIsFriend(false); // Blocking someone immediately severs frontend friendship
                 }
             } else if (action === 'Unblock') {
-                const { error } = await supabase.from('user_blocks')
+                const { error } = await (supabase as any).from('user_blocks')
                     .delete()
                     .eq('blocker_address', currentUserAddress)
                     .ilike('blocked_address', userAddress);
@@ -235,7 +234,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         setReportStep('submitting');
 
         try {
-            const { error } = await supabase.from('user_reports').insert({
+            const { error } = await (supabase as any).from('user_reports').insert({
                 reporter_address: currentUserAddress.toLowerCase(),
                 reported_address: userAddress.toLowerCase(),
                 reason: selectedReportReason
@@ -254,22 +253,16 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     };
 
     return (
-        <AnimatePresence>
+        <>
             {isOpen && userAddress && (
                 <>
                     {/* Dark Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                    <div
                         className="fixed top-[64px] bottom-[80px] left-0 right-0 z-[200] bg-transparent"
                     />
 
                     {/* Pop-up Modal Container */}
-                    <motion.div
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    <div
                         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
                     >
@@ -282,7 +275,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                         {/* Top Controls */}
                         <div className="flex justify-end p-4 relative z-10 w-full pl-6 pr-4">
-                            {/* Only show online status if verified friend */}
                             {!isFriendValidationLoading && isFriend && (
                                 <div className="absolute left-6 top-6 flex items-center gap-2">
                                     <div className={`w-2.5 h-2.5 rounded-full 
@@ -373,12 +365,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         ) : (
                                             <>
                                                 {isFriend ? (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        className="w-full flex flex-col gap-3 mb-4"
-                                                    >
-                                                        {/* Advanced Stats */}
+                                                    <div className="w-full flex flex-col gap-3 mb-4">
                                                         <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3 flex justify-between items-center">
                                                             <div className="flex flex-col items-center flex-1">
                                                                 <span className="text-sm font-bold text-white">{classicPlayed}</span>
@@ -396,7 +383,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             </div>
                                                         </div>
 
-                                                        {/* Monthly Activity Graph & Last Seen */}
                                                         <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col">
                                                             <div className="flex justify-between items-center mb-3">
                                                                 <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
@@ -409,7 +395,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             </div>
                                                         </div>
 
-                                                        {/* Direct Message (Only visible to friends) */}
                                                         <button
                                                             onClick={() => onDM(userAddress)}
                                                             className="w-full mt-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3.5 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2"
@@ -417,89 +402,69 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             <BiMessageSquareEdit className="w-5 h-5" />
                                                             DIRECT MESSAGE
                                                         </button>
-
-                                                    </motion.div>
+                                                    </div>
                                                 ) : (
-                                                    <motion.div
-                                                        initial={{ opacity: 0 }}
-                                                        animate={{ opacity: 1 }}
-                                                        className="w-full flex pb-3"
-                                                    >
+                                                    <div className="w-full flex pb-3">
                                                         <div className="flex flex-col gap-2 w-full mt-4">
-
-                                                            {/* Report Flow Inline UI */}
-                                                            <AnimatePresence mode="wait">
-                                                                {actionSuccess ? (
-                                                                    <motion.div
-                                                                        key="success-toast"
-                                                                        initial={{ opacity: 0, scale: 0.95 }}
-                                                                        animate={{ opacity: 1, scale: 1 }}
-                                                                        exit={{ opacity: 0, scale: 0.95 }}
-                                                                        className="w-full bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col items-center justify-center gap-1 my-2"
-                                                                    >
-                                                                        <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mb-1">
-                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-400"><path d="M20 6L9 17l-5-5"></path></svg>
+                                                            {actionSuccess ? (
+                                                                <div className="w-full bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col items-center justify-center gap-1 my-2">
+                                                                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mb-1">
+                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-400"><path d="M20 6L9 17l-5-5"></path></svg>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-green-400">{actionSuccess}</span>
+                                                                </div>
+                                                            ) : reportStep !== 'none' ? (
+                                                                <div className="w-full bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2 overflow-hidden">
+                                                                    {reportStep === 'done' ? (
+                                                                        <div className="flex items-center justify-center p-2 text-green-400 font-bold text-sm gap-2">
+                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                                            Report Submitted
                                                                         </div>
-                                                                        <span className="text-sm font-bold text-green-400">{actionSuccess}</span>
-                                                                    </motion.div>
-                                                                ) : reportStep !== 'none' ? (
-                                                                    <motion.div
-                                                                        key="report-ui"
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2 overflow-hidden"
-                                                                    >
-                                                                        {reportStep === 'done' ? (
-                                                                            <div className="flex items-center justify-center p-2 text-green-400 font-bold text-sm gap-2">
-                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                                                                Report Submitted
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1">Select Reason</span>
+                                                                            <div className="flex gap-2">
+                                                                                {['Cheating', 'Abuse', 'Spam'].map((reason) => (
+                                                                                    <button
+                                                                                        key={reason}
+                                                                                        onClick={() => setSelectedReportReason(reason)}
+                                                                                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
+                                                                                    >
+                                                                                        {reason}
+                                                                                    </button>
+                                                                                ))}
                                                                             </div>
-                                                                        ) : (
-                                                                            <>
-                                                                                <span className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1">Select Reason</span>
-                                                                                <div className="flex gap-2">
-                                                                                    {['Cheating', 'Abuse', 'Spam'].map((reason) => (
-                                                                                        <button
-                                                                                            key={reason}
-                                                                                            onClick={() => setSelectedReportReason(reason)}
-                                                                                            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
-                                                                                        >
-                                                                                            {reason}
-                                                                                        </button>
-                                                                                    ))}
-                                                                                </div>
-                                                                                <div className="flex gap-2 mt-1">
-                                                                                    <button
-                                                                                        onClick={() => setReportStep('none')}
-                                                                                        className="flex-1 py-2 text-xs font-bold text-white/50 hover:text-white/80 transition-colors"
-                                                                                    >
-                                                                                        Cancel
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={submitReport}
-                                                                                        disabled={!selectedReportReason || reportStep === 'submitting'}
-                                                                                        className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-all flex justify-center items-center"
-                                                                                    >
-                                                                                        {reportStep === 'submitting' ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Submit'}
-                                                                                    </button>
-                                                                                </div>
-                                                                            </>
-                                                                        )}
-                                                                    </motion.div>
-                                                                ) : (
-                                                                    <motion.div key="action-buttons" className="flex flex-col gap-2 w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                                                        {!isBlocked && (
-                                                                            <button
-                                                                                onClick={() => handleAction('Poke')}
-                                                                                disabled={isActionLoading}
-                                                                                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                                            >
-                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
-                                                                                POKE
-                                                                            </button>
-                                                                        )}
-                                                                        <div className="flex gap-2 w-full">
+                                                                            <div className="flex gap-2 mt-1">
+                                                                                <button
+                                                                                    onClick={() => setReportStep('none')}
+                                                                                    className="flex-1 py-2 text-xs font-bold text-white/50 hover:text-white/80 transition-colors"
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={submitReport}
+                                                                                    disabled={!selectedReportReason || reportStep === 'submitting'}
+                                                                                    className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-all flex justify-center items-center"
+                                                                                >
+                                                                                    {reportStep === 'submitting' ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Submit'}
+                                                                                </button>
+                                                                            </div>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col gap-2 w-full">
+                                                                    {!isBlocked && (
+                                                                        <button
+                                                                            onClick={() => handleAction('Poke')}
+                                                                            disabled={isActionLoading}
+                                                                            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                                                        >
+                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
+                                                                            POKE
+                                                                        </button>
+                                                                    )}
+                                                                    <div className="flex gap-2 w-full">
                                                                         {isBlocked ? (
                                                                             <button
                                                                                 onClick={() => handleAction('Unblock')}
@@ -517,13 +482,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                     className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                                                 >
                                                                                     {isFriend ? (
-                                                                                        <>
-                                                                                            <span className="text-white/50 hover:text-red-400 transition-colors">Unfriend</span>
-                                                                                        </>
+                                                                                        <span className="text-white/50 hover:text-red-400 transition-colors">Unfriend</span>
                                                                                     ) : isPending ? (
-                                                                                        <>
-                                                                                            <span className="text-white/60">Pending</span>
-                                                                                        </>
+                                                                                        <span className="text-white/60">Pending</span>
                                                                                     ) : (
                                                                                         <>
                                                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
@@ -551,12 +512,11 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                 </button>
                                                                             </>
                                                                         )}
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    </motion.div>
+                                                    </div>
                                                 )}
                                             </>
                                         )}
@@ -564,9 +524,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                 </>
                             )}
                         </div>
-                    </motion.div>
+                    </div>
                 </>
             )}
-        </AnimatePresence>
+        </>
     );
 }

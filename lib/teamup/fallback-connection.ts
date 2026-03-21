@@ -13,7 +13,7 @@ export class FallbackConnectionManager {
       await this.edgeClient.connect();
       return { success: true, client: this.edgeClient };
     } catch (error) {
-      console.warn('⚠️ [Matchmaking] WebRTC edge connection failed, falling back to traditional matching', error);
+      console.warn(`⚠️ [Matchmaking] Edge connection to ${edgeUrl} failed, falling back to traditional matching`, error);
       this.fallbackActive = true;
       this.onFallback?.();
       return { success: false, client: null };

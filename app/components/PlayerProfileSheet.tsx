@@ -1,6 +1,3 @@
-'use client';
-
-import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 
 interface Player {
@@ -42,10 +39,9 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
     const totalGames = stableTotal(player.name, wins);
     const winRate = Math.round((wins / totalGames) * 100);
 
-    // Slide direction based on player side
+    // Position based on player side
     const isLeft = player.position.includes('left');
     const isTop = player.position.includes('top');
-    const slideX = isLeft ? '-100%' : '100%';
     const verticalAnchor = isTop ? { top: '60px' } : { bottom: '60px' };
     const horizAnchor = isLeft ? { left: '8px' } : { right: '8px' };
 
@@ -60,19 +56,14 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
     };
 
     return (
-        <AnimatePresence>
+        <>
             {/* Dim backdrop — very faint so board stays visible */}
-            <motion.div
-                key="profile-backdrop"
+            <div
                 className="fixed top-[64px] bottom-[80px] left-0 right-0 bg-transparent z-[120]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
             />
 
             {/* Compact floating popup */}
-            <motion.div
-                key="profile-popup"
+            <div
                 className="profile-popup relative"
                 style={{ 
                     ...verticalAnchor, 
@@ -81,12 +72,9 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                     backgroundColor: '#1c1c1c',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '24px',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    zIndex: 130
                 }}
-                initial={{ opacity: 0, x: slideX }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: slideX }}
-                transition={{ type: 'spring', damping: 26, stiffness: 240 }}
             >
                 {/* Coloured top strip + avatar */}
                 <div className="pp-header" style={{ background: COLOR_MAP[player.color] }}>
@@ -153,7 +141,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                 ) : (
                     <p className="pp-ai-note">AI-controlled — actions disabled.</p>
                 )}
-            </motion.div>
-        </AnimatePresence>
+            </div>
+        </>
     );
 }

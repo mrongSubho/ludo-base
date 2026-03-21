@@ -40,10 +40,14 @@ export const useCompetitiveConnection = () => {
     try {
       if (!edgeClient) throw new Error('Edge client not initialized');
       
-      // Attempt connection to Edge Server via WebRTC
-      await edgeClient.connect();
+      // Optimized connection attempt via fallback manager
+      const { success } = await fallbackManager.attemptEdgeConnection(edgeClient.getEdgeUrl());
+      
+      if (!success) {
+        console.warn('📡 [CompetitiveConnection] Direct edge connection failed, relying on fallback discovery.');
+      }
 
-      // Find match through fallback manager (starts with Edge Client)
+      // Find match through fallback manager (orchestrates Edge + Traditional)
       const matchResponse = await fallbackManager.findMatchWithFallback({
         mode,
         gameType: entryFee ? 'tournament' : 'standard',

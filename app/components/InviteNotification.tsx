@@ -1,7 +1,4 @@
-"use client";
-
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
@@ -40,7 +37,10 @@ export const InviteNotification = () => {
                         .eq('wallet_address', newInvite.host_address.toLowerCase())
                         .single();
 
-                    setHostProfile(profile || { username: 'Host', avatar_url: '' });
+                    setHostProfile({
+                        username: profile?.username || 'Host',
+                        avatar_url: profile?.avatar_url || ''
+                    });
                     setInvite(newInvite);
                     playSelect();
 
@@ -63,13 +63,10 @@ export const InviteNotification = () => {
     };
 
     return (
-        <AnimatePresence>
+        <>
             {invite && (
-                <motion.div
-                    initial={{ opacity: 0, y: -100, x: '-50%' }}
-                    animate={{ opacity: 1, y: 20, x: '-50%' }}
-                    exit={{ opacity: 0, y: -100, x: '-50%' }}
-                    className="fixed top-0 left-1/2 z-[200] w-[calc(100%-32px)] max-w-[400px]"
+                <div
+                    className="fixed top-5 left-1/2 -translate-x-1/2 z-[200] w-[calc(100%-32px)] max-w-[400px]"
                 >
                     <div className="bg-slate-900/90 backdrop-blur-2xl border border-cyan-500/30 rounded-[32px] p-6 shadow-[0_0_50px_rgba(34,211,238,0.2)] overflow-hidden relative">
                         {/* Glowing Background Pulse */}
@@ -117,8 +114,8 @@ export const InviteNotification = () => {
                             </button>
                         </div>
                     </div>
-                </motion.div>
+                </div>
             )}
-        </AnimatePresence>
+        </>
     );
 };

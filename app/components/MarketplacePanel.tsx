@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 type MarketTab = 'items' | 'themes' | 'dice';
 type Rarity = 'common' | 'rare' | 'legendary';
@@ -321,25 +320,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     const currentItems = marketData.filter(i => i.type === activeTab);
 
     return (
-        <AnimatePresence>
+        <>
             {isOpen && (
                 <>
                     {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                    <div
                         className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
                     />
 
                     {/* Panel */}
                     <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
                         <div className="w-full max-w-[500px] relative h-full">
-                            <motion.div
-                                initial={{ y: '100%', opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                exit={{ y: '100%', opacity: 0 }}
-                                transition={{ type: 'spring', damping: 32, stiffness: 180, mass: 1 }}
+                            <div
                                 /* Unified global panel layout: top-64, bottom-80 sandwich */
                                 className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
                                 style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
@@ -354,62 +346,54 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         </div>
 
                         {/* Transaction Overlays */}
-                        <AnimatePresence>
-                            {isProcessing && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center"
-                                    style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
-                                >
-                                    {/* Authentic Subdued Cosmic Orbs */}
-                                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                                    <div className="relative mb-6">
-                                        <div className="w-20 h-20 bg-cyan-600 rounded-full flex items-center justify-center animate-pulse">
-                                            <div className="w-12 h-12 bg-white rounded-full" />
-                                        </div>
-                                        <div className="absolute inset-0 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                        {isProcessing && (
+                            <div
+                                className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center"
+                                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
+                            >
+                                {/* Authentic Subdued Cosmic Orbs */}
+                                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                                <div className="relative mb-6">
+                                    <div className="w-20 h-20 bg-cyan-600 rounded-full flex items-center justify-center animate-pulse">
+                                        <div className="w-12 h-12 bg-white rounded-full" />
                                     </div>
-                                    <h3 className="text-xl font-black text-white mb-2">Sequencing on Base</h3>
-                                    <p className="text-sm text-white/40 max-w-[200px]">Confirming your transaction on the L2 network...</p>
-                                </motion.div>
-                            )}
+                                    <div className="absolute inset-0 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                                </div>
+                                <h3 className="text-xl font-black text-white mb-2">Sequencing on Base</h3>
+                                <p className="text-sm text-white/40 max-w-[200px]">Confirming your transaction on the L2 network...</p>
+                            </div>
+                        )}
 
-                            {transactionResult === 'success' && (
-                                <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.9, opacity: 0 }}
-                                    className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center"
-                                    style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
-                                >
-                                    {/* Authentic Subdued Cosmic Orbs */}
-                                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                                    <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-12 h-12 text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                    </div>
-                                    <h3 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Success!</h3>
-                                    <p className="text-white/60 mb-8 max-w-[250px]">
-                                        {isSelling ? 'Your item has been listed for sale on the marketplace.' : 'You have successfully acquired this item.'}
-                                    </p>
+                        {transactionResult === 'success' && (
+                            <div
+                                className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center"
+                                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
+                            >
+                                {/* Authentic Subdued Cosmic Orbs */}
+                                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                                <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-12 h-12 text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                                <h3 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Success!</h3>
+                                <p className="text-white/60 mb-8 max-w-[250px]">
+                                    {isSelling ? 'Your item has been listed for sale on the marketplace.' : 'You have successfully acquired this item.'}
+                                </p>
 
-                                    <div className="w-full space-y-3">
-                                        <button
-                                            onClick={handleCloseDetail}
-                                            className="w-full py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-xl"
-                                        >
-                                            CONTINUE
-                                        </button>
-                                        <button className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white/50 hover:bg-white/10 transition-all uppercase tracking-widest">
-                                            View on Explorer
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                <div className="w-full space-y-3">
+                                    <button
+                                        onClick={handleCloseDetail}
+                                        className="w-full py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-xl"
+                                    >
+                                        CONTINUE
+                                    </button>
+                                    <button className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white/50 hover:bg-white/10 transition-all uppercase tracking-widest">
+                                        View on Explorer
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Header */}
                         <div className="px-panel-gutter pb-4 border-b border-white/10">
@@ -452,16 +436,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                         {/* Inventory Grid Container */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar pt-2 px-panel-gutter mb-4">
-                            <motion.div
-                                layout
+                            <div
                                 className="grid grid-cols-4 gap-2 pb-safe-footer"
                             >
                                 {currentItems.map((item) => (
-                                    <motion.div
+                                    <div
                                         key={item.id}
-                                        layout
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
                                         onClick={() => setSelectedItem(item)}
                                         className={`bg-white/5 border rounded-lg p-1 flex flex-col group cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all ${item.rarity === 'legendary' ? 'border-fuchsia-600/30 shadow-[0_0_15px_rgba(192,38,211,0.05)]' :
                                             item.rarity === 'rare' ? 'border-cyan-600/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'border-white/10'
@@ -500,19 +480,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </div>
                                             </div>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 ))}
-                            </motion.div>
+                            </div>
                         </div>
 
                         {/* Product Detail Overlay */}
-                        <AnimatePresence>
                             {selectedItem && (
-                                <motion.div
-                                    initial={{ x: '100%' }}
-                                    animate={{ x: 0 }}
-                                    exit={{ x: '100%' }}
-                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                <div
                                     className="absolute inset-0 z-[120] flex flex-col rounded-[24px] overflow-hidden shadow-2xl border border-white/10"
                                     style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
                                 >
@@ -675,16 +650,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     </div>
 
                                     {/* Sell Mode Overlay */}
-                                    <AnimatePresence>
-                                        {isSelling && (
-                                            <motion.div
-                                                initial={{ y: '100%', opacity: 0 }}
-                                                animate={{ y: 0, opacity: 1 }}
-                                                exit={{ y: '100%', opacity: 0 }}
-                                                transition={{ type: 'spring', damping: 30, stiffness: 120, mass: 1 }}
-                                                className="absolute inset-0 z-[130] flex flex-col overflow-hidden rounded-[24px] shadow-2xl border border-white/10"
-                                                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
-                                            >
+                                    {isSelling && (
+                                        <div
+                                            className="absolute inset-0 z-[130] flex flex-col overflow-hidden rounded-[24px] shadow-2xl border border-white/10"
+                                            style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
+                                        >
                                                 {/* Authentic Subdued Cosmic Orbs */}
                                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
@@ -779,36 +749,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     </div>
                                                 </div>
 
-                                                {/* Pinned Sell Action Footer */}
-                                                <div className="absolute bottom-0 inset-x-0 p-6 pb-8 bg-gradient-to-t from-black/40 via-black/20 to-transparent z-30">
-                                                    <div className="flex gap-4">
-                                                        <button
-                                                            onClick={() => setIsSelling(false)}
-                                                            className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs text-white hover:bg-white/10 transition-all active:scale-95"
-                                                        >
-                                                            CANCEL
-                                                        </button>
-                                                        <button
-                                                            disabled={!sellPrice || Number(sellPrice) <= 0}
-                                                            className="flex-[2] py-4 bg-cyan-600 rounded-2xl font-black text-xs text-white hover:bg-cyan-600 disabled:opacity-50 disabled:grayscale transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
-                                                            onClick={handleConfirmListing}
-                                                        >
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3.5 h-3.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                                            CONFIRM LISTING
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
+                                            </div>
                                         )}
-                                    </AnimatePresence>
-                                </motion.div>
+
+                                </div>
                             )}
-                        </AnimatePresence>
-                        </motion.div>
+                        </div>
                     </div>
                 </div>
             </>
         )}
-        </AnimatePresence>
-    );
+    </>
+);
 }

@@ -19,11 +19,7 @@ export const OfflineMatchPanel = ({
     return (
         <>
             {/* Backdrop */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+            <div
                 className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
                 onClick={onClose}
             />
@@ -31,11 +27,7 @@ export const OfflineMatchPanel = ({
             {/* Clipped Container */}
             <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
-                    <motion.div
-                        initial={{ y: '100%', opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: '100%', opacity: 0 }}
-                        transition={{ type: 'spring', damping: 32, stiffness: 180, mass: 1 }}
+                    <div
                         /* Unified global panel layout: top-64, bottom-80 sandwich */
                         className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
@@ -90,18 +82,16 @@ export const OfflineMatchPanel = ({
 
                     {/* Footer Action */}
                     <div className="p-8 border-t border-white/10">
-                        <motion.button
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
+                        <button
                             onClick={onStartOfflineGame}
-                            className="w-full py-5 bg-white text-black font-black italic tracking-tighter rounded-full text-xl shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all"
+                            className="w-full py-5 bg-white text-black font-black italic tracking-tighter rounded-full text-xl shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all active:scale-95"
                         >
                             START OFFLINE MATCH
-                        </motion.button>
+                        </button>
                     </div>
-                    </motion.div>
+                    </div>
                 </div>
             </div>
         </>
     );
-};
+}

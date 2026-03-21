@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
 
 interface WalletConnectCardProps {
@@ -14,11 +13,7 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
     }, []);
 
     return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+        <div
             className="w-[calc(100%-32px)] max-w-[420px] glass-panel rounded-[32px] !px-8 !py-10 flex flex-col items-center gap-8 relative overflow-hidden group shadow-2xl"
         >
             {/* Animated Flare Decorators to match Lobby */}
@@ -75,7 +70,7 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
                 <span className="text-[10px] font-black tracking-widest uppercase">Safe & Secure</span>
                 <div className="h-[1px] w-8 bg-white" />
             </div>
-        </motion.div>
+        </div>
     );
 }
 

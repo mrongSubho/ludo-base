@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
 // Unused slide-up panels were extracted to their own components or removed natively
@@ -34,23 +33,15 @@ type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | '
 // Mock user data has been removed
 
 const SplashScreen = () => (
-  <motion.div
-    initial={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    transition={{ duration: 0.8, ease: "easeInOut" }}
+  <div
     className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md"
   >
-    <motion.div
-      initial={{ scale: 0.8, opacity: 0, y: 20 }}
-      animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, ease: "easeOut" }}
+    <div
       className="flex flex-col items-center"
     >
       <div className="w-24 h-24 mb-6 relative">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-cyan-600 to-teal-400 opacity-20 blur-xl"
+        <div
+          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-cyan-600 to-teal-400 opacity-20 blur-xl animate-slow-rotate"
         />
         <div className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(34,211,238,0.4)] flex items-center justify-center border border-white/20">
           <span className="text-5xl drop-shadow-lg">🎲</span>
@@ -66,15 +57,12 @@ const SplashScreen = () => (
 
       {/* Loading Bar Illusion */}
       <div className="w-64 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/10 shadow-inner">
-        <motion.div
-          initial={{ width: "0%" }}
-          animate={{ width: "100%" }}
-          transition={{ duration: 1.5, ease: "easeInOut" }}
-          className="h-full bg-gradient-to-r from-cyan-600 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.6)]"
+        <div
+          className="h-full bg-gradient-to-r from-cyan-600 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.6)] animate-loading-bar"
         />
       </div>
-    </motion.div>
-  </motion.div>
+    </div>
+  </div>
 );
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -225,9 +213,7 @@ export default function Page() {
 
   return (
     <>
-      <AnimatePresence>
-        {showSplash && <SplashScreen />}
-      </AnimatePresence>
+      {showSplash && <SplashScreen />}
 
       <PresenceManager />
       <InviteNotification />
@@ -286,7 +272,7 @@ export default function Page() {
               />
 
               {/* Universal Panel Layer (Sandwich Layout) */}
-              <AnimatePresence mode="wait">
+              <>
                 {activeTab === 'profile' && (
                   <UserProfilePanel key="profile" onClose={closeTab} />
                 )}
@@ -329,7 +315,7 @@ export default function Page() {
                 {activeTab === 'settings' && (
                   <SettingsPanel key="settings" onClose={closeTab} />
                 )}
-              </AnimatePresence>
+              </>
 
               {/* Global Public Profile Popup */}
               <PublicProfileModal

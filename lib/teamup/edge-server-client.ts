@@ -10,6 +10,10 @@ export class EdgeServerClient {
     this.edgeServerUrl = edgeServerUrl;
   }
 
+  getEdgeUrl(): string {
+    return this.edgeServerUrl;
+  }
+
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.socket = new WebSocket(this.edgeServerUrl);
@@ -31,9 +35,10 @@ export class EdgeServerClient {
         }
       };
 
-      this.socket.onerror = (err) => {
-        console.error('❌ [EdgeServer] WebSocket error:', err);
-        reject(err);
+      this.socket.onerror = (err: any) => {
+        const errorMessage = `WebSocket error for ${this.edgeServerUrl}`;
+        console.error(`❌ [EdgeServer] ${errorMessage}:`, err);
+        reject(new Error(errorMessage));
       };
 
       this.socket.onclose = () => {
@@ -43,6 +48,21 @@ export class EdgeServerClient {
   }
 
   async findMatch(request: MatchRequest): Promise<MatchResponse> {
+    // Wait for connection if it's still connecting (happens on Render free tier cold starts)
+    if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+      console.log('⏳ [EdgeServer] Connection in progress, waiting...');
+      await new Promise<void>((resolve, reject) => {
+        const check = () => {
+          if (!this.socket) return reject(new Error('Socket cleared during connection'));
+          if (this.socket.readyState === WebSocket.OPEN) resolve();
+          else if (this.socket.readyState === WebSocket.CLOSED || this.socket.readyState === WebSocket.CLOSING)
+            reject(new Error('Socket closed while waiting for connection'));
+          else setTimeout(check, 100);
+        };
+        check();
+      });
+    }
+
     return new Promise((resolve, reject) => {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
         return reject(new Error('Matchmaking server not connected'));
@@ -74,6 +94,20 @@ export class EdgeServerClient {
   }
 
   async validateGameResult(result: any): Promise<ValidationResult> {
+    // Wait for connection if it's still connecting
+    if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+      await new Promise<void>((resolve, reject) => {
+        const check = () => {
+          if (!this.socket) return reject(new Error('Socket cleared during connection'));
+          if (this.socket.readyState === WebSocket.OPEN) resolve();
+          else if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSING) 
+            reject(new Error('Socket closed'));
+          else setTimeout(check, 100);
+        };
+        check();
+      });
+    }
+
     return new Promise((resolve, reject) => {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
         return reject(new Error('Matchmaking server not connected'));

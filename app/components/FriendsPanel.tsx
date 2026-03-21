@@ -415,146 +415,124 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
 
     return (
         <>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-40 bg-transparent"
+            {/* Backdrop */}
+            <div
+                className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
+                onClick={onClose}
             />
 
-            {/* Ghost Centering Container */}
+            {/* Panel Container */}
             <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
-                    <motion.div
-                        initial={{ y: '100%', opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: '100%', opacity: 0 }}
-                        transition={{ type: 'spring', damping: 32, stiffness: 180, mass: 1 }}
+                    <div
                         /* Unified global panel layout: top-64, bottom-80 sandwich */
                         className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
-                {/* Authentic Subdued Cosmic Orbs */}
-                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                        {/* Authentic Subdued Cosmic Orbs */}
+                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
-                {/* Handle Bar */}
-                <div className="w-full flex justify-center pt-4 pb-2">
-                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
-                </div>
+                        {/* Drag Handle */}
+                        <div className="w-full flex justify-center pt-4 pb-2">
+                            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                        </div>
 
-                {/* Header & Main Tabs */}
-                <div className="px-panel-gutter pb-4 border-b border-white/10">
-                    <div className="flex items-center justify-between mb-6 mt-2">
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-cyan-400">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                            </svg>
-                            Friends
-                        </h2>
-                        <button
-                            onClick={onClose}
-                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    </div>
+                        {/* Header Section */}
+                        <div className="px-panel-gutter pb-4 border-b border-white/10">
+                            <div className="flex items-center justify-between mb-6 mt-2">
+                                <h2 className="text-2xl font-bold text-white flex items-center gap-2 italic tracking-tighter uppercase">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-cyan-400">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="9" cy="7" r="4"></circle>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                    </svg>
+                                    Friends
+                                </h2>
+                                <button
+                                    onClick={onClose}
+                                    className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/5 text-white/40 hover:text-white transition-all border border-white/5"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                            </div>
 
-                    {/* Top-Level Segmented Control */}
-                    <div className="flex bg-black/40 p-1 rounded-xl">
-                        <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'social' ? 'bg-cyan-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
-                            onClick={() => setActiveMainTab('social')}
-                        >
-                            Social
-                        </button>
-                        <button
-                            className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'global' ? 'bg-cyan-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
-                            onClick={() => setActiveMainTab('global')}
-                        >
-                            Global
-                        </button>
-                        <button
-                            className={`flex-1 py-1 text-[13px] font-bold rounded-lg transition-all ${activeMainTab === 'requests' ? 'bg-cyan-700 text-white shadow-md' : 'text-white/50 hover:text-white/80'}`}
-                            onClick={() => setActiveMainTab('requests')}
-                        >
-                            <span className="flex items-center justify-center gap-1.5">
-                                Requests
-                                {pendingIncoming.length > 0 && (
-                                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md leading-none">
-                                        {pendingIncoming.length > 9 ? '9+' : pendingIncoming.length}
-                                    </span>
-                                )}
-                            </span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto px-panel-gutter py-4 custom-scrollbar">
-                    <AnimatePresence mode="wait">
-
-                        {activeMainTab === 'social' && (
-                            <motion.div key="social" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
-                                <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Social Friends ({onchainFriends.length})
-                                </div>
-                                {renderFriendList(onchainFriends)}
-                            </motion.div>
-                        )}
-
-                        {activeMainTab === 'global' && (
-                            <motion.div key="global" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="pb-safe-footer">
-                                <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                    Global Players ({gameFriends.length})
-                                </div>
-                                {renderFriendList(gameFriends)}
-                            </motion.div>
-                        )}
-
-                        {activeMainTab === 'requests' && (
-                            <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pb-safe-footer">
-
-                                {/* Secondary Tab Switcher inside Requests */}
-                                <div className="flex gap-4 mb-4 border-b border-white/5 px-2">
+                            {/* Nav Tabs */}
+                            <div className="flex bg-black/40 p-1 rounded-xl">
+                                {(['social', 'global', 'requests'] as MainTab[]).map((tab) => (
                                     <button
-                                        className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'incoming' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
-                                        onClick={() => setActiveRequestTab('incoming')}
+                                        key={tab}
+                                        onClick={() => setActiveMainTab(tab)}
+                                        className={`flex-1 py-2 text-[13px] font-bold rounded-lg transition-all uppercase tracking-widest relative ${activeMainTab === tab ? 'bg-cyan-700 text-white shadow-md' : 'text-white/40 hover:text-white/80'}`}
                                     >
-                                        Incoming ({pendingIncoming.length})
-                                        {activeRequestTab === 'incoming' && (
-                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-600 rounded-t-full" />
-                                        )}
+                                        <span className="flex items-center justify-center gap-1.5">
+                                            {tab}
+                                            {tab === 'requests' && pendingIncoming.length > 0 && (
+                                                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md leading-none">
+                                                    {pendingIncoming.length > 9 ? '9+' : pendingIncoming.length}
+                                                </span>
+                                            )}
+                                        </span>
                                     </button>
-                                    <button
-                                        className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'sent' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
-                                        onClick={() => setActiveRequestTab('sent')}
-                                    >
-                                        Sent ({pendingOutgoing.length})
-                                        {activeRequestTab === 'sent' && (
-                                            <motion.div layoutId="reqTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-600 rounded-t-full" />
-                                        )}
-                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-y-auto px-panel-gutter py-4 custom-scrollbar relative">
+                            {activeMainTab === 'social' && (
+                                <div className="pb-safe-footer animate-in fade-in duration-200">
+                                    <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
+                                        Social Friends ({onchainFriends.length})
+                                    </div>
+                                    {renderFriendList(onchainFriends)}
                                 </div>
+                            )}
 
-                                <div className="mt-2">
-                                    {activeRequestTab === 'incoming'
-                                        ? renderRequestList(pendingIncoming, true)
-                                        : renderRequestList(pendingOutgoing, false)
-                                    }
+                            {activeMainTab === 'global' && (
+                                <div className="pb-safe-footer animate-in fade-in duration-200">
+                                    <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
+                                        Global Players ({gameFriends.length})
+                                    </div>
+                                    {renderFriendList(gameFriends)}
                                 </div>
+                            )}
 
-                            </motion.div>
-                        )}
+                            {activeMainTab === 'requests' && (
+                                <div className="pb-safe-footer animate-in fade-in duration-200">
+                                    {/* Secondary Tab Switcher inside Requests */}
+                                    <div className="flex gap-4 mb-4 border-b border-white/5 px-2">
+                                        <button
+                                            className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'incoming' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                                            onClick={() => setActiveRequestTab('incoming')}
+                                        >
+                                            Incoming ({pendingIncoming.length})
+                                            {activeRequestTab === 'incoming' && (
+                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-600 rounded-t-full" />
+                                            )}
+                                        </button>
+                                        <button
+                                            className={`pb-3 text-sm font-semibold transition-colors relative ${activeRequestTab === 'sent' ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                                            onClick={() => setActiveRequestTab('sent')}
+                                        >
+                                            Sent ({pendingOutgoing.length})
+                                            {activeRequestTab === 'sent' && (
+                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-600 rounded-t-full" />
+                                            )}
+                                        </button>
+                                    </div>
 
-                    </AnimatePresence>
-                </div>
-
-                    </motion.div>
+                                    <div className="mt-2">
+                                        {activeRequestTab === 'incoming'
+                                            ? renderRequestList(pendingIncoming, true)
+                                            : renderRequestList(pendingOutgoing, false)
+                                        }
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </>
