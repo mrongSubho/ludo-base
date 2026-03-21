@@ -7,6 +7,7 @@ export interface GameConfig {
 }
 
 export interface MatchRequest {
+  playerId: string;
   mode: 'quick' | 'friends';
   gameType: 'standard' | 'tournament';
   entryFee?: number;

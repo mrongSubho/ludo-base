@@ -2,6 +2,7 @@
 import React, { ReactNode, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCompetitiveConnection } from '../../../hooks/useCompetitiveConnection';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 const DashedRadarRing = ({ color = "#22d3ee", className = "" }) => (
     <motion.div
@@ -49,12 +50,14 @@ export const TeamUpWrapper = ({
     isFallback
   } = useCompetitiveConnection();
 
+  const { address } = useCurrentUser();
+
   useEffect(() => {
     // Only attempt competitive connection for quick matches with a wager
-    if (mode === 'quick' && entryFee && entryFee > 0) {
-      findCompetitiveMatch(mode, entryFee);
+    if (mode === 'quick' && entryFee && entryFee > 0 && address) {
+      findCompetitiveMatch(address, mode, entryFee);
     }
-  }, [mode, entryFee, findCompetitiveMatch]);
+  }, [mode, entryFee, findCompetitiveMatch, address]);
 
   return (
     <div className="team-up-wrapper w-full h-full relative overflow-hidden">
@@ -111,7 +114,7 @@ export const TeamUpWrapper = ({
               {error}
             </p>
             <button 
-              onClick={() => findCompetitiveMatch(mode, entryFee)}
+              onClick={() => address && findCompetitiveMatch(address, mode, entryFee)}
               className="bg-white hover:bg-white/90 text-black px-8 py-3 rounded-xl font-black italic tracking-tighter uppercase transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-white/20 z-10"
             >
               Retry Connection

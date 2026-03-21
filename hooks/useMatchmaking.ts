@@ -58,7 +58,8 @@ export function useMatchmaking({
     const lastSearchRef = useRef<string>('');
 
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
-        const criteria = `${playerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
+        const normalizedPlayerId = playerId.toLowerCase();
+        const criteria = `${normalizedPlayerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
         const currentStatus = statusRef.current;
         
         if (currentStatus === 'searching' || currentStatus === 'expanding' || currentStatus === 'matched') {
@@ -80,7 +81,7 @@ export function useMatchmaking({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    playerId, 
+                    playerId: normalizedPlayerId, 
                     gameMode, 
                     matchType, 
                     wager,

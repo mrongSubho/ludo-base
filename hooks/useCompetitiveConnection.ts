@@ -33,11 +33,17 @@ export const useCompetitiveConnection = () => {
     };
   }, [edgeClient, gameplayClient]);
 
-  const findCompetitiveMatch = useCallback(async (mode: 'quick' | 'friends', entryFee?: number) => {
+  const findCompetitiveMatch = useCallback(async (playerId: string, mode: 'quick' | 'friends', entryFee?: number) => {
+    if (!playerId) {
+      console.error('❌ [CompetitiveConnection] Cannot find match without playerId');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
+      const normalizedPlayerId = playerId.toLowerCase();
       if (!edgeClient) throw new Error('Edge client not initialized');
       
       // Optimized connection attempt via fallback manager
@@ -49,6 +55,7 @@ export const useCompetitiveConnection = () => {
 
       // Find match through fallback manager (orchestrates Edge + Traditional)
       const matchResponse = await fallbackManager.findMatchWithFallback({
+        playerId: normalizedPlayerId,
         mode,
         gameType: entryFee ? 'tournament' : 'standard',
         entryFee
