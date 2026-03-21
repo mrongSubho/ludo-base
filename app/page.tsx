@@ -23,7 +23,7 @@ import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
-import { calculateLevel } from '@/lib/progression';
+import { calculateLevel, getProgression } from '@/lib/progression';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -87,7 +87,8 @@ export default function Page() {
   const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);
 
-  const { level } = calculateLevel(profile?.xp || 0);
+  const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
+  const { level, tier } = progression;
 
   useEffect(() => {
     const t = setTimeout(() => setShowSplash(false), 1500);
@@ -241,7 +242,8 @@ export default function Page() {
                 <HeaderNavPanel
                     finalAvatar={profile?.avatar_url || null}
                     finalName={finalName}
-                    level={calculateLevel(profile?.xp || 0).level}
+                    level={level}
+                    tier={tier}
                     coins={profile?.coins || 0}
                     unreadCount={totalUnreadCount}
                     onMessagesClick={() => toggle('messages')}

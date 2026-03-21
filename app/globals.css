@@ -288,9 +288,9 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  /* Updated translucent background (25%) - Forced */
-  background: rgba(0, 0, 0, 0.25) !important;
+  padding: 12px 0px !important;
+  /* Updated translucent background (25%) */
+  background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle bottom border */
