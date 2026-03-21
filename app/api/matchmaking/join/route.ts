@@ -7,7 +7,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
     try {
-        const { playerId, gameMode, matchType, wager, wagerMin, wagerMax } = await request.json();
+        let { playerId, gameMode, matchType, wager, wagerMin, wagerMax } = await request.json();
+        
+        if (playerId) {
+            playerId = playerId.toLowerCase();
+        }
 
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
