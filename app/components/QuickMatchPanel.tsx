@@ -16,6 +16,33 @@ const PRO_TIPS = [
     "Block your opponents to slow them down."
 ];
 
+const DashedRadarRing = ({ color = "#22d3ee", className = "" }) => (
+    <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+    >
+        <motion.svg
+            viewBox="0 0 100 100"
+            className="w-full h-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        >
+            <circle cx="50" cy="50" r="48" fill="none" stroke={color} strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
+            <circle cx="50" cy="50" r="38" fill="none" stroke={color} strokeWidth="0.5" strokeDasharray="2 2" opacity="0.2" />
+            <circle cx="50" cy="50" r="28" fill="none" stroke={color} strokeWidth="0.5" opacity="0.1" />
+        </motion.svg>
+        
+        {/* Scanning Sweep */}
+        <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/10 to-transparent"
+            style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)' }}
+        />
+    </motion.div>
+);
+
 interface QuickMatchPanelProps {
     gameMode: 'classic' | 'power';
     matchType: '1v1' | '2v2' | '4P';
@@ -149,11 +176,40 @@ export const QuickMatchPanel = ({
                             mode="quick"
                             entryFee={wager}
                         >
-                            <div className="flex flex-col items-center">
-                                {/* Fallback content if wrapper doesn't show loading/matched */}
-                                {status === 'searching' && (
-                                    <div className="text-cyan-400 font-bold animate-pulse">
-                                        Searching for {matchType}...
+                            <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px] relative">
+                                {/* Radar System Visual - Persistent while searching or error */}
+                                {status !== 'idle' && status !== 'matched' && (
+                                    <div className="relative w-64 h-64 flex items-center justify-center">
+                                        <DashedRadarRing color={status === 'error' || status === 'timeout' ? "#ef4444" : "#22d3ee"} />
+                                        
+                                        {/* Pulsing Dots / Center Icon */}
+                                        <div className="relative z-10 w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+                                            <motion.div
+                                                animate={{ 
+                                                    scale: [1, 1.2, 1],
+                                                    opacity: [0.5, 1, 0.5]
+                                                }}
+                                                transition={{ duration: 2, repeat: Infinity }}
+                                                className="text-4xl"
+                                            >
+                                                🎲
+                                            </motion.div>
+                                        </div>
+
+                                        {/* Status Text overlay */}
+                                        <div className="absolute top-[80%] flex flex-col items-center gap-1">
+                                            <span className={`text-[10px] uppercase font-black tracking-[0.3em] ${(status === 'error' || status === 'timeout') ? 'text-red-400' : 'text-cyan-400'} animate-pulse`}>
+                                                {status === 'error' ? 'Link Fault detected' : 
+                                                 status === 'timeout' ? 'Search Timed Out' : 
+                                                 status === 'expanding' ? 'Expanding Search' : 
+                                                 'Scanning the Arena'}
+                                            </span>
+                                            <span className="text-white/20 text-[8px] uppercase font-bold tracking-widest text-center max-w-[200px]">
+                                                {status === 'error' ? 'Retrying Connection...' : 
+                                                 status === 'timeout' ? 'Please try again later' :
+                                                 'Searching for Rival...'}
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
