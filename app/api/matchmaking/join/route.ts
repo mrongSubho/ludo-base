@@ -7,20 +7,22 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
     try {
-        const { playerId, gameMode, matchType, wager } = await request.json();
+        const { playerId, gameMode, matchType, wager, wagerMin, wagerMax } = await request.json();
 
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager });
+        console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager, wagerMin, wagerMax });
 
         // Call the atomic join RPC
         const { data, error } = await supabase.rpc('join_matchmaking', {
             p_player_id: playerId,
             p_game_mode: gameMode,
             p_match_type: matchType,
-            p_wager: wager || 0
+            p_wager: wager || 0,
+            p_wager_min: wagerMin,
+            p_wager_max: wagerMax
         });
 
         if (error) {

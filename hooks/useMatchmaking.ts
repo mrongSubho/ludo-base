@@ -57,8 +57,8 @@ export function useMatchmaking({
 
     const lastSearchRef = useRef<string>('');
 
-    const startSearch = useCallback(async () => {
-        const criteria = `${playerId}-${gameMode}-${matchType}-${wager}`;
+    const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
+        const criteria = `${playerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
         const currentStatus = statusRef.current;
         
         if (currentStatus === 'searching' || currentStatus === 'expanding' || currentStatus === 'matched') {
@@ -79,7 +79,14 @@ export function useMatchmaking({
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerId, gameMode, matchType, wager })
+                body: JSON.stringify({ 
+                    playerId, 
+                    gameMode, 
+                    matchType, 
+                    wager,
+                    wagerMin,
+                    wagerMax
+                })
             });
             const data = await response.json();
 
@@ -90,17 +97,18 @@ export function useMatchmaking({
                 setTicketId(data.ticket_id);
 
                 // Start Timer (Phase 1/2) - No longer starts polling here
+                if (timerRef.current) clearInterval(timerRef.current);
                 timerRef.current = setInterval(() => {
                     setSearchTime(prev => {
                         const newTime = prev + 1;
 
-                        // Phase 2: Expanding Search (16s - 25s)
+                        // Phase 2: Expanding Search (16s - 29s)
                         if (newTime === 16) {
                             setStatus('expanding');
                         }
 
-                        // Phase 3: Timeout (26s)
-                        if (newTime >= 26) {
+                        // Phase 3: Timeout (30s)
+                        if (newTime >= 30) {
                             setStatus('timeout');
                             lastSearchRef.current = ''; 
                             if (timerRef.current) clearInterval(timerRef.current);
@@ -117,7 +125,7 @@ export function useMatchmaking({
     }, [playerId, gameMode, matchType, wager, cancelSearch]);
 
     // --- Hybrid Search (from a private lobby) ---
-    const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string) => {
+    const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
         setStatus('searching');
         setSearchTime(0);
 
@@ -130,6 +138,8 @@ export function useMatchmaking({
                     gameMode,
                     matchType: lobbyMatchType,
                     wager,
+                    wagerMin,
+                    wagerMax,
                     roomCode,       // Include existing room for direct joins
                     slotsNeeded,    // How many slots to fill
                     isHybrid: true
@@ -144,11 +154,12 @@ export function useMatchmaking({
                 setTicketId(data.ticket_id);
 
                 // Timer (same as normal search)
+                if (timerRef.current) clearInterval(timerRef.current);
                 timerRef.current = setInterval(() => {
                     setSearchTime(prev => {
                         const newTime = prev + 1;
                         if (newTime === 16) setStatus('expanding');
-                        if (newTime >= 26) {
+                        if (newTime >= 30) {
                             setStatus('timeout');
                             if (timerRef.current) clearInterval(timerRef.current);
                         }
