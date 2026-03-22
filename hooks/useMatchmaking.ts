@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { EdgeServerClient } from '@/lib/teamup/edge-server-client';
+import { getEdgeClient } from '@/lib/teamup/edge-server-singleton';
 
 export type MatchmakingStatus = 'idle' | 'searching' | 'expanding' | 'timeout' | 'matched' | 'error';
 
@@ -12,13 +12,15 @@ interface UseMatchmakingProps {
     onMatchFound: (matchId: string, roomCode: string, isHost: boolean, validationToken?: string) => void;
 }
 
-export function useMatchmaking({
-    playerId,
-    gameMode,
-    matchType,
-    wager,
-    onMatchFound
-}: UseMatchmakingProps) {
+export function useMatchmaking(props: UseMatchmakingProps) {
+    const {
+        playerId,
+        gameMode,
+        matchType,
+        wager,
+        onMatchFound
+    } = props;
+
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
     const [isConnectingToEdge, setIsConnectingToEdge] = useState(false);
     const [ticketId, setTicketId] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function useMatchmaking({
     const [searchTime, setSearchTime] = useState(0);
     const [maxSearchTime, setMaxSearchTime] = useState(30);
     const maxSearchTimeRef = useRef(30);
+    const lastSearchRef = useRef<string>('');
     
     // Sync ref for interval access
     useEffect(() => {
@@ -40,16 +43,7 @@ export function useMatchmaking({
     const statusRef = useRef<MatchmakingStatus>(status);
     const onMatchFoundRef = useRef(onMatchFound);
     
-    // 📡 Edge Server Client
-    const edgeClientRef = useRef<EdgeServerClient | null>(null);
-
-    useEffect(() => {
-        const edgeUrl = process.env.NEXT_PUBLIC_EDGE_SERVER_URL || 'wss://ludo-edge-server.onrender.com';
-        edgeClientRef.current = new EdgeServerClient(edgeUrl);
-        return () => {
-            if (edgeClientRef.current) edgeClientRef.current.disconnect();
-        };
-    }, []);
+    const edgeClient = useMemo(() => getEdgeClient(), []);
 
     // Keep refs synced
     useEffect(() => {
@@ -171,7 +165,6 @@ export function useMatchmaking({
         setMaxSearchTime(prev => Math.max(prev, searchTime + seconds));
     }, [searchTime]);
 
-    const lastSearchRef = useRef<string>('');
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
         const normalizedPlayerId = playerId.toLowerCase();
         const criteria = `${normalizedPlayerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
@@ -211,7 +204,7 @@ export function useMatchmaking({
         }
 
         // 4. --- PRIMARY: Edge Server (Render) ---
-        if (edgeClientRef.current) {
+        if (edgeClient) {
             try {
                 setIsConnectingToEdge(true);
                 console.log('📡 [Matchmaking] Attempting Edge Server connection (with patience)...');
@@ -221,11 +214,10 @@ export function useMatchmaking({
                 const startTime = Date.now();
                 while (Date.now() - startTime < 8000) {
                     try {
-                        await edgeClientRef.current.connect();
+                        await edgeClient.connect();
                         connected = true;
                         break;
                     } catch (e) {
-                        console.log('📡 [Matchmaking] Edge Server waking up... retrying in 1s');
                         await new Promise(r => setTimeout(r, 1000));
                     }
                 }
@@ -235,7 +227,7 @@ export function useMatchmaking({
                 const targetWager = (wagerMin !== undefined && wagerMin === wagerMax) ? wagerMin : wager;
 
                 console.log('📡 [Matchmaking] Requesting match from Edge Server...');
-                const edgeMatch = await edgeClientRef.current.findMatch({
+                const edgeMatch = await edgeClient.findMatch({
                     playerId: normalizedPlayerId,
                     mode: gameMode as any, // 'classic'/'power' as expected by Edge getPool
                     entryFee: targetWager,
@@ -319,7 +311,7 @@ export function useMatchmaking({
             console.error('❌ [Matchmaking] Ultimate error starting search:', err);
             setStatus('error');
         }
-    }, [playerId, gameMode, matchType, wager, cancelSearch, checkTicketStatus]);
+    }, [playerId, gameMode, matchType, wager, cancelSearch, checkTicketStatus, fetchNearbyPools, edgeClient]);
 
     // --- Hybrid Search ---
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
@@ -347,13 +339,13 @@ export function useMatchmaking({
         }, 1000);
 
         // 3. --- PRIMARY: Edge Server (Render) ---
-        if (edgeClientRef.current) {
+        if (edgeClient) {
             try {
                 console.log('📡 [Matchmaking] Attempting Edge Server connection for Hybrid...');
-                await edgeClientRef.current.connect();
+                await edgeClient.connect();
                 
                 // Hybrid on Edge server is basically a "friends" mode or specific invite
-                const edgeMatch = await edgeClientRef.current.findMatch({
+                const edgeMatch = await edgeClient.findMatch({
                     playerId: normalizedPlayerId,
                     mode: 'friends',
                     gameType: wager > 0 ? 'tournament' : 'standard',
@@ -430,7 +422,7 @@ export function useMatchmaking({
             console.error('❌ [Matchmaking] Hybrid search error:', err);
             setStatus('error');
         }
-    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus]);
+    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus, fetchNearbyPools, edgeClient]);
 
     // --- Supabase Realtime Subscription for Matchmaking Status ---
     useEffect(() => {
@@ -504,7 +496,7 @@ export function useMatchmaking({
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, [cancelSearch]);
+    }, [cancelSearch, status]);
 
     // Independent unmount cleanup for timers and search
     useEffect(() => {
@@ -535,4 +527,3 @@ export function useMatchmaking({
         extendSearch
     };
 }
-

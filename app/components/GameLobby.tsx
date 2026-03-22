@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
-import { TeamUpMatchPanel } from './TeamUpMatchPanel';
-import { QuickMatchPanel } from './QuickMatchPanel';
-import { OfflineMatchPanel } from './OfflineMatchPanel';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { ActionDice } from './ActionDice';
+import { TeamUpMatchPanel } from './TeamUpMatchPanel';
+import { OfflineMatchPanel } from './OfflineMatchPanel';
+import { QuickMatchPanel } from './QuickMatchPanel';
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { LiveMatchmakingFeed } from './LiveMatchmakingFeed';
 
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
@@ -33,7 +34,6 @@ export default function GameLobby({
         isHost,
         hostGame,
         joinGame,
-        broadcastAction,
         lobbyState,
         sendInvite,
         swapPlayers,
@@ -48,6 +48,25 @@ export default function GameLobby({
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [searchId, setSearchId] = useState(0);
+
+    // Handle Joining from Live Feed
+    useEffect(() => {
+        const handleJoinPool = (e: any) => {
+            const pool = e.detail;
+            if (pool) {
+                console.log('📡 [Lobby] Joining pool from feed:', pool);
+                setWager(pool.entryFee);
+                setGameMode(pool.mode);
+                setMatchType(pool.matchType);
+                // Trigger search on next tick to ensure state sync
+                setTimeout(() => {
+                    handleStartQuickMatch();
+                }, 100);
+            }
+        };
+        window.addEventListener('join_pool', handleJoinPool);
+        return () => window.removeEventListener('join_pool', handleJoinPool);
+    }, [setWager, setGameMode, setMatchType]);
 
     const handleStartQuickMatch = () => {
         setSearchId(prev => prev + 1);
@@ -157,7 +176,13 @@ export default function GameLobby({
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}
                         />
                     </div>
+
                 </div>
+            )}
+
+            {/* --- LIVE FEED --- */}
+            {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
+                <LiveMatchmakingFeed />
             )}
 
             {/* --- OVERLAY PANELS --- */}

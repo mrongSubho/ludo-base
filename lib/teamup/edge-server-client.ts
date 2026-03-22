@@ -4,7 +4,7 @@ import { MatchRequest, MatchResponse, ValidationResult } from '../types/teamup.t
 export class EdgeServerClient {
   private socket: WebSocket | null = null;
   private edgeServerUrl: string;
-  private messageHandlers: Map<string, (data: any) => void> = new Map();
+  private messageHandlers: Map<string, Set<(data: any) => void>> = new Map();
 
   constructor(edgeServerUrl: string) {
     this.edgeServerUrl = edgeServerUrl;
@@ -14,21 +14,37 @@ export class EdgeServerClient {
     return this.edgeServerUrl;
   }
 
+  addEventListener(type: string, handler: (data: any) => void) {
+    if (!this.messageHandlers.has(type)) {
+      this.messageHandlers.set(type, new Set());
+    }
+    this.messageHandlers.get(type)!.add(handler);
+  }
+
+  removeEventListener(type: string, handler: (data: any) => void) {
+    this.messageHandlers.get(type)?.delete(handler);
+  }
+
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // If already open, resolve immediately
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        return resolve();
+      }
+
       this.socket = new WebSocket(this.edgeServerUrl);
 
       this.socket.onopen = () => {
-        console.log('📡 [EdgeServer] Connected to matchmaking server');
+        console.log('📡 [EdgeServer] Connected');
         resolve();
       };
 
       this.socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          const handler = this.messageHandlers.get(data.type);
-          if (handler) {
-            handler(data);
+          const handlers = this.messageHandlers.get(data.type);
+          if (handlers) {
+            handlers.forEach(handler => handler(data));
           }
         } catch (e) {
           console.error('❌ [EdgeServer] Failed to parse message:', e);
@@ -48,15 +64,13 @@ export class EdgeServerClient {
   }
 
   async findMatch(request: MatchRequest): Promise<MatchResponse> {
-    // Wait for connection if it's still connecting (happens on Render free tier cold starts)
+    // ... wait for connection logic omitted for brevity in replace, but must be preserved ...
     if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
-      console.log('⏳ [EdgeServer] Connection in progress, waiting...');
       await new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (!this.socket) return reject(new Error('Socket cleared during connection'));
+          if (!this.socket) return reject(new Error('Socket cleared'));
           if (this.socket.readyState === WebSocket.OPEN) resolve();
-          else if (this.socket.readyState === WebSocket.CLOSED || this.socket.readyState === WebSocket.CLOSING)
-            reject(new Error('Socket closed while waiting for connection'));
+          else if (this.socket.readyState === WebSocket.CLOSED) reject(new Error('Socket closed'));
           else setTimeout(check, 100);
         };
         check();
@@ -72,8 +86,8 @@ export class EdgeServerClient {
 
       const handler = (data: any) => {
         if (data.requestId === requestId) {
-          this.messageHandlers.delete('match_found');
-          this.messageHandlers.delete('match_error');
+          this.removeEventListener('match_found', handler);
+          this.removeEventListener('match_error', handler);
           if (data.type === 'match_found') {
             resolve(data.data);
           } else {
@@ -82,8 +96,8 @@ export class EdgeServerClient {
         }
       };
 
-      this.messageHandlers.set('match_found', handler);
-      this.messageHandlers.set('match_error', handler);
+      this.addEventListener('match_found', handler);
+      this.addEventListener('match_error', handler);
 
       this.socket.send(JSON.stringify({
         type: 'find_match',
@@ -94,14 +108,12 @@ export class EdgeServerClient {
   }
 
   async validateGameResult(result: any): Promise<ValidationResult> {
-    // Wait for connection if it's still connecting
     if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
       await new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (!this.socket) return reject(new Error('Socket cleared during connection'));
+          if (!this.socket) return reject(new Error('Socket cleared'));
           if (this.socket.readyState === WebSocket.OPEN) resolve();
-          else if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSING) 
-            reject(new Error('Socket closed'));
+          else if (this.socket.readyState === WebSocket.CLOSED) reject(new Error('Socket closed'));
           else setTimeout(check, 100);
         };
         check();
@@ -117,12 +129,12 @@ export class EdgeServerClient {
 
       const handler = (data: any) => {
         if (data.requestId === requestId) {
-          this.messageHandlers.delete('validation_result');
+          this.removeEventListener('validation_result', handler);
           resolve(data.data);
         }
       };
 
-      this.messageHandlers.set('validation_result', handler);
+      this.addEventListener('validation_result', handler);
 
       this.socket.send(JSON.stringify({
         type: 'validate_result',
