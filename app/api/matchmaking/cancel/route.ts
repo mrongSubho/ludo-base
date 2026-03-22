@@ -7,19 +7,23 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
     try {
-        const { ticketId } = await request.json();
+        const { ticketId, playerId } = await request.json();
 
-        if (!ticketId) {
-            return NextResponse.json({ error: 'Missing ticketId' }, { status: 400 });
+        if (!ticketId && !playerId) {
+            return NextResponse.json({ error: 'Missing ticketId or playerId' }, { status: 400 });
         }
 
-        console.log('📡 [Matchmaking] Cancelling search...', { ticketId });
+        console.log('📡 [Matchmaking] Cancelling search...', { ticketId, playerId });
 
-        const { error } = await supabase
-            .from('matchmaking_queue')
-            .update({ status: 'cancelled' })
-            .eq('id', ticketId)
-            .eq('status', 'searching'); // Only cancel if still searching
+        let query = supabase.from('matchmaking_queue').update({ status: 'cancelled' });
+
+        if (ticketId) {
+            query = query.eq('id', ticketId);
+        } else if (playerId) {
+            query = query.eq('player_id', playerId);
+        }
+
+        const { error } = await query.in('status', ['searching', 'expanding']);
 
         if (error) {
             console.error('❌ [Matchmaking] Cancel Error:', error);

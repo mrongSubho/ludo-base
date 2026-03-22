@@ -134,19 +134,36 @@ export function assignCorners2v2(): ColorCorner {
 /**
  * 1v1 / 4P free-for-all: Full Fisher-Yates shuffle of corners — no pairing constraints.
  */
-export function assignCornersFFA(_playerCount: '1v1' | '4P' = '4P'): ColorCorner {
+export function assignCornersFFA(playerCount: '1v1' | '4P' = '4P'): ColorCorner {
     const cc: Partial<ColorCorner> = {};
-    const allColors: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
+    const allColors: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
     const corners: Corner[] = ['BL', 'TR', 'BR', 'TL'];
 
-    // Fisher-Yates shuffle corners
-    for (let i = corners.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [corners[i], corners[j]] = [corners[j], corners[i]];
+    if (playerCount === '1v1') {
+        // For 1v1, we MUST ensure the two active players (first two in LOBBY_COLORS)
+        // are diagonally opposite. We'll pick one axis randomly.
+        const axis = Math.random() < 0.5 ? ['BL', 'TR'] : ['BR', 'TL'];
+        const otherAxis = axis[0] === 'BL' ? ['BR', 'TL'] : ['BL', 'TR'];
+        
+        // Randomly assign the first two colors to the chosen axis
+        const [c0, c1] = Math.random() < 0.5 ? axis : [axis[1], axis[0]];
+        cc[allColors[0]] = c0 as Corner; // Host (Green)
+        cc[allColors[2]] = c1 as Corner; // Guest (Yellow)
+        
+        // Assign remaining colors to the other axis
+        const [c2, c3] = Math.random() < 0.5 ? otherAxis : [otherAxis[1], otherAxis[0]];
+        cc[allColors[1]] = c2 as Corner; // Red
+        cc[allColors[3]] = c3 as Corner; // Blue
+    } else {
+        // Fisher-Yates shuffle corners for 4P
+        for (let i = corners.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [corners[i], corners[j]] = [corners[j], corners[i]];
+        }
+        // Assign all 4 colors to corners
+        allColors.forEach((color, i) => { cc[color] = corners[i]; });
     }
 
-    // Assign all 4 colors to corners (ensures board grid is always complete)
-    allColors.forEach((color, i) => { cc[color] = corners[i]; });
     return cc as ColorCorner;
 }
 

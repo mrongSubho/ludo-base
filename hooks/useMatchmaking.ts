@@ -40,15 +40,18 @@ export function useMatchmaking({
         onMatchFoundRef.current = onMatchFound;
     }, [status, onMatchFound]);
 
-    const cancelSearch = useCallback(async () => {
-        if (!ticketId) return;
+    const cancelSearch = useCallback(async (allForPlayer: boolean = false) => {
+        if (!ticketId && !allForPlayer) return;
 
-        console.log('📡 [Matchmaking] Auto-cancelling search...');
+        console.log(`📡 [Matchmaking] ${allForPlayer ? 'Purging player tickets' : 'Cancelling current ticket'}...`);
         try {
             await fetch('/api/matchmaking/cancel', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticketId })
+                body: JSON.stringify({ 
+                    ticketId: allForPlayer ? null : ticketId,
+                    playerId: allForPlayer ? playerId.toLowerCase() : null
+                })
             });
         } catch (err) {
             console.error('❌ [Matchmaking] Failed to cancel search:', err);
@@ -63,7 +66,7 @@ export function useMatchmaking({
         if (timerRef.current) clearInterval(timerRef.current);
         if (pollingRef.current) clearInterval(pollingRef.current);
         lastSearchRef.current = ''; // Clear so we can restart with same criteria
-    }, [ticketId]);
+    }, [ticketId, playerId]);
 
     const lastSearchRef = useRef<string>('');
 
@@ -72,14 +75,8 @@ export function useMatchmaking({
         const criteria = `${normalizedPlayerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
         const currentStatus = statusRef.current;
         
-        if (currentStatus === 'searching' || currentStatus === 'expanding' || currentStatus === 'matched') {
-            if (lastSearchRef.current === criteria) {
-                console.log('📡 [Matchmaking] Already searching with same criteria, skipping...');
-                return;
-            }
-            // If criteria changed, cancel old and continue
-            await cancelSearch();
-        }
+        // Always purge stale tickets before starting a new search to prevent "Shadow Matches"
+        await cancelSearch(true);
         
         console.log(`📡 [Matchmaking] Starting NEW search. Criteria: ${criteria}`);
         lastSearchRef.current = criteria;
