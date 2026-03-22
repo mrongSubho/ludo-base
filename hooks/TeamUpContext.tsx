@@ -723,7 +723,6 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
     }, [myAddress, handleGuestData]);
 
     // ─── Guest: Join ───
-
     const joinGame = useCallback((targetRoomId: string, token?: string) => {
         if (!targetRoomId) return;
         if (peerRef.current) peerRef.current.destroy();
@@ -733,13 +732,33 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         const peer = new Peer();
         peerRef.current = peer;
 
-        peer.on('open', (id) => {
-            console.log('🎲 Guest Peer opened:', id);
-            const conn = peer.connect(targetRoomId);
+        const attemptConnection = (p: Peer, attempts: number) => {
+            console.log(`📡 [P2P] Connecting to Host: ${targetRoomId} (Attempt ${attempts}/5)...`);
+            const conn = p.connect(targetRoomId);
+
+            // Timeout for current attempt
+            const connectionTimeout = setTimeout(() => {
+                if (!conn.open) {
+                    console.warn(`⏳ [P2P] Connection Attempt ${attempts} timed out.`);
+                    conn.removeAllListeners();
+                    conn.close();
+                    
+                    if (attempts < 5) {
+                        const delay = attempts * 1000; // Exponential-ish backoff
+                        console.log(`🔄 [P2P] Retrying in ${delay}ms...`);
+                        setTimeout(() => attemptConnection(p, attempts + 1), delay);
+                    } else {
+                        console.error('❌ [P2P] All connection attempts failed. Room might not exist.');
+                    }
+                }
+            }, 3000);
 
             conn.on('open', () => {
+                clearTimeout(connectionTimeout);
+                console.log('✅ [P2P] Connected to Host successfully!');
                 setConnections(new Map([[conn.peer, conn]]));
                 setIsLobbyConnected(true);
+                
                 if (myAddress) {
                     conn.send({
                         type: 'SYNC_PROFILE',
@@ -750,24 +769,31 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                     });
                 }
 
-                conn.on('data', (data: any) => {
-                    console.log('📩 Guest received message via P2P:', data.type);
-                    processGameAction(data);
+                conn.on('close', () => {
+                    console.log('📡 Host connection closed.');
+                    setIsLobbyConnected(false);
+                    setConnections(new Map());
+
+                    if (gameStateRef.current.isStarted && !gameStateRef.current.winner) {
+                        initiateMigration();
+                    }
                 });
-
-            conn.on('close', () => {
-                console.log('📡 Host connection closed.');
-                setIsLobbyConnected(false);
-                setConnections(new Map());
-
-                // HOST MIGRATION TRIGGER
-                if (gameStateRef.current.isStarted && !gameStateRef.current.winner) {
-                    initiateMigration();
-                }
             });
+
+            conn.on('error', (err) => {
+                console.error(`❌ [P2P] Connection error on attempt ${attempts}:`, err);
             });
+        };
+
+        peer.on('open', (id) => {
+            console.log('🎲 Guest Peer signaling ID opened:', id);
+            setTimeout(() => attemptConnection(peer, 1), 500);
         });
-    }, [myAddress, myProfile, initiateMigration]);
+
+        peer.on('error', (err) => {
+            console.error('❌ [P2P] Guest Peer ID error:', err);
+        });
+    }, [myAddress, myProfile, initiateMigration, processGameAction]);
 
     // ─── Realtime Relay Listener (Supabase) ───
     useEffect(() => {

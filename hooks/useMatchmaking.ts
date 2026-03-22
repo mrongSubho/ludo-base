@@ -98,9 +98,12 @@ export function useMatchmaking({
             const data = await response.json();
 
             if (data.status === 'matched') {
-                console.log('✅ [Matchmaking] DIRECT MATCH found during join request:', data);
+                console.log('✅ [Matchmaking] DIRECT MATCH found. YOU ARE THE GUEST.');
                 setStatus('matched');
-                onMatchFoundRef.current(data.match_id, data.room_code, data.role === 'host');
+                // Synchronization Delay: Give the Host 800ms to initialize Peer room
+                setTimeout(() => {
+                    onMatchFoundRef.current(data.match_id, data.room_code, false); 
+                }, 800);
             } else {
                 console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
@@ -157,8 +160,12 @@ export function useMatchmaking({
             const data = await response.json();
 
             if (data.status === 'matched') {
+                console.log('✅ [Matchmaking] HYBRID MATCH found. YOU ARE THE GUEST.');
                 setStatus('matched');
-                onMatchFoundRef.current(data.match_id, data.room_code || '', data.role === 'host');
+                // Synchronization Delay: Give the Host 800ms to initialize Peer room
+                setTimeout(() => {
+                    onMatchFoundRef.current(data.match_id, data.room_code || '', false);
+                }, 800);
             } else {
                 setTicketId(data.ticket_id);
 
@@ -199,13 +206,13 @@ export function useMatchmaking({
                     filter: `id=eq.${ticketId}`
                 },
                 (payload: any) => {
-                    const newData = payload.new;
-                    console.log('📡 [Matchmaking] Realtime update received:', newData.status);
-                    
-                    if (newData.status === 'matched') {
-                        setStatus('matched');
-                        onMatchFoundRef.current(newData.match_id, newData.room_code, true); // The one in queue is always the host
+                    const { status: newStatus, match_id, room_code } = payload.new;
+                    if (newStatus === 'matched') {
+                        console.log(`✅ [Matchmaking] YOU ARE THE HOST. Opponent joined. Match: ${match_id}`);
                         if (timerRef.current) clearInterval(timerRef.current);
+                        setStatus('matched');
+                        // Host joins immediately without delay
+                        onMatchFoundRef.current(match_id, room_code || '', true);
                     }
                 }
             )
