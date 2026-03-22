@@ -208,7 +208,10 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                 const newLobby = { ...prev, status: 'playing' as const };
                 lobbyStateRef.current = newLobby;
                 // Broadcast this status change immediately to Catch any late-joiners
-                setTimeout(() => broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby }), 50);
+                setTimeout(() => {
+                    broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+                    relayViaSupabase('lobby-action', { type: 'LOBBY_SYNC', lobbyState: newLobby });
+                }, 50);
                 return newLobby;
             });
         }
@@ -580,6 +583,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
             console.log('🎲 Host Peer opened:', id);
             setRoomId(id);
             setCurrentRoomCode(id);
+            setIsLobbyConnected(true);
         });
 
         peer.on('connection', (conn) => {

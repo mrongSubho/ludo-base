@@ -144,11 +144,13 @@ export default function Page() {
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
   const handlePlayNow = () => {
+    console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'playerCount:', playerCount, 'lobbyStatus:', lobbyState?.status);
     if (isHost) {
       const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
       let players: Player[] = [];
 
-      if (isLobbyConnected && lobbyState && !isBotMatch) {
+      const isInLobby = isLobbyConnected || (isHost && !!lobbyState);
+      if (isInLobby && lobbyState && !isBotMatch) {
         // --- MULTIPLAYER LOBBY START ---
         // Map Lobby Slots directly to Player objects
         players = lobbyState.slots
@@ -168,6 +170,11 @@ export default function Page() {
               walletAddress: addr
             } as Player;
           });
+
+        if (players.length === 0) {
+          console.warn('⚠️ No players found in joined slots, falling back to local host.');
+          players = shufflePlayers(playerCount, false, cc) as Player[];
+        }
       } else {
         // --- OFFLINE / BOT MATCH START ---
         players = shufflePlayers(playerCount, isBotMatch, cc) as Player[];

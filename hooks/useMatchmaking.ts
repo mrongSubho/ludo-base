@@ -346,7 +346,7 @@ export function useMatchmaking({
             if (pollingRef.current) clearInterval(pollingRef.current);
             
             // Auto-cancel if still searching on unmount
-            if (statusRef.current === 'searching' || statusRef.current === 'expanding') {
+            if (statusRef.current !== 'matched' && (statusRef.current === 'searching' || statusRef.current === 'expanding')) {
                 console.log('📡 [Matchmaking] Component unmounting. Cancelling search...');
                 cancelSearch();
             }
