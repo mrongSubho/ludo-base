@@ -20,6 +20,7 @@ export function useMatchmaking({
     onMatchFound
 }: UseMatchmakingProps) {
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
+    const [isConnectingToEdge, setIsConnectingToEdge] = useState(false);
     const [ticketId, setTicketId] = useState<string | null>(null);
     const ticketIdRef = useRef<string | null>(null);
     const [matchId, setMatchId] = useState<string | null>(null);
@@ -158,9 +159,25 @@ export function useMatchmaking({
         // 4. --- PRIMARY: Edge Server (Render) ---
         if (edgeClientRef.current) {
             try {
-                console.log('📡 [Matchmaking] Attempting Edge Server connection...');
-                await edgeClientRef.current.connect();
+                setIsConnectingToEdge(true);
+                console.log('📡 [Matchmaking] Attempting Edge Server connection (with patience)...');
                 
+                // Patience helper: retry connection for up to 8 seconds
+                let connected = false;
+                const startTime = Date.now();
+                while (Date.now() - startTime < 8000) {
+                    try {
+                        await edgeClientRef.current.connect();
+                        connected = true;
+                        break;
+                    } catch (e) {
+                        console.log('📡 [Matchmaking] Edge Server waking up... retrying in 1s');
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                }
+
+                if (!connected) throw new Error('Edge Server connection timeout');
+
                 console.log('📡 [Matchmaking] Requesting match from Edge Server...');
                 const edgeMatch = await edgeClientRef.current.findMatch({
                     playerId: normalizedPlayerId,
@@ -197,6 +214,8 @@ export function useMatchmaking({
                 }
             } catch (edgeErr) {
                 console.warn('⚠️ [Matchmaking] Edge Server failed or timed out. Falling back to Supabase RPC.', edgeErr);
+            } finally {
+                setIsConnectingToEdge(false);
             }
         }
 
@@ -447,6 +466,7 @@ export function useMatchmaking({
         matchId,
         roomCode,
         matchData,
+        isConnectingToEdge,
         startSearch,
         startHybridSearch,
         cancelSearch

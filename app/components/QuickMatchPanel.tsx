@@ -76,6 +76,7 @@ export const QuickMatchPanel = ({
         matchId: hookMatchId,
         roomCode: hookRoomCode,
         matchData,
+        isConnectingToEdge,
         startSearch, 
         startHybridSearch, 
         cancelSearch 
@@ -331,7 +332,11 @@ export const QuickMatchPanel = ({
                                     Quick Match
                                 </h2>
                                 <div className="flex flex-col items-end">
-                                    <span className="text-[10px] uppercase font-black tracking-widest text-white/40">Entry Fee</span>
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <span className="text-[9px] uppercase font-black tracking-widest text-cyan-400 opacity-60">{gameMode}</span>
+                                        <div className="w-[1px] h-2 bg-white/10" />
+                                        <span className="text-[9px] uppercase font-black tracking-widest text-white/40">{matchType}</span>
+                                    </div>
                                     <div className="flex items-center gap-1.5 text-amber-400 font-bold">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                                         <span>{wager}</span>
@@ -341,8 +346,8 @@ export const QuickMatchPanel = ({
                             
                             {/* Diagnostic Bar */}
                             <div className="absolute -bottom-[2px] left-6 flex gap-3">
-                                <span className={`text-[6px] font-black uppercase tracking-tighter ${status === 'matched' ? 'text-green-400' : 'text-cyan-400'}`}>
-                                    📡 {matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK'} | {status}
+                                <span className={`text-[6px] font-black uppercase tracking-tighter ${status === 'matched' ? 'text-green-400' : (isConnectingToEdge ? 'text-amber-400 animate-pulse' : 'text-cyan-400')}`}>
+                                    📡 {isConnectingToEdge ? 'WAKING SERVER...' : (matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK')} | {status}
                                 </span>
                                 <span className="text-[6px] font-black uppercase tracking-tighter text-white/20">
                                     ID: {normalizedAddress.slice(-4)}
@@ -446,8 +451,8 @@ export const QuickMatchPanel = ({
                                                                         className="w-full bg-cyan-400"
                                                                     />
                                                                 </div>
-                                                                <span className="text-[8px] font-black text-white/30 tracking-widest uppercase">
-                                                                    SCAN
+                                                                <span className="text-[8px] font-black text-cyan-400/60 tracking-widest uppercase">
+                                                                    {gameMode} | {matchType}
                                                                 </span>
                                                             </div>
                                                         </>
