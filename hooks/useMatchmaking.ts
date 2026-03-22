@@ -81,6 +81,39 @@ export function useMatchmaking({
         }
     }, [playerId]);
 
+    // --- Check Current Ticket Status (Fallback for missed Realtime) ---
+    const checkTicketStatus = useCallback(async (id: string) => {
+        if (statusRef.current === 'matched') return;
+        
+        console.log(`📡 [Matchmaking] Checking status for ticket: ${id}...`);
+        try {
+            const { data, error } = await supabase
+                .from('matchmaking_queue')
+                .select('status, match_id, room_code')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+
+            if (data?.status === 'matched' && data.match_id) {
+                console.log(`✅ [Matchmaking] Polling found MATCH! Match: ${data.match_id}`);
+                if (timerRef.current) clearInterval(timerRef.current);
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                
+                setMatchId(data.match_id);
+                setRoomCode(data.room_code || '');
+                setStatus('matched');
+                
+                // If we found it via poll, we are likely the Guest (or Host who missed update)
+                // We'll follow the Guest path (slight delay) to be safe, or just join.
+                // Actually, if match_id exists, we can join.
+                onMatchFoundRef.current(data.match_id, data.room_code || '', false);
+            }
+        } catch (err) {
+            console.error('❌ [Matchmaking] Status check failed:', err);
+        }
+    }, []);
+
     const lastSearchRef = useRef<string>('');
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
         const normalizedPlayerId = playerId.toLowerCase();
@@ -96,6 +129,7 @@ export function useMatchmaking({
         // 2. Clear & Restart Timer immediately
         if (timerRef.current) clearInterval(timerRef.current);
         if (pollingRef.current) clearInterval(pollingRef.current);
+        
         timerRef.current = setInterval(() => {
             setSearchTime(prev => {
                 const newTime = prev + 1;
@@ -103,14 +137,15 @@ export function useMatchmaking({
                 if (newTime >= 30) {
                     setStatus('timeout');
                     if (timerRef.current) clearInterval(timerRef.current);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
                 }
                 return newTime;
             });
         }, 1000);
 
-        // 3. Purge stale tickets (this might take a second)
+        // 3. Purge stale tickets
         try {
-            await cancelSearch(true, true); // Pass skipStateReset=true
+            await cancelSearch(true, true);
         } catch (e) {
             console.error('❌ [Matchmaking] Purge failed, but proceeding...', e);
         }
@@ -132,37 +167,43 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 console.log('✅ [Matchmaking] DIRECT MATCH found. YOU ARE THE GUEST.');
+                if (timerRef.current) clearInterval(timerRef.current);
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                
                 setStatus('matched');
                 setMatchId(data.match_id);
                 setRoomCode(data.room_code || '');
                 
-                // Synchronization Delay: Give the Host 1500ms (increased) to initialize Peer room
-                // Joiners (Guests) must wait for the Host to open the room on the signal server.
                 setTimeout(() => {
-                    console.log('🏁 [Matchmaking] Joiner delay finished. Joining room:', data.room_code);
                     onMatchFoundRef.current(data.match_id, data.room_code || '', false); 
                 }, 1500);
             } else {
                 console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
-                // Ensure status is definitely 'searching' if it was reset
-                if (statusRef.current === 'idle') setStatus('searching');
+                
+                // Immediately check status once in case match happened during join
+                checkTicketStatus(data.ticket_id);
+                
+                // Start polling as a safety net
+                pollingRef.current = setInterval(() => {
+                    if (data.ticket_id) checkTicketStatus(data.ticket_id);
+                }, 3000);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Error starting search:', err);
             setStatus('error');
-            setSearchTime(0); // Reset time on error
+            setSearchTime(0);
         }
-    }, [playerId, gameMode, matchType, wager, cancelSearch]);
+    }, [playerId, gameMode, matchType, wager, cancelSearch, checkTicketStatus]);
 
-    // --- Hybrid Search (from a private lobby) ---
+    // --- Hybrid Search ---
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
         setStatus('searching');
         setSearchTime(0);
 
-        // Clear & Restart Timer immediately
         if (timerRef.current) clearInterval(timerRef.current);
         if (pollingRef.current) clearInterval(pollingRef.current);
+        
         timerRef.current = setInterval(() => {
             setSearchTime(prev => {
                 const newTime = prev + 1;
@@ -170,13 +211,13 @@ export function useMatchmaking({
                 if (newTime >= 30) {
                     setStatus('timeout');
                     if (timerRef.current) clearInterval(timerRef.current);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
                 }
                 return newTime;
             });
         }, 1000);
 
         try {
-            // Purge any other active tickets for this player first
             await cancelSearch(true, true);
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
@@ -188,8 +229,8 @@ export function useMatchmaking({
                     wager,
                     wagerMin,
                     wagerMax,
-                    roomCode,       // Include existing room for direct joins
-                    slotsNeeded,    // How many slots to fill
+                    roomCode,
+                    slotsNeeded,
                     isHybrid: true
                 })
             });
@@ -197,36 +238,32 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 console.log('✅ [Matchmaking] HYBRID MATCH found. YOU ARE THE GUEST.');
+                if (timerRef.current) clearInterval(timerRef.current);
+                if (pollingRef.current) clearInterval(pollingRef.current);
+                
                 setStatus('matched');
                 setMatchId(data.match_id);
                 setRoomCode(data.room_code || '');
 
-                // Synchronization Delay: Give the Host 800ms to initialize Peer room
                 setTimeout(() => {
                     onMatchFoundRef.current(data.match_id, data.room_code || '', false);
                 }, 800);
             } else {
                 setTicketId(data.ticket_id);
-
-                // Timer (same as normal search)
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerRef.current = setInterval(() => {
-                    setSearchTime(prev => {
-                        const newTime = prev + 1;
-                        if (newTime === 16) setStatus('expanding');
-                        if (newTime >= 30) {
-                            setStatus('timeout');
-                            if (timerRef.current) clearInterval(timerRef.current);
-                        }
-                        return newTime;
-                    });
-                }, 1000);
+                
+                // Immediate check
+                checkTicketStatus(data.ticket_id);
+                
+                // Polling
+                pollingRef.current = setInterval(() => {
+                    if (data.ticket_id) checkTicketStatus(data.ticket_id);
+                }, 3000);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Hybrid search error:', err);
             setStatus('error');
         }
-    }, [playerId, gameMode, wager]);
+    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus]);
 
     // --- Supabase Realtime Subscription for Matchmaking Status ---
     useEffect(() => {
@@ -256,6 +293,7 @@ export function useMatchmaking({
                     if (newStatus === 'matched') {
                         console.log(`✅ [Matchmaking] REALTIME MATCH! YOU ARE THE HOST. Match: ${match_id}`);
                         if (timerRef.current) clearInterval(timerRef.current);
+                        if (pollingRef.current) clearInterval(pollingRef.current);
                         
                         setMatchId(match_id);
                         setRoomCode(room_code || '');
