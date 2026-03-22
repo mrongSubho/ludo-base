@@ -151,6 +151,9 @@ export function useMatchmaking({
         }
 
         try {
+            setStatus('searching');
+            setSearchTime(0);
+
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
