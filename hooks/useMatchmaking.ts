@@ -140,6 +140,7 @@ export function useMatchmaking({
         } catch (err) {
             console.error('❌ [Matchmaking] Error starting search:', err);
             setStatus('error');
+            setSearchTime(0); // Reset time on error
         }
     }, [playerId, gameMode, matchType, wager, cancelSearch]);
 
@@ -216,6 +217,13 @@ export function useMatchmaking({
                     filter: `id=eq.${ticketId}`
                 },
                 (payload: any) => {
+                    // CRITICAL: If we already matched via RPC (Guest), ignore this Realtime signal (Host-path)
+                    // This prevents the Guest from also trying to 'hostGame' and causing PeerJS ID collisions.
+                    if (statusRef.current === 'matched') {
+                        console.log('📡 [Matchmaking] Ignoring redundant Realtime update (already matched via RPC)');
+                        return;
+                    }
+
                     const { status: newStatus, match_id, room_code } = payload.new;
                     if (newStatus === 'matched') {
                         console.log(`✅ [Matchmaking] YOU ARE THE HOST. Opponent joined. Match: ${match_id}`);

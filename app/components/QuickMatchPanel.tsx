@@ -182,6 +182,16 @@ export const QuickMatchPanel = ({
     }, [status, roomCode, address]);
 
     useEffect(() => {
+        // Wait for wallet address before starting search
+        if (!address) {
+            console.log('📡 [QuickMatch] Waiting for wallet address...');
+            return;
+        }
+
+        // Prevent multiple re-triggers if we are already in an active state
+        if (status !== 'idle' && status !== 'error' && status !== 'timeout') return;
+
+        console.log('🏁 [QuickMatch] Search initialized with address:', address);
         if (isHybrid && roomCode) {
             startHybridSearch(roomCode, slotsNeeded, matchType);
         } else {
@@ -191,7 +201,7 @@ export const QuickMatchPanel = ({
         return () => {
             cancelSearch();
         };
-    }, []);
+    }, [address, isHybrid, roomCode, slotsNeeded, matchType]); // Added address dependency
 
     const handleBackToLobby = () => {
         cancelSearch();
@@ -335,13 +345,35 @@ export const QuickMatchPanel = ({
                                                     className="absolute left-0 right-0 h-[1px] bg-cyan-400/30 z-20 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
                                                 />
 
-                                                <div className="relative z-30 flex flex-col items-center">
-                                                    <span className="text-2xl md:text-3xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
-                                                        {searchTime}s
-                                                    </span>
-                                                    <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase mt-1">
-                                                        Time
-                                                    </span>
+                                                <div className="relative z-30 flex flex-col items-center text-center">
+                                                    {status === 'error' ? (
+                                                        <>
+                                                            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none mb-1">
+                                                                Error
+                                                            </span>
+                                                            <span className="text-[7px] font-bold text-red-400/60 uppercase tracking-tighter">
+                                                                Retry Signal
+                                                            </span>
+                                                        </>
+                                                    ) : !address ? (
+                                                        <>
+                                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.15em] leading-none mb-1">
+                                                                Syncing
+                                                            </span>
+                                                            <span className="text-[7px] font-bold text-amber-400/60 uppercase tracking-tighter">
+                                                                Wallet
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-2xl md:text-3xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+                                                                {searchTime}s
+                                                            </span>
+                                                            <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase mt-1">
+                                                                Time
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
 
