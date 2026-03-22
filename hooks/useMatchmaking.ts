@@ -232,15 +232,19 @@ export function useMatchmaking({
 
                 if (!connected) throw new Error('Edge Server connection timeout');
 
+                const targetWager = (wagerMin !== undefined && wagerMin === wagerMax) ? wagerMin : wager;
+
                 console.log('📡 [Matchmaking] Requesting match from Edge Server...');
                 const edgeMatch = await edgeClientRef.current.findMatch({
                     playerId: normalizedPlayerId,
-                    mode: 'quick',
-                    gameType: wager > 0 ? 'tournament' : 'standard',
-                    entryFee: wager,
-                    // Additional fields for server logic
+                    mode: gameMode as any, // 'classic'/'power' as expected by Edge getPool
+                    entryFee: targetWager,
+                    minWager: wagerMin !== undefined ? wagerMin : targetWager,
+                    maxWager: wagerMax !== undefined ? wagerMax : targetWager,
                     matchType: matchType as any,
-                    gameMode: gameMode as any
+                    // Legacy/Alias fields
+                    gameMode: gameMode as any,
+                    gameType: 'quick'
                 } as any);
 
                 if (edgeMatch && statusRef.current !== 'matched') {
