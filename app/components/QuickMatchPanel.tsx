@@ -218,7 +218,7 @@ export const QuickMatchPanel = ({
         return () => {
             cancelSearch();
         };
-    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType]); 
+    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, startSearch, startHybridSearch, cancelSearch]); 
 
     const handleBackToLobby = () => {
         cancelSearch();
@@ -331,8 +331,8 @@ export const QuickMatchPanel = ({
                                 entryFee={wager}
                             >
                                 <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px] relative">
-                                    {/* Radar System Visual - Persistent while searching or error */}
-                                    {status !== 'idle' && status !== 'matched' && (
+                                    {/* Radar System Visual - Persistent while not matched */}
+                                    {status !== 'matched' && (
                                         <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
                                             {/* 1. Outer Rotating Ring (Slow) */}
                                             <motion.div
@@ -417,6 +417,7 @@ export const QuickMatchPanel = ({
                                                         {status === 'error' ? 'FAULT DETECTED' : 
                                                          status === 'timeout' ? 'LINK TIMEOUT' : 
                                                          status === 'expanding' ? 'EXPANDING RANGE' : 
+                                                         status === 'idle' ? 'PREPARING SIGNAL' :
                                                          'SCANNING ARENA'}
                                                     </span>
                                                 </div>
