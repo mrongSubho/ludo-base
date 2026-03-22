@@ -332,101 +332,129 @@ export const QuickMatchPanel = ({
                                 entryFee={wager}
                             >
                                 <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px] relative">
-                                    {/* Radar System Visual - Persistent while not matched */}
+                                    {/* Radar System Visual - Premium Redesign */}
                                     {status !== 'matched' && (
                                         <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-                                            {/* 1. Outer Rotating Ring (Slow) */}
+                                            {/* 1. Subtle Outer Glow */}
+                                            <div className="absolute inset-[-20%] bg-cyan-500/5 blur-[80px] rounded-full" />
+                                            
+                                            {/* 2. Multiple Concentric Rings */}
+                                            {[1, 2, 3].map((ring) => (
+                                                <motion.div
+                                                    key={`ring-${ring}`}
+                                                    animate={{ rotate: ring % 2 === 0 ? 360 : -360 }}
+                                                    transition={{ duration: 15 + (ring * 5), repeat: Infinity, ease: "linear" }}
+                                                    className={`absolute border rounded-full ${ring % 2 === 0 ? 'border-dashed' : 'border-dotted'}`}
+                                                    style={{ 
+                                                        inset: ring * 25, 
+                                                        borderColor: `rgba(34, 211, 238, ${0.1 + (ring * 0.05)})`
+                                                    }}
+                                                />
+                                            ))}
+
+                                            {/* 3. Orbiting Signal Nodes */}
+                                            {[0, 120, 240].map((angle, i) => (
+                                                <motion.div
+                                                    key={`node-${i}`}
+                                                    animate={{ rotate: 360 }}
+                                                    transition={{ duration: 10 + i * 2, repeat: Infinity, ease: "linear" }}
+                                                    className="absolute inset-0 flex items-start justify-center"
+                                                    style={{ transform: `rotate(${angle}deg)` }}
+                                                >
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] mt-[-0.75px]" />
+                                                </motion.div>
+                                            ))}
+
+                                            {/* 4. High-Fidelity Scanner Sweep */}
                                             <motion.div
                                                 animate={{ rotate: 360 }}
-                                                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                                                className="absolute inset-0 border-2 border-dashed border-cyan-500/20 rounded-full"
-                                            />
-
-                                            {/* 2. Middle Pulsing Sonar */}
-                                            <motion.div
-                                                animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
-                                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                                                className="absolute inset-10 border border-white/10 rounded-full"
-                                            />
-
-                                            {/* 3. Fast Counter-Rotating Dash Ring */}
-                                            <motion.div
-                                                animate={{ rotate: -360 }}
-                                                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                                                className="absolute inset-16 border border-dotted border-cyan-400/40 rounded-full"
-                                            />
-
-                                            {/* 4. Scanner Sweep (Conic Gradient) */}
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                                                 className="absolute inset-0 rounded-full"
                                                 style={{
-                                                    background: 'conic-gradient(from 0deg, transparent 70%, rgba(34, 211, 238, 0.2) 100%)'
+                                                    background: 'conic-gradient(from 0deg, transparent 60%, rgba(34, 211, 238, 0.15) 100%)'
                                                 }}
                                             />
 
-                                            {/* 5. Central Data Core (Timer) */}
-                                            <div className="relative z-10 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full border border-white/10 flex flex-col items-center justify-center backdrop-blur-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] group overflow-hidden">
-                                                {/* Inner Glow Surround */}
-                                                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-blue-500/10 opacity-50 group-hover:opacity-80 transition-opacity" />
+                                            {/* 5. Central Data Core (Glassmorphism Timer) */}
+                                            <div className="relative z-10 w-28 h-28 md:w-36 md:h-36 bg-[rgba(255,255,255,0.03)] rounded-full border border-white/10 flex flex-col items-center justify-center backdrop-blur-3xl shadow-[0_0_60px_rgba(0,0,0,0.6)] group overflow-hidden">
+                                                {/* Inner Holographic Glow */}
+                                                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 via-transparent to-blue-500/20 opacity-40" />
                                                 
-                                                {/* Scanning Line Animation */}
+                                                {/* Scanning V-Line */}
                                                 <motion.div 
-                                                    animate={{ top: ['-10%', '110%'] }}
-                                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                                    className="absolute left-0 right-0 h-[1px] bg-cyan-400/30 z-20 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
+                                                    animate={{ top: ['-20%', '120%'] }}
+                                                    transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                                                    className="absolute left-0 right-0 h-[2px] bg-cyan-400/40 z-20 shadow-[0_0_15px_rgba(34,211,238,0.6)]"
                                                 />
 
-                                                <div className="relative z-30 flex flex-col items-center text-center">
+                                                <div className="relative z-30 flex flex-col items-center">
                                                     {status === 'error' ? (
                                                         <>
-                                                            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none mb-1">
-                                                                Error
+                                                            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest leading-none mb-1">
+                                                                FAULT
                                                             </span>
-                                                            <span className="text-[7px] font-bold text-red-400/60 uppercase tracking-tighter">
-                                                                Retry Signal
+                                                            <span className="text-[7px] font-bold text-red-400/40 uppercase">
+                                                                OFFLINE
                                                             </span>
                                                         </>
                                                     ) : !address ? (
-                                                        <>
-                                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-[0.15em] leading-none mb-1">
-                                                                Syncing
+                                                        <div className="animate-pulse">
+                                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                                SYNCING
                                                             </span>
-                                                            <span className="text-[7px] font-bold text-amber-400/60 uppercase tracking-tighter">
-                                                                Wallet
-                                                            </span>
-                                                        </>
+                                                        </div>
                                                     ) : (
                                                         <>
-                                                            <span className="text-2xl md:text-3xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+                                                            <span className="text-3xl md:text-4xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_12px_rgba(34,211,238,0.55)]">
                                                                 {searchTime}s
                                                             </span>
-                                                            <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase mt-1">
-                                                                Time
-                                                            </span>
+                                                            <div className="flex items-center gap-1 mt-1">
+                                                                <div className="w-1 h-3 bg-cyan-400/20 rounded-full overflow-hidden">
+                                                                    <motion.div 
+                                                                        animate={{ height: ['20%', '100%', '40%'] }}
+                                                                        transition={{ duration: 1, repeat: Infinity }}
+                                                                        className="w-full bg-cyan-400"
+                                                                    />
+                                                                </div>
+                                                                <span className="text-[8px] font-black text-white/30 tracking-widest uppercase">
+                                                                    SCAN
+                                                                </span>
+                                                            </div>
                                                         </>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            {/* Status Text overlay */}
-                                            <div className="absolute top-[85%] flex flex-col items-center gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                                                    <span className={`text-[10px] uppercase font-black tracking-[0.3em] ${(status === 'error' || status === 'timeout') ? 'text-red-400' : 'text-cyan-400'}`}>
+                                            {/* 6. Dynamic Status Display Below Radar */}
+                                            <div className="absolute top-[90%] left-1/2 -translate-x-1/2 flex flex-col items-center min-w-[300px]">
+                                                <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl">
+                                                    <div className="flex gap-1">
+                                                        {[0, 1, 2].map((dot) => (
+                                                            <motion.div
+                                                                key={dot}
+                                                                animate={{ opacity: [0.3, 1, 0.3] }}
+                                                                transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
+                                                                className={`w-1.5 h-1.5 rounded-full ${status === 'error' || status === 'timeout' ? 'bg-red-500' : 'bg-cyan-400'}`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <span className={`text-[11px] uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
                                                         {status === 'error' ? 'FAULT DETECTED' : 
                                                          status === 'timeout' ? 'LINK TIMEOUT' : 
-                                                         status === 'expanding' ? 'EXPANDING RANGE' : 
+                                                         status === 'expanding' ? 'REACH EXPANDED' : 
                                                          status === 'idle' ? 'PREPARING SIGNAL' :
-                                                         'SCANNING ARENA'}
+                                                         'SCANNING LUDO ARENA'}
                                                     </span>
                                                 </div>
-                                                <span className="text-white/20 text-[8px] uppercase font-bold tracking-widest text-center max-w-[200px] italic">
-                                                    {status === 'error' ? 'Retrying Link...' : 
-                                                     status === 'timeout' ? 'Connection Unstable' :
-                                                     `TICKET: ${ticketId?.slice(0, 8) || 'INITIALIZING'}`}
-                                                </span>
+                                                
+                                                <div className="mt-3 flex flex-col items-center">
+                                                    <span className="text-white/40 text-[9px] uppercase font-black tracking-[0.15em] mb-1">
+                                                        Network ID
+                                                    </span>
+                                                    <div className="px-3 py-1 rounded bg-black/40 border border-white/5 font-mono text-[9px] text-cyan-500/80 tracking-widest">
+                                                        {ticketId?.slice(0, 8).toUpperCase() || 'INITIALIZING...'}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}

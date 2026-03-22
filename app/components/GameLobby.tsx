@@ -59,7 +59,7 @@ export default function GameLobby({
     return (
         <div className="relative w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center justify-center">
             {/* 1. INITIAL SETUP PANEL */}
-            {!isQuickMatchActive && (
+            {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
                     key="setup"
                     className="w-full max-w-[420px] mx-auto flex flex-col gap-6" 
