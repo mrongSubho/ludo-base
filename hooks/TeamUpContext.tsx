@@ -824,6 +824,17 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
 
             conn.on('error', (err) => {
                 console.error(`❌ [P2P] Connection error on attempt ${attempts}:`, err);
+                
+                // If Host isn't ready yet, retry immediately or after a short delay
+                if (attempts < 5) {
+                    clearTimeout(connectionTimeout);
+                    conn.removeAllListeners();
+                    conn.close();
+                    
+                    const delay = Math.min(attempts * 1000, 3000); 
+                    console.log(`🔄 [P2P] Host unavailable, retrying in ${delay}ms...`);
+                    setTimeout(() => attemptConnection(p, attempts + 1), delay);
+                }
             });
         };
 

@@ -143,17 +143,20 @@ export function useMatchmaking({
             });
         }, 1000);
 
-        // 3. Purge stale tickets
+        console.log('📡 [Matchmaking] startSearch() called. Setting status to searching...');
+        setStatus('searching');
+        setSearchTime(0);
+
+        // 3. Purge stale tickets (Don't let this block the UI status update)
         try {
+            console.log('📡 [Matchmaking] Purging stale tickets...');
             await cancelSearch(true, true);
         } catch (e) {
             console.error('❌ [Matchmaking] Purge failed, but proceeding...', e);
         }
 
         try {
-            setStatus('searching');
-            setSearchTime(0);
-
+            console.log('📡 [Matchmaking] Fetching /api/matchmaking/join...');
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -167,6 +170,7 @@ export function useMatchmaking({
                 })
             });
             const data = await response.json();
+            console.log('📡 [Matchmaking] Join response:', data);
 
             if (data.status === 'matched') {
                 console.log('✅ [Matchmaking] DIRECT MATCH found. YOU ARE THE GUEST.');
