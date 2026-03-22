@@ -26,7 +26,15 @@ export function useMatchmaking({
     const [matchId, setMatchId] = useState<string | null>(null);
     const [roomCode, setRoomCode] = useState<string | null>(null);
     const [matchData, setMatchData] = useState<any | null>(null);
+    const [nearbyPools, setNearbyPools] = useState<{wager: number, waiters: number}[]>([]);
     const [searchTime, setSearchTime] = useState(0);
+    const [maxSearchTime, setMaxSearchTime] = useState(30);
+    const maxSearchTimeRef = useRef(30);
+    
+    // Sync ref for interval access
+    useEffect(() => {
+        maxSearchTimeRef.current = maxSearchTime;
+    }, [maxSearchTime]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const statusRef = useRef<MatchmakingStatus>(status);
@@ -120,6 +128,49 @@ export function useMatchmaking({
         }
     }, []);
 
+    const fetchNearbyPools = useCallback(async () => {
+        try {
+            // Find other players in different wagers for same mode/type
+            const { data, error } = await supabase
+                .from('matchmaking_queue')
+                .select('wager')
+                .eq('status', 'searching')
+                .eq('game_mode', gameMode)
+                .eq('match_type', matchType)
+                .neq('player_id', playerId.toLowerCase())
+                .limit(50); // Just enough to sample density
+
+            if (error) throw error;
+            
+            // Group and count
+            const counts: Record<number, number> = {};
+            data?.forEach(row => {
+                const w = row.wager;
+                if (w !== null && w !== undefined) {
+                    counts[w] = (counts[w] || 0) + 1;
+                }
+            });
+
+            const sortedPools = Object.entries(counts)
+                .map(([wagerStr, count]) => ({
+                    wager: parseInt(wagerStr),
+                    waiters: count
+                }))
+                .filter(p => p.wager !== wager) // Don't suggest current pool
+                .sort((a, b) => b.waiters - a.waiters)
+                .slice(0, 3); // Top 3 suggestions
+
+            setNearbyPools(sortedPools);
+        } catch (err) {
+            console.warn('⚠️ [Matchmaking] Failed to fetch nearby pools:', err);
+        }
+    }, [gameMode, matchType, playerId, wager]);
+
+    const extendSearch = useCallback((seconds: number = 20) => {
+        console.log(`📡 [Matchmaking] Extending search by ${seconds}s...`);
+        setMaxSearchTime(prev => Math.max(prev, searchTime + seconds));
+    }, [searchTime]);
+
     const lastSearchRef = useRef<string>('');
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
         const normalizedPlayerId = playerId.toLowerCase();
@@ -139,8 +190,11 @@ export function useMatchmaking({
         timerRef.current = setInterval(() => {
             setSearchTime(prev => {
                 const newTime = prev + 1;
+                if (newTime === 15) {
+                    fetchNearbyPools();
+                }
                 if (newTime === 16) setStatus('expanding');
-                if (newTime >= 30) {
+                if (newTime >= maxSearchTimeRef.current) {
                     setStatus('timeout');
                     if (timerRef.current) clearInterval(timerRef.current);
                     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -275,8 +329,11 @@ export function useMatchmaking({
         timerRef.current = setInterval(() => {
             setSearchTime(prev => {
                 const newTime = prev + 1;
+                if (newTime === 15) {
+                    fetchNearbyPools();
+                }
                 if (newTime === 16) setStatus('expanding');
-                if (newTime >= 30) {
+                if (newTime >= maxSearchTimeRef.current) {
                     setStatus('timeout');
                     if (timerRef.current) clearInterval(timerRef.current);
                     if (pollingRef.current) clearInterval(pollingRef.current);
@@ -466,10 +523,12 @@ export function useMatchmaking({
         matchId,
         roomCode,
         matchData,
+        nearbyPools,
         isConnectingToEdge,
         startSearch,
         startHybridSearch,
-        cancelSearch
+        cancelSearch,
+        extendSearch
     };
 }
 

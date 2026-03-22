@@ -76,10 +76,12 @@ export const QuickMatchPanel = ({
         matchId: hookMatchId,
         roomCode: hookRoomCode,
         matchData,
+        nearbyPools,
         isConnectingToEdge,
         startSearch, 
         startHybridSearch, 
-        cancelSearch 
+        cancelSearch,
+        extendSearch
     } = useMatchmaking({
         playerId: normalizedAddress,
         gameMode,
@@ -107,6 +109,7 @@ export const QuickMatchPanel = ({
     const [tipIndex, setTipIndex] = useState(0);
     const [hasExpanded, setHasExpanded] = useState(false);
     const [showExpansionOptions, setShowExpansionOptions] = useState(false);
+    const [isInteractingWithOptimizer, setIsInteractingWithOptimizer] = useState(false);
     const [wagerRange, setWagerRange] = useState<{ min: number; max?: number } | null>(null);
     const [opponentProfile, setOpponentProfile] = useState<{ 
         username: string; 
@@ -118,12 +121,17 @@ export const QuickMatchPanel = ({
     } | null>(null);
     const [isLoadingRival, setIsLoadingRival] = useState(false);
 
-    // Show expansion options at 16s if not already expanded
+    // Auto-reveal Optimizer at 15s, vanish at 21s if no interaction
     useEffect(() => {
-        if (searchTime === 16 && !hasExpanded) {
-            setShowExpansionOptions(true);
+        if (status === 'searching' || status === 'expanding') {
+            if (searchTime === 15) {
+                setShowExpansionOptions(true);
+            }
+            if (searchTime === 21 && !isInteractingWithOptimizer) {
+                setShowExpansionOptions(false);
+            }
         }
-    }, [searchTime, hasExpanded]);
+    }, [searchTime, status, isInteractingWithOptimizer]);
 
     // Tip rotation
     useEffect(() => {
@@ -267,22 +275,27 @@ export const QuickMatchPanel = ({
         onCancel();
     };
 
-    const handleExpandWager = (percent: number | 'any') => {
+    const handleExpandWager = (param: number | 'any') => {
         setHasExpanded(true);
         setShowExpansionOptions(false);
+        extendSearch(20); // Add 20s life to the search for the new criteria
         
         let min = 0;
         let max: number | undefined = undefined;
 
-        if (percent === 20) {
+        if (param === 20) {
             min = Math.floor(wager * 0.8);
             max = Math.floor(wager * 1.2);
-        } else if (percent === 50) {
+        } else if (param === 50) {
             min = Math.floor(wager * 0.5);
             max = Math.floor(wager * 1.5);
-        } else if (percent === 'any') {
+        } else if (param === 'any') {
             min = 0;
             max = wager; // Match with any lower fee
+        } else {
+            // Specific wager (Smart Suggestion)
+            min = param;
+            max = param;
         }
 
         setWagerRange({ min, max });
@@ -502,7 +515,12 @@ export const QuickMatchPanel = ({
                                         initial={{ y: 100, opacity: 0 }}
                                         animate={{ y: 0, opacity: 1 }}
                                         exit={{ y: 100, opacity: 0 }}
-                                        className="absolute bottom-32 inset-x-4 z-[150] bg-[#1c1c1c]/80 backdrop-blur-2xl border border-cyan-500/20 rounded-2xl p-4 shadow-[0_-20px_40px_rgba(0,0,0,0.4)] flex flex-col gap-3 pointer-events-auto"
+                                        onMouseEnter={() => {
+                                            setIsInteractingWithOptimizer(true);
+                                            extendSearch(20);
+                                        }}
+                                        onMouseLeave={() => setIsInteractingWithOptimizer(false)}
+                                        className="absolute bottom-32 inset-x-4 z-[150] bg-[#1c1c1c]/90 backdrop-blur-2xl border border-cyan-500/20 rounded-2xl p-4 shadow-[0_-20px_40px_rgba(0,0,0,0.4)] flex flex-col gap-3 pointer-events-auto"
                                     >
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-2">
@@ -518,31 +536,44 @@ export const QuickMatchPanel = ({
                                         </div>
                                         
                                         <div className="flex flex-wrap gap-2">
-                                            <button 
-                                                onClick={() => handleExpandWager(20)}
-                                                className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                            >
-                                                <span className="text-[10px] font-black text-cyan-400">±20%</span>
-                                                <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">Fast</span>
-                                            </button>
-                                            <button 
-                                                onClick={() => handleExpandWager(50)}
-                                                className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                            >
-                                                <span className="text-[10px] font-black text-cyan-400">±50%</span>
-                                                <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">Faster</span>
-                                            </button>
-                                            <button 
-                                                onClick={() => handleExpandWager('any')}
-                                                className="flex-[1.2] py-2 px-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                            >
-                                                <span className="text-[10px] font-black text-white">MATCH ANY</span>
-                                                <span className="text-[7px] text-white/20 uppercase font-bold tracking-widest group-hover:text-white/40">Instant</span>
-                                            </button>
+                                            {nearbyPools && nearbyPools.length > 0 ? (
+                                                nearbyPools.map((pool, idx) => (
+                                                    <button 
+                                                        key={`pool-${idx}`}
+                                                        onClick={() => handleExpandWager(pool.wager)}
+                                                        className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                                    >
+                                                        <span className="text-[10px] font-black text-cyan-400">{pool.wager.toLocaleString()} 🟡</span>
+                                                        <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">{pool.waiters} Waiting</span>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleExpandWager('any')}
+                                                        className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                                    >
+                                                        <span className="text-[10px] font-black text-white">MATCH ANY</span>
+                                                        <span className="text-[7px] text-white/20 uppercase font-bold tracking-widest group-hover:text-white/40">Instant</span>
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setShowExpansionOptions(false);
+                                                            extendSearch(20);
+                                                        }}
+                                                        className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                                    >
+                                                        <span className="text-[10px] font-black text-white/40 uppercase">STAY HERE</span>
+                                                        <span className="text-[7px] text-white/10 uppercase font-bold tracking-widest">Priority Queue</span>
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                         
                                         <p className="text-[8px] text-white/20 text-center font-bold tracking-tight px-2">
-                                            Search density is low. Expand criteria to find players quicker.
+                                            {nearbyPools && nearbyPools.length > 0 
+                                                ? "Players found in other arenas. Switch to pair instantly." 
+                                                : "Search density is low. Staying for 20s longer or try matching any fee."}
                                         </p>
                                     </motion.div>
                                 )}
