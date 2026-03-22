@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 import { supabase } from '@/lib/supabase';
+import { getProgression } from '@/lib/progression';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -105,7 +106,14 @@ export const QuickMatchPanel = ({
     const [hasExpanded, setHasExpanded] = useState(false);
     const [showExpansionOptions, setShowExpansionOptions] = useState(false);
     const [wagerRange, setWagerRange] = useState<{ min: number; max?: number } | null>(null);
-    const [opponentProfile, setOpponentProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
+    const [opponentProfile, setOpponentProfile] = useState<{ 
+        username: string; 
+        avatar_url: string | null;
+        xp: number;
+        rating: number;
+        total_wins: number;
+        total_games: number;
+    } | null>(null);
     const [isLoadingRival, setIsLoadingRival] = useState(false);
 
     // Show expansion options at 16s if not already expanded
@@ -123,28 +131,29 @@ export const QuickMatchPanel = ({
         return () => clearInterval(interval);
     }, []);
 
+    // Monitor P2P readiness & AUTO-START
     useEffect(() => {
         if (status === 'matched' && isLobbyConnected && p2pHost && lobbyState) {
             const joinedSlots = lobbyState.slots.filter(s => s.status === 'joined');
-            const joinedCount = joinedSlots.length;
-            const targetCount = matchType === '1v1' ? 2 : (matchType === '2v2' ? 4 : 4);
+            const targetCount = matchType === '1v1' ? 2 : 4;
             
-            // CRITICAL GUARD: Only start if all joined slots have real addresses 
-            // and we have profiles for everyone in the participants map.
             const allProfilesSynced = joinedSlots.every(s => {
                 const pid = s.playerId?.toLowerCase();
-                const hasData = pid && pid !== 'guest' && participants[pid];
-                if (!hasData) {
-                    console.log(`⏳ [QuickMatch] Slot ${s.color} blocking start: pid=${pid}, hasParticipants=${!!(pid && participants[pid])}`);
-                }
-                return hasData;
+                return pid && pid !== 'guest' && participants[pid];
             });
 
-            if (joinedCount >= targetCount && allProfilesSynced) {
-                console.log('🚀 [QuickMatch] P2P Mesh ready and profiles synced. Auto-starting game...');
-                onStartGame(false);
-            } else if (joinedCount >= targetCount && !allProfilesSynced) {
-                // The log above will show which slot is blocking
+            if (joinedSlots.length >= targetCount) {
+                if (allProfilesSynced) {
+                    console.log('🚀 [QuickMatch] P2P Mesh ready! Starting game...');
+                    onStartGame(false);
+                } else {
+                    // Start FORCE-START timer if not all synced yet
+                    const forceTimer = setTimeout(() => {
+                        console.log('⚠️ [QuickMatch] P2P Sync took too long. Force-starting match...');
+                        onStartGame(false);
+                    }, 5000);
+                    return () => clearTimeout(forceTimer);
+                }
             }
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants]);
@@ -172,17 +181,21 @@ export const QuickMatchPanel = ({
                     const opponentAddress = match.participants.find((p: string) => p.toLowerCase() !== normalizedMyAddress);
 
                     if (opponentAddress) {
-                        // 3. Fetch opponent profile
-                        const { data: player, error: playerError } = await supabase
+                        // 3. Fetch opponent profile with detailed stats
+                        const { data: player } = await supabase
                             .from('players')
-                            .select('username, avatar_url')
+                            .select('username, avatar_url, xp, rating, total_wins, total_games')
                             .eq('wallet_address', opponentAddress.toLowerCase())
                             .maybeSingle();
 
                         if (player) {
                             setOpponentProfile({
                                 username: player.username || 'Rival',
-                                avatar_url: player.avatar_url
+                                avatar_url: player.avatar_url,
+                                xp: player.xp || 0,
+                                rating: player.rating || 0,
+                                total_wins: player.total_wins || 0,
+                                total_games: player.total_games || 0
                             });
                         }
                     }
@@ -652,7 +665,11 @@ export const QuickMatchPanel = ({
                                             </div>
                                             <div className="flex flex-col items-center">
                                                 <span className="text-lg md:text-xl font-black text-white italic tracking-tight">{finalName}</span>
-                                                <span className="text-[10px] font-black text-cyan-400 tracking-widest uppercase opacity-60">You</span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
+                                                    <div className="w-1 h-1 bg-white/20 rounded-full" />
+                                                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.xp || 0, profile?.rating || 0).level}</span>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -697,9 +714,22 @@ export const QuickMatchPanel = ({
                                                 <h3 className="text-lg md:text-xl font-black text-white italic tracking-tighter text-center">
                                                     {isLoadingRival ? 'Scanning...' : (opponentProfile?.username || 'Rival')}
                                                 </h3>
-                                                <div className="mt-1 bg-amber-500/10 px-3 py-0.5 rounded-full border border-amber-500/30">
-                                                    <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Lv. ?</span>
-                                                </div>
+                                                {opponentProfile && (
+                                                    <div className="flex flex-col items-center gap-1.5 mt-2">
+                                                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                                                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.xp, opponentProfile.rating).level}</span>
+                                                            <div className="w-1 h-1 bg-white/20 rounded-full" />
+                                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
+                                                                {getProgression(opponentProfile.xp, opponentProfile.rating).tier} {getProgression(opponentProfile.xp, opponentProfile.rating).subRank}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
+                                                            <span className="text-[8px] font-black text-green-400 uppercase tracking-[0.2em]">
+                                                                Win Rate: {Math.round((opponentProfile.total_wins / Math.max(1, opponentProfile.total_games)) * 100)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
