@@ -1015,16 +1015,52 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (!myAddress || !isLobbyConnected) return;
 
-        console.log('📢 Proactively broadcasting profile to all connections...');
-        const profileMsg = {
+        const pName = myProfile?.username || (isHost ? 'Host' : 'Guest');
+        const pAvatar = myProfile?.avatar_url || '';
+
+        console.log('📢 Proactively syncing/broadcasting profile...', { pName });
+        
+        // 1. Update local participants map for self
+        setParticipants(prev => ({
+            ...prev,
+            [myAddress.toLowerCase()]: {
+                username: pName,
+                avatar_url: pAvatar
+            }
+        }));
+
+        // 2. Update local lobbyState for self if Host
+        if (isHost) {
+            setLobbyState(prev => {
+                if (!prev) return prev;
+                // Only update if current data is placeholder
+                const hostSlot = prev.slots[0];
+                if (hostSlot && (hostSlot.playerName === 'Host' || !hostSlot.playerId)) {
+                    const newSlots = [...prev.slots];
+                    newSlots[0] = {
+                        ...newSlots[0],
+                        playerId: myAddress.toLowerCase(),
+                        playerName: pName,
+                        playerAvatar: pAvatar
+                    };
+                    const newLobby = { ...prev, slots: newSlots };
+                    lobbyStateRef.current = newLobby;
+                    // Broadcast the slot update too
+                    broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+                    return newLobby;
+                }
+                return prev;
+            });
+        }
+
+        // 3. Broadcast to all peers
+        broadcastToAll({
             type: 'SYNC_PROFILE',
             address: myAddress,
-            username: myProfile?.username || (isHost ? 'Host' : 'Guest'),
-            avatar_url: myProfile?.avatar_url || '',
+            username: pName,
+            avatar_url: pAvatar,
             validationToken: validationToken
-        };
-
-        broadcastToAll(profileMsg);
+        });
     }, [myAddress, myProfile?.username, myProfile?.avatar_url, isLobbyConnected, isHost, broadcastToAll, validationToken]);
 
     // ─── Global Peer Cleanup ───

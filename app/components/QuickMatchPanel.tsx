@@ -129,20 +129,22 @@ export const QuickMatchPanel = ({
             const joinedCount = joinedSlots.length;
             const targetCount = matchType === '1v1' ? 2 : (matchType === '2v2' ? 4 : 4);
             
-            // CRITICAL GUARD: Only start if all joined slots have real names (not "Guest")
+            // CRITICAL GUARD: Only start if all joined slots have real addresses 
             // and we have profiles for everyone in the participants map.
-            const allProfilesSynced = joinedSlots.every(s => 
-                s.playerName && 
-                s.playerName !== 'Guest' && 
-                s.playerName !== 'Host' && // Actual guest names shouldn't be 'Host' either
-                participants[s.playerId?.toLowerCase() || '']
-            );
+            const allProfilesSynced = joinedSlots.every(s => {
+                const pid = s.playerId?.toLowerCase();
+                const hasData = pid && pid !== 'guest' && participants[pid];
+                if (!hasData) {
+                    console.log(`⏳ [QuickMatch] Slot ${s.color} blocking start: pid=${pid}, hasParticipants=${!!(pid && participants[pid])}`);
+                }
+                return hasData;
+            });
 
             if (joinedCount >= targetCount && allProfilesSynced) {
                 console.log('🚀 [QuickMatch] P2P Mesh ready and profiles synced. Auto-starting game...');
                 onStartGame(false);
             } else if (joinedCount >= targetCount && !allProfilesSynced) {
-                console.log('⏳ [QuickMatch] Match full, but waiting for profiles to sync...');
+                // The log above will show which slot is blocking
             }
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants]);
