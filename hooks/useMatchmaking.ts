@@ -135,8 +135,8 @@ export function useMatchmaking({
             } else {
                 console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
-
-                // Timer already started at top of startSearch
+                // Ensure status is definitely 'searching' if it was reset
+                if (statusRef.current === 'idle') setStatus('searching');
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Error starting search:', err);

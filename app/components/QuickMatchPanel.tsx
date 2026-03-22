@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -198,15 +198,15 @@ export const QuickMatchPanel = ({
         }
     }, [status, roomCode, address]);
 
+    const didStartRef = useRef(false);
+
     useEffect(() => {
         // Wait for wallet address before starting search
-        if (!normalizedAddress) {
-            console.log('📡 [QuickMatch] Waiting for wallet address...');
-            return;
-        }
+        if (!normalizedAddress) return;
 
-        // Prevent multiple re-triggers if we are already in an active state
-        if (status !== 'idle' && status !== 'error' && status !== 'timeout') return;
+        // Ensure we only trigger once per mount
+        if (didStartRef.current) return;
+        didStartRef.current = true;
 
         console.log('🏁 [QuickMatch] Search initialized with address:', normalizedAddress);
         if (isHybrid && roomCode) {
@@ -216,6 +216,7 @@ export const QuickMatchPanel = ({
         }
 
         return () => {
+            console.log('📡 [QuickMatch] Cleaning up search on unmount...');
             cancelSearch();
         };
     }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, startSearch, startHybridSearch, cancelSearch]); 
