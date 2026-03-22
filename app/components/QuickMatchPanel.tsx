@@ -75,6 +75,7 @@ export const QuickMatchPanel = ({
         ticketId,
         matchId: hookMatchId,
         roomCode: hookRoomCode,
+        matchData,
         startSearch, 
         startHybridSearch, 
         cancelSearch 
@@ -83,12 +84,12 @@ export const QuickMatchPanel = ({
         gameMode,
         matchType,
         wager,
-        onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean) => {
-            console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}`);
+        onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
+            console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
             if (isMatchHost) {
-                hostGame(matchType, gameMode, wager, undefined, foundRoomCode);
+                hostGame(matchType, gameMode, wager, validationToken, foundRoomCode);
             } else {
-                joinGame(foundRoomCode);
+                joinGame(foundRoomCode, validationToken);
             }
         }
     });
@@ -162,27 +163,42 @@ export const QuickMatchPanel = ({
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
 
-    // Fetch Opponent Profile when matched
+    // Fetch Opponent Profile / Reveal from MatchData
     useEffect(() => {
-        if (status === 'matched' && activeRoomCode) {
+        if (status === 'matched') {
+            // 1. Check if Edge provided player metadata (Instant Reveal)
+            if (matchData?.players) {
+                const rival = matchData.players.find((p: any) => p.id.toLowerCase() !== normalizedAddress);
+                if (rival) {
+                    setOpponentProfile({
+                        username: rival.name || 'Rival',
+                        avatar_url: null, // Edge server doesn't have avatars yet
+                        xp: rival.xp || 0,
+                        rating: rival.rating || 1500,
+                        total_wins: 0,
+                        total_games: 0
+                    });
+                    return; // EXIT: We have enough to show the "Match!" screen
+                }
+            }
+
+            // 2. Fallback: Fetch from Supabase (standard path)
             const fetchOpponentData = async () => {
+                const roomToSearch = activeRoomCode || hookRoomCode || roomCode;
+                if (!roomToSearch) return;
+
                 setIsLoadingRival(true);
                 try {
-                    // 1. Get match participants
                     const { data: match, error: matchError } = await supabase
                         .from('matches')
                         .select('participants')
-                        .eq('room_code', activeRoomCode)
+                        .eq('room_code', roomToSearch)
                         .maybeSingle();
 
-                    if (matchError || !match || !match.participants) throw new Error('Match record not found or no participants');
+                    if (matchError || !match || !match.participants) throw new Error('Match record not found');
 
-                    // 2. Find opponent's address (case-insensitive find)
-                    const normalizedMyAddress = address?.toLowerCase();
-                    const opponentAddress = match.participants.find((p: string) => p.toLowerCase() !== normalizedMyAddress);
-
+                    const opponentAddress = match.participants.find((p: string) => p.toLowerCase() !== normalizedAddress);
                     if (opponentAddress) {
-                        // 3. Fetch opponent profile with detailed stats
                         const { data: player } = await supabase
                             .from('players')
                             .select('username, avatar_url, xp, rating, total_wins, total_games')
@@ -207,10 +223,10 @@ export const QuickMatchPanel = ({
                 }
             };
             fetchOpponentData();
-        } else if (status !== 'matched') {
+        } else {
             setOpponentProfile(null);
         }
-    }, [status, roomCode, address]);
+    }, [status, activeRoomCode, normalizedAddress, matchData, hookRoomCode, roomCode]);
 
     const didStartRef = useRef(false);
 
@@ -326,7 +342,7 @@ export const QuickMatchPanel = ({
                             {/* Diagnostic Bar */}
                             <div className="absolute -bottom-[2px] left-6 flex gap-3">
                                 <span className={`text-[6px] font-black uppercase tracking-tighter ${status === 'matched' ? 'text-green-400' : 'text-cyan-400'}`}>
-                                    Status: {status}
+                                    📡 {matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK'} | {status}
                                 </span>
                                 <span className="text-[6px] font-black uppercase tracking-tighter text-white/20">
                                     ID: {normalizedAddress.slice(-4)}

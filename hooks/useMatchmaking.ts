@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { EdgeServerClient } from '@/lib/teamup/edge-server-client';
 
 export type MatchmakingStatus = 'idle' | 'searching' | 'expanding' | 'timeout' | 'matched' | 'error';
 
@@ -8,7 +9,7 @@ interface UseMatchmakingProps {
     gameMode: string;
     matchType: string;
     wager: number;
-    onMatchFound: (matchId: string, roomCode: string, isHost: boolean) => void;
+    onMatchFound: (matchId: string, roomCode: string, isHost: boolean, validationToken?: string) => void;
 }
 
 export function useMatchmaking({
@@ -17,23 +18,29 @@ export function useMatchmaking({
     matchType,
     wager,
     onMatchFound
-}: {
-    playerId: string;
-    gameMode: string;
-    matchType: string;
-    wager: number;
-    onMatchFound: (matchId: string, roomCode: string, isHost: boolean) => void;
-}) {
+}: UseMatchmakingProps) {
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
     const [ticketId, setTicketId] = useState<string | null>(null);
     const ticketIdRef = useRef<string | null>(null);
     const [matchId, setMatchId] = useState<string | null>(null);
     const [roomCode, setRoomCode] = useState<string | null>(null);
+    const [matchData, setMatchData] = useState<any | null>(null);
     const [searchTime, setSearchTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const statusRef = useRef<MatchmakingStatus>(status);
     const onMatchFoundRef = useRef(onMatchFound);
+    
+    // 📡 Edge Server Client
+    const edgeClientRef = useRef<EdgeServerClient | null>(null);
+
+    useEffect(() => {
+        const edgeUrl = process.env.NEXT_PUBLIC_EDGE_SERVER_URL || 'wss://ludo-edge-server.onrender.com';
+        edgeClientRef.current = new EdgeServerClient(edgeUrl);
+        return () => {
+            if (edgeClientRef.current) edgeClientRef.current.disconnect();
+        };
+    }, []);
 
     // Keep refs synced
     useEffect(() => {
@@ -89,25 +96,23 @@ export function useMatchmaking({
         try {
             const { data, error } = await supabase
                 .from('matchmaking_queue')
-                .select('status, match_id, room_code')
+                .select('status, match_id, room_code, validation_token')
                 .eq('id', id)
                 .single();
 
             if (error) throw error;
 
-            if (data?.status === 'matched' && data.match_id) {
-                console.log(`✅ [Matchmaking] Polling found MATCH! Match: ${data.match_id}`);
+            const typedData = data as any;
+            if (typedData?.status === 'matched' && typedData.match_id) {
+                console.log(`✅ [Matchmaking] Polling found MATCH! Match: ${typedData.match_id}`);
                 if (timerRef.current) clearInterval(timerRef.current);
                 if (pollingRef.current) clearInterval(pollingRef.current);
                 
-                setMatchId(data.match_id);
-                setRoomCode(data.room_code || '');
+                setMatchId(typedData.match_id);
+                setRoomCode(typedData.room_code || '');
                 setStatus('matched');
                 
-                // If we found it via poll, we are likely the Guest (or Host who missed update)
-                // We'll follow the Guest path (slight delay) to be safe, or just join.
-                // Actually, if match_id exists, we can join.
-                onMatchFoundRef.current(data.match_id, data.room_code || '', false);
+                onMatchFoundRef.current(typedData.match_id, typedData.room_code || '', false, typedData.validation_token);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
@@ -119,7 +124,7 @@ export function useMatchmaking({
         const normalizedPlayerId = playerId.toLowerCase();
         const criteria = `${normalizedPlayerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
         
-        console.log(`📡 [Matchmaking] Starting NEW search. Criteria: ${criteria}`);
+        console.log(`📡 [Matchmaking] Starting UNIFIED search. Criteria: ${criteria}`);
         
         // 1. Instant UI Reset
         setStatus('searching');
@@ -143,20 +148,61 @@ export function useMatchmaking({
             });
         }, 1000);
 
-        console.log('📡 [Matchmaking] startSearch() called. Setting status to searching...');
-        setStatus('searching');
-        setSearchTime(0);
-
-        // 3. Purge stale tickets (Don't let this block the UI status update)
+        // 3. Purge stale tickets (Supabase side)
         try {
-            console.log('📡 [Matchmaking] Purging stale tickets...');
             await cancelSearch(true, true);
         } catch (e) {
             console.error('❌ [Matchmaking] Purge failed, but proceeding...', e);
         }
 
+        // 4. --- PRIMARY: Edge Server (Render) ---
+        if (edgeClientRef.current) {
+            try {
+                console.log('📡 [Matchmaking] Attempting Edge Server connection...');
+                await edgeClientRef.current.connect();
+                
+                console.log('📡 [Matchmaking] Requesting match from Edge Server...');
+                const edgeMatch = await edgeClientRef.current.findMatch({
+                    playerId: normalizedPlayerId,
+                    mode: 'quick',
+                    gameType: wager > 0 ? 'tournament' : 'standard',
+                    entryFee: wager,
+                    // Additional fields for server logic
+                    matchType: matchType as any,
+                    gameMode: gameMode as any
+                } as any);
+
+                if (edgeMatch && statusRef.current !== 'matched') {
+                    console.log('✅ [Matchmaking] EDGE MATCH found!', edgeMatch.matchId);
+                    
+                    if (timerRef.current) clearInterval(timerRef.current);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+
+                    setStatus('matched');
+                    setMatchId(edgeMatch.matchId);
+                    setMatchData(edgeMatch);
+                    // Edge server matches don't strictly need a 'room_code' yet,
+                    // We'll use matchId as room_code for PeerJS consistency
+                    const roomCode = edgeMatch.matchId; 
+                    setRoomCode(roomCode);
+
+                    // Determine if Host or Guest. 
+                    // Simple logic: First player in the list is the Host
+                    const isIHost = edgeMatch.players[0].id.toLowerCase() === normalizedPlayerId;
+                    
+                    setTimeout(() => {
+                        onMatchFoundRef.current(edgeMatch.matchId, roomCode, isIHost, edgeMatch.validationToken);
+                    }, 1000);
+                    return; // EXIT: Match success via Edge
+                }
+            } catch (edgeErr) {
+                console.warn('⚠️ [Matchmaking] Edge Server failed or timed out. Falling back to Supabase RPC.', edgeErr);
+            }
+        }
+
+        // 5. --- FALLBACK: Supabase RPC ---
         try {
-            console.log('📡 [Matchmaking] Fetching /api/matchmaking/join...');
+            console.log('📡 [Matchmaking] Falling back to Supabase RPC...');
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -173,7 +219,7 @@ export function useMatchmaking({
             console.log('📡 [Matchmaking] Join response:', data);
 
             if (data.status === 'matched') {
-                console.log('✅ [Matchmaking] DIRECT MATCH found. YOU ARE THE GUEST.');
+                console.log('✅ [Matchmaking] DIRECT MATCH found via RPC.');
                 if (timerRef.current) clearInterval(timerRef.current);
                 if (pollingRef.current) clearInterval(pollingRef.current);
                 
@@ -182,29 +228,25 @@ export function useMatchmaking({
                 setRoomCode(data.room_code || '');
                 
                 setTimeout(() => {
-                    onMatchFoundRef.current(data.match_id, data.room_code || '', false); 
+                    onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token); 
                 }, 1500);
             } else {
                 console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
-                
-                // Immediately check status once in case match happened during join
                 checkTicketStatus(data.ticket_id);
-                
-                // Start polling as a safety net
                 pollingRef.current = setInterval(() => {
                     if (data.ticket_id) checkTicketStatus(data.ticket_id);
                 }, 3000);
             }
         } catch (err) {
-            console.error('❌ [Matchmaking] Error starting search:', err);
+            console.error('❌ [Matchmaking] Ultimate error starting search:', err);
             setStatus('error');
-            setSearchTime(0);
         }
     }, [playerId, gameMode, matchType, wager, cancelSearch, checkTicketStatus]);
 
     // --- Hybrid Search ---
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
+        const normalizedPlayerId = playerId.toLowerCase();
         setStatus('searching');
         setSearchTime(0);
 
@@ -224,6 +266,44 @@ export function useMatchmaking({
             });
         }, 1000);
 
+        // 3. --- PRIMARY: Edge Server (Render) ---
+        if (edgeClientRef.current) {
+            try {
+                console.log('📡 [Matchmaking] Attempting Edge Server connection for Hybrid...');
+                await edgeClientRef.current.connect();
+                
+                // Hybrid on Edge server is basically a "friends" mode or specific invite
+                const edgeMatch = await edgeClientRef.current.findMatch({
+                    playerId: normalizedPlayerId,
+                    mode: 'friends',
+                    gameType: wager > 0 ? 'tournament' : 'standard',
+                    entryFee: wager,
+                    matchType: lobbyMatchType as any,
+                    gameMode: gameMode as any,
+                    roomCode // Pass requested room code
+                } as any);
+
+                if (edgeMatch) {
+                    console.log('✅ [Matchmaking] EDGE HYBRID MATCH found!', edgeMatch.matchId);
+                    if (timerRef.current) clearInterval(timerRef.current);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+
+                    setStatus('matched');
+                    setMatchId(edgeMatch.matchId);
+                    setRoomCode(roomCode || edgeMatch.matchId);
+                    setMatchData(edgeMatch);
+
+                    setTimeout(() => {
+                        onMatchFoundRef.current(edgeMatch.matchId, roomCode || edgeMatch.matchId, false, edgeMatch.validationToken);
+                    }, 800);
+                    return;
+                }
+            } catch (edgeErr) {
+                console.warn('⚠️ [Matchmaking] Edge Hybrid failed. Falling back to Supabase.', edgeErr);
+            }
+        }
+
+        // 4. --- FALLBACK: Supabase RPC ---
         try {
             await cancelSearch(true, true);
             const response = await fetch('/api/matchmaking/join', {
@@ -253,7 +333,7 @@ export function useMatchmaking({
                 setRoomCode(data.room_code || '');
 
                 setTimeout(() => {
-                    onMatchFoundRef.current(data.match_id, data.room_code || '', false);
+                    onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
                 }, 800);
             } else {
                 setTicketId(data.ticket_id);
@@ -307,7 +387,7 @@ export function useMatchmaking({
                         setStatus('matched');
                         
                         // Waiters (Hosts) join immediately because they are the ones opening the room
-                        onMatchFoundRef.current(match_id, room_code || '', true);
+                        onMatchFoundRef.current(match_id, room_code || '', true, payload.new.validation_token);
                     }
                 }
             )
@@ -366,6 +446,7 @@ export function useMatchmaking({
         ticketId,
         matchId,
         roomCode,
+        matchData,
         startSearch,
         startHybridSearch,
         cancelSearch
