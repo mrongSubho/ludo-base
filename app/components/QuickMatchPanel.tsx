@@ -66,6 +66,8 @@ export const QuickMatchPanel = ({
     slotsNeeded = 1
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
+    const normalizedAddress = address?.toLowerCase() || '';
+
     const { 
         status, 
         searchTime, 
@@ -76,7 +78,7 @@ export const QuickMatchPanel = ({
         startHybridSearch, 
         cancelSearch 
     } = useMatchmaking({
-        playerId: address || '',
+        playerId: normalizedAddress,
         gameMode,
         matchType,
         wager,
@@ -183,7 +185,7 @@ export const QuickMatchPanel = ({
 
     useEffect(() => {
         // Wait for wallet address before starting search
-        if (!address) {
+        if (!normalizedAddress) {
             console.log('📡 [QuickMatch] Waiting for wallet address...');
             return;
         }
@@ -191,7 +193,7 @@ export const QuickMatchPanel = ({
         // Prevent multiple re-triggers if we are already in an active state
         if (status !== 'idle' && status !== 'error' && status !== 'timeout') return;
 
-        console.log('🏁 [QuickMatch] Search initialized with address:', address);
+        console.log('🏁 [QuickMatch] Search initialized with address:', normalizedAddress);
         if (isHybrid && roomCode) {
             startHybridSearch(roomCode, slotsNeeded, matchType);
         } else {
@@ -201,7 +203,7 @@ export const QuickMatchPanel = ({
         return () => {
             cancelSearch();
         };
-    }, [address, isHybrid, roomCode, slotsNeeded, matchType]); // Added address dependency
+    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType]); 
 
     const handleBackToLobby = () => {
         cancelSearch();
@@ -274,7 +276,7 @@ export const QuickMatchPanel = ({
                             <div className="w-12 h-1.5 bg-white/20 rounded-full cursor-pointer" onClick={handleCancelAndClose} />
                         </div>
 
-                        <div className="px-panel-gutter pb-4 border-b border-white/10">
+                        <div className="px-panel-gutter pb-4 border-b border-white/10 relative">
                             <div className="flex items-center justify-between mt-2">
                                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                                     <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
@@ -289,6 +291,21 @@ export const QuickMatchPanel = ({
                                         <span>{wager}</span>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            {/* Diagnostic Bar */}
+                            <div className="absolute -bottom-[2px] left-6 flex gap-3">
+                                <span className={`text-[6px] font-black uppercase tracking-tighter ${status === 'matched' ? 'text-green-400' : 'text-cyan-400'}`}>
+                                    Status: {status}
+                                </span>
+                                <span className="text-[6px] font-black uppercase tracking-tighter text-white/20">
+                                    ID: {normalizedAddress.slice(-4)}
+                                </span>
+                                {ticketId && (
+                                    <span className="text-[6px] font-black uppercase tracking-tighter text-white/10">
+                                        TKT: {ticketId.slice(0, 4)}
+                                    </span>
+                                )}
                             </div>
                         </div>
 
