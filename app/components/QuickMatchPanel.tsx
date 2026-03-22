@@ -131,30 +131,31 @@ export const QuickMatchPanel = ({
         return () => clearInterval(interval);
     }, []);
 
-    // Monitor P2P readiness & AUTO-START
+    // ─── Phase 24: Universal Transition Resilience ───
     useEffect(() => {
-        if (status === 'matched' && isLobbyConnected && p2pHost && lobbyState) {
-            const joinedSlots = lobbyState.slots.filter(s => s.status === 'joined');
+        if (status === 'matched' && p2pHost) {
+            // 1. Immediate P2P Fast-Path: If all synced, start NOW
+            const joinedSlots = lobbyState?.slots.filter(s => s.status === 'joined') || [];
             const targetCount = matchType === '1v1' ? 2 : 4;
             
-            const allProfilesSynced = joinedSlots.every(s => {
+            const allProfilesSynced = joinedSlots.length >= targetCount && joinedSlots.every(s => {
                 const pid = s.playerId?.toLowerCase();
                 return pid && pid !== 'guest' && participants[pid];
             });
 
-            if (joinedSlots.length >= targetCount) {
-                if (allProfilesSynced) {
-                    console.log('🚀 [QuickMatch] P2P Mesh ready! Starting game...');
-                    onStartGame(false);
-                } else {
-                    // Start FORCE-START timer if not all synced yet
-                    const forceTimer = setTimeout(() => {
-                        console.log('⚠️ [QuickMatch] P2P Sync took too long. Force-starting match...');
-                        onStartGame(false);
-                    }, 5000);
-                    return () => clearTimeout(forceTimer);
-                }
+            if (allProfilesSynced && isLobbyConnected) {
+                console.log('🚀 [QuickMatch] P2P Mesh ready! Fast-starting game...');
+                onStartGame(false);
+                return;
             }
+
+            // 2. Universal Fallback: Heartbeat / Power-On if P2P hangs
+            const forceTimer = setTimeout(() => {
+                console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}). Force-starting via Supabase Relay...`);
+                onStartGame(false);
+            }, 6000); // 6s to allow PeerJS a fair chance, but no more stalls
+
+            return () => clearTimeout(forceTimer);
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants]);
 

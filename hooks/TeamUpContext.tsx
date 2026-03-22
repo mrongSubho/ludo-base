@@ -100,6 +100,7 @@ const INITIAL_GAME_STATE: GameState = {
 
 const TeamUpProvider = ({ children }: { children: ReactNode }) => {
     const [roomId, setRoomId] = useState('');
+    const [currentRoomCode, setCurrentRoomCode] = useState<string | null>(null);
     const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
     const [isLobbyConnected, setIsLobbyConnected] = useState(false);
     const [isHost, setIsHost] = useState(false);
@@ -578,6 +579,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         peer.on('open', (id) => {
             console.log('🎲 Host Peer opened:', id);
             setRoomId(id);
+            setCurrentRoomCode(id);
         });
 
         peer.on('connection', (conn) => {
@@ -764,6 +766,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
 
         setIsHost(false);
         setValidationToken(token);
+        setCurrentRoomCode(targetRoomId);
         const peer = new Peer();
         peerRef.current = peer;
 
@@ -832,11 +835,12 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
 
     // ─── Realtime Relay Listener (Supabase) ───
     useEffect(() => {
-        if (!lobbyState?.roomCode) return;
-
-        console.log(`📡 Subscribing to Supabase Game Channel: game-room-${lobbyState.roomCode}`);
+        const targetCode = currentRoomCode || lobbyState?.roomCode;
+        if (!targetCode) return;
+        
+        console.log(`📡 Subscribing to Supabase Game Channel: game-room-${targetCode}`);
         const channel = supabase
-            .channel(`game-room-${lobbyState.roomCode}`)
+            .channel(`game-room-${targetCode}`)
             .on('broadcast', { event: 'game-action' }, ({ payload }) => {
                 console.log('🛰️ Action received via Supabase Relay:', payload.type);
                 processGameAction(payload);
@@ -853,7 +857,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [lobbyState?.roomCode, processGameAction, joinGame]);
+    }, [currentRoomCode, lobbyState?.roomCode, processGameAction, joinGame]);
 
     // ─── Lobby Actions (Host-only) ───
 
