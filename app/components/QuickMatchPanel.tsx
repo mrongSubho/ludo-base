@@ -361,49 +361,58 @@ export const QuickMatchPanel = ({
                                     )}
                                 </div>
                             </TeamUpWrapper>
-
-                            {/* Expansion Options Popup */}
-                            {showExpansionOptions && (
-                                <div
-                                    className="absolute inset-x-6 top-1/2 -translate-y-1/2 z-[150] bg-[#1c1c1c] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col gap-4 pointer-events-auto"
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="text-lg font-bold text-white italic tracking-tight">Expand Search?</h3>
-                                            <p className="text-[10px] text-white/40 uppercase font-black tracking-widest mt-1">Increase match success rate</p>
+                            {/* Smart Expansion Suggestion Dock */}
+                            <AnimatePresence>
+                                {showExpansionOptions && (
+                                    <motion.div
+                                        initial={{ y: 100, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        exit={{ y: 100, opacity: 0 }}
+                                        className="absolute bottom-32 inset-x-4 z-[150] bg-[#1c1c1c]/80 backdrop-blur-2xl border border-cyan-500/20 rounded-2xl p-4 shadow-[0_-20px_40px_rgba(0,0,0,0.4)] flex flex-col gap-3 pointer-events-auto"
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                                <h3 className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] italic">Match Optimizer</h3>
+                                            </div>
+                                            <button 
+                                                onClick={() => setShowExpansionOptions(false)} 
+                                                className="w-5 h-5 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/20 hover:text-white transition-all"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            </button>
                                         </div>
-                                        <button onClick={() => setShowExpansionOptions(false)} className="text-white/20 hover:text-white transition-colors">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 gap-2 mt-2">
-                                        <button 
-                                            onClick={() => handleExpandWager(20)}
-                                            className="w-full py-3 px-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold text-xs hover:bg-cyan-500/20 transition-all flex justify-between items-center"
-                                        >
-                                            <span>Wager Range +/- 20%</span>
-                                            <span className="text-[9px] opacity-60">Fast</span>
-                                        </button>
-                                        <button 
-                                            onClick={() => handleExpandWager(50)}
-                                            className="w-full py-3 px-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-bold text-xs hover:bg-cyan-500/20 transition-all flex justify-between items-center"
-                                        >
-                                            <span>Wager Range +/- 50%</span>
-                                            <span className="text-[9px] opacity-60">Faster</span>
-                                        </button>
-                                        <button 
-                                            onClick={() => handleExpandWager('any')}
-                                            className="w-full py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs hover:bg-white/10 transition-all flex justify-between items-center"
-                                        >
-                                            <span>Match Any Lower Fee</span>
-                                            <span className="text-[9px] opacity-40">Instant</span>
-                                        </button>
-                                    </div>
-                                    
-                                    <p className="text-[9px] text-white/20 text-center italic">Original criteria search continues in background if ignored.</p>
-                                </div>
-                            )}
+                                        
+                                        <div className="flex flex-wrap gap-2">
+                                            <button 
+                                                onClick={() => handleExpandWager(20)}
+                                                className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                            >
+                                                <span className="text-[10px] font-black text-cyan-400">±20%</span>
+                                                <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">Fast</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => handleExpandWager(50)}
+                                                className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                            >
+                                                <span className="text-[10px] font-black text-cyan-400">±50%</span>
+                                                <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">Faster</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => handleExpandWager('any')}
+                                                className="flex-[1.2] py-2 px-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-0.5 group"
+                                            >
+                                                <span className="text-[10px] font-black text-white">MATCH ANY</span>
+                                                <span className="text-[7px] text-white/20 uppercase font-bold tracking-widest group-hover:text-white/40">Instant</span>
+                                            </button>
+                                        </div>
+                                        
+                                        <p className="text-[8px] text-white/20 text-center font-bold tracking-tight px-2">
+                                            Search density is low. Expand criteria to find players quicker.
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Timeout / Server Quiet Screen */}
                             {status === 'timeout' && (
