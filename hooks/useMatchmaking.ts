@@ -26,6 +26,7 @@ export function useMatchmaking({
 }) {
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
     const [ticketId, setTicketId] = useState<string | null>(null);
+    const ticketIdRef = useRef<string | null>(null);
     const [matchId, setMatchId] = useState<string | null>(null);
     const [roomCode, setRoomCode] = useState<string | null>(null);
     const [searchTime, setSearchTime] = useState(0);
@@ -38,25 +39,27 @@ export function useMatchmaking({
     useEffect(() => {
         statusRef.current = status;
         onMatchFoundRef.current = onMatchFound;
-    }, [status, onMatchFound]);
+        ticketIdRef.current = ticketId;
+    }, [status, onMatchFound, ticketId]);
 
     const cancelSearch = useCallback(async (allForPlayer: boolean = false) => {
-        if (!ticketId && !allForPlayer) return;
-
+        const currentTicketId = ticketIdRef.current;
+        if (!currentTicketId && !allForPlayer) return;
+ 
         console.log(`📡 [Matchmaking] ${allForPlayer ? 'Purging player tickets' : 'Cancelling current ticket'}...`);
         try {
             await fetch('/api/matchmaking/cancel', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    ticketId: allForPlayer ? null : ticketId,
+                    ticketId: allForPlayer ? null : currentTicketId,
                     playerId: allForPlayer ? playerId.toLowerCase() : null
                 })
             });
         } catch (err) {
             console.error('❌ [Matchmaking] Failed to cancel search:', err);
         }
-
+ 
         // Clean up
         setTicketId(null);
         setMatchId(null);
@@ -66,7 +69,7 @@ export function useMatchmaking({
         if (timerRef.current) clearInterval(timerRef.current);
         if (pollingRef.current) clearInterval(pollingRef.current);
         lastSearchRef.current = ''; // Clear so we can restart with same criteria
-    }, [ticketId, playerId]);
+    }, [playerId]);
 
     const lastSearchRef = useRef<string>('');
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
