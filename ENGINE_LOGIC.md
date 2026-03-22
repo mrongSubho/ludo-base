@@ -107,17 +107,22 @@ AI evaluates power usage independently of movement:
 ### UI/UX Aesthetics
 - **Token Pulse**: Active player tokens pulse to indicate they are ready for action.
 - **Screen Shake**: Capturing an opponent triggers a subtle board-wide vibration.
+- **Diagonal Seating (1v1 & 2v2):** 
+    - Partners and 1v1 opponents are **physically enforced** to be diagonally opposite (`BL+TR` or `BR+TL`).
+    - Color assignments are secondary to physical position; the engine ensures the two active players are always opposite in the game loop.
 - **Celebration Glow**: The central Finish Zone emits a cyan/purple glow when a player wins.
 - **Match Reveal Overlay**: High-intensity "MATCH!" screen with glassmorphism, rival profile fetching (username/avatar), and match criteria (1v1, mode, wager).
 - **Match Optimizer Dock**: Redesigned bottom-anchored HUD for search expansion options, replacing intrusive central popups.
 
 ### Technical Guardrails
+- **Profile-Sync Guard**: The game transitions to the board **only after** all participants have synchronized their real usernames and avatars. This prevents "Guest" placeholders from persisting on the final board.
+- **Atomic Ticket Purging**: Initiating a new search (`startSearch`) triggers an immediate purge of all stale `searching` records for that player's wallet, preventing "Shadow Matches" with orphaned sessions.
 - **Safe Match Cancellation**: Users can safely exit the "Match Found" screen before the P2P synchronization finishes without losing coins or rating points.
 - **P2P Synchronization**: The game only starts once all PeerJS slots are occupied, ensuring all participants are connected before the board loads.
 - **State Synchronization**: Strictly synced `roomCode` and `matchId` state across `useMatchmaking` and `QuickMatchPanel` to prevent UI stalls.
 - **Matchmaking Realtime**: The `matchmaking_queue` table must be enrolled in the `supabase_realtime` publication with `REPLICA IDENTITY FULL`. This ensures "Waiters" (Hosts) are notified immediately when an opponent joins via the RPC.
-- **Joiner Synchronization Delay**: Joiners wait for **1500ms** after matching before attempting to connect to the Host's Peer room, allowing the Host sufficient time to register their signaling ID.
-- **Diagnostic HUD**: Integrated internal status logging (searching/matched/error) and ticket ID visibility for field debugging.
+- **Joiner Synchronization Delay**: Joiners wait for joined **1500ms** to allow Host P2P ID registration.
+- **Diagnostic Slot Monitoring**: Real-time logging of slot synchronization status to identify which peer is blocking the match start.
 - **Sandwich Layout**: All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
 - **Presence**: Realtime tracking of online friends via the `PresenceManager`.
 
