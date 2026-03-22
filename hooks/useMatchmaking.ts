@@ -107,10 +107,12 @@ export function useMatchmaking({
                 setMatchId(data.match_id);
                 setRoomCode(data.room_code || '');
                 
-                // Synchronization Delay: Give the Host 800ms to initialize Peer room
+                // Synchronization Delay: Give the Host 1500ms (increased) to initialize Peer room
+                // Joiners (Guests) must wait for the Host to open the room on the signal server.
                 setTimeout(() => {
-                    onMatchFoundRef.current(data.match_id, data.room_code, false); 
-                }, 800);
+                    console.log('🏁 [Matchmaking] Joiner delay finished. Joining room:', data.room_code);
+                    onMatchFoundRef.current(data.match_id, data.room_code || '', false); 
+                }, 1500);
             } else {
                 console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
@@ -226,14 +228,14 @@ export function useMatchmaking({
 
                     const { status: newStatus, match_id, room_code } = payload.new;
                     if (newStatus === 'matched') {
-                        console.log(`✅ [Matchmaking] YOU ARE THE HOST. Opponent joined. Match: ${match_id}`);
+                        console.log(`✅ [Matchmaking] REALTIME MATCH! YOU ARE THE HOST. Match: ${match_id}`);
                         if (timerRef.current) clearInterval(timerRef.current);
                         
                         setMatchId(match_id);
                         setRoomCode(room_code || '');
                         setStatus('matched');
                         
-                        // Host joins immediately without delay
+                        // Waiters (Hosts) join immediately because they are the ones opening the room
                         onMatchFoundRef.current(match_id, room_code || '', true);
                     }
                 }

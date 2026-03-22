@@ -115,9 +115,11 @@ AI evaluates power usage independently of movement:
 - **Safe Match Cancellation**: Users can safely exit the "Match Found" screen before the P2P synchronization finishes without losing coins or rating points.
 - **P2P Synchronization**: The game only starts once all PeerJS slots are occupied, ensuring all participants are connected before the board loads.
 - **State Synchronization**: Strictly synced `roomCode` and `matchId` state across `useMatchmaking` and `QuickMatchPanel` to prevent UI stalls.
-- **Matchmaking Logging**: Enhanced logging in `useMatchmaking` to track direct matches vs. queue updates.
-- **Sandwich Layout:** All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
-- **Presence:** Realtime tracking of online friends via the `PresenceManager`.
+- **Matchmaking Realtime**: The `matchmaking_queue` table must be enrolled in the `supabase_realtime` publication with `REPLICA IDENTITY FULL`. This ensures "Waiters" (Hosts) are notified immediately when an opponent joins via the RPC.
+- **Joiner Synchronization Delay**: Joiners wait for **1500ms** after matching before attempting to connect to the Host's Peer room, allowing the Host sufficient time to register their signaling ID.
+- **Diagnostic HUD**: Integrated internal status logging (searching/matched/error) and ticket ID visibility for field debugging.
+- **Sandwich Layout**: All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
+- **Presence**: Realtime tracking of online friends via the `PresenceManager`.
 
 ---
 
