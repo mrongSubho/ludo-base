@@ -130,12 +130,15 @@ export default function Page() {
 
   // --- TeamUp Game Start Sync ---
   useEffect(() => {
-    console.log('🔄 Page State Check:', { isStarted: gameState?.isStarted, appState, isHost });
-    if (gameState?.isStarted && appState !== 'game') {
-      console.log('🏁 TRANSITIONING TO GAME!');
+    // A match is started if either the game engine says so OR the lobby status is 'playing'
+    // This provides a robust recovery path if the primary START_GAME action is missed.
+    const isActuallyStarted = gameState?.isStarted || lobbyState?.status === 'playing';
+
+    if (isActuallyStarted && appState !== 'game') {
+      console.log('🏁 TRANSITIONING TO GAME! (isStarted:', gameState?.isStarted, 'lobbyStatus:', lobbyState?.status, ')');
       setAppState('game');
     }
-  }, [gameState?.isStarted, appState, isHost]);
+  }, [gameState?.isStarted, lobbyState?.status, appState]);
 
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);

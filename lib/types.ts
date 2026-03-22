@@ -59,7 +59,7 @@ export interface LobbyState {
     gameMode: 'classic' | 'power';
     entryFee: number;
     slots: LobbySlot[];
-    status: 'forming' | 'ready' | 'quickmatch' | 'starting';
+    status: 'forming' | 'ready' | 'quickmatch' | 'starting' | 'playing';
     createdAt: number;
 }
 

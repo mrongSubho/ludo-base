@@ -200,6 +200,16 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                 playerCount: payload.playerCount || prev.playerCount,
                 initialBoardConfig: payload.initialBoardConfig
             }));
+            
+            // Secondary Signal: Update lobby status to 'playing' and broadcast it
+            setLobbyState(prev => {
+                if (!prev) return prev;
+                const newLobby = { ...prev, status: 'playing' as const };
+                lobbyStateRef.current = newLobby;
+                // Broadcast this status change immediately to Catch any late-joiners
+                setTimeout(() => broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby }), 50);
+                return newLobby;
+            });
         }
 
         const actionData = {
