@@ -14,24 +14,27 @@ This document serves as the primary technical reference for all core systems, ga
 
 ## 2. Architecture [The Network Layer]
 
-### 2.1 Matchmaking & Lifecycle (`join_matchmaking` RPC)
-The matchmaking system uses PostgreSQL advisory locks to prevent race conditions during player pairing.
-- **Search (0-15s):** Exact match search via RPC.
-- **Expansion (16-29s):** Optional wager range expansion (+/- 20%, +/- 50%, or any lower).
-- **Match Found:** The RPC returns a `match_id`, a stable `room_code`, and a `role` (`host` or `guest`).
+### 2.1 Matchmaking & Lifecycle (`EdgeServerClient` & `join_matchmaking` RPC)
+The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance **Edge Server (Render)** with a resilient **Supabase Failover**.
+- **Phase 1: Edge Match (0-5s):** The client attempts a WebSocket connection to the Edge Server (`find_match`).
+    - **WebSocket handshakes** provide sub-second latency for pairing.
+    - **Instant Reveals:** The Edge server returns participant metadata (usernames, XP, levels) immediately, allowing for a premium "Match!" screen before P2P sync.
+- **Phase 2: Supabase Fallback (5s+):** If the Edge Server is offline or slow, the client falls back to the `join_matchmaking` RPC.
+    - **Advisory Locks:** Prevents race conditions during pairing.
+    - **Expansion (15s+):** Optional wager range expansion (+/- 20%, +/- 50%).
+- **Verification Token:** Both paths generate a `validation_token`. This token is required for the P2P handshake, ensuring only authorized participants can join a specific match ID.
 - **Handover:** 
-    - The **Host** (the player already in the queue) calls `hostGame(roomCode)`.
-    - The **Guest** (the searcher who found the match) calls `joinGame(roomCode)`.
-- **Robustness (Phase 7):**
-    - **Guest Retries:** Guests now attempt to connect to the Host up to **5 times** with exponential backoff if the host room isn't ready.
+    - The **Host** calls `hostGame(roomCode, validationToken)`.
+    - The **Guest** calls `joinGame(roomCode, validationToken)`.
+- **Robustness (Phase 27):**
+    - **Guest Retries:** Guests attempt to connect to the Host up to **5 times** with exponential backoff.
+    - **Edge Verified UDP:** Matches identified by the Edge server are marked with a diagnostic badge in the UI.
     - **Sync Delay:** Guests wait **800ms** before the first connection attempt to allow Host initialization.
-    - **Clean Handshake:** PeerJS connection logic is strictly synchronized to prevent "stuck" reveal screens.
 
 ### 2.2 Hybrid Communication Model
-- **Primary:** PeerJS (WebRTC) for low-latency turns, dice sync, and movement.
-- **Secondary (Relay):** Supabase Realtime Broadcast acts as a fallback or global relay for:
-    - Lobby events and invites.
-    - Mirroring gameplay intents (`broadcastAction`) to ensure all participants stay in sync.
+- **Primary Matchmaker:** `EdgeServerClient` (WebSocket) for real-time pairing and instant metadata reveals.
+- **Primary Gameplay:** PeerJS (WebRTC) for low-latency turns, dice sync, and movement.
+- **Secondary (Relay):** Supabase Realtime Broadcast acts as a fallback for both matchmaking (RPC) and gameplay intents (`broadcastAction`).
 - **Audit:** All actions are signed with an `actionId` to prevent double-processing.
 - **Cleanup:** Automatically clears searching tickets upon component unmount to prevent ghost matches.
 
@@ -112,7 +115,7 @@ AI evaluates power usage independently of movement:
     - Color assignments are secondary to physical position; the engine ensures the two active players are always opposite in the game loop.
 - **Celebration Glow**: The central Finish Zone emits a cyan/purple glow when a player wins.
 - **Match Reveal Overlay**: High-intensity "MATCH!" screen with glassmorphism, rival profile fetching (username/avatar), and match criteria (1v1, mode, wager).
-- **Match Optimizer Dock**: Redesigned bottom-anchored HUD for search expansion options, replacing intrusive central popups.
+- **Edge Diagnostic HUD**: Redesigned bottom-anchored HUD showing `📡 EDGE PRIMARY` or `SUPABASE FALLBACK` status, ensuring users are aware of the connection engine.
 
 ### Technical Guardrails
 - **Profile-Sync Guard**: The game transitions to the board **only after** all participants have synchronized their real usernames and avatars. This prevents "Guest" placeholders from persisting on the final board.
