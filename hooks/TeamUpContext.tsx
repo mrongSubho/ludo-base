@@ -27,6 +27,7 @@ import {
     generateRoomCode,
 } from '@/lib/gameLogic';
 import { generateRandomNonce, sha256 } from '@/lib/encryption';
+import { useSoundEffects } from '@/app/hooks/useSoundEffects';
 
 // ---------- Context Type ----------
 
@@ -135,6 +136,22 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
     }, [connections]);
 
     // ─── Broadcast Helpers ───
+
+    // ─── Phase 2: Match Ready Polish ───
+    const { playDiceLand } = useSoundEffects();
+
+    useEffect(() => {
+        if (lobbyState && lobbyState.slots.every(s => s.status === 'joined')) {
+            // Check if we just transitioned to ready
+            if (lobbyState.status !== 'ready') {
+                console.log('🎉 Match Ready! Triggering feedback...');
+                playDiceLand();
+                if (window.navigator?.vibrate) {
+                    window.navigator.vibrate([100, 50, 100]);
+                }
+            }
+        }
+    }, [lobbyState, playDiceLand]);
 
     const broadcastToAll = useCallback((data: any) => {
         connectionsRef.current.forEach((conn) => {
@@ -821,7 +838,9 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
             const emptyIdx = prev.slots.findIndex(s => s.status === 'empty');
             if (emptyIdx === -1) return prev;
             const newSlots = prev.slots.map((s, i) => {
-                if (i === emptyIdx) return { ...s, status: 'invited' as const, playerId: friendId, playerName: friendName || 'Invited' };
+                if (i === emptyIdx) {
+                    return { ...s, status: 'invited' as const, playerId: friendId, playerName: friendName || 'Invited', invitedAt: Date.now() };
+                }
                 return s;
             });
             const newLobby = { ...prev, slots: newSlots };
@@ -909,17 +928,52 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
             if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
         };
     }, [isHost, isLobbyConnected, broadcastToAll]);
+    
+    // ─── Invite Expiration Logic (Phase 2) ───
+    useEffect(() => {
+        if (!isHost || !lobbyState) return;
 
-    // ─── Cleanup ───
+        const timer = setInterval(() => {
+            const now = Date.now();
+            const hasExpired = lobbyState.slots.some(s => 
+                s.status === 'invited' && s.invitedAt && (now - s.invitedAt > 30000)
+            );
+            const isFull = lobbyState.slots.every(s => s.status === 'joined');
+            
+            if (hasExpired || (isFull && lobbyState.status === 'forming')) {
+                console.log(isFull ? '✅ Lobby Full!' : '🕒 Cleaning up expired invites...');
+                const newSlots = hasExpired ? lobbyState.slots.map(s => {
+                    if (s.status === 'invited' && s.invitedAt && (now - s.invitedAt > 30000)) {
+                        return { ...s, status: 'empty' as const, playerId: undefined, invitedAt: undefined };
+                    }
+                    return s;
+                }) : lobbyState.slots;
+                
+                const newStatus = isFull ? 'ready' : 'forming';
+                const newLobby = { ...lobbyState, slots: newSlots, status: newStatus as any };
+                setLobbyState(newLobby);
+                broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+            }
+        }, 5000);
+
+        return () => clearInterval(timer);
+    }, [isHost, lobbyState, broadcastToAll]);
+
+    // ─── Global Peer Cleanup ───
     useEffect(() => {
         return () => {
-            if (peerRef.current) peerRef.current.destroy();
+            if (peerRef.current) {
+                console.log('🧹 Cleaning up Peer on unmount');
+                peerRef.current.destroy();
+            }
         };
     }, []);
 
     // ─── Context Value ───
 
-    const contextValue = useMemo(() => ({
+    const clearIntent = useCallback(() => setLastIntent(null), []);
+
+    const value = useMemo(() => ({
         roomId,
         connection,
         connections,
@@ -943,7 +997,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
         updateGameState,
         participants,
         lastIntent,
-        clearIntent: () => setLastIntent(null),
+        clearIntent,
         leaveGame,
         validationToken
     }), [
@@ -955,7 +1009,7 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
     ]);
 
     return (
-        <TeamUpContext.Provider value={contextValue}>
+        <TeamUpContext.Provider value={value}>
             {children}
         </TeamUpContext.Provider>
     );

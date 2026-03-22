@@ -5,7 +5,7 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType } from '@/lib/types';
 import { handleThreeSixes, processMove, getNextPlayer as getNextPlayerCore, getTeammateColor } from '@/lib/gameLogic';
 import { getBestMove } from '@/lib/aiEngine';
-import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
+import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
 
@@ -263,6 +263,7 @@ export function useGameEngine({
                 steps,
                 playerPaths,
                 playerCount,
+                prev.currentPlayer as PlayerColor,
                 activeColorsArr,
                 colorCorner
             );
@@ -301,12 +302,95 @@ export function useGameEngine({
             if (prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return prev;
             const power = prev.playerPowers[color as PlayerColor];
             if (!power) return prev;
+
+            let nextState = { ...prev };
+            const myColor = color as PlayerColor;
+
+            if (power === 'shield') {
+                // Apply shield to all tokens of this player currently on board
+                const tokensOnBoard = prev.positions[myColor]
+                    .map((pos, idx) => (pos >= 0 && pos < 52) ? idx : -1)
+                    .filter(idx => idx !== -1);
+                
+                const newShields = [...prev.activeShields];
+                tokensOnBoard.forEach(idx => {
+                    if (!newShields.some(s => s.color === myColor && s.tokenIdx === idx)) {
+                        newShields.push({ color: myColor, tokenIdx: idx });
+                    }
+                });
+                nextState.activeShields = newShields;
+            } 
+            else if (power === 'bomb') {
+                // Remove one nearest opponent token within 6 steps of ANY of our tokens
+                let target: { color: PlayerColor, idx: number } | null = null;
+                let minDistance = 7;
+
+                prev.positions[myColor].forEach(myPos => {
+                    if (myPos < 0 || myPos >= 52) return;
+                    const myPt = playerPaths[myColor][myPos];
+
+                    (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+                        if (oppColor === myColor) return;
+                        if (playerCount === '2v2' && oppColor === getTeammateColor(myColor, playerCount)) return;
+
+                        prev.positions[oppColor].forEach((oppPos, oppIdx) => {
+                            if (oppPos < 0 || oppPos >= 52) return;
+                            const oppPt = playerPaths[oppColor][oppPos];
+                            
+                            // Check if they are on a shared path vs just nearby on grid
+                            // Simple heuristic: find opponent within steps 1-6 on our path
+                            // This is move-based capture simulation
+                            for (let s = 1; s <= 6; s++) {
+                                const checkPos = myPos + s;
+                                if (checkPos >= 52) break;
+                                const checkPt = playerPaths[myColor][checkPos];
+                                if (checkPt.r === oppPt.r && checkPt.c === oppPt.c) {
+                                    if (s < minDistance) {
+                                        minDistance = s;
+                                        target = { color: oppColor, idx: oppIdx };
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+
+                if (target) {
+                    const t = target as { color: PlayerColor, idx: number };
+                    const newPositions = { ...prev.positions };
+                    newPositions[t.color] = [...newPositions[t.color]];
+                    newPositions[t.color][t.idx] = -1;
+                    nextState.positions = newPositions;
+                    nextState.captureMessage = `BOMB! ${t.color} token removed!`;
+                    playCapture();
+                }
+            }
+            else if (power === 'boost') {
+                // Next roll is +6
+                nextState.activeBoost = myColor;
+                nextState.captureMessage = "BOOST! Next move +6 steps.";
+            }
+            else if (power === 'warp') {
+                // Teleport first token forward 10 squares
+                const firstTokenIdx = prev.positions[myColor].findIndex(p => p >= 0 && p < 42); // Warp only in outer path
+                if (firstTokenIdx !== -1) {
+                    const newPos = { ...prev.positions };
+                    newPos[myColor] = [...newPos[myColor]];
+                    const targetPos = Math.min(newPos[myColor][firstTokenIdx] + 10, 51);
+                    newPos[myColor][firstTokenIdx] = targetPos;
+                    nextState.positions = newPos;
+                    nextState.captureMessage = "WARP! Forward 10 squares.";
+                    playMove();
+                }
+            }
+
             return {
-                ...prev,
-                playerPowers: { ...prev.playerPowers, [color]: null }
+                ...nextState,
+                playerPowers: { ...prev.playerPowers, [myColor]: null },
+                lastUpdate: Date.now()
             };
         });
-    }, []);
+    }, [playerPaths, playerCount, playCapture, playMove]);
     const handleRoll = useCallback((value?: number, isRemote = false) => {
         if (localGameState.winner) return;
 
@@ -658,6 +742,70 @@ export function useGameEngine({
                 const randomDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
 
                 const timer = setTimeout(() => {
+                    const color = localGameState.currentPlayer;
+                    const power = localGameState.playerPowers[color as PlayerColor];
+
+                    if (power) {
+                        let shouldUse = false;
+                        if (power === 'bomb') {
+                            // Similar logic to handleUsePower
+                            let targetFound = false;
+                            localGameState.positions[color].forEach(myPos => {
+                                if (myPos < 0 || myPos >= 52) return;
+                                (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+                                    if (oppColor === color) return;
+                                    if (playerCount === '2v2' && oppColor === getTeammateColor(color as PlayerColor, playerCount)) return;
+                                    localGameState.positions[oppColor].forEach(oppPos => {
+                                        if (oppPos < 0 || oppPos >= 52) return;
+                                        const myPt = playerPaths[color][myPos];
+                                        const oppPt = playerPaths[oppColor][oppPos];
+                                        for (let s = 1; s <= 6; s++) {
+                                            const checkPos = myPos + s;
+                                            if (checkPos >= 52) break;
+                                            const checkPt = playerPaths[color][checkPos];
+                                            if (checkPt.r === oppPt.r && checkPt.c === oppPt.c) targetFound = true;
+                                        }
+                                    });
+                                });
+                            });
+                            if (targetFound) shouldUse = true;
+                        } 
+                        else if (power === 'shield') {
+                            // Shield if an opponent is behind us
+                            let vulnerable = false;
+                            localGameState.positions[color].forEach(myPos => {
+                                if (myPos < 0 || myPos >= 52) return;
+                                if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === playerPaths[color][myPos].r && p.c === playerPaths[color][myPos].c)) return;
+                                
+                                (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+                                    if (oppColor === color) return;
+                                    if (playerCount === '2v2' && oppColor === getTeammateColor(color as PlayerColor, playerCount)) return;
+                                    localGameState.positions[oppColor].forEach(oppPos => {
+                                        if (oppPos < 0 || oppPos >= 52) return;
+                                        // Opponent is 1-6 steps behind us on our path
+                                        for (let s = 1; s <= 6; s++) {
+                                            const checkPos = oppPos + s;
+                                            if (checkPos >= 52) break;
+                                            const checkPt = playerPaths[oppColor][checkPos];
+                                            const myPt = playerPaths[color][myPos];
+                                            if (checkPt.r === myPt.r && checkPt.c === myPt.c) vulnerable = true;
+                                        }
+                                    });
+                                });
+                            });
+                            if (vulnerable) shouldUse = true;
+                        }
+                        else if (power === 'boost' || power === 'warp') {
+                            // Use boost/warp if it helps entering home or late game
+                            const advancedToken = localGameState.positions[color].some(p => p > 35 && p < 51);
+                            if (advancedToken) shouldUse = true;
+                        }
+
+                        if (shouldUse) {
+                            handleUsePower(color);
+                        }
+                    }
+
                     setLocalGameState(s => ({ ...s, isThinking: true }));
                     const newValue = Math.floor(Math.random() * 6) + 1;
                     handleRoll(newValue);
@@ -677,7 +825,7 @@ export function useGameEngine({
                     const targetColor = (playerCount === '2v2' && isSelfFinished && teammate) ? teammate : color;
 
                     const diceValue = localGameState.diceValue!;
-                    const bestMoveIdx = getBestMove(localGameState.positions, targetColor as any, diceValue, playerPaths, playerCount);
+                    const bestMoveIdx = getBestMove(localGameState.positions, targetColor as any, diceValue, playerPaths, playerCount, localGameState.powerTiles);
 
                     if (bestMoveIdx === null) {
                         setLocalGameState(s => ({

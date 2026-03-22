@@ -49,6 +49,7 @@ export interface LobbySlot {
     playerName?: string;
     playerAvatar?: string;
     peerId?: string;             // PeerJS peer ID for this connection
+    invitedAt?: number;          // Timestamp for expiration
 }
 
 export interface LobbyState {

@@ -56,6 +56,7 @@ export const TeamUpMatchPanel = ({
     lobbyState,
     onStartMatch,
     onSendInvite,
+    onQuickMatch,
 }: TeamUpMatchPanelProps) => {
     const { playSelect, playClick, playDiceLand } = useSoundEffects();
     const [view, setView] = useState<'console' | 'roster' | 'join'>('console');
@@ -194,9 +195,26 @@ export const TeamUpMatchPanel = ({
                                 )}
                             </div>
 
+                            {/* Manual Link Label */}
                             <button onClick={() => setView('join')} className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] hover:text-cyan-400 mt-2 transition-colors self-center">
                                 Manual Link // Session Code
                             </button>
+
+                            {/* Hybrid Quick Match Trigger */}
+                            {lobbyState && !isReady && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mt-2 flex flex-col items-center"
+                                >
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }}
+                                        className="text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.2em] hover:text-cyan-400 transition-colors py-2 px-4 rounded-full border border-cyan-400/20 hover:border-cyan-400/50 bg-cyan-400/5"
+                                    >
+                                        Fill Remaining with Quick Match
+                                    </button>
+                                </motion.div>
+                            )}
                         </div>
                     )}
 

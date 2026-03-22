@@ -238,15 +238,15 @@ export default function Board({
                         ...prev,
                         players: prev.players.map(p => {
                             // Replace the first non-AI player (usually the local user)
-                            if (!p.isAi && (p.name === 'Alex' || p.walletAddress === address.toLowerCase())) {
-                                return {
-                                    ...p,
-                                    name: data.username || p.name,
-                                    avatar: data.avatar_url || p.avatar,
-                                    walletAddress: address.toLowerCase(),
-                                    level: Math.max(p.level, Math.floor(data.total_wins / 5) + 1)
-                                };
-                            }
+                                if (!p.isAi && (p.name === 'Alex' || p.walletAddress === address.toLowerCase())) {
+                                    return {
+                                        ...p,
+                                        name: data.username || p.name,
+                                        avatar: data.avatar_url || p.avatar,
+                                        walletAddress: address.toLowerCase(),
+                                        level: Math.max(p.level, Math.floor((data.total_wins || 0) / 5) + 1)
+                                    };
+                                }
                             return p;
                         })
                     }));
@@ -281,49 +281,7 @@ export default function Board({
 
     const { players, colorCorner, playerPaths } = boardConfig;
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-
-    // ─── Visual Quadrant Algorithm ──────────────────────────────────────────────
-    // Calculates board rotation AND UI slot mapping from server data using
-    // modular arithmetic. No reliance on hardcoded player.position fields.
-    //
-    // Corner indices in clockwise order: TL=0, TR=1, BR=2, BL=3
-    const CORNER_ORDER: Corner[] = ['TL', 'TR', 'BR', 'BL'];
-
-    const { boardRotationDeg, counterRotationDeg, uiSlots } = useMemo(() => {
-        // 1. Identify local player color
-        const myAddrLower = address?.toLowerCase();
-        const localPlayer = players.find(p => myAddrLower && p.walletAddress?.toLowerCase() === myAddrLower)
-            || players.find(p => !p.isAi)
-            || players[0];
-            
-        const localColor = localPlayer?.color as PlayerColor;
-
-        // 2. Where did the server place the local player?
-        // Fallback to 'BL' if not found, but it should always be found if players are sync'd
-        const localServerCorner = (colorCorner && localColor) ? colorCorner[localColor] : 'BL';
-        const localServerIndex = CORNER_ORDER.indexOf(localServerCorner as Corner);
-
-        // 3. We want the local player at BL (index 3).
-        //    Offset = (target - server + 4) % 4
-        const TARGET_INDEX = 3; // BL
-        const rotationOffset = (TARGET_INDEX - localServerIndex + 4) % 4;
-
-        // 4. Board rotation in degrees (each offset step = 90° CW)
-        const boardRotDeg = rotationOffset * 90;
-        const counterRotDeg = boardRotDeg !== 0 ? -boardRotDeg : 0;
-
-        // 5. Map ALL colors to their visual screen corners
-        const slots: Record<Corner, PlayerColor | null> = { TL: null, TR: null, BL: null, BR: null };
-        (Object.entries(colorCorner) as [PlayerColor, Corner][]).forEach(([color, serverCorner]) => {
-            const serverIndex = CORNER_ORDER.indexOf(serverCorner);
-            // Apply the same offset: visualIndex = (serverIndex + offset) % 4
-            const visualIndex = (serverIndex + rotationOffset) % 4;
-            const visualCorner = CORNER_ORDER[visualIndex];
-            slots[visualCorner] = color;
-        });
-
-        return { boardRotationDeg: boardRotDeg, counterRotationDeg: counterRotDeg, uiSlots: slots };
-    }, [colorCorner, players]);
+    const [isShaking, setIsShaking] = useState(false);
 
     const pathCells = useMemo(() => buildPathCellsDynamic(colorCorner), [colorCorner]);
 
@@ -345,6 +303,45 @@ export default function Board({
         pathCells,
         setBoardConfig
     });
+
+    // Trigger Screen Shake on Capture
+    useEffect(() => {
+        if (localGameState.captureMessage?.includes('Captured') || localGameState.captureMessage?.includes('BOMB')) {
+            setIsShaking(true);
+            const timer = setTimeout(() => setIsShaking(false), 500);
+            return () => clearTimeout(timer);
+        }
+    }, [localGameState.captureMessage]);
+
+    // ─── Visual Quadrant Algorithm ──────────────────────────────────────────────
+    const CORNER_ORDER: Corner[] = ['TL', 'TR', 'BR', 'BL'];
+
+    const { boardRotationDeg, counterRotationDeg, uiSlots } = useMemo(() => {
+        const myAddrLower = address?.toLowerCase();
+        const localPlayer = players.find(p => myAddrLower && p.walletAddress?.toLowerCase() === myAddrLower)
+            || players.find(p => !p.isAi)
+            || players[0];
+            
+        const localColor = localPlayer?.color as PlayerColor;
+        const localServerCorner = (colorCorner && localColor) ? colorCorner[localColor] : 'BL';
+        const localServerIndex = CORNER_ORDER.indexOf(localServerCorner as Corner);
+
+        const TARGET_INDEX = 3; // BL
+        const rotationOffset = (TARGET_INDEX - localServerIndex + 4) % 4;
+
+        const boardRotDeg = rotationOffset * 90;
+        const counterRotDeg = boardRotDeg !== 0 ? -boardRotDeg : 0;
+
+        const slots: Record<Corner, PlayerColor | null> = { TL: null, TR: null, BL: null, BR: null };
+        (Object.entries(colorCorner) as [PlayerColor, Corner][]).forEach(([color, serverCorner]) => {
+            const serverIndex = CORNER_ORDER.indexOf(serverCorner);
+            const visualIndex = (serverIndex + rotationOffset) % 4;
+            const visualCorner = CORNER_ORDER[visualIndex];
+            slots[visualCorner] = color;
+        });
+
+        return { boardRotationDeg: boardRotDeg, counterRotationDeg: counterRotDeg, uiSlots: slots };
+    }, [colorCorner, players, address]);
 
     const [boardTheme] = useState('default');
 
@@ -450,7 +447,11 @@ export default function Board({
                                 key={`${coordKey}-${color}`}
                                 layout
                                 initial={false}
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                animate={isColorTurn ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                                transition={isColorTurn ? {
+                                    scale: { repeat: Infinity, duration: 1.5, ease: "easeInOut" },
+                                    layout: { type: "spring", stiffness: 300, damping: 30 }
+                                } : { type: "spring", stiffness: 300, damping: 30 }}
                                 style={{ ...offsetStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             >
                                 <Token
@@ -511,8 +512,10 @@ export default function Board({
             </div>
 
             {/* ── Board Area: relative container for rotating board + static overlay ── */}
-            <div 
+            <motion.div 
                 className="board-area" 
+                animate={isShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
+                transition={{ duration: 0.4 }}
                 style={{ position: 'relative', width: '100%', cursor: 'pointer' }}
                 onClick={() => {
                     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
@@ -626,18 +629,29 @@ export default function Board({
                         key={localGameState.currentPlayer}
                     >
                         {/* 1. Junction Corner Reflections (Reveal cosmic background) */}
-                        <div className="finish-center-corner-glimpse" style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: '16px',
-                            opacity: 0.8,
-                            overflow: 'hidden',
-                            zIndex: 0
-                        }}>
+                        <motion.div 
+                            className="finish-center-corner-glimpse" 
+                            animate={{ 
+                                boxShadow: localGameState.winners.length > 0 ? [
+                                    "0 0 20px rgba(255,215,0,0.4)", 
+                                    "0 0 40px rgba(255,215,0,0.8)", 
+                                    "0 0 20px rgba(255,215,0,0.4)"
+                                ] : "none" 
+                            }}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                borderRadius: '16px',
+                                opacity: 0.8,
+                                overflow: 'hidden',
+                                zIndex: 0
+                            }}
+                        >
                             {/* Authentic Subdued Cosmic Orbs */}
                             <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                             <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                        </div>
+                        </motion.div>
 
                         {/* 2. Glass Functional Core (GameLobby Style - Near Opaque) */}
                         <div className="finish-center-functional-core glass-panel" style={{
@@ -781,7 +795,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-top-inside ${uiSlots.TL}`}
                                 style={{ position: 'absolute', top: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {getDisplayName(p)}
+                                {p ? getDisplayName(p) : ''}
                             </div>
                         ) : null;
                     })()}
@@ -791,7 +805,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-top-inside ${uiSlots.TR}`}
                                 style={{ position: 'absolute', top: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {getDisplayName(p)}
+                                {p ? getDisplayName(p) : ''}
                             </div>
                         ) : null;
                     })()}
@@ -801,7 +815,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-bottom-inside ${uiSlots.BL}`}
                                 style={{ position: 'absolute', bottom: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {getDisplayName(p)}
+                                {p ? getDisplayName(p) : ''}
                             </div>
                         ) : null;
                     })()}
@@ -811,7 +825,7 @@ export default function Board({
                         return p ? (
                             <div className={`home-player-label label-bottom-inside ${uiSlots.BR}`}
                                 style={{ position: 'absolute', bottom: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' }}>
-                                {getDisplayName(p)}
+                                {p ? getDisplayName(p) : ''}
                             </div>
                         ) : null;
                     })()}
@@ -821,7 +835,7 @@ export default function Board({
                 <AnimatePresence>
                     {localGameState.idleWarning && (() => {
                         const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
-                        if (localGameState.idleWarning.player === myPlayer?.color) {
+                        if (localGameState.idleWarning?.player === myPlayer?.color) {
                             return (
                                 <motion.div
                                     initial={{ opacity: 0 }}
@@ -858,7 +872,7 @@ export default function Board({
                                     >
                                         <h2 style={{ fontSize: '24px', margin: '0 0 12px 0', color: '#ef4444', fontWeight: 'bold', textShadow: '0 0 20px rgba(239, 68, 68, 0.3)' }}>Are you still there?</h2>
                                         <p style={{ fontSize: '18px', margin: '0 0 24px 0', opacity: 0.7, color: 'rgba(255,255,255,0.8)' }}>
-                                            Auto-kicking in <span style={{ fontWeight: 'bold', fontSize: '24px', color: '#fff' }}>{localGameState.idleWarning.timeLeft}s</span>
+                                            Auto-kicking in <span style={{ fontWeight: 'bold', fontSize: '24px', color: '#fff' }}>{localGameState.idleWarning?.timeLeft}s</span>
                                         </p>
                                         <button
                                             onClick={(e) => {
@@ -877,7 +891,7 @@ export default function Board({
                     })()}
                 </AnimatePresence>
 
-            </div>{/* end board-area */}
+            </motion.div>{/* end board-area */}
 
             {/* --- Celebration Overlay --- */}
             <AnimatePresence>
@@ -941,7 +955,7 @@ export default function Board({
                 selectedPlayer && (
                     <PlayerProfileSheet
                         player={selectedPlayer}
-                        wins={localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length}
+                        wins={selectedPlayer ? localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length : 0}
                         onClose={() => setSelectedPlayer(null)}
                     />
                 )

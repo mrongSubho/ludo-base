@@ -76,10 +76,24 @@ export const QuickMatchPanel = ({
         gameMode,
         matchType,
         wager,
-        onMatchFound: () => onStartGame(false)
+        onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean) => {
+            console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}`);
+            if (isMatchHost) {
+                hostGame(matchType, gameMode, wager, undefined, foundRoomCode);
+            } else {
+                joinGame(foundRoomCode);
+            }
+        }
     });
 
-    const { roomId } = useTeamUpContext();
+    const { 
+        roomId, 
+        hostGame, 
+        joinGame, 
+        isLobbyConnected, 
+        isHost: p2pHost,
+        lobbyState
+    } = useTeamUpContext();
     const [tipIndex, setTipIndex] = useState(0);
     const [hasExpanded, setHasExpanded] = useState(false);
     const [showExpansionOptions, setShowExpansionOptions] = useState(false);
@@ -101,6 +115,19 @@ export const QuickMatchPanel = ({
     }, []);
 
     // Start matchmaking on mount
+    // Auto-start game once P2P is connected and all slots are full
+    useEffect(() => {
+        if (status === 'matched' && isLobbyConnected && p2pHost) {
+            const joinedCount = lobbyState?.slots.filter(s => s.status === 'joined').length || 0;
+            const targetCount = matchType === '1v1' ? 2 : (matchType === '2v2' ? 4 : 4);
+            
+            if (joinedCount >= targetCount) {
+                console.log('🚀 [QuickMatch] P2P Mesh ready. Auto-starting game...');
+                onStartGame(false);
+            }
+        }
+    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame]);
+
     useEffect(() => {
         if (isHybrid && roomCode) {
             startHybridSearch(roomCode, slotsNeeded, matchType);

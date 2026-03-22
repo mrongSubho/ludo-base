@@ -8,7 +8,7 @@ interface UseMatchmakingProps {
     gameMode: string;
     matchType: string;
     wager: number;
-    onMatchFound: (matchId: string, isHost: boolean) => void;
+    onMatchFound: (matchId: string, roomCode: string, isHost: boolean) => void;
 }
 
 export function useMatchmaking({
@@ -17,7 +17,13 @@ export function useMatchmaking({
     matchType,
     wager,
     onMatchFound
-}: UseMatchmakingProps) {
+}: {
+    playerId: string;
+    gameMode: string;
+    matchType: string;
+    wager: number;
+    onMatchFound: (matchId: string, roomCode: string, isHost: boolean) => void;
+}) {
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
     const [ticketId, setTicketId] = useState<string | null>(null);
     const [searchTime, setSearchTime] = useState(0);
@@ -93,7 +99,7 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 setStatus('matched');
-                onMatchFoundRef.current(data.match_id, false);
+                onMatchFoundRef.current(data.match_id, data.room_code, data.role === 'host');
             } else {
                 setTicketId(data.ticket_id);
 
@@ -150,7 +156,7 @@ export function useMatchmaking({
 
             if (data.status === 'matched') {
                 setStatus('matched');
-                onMatchFoundRef.current(data.match_id, false);
+                onMatchFoundRef.current(data.match_id, data.room_code || '', data.role === 'host');
             } else {
                 setTicketId(data.ticket_id);
 
@@ -196,7 +202,7 @@ export function useMatchmaking({
                     
                     if (newData.status === 'matched') {
                         setStatus('matched');
-                        onMatchFoundRef.current(newData.match_id, true);
+                        onMatchFoundRef.current(newData.match_id, newData.room_code, true); // The one in queue is always the host
                         if (timerRef.current) clearInterval(timerRef.current);
                     }
                 }

@@ -158,35 +158,37 @@ export interface MoveResult {
 
 export function processMove(
     state: GameState,
-    color: PlayerColor,
+    tokenColor: PlayerColor,
     tokenIndex: number,
     steps: number,
     playerPaths: Record<string, Point[]>,
     playerCount: string,
+    actingPlayer?: PlayerColor, // The player whose turn it is
     activeColors?: PlayerColor[],
     colorCorner?: ColorCorner
 ): MoveResult {
+    const actingColor = actingPlayer || tokenColor;
     if (state.winner) return { newState: state, captured: false, bonusRoll: false };
 
     const newPositions = { ...state.positions };
-    const initialPos = newPositions[color][tokenIndex];
+    const initialPos = newPositions[tokenColor][tokenIndex];
     const nextPos = calculateNextPosition(initialPos, steps);
 
     if (nextPos === initialPos && steps !== 0) {
         return { newState: state, captured: false, bonusRoll: false };
     }
 
-    newPositions[color] = [...newPositions[color]];
-    newPositions[color][tokenIndex] = nextPos;
+    newPositions[tokenColor] = [...newPositions[tokenColor]];
+    newPositions[tokenColor][tokenIndex] = nextPos;
 
     // Check for Traps
-    const targetPoint = playerPaths[color][nextPos];
-    const trapIdx = state.activeTraps.findIndex(t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== color);
+    const targetPoint = playerPaths[tokenColor][nextPos];
+    const trapIdx = state.activeTraps.findIndex(t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor);
 
     let captured = false;
     if (trapIdx !== -1) {
         // Trigger Trap: Token goes back to start
-        newPositions[color][tokenIndex] = -1;
+        newPositions[tokenColor][tokenIndex] = -1;
         const newTraps = [...state.activeTraps];
         newTraps.splice(trapIdx, 1);
         return {
@@ -197,7 +199,7 @@ export function processMove(
     }
 
     // Check Captures
-    const captures = checkMultiCapture(color, nextPos, state, playerPaths, playerCount);
+    const captures = checkMultiCapture(tokenColor, nextPos, state, playerPaths, playerCount);
     if (captures.length > 0) {
         captures.forEach(c => {
             newPositions[c.capturedColor] = [...newPositions[c.capturedColor]];
@@ -217,19 +219,19 @@ export function processMove(
     let status = state.status;
 
     if (playerCount === '2v2') {
-        if (teamWon(getTeam(color))) {
-            winner = `Team ${getTeam(color)}`;
+        if (teamWon(getTeam(tokenColor))) {
+            winner = `Team ${getTeam(tokenColor)}`;
             status = 'finished';
         }
     } else {
-        if (allFinished(color)) {
-            winner = color;
+        if (allFinished(tokenColor)) {
+            winner = tokenColor;
             status = 'finished';
         }
     }
 
     const bonusRoll = captured || steps === 6;
-    const nextPlayer = bonusRoll ? color : getNextPlayer(color, playerCount, activeColors, colorCorner);
+    const nextPlayer = bonusRoll ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, colorCorner);
 
     return {
         newState: {
@@ -240,7 +242,7 @@ export function processMove(
             gamePhase: 'rolling',
             winner,
             status,
-            winners: allFinished(color) && !state.winners.includes(color) ? [...state.winners, color] : state.winners,
+            winners: allFinished(tokenColor) && !state.winners.includes(tokenColor) ? [...state.winners, tokenColor] : state.winners,
             lastUpdate: Date.now()
         },
         captured,

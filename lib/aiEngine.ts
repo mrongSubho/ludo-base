@@ -1,5 +1,5 @@
 import { PlayerColor } from '@/lib/types';
-import { checkMultiCapture, getTeamForceAtPoint, getTeam } from './gameLogic';
+import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor } from './gameLogic';
 import { Point, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
 /**
@@ -17,11 +17,17 @@ export function getBestMove(
     playerId: PlayerColor,
     roll: number,
     playerPaths: Record<string, Point[]>,
-    playerCount: string = '4P'
+    playerCount: string = '4P',
+    powerTiles: { r: number, c: number }[] = []
 ): number | null {
+    const teammate = getTeammateColor(playerId, playerCount as any);
+    const selfFinished = positions[playerId].every(p => p === 57);
+    const actingColor = (playerCount === '2v2' && selfFinished && teammate) ? teammate : playerId;
+    const actingColorTyped = actingColor as PlayerColor;
+
     const options: number[] = [];
 
-    positions[playerId].forEach((pos, idx) => {
+    positions[actingColorTyped].forEach((pos: number, idx: number) => {
         // Check if move is valid
         if (pos === -1) {
             if (roll === 6) options.push(idx);
@@ -36,7 +42,7 @@ export function getBestMove(
     let maxScore = -Infinity;
 
     options.forEach(idx => {
-        const currentPos = positions[playerId][idx];
+        const currentPos = positions[actingColorTyped][idx];
         const nextPos = currentPos === -1 ? 0 : currentPos + roll;
         let score = 0;
 
@@ -55,11 +61,19 @@ export function getBestMove(
             score += 40;
         }
 
+        // Power Tile Hunting (+120) - User requested aggressive hunting
+        const targetPoint = playerPaths[actingColor][nextPos];
+        if (nextPos < 52 && targetPoint) {
+            const isOnPowerTile = powerTiles.some(pt => pt.r === targetPoint.r && pt.c === targetPoint.c);
+            if (isOnPowerTile) {
+                score += 120;
+            }
+        }
+
         // Capturing / Safe Zones Logic
-        if (nextPos < 52) {
-            const targetPoint = playerPaths[playerId][nextPos];
+        if (nextPos < 52 && targetPoint) {
             const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
-            const teamId = getTeam(playerId, playerCount);
+            const teamId = getTeam(actingColor, playerCount);
             const actingForce = getTeamForceAtPoint(teamId, targetPoint, { positions } as any, playerPaths, playerCount) + 1;
 
             // Check if any opponent has tokens here and compare forces
@@ -81,7 +95,7 @@ export function getBestMove(
             }
 
             // Check for Captures (+100 per token)
-            const captures = checkMultiCapture(playerId, nextPos, { positions, activeShields: [], activeTraps: [] } as any, playerPaths, playerCount);
+            const captures = checkMultiCapture(actingColor, nextPos, { positions, activeShields: [], activeTraps: [] } as any, playerPaths, playerCount);
             score += captures.length * 100;
         }
 

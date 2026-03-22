@@ -95,6 +95,8 @@ CREATE TABLE public.matchmaking_queue (
     match_type TEXT NOT NULL,
     wager NUMERIC DEFAULT 0,
     status TEXT DEFAULT 'searching',
+    match_id UUID REFERENCES public.matches(id) ON DELETE SET NULL,
+    room_code TEXT,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT valid_status CHECK (status IN ('searching', 'matched', 'cancelled'))
@@ -164,6 +166,98 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.game_invites;
 
 -- 4. REALTIME INDEXING
 CREATE INDEX idx_game_invites_guest ON public.game_invites(guest_address) WHERE status = 'pending';
+
+-- 5. MATCHMAKING RPC
+CREATE OR REPLACE FUNCTION public.join_matchmaking(
+  p_player_id TEXT,
+  p_game_mode TEXT,
+  p_match_type TEXT,
+  p_wager NUMERIC DEFAULT 0,
+  p_wager_min NUMERIC DEFAULT NULL,
+  p_wager_max NUMERIC DEFAULT NULL
+) 
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_match_id UUID;
+  v_ticket_id UUID;
+  v_opponent_ticket_id UUID;
+  v_opponent_id TEXT;
+  v_room_code TEXT;
+  v_lock_key BIGINT;
+  v_result JSONB;
+BEGIN
+  v_lock_key := hashtext(p_game_mode || p_match_type)::bigint;
+  PERFORM pg_advisory_xact_lock(v_lock_key);
+
+  DELETE FROM public.matchmaking_queue WHERE expires_at < now();
+
+  SELECT id INTO v_ticket_id 
+  FROM public.matchmaking_queue 
+  WHERE player_id = p_player_id AND status = 'searching' 
+  LIMIT 1;
+
+  SELECT id, player_id INTO v_opponent_ticket_id, v_opponent_id
+  FROM public.matchmaking_queue
+  WHERE status = 'searching'
+    AND player_id != p_player_id
+    AND game_mode = p_game_mode
+    AND match_type = p_match_type
+    AND (
+      (p_wager_min IS NULL AND p_wager_max IS NULL AND wager = p_wager) OR
+      (p_wager_min IS NOT NULL AND p_wager_max IS NOT NULL AND wager BETWEEN p_wager_min AND p_wager_max) OR
+      (p_wager_min IS NOT NULL AND p_wager_max IS NULL AND wager >= p_wager_min) OR
+      (p_wager_min IS NULL AND p_wager_max IS NOT NULL AND wager <= p_wager_max)
+    )
+  ORDER BY (wager = p_wager) DESC, created_at ASC
+  LIMIT 1;
+
+  IF v_opponent_ticket_id IS NOT NULL THEN
+    v_room_code := 'QM-' || upper(substring(replace(gen_random_uuid()::text, '-', ''), 1, 6));
+
+    INSERT INTO public.matches (game_mode, participants, room_code)
+    VALUES (p_game_mode, ARRAY[p_player_id, v_opponent_id], v_room_code)
+    RETURNING id INTO v_match_id;
+
+    UPDATE public.matchmaking_queue
+    SET status = 'matched', match_id = v_match_id, room_code = v_room_code
+    WHERE id = v_opponent_ticket_id;
+
+    IF v_ticket_id IS NOT NULL THEN
+      UPDATE public.matchmaking_queue
+      SET status = 'matched', match_id = v_match_id, room_code = v_room_code
+      WHERE id = v_ticket_id;
+    END IF;
+
+    v_result := jsonb_build_object(
+      'status', 'matched',
+      'match_id', v_match_id,
+      'room_code', v_room_code,
+      'role', 'guest'
+    );
+  ELSE
+    IF v_ticket_id IS NULL THEN
+      INSERT INTO public.matchmaking_queue (player_id, game_mode, match_type, wager, expires_at)
+      VALUES (p_player_id, p_game_mode, p_match_type, p_wager, now() + interval '30 seconds')
+      RETURNING id INTO v_ticket_id;
+    ELSE
+      UPDATE public.matchmaking_queue 
+      SET expires_at = now() + interval '30 seconds'
+      WHERE id = v_ticket_id;
+    END IF;
+
+    v_result := jsonb_build_object(
+      'status', 'searching',
+      'ticket_id', v_ticket_id,
+      'search_timeout', 30
+    );
+  END IF;
+
+  RETURN v_result;
+END;
+$$;
 ```
 
 ---
