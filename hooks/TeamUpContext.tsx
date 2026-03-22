@@ -458,7 +458,32 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
                     avatar_url: data.avatar_url || ''
                 }
             }));
-            if (myAddress) {
+
+            // Also update the slot in the lobbyState so the name is correct on the board
+            setLobbyState(prev => {
+                if (!prev) return prev;
+                const newSlots = prev.slots.map(slot => {
+                    // Match by address OR peerId (temporary fallback)
+                    if (slot.playerId === data.address.toLowerCase() || slot.peerId === conn.peer) {
+                        return {
+                            ...slot,
+                            playerId: data.address.toLowerCase(),
+                            playerName: data.username || 'Guest',
+                            playerAvatar: data.avatar_url || ''
+                        };
+                    }
+                    return slot;
+                });
+                const newLobby = { ...prev, slots: newSlots };
+                lobbyStateRef.current = newLobby;
+                // Important: Only host broadcasts lobby syncs to prevent infinite loops
+                if (isHost) {
+                    setTimeout(() => broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby }), 100);
+                }
+                return newLobby;
+            });
+
+            if (myAddress && isHost) {
                 conn.send({
                     type: 'SYNC_PROFILE',
                     address: myAddress,
@@ -984,6 +1009,23 @@ const TeamUpProvider = ({ children }: { children: ReactNode }) => {
 
         return () => clearInterval(timer);
     }, [isHost, lobbyState, broadcastToAll]);
+
+    // ─── Proactive Profile Broadcasting ───
+    // If myAddress or myProfile arrives late (after connection), broadcast it to everyone
+    useEffect(() => {
+        if (!myAddress || !isLobbyConnected) return;
+
+        console.log('📢 Proactively broadcasting profile to all connections...');
+        const profileMsg = {
+            type: 'SYNC_PROFILE',
+            address: myAddress,
+            username: myProfile?.username || (isHost ? 'Host' : 'Guest'),
+            avatar_url: myProfile?.avatar_url || '',
+            validationToken: validationToken
+        };
+
+        broadcastToAll(profileMsg);
+    }, [myAddress, myProfile?.username, myProfile?.avatar_url, isLobbyConnected, isHost, broadcastToAll, validationToken]);
 
     // ─── Global Peer Cleanup ───
     useEffect(() => {

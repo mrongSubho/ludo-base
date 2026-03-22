@@ -263,7 +263,7 @@ export function handleThreeSixes(
 // --- Lobby Management Helpers ---
 
 const LOBBY_COLORS: Record<string, PlayerColor[]> = {
-    '1v1': ['green', 'red'],
+    '1v1': ['green', 'yellow'], // Changed from ['green', 'red'] to ensure diagonal opposition
     '2v2': ['green', 'yellow', 'red', 'blue'],
     '4P': ['green', 'red', 'yellow', 'blue'],
 };

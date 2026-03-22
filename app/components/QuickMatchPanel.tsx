@@ -98,7 +98,8 @@ export const QuickMatchPanel = ({
         joinGame, 
         isLobbyConnected, 
         isHost: p2pHost,
-        lobbyState
+        lobbyState,
+        participants
     } = useTeamUpContext();
     const [tipIndex, setTipIndex] = useState(0);
     const [hasExpanded, setHasExpanded] = useState(false);
@@ -123,16 +124,28 @@ export const QuickMatchPanel = ({
     }, []);
 
     useEffect(() => {
-        if (status === 'matched' && isLobbyConnected && p2pHost) {
-            const joinedCount = lobbyState?.slots.filter(s => s.status === 'joined').length || 0;
+        if (status === 'matched' && isLobbyConnected && p2pHost && lobbyState) {
+            const joinedSlots = lobbyState.slots.filter(s => s.status === 'joined');
+            const joinedCount = joinedSlots.length;
             const targetCount = matchType === '1v1' ? 2 : (matchType === '2v2' ? 4 : 4);
             
-            if (joinedCount >= targetCount) {
-                console.log('🚀 [QuickMatch] P2P Mesh ready. Auto-starting game...');
+            // CRITICAL GUARD: Only start if all joined slots have real names (not "Guest")
+            // and we have profiles for everyone in the participants map.
+            const allProfilesSynced = joinedSlots.every(s => 
+                s.playerName && 
+                s.playerName !== 'Guest' && 
+                s.playerName !== 'Host' && // Actual guest names shouldn't be 'Host' either
+                participants[s.playerId?.toLowerCase() || '']
+            );
+
+            if (joinedCount >= targetCount && allProfilesSynced) {
+                console.log('🚀 [QuickMatch] P2P Mesh ready and profiles synced. Auto-starting game...');
                 onStartGame(false);
+            } else if (joinedCount >= targetCount && !allProfilesSynced) {
+                console.log('⏳ [QuickMatch] Match full, but waiting for profiles to sync...');
             }
         }
-    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame]);
+    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
