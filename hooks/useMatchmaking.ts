@@ -26,6 +26,8 @@ export function useMatchmaking({
 }) {
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
     const [ticketId, setTicketId] = useState<string | null>(null);
+    const [matchId, setMatchId] = useState<string | null>(null);
+    const [roomCode, setRoomCode] = useState<string | null>(null);
     const [searchTime, setSearchTime] = useState(0);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -54,6 +56,8 @@ export function useMatchmaking({
 
         // Clean up
         setTicketId(null);
+        setMatchId(null);
+        setRoomCode(null);
         setStatus('idle');
         setSearchTime(0);
         if (timerRef.current) clearInterval(timerRef.current);
@@ -100,6 +104,9 @@ export function useMatchmaking({
             if (data.status === 'matched') {
                 console.log('✅ [Matchmaking] DIRECT MATCH found. YOU ARE THE GUEST.');
                 setStatus('matched');
+                setMatchId(data.match_id);
+                setRoomCode(data.room_code || '');
+                
                 // Synchronization Delay: Give the Host 800ms to initialize Peer room
                 setTimeout(() => {
                     onMatchFoundRef.current(data.match_id, data.room_code, false); 
@@ -162,6 +169,9 @@ export function useMatchmaking({
             if (data.status === 'matched') {
                 console.log('✅ [Matchmaking] HYBRID MATCH found. YOU ARE THE GUEST.');
                 setStatus('matched');
+                setMatchId(data.match_id);
+                setRoomCode(data.room_code || '');
+
                 // Synchronization Delay: Give the Host 800ms to initialize Peer room
                 setTimeout(() => {
                     onMatchFoundRef.current(data.match_id, data.room_code || '', false);
@@ -210,7 +220,11 @@ export function useMatchmaking({
                     if (newStatus === 'matched') {
                         console.log(`✅ [Matchmaking] YOU ARE THE HOST. Opponent joined. Match: ${match_id}`);
                         if (timerRef.current) clearInterval(timerRef.current);
+                        
+                        setMatchId(match_id);
+                        setRoomCode(room_code || '');
                         setStatus('matched');
+                        
                         // Host joins immediately without delay
                         onMatchFoundRef.current(match_id, room_code || '', true);
                     }
@@ -251,18 +265,26 @@ export function useMatchmaking({
         };
     }, [cancelSearch]);
 
-    // Independent unmount cleanup for timers
+    // Independent unmount cleanup for timers and search
     useEffect(() => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
             if (pollingRef.current) clearInterval(pollingRef.current);
+            
+            // Auto-cancel if still searching on unmount
+            if (statusRef.current === 'searching' || statusRef.current === 'expanding') {
+                console.log('📡 [Matchmaking] Component unmounting. Cancelling search...');
+                cancelSearch();
+            }
         };
-    }, []);
+    }, [cancelSearch]);
 
     return {
         status,
         searchTime,
         ticketId,
+        matchId,
+        roomCode,
         startSearch,
         startHybridSearch,
         cancelSearch

@@ -22,7 +22,10 @@ The matchmaking system uses PostgreSQL advisory locks to prevent race conditions
 - **Handover:** 
     - The **Host** (the player already in the queue) calls `hostGame(roomCode)`.
     - The **Guest** (the searcher who found the match) calls `joinGame(roomCode)`.
-    - This establishes the direct P2P link between them using PeerJS.
+- **Robustness (Phase 7):**
+    - **Guest Retries:** Guests now attempt to connect to the Host up to **5 times** with exponential backoff if the host room isn't ready.
+    - **Sync Delay:** Guests wait **800ms** before the first connection attempt to allow Host initialization.
+    - **Clean Handshake:** PeerJS connection logic is strictly synchronized to prevent "stuck" reveal screens.
 
 ### 2.2 Hybrid Communication Model
 - **Primary:** PeerJS (WebRTC) for low-latency turns, dice sync, and movement.
@@ -30,6 +33,7 @@ The matchmaking system uses PostgreSQL advisory locks to prevent race conditions
     - Lobby events and invites.
     - Mirroring gameplay intents (`broadcastAction`) to ensure all participants stay in sync.
 - **Audit:** All actions are signed with an `actionId` to prevent double-processing.
+- **Cleanup:** Automatically clears searching tickets upon component unmount to prevent ghost matches.
 
 ---
 
@@ -105,10 +109,12 @@ AI evaluates power usage independently of movement:
 - **Screen Shake**: Capturing an opponent triggers a subtle board-wide vibration.
 - **Celebration Glow**: The central Finish Zone emits a cyan/purple glow when a player wins.
 - **Match Reveal Overlay**: High-intensity "MATCH!" screen with glassmorphism, rival profile fetching (username/avatar), and match criteria (1v1, mode, wager).
+- **Match Optimizer Dock**: Redesigned bottom-anchored HUD for search expansion options, replacing intrusive central popups.
 
 ### Technical Guardrails
 - **Safe Match Cancellation**: Users can safely exit the "Match Found" screen before the P2P synchronization finishes without losing coins or rating points.
 - **P2P Synchronization**: The game only starts once all PeerJS slots are occupied, ensuring all participants are connected before the board loads.
+- **State Synchronization**: Strictly synced `roomCode` and `matchId` state across `useMatchmaking` and `QuickMatchPanel` to prevent UI stalls.
 - **Matchmaking Logging**: Enhanced logging in `useMatchmaking` to track direct matches vs. queue updates.
 - **Sandwich Layout:** All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
 - **Presence:** Realtime tracking of online friends via the `PresenceManager`.

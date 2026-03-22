@@ -70,6 +70,8 @@ export const QuickMatchPanel = ({
         status, 
         searchTime, 
         ticketId,
+        matchId: hookMatchId,
+        roomCode: hookRoomCode,
         startSearch, 
         startHybridSearch, 
         cancelSearch 
@@ -130,9 +132,12 @@ export const QuickMatchPanel = ({
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame]);
 
+    // Use roomCode from hook preferentially (it updates dynamically during match)
+    const activeRoomCode = hookRoomCode || roomCode;
+
     // Fetch Opponent Profile when matched
     useEffect(() => {
-        if (status === 'matched' && roomCode) {
+        if (status === 'matched' && activeRoomCode) {
             const fetchOpponentData = async () => {
                 setIsLoadingRival(true);
                 try {
@@ -140,7 +145,7 @@ export const QuickMatchPanel = ({
                     const { data: match, error: matchError } = await supabase
                         .from('matches')
                         .select('participants')
-                        .eq('room_code', roomCode)
+                        .eq('room_code', activeRoomCode)
                         .maybeSingle();
 
                     if (matchError || !match || !match.participants) throw new Error('Match record not found or no participants');

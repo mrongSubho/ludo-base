@@ -187,8 +187,10 @@ export type Database = {
           expires_at: string
           game_mode: string
           id: string
+          match_id: string | null
           match_type: string
           player_id: string
+          room_code: string | null
           status: string | null
           wager: number | null
         }
@@ -197,8 +199,10 @@ export type Database = {
           expires_at: string
           game_mode: string
           id?: string
+          match_id?: string | null
           match_type: string
           player_id: string
+          room_code?: string | null
           status?: string | null
           wager?: number | null
         }
@@ -207,8 +211,10 @@ export type Database = {
           expires_at?: string
           game_mode?: string
           id?: string
+          match_id?: string | null
           match_type?: string
           player_id?: string
+          room_code?: string | null
           status?: string | null
           wager?: number | null
         }
