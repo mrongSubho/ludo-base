@@ -42,9 +42,17 @@ export function useMatchmaking({
         ticketIdRef.current = ticketId;
     }, [status, onMatchFound, ticketId]);
 
-    const cancelSearch = useCallback(async (allForPlayer: boolean = false) => {
+    const cancelSearch = useCallback(async (allForPlayer: boolean = false, skipStateReset: boolean = false) => {
         const currentTicketId = ticketIdRef.current;
-        if (!currentTicketId && !allForPlayer) return;
+        if (!currentTicketId && !allForPlayer) {
+            // Even if no ticket, we might still want to clear search session
+            if (!skipStateReset) {
+                setStatus('idle');
+                setSearchTime(0);
+                if (timerRef.current) clearInterval(timerRef.current);
+            }
+            return;
+        }
  
         console.log(`📡 [Matchmaking] ${allForPlayer ? 'Purging player tickets' : 'Cancelling current ticket'}...`);
         try {
@@ -61,14 +69,16 @@ export function useMatchmaking({
         }
  
         // Clean up
-        setTicketId(null);
-        setMatchId(null);
-        setRoomCode(null);
-        setStatus('idle');
-        setSearchTime(0);
-        if (timerRef.current) clearInterval(timerRef.current);
-        if (pollingRef.current) clearInterval(pollingRef.current);
-        lastSearchRef.current = ''; // Clear so we can restart with same criteria
+        if (!skipStateReset) {
+            setTicketId(null);
+            setMatchId(null);
+            setRoomCode(null);
+            setStatus('idle');
+            setSearchTime(0);
+            if (timerRef.current) clearInterval(timerRef.current);
+            if (pollingRef.current) clearInterval(pollingRef.current);
+            lastSearchRef.current = ''; // Clear so we can restart with same criteria
+        }
     }, [playerId]);
 
     const lastSearchRef = useRef<string>('');
@@ -100,7 +110,7 @@ export function useMatchmaking({
 
         // 3. Purge stale tickets (this might take a second)
         try {
-            await cancelSearch(true);
+            await cancelSearch(true, true); // Pass skipStateReset=true
         } catch (e) {
             console.error('❌ [Matchmaking] Purge failed, but proceeding...', e);
         }
@@ -150,7 +160,24 @@ export function useMatchmaking({
         setStatus('searching');
         setSearchTime(0);
 
+        // Clear & Restart Timer immediately
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        timerRef.current = setInterval(() => {
+            setSearchTime(prev => {
+                const newTime = prev + 1;
+                if (newTime === 16) setStatus('expanding');
+                if (newTime >= 30) {
+                    setStatus('timeout');
+                    if (timerRef.current) clearInterval(timerRef.current);
+                }
+                return newTime;
+            });
+        }, 1000);
+
         try {
+            // Purge any other active tickets for this player first
+            await cancelSearch(true, true);
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
