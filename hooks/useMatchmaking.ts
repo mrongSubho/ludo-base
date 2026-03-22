@@ -255,6 +255,7 @@ export function useMatchmaking({
     return {
         status,
         searchTime,
+        ticketId,
         startSearch,
         startHybridSearch,
         cancelSearch

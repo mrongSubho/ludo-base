@@ -68,10 +68,11 @@ export const QuickMatchPanel = ({
     const { address, profile, displayName: finalName } = useCurrentUser();
     const { 
         status, 
-        searchTime,
+        searchTime, 
+        ticketId,
         startSearch, 
-        cancelSearch, 
-        startHybridSearch
+        startHybridSearch, 
+        cancelSearch 
     } = useMatchmaking({
         playerId: address || '',
         gameMode,
@@ -285,35 +286,75 @@ export const QuickMatchPanel = ({
                                 <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px] relative">
                                     {/* Radar System Visual - Persistent while searching or error */}
                                     {status !== 'idle' && status !== 'matched' && (
-                                        <div className="relative w-64 h-64 flex items-center justify-center">
-                                            <DashedRadarRing color={status === 'error' || status === 'timeout' ? "#ef4444" : "#22d3ee"} />
-                                            
-                                            {/* Pulsing Dots / Center Icon */}
-                                            <div className="relative z-10 w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-                                                <motion.div
-                                                    animate={{ 
-                                                        scale: [1, 1.2, 1],
-                                                        opacity: [0.5, 1, 0.5]
-                                                    }}
-                                                    transition={{ duration: 2, repeat: Infinity }}
-                                                    className="text-4xl"
-                                                >
-                                                    🎲
-                                                </motion.div>
+                                        <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
+                                            {/* 1. Outer Rotating Ring (Slow) */}
+                                            <motion.div
+                                                animate={{ rotate: 360 }}
+                                                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                                                className="absolute inset-0 border-2 border-dashed border-cyan-500/20 rounded-full"
+                                            />
+
+                                            {/* 2. Middle Pulsing Sonar */}
+                                            <motion.div
+                                                animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+                                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                                className="absolute inset-10 border border-white/10 rounded-full"
+                                            />
+
+                                            {/* 3. Fast Counter-Rotating Dash Ring */}
+                                            <motion.div
+                                                animate={{ rotate: -360 }}
+                                                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                                                className="absolute inset-16 border border-dotted border-cyan-400/40 rounded-full"
+                                            />
+
+                                            {/* 4. Scanner Sweep (Conic Gradient) */}
+                                            <motion.div
+                                                animate={{ rotate: 360 }}
+                                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                                className="absolute inset-0 rounded-full"
+                                                style={{
+                                                    background: 'conic-gradient(from 0deg, transparent 70%, rgba(34, 211, 238, 0.2) 100%)'
+                                                }}
+                                            />
+
+                                            {/* 5. Central Data Core (Timer) */}
+                                            <div className="relative z-10 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full border border-white/10 flex flex-col items-center justify-center backdrop-blur-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] group overflow-hidden">
+                                                {/* Inner Glow Surround */}
+                                                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-blue-500/10 opacity-50 group-hover:opacity-80 transition-opacity" />
+                                                
+                                                {/* Scanning Line Animation */}
+                                                <motion.div 
+                                                    animate={{ top: ['-10%', '110%'] }}
+                                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                                    className="absolute left-0 right-0 h-[1px] bg-cyan-400/30 z-20 shadow-[0_0_10px_rgba(34,211,238,0.8)]"
+                                                />
+
+                                                <div className="relative z-30 flex flex-col items-center">
+                                                    <span className="text-2xl md:text-3xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+                                                        {searchTime}s
+                                                    </span>
+                                                    <span className="text-[8px] font-black text-white/30 tracking-[0.2em] uppercase mt-1">
+                                                        Time
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             {/* Status Text overlay */}
-                                            <div className="absolute top-[80%] flex flex-col items-center gap-1">
-                                                <span className={`text-[10px] uppercase font-black tracking-[0.3em] ${(status === 'error' || status === 'timeout') ? 'text-red-400' : 'text-cyan-400'} animate-pulse`}>
-                                                    {status === 'error' ? 'Link Fault detected' : 
-                                                     status === 'timeout' ? 'Search Timed Out' : 
-                                                     status === 'expanding' ? 'Expanding Search' : 
-                                                     'Scanning the Arena'}
-                                                </span>
-                                                <span className="text-white/20 text-[8px] uppercase font-bold tracking-widest text-center max-w-[200px]">
-                                                    {status === 'error' ? 'Retrying Connection...' : 
-                                                     status === 'timeout' ? 'Please try again later' :
-                                                     'Searching for Rival...'}
+                                            <div className="absolute top-[85%] flex flex-col items-center gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                                                    <span className={`text-[10px] uppercase font-black tracking-[0.3em] ${(status === 'error' || status === 'timeout') ? 'text-red-400' : 'text-cyan-400'}`}>
+                                                        {status === 'error' ? 'FAULT DETECTED' : 
+                                                         status === 'timeout' ? 'LINK TIMEOUT' : 
+                                                         status === 'expanding' ? 'EXPANDING RANGE' : 
+                                                         'SCANNING ARENA'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-white/20 text-[8px] uppercase font-bold tracking-widest text-center max-w-[200px] italic">
+                                                    {status === 'error' ? 'Retrying Link...' : 
+                                                     status === 'timeout' ? 'Connection Unstable' :
+                                                     `TICKET: ${ticketId?.slice(0, 8) || 'INITIALIZING'}`}
                                                 </span>
                                             </div>
                                         </div>
