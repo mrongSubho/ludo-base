@@ -69,19 +69,38 @@ export function useMatchmaking({
     }, [ticketId, playerId]);
 
     const lastSearchRef = useRef<string>('');
-
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
         const normalizedPlayerId = playerId.toLowerCase();
         const criteria = `${normalizedPlayerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
-        const currentStatus = statusRef.current;
-        
-        // Always purge stale tickets before starting a new search to prevent "Shadow Matches"
-        await cancelSearch(true);
         
         console.log(`📡 [Matchmaking] Starting NEW search. Criteria: ${criteria}`);
-        lastSearchRef.current = criteria;
+        
+        // 1. Instant UI Reset
         setStatus('searching');
         setSearchTime(0);
+        lastSearchRef.current = criteria;
+        
+        // 2. Clear & Restart Timer immediately
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        timerRef.current = setInterval(() => {
+            setSearchTime(prev => {
+                const newTime = prev + 1;
+                if (newTime === 16) setStatus('expanding');
+                if (newTime >= 30) {
+                    setStatus('timeout');
+                    if (timerRef.current) clearInterval(timerRef.current);
+                }
+                return newTime;
+            });
+        }, 1000);
+
+        // 3. Purge stale tickets (this might take a second)
+        try {
+            await cancelSearch(true);
+        } catch (e) {
+            console.error('❌ [Matchmaking] Purge failed, but proceeding...', e);
+        }
 
         try {
             const response = await fetch('/api/matchmaking/join', {
@@ -114,27 +133,7 @@ export function useMatchmaking({
                 console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
 
-                // Start Timer (Phase 1/2) - No longer starts polling here
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerRef.current = setInterval(() => {
-                    setSearchTime(prev => {
-                        const newTime = prev + 1;
-
-                        // Phase 2: Expanding Search (16s - 29s)
-                        if (newTime === 16) {
-                            setStatus('expanding');
-                        }
-
-                        // Phase 3: Timeout (30s)
-                        if (newTime >= 30) {
-                            setStatus('timeout');
-                            lastSearchRef.current = ''; 
-                            if (timerRef.current) clearInterval(timerRef.current);
-                        }
-
-                        return newTime;
-                    });
-                }, 1000);
+                // Timer already started at top of startSearch
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Error starting search:', err);

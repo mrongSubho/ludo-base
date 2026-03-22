@@ -47,6 +47,12 @@ export default function GameLobby({
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
+    const [searchId, setSearchId] = useState(0);
+
+    const handleStartQuickMatch = () => {
+        setSearchId(prev => prev + 1);
+        setIsQuickMatchActive(true);
+    };
 
     const handleCancelQuickMatch = useCallback(() => setIsQuickMatchActive(false), []);
 
@@ -146,7 +152,7 @@ export default function GameLobby({
                     {/* 3. ACTION DICE - Now perfectly spaced below the entry fee */}
                     <div className="w-full flex justify-center pt-8 relative z-30">
                         <ActionDice 
-                            onSelectQuickMatch={() => setIsQuickMatchActive(true)}
+                            onSelectQuickMatch={handleStartQuickMatch}
                             onSelectTeamUp={() => setShowTeamUpOptions(true)}
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}
                         />
@@ -194,7 +200,7 @@ export default function GameLobby({
 
             {(isQuickMatchActive || lobbyState?.status === 'quickmatch') && (
                 <QuickMatchPanel
-                    key="quickmatch"
+                    key={`quickmatch-${searchId}`}
                     gameMode={gameMode}
                     matchType={matchType}
                     wager={wager}
