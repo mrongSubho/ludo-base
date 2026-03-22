@@ -98,9 +98,11 @@ export function useMatchmaking({
             const data = await response.json();
 
             if (data.status === 'matched') {
+                console.log('✅ [Matchmaking] DIRECT MATCH found during join request:', data);
                 setStatus('matched');
                 onMatchFoundRef.current(data.match_id, data.room_code, data.role === 'host');
             } else {
+                console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
                 setTicketId(data.ticket_id);
 
                 // Start Timer (Phase 1/2) - No longer starts polling here

@@ -100,10 +100,16 @@ AI evaluates power usage independently of movement:
 ---
 
 ## 6. UI & UX Aesthetics [app/components/Board.tsx, etc.]
-- **Visual Feedback:** 
-    - **Token Pulse:** Active player's tokens gently pulse to guide the eye.
-    - **Impact Vibration:** Screen shake effect on captures and explosions.
-    - **Victory Glow:** The Finish Zone celebrates with a golden aura when tokens reach the goal.
+### UI/UX Aesthetics
+- **Token Pulse**: Active player tokens pulse to indicate they are ready for action.
+- **Screen Shake**: Capturing an opponent triggers a subtle board-wide vibration.
+- **Celebration Glow**: The central Finish Zone emits a cyan/purple glow when a player wins.
+- **Match Reveal Overlay**: High-intensity "MATCH!" screen with glassmorphism, rival profile fetching (username/avatar), and match criteria (1v1, mode, wager).
+
+### Technical Guardrails
+- **Safe Match Cancellation**: Users can safely exit the "Match Found" screen before the P2P synchronization finishes without losing coins or rating points.
+- **P2P Synchronization**: The game only starts once all PeerJS slots are occupied, ensuring all participants are connected before the board loads.
+- **Matchmaking Logging**: Enhanced logging in `useMatchmaking` to track direct matches vs. queue updates.
 - **Sandwich Layout:** All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
 - **Presence:** Realtime tracking of online friends via the `PresenceManager`.
 

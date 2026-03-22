@@ -6,6 +6,7 @@ import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
+import { supabase } from '@/lib/supabase';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -98,6 +99,8 @@ export const QuickMatchPanel = ({
     const [hasExpanded, setHasExpanded] = useState(false);
     const [showExpansionOptions, setShowExpansionOptions] = useState(false);
     const [wagerRange, setWagerRange] = useState<{ min: number; max?: number } | null>(null);
+    const [opponentProfile, setOpponentProfile] = useState<{ username: string; avatar_url: string | null } | null>(null);
+    const [isLoadingRival, setIsLoadingRival] = useState(false);
 
     // Show expansion options at 16s if not already expanded
     useEffect(() => {
@@ -114,8 +117,6 @@ export const QuickMatchPanel = ({
         return () => clearInterval(interval);
     }, []);
 
-    // Start matchmaking on mount
-    // Auto-start game once P2P is connected and all slots are full
     useEffect(() => {
         if (status === 'matched' && isLobbyConnected && p2pHost) {
             const joinedCount = lobbyState?.slots.filter(s => s.status === 'joined').length || 0;
@@ -127,6 +128,52 @@ export const QuickMatchPanel = ({
             }
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame]);
+
+    // Fetch Opponent Profile when matched
+    useEffect(() => {
+        if (status === 'matched' && roomCode) {
+            const fetchOpponentData = async () => {
+                setIsLoadingRival(true);
+                try {
+                    // 1. Get match participants
+                    const { data: match, error: matchError } = await supabase
+                        .from('matches')
+                        .select('participants')
+                        .eq('room_code', roomCode)
+                        .maybeSingle();
+
+                    if (matchError || !match || !match.participants) throw new Error('Match record not found or no participants');
+
+                    // 2. Find opponent's address (case-insensitive find)
+                    const normalizedMyAddress = address?.toLowerCase();
+                    const opponentAddress = match.participants.find((p: string) => p.toLowerCase() !== normalizedMyAddress);
+
+                    if (opponentAddress) {
+                        // 3. Fetch opponent profile
+                        const { data: player, error: playerError } = await supabase
+                            .from('players')
+                            .select('username, avatar_url')
+                            .eq('wallet_address', opponentAddress.toLowerCase())
+                            .maybeSingle();
+
+                        if (player) {
+                            setOpponentProfile({
+                                username: player.username || 'Rival',
+                                avatar_url: player.avatar_url
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error('❌ [QuickMatch] Error fetching rival data:', err);
+                } finally {
+                    setIsLoadingRival(false);
+                }
+            };
+            fetchOpponentData();
+        } else if (status !== 'matched') {
+            setOpponentProfile(null);
+        }
+    }, [status, roomCode, address]);
 
     useEffect(() => {
         if (isHybrid && roomCode) {
@@ -400,30 +447,59 @@ export const QuickMatchPanel = ({
                         {/* Search Reveal Overlay */}
                         {status === 'matched' && (
                             <div
-                                className="absolute inset-0 z-[200] bg-black bg-no-repeat bg-cover flex flex-col items-center justify-center"
+                                className="absolute inset-0 z-[200] flex flex-col items-center justify-center p-6 text-center"
                                 style={{
                                     background: 'var(--ludo-bg-cosmic)',
-                                    backgroundColor: '#1c1c1c'
+                                    backgroundColor: 'rgba(13,13,13,0.85)',
+                                    backdropFilter: 'blur(40px)'
                                 }}
                             >
                                 {/* Cosmic Orbs for Reveal */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] cosmic-orb opacity-30 animate-pulse-slow" />
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] cosmic-orb opacity-30 animate-pulse-slow pointer-events-none" />
 
-                                <div className="relative z-10 flex flex-col items-center gap-12" style={{ pointerEvents: 'auto' }}>
-                                    <div
-                                        className="text-6xl md:text-8xl font-black italic text-white tracking-tighter uppercase drop-shadow-[0_0_50px_rgba(255,255,255,0.3)]"
-                                    >
-                                        Match!
+                                {/* Close Button */}
+                                <button
+                                    onClick={handleCancelAndClose}
+                                    className="absolute top-8 right-8 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all z-[210] pointer-events-auto"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+
+                                <div className="relative z-10 flex flex-col items-center gap-10 w-full" style={{ pointerEvents: 'auto' }}>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div
+                                            className="text-6xl md:text-8xl font-black italic text-white tracking-tighter uppercase drop-shadow-[0_0_50px_rgba(255,255,255,0.3)]"
+                                        >
+                                            Match!
+                                        </div>
+                                        <div className="px-5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-3">
+                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType} Match</span>
+                                            <div className="w-1 h-3 bg-white/10 rounded-full" />
+                                            <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">{gameMode} Mode</span>
+                                            <div className="w-1 h-3 bg-white/10 rounded-full" />
+                                            <div className="flex items-center gap-1">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                                                <span className="text-[10px] font-black text-amber-400 tracking-[0.1em]">{wager.toLocaleString()}</span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="flex items-center gap-8 md:gap-16">
-                                        {/* Player 1 */}
-                                        <div
-                                            className="flex flex-col items-center gap-4"
-                                        >
-                                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2 relative">
-                                                <div className="w-full h-full rounded-2xl overflow-hidden bg-gradient-to-br from-cyan-500/40 to-blue-600/40" />
-                                                <div className="absolute -inset-1 border border-cyan-400/30 rounded-[28px] animate-pulse" />
+                                    <div className="flex items-center justify-around w-full max-w-md">
+                                        {/* Player 1 (You) */}
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="relative">
+                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2">
+                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800">
+                                                        {profile?.avatar_url ? (
+                                                            <img src={profile.avatar_url} alt="You" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-gradient-to-br from-cyan-500/40 to-blue-600/40 flex items-center justify-center text-3xl font-black text-white/20">
+                                                                {finalName?.[0] || 'U'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="absolute -inset-1 border border-cyan-400/30 rounded-[28px] animate-pulse pointer-events-none" />
                                             </div>
                                             <div className="flex flex-col items-center">
                                                 <span className="text-lg md:text-xl font-black text-white italic tracking-tight">{finalName}</span>
@@ -432,46 +508,79 @@ export const QuickMatchPanel = ({
                                         </div>
 
                                         {/* VS Badge */}
-                                        <div
-                                            className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-black flex items-center justify-center text-2xl md:text-3xl font-black italic shadow-[0_0_40px_white]"
-                                        >
-                                            VS
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div
+                                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-black flex items-center justify-center text-2xl md:text-3xl font-black italic shadow-[0_0_40px_white]"
+                                            >
+                                                VS
+                                            </div>
                                         </div>
 
                                         {/* Opponent */}
-                                        <div
-                                            className="flex flex-col items-center gap-4"
-                                        >
-                                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-purple-400/50 flex items-center justify-center p-2 relative overflow-hidden group">
-                                                <div className="w-full h-full rounded-2xl overflow-hidden bg-gradient-to-br from-purple-500/40 to-pink-600/40 relative">
-                                                    <div
-                                                        className="absolute inset-0 bg-white/10 animate-pulse"
-                                                    />
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="relative">
+                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-purple-400/50 flex items-center justify-center p-2">
+                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800 flex items-center justify-center">
+                                                        {isLoadingRival ? (
+                                                            <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                                                        ) : opponentProfile?.avatar_url ? (
+                                                            <img src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-gradient-to-br from-purple-500/40 to-pink-600/40 flex items-center justify-center">
+                                                                <svg
+                                                                    className="w-12 h-12 md:w-16 md:h-16 text-white/20"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                >
+                                                                    <rect x="3" y="8" width="18" height="10" rx="2" />
+                                                                    <circle cx="12" cy="4" r="2" />
+                                                                    <path d="M12 6v2" />
+                                                                </svg>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
-
-                                                <svg
-                                                    className="absolute w-12 h-12 md:w-16 md:h-16 text-white/20"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                >
-                                                    <rect x="3" y="8" width="18" height="10" rx="2" />
-                                                    <circle cx="12" cy="4" r="2" />
-                                                    <path d="M12 6v2" />
-                                                    <line x1="8" y1="13" x2="8.01" y2="13" strokeWidth="3" />
-                                                    <line x1="16" y1="13" x2="16.01" y2="13" strokeWidth="3" />
-                                                </svg>
+                                                {!isLoadingRival && <div className="absolute -inset-1 border border-purple-400/30 rounded-[28px] animate-pulse pointer-events-none" />}
                                             </div>
                                             <div className="flex flex-col items-center">
-                                                <h3 className="text-lg md:text-xl font-black text-white italic tracking-tighter neon-glow-cyan text-center">
-                                                    Rival
+                                                <h3 className="text-lg md:text-xl font-black text-white italic tracking-tighter text-center">
+                                                    {isLoadingRival ? 'Scanning...' : (opponentProfile?.username || 'Rival')}
                                                 </h3>
-                                                <div className="mt-1 bg-amber-500/20 px-3 py-0.5 rounded-full border border-amber-500/50">
-                                                    <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest">Lv. ?</span>
+                                                <div className="mt-1 bg-amber-500/10 px-3 py-0.5 rounded-full border border-amber-500/30">
+                                                    <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Lv. ?</span>
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Connection Status Subtext */}
+                                    <div className="mt-4 flex flex-col items-center gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex gap-1.5">
+                                                {[0, 1, 2].map(i => (
+                                                    <motion.div
+                                                        key={i}
+                                                        animate={{ opacity: [0.2, 1, 0.2] }}
+                                                        transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                                                        className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Establishing P2P Secure Link</span>
+                                        </div>
+
+                                        <button
+                                            onClick={handleCancelAndClose}
+                                            className="px-8 py-3 rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-[0.2em]"
+                                        >
+                                            Cancel Match
+                                        </button>
+                                        
+                                        <p className="max-w-[280px] text-[9px] text-white/20 italic leading-relaxed">
+                                            Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
