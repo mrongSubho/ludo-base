@@ -141,6 +141,38 @@ a {
   overflow: hidden;
 }
 
+body.theme-cosmic-ui {
+  background: var(--ludo-bg-cosmic);
+}
+
+body.theme-cosmic-ui .cosmic-orb { display: block; }
+body.theme-cosmic-ui .boot-dot { display: none; }
+
+/* 🔵 Theme: Cosmic Dark (High Contrast Android) */
+body.theme-cosmic-dark {
+  background-color: #000000 !important;
+  background: #000000 !important;
+}
+
+body.theme-cosmic-dark .cosmic-orb { display: none; }
+body.theme-cosmic-dark .boot-dot { display: block; }
+
+body.theme-cosmic-dark {
+  --panel-bg: rgba(13, 13, 13, 0.95);
+  --panel-border: rgba(255, 255, 255, 0.05);
+  --panel-blur: 32px;
+  --panel-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+}
+
+.boot-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  opacity: 0.1;
+  pointer-events: none;
+  filter: blur(2px);
+}
+
 /* Pulsing Cosmic Orbs - Shifted from bright white to deep colored tones to prevent washout */
 .cosmic-orb {
   position: absolute;

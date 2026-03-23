@@ -234,6 +234,12 @@ export default function Page() {
         <div className="cosmic-orb cosmic-orb-1 opacity-20 scale-100" />
         <div className="cosmic-orb cosmic-orb-2 opacity-15 scale-75" />
         <div className="cosmic-orb cosmic-orb-3 opacity-10 scale-50" />
+
+        {/* High-Contrast Dots (Cosmic Dark) */}
+        <div className="boot-dot !w-[180px] !h-[180px] top-[10%] left-[5%] opacity-[0.03]" />
+        <div className="boot-dot !w-[180px] !h-[180px] top-[40%] right-[15%] opacity-[0.02]" />
+        <div className="boot-dot !w-[180px] !h-[180px] bottom-[20%] left-[20%] opacity-[0.03]" />
+        <div className="boot-dot !w-[180px] !h-[180px] bottom-[15%] right-[5%] opacity-[0.015]" />
       </div>
 
       {!isConnected ? (
