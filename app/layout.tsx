@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './Providers';
+import { cookies } from 'next/headers';
 
 const APP_URL = 'https://ludo-base.vercel.app';
 
@@ -33,17 +34,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const theme = cookieStore.get('ludo-theme')?.value;
+  
+  let themeClass = 'theme-cosmic-ui'; // Default
+  if (theme === 'dark') themeClass = 'theme-cosmic-dark';
+  if (theme === 'retro') themeClass = 'theme-retro-futurism';
   return (
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </head>
-      <body suppressHydrationWarning>
+      <body className={themeClass} suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

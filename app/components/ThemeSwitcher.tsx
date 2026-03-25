@@ -1,35 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { usePreferences } from '@/hooks/usePreferences';
 
-type Theme = 'default' | 'midnight' | 'cyberpunk' | 'classic';
+type Theme = 'ui' | 'dark' | 'retro';
 
 export default function ThemeSwitcher() {
-    const [activeTheme, setActiveTheme] = useState<'ui' | 'dark'>('ui');
+    const { preferences, updatePreference } = usePreferences();
+    const activeTheme = preferences.theme as Theme;
 
-    useEffect(() => {
-        const saved = localStorage.getItem('ludo-theme');
-        if (saved === 'dark') {
-            setActiveTheme('dark');
-            document.body.classList.add('theme-cosmic-dark');
-            document.body.classList.remove('theme-cosmic-ui');
-        } else {
-            document.body.classList.add('theme-cosmic-ui');
-            document.body.classList.remove('theme-cosmic-dark');
-        }
-    }, []);
-
-    const toggleTheme = (theme: 'ui' | 'dark') => {
+    const toggleTheme = (theme: Theme) => {
         if (theme === activeTheme) return;
-        setActiveTheme(theme);
-        localStorage.setItem('ludo-theme', theme);
-        if (theme === 'dark') {
-            document.body.classList.add('theme-cosmic-dark');
-            document.body.classList.remove('theme-cosmic-ui');
-        } else {
-            document.body.classList.add('theme-cosmic-ui');
-            document.body.classList.remove('theme-cosmic-dark');
-        }
+        updatePreference('ludo-theme', theme);
     };
 
     return (
@@ -47,6 +28,13 @@ export default function ThemeSwitcher() {
             >
                 <span className="theme-icon">🌑</span>
                 <span className="theme-label">Cosmic Dark</span>
+            </div>
+            <div 
+                onClick={() => toggleTheme('retro')}
+                className={`theme-inline-btn ${activeTheme === 'retro' ? 'active' : 'cursor-pointer'}`}
+            >
+                <span className="theme-icon">⚡</span>
+                <span className="theme-label">Retro-Futurism</span>
             </div>
         </div>
     );

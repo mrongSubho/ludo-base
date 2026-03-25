@@ -4,16 +4,16 @@
    =========================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Russo+One&display=swap');
 @import "tailwindcss";
 
-/* ─── Step 1: @theme — Tailwind-accessible design tokens ─── */
 @theme {
   --color-ludo-background: var(--ludo-bg);
   --color-ludo-card: var(--ludo-card);
-  --color-ludo-sage: var(--ludo-sage);
-  --color-ludo-rose: var(--ludo-rose);
-  --color-ludo-sky: var(--ludo-sky);
-  --color-ludo-amber: var(--ludo-amber);
+  --color-ludo-green: var(--ludo-green);
+  --color-ludo-red: var(--ludo-red);
+  --color-ludo-blue: var(--ludo-blue);
+  --color-ludo-yellow: var(--ludo-yellow);
   --color-ludo-slate: var(--ludo-slate);
 
   --color-ludo-blue: var(--ludo-blue);
@@ -34,46 +34,50 @@
     radial-gradient(circle at 80% 90%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.35'/%3E%3C/svg%3E");
 
-  --ludo-bg: #0d0d0d;
-  /* Darkened base to make grain and flares pop */
-  --ludo-card: rgba(255, 255, 255, 0.03);
-  /* Translucent silver card base */
+  --ludo-bg: #f8fafc;
+  --ludo-card: #ffffff;
+  --ludo-border: #e2e8f0;
+  --ludo-text: #1e293b;
+  --ludo-muted: #64748b;
+  --ludo-faint: #cbd5e1;
+  --ludo-slate: #1e293b;
 
-  /* Vibrant Traditional Palette */
-  --ludo-sage: #4CAF50;
-  /* Pure Vibrant Green */
-  --ludo-rose: #F44336;
-  /* Pure Vibrant Red */
-  --ludo-sky: #2196F3;
-  /* Pure Vibrant Blue */
-  --ludo-amber: #FFEB3B;
-  /* Pure Vibrant Yellow */
+  /* Standard Ludo Palette (Light) */
+  --ludo-green: #22c55e;
+  --ludo-red: #ef4444;
+  --ludo-yellow: #eab308;
+  --ludo-blue: #3b82f6;
 
-  --ludo-slate: #FFFFFF;
-  --ludo-blue: #2196F3;
-  --ludo-blue-soft: rgba(33, 150, 243, 0.2);
-  --ludo-text: #FFFFFF;
-  --ludo-muted: #AAAAAA;
-  --ludo-faint: #444444;
-  --ludo-border: rgba(255, 255, 255, 0.15);
-  /* Sharper Grid Lines */
-
-  --ludo-sage-contrast: #FFFFFF;
-  --ludo-rose-contrast: #FFFFFF;
-  --ludo-sky-contrast: #FFFFFF;
-  --ludo-amber-contrast: #000000;
-
-  --ludo-bg-image: var(--ludo-bg-cosmic);
-  --ludo-bg-rgb: 13, 13, 13;
+  --ludo-bg-image: none;
+  --ludo-bg-rgb: 248, 250, 252;
 
   /* Consolidated Utility Tokens */
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-pill: 0 2px 12px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.05);
+  --shadow-pill: 0 2px 12px rgba(0, 0, 0, 0.05);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-pill: 9999px;
+}
+
+body.theme-cosmic-ui {
+  --ludo-bg: #0d0d0d;
+  --ludo-card: rgba(255, 255, 255, 0.05);
+  --ludo-text: #ffffff;
+  --ludo-slate: #ffffff;
+  --ludo-bg-image: var(--ludo-bg-cosmic);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+body.theme-cosmic-dark {
+  --ludo-bg: #050505;
+  --ludo-card: rgba(15, 15, 20, 0.82);
+  --ludo-text: #f8fafc;
+  --ludo-border: rgba(255, 255, 255, 0.1);
+  --ludo-slate: #f8fafc;
+  --ludo-bg-image: var(--ludo-bg-cosmic);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 
 /* ─── Step 2: Base styles ─── */
@@ -96,10 +100,9 @@ body {
   touch-action: none;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--ludo-bg);
-  background: var(--ludo-bg-cosmic) !important;
-  background-blend-mode: color-dodge, screen, screen, screen, overlay !important;
-  background-size: cover;
+  background: var(--ludo-bg-image);
   background-attachment: fixed;
+  background-size: cover;
   background-position: center;
   color: var(--color-ludo-slate);
   -webkit-font-smoothing: antialiased;
@@ -142,26 +145,95 @@ a {
 }
 
 body.theme-cosmic-ui {
-  background: var(--ludo-bg-cosmic);
+  --ludo-bg: #0d0d0d;
+  --ludo-card: rgba(255, 255, 255, 0.05);
+  --ludo-text: #ffffff;
+  --ludo-slate: #ffffff;
+  --ludo-bg-image: var(--ludo-bg-cosmic);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
 body.theme-cosmic-ui .cosmic-orb { display: block; }
 body.theme-cosmic-ui .boot-dot { display: none; }
 
-/* 🔵 Theme: Cosmic Dark (High Contrast Android) */
 body.theme-cosmic-dark {
-  background-color: #000000 !important;
-  background: #000000 !important;
+  --ludo-bg: #050505;
+  --ludo-card: rgba(15, 15, 20, 0.82);
+  --ludo-text: #f8fafc;
+  --ludo-border: rgba(255, 255, 255, 0.1);
+  --ludo-slate: #f8fafc;
+  --ludo-bg-image: var(--ludo-bg-cosmic);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --panel-bg: rgba(13, 13, 13, 0.95);
+  --panel-border: rgba(255, 255, 255, 0.05);
+  --panel-blur: 32px;
+  --panel-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
 }
 
 body.theme-cosmic-dark .cosmic-orb { display: none; }
 body.theme-cosmic-dark .boot-dot { display: block; }
 
-body.theme-cosmic-dark {
-  --panel-bg: rgba(13, 13, 13, 0.95);
-  --panel-border: rgba(255, 255, 255, 0.05);
-  --panel-blur: 32px;
-  --panel-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+/* 🧬 Theme: Retro-Futurism (Synthwave) */
+body.theme-retro-futurism {
+  /* Core Variables (overrides :root) */
+  --ludo-bg: #0F0F23;
+  --ludo-card: rgba(15, 15, 35, 0.85);
+  --ludo-border: rgba(124, 58, 237, 0.4);
+  --ludo-text: #E2E8F0;
+  --ludo-muted: #94A3B8;
+  --ludo-faint: #475569;
+
+  /* Brand Tokens */
+  --ludo-blue: #00D1FF;
+  --ludo-blue-soft: rgba(0, 209, 255, 0.1);
+  --ludo-yellow: #FFD700;
+  --ludo-red: #FF2D55;
+  --ludo-green: #00FF9F;
+  --ludo-slate: #7C3AED;
+
+  /* Panel Variables */
+  --panel-bg: rgba(15, 15, 35, 0.9);
+  --panel-border: rgba(124, 58, 237, 0.3);
+  --panel-blur: 24px;
+  --panel-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+  
+  /* Font Overrides */
+  --font-sans: 'Chakra Petch', sans-serif;
+  --font-body: 'Chakra Petch', sans-serif;
+  --font-heading: 'Russo One', sans-serif;
+  
+  background-color: var(--ludo-bg);
+  color: var(--ludo-text);
+}
+
+/* Force headings to use the display font */
+body.theme-retro-futurism h1,
+body.theme-retro-futurism h2,
+body.theme-retro-futurism h3,
+body.theme-retro-futurism .header-title,
+body.theme-retro-futurism .section-label {
+  font-family: 'Russo One', sans-serif !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body.theme-retro-futurism .cosmic-orb { display: none; }
+body.theme-retro-futurism .boot-dot { display: block; opacity: 0.1; }
+
+/* Retro-Futurism Scanline Overlay */
+body.theme-retro-futurism::before {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+  z-index: 9999;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  opacity: 0.4;
 }
 
 .boot-dot {
@@ -501,7 +573,7 @@ body.theme-cosmic-dark {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--color-ludo-amber);
+  background: var(--color-ludo-yellow);
   padding: 6px 14px;
   border-radius: var(--radius-pill);
   font-size: 13px;
@@ -688,11 +760,11 @@ body.theme-cosmic-dark {
 }
 
 .game-card.classic::before {
-  background: var(--color-ludo-sage);
+  background: var(--color-ludo-green);
 }
 
 .game-card.power::before {
-  background: var(--color-ludo-rose);
+  background: var(--color-ludo-red);
 }
 
 .game-card:hover {
@@ -716,12 +788,12 @@ body.theme-cosmic-dark {
 }
 
 .card-icon.classic {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-sage) 13%, transparent), color-mix(in srgb, var(--color-ludo-sage) 33%, transparent));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-green) 13%, transparent), color-mix(in srgb, var(--color-ludo-green) 33%, transparent));
   color: #4CAF89;
 }
 
 .card-icon.power {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-rose) 13%, transparent), color-mix(in srgb, var(--color-ludo-rose) 33%, transparent));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-ludo-red) 13%, transparent), color-mix(in srgb, var(--color-ludo-red) 33%, transparent));
   color: #E08A5E;
 }
 
@@ -846,15 +918,15 @@ body.theme-cosmic-dark {
 }
 
 .bet-chip:hover {
-  border-color: var(--color-ludo-sage);
-  background: color-mix(in srgb, var(--color-ludo-sage) 13%, transparent);
+  border-color: var(--color-ludo-green);
+  background: color-mix(in srgb, var(--color-ludo-green) 13%, transparent);
   color: var(--color-ludo-text);
 }
 
 .bet-chip.active {
-  background: var(--color-ludo-sage);
+  background: var(--color-ludo-green);
   color: #1a5c3a;
-  border-color: var(--color-ludo-sage);
+  border-color: var(--color-ludo-green);
 }
 
 /* ─── Play Button ─── */
@@ -1245,19 +1317,19 @@ body.theme-cosmic-dark {
 }
 
 .avatar-circle.green {
-  background: linear-gradient(135deg, var(--ludo-sage), var(--ludo-sage));
+  background: linear-gradient(135deg, var(--ludo-green), var(--ludo-green));
 }
 
 .avatar-circle.red {
-  background: linear-gradient(135deg, var(--ludo-rose), var(--ludo-rose));
+  background: linear-gradient(135deg, var(--ludo-red), var(--ludo-red));
 }
 
 .avatar-circle.yellow {
-  background: linear-gradient(135deg, var(--ludo-amber), var(--ludo-amber));
+  background: linear-gradient(135deg, var(--ludo-yellow), var(--ludo-yellow));
 }
 
 .avatar-circle.blue {
-  background: linear-gradient(135deg, var(--ludo-sky), var(--ludo-sky));
+  background: linear-gradient(135deg, var(--ludo-blue), var(--ludo-blue));
 }
 
 .avatar-level-badge {
@@ -1449,23 +1521,23 @@ body.theme-cosmic-dark {
 }
 
 .avatar.green {
-  background: var(--color-ludo-sage);
-  color: var(--ludo-sage-contrast);
+  background: var(--color-ludo-green);
+  color: var(--ludo-green-contrast);
 }
 
 .avatar.red {
-  background: var(--color-ludo-rose);
-  color: var(--ludo-rose-contrast);
+  background: var(--color-ludo-red);
+  color: var(--ludo-red-contrast);
 }
 
 .avatar.yellow {
-  background: var(--color-ludo-sky);
-  color: var(--ludo-sky-contrast);
+  background: var(--color-ludo-blue);
+  color: var(--ludo-blue-contrast);
 }
 
 .avatar.blue {
-  background: var(--color-ludo-amber);
-  color: var(--ludo-amber-contrast);
+  background: var(--color-ludo-yellow);
+  color: var(--ludo-yellow-contrast);
 }
 
 .stats-item .info {
@@ -1672,8 +1744,8 @@ body.theme-cosmic-dark {
 }
 
 .strike-dot.active {
-  background-color: var(--color-ludo-rose);
-  box-shadow: 0 0 4px var(--color-ludo-rose);
+  background-color: var(--color-ludo-red);
+  box-shadow: 0 0 4px var(--color-ludo-red);
 }
 
 .player-avatar-wrapper {
@@ -1708,7 +1780,7 @@ body.theme-cosmic-dark {
 }
 
 .player-avatar-wrapper.timer-warning .timer-ring-progress {
-  stroke: var(--color-ludo-rose);
+  stroke: var(--color-ludo-red);
 }
 
 .afk-tag {
@@ -1874,19 +1946,19 @@ body.theme-cosmic-dark {
 }
 
 .board-home.green {
-  background: var(--ludo-sage);
+  background: var(--ludo-green);
 }
 
 .board-home.red {
-  background: var(--ludo-rose);
+  background: var(--ludo-red);
 }
 
 .board-home.yellow {
-  background: var(--ludo-amber);
+  background: var(--ludo-yellow);
 }
 
 .board-home.blue {
-  background: var(--ludo-sky);
+  background: var(--ludo-blue);
 }
 
 .home-pad {
@@ -1894,14 +1966,25 @@ body.theme-cosmic-dark {
   height: 62%;
   flex-shrink: 0;
   aspect-ratio: 1;
-  background: #f3f4f6;
-  /* 3. Inner Token Base Area Color (Light Gray) */
+  background: var(--ludo-card);
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 14%;
   gap: 10%;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+/* 🧬 Retro-Futurism Home Overrides */
+body.theme-retro-futurism .board-home {
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.theme-retro-futurism .home-pad {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .token-dot {
@@ -1923,24 +2006,24 @@ body.theme-cosmic-dark {
 
 
 .green .token-dot {
-  background: var(--ludo-sage);
+  background: var(--ludo-green);
 }
 
 .red .token-dot {
-  background: var(--ludo-rose);
+  background: var(--ludo-red);
 }
 
 .yellow .token-dot {
-  background: var(--ludo-amber);
+  background: var(--ludo-yellow);
 }
 
 .blue .token-dot {
-  background: var(--ludo-sky);
+  background: var(--ludo-blue);
 }
 
 /* ── Path Cells ── */
 .board-cell {
-  background: #f3f4f6; /* Off-white pathway for Layout A */
+  background: var(--ludo-card); /* Off-white pathway for Layout A */
   position: relative;
   transition: background 0.15s ease;
   display: flex;
@@ -1959,23 +2042,23 @@ body.theme-cosmic-dark {
 
 /* ── Finish Lanes — translucent tints ── */
 .lane-green {
-  background: color-mix(in srgb, var(--ludo-sage) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-green) 85%, var(--ludo-card)) !important;
 }
 
 .lane-red {
-  background: color-mix(in srgb, var(--ludo-rose) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-red) 90%, #f3f4f6) !important;
 }
 
 .lane-blue {
-  background: color-mix(in srgb, var(--ludo-sky) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-blue) 90%, #f3f4f6) !important;
 }
 
 .lane-yellow {
-  background: color-mix(in srgb, var(--ludo-amber) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-yellow) 90%, #f3f4f6) !important;
 }
 
 .board-cell.star-cell {
-  background: #f3f4f6;
+  background: var(--ludo-card);
 }
 
 /* ── Star / Safe Cells ── */
@@ -1983,7 +2066,8 @@ body.theme-cosmic-dark {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f4f6 !important;
+  background: var(--ludo-card) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .star-svg {
@@ -2006,22 +2090,22 @@ body.theme-cosmic-dark {
 }
 
 .tri-top {
-  background: var(--ludo-sage);
+  background: var(--ludo-green);
   clip-path: polygon(0 0, 100% 0, 50% 50%);
 }
 
 .tri-right {
-  background: var(--ludo-rose);
+  background: var(--ludo-red);
   clip-path: polygon(100% 0, 100% 100%, 50% 50%);
 }
 
 .tri-bottom {
-  background: var(--ludo-sky);
+  background: var(--ludo-blue);
   clip-path: polygon(0 100%, 100% 100%, 50% 50%);
 }
 
 .tri-left {
-  background: var(--ludo-amber);
+  background: var(--ludo-yellow);
   clip-path: polygon(0 0, 0 100%, 50% 50%);
 }
 
@@ -2218,19 +2302,41 @@ body.theme-cosmic-dark {
 }
 
 .green-token {
-  background: linear-gradient(135deg, #7EC8A0, #5FA880);
+  background: linear-gradient(135deg, var(--ludo-green), color-mix(in srgb, var(--ludo-green), black 15%));
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .red-token {
-  background: linear-gradient(135deg, #D4847A, #B4645A);
+  background: linear-gradient(135deg, var(--ludo-red), color-mix(in srgb, var(--ludo-red), black 15%));
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .yellow-token {
-  background: linear-gradient(135deg, #E8C567, #C8A547);
+  background: linear-gradient(135deg, var(--ludo-yellow), color-mix(in srgb, var(--ludo-yellow), black 15%));
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .blue-token {
-  background: linear-gradient(135deg, #7BAFD4, #5B8FB4);
+  background: linear-gradient(135deg, var(--ludo-blue), color-mix(in srgb, var(--ludo-blue), black 15%));
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 🧬 Retro-Futurism Token Enhancements */
+body.theme-retro-futurism .ludo-token {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 15px currentColor;
+}
+
+body.theme-retro-futurism .green-token { color: #10B981; }
+body.theme-retro-futurism .red-token { color: #F43F5E; }
+body.theme-retro-futurism .yellow-token { color: #F59E0B; }
+body.theme-retro-futurism .blue-token { color: #22D3EE; }
+
+body.theme-retro-futurism .token-count-badge {
+  background: #0F0F23;
+  border-color: var(--ludo-slate);
+  color: var(--ludo-blue);
+  box-shadow: 0 0 10px var(--ludo-blue);
 }
 
 /* ─── Stacked Tokens & Blockades ─── */
@@ -2304,6 +2410,12 @@ body.theme-cosmic-dark {
   height: 25%;
   background: rgba(0, 0, 0, 0.05);
   border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+body.theme-retro-futurism .token-dot-placeholder {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* ─── Dice Overlay ─── */
@@ -2863,7 +2975,7 @@ body.theme-cosmic-dark {
 }
 
 .tab-panel-close:hover {
-  background: var(--color-ludo-rose);
+  background: var(--color-ludo-red);
   color: white;
   border-color: transparent;
 }
@@ -3336,7 +3448,7 @@ body.theme-cosmic-dark {
 }
 
 .mode-card.active.selection-glow-green {
-  box-shadow: 0 0 0 2px var(--color-ludo-sage), 0 8px 24px rgba(168, 230, 207, 0.2);
+  box-shadow: 0 0 0 2px var(--color-ludo-green), 0 8px 24px rgba(168, 230, 207, 0.2);
 }
 
 .mode-card.active.selection-glow-orange {
@@ -3468,9 +3580,9 @@ body.theme-cosmic-dark {
 }
 
 .bet-pill.active {
-  background: var(--color-ludo-sage);
-  border-color: var(--color-ludo-sage);
-  color: var(--ludo-sage-contrast);
+  background: var(--color-ludo-green);
+  border-color: var(--color-ludo-green);
+  color: var(--ludo-green-contrast);
   box-shadow: 0 2px 8px rgba(168, 230, 207, 0.4);
 }
 

@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useRef, useEffect } from 'react';
+import { usePreferences } from '@/hooks/usePreferences';
 
 export const useAudio = () => {
+    const { preferences } = usePreferences();
     const audioCtx = useRef<AudioContext | null>(null);
     const ambientNodes = useRef<{
         osc1: OscillatorNode;
@@ -40,8 +42,14 @@ export const useAudio = () => {
         return audioCtx.current;
     };
 
+    const triggerHaptic = useCallback((pattern: number | number[] = 10) => {
+        if (typeof window !== 'undefined' && preferences.haptics && navigator.vibrate) {
+            navigator.vibrate(pattern);
+        }
+    }, [preferences.haptics]);
+
     const playMove = useCallback(() => {
-        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
+        if (!preferences.sfx) return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -58,10 +66,12 @@ export const useAudio = () => {
 
         osc.start();
         osc.stop(ctx.currentTime + 0.05);
-    }, []);
+        
+        triggerHaptic(5); // Ultra-short subtle click
+    }, [preferences.sfx, triggerHaptic]);
 
     const playCapture = useCallback(() => {
-        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
+        if (!preferences.sfx) return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -78,10 +88,12 @@ export const useAudio = () => {
 
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
-    }, []);
+        
+        triggerHaptic([30, 50, 30]); // Shaky capture feel
+    }, [preferences.sfx, triggerHaptic]);
 
     const playWin = useCallback(() => {
-        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
+        if (!preferences.sfx) return;
         const ctx = initAudio();
         const playChime = (freq: number, startTime: number) => {
             const osc = ctx.createOscillator();
@@ -101,7 +113,9 @@ export const useAudio = () => {
         playChime(659.25, now + 0.1); // E5
         playChime(783.99, now + 0.2); // G5
         playChime(1046.50, now + 0.3); // C6
-    }, []);
+        
+        triggerHaptic([100, 50, 100, 50, 200]); // Victory fanfare vibration
+    }, [preferences.sfx, triggerHaptic]);
 
     const stopAmbient = useCallback(() => {
         if (ambientNodes.current) {
@@ -117,10 +131,9 @@ export const useAudio = () => {
 
     const playAmbient = useCallback((theme: string, volume: number = 0.05) => {
         stopAmbient();
-        if (typeof window !== 'undefined' && localStorage.getItem('ludo-music') === 'off') return;
+        if (!preferences.music) return;
 
         const ctx = initAudio();
-
         if (volume <= 0) return;
 
         const gain = ctx.createGain();
@@ -129,65 +142,48 @@ export const useAudio = () => {
         const osc2 = ctx.createOscillator();
 
         gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 2); // Fade in
+        gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 4); // Smoother fade in
 
         let lfo: OscillatorNode | undefined;
 
-        if (theme === 'cyberpunk') {
-            // Synthwave: Filtered Saws + Arp-like vibe
+        // Theme mapping Fix: match real theme classes
+        const isRetro = theme.includes('retro');
+        const isDark = theme.includes('dark');
+
+        if (isRetro) {
+            // Retro-Futurism: Neon Pulse
             osc1.type = 'sawtooth';
-            osc2.type = 'sawtooth';
-            osc1.frequency.setValueAtTime(55, ctx.currentTime); // A1
-            osc2.frequency.setValueAtTime(110, ctx.currentTime); // A2
-            osc2.detune.setValueAtTime(12, ctx.currentTime);
-
+            osc1.frequency.setValueAtTime(73.42, ctx.currentTime); // D2
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(146.83, ctx.currentTime); // D3
+            
             filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(400, ctx.currentTime);
-            filter.Q.setValueAtTime(10, ctx.currentTime);
+            filter.frequency.setValueAtTime(600, ctx.currentTime);
+            filter.Q.setValueAtTime(5, ctx.currentTime);
 
-            // LFO for filter sweep
             lfo = ctx.createOscillator();
             const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(0.2, ctx.currentTime);
-            lfoGain.gain.setValueAtTime(300, ctx.currentTime);
+            lfo.frequency.setValueAtTime(0.5, ctx.currentTime);
+            lfoGain.gain.setValueAtTime(400, ctx.currentTime);
             lfo.connect(lfoGain);
             lfoGain.connect(filter.frequency);
             lfo.start();
-        } else if (theme === 'midnight') {
-            // Deep Ambient: Sines + Low Filter
+        } else if (isDark) {
+            // Cosmic Dark: Space Drone
             osc1.type = 'sine';
-            osc2.type = 'sine';
             osc1.frequency.setValueAtTime(40, ctx.currentTime);
-            osc2.frequency.setValueAtTime(60, ctx.currentTime);
-            osc2.detune.setValueAtTime(-5, ctx.currentTime);
-
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(61.74, ctx.currentTime); // B1
             filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(150, ctx.currentTime);
-        } else if (theme === 'classic') {
-            // Minimal: Soft Triangle
+            filter.frequency.setValueAtTime(120, ctx.currentTime);
+        } else {
+            // Cosmic UI / Classic: Soft Ethereal
             osc1.type = 'triangle';
-            osc2.type = 'triangle';
-            osc1.frequency.setValueAtTime(220, ctx.currentTime);
-            osc2.frequency.setValueAtTime(221, ctx.currentTime);
+            osc1.frequency.setValueAtTime(261.63, ctx.currentTime); // C4
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(329.63, ctx.currentTime); // E4
             filter.type = 'lowpass';
             filter.frequency.setValueAtTime(1000, ctx.currentTime);
-        } else {
-            // Pastel: Lo-fi Chill
-            osc1.type = 'triangle';
-            osc2.type = 'sine';
-            osc1.frequency.setValueAtTime(196, ctx.currentTime); // G3
-            osc2.frequency.setValueAtTime(246.94, ctx.currentTime); // B3
-
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(800, ctx.currentTime);
-
-            lfo = ctx.createOscillator();
-            const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(0.1, ctx.currentTime);
-            lfoGain.gain.setValueAtTime(0.02, ctx.currentTime);
-            lfo.connect(lfoGain);
-            lfoGain.connect(gain.gain);
-            lfo.start();
         }
 
         osc1.connect(filter);
@@ -199,10 +195,10 @@ export const useAudio = () => {
         osc2.start();
 
         ambientNodes.current = { osc1, osc2, gain, filter, lfo };
-    }, [stopAmbient]);
+    }, [stopAmbient, preferences.music]);
 
     const playTurn = useCallback(() => {
-        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
+        if (!preferences.sfx) return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -219,15 +215,16 @@ export const useAudio = () => {
 
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.2);
-    }, []);
+        
+        triggerHaptic(10); // Subtle notification
+    }, [preferences.sfx, triggerHaptic]);
 
     const playStrike = useCallback(() => {
-        if (typeof window !== 'undefined' && localStorage.getItem('ludo-sfx') === 'off') return;
+        if (!preferences.sfx) return;
         const ctx = initAudio();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        // Harsh buzz for a strike
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(150, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
@@ -240,7 +237,9 @@ export const useAudio = () => {
 
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.3);
-    }, []);
+        
+        triggerHaptic(50); // Warning strike
+    }, [preferences.sfx, triggerHaptic]);
 
-    return { playMove, playCapture, playWin, playAmbient, stopAmbient, playTurn, playStrike };
+    return { playMove, playCapture, playWin, playAmbient, stopAmbient, playTurn, playStrike, triggerHaptic };
 };

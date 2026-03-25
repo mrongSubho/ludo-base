@@ -61,29 +61,22 @@ const LogOutIcon = () => (
     </svg>
 );
 
+import { usePreferences } from '@/hooks/usePreferences';
+
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
-    const [soundEffectsOn, setSoundEffectsOn] = useState(true);
-    const [musicOn, setMusicOn] = useState(true);
+    const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
 
-    useEffect(() => {
-        // Read initial preferences from localStorage
-        const savedSfx = localStorage.getItem('ludo-sfx');
-        const savedMusic = localStorage.getItem('ludo-music');
-        if (savedSfx !== null) setSoundEffectsOn(savedSfx === 'on');
-        if (savedMusic !== null) setMusicOn(savedMusic === 'on');
-    }, []);
-
     const toggleSfx = () => {
-        const newState = !soundEffectsOn;
-        setSoundEffectsOn(newState);
-        localStorage.setItem('ludo-sfx', newState ? 'on' : 'off');
+        updatePreference('ludo-sfx', preferences.sfx ? 'off' : 'on');
     };
 
     const toggleMusic = () => {
-        const newState = !musicOn;
-        setMusicOn(newState);
-        localStorage.setItem('ludo-music', newState ? 'on' : 'off');
+        updatePreference('ludo-music', preferences.music ? 'off' : 'on');
+    };
+
+    const toggleHaptics = () => {
+        updatePreference('ludo-haptic', preferences.haptics ? 'off' : 'on');
     };
 
     return (
@@ -145,13 +138,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                     <span className="text-sm font-medium text-white">Sound Effects</span>
                                 </div>
                                 <button
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${soundEffectsOn ? 'bg-cyan-600' : 'bg-white/10'}`}
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${preferences.sfx ? 'bg-cyan-600' : 'bg-white/10'}`}
                                     onClick={toggleSfx}
                                 >
                                     <motion.div
                                         layout
                                         className="w-4 h-4 bg-white rounded-full shadow-sm"
-                                        animate={{ x: soundEffectsOn ? 24 : 0 }}
+                                        animate={{ x: preferences.sfx ? 24 : 0 }}
                                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                     />
                                 </button>
@@ -170,13 +163,37 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                     <span className="text-sm font-medium text-white">Game Music</span>
                                 </div>
                                 <button
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${musicOn ? 'bg-pink-500' : 'bg-white/10'}`}
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${preferences.music ? 'bg-pink-500' : 'bg-white/10'}`}
                                     onClick={toggleMusic}
                                 >
                                     <motion.div
                                         layout
                                         className="w-4 h-4 bg-white rounded-full shadow-sm"
-                                        animate={{ x: musicOn ? 24 : 0 }}
+                                        animate={{ x: preferences.music ? 24 : 0 }}
+                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    />
+                                </button>
+                            </div>
+
+                            {/* Haptics */}
+                            <div className="flex items-center justify-between p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                            <path d="M5 9h4l2 5h4l2-5h4"></path>
+                                            <path d="M2 12h20"></path>
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm font-medium text-white">Haptic Feedback</span>
+                                </div>
+                                <button
+                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative flex items-center ${preferences.haptics ? 'bg-orange-500' : 'bg-white/10'}`}
+                                    onClick={toggleHaptics}
+                                >
+                                    <motion.div
+                                        layout
+                                        className="w-4 h-4 bg-white rounded-full shadow-sm"
+                                        animate={{ x: preferences.haptics ? 24 : 0 }}
                                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                     />
                                 </button>

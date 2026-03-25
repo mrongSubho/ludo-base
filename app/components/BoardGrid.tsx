@@ -40,7 +40,7 @@ export function BoardGrid({
                         style={{ 
                             gridRow: row, 
                             gridColumn: col,
-                            backgroundColor: cls.includes('lane-') ? undefined : '#f3f4f6'
+                            backgroundColor: cls.includes('lane-') ? undefined : 'var(--ludo-card)'
                         }}
                     >
                         {cellInfo.type === 'safe' && <StarMarker />}
@@ -137,7 +137,7 @@ export function BoardGrid({
                         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                         style={{
                             position: 'absolute',
-                            inset: '25%',
+                            inset: '20%',
                             zIndex: 10,
                             display: 'flex',
                             alignItems: 'center',

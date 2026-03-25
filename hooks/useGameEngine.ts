@@ -196,7 +196,8 @@ export function useGameEngine({
         moveToken,
         handleUsePower,
         playerPaths,
-        playerCount
+        playerCount,
+        isLobbyConnected
     });
 
     const cancelAfk = useCallback((color: PlayerColor) => {

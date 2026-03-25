@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { useAudio } from '../hooks/useAudio';
 
 interface ActionDiceProps {
     onSelectQuickMatch: () => void;
@@ -29,8 +30,11 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     onSelectOfflineMatch
 }) => {
     const { playDiceRoll, playDiceLand, playClick } = useSoundEffects();
+    const { triggerHaptic } = useAudio();
     const controls = useAnimation();
     const shadowControls = useAnimation();
+    
+    // ... rest of the component state ...
     
     // Track multi-axis tumbling
     const [currentRotateX, setCurrentRotateX] = useState(0);
@@ -111,9 +115,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         playDiceRoll();
         
         // Haptic Feedback: Initial swipe/thwack
-        if (typeof window !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate(40); 
-        }
+        triggerHaptic(40); 
         
         setIsRolling(true);
 
@@ -178,9 +180,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         // Landing impact after 1.0s matches shadow sequence
         setTimeout(() => {
             playDiceLand();
-            if (typeof window !== 'undefined' && navigator.vibrate) {
-                navigator.vibrate([30, 50, 30]); // Thud-thud-thud
-            }
+            triggerHaptic([30, 50, 30]); // Thud-thud-thud
             setIsRolling(false);
         }, 1000);
     };

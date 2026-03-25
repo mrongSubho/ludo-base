@@ -130,8 +130,11 @@ export default function Board({
     }, [localGameState.timeLeft, localGameState.currentPlayer, smoothProgress]);
 
     const activeColor = {
-        green: '#4CAF50', red: '#F44336', blue: '#2196F3', yellow: '#FFEB3B'
-    }[localGameState.currentPlayer] || '#cbd5e1';
+        green: 'var(--ludo-green)', 
+        red: 'var(--ludo-red)', 
+        blue: 'var(--ludo-blue)', 
+        yellow: 'var(--ludo-yellow)'
+    }[localGameState.currentPlayer] || 'var(--ludo-muted)';
 
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
 

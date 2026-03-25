@@ -135,7 +135,7 @@ export function useGameActions({
         const isMyTurn = localGameState.currentPlayer === myPlayer?.color;
         const isCurrentlyBot = initialPlayers.find(p => p.color === localGameState.currentPlayer)?.isAi 
             || localGameState.afkStats[localGameState.currentPlayer]?.isKicked;
-        const isLocalGame = !localGameState.teamup.isConnected;
+        const isLocalGame = !isLobbyConnected;
 
         if (!isRemote && !isMyTurn && !isCurrentlyBot) return;
         if (!isRemote && isCurrentlyBot && !isHost && !isLocalGame) return;
@@ -239,7 +239,7 @@ export function useGameActions({
                 lastUpdate: Date.now()
             };
         });
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.afkStats, localGameState.teamup.isConnected, initialPlayers, address, isHost, isLobbyConnected, broadcastAction, setLocalGameState, playerCount, getNextPlayer, autoMoveTimeoutRef, sendIntent, moveToken]);
+    }, [localGameState.winner, localGameState.currentPlayer, localGameState.afkStats, initialPlayers, address, isHost, isLobbyConnected, broadcastAction, setLocalGameState, playerCount, getNextPlayer, autoMoveTimeoutRef, sendIntent, moveToken]);
 
     const handleUsePower = useCallback((color: PlayerColor) => {
         setLocalGameState((prev: any) => {

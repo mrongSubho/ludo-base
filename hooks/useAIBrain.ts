@@ -18,6 +18,7 @@ interface UseAIBrainProps {
     handleUsePower: (color: PlayerColor) => void;
     playerPaths: Record<string, Point[]>;
     playerCount: '1v1' | '4P' | '2v2';
+    isLobbyConnected: boolean;
 }
 
 export function useAIBrain({
@@ -28,13 +29,14 @@ export function useAIBrain({
     moveToken,
     handleUsePower,
     playerPaths,
-    playerCount
+    playerCount,
+    isLobbyConnected
 }: UseAIBrainProps) {
     useEffect(() => {
         if (localGameState.winner) return;
 
         // In networked matches, only the Host orchestrates the AI.
-        if (localGameState.teamup.isConnected && !isHost) return;
+        if (isLobbyConnected && !isHost) return;
 
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
@@ -71,5 +73,5 @@ export function useAIBrain({
                 return () => clearTimeout(timer);
             }
         }
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.teamup.isConnected, isHost, initialPlayers, localGameState.afkStats, localGameState.playerPowers, localGameState.positions, handleUsePower, handleRoll, moveToken, playerCount, playerPaths]);
+    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, isLobbyConnected, isHost, initialPlayers, localGameState.afkStats, localGameState.playerPowers, localGameState.positions, handleUsePower, handleRoll, moveToken, playerCount, playerPaths]);
 }

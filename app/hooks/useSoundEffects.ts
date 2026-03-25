@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect } from 'react';
+import { usePreferences } from '@/hooks/usePreferences';
 
 export const useSoundEffects = () => {
-    // 1. Preload sounds into the browser cache instantly in the background
+    const { preferences } = usePreferences();
+
+    // Preload sounds
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const sounds = [
@@ -12,32 +15,28 @@ export const useSoundEffects = () => {
                 '/sounds/ui-select.mp3',
                 '/sounds/coin-chink.mp3',
                 '/sounds/dice-roll.mp3',
-                '/sounds/dice-land.mp3'
+                '/sounds/dice-land.mp3',
             ];
             sounds.forEach(src => {
                 const audio = new Audio();
                 audio.src = src;
-                audio.preload = 'auto'; // Forces the browser to download it silently
+                audio.preload = 'auto';
             });
         }
     }, []);
 
     const playSound = useCallback((path: string, volume: number = 0.5) => {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && preferences.sfx) {
             const audio = new Audio(path);
             audio.volume = volume;
-            
-            // cloneNode allows the same sound to play overlapping itself (good for spamming clicks)
             const playPromise = (audio.cloneNode(true) as HTMLAudioElement).play();
-            
-            // Catch browser autoplay restrictions safely
             if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    // console.warn("Audio autoplay prevented by browser or missing file:", error);
+                playPromise.catch(() => {
+                    // Fail silently for autoplay restrictions
                 });
             }
         }
-    }, []);
+    }, [preferences.sfx]);
 
     return {
         playHover: () => playSound('/sounds/ui-hover.mp3', 0.2),
