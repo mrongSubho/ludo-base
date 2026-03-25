@@ -1,8 +1,21 @@
 import { GameState, PlayerColor, LobbySlot, LobbyState } from './types';
 import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
+import { 
+    BOARD_FINISH_INDEX, 
+    TOTAL_PATH_CELLS, 
+    DEFAULT_TURN_TIMER_SECS, 
+    DICE_ROLL_SIX,
+    BASE_INDEX,
+    MAX_CONSECUTIVE_SIXES
+} from './constants';
 
 export const INITIAL_GAME_STATE: GameState = {
-    positions: { green: [-1, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    positions: { 
+        green: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX], 
+        red: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX], 
+        yellow: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX], 
+        blue: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX] 
+    },
     currentPlayer: 'green',
     diceValue: null,
     gamePhase: 'rolling',
@@ -10,7 +23,7 @@ export const INITIAL_GAME_STATE: GameState = {
     winner: null,
     winners: [],
     captureMessage: null,
-    timeLeft: 15,
+    timeLeft: DEFAULT_TURN_TIMER_SECS,
     strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
     powerTiles: [],
     playerPowers: { green: null, red: null, yellow: null, blue: null },
@@ -101,11 +114,11 @@ export function getTeam(color: PlayerColor, playerCount: string = '4P'): number 
 }
 
 export function calculateNextPosition(currentPos: number, steps: number): number {
-    if (currentPos === -1) {
-        return steps === 6 ? 0 : -1;
+    if (currentPos === BASE_INDEX) {
+        return steps === DICE_ROLL_SIX ? 0 : BASE_INDEX;
     }
     const nextPos = currentPos + steps;
-    if (nextPos > 57) return currentPos;
+    if (nextPos > BOARD_FINISH_INDEX) return currentPos;
     return nextPos;
 }
 
@@ -120,7 +133,7 @@ export function getTeamForceAtPoint(
     for (const [color, positions] of Object.entries(state.positions)) {
         if (getTeam(color as PlayerColor, playerCount) !== team) continue;
         positions.forEach(pos => {
-            if (pos >= 0 && pos < 52) {
+            if (pos >= 0 && pos < TOTAL_PATH_CELLS) {
                 const pt = playerPaths[color][pos];
                 if (pt.r === point.r && pt.c === point.c) {
                     force++;
@@ -138,7 +151,7 @@ export function checkMultiCapture(
     playerPaths: Record<string, Point[]>,
     playerCount: string = '4P'
 ): { capturedColor: PlayerColor; capturedIdx: number }[] {
-    if (nextPos < 0 || nextPos >= 52) return [];
+    if (nextPos < 0 || nextPos >= TOTAL_PATH_CELLS) return [];
 
     const targetPoint = playerPaths[color][nextPos];
     const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
@@ -162,7 +175,7 @@ export function checkMultiCapture(
         if (otherForce > 0 && actingForce >= otherForce) {
             // Check which tokens of this other color are at that point
             positions.forEach((pos, i) => {
-                if (pos >= 0 && pos < 52) {
+                if (pos >= 0 && pos < TOTAL_PATH_CELLS) {
                     const pt = playerPaths[otherColor][pos];
                     if (pt.r === targetPoint.r && pt.c === targetPoint.c) {
                         // Check for Shield
@@ -185,6 +198,54 @@ export interface MoveResult {
     bonusRoll: boolean;
 }
 
+export function resolveTrap(state: GameState, targetPoint: Point, tokenColor: PlayerColor, tokenIndex: number): { trapIdx: number, newPositions: Record<PlayerColor, number[]> } | null {
+    const trapIdx = state.activeTraps.findIndex(t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor);
+    if (trapIdx === -1) return null;
+
+    const newPositions = { ...state.positions };
+    newPositions[tokenColor] = [...newPositions[tokenColor]];
+    newPositions[tokenColor][tokenIndex] = BASE_INDEX;
+    return { trapIdx, newPositions };
+}
+
+export function resolveCapturesInPositions(
+    state: GameState, 
+    tokenColor: PlayerColor, 
+    nextPos: number, 
+    playerPaths: Record<string, Point[]>, 
+    playerCount: string,
+    currentPositions: Record<PlayerColor, number[]>
+): { captured: boolean, newPositions: Record<PlayerColor, number[]> } {
+    const captures = checkMultiCapture(tokenColor, nextPos, state, playerPaths, playerCount);
+    if (captures.length === 0) return { captured: false, newPositions: currentPositions };
+
+    const newPositions = { ...currentPositions };
+    captures.forEach(c => {
+        newPositions[c.capturedColor] = [...newPositions[c.capturedColor]];
+        newPositions[c.capturedColor][c.capturedIdx] = BASE_INDEX;
+    });
+    return { captured: true, newPositions };
+}
+
+export function checkWinStatus(positions: Record<PlayerColor, number[]>, playerCount: string, currentWinner: string | null): { winner: string | null, status: 'waiting' | 'playing' | 'finished', newlyWonColor: PlayerColor | null } {
+    const allFinished = (c: PlayerColor) => positions[c].every(p => p === BOARD_FINISH_INDEX);
+    const teamWon = (t: number) => {
+        if (t === 1) return allFinished('green') && allFinished('yellow');
+        return allFinished('red') && allFinished('blue');
+    };
+
+    let winner = currentWinner;
+    let status: 'waiting' | 'playing' | 'finished' = winner ? 'finished' : 'playing';
+    let newlyWonColor: PlayerColor | null = null;
+
+    // Check if the current player just finished all tokens
+    // Note: this function doesn't know WHO just moved, so we check all but typically one just changed.
+    // For simpler logic, we could pass tokenColor.
+    
+    // In Ludo Base, we strictly return the first winner found if not already set.
+    return { winner, status, newlyWonColor }; 
+}
+
 export function processMove(
     state: GameState,
     tokenColor: PlayerColor,
@@ -192,53 +253,49 @@ export function processMove(
     steps: number,
     playerPaths: Record<string, Point[]>,
     playerCount: string,
-    actingPlayer?: PlayerColor, // The player whose turn it is
+    actingPlayer?: PlayerColor, 
     activeColors?: PlayerColor[],
     colorCorner?: ColorCorner
 ): MoveResult {
     const actingColor = actingPlayer || tokenColor;
     if (state.winner) return { newState: state, captured: false, bonusRoll: false };
 
-    const newPositions = { ...state.positions };
-    const initialPos = newPositions[tokenColor][tokenIndex];
+    const initialPos = state.positions[tokenColor][tokenIndex];
     const nextPos = calculateNextPosition(initialPos, steps);
 
     if (nextPos === initialPos && steps !== 0) {
         return { newState: state, captured: false, bonusRoll: false };
     }
 
-    newPositions[tokenColor] = [...newPositions[tokenColor]];
-    newPositions[tokenColor][tokenIndex] = nextPos;
-
-    // Check for Traps
     const targetPoint = playerPaths[tokenColor][nextPos];
-    const trapIdx = state.activeTraps.findIndex(t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor);
-
-    let captured = false;
-    if (trapIdx !== -1) {
-        // Trigger Trap: Token goes back to start
-        newPositions[tokenColor][tokenIndex] = -1;
+    
+    // 1. Resolve Traps
+    const trapResult = resolveTrap(state, targetPoint, tokenColor, tokenIndex);
+    if (trapResult) {
         const newTraps = [...state.activeTraps];
-        newTraps.splice(trapIdx, 1);
+        newTraps.splice(trapResult.trapIdx, 1);
         return {
-            newState: { ...state, positions: newPositions, activeTraps: newTraps, lastUpdate: Date.now() },
+            newState: { 
+                ...state, 
+                positions: trapResult.newPositions, 
+                activeTraps: newTraps, 
+                lastUpdate: Date.now(),
+                currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, colorCorner),
+                gamePhase: 'rolling'
+            },
             captured: false,
             bonusRoll: false
         };
     }
 
-    // Check Captures
-    const captures = checkMultiCapture(tokenColor, nextPos, state, playerPaths, playerCount);
-    if (captures.length > 0) {
-        captures.forEach(c => {
-            newPositions[c.capturedColor] = [...newPositions[c.capturedColor]];
-            newPositions[c.capturedColor][c.capturedIdx] = -1;
-        });
-        captured = true;
-    }
+    // 2. Resolve Captures
+    const { captured, newPositions } = resolveCapturesInPositions(state, tokenColor, nextPos, playerPaths, playerCount, {
+        ...state.positions,
+        [tokenColor]: [...state.positions[tokenColor]].map((p, i) => i === tokenIndex ? nextPos : p)
+    });
 
-    // Check for Win / Team Win
-    const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === 57);
+    // 3. Check Win Status
+    const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
     const teamWon = (t: number) => {
         if (t === 1) return allFinished('green') && allFinished('yellow');
         return allFinished('red') && allFinished('blue');
@@ -248,8 +305,9 @@ export function processMove(
     let status = state.status;
 
     if (playerCount === '2v2') {
-        if (teamWon(getTeam(tokenColor))) {
-            winner = `Team ${getTeam(tokenColor)}`;
+        const teamId = getTeam(tokenColor, playerCount);
+        if (teamWon(teamId)) {
+            winner = `Team ${teamId}`;
             status = 'finished';
         }
     } else {
@@ -259,8 +317,8 @@ export function processMove(
         }
     }
 
-    const bonusRoll = captured || steps === 6;
-    const nextPlayer = bonusRoll ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, colorCorner);
+    const bonusRoll = captured || steps === DICE_ROLL_SIX;
+    const nextPlayer = (bonusRoll && status !== 'finished') ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, colorCorner);
 
     return {
         newState: {
@@ -283,9 +341,9 @@ export function handleThreeSixes(
     currentSixes: number,
     roll: number
 ): { isThreeSixes: boolean; nextSixes: number } {
-    if (roll !== 6) return { isThreeSixes: false, nextSixes: 0 };
+    if (roll !== DICE_ROLL_SIX) return { isThreeSixes: false, nextSixes: 0 };
     const nextSixes = currentSixes + 1;
-    if (nextSixes === 3) return { isThreeSixes: true, nextSixes: 0 };
+    if (nextSixes === MAX_CONSECUTIVE_SIXES) return { isThreeSixes: true, nextSixes: 0 };
     return { isThreeSixes: false, nextSixes };
 }
 

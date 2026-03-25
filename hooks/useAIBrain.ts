@@ -1,9 +1,13 @@
 import { useEffect } from 'react';
 import { PlayerColor, PowerType } from '@/lib/types';
 import { Player } from './useGameEngine';
-import { getBestMove } from '@/lib/aiEngine';
-import { getTeammateColor } from '@/lib/gameLogic';
-import { Point, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from '@/lib/boardLayout';
+import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
+import { Point } from '@/lib/boardLayout';
+import { 
+    BOT_ROLL_DELAY_MIN, 
+    BOT_ROLL_DELAY_MAX, 
+    BOT_MOVE_DELAY 
+} from '@/lib/constants';
 
 interface UseAIBrainProps {
     localGameState: any;
@@ -38,63 +42,13 @@ export function useAIBrain({
 
         if (isCurrentlyBot) {
             if (localGameState.gamePhase === 'rolling') {
-                const randomDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
+                const randomDelay = Math.floor(Math.random() * (BOT_ROLL_DELAY_MAX - BOT_ROLL_DELAY_MIN + 1)) + BOT_ROLL_DELAY_MIN;
 
                 const timer = setTimeout(() => {
-                    const power = localGameState.playerPowers[color as PlayerColor];
-                    if (power) {
-                        let shouldUse = false;
-                        if (power === 'bomb') {
-                            let targetFound = false;
-                            localGameState.positions[color].forEach((myPos: number) => {
-                                if (myPos < 0 || myPos >= 52) return;
-                                (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
-                                    if (oppColor === color) return;
-                                    if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
-                                    localGameState.positions[oppColor].forEach((oppPos: number) => {
-                                        if (oppPos < 0 || oppPos >= 52) return;
-                                        const myPt = playerPaths[color][myPos];
-                                        const oppPt = playerPaths[oppColor][oppPos];
-                                        for (let s = 1; s <= 6; s++) {
-                                            const checkPos = myPos + s;
-                                            if (checkPos >= 52) break;
-                                            const checkPt = playerPaths[color][checkPos];
-                                            if (checkPt.r === oppPt.r && checkPt.c === oppPt.c) targetFound = true;
-                                        }
-                                    });
-                                });
-                            });
-                            if (targetFound) shouldUse = true;
-                        } else if (power === 'shield') {
-                            let vulnerable = false;
-                            localGameState.positions[color].forEach((myPos: number) => {
-                                if (myPos < 0 || myPos >= 52) return;
-                                if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === playerPaths[color][myPos].r && p.c === playerPaths[color][myPos].c)) return;
-                                
-                                (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
-                                    if (oppColor === color) return;
-                                    if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
-                                    localGameState.positions[oppColor].forEach((oppPos: number) => {
-                                        if (oppPos < 0 || oppPos >= 52) return;
-                                        for (let s = 1; s <= 6; s++) {
-                                            const checkPos = oppPos + s;
-                                            if (checkPos >= 52) break;
-                                            const checkPt = playerPaths[oppColor][checkPos];
-                                            const myPt = playerPaths[color][myPos];
-                                            if (checkPt.r === myPt.r && checkPt.c === myPt.c) vulnerable = true;
-                                        }
-                                    });
-                                });
-                            });
-                            if (vulnerable) shouldUse = true;
-                        } else if (power === 'boost' || power === 'warp') {
-                            shouldUse = true;
-                        }
-
-                        if (shouldUse) {
-                            handleUsePower(color);
-                            return; // Wait for next tick to roll
-                        }
+                    const shouldUsePower = getBestPowerUsage(localGameState, color, playerPaths, playerCount);
+                    if (shouldUsePower) {
+                        handleUsePower(color);
+                        return;
                     }
                     handleRoll();
                 }, randomDelay);
@@ -107,12 +61,13 @@ export function useAIBrain({
                         localGameState.diceValue as number,
                         playerPaths,
                         playerCount,
-                        localGameState.powerTiles
+                        localGameState.powerTiles,
+                        localGameState
                     );
                     if (bestMove !== null) {
                         moveToken(color, bestMove, localGameState.diceValue as number);
                     }
-                }, 1500);
+                }, BOT_MOVE_DELAY);
                 return () => clearTimeout(timer);
             }
         }

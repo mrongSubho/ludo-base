@@ -52,11 +52,12 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Diagonal Partnership (2v2):** Partners always sit diagonally opposite (`BL+TR` or `BR+TL`).
 
 ### 3.3 Movement & Capture (Force Mechanics)
-- **Home Exit:** Requires a `6` to move from home base (-1) to start tile (0).
-- **Exact Finish:** Tokens land exactly on tile 57; over-roll results in no movement.
+- **Home Exit:** Requires a `DICE_MAX` (6) to move from base (`BASE_INDEX: -1`) to start tile (0).
+- **Exact Finish:** Tokens land exactly on `BOARD_FINISH_INDEX` (57); over-roll results in no movement.
 - **The Force System:** Multiple tokens from the same team on one square increase that square's "Force."
 - **Capture Rule:** To capture an opponent, your team's Force on that square must be >= their Force.
 - **Safe Zones:** 8 "Star" squares provide immunity to capture regardless of Force.
+- **Home Lane:** Tokens enter the protected home lane at `HOME_LANE_START_INDEX` (52).
 
 ### 3.4 2v2 Teammate Assist
 - Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
@@ -89,20 +90,21 @@ Standardized star positions: `{r:2, c:9}, {r:7, c:2}, {r:9, c:14}, {r:14, c:7}` 
 - **Ultimatum:** A 10s "Are you still there?" screen appears after 4 consecutive missed actions.
 
 ### 5.2 Bot Heuristics (`aiEngine.ts`)
-Bots prioritize actions based on a calculated score:
-1.  **Finish Zone (+150):** Safely bringing a token home.
+Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
+1.  **Reach Finish Zone (+200):** Safely bringing a token home.
 2.  **Power Tile Hunting (+120):** Aggressive targeting of power-up squares.
-3.  **Capture (+100):** Aggressive hunting of opponent tokens.
-4.  **Reinforcement (+60):** Building Force on a square with an ally.
-5.  **Safe Zone (+50)::** Moving to defensive star squares.
-6.  **Home Exit (+40):** Bringing tokens out of the base.
-7.  **Safe Lane (+30):** Prioritizing entries to the home stretch.
+3.  **Capture Token (+100):** Aggressive hunting of opponent tokens.
+4.  **Reinforce Ally (+60):** Building Force on a square with an ally.
+5.  **Enter Safe Zone (+50):** Moving to defensive star squares.
+6.  **Exit Base (+40):** Bringing tokens out of the base.
+7.  **Enter Home Lane (+25):** Prioritizing entries to the protected home stretch.
+8.  **Progression (+1x):** Small reward for each step moved towards the finish.
 
 ### 5.3 Strategic Power Usage
-AI evaluates power usage independently of movement:
-- **Shield:** Triggered if an opponent is within 6 steps of any ally token.
-- **Bomb:** Triggered if an opponent token is within range and currently on a non-safe square.
-- **Boost/Warp:** Triggered when a token is in the final quadrant to accelerate the finish.
+AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently of movement:
+- **Shield:** Triggered if any ally token is vulnerable to an opponent within 6 steps.
+- **Bomb:** Triggered if an opponent token is within landing range of a multi-token capture.
+- **Boost/Warp:** Used strategically to accelerate finishing or clear dangerous zones.
 
 ---
 
@@ -126,6 +128,8 @@ AI evaluates power usage independently of movement:
 - **Matchmaking Realtime**: The `matchmaking_queue` table must be enrolled in the `supabase_realtime` publication with `REPLICA IDENTITY FULL`. This ensures "Waiters" (Hosts) are notified immediately when an opponent joins via the RPC.
 - **Joiner Synchronization Delay**: Joiners wait for joined **1500ms** to allow Host P2P ID registration.
 - **Diagnostic Slot Monitoring**: Real-time logging of slot synchronization status to identify which peer is blocking the match start.
+- **Modular Game Logic**: Core logic is decoupled from hooks. `processMove` uses decomposed helpers (`resolveTrap`, `resolveCaptures`, `checkWinStatus`) for unit-testable game rules.
+- **Centralized Constants**: All engine parameters (delays, indices, scores) are imported from `lib/constants.ts` to ensure consistency.
 - **Sandwich Layout**: All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
 - **Presence**: Realtime tracking of online friends via the `PresenceManager`.
 

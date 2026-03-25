@@ -3,10 +3,19 @@ import { useAccount } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType } from '@/lib/types';
-import { getTeammateColor, getNextPlayer as getNextPlayerCore } from '@/lib/gameLogic';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
+import { 
+    INITIAL_GAME_STATE, 
+    getTeammateColor, 
+    getNextPlayer as getNextPlayerCore 
+} from '@/lib/gameLogic';
+import { 
+    BOARD_FINISH_INDEX, 
+    DEFAULT_TURN_TIMER_SECS, 
+    POWER_TILES_COUNT 
+} from '@/lib/constants';
 
 // Specialized Hooks
 import { useGameActions } from './useGameActions';
@@ -65,60 +74,27 @@ export function useGameEngine({
         isLobbyConnected,
         updateGameState,
         lastIntent,
-        clearIntent
+        clearIntent,
+        startBettingWindow
     } = useTeamUpContext();
 
     const [localGameState, setLocalGameState] = useState({
-        positions: {
-            green: [-1, -1, -1, -1],
-            red: [-1, -1, -1, -1],
-            yellow: [-1, -1, -1, -1],
-            blue: [-1, -1, -1, -1],
-        },
+        ...INITIAL_GAME_STATE,
         currentPlayer: initialPlayers[0]?.color as PlayerColor || 'green',
-        diceValue: null as number | null,
-        gamePhase: 'rolling' as 'rolling' | 'moving',
-        winner: null as string | null,
-        captureMessage: null as string | null,
-        winners: [] as string[],
-        invalidMove: false,
-        isThinking: false,
-        timeLeft: 15,
-        strikes: { green: 0, red: 0, yellow: 0, blue: 0 } as Record<PlayerColor, number>,
         powerTiles: (gameMode === 'power' ? pathCells
             .filter(c => c.cls === 'board-cell')
             .sort(() => Math.random() - 0.5)
-            .slice(0, 4)
+            .slice(0, POWER_TILES_COUNT)
             .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
-        playerPowers: { green: null, red: null, yellow: null, blue: null } as Record<PlayerColor, PowerType | null>,
-        activeTraps: [] as { r: number, c: number, owner: PlayerColor }[],
-        activeShields: [] as { color: PlayerColor, tokenIdx: number }[],
-        activeBoost: null as PlayerColor | null,
-        consecutiveSixes: 0,
-        afkStats: {
-            green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-            red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-            yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-            blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-        } as Record<PlayerColor, { isAutoPlaying: boolean; consecutiveTurns: number; totalTriggers: number; isKicked: boolean }>,
-        idleWarning: null as { player: PlayerColor; timeLeft: number } | null,
-        teamup: {
-            targetId: '',
-            isConnected: false,
-            isHost: false,
-            status: 'idle' as 'idle' | 'host' | 'guest'
-        },
-        isStarted: false,
-        matchId: undefined as string | undefined,
         lastUpdate: Date.now()
     });
 
     const getNextPlayer = useCallback((current: PlayerColor): PlayerColor => {
         const activeForTurns = activeColorsArr.filter(color => {
-            const hasTokens = localGameState.positions[color].some(p => p !== 57);
+            const hasTokens = localGameState.positions[color].some(p => p !== BOARD_FINISH_INDEX);
             if (playerCount === '2v2') {
                 const teammate = getTeammateColor(color, playerCount);
-                const teammateHasTokens = teammate ? localGameState.positions[teammate].some(p => p !== 57) : false;
+                const teammateHasTokens = teammate ? localGameState.positions[teammate].some(p => p !== BOARD_FINISH_INDEX) : false;
                 return hasTokens || teammateHasTokens;
             }
             return hasTokens;
@@ -197,7 +173,8 @@ export function useGameEngine({
         audio: { playMove, playCapture, playWin },
         triggerWinConfetti,
         recordWin,
-        autoMoveTimeoutRef
+        autoMoveTimeoutRef,
+        startBettingWindow
     });
 
     useGameTimer({ localGameState, setLocalGameState });
@@ -247,42 +224,14 @@ export function useGameEngine({
             playerPaths: buildPlayerPaths(newCC)
         });
         setLocalGameState({
-            positions: {
-                green: [-1, -1, -1, -1],
-                red: [-1, -1, -1, -1],
-                yellow: [-1, -1, -1, -1],
-                blue: [-1, -1, -1, -1],
-            },
+            ...INITIAL_GAME_STATE,
             currentPlayer: newPlayers[0].color,
-            diceValue: null,
-            gamePhase: 'rolling',
-            winner: null,
-            captureMessage: null,
-            winners: [],
-            invalidMove: false,
-            isThinking: false,
-            timeLeft: 15,
-            strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
             powerTiles: (gameMode === 'power' ? pathCells
                 .filter(c => c.cls === 'board-cell')
                 .sort(() => Math.random() - 0.5)
-                .slice(0, 4)
+                .slice(0, POWER_TILES_COUNT)
                 .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
-            playerPowers: { green: null, red: null, yellow: null, blue: null },
-            activeTraps: [],
-            activeShields: [],
-            activeBoost: null,
-            consecutiveSixes: 0,
-            afkStats: {
-                green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-                red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-                yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-                blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-            },
-            idleWarning: null,
-            teamup: { targetId: '', isConnected: false, isHost: false, status: 'idle' },
             isStarted: true,
-            matchId: undefined,
             lastUpdate: Date.now()
         });
     }, [playerCount, gameMode, pathCells, isBotMatch, setBoardConfig]);

@@ -52,6 +52,7 @@ export interface TeamUpContextType {
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
     participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor }>;
+    lastIntent: any | null;
     clearIntent: () => void;
     leaveGame: () => void;
     validationToken?: string;
@@ -156,7 +157,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         .then();
                     
                     // Log to activities
-                    (supabase.from('activities') as any).insert({
+                    (supabase as any).from('activities').insert({
                         actor_id: myAddress,
                         type: 'join_tournament', // General match join for now
                         metadata: { room_code: currentRoomCode }

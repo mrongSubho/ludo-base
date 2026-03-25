@@ -1,6 +1,13 @@
-import { PlayerColor } from '@/lib/types';
+import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor } from './gameLogic';
 import { Point, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
+import { 
+    BOARD_FINISH_INDEX, 
+    HOME_LANE_START_INDEX, 
+    BASE_INDEX, 
+    AI_SCORES,
+    DICE_MAX
+} from './constants';
 
 /**
  * AI Heuristics Engine
@@ -18,10 +25,11 @@ export function getBestMove(
     roll: number,
     playerPaths: Record<string, Point[]>,
     playerCount: string = '4P',
-    powerTiles: { r: number, c: number }[] = []
+    powerTiles: { r: number, c: number }[] = [],
+    state?: GameState
 ): number | null {
     const teammate = getTeammateColor(playerId, playerCount as any);
-    const selfFinished = positions[playerId].every(p => p === 57);
+    const selfFinished = positions[playerId].every(p => p === BOARD_FINISH_INDEX);
     const actingColor = (playerCount === '2v2' && selfFinished && teammate) ? teammate : playerId;
     const actingColorTyped = actingColor as PlayerColor;
 
@@ -29,9 +37,9 @@ export function getBestMove(
 
     positions[actingColorTyped].forEach((pos: number, idx: number) => {
         // Check if move is valid
-        if (pos === -1) {
-            if (roll === 6) options.push(idx);
-        } else if (pos + roll <= 57) {
+        if (pos === BASE_INDEX) {
+            if (roll === DICE_MAX) options.push(idx);
+        } else if (pos + roll <= BOARD_FINISH_INDEX) {
             options.push(idx);
         }
     });
@@ -42,65 +50,16 @@ export function getBestMove(
     let maxScore = -Infinity;
 
     options.forEach(idx => {
-        const currentPos = positions[actingColorTyped][idx];
-        const nextPos = currentPos === -1 ? 0 : currentPos + roll;
-        let score = 0;
-
-        // Reach Finish Zone (+150) - The ultimate objective
-        if (nextPos === 57) {
-            score += 150;
-        }
-
-        // Enter Home Lane (+25) - Safe from captures
-        if (nextPos >= 52 && currentPos < 52) {
-            score += 25;
-        }
-
-        // Move out of Home (+40) - Getting a new piece on the board
-        if (currentPos === -1) {
-            score += 40;
-        }
-
-        // Power Tile Hunting (+120) - User requested aggressive hunting
-        const targetPoint = playerPaths[actingColor][nextPos];
-        if (nextPos < 52 && targetPoint) {
-            const isOnPowerTile = powerTiles.some(pt => pt.r === targetPoint.r && pt.c === targetPoint.c);
-            if (isOnPowerTile) {
-                score += 120;
-            }
-        }
-
-        // Capturing / Safe Zones Logic
-        if (nextPos < 52 && targetPoint) {
-            const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
-            const teamId = getTeam(actingColor, playerCount);
-            const actingForce = getTeamForceAtPoint(teamId, targetPoint, { positions } as any, playerPaths, playerCount) + 1;
-
-            // Check if any opponent has tokens here and compare forces
-            let maxOppForce = 0;
-            (['green', 'red', 'blue', 'yellow'] as const).forEach(color => {
-                const otherTeam = getTeam(color, playerCount);
-                if (otherTeam !== teamId) {
-                    const force = getTeamForceAtPoint(otherTeam, targetPoint, { positions } as any, playerPaths, playerCount);
-                    if (force > maxOppForce) maxOppForce = force;
-                }
-            });
-
-            if (isSafeSquare) {
-                score += 50;
-            } else if (actingForce > 1 && actingForce > maxOppForce) {
-                score += 60; // Better than star square if we are reinforcing?
-            } else if (maxOppForce > 0 && actingForce < maxOppForce) {
-                score += 30; // Truce state - relatively safe but vulnerable to reinforcement
-            }
-
-            // Check for Captures (+100 per token)
-            const captures = checkMultiCapture(actingColor, nextPos, { positions, activeShields: [], activeTraps: [] } as any, playerPaths, playerCount);
-            score += captures.length * 100;
-        }
-
-        // Distance to finish (Higher is better, small incremental points)
-        score += nextPos;
+        const score = calculateMoveScore(
+            idx,
+            positions,
+            actingColorTyped,
+            roll,
+            playerPaths,
+            playerCount,
+            powerTiles,
+            state
+        );
 
         if (score > maxScore) {
             maxScore = score;
@@ -109,4 +68,145 @@ export function getBestMove(
     });
 
     return bestTokenIdx;
+}
+
+export function calculateMoveScore(
+    tokenIdx: number,
+    positions: Record<PlayerColor, number[]>,
+    actingColor: PlayerColor,
+    roll: number,
+    playerPaths: Record<string, Point[]>,
+    playerCount: string,
+    powerTiles: { r: number, c: number }[],
+    state?: GameState
+): number {
+    const currentPos = positions[actingColor][tokenIdx];
+    const nextPos = currentPos === BASE_INDEX ? 0 : currentPos + roll;
+    let score = 0;
+
+    // Reach Finish Zone (+150) - The ultimate objective
+    if (nextPos === BOARD_FINISH_INDEX) {
+        score += AI_SCORES.REACH_FINISH;
+    }
+
+    // Enter Home Lane (+25) - Safe from captures
+    if (nextPos >= HOME_LANE_START_INDEX && currentPos < HOME_LANE_START_INDEX) {
+        score += AI_SCORES.ENTER_HOME_LANE;
+    }
+
+    // Move out of Home (+40) - Getting a new piece on the board
+    if (currentPos === BASE_INDEX) {
+        score += AI_SCORES.EXIT_BASE;
+    }
+
+    // Power Tile Hunting (+120)
+    const targetPoint = playerPaths[actingColor][nextPos];
+    if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
+        const isOnPowerTile = powerTiles.some(pt => pt.r === targetPoint.r && pt.c === targetPoint.c);
+        if (isOnPowerTile) {
+            score += AI_SCORES.POWER_TILE_HUNT;
+        }
+    }
+
+    // Capturing / Safe Zones Logic
+    if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
+        const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
+        const teamId = getTeam(actingColor, playerCount);
+        const actingForce = getTeamForceAtPoint(teamId, targetPoint, { positions } as any, playerPaths, playerCount) + 1;
+
+        // Check if any opponent has tokens here and compare forces
+        let maxOppForce = 0;
+        (['green', 'red', 'blue', 'yellow'] as const).forEach(color => {
+            const otherTeam = getTeam(color, playerCount);
+            if (otherTeam !== teamId) {
+                const force = getTeamForceAtPoint(otherTeam, targetPoint, { positions } as any, playerPaths, playerCount);
+                if (force > maxOppForce) maxOppForce = force;
+            }
+        });
+
+        if (isSafeSquare) {
+            score += AI_SCORES.ENTER_SAFE_ZONE;
+        } else if (actingForce > 1 && actingForce > maxOppForce) {
+            score += AI_SCORES.REINFORCE_ALLY;
+        } else if (maxOppForce > 0 && actingForce < maxOppForce) {
+            score += 30; // Truce state - relatively safe
+        }
+
+        // Check for Captures (+100 per token)
+        const dummyState = state || { positions, activeShields: [], activeTraps: [] } as any;
+        const captures = checkMultiCapture(actingColor, nextPos, dummyState, playerPaths, playerCount);
+        score += captures.length * AI_SCORES.CAPTURE_TOKEN;
+    }
+
+    // Distance to finish (Higher is better, small incremental points)
+    score += nextPos * AI_SCORES.PROGRESSION_MULTIPLIER;
+
+    return score;
+}
+
+export function getBestPowerUsage(
+    state: GameState,
+    color: PlayerColor,
+    playerPaths: Record<string, Point[]>,
+    playerCount: string
+): boolean {
+    const power = state.playerPowers[color];
+    if (!power) return false;
+
+    if (power === 'bomb') {
+        return checkBombTarget(state, color, playerPaths, playerCount);
+    } else if (power === 'shield') {
+        return checkShieldNeed(state, color, playerPaths, playerCount);
+    } else if (power === 'boost' || power === 'warp') {
+        return true; // Always use boost/warp if available (simple AI strategy)
+    }
+
+    return false;
+}
+
+function checkBombTarget(state: GameState, color: PlayerColor, playerPaths: Record<string, Point[]>, playerCount: string): boolean {
+    let targetFound = false;
+    state.positions[color].forEach((myPos: number) => {
+        if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
+        (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+            if (oppColor === color) return;
+            if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
+            state.positions[oppColor].forEach((oppPos: number) => {
+                if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
+                const myPt = playerPaths[color][myPos];
+                const oppPt = playerPaths[oppColor][oppPos];
+                for (let s = 1; s <= DICE_MAX; s++) {
+                    const checkPos = myPos + s;
+                    if (checkPos >= HOME_LANE_START_INDEX) break;
+                    const checkPt = playerPaths[color][checkPos];
+                    if (checkPt.r === oppPt.r && checkPt.c === oppPt.c) targetFound = true;
+                }
+            });
+        });
+    });
+    return targetFound;
+}
+
+function checkShieldNeed(state: GameState, color: PlayerColor, playerPaths: Record<string, Point[]>, playerCount: string): boolean {
+    let vulnerable = false;
+    state.positions[color].forEach((myPos: number) => {
+        if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
+        if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === playerPaths[color][myPos].r && p.c === playerPaths[color][myPos].c)) return;
+        
+        (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+            if (oppColor === color) return;
+            if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
+            state.positions[oppColor].forEach((oppPos: number) => {
+                if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
+                for (let s = 1; s <= DICE_MAX; s++) {
+                    const checkPos = oppPos + s;
+                    if (checkPos >= HOME_LANE_START_INDEX) break;
+                    const checkPt = playerPaths[oppColor][checkPos];
+                    const myPt = playerPaths[color][myPos];
+                    if (checkPt.r === myPt.r && checkPt.c === myPt.c) vulnerable = true;
+                }
+            });
+        });
+    });
+    return vulnerable;
 }
