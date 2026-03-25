@@ -180,8 +180,6 @@ export default function Board({
                         counterRotationDeg={counterRotationDeg}
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
-                            const isActive = players.some(p => p.color === color);
-                            if (!isActive) return null;
                             const tokensInHome = localGameState.positions[color].map((pos: number, idx: number) => pos === -1 ? idx : -1).filter((idx: number) => idx !== -1);
                             return (
                                 <HomeBlock
