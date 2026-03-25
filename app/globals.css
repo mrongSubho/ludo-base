@@ -10,10 +10,10 @@
 @theme {
   --color-ludo-background: var(--ludo-bg);
   --color-ludo-card: var(--ludo-card);
-  --color-ludo-green: var(--ludo-green);
-  --color-ludo-red: var(--ludo-red);
-  --color-ludo-blue: var(--ludo-blue);
-  --color-ludo-yellow: var(--ludo-yellow);
+  --color-ludo-green: var(--ludo-sage);
+  --color-ludo-red: var(--ludo-rose);
+  --color-ludo-blue: var(--ludo-sky);
+  --color-ludo-yellow: var(--ludo-amber);
   --color-ludo-slate: var(--ludo-slate);
 
   --color-ludo-blue: var(--ludo-blue);
@@ -42,11 +42,16 @@
   --ludo-faint: #cbd5e1;
   --ludo-slate: #1e293b;
 
-  /* Standard Ludo Palette (Light) */
-  --ludo-green: #22c55e;
-  --ludo-red: #ef4444;
-  --ludo-yellow: #eab308;
-  --ludo-blue: #3b82f6;
+  /* Standard Ludo Palette (Original Soft Tones) */
+  --ludo-green: #A8E6CF;
+  --ludo-red: #FF8B94;
+  --ludo-blue: #A2E1F6;
+  --ludo-yellow: #FFD3B6;
+
+  --ludo-green-contrast: #FFFFFF;
+  --ludo-red-contrast: #FFFFFF;
+  --ludo-blue-contrast: #FFFFFF;
+  --ludo-yellow-contrast: #000000;
 
   --ludo-bg-image: none;
   --ludo-bg-rgb: 248, 250, 252;
@@ -1946,19 +1951,19 @@ body.theme-retro-futurism::before {
 }
 
 .board-home.green {
-  background: var(--ludo-green);
+  background: var(--ludo-sage);
 }
 
 .board-home.red {
-  background: var(--ludo-red);
+  background: var(--ludo-rose);
 }
 
 .board-home.yellow {
-  background: var(--ludo-yellow);
+  background: var(--ludo-amber);
 }
 
 .board-home.blue {
-  background: var(--ludo-blue);
+  background: var(--ludo-sky);
 }
 
 .home-pad {
@@ -1966,7 +1971,7 @@ body.theme-retro-futurism::before {
   height: 62%;
   flex-shrink: 0;
   aspect-ratio: 1;
-  background: var(--ludo-card);
+  background: #f3f4f6;
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1980,6 +1985,11 @@ body.theme-retro-futurism .board-home {
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+body.theme-retro-futurism .board-home.green { background: #00FF9F; }
+body.theme-retro-futurism .board-home.red { background: #FF2D55; }
+body.theme-retro-futurism .board-home.yellow { background: #FFD700; }
+body.theme-retro-futurism .board-home.blue { background: #00D1FF; }
 
 body.theme-retro-futurism .home-pad {
   background: rgba(0, 0, 0, 0.4);
@@ -2042,19 +2052,19 @@ body.theme-retro-futurism .home-pad {
 
 /* ── Finish Lanes — translucent tints ── */
 .lane-green {
-  background: color-mix(in srgb, var(--ludo-green) 85%, var(--ludo-card)) !important;
+  background: color-mix(in srgb, var(--ludo-sage) 90%, #f3f4f6) !important;
 }
 
 .lane-red {
-  background: color-mix(in srgb, var(--ludo-red) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-rose) 90%, #f3f4f6) !important;
 }
 
 .lane-blue {
-  background: color-mix(in srgb, var(--ludo-blue) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-sky) 90%, #f3f4f6) !important;
 }
 
 .lane-yellow {
-  background: color-mix(in srgb, var(--ludo-yellow) 90%, #f3f4f6) !important;
+  background: color-mix(in srgb, var(--ludo-amber) 90%, #f3f4f6) !important;
 }
 
 .board-cell.star-cell {
@@ -2090,22 +2100,22 @@ body.theme-retro-futurism .home-pad {
 }
 
 .tri-top {
-  background: var(--ludo-green);
+  background: var(--ludo-sage);
   clip-path: polygon(0 0, 100% 0, 50% 50%);
 }
 
 .tri-right {
-  background: var(--ludo-red);
+  background: var(--ludo-rose);
   clip-path: polygon(100% 0, 100% 100%, 50% 50%);
 }
 
 .tri-bottom {
-  background: var(--ludo-blue);
+  background: var(--ludo-sky);
   clip-path: polygon(0 100%, 100% 100%, 50% 50%);
 }
 
 .tri-left {
-  background: var(--ludo-yellow);
+  background: var(--ludo-amber);
   clip-path: polygon(0 0, 0 100%, 50% 50%);
 }
 
@@ -3448,7 +3458,7 @@ body.theme-retro-futurism .token-dot-placeholder {
 }
 
 .mode-card.active.selection-glow-green {
-  box-shadow: 0 0 0 2px var(--color-ludo-green), 0 8px 24px rgba(168, 230, 207, 0.2);
+  box-shadow: 0 0 0 2px var(--color-ludo-sage), 0 8px 24px rgba(168, 230, 207, 0.2);
 }
 
 .mode-card.active.selection-glow-orange {
@@ -3580,9 +3590,9 @@ body.theme-retro-futurism .token-dot-placeholder {
 }
 
 .bet-pill.active {
-  background: var(--color-ludo-green);
-  border-color: var(--color-ludo-green);
-  color: var(--ludo-green-contrast);
+  background: var(--color-ludo-sage);
+  border-color: var(--color-ludo-sage);
+  color: var(--ludo-sage-contrast);
   box-shadow: 0 2px 8px rgba(168, 230, 207, 0.4);
 }
 
