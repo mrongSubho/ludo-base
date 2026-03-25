@@ -7,8 +7,11 @@ import { TeamUpMatchPanel } from './TeamUpMatchPanel';
 import { OfflineMatchPanel } from './OfflineMatchPanel';
 import { QuickMatchPanel } from './QuickMatchPanel';
 import { useSoundEffects } from '../hooks/useSoundEffects';
-import { LiveMatchmakingFeed } from './LiveMatchmakingFeed';
-import { LuMinus, LuPlus } from 'react-icons/lu';
+import { LiveArenaDirectory } from './LiveArenaDirectory';
+import { ActivityFeed } from './ActivityFeed';
+import { LuMinus, LuPlus, LuTrophy, LuTimer, LuUsers } from 'react-icons/lu';
+import { supabase } from '@/lib/supabase';
+import { useAccount } from 'wagmi';
 
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
@@ -18,6 +21,7 @@ interface GameLobbyProps {
     wager: number;
     setWager: (wager: number) => void;
     onStartGame: (isBotMatch?: boolean) => void;
+    onWatchMatch?: (roomCode: string) => void;
 }
 
 export default function GameLobby({
@@ -27,7 +31,8 @@ export default function GameLobby({
     setMatchType,
     wager,
     setWager,
-    onStartGame
+    onStartGame,
+    onWatchMatch,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -39,9 +44,10 @@ export default function GameLobby({
         sendInvite,
         swapPlayers,
         kickPlayer,
-        startQuickMatch,
+        onQuickMatch: startQuickMatch,
         leaveGame
     } = useTeamUpContext();
+    const { address } = useAccount();
 
     // Configuration State
     const { playSelect, playCoin } = useSoundEffects();
@@ -49,6 +55,54 @@ export default function GameLobby({
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [searchId, setSearchId] = useState(0);
+    const [tournaments, setTournaments] = useState<any[]>([]);
+
+    // Fetch Upcoming Tournaments
+    useEffect(() => {
+        const fetchTournaments = async () => {
+            const { data } = await (supabase.from('tournaments') as any)
+                .select('*')
+                .eq('status', 'upcoming')
+                .order('start_at', { ascending: true })
+                .limit(3);
+            if (data) setTournaments(data);
+        };
+        fetchTournaments();
+
+        const channel = (supabase.channel('tournaments_sync') as any)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => fetchTournaments())
+            .subscribe();
+        
+        return () => { supabase.removeChannel(channel); };
+    }, []);
+
+    const handleJoinTournament = useCallback(async (tournamentId: string, entryFee: number) => {
+        if (!address) return;
+        
+        const { data, error } = await (supabase.rpc as any)('join_tournament', {
+            p_tournament_id: tournamentId,
+            p_player_id: address
+        });
+
+        if (error) {
+            console.error('Failed to join tournament:', error);
+            alert('Failed to join: ' + error.message);
+            return;
+        }
+
+        const res = data as any;
+        if (res.success) {
+            alert('Enrolled Successfully!');
+            // Log activity
+            (supabase.from('activities') as any).insert({
+                actor_id: address,
+                type: 'join_tournament',
+                metadata: { tournament_id: tournamentId }
+            }).then();
+        } else {
+            alert(res.error || 'Failed to join tournament');
+        }
+    }, [address]);
 
     // Handle Joining from Live Feed
     useEffect(() => {
@@ -181,9 +235,61 @@ export default function GameLobby({
                 </div>
             )}
 
-            {/* --- LIVE FEED --- */}
+            {/* --- LIVE ARENA DIRECTORY (GambleFi) --- */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
-                <LiveMatchmakingFeed />
+                <div className="w-full flex flex-col gap-12 mt-12 pb-24">
+                    
+                    {/* Upcoming Tournaments Section */}
+                    {tournaments.length > 0 && (
+                        <div className="w-full space-y-6">
+                            <div className="flex items-center justify-between px-2">
+                                <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <LuTrophy className="text-yellow-500 w-4 h-4" />
+                                    Tournament Arena
+                                </h3>
+                                <button className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest hover:text-cyan-300 transition-colors">
+                                    View All
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {tournaments.map((t) => (
+                                    <div key={t.id} className="glass-panel p-5 rounded-[24px] border border-white/10 hover:border-cyan-500/30 transition-all group relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-3">
+                                            <div className="bg-yellow-500/20 text-yellow-400 text-[9px] font-black px-2 py-1 rounded-full border border-yellow-500/30 flex items-center gap-1 shadow-sm">
+                                                <LuTrophy className="w-2.5 h-2.5" />
+                                                ${t.prize_pool}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3 relative z-10">
+                                            <h4 className="text-white font-bold text-lg leading-tight group-hover:text-cyan-400 transition-colors">{t.title}</h4>
+                                            <div className="flex items-center gap-4 text-white/40 text-[10px] font-bold uppercase tracking-widest">
+                                                <div className="flex items-center gap-1.5">
+                                                    <LuTimer className="w-3.5 h-3.5 text-cyan-400" />
+                                                    {new Date(t.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <LuUsers className="w-3.5 h-3.5 text-cyan-400" />
+                                                    {t.min_players}+ Players
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleJoinTournament(t.id, t.entry_fee)}
+                                                className="w-full py-3 bg-[rgba(255,255,255,0.05)] hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase tracking-[0.1em] transition-all border border-white/10 hover:border-cyan-400 shadow-sm mt-2"
+                                            >
+                                                Register Entry: ${t.entry_fee}
+                                            </button>
+                                        </div>
+                                        {/* Subtle background glow */}
+                                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <ActivityFeed />
+                    <LiveArenaDirectory onWatchMatch={onWatchMatch} />
+                </div>
             )}
 
             {/* --- OVERLAY PANELS --- */}
@@ -195,7 +301,7 @@ export default function GameLobby({
                         setShowTeamUpOptions(false);
                     }}
                     onJoin={(code: string) => joinGame(code)}
-                    onHost={() => hostGame(matchType, gameMode, wager)}
+                    onHost={() => hostGame()}
                     currentRoomId={roomId}
                     isHost={isHost}
                     isLobbyConnected={isLobbyConnected}

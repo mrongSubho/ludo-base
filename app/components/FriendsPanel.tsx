@@ -9,6 +9,7 @@ interface FriendsPanelProps {
     onClose: () => void;
     onDM?: (friendId: string) => void;
     onOpenProfile?: (address: string) => void;
+    onSpectate?: (roomCode: string) => void;
 }
 
 type MainTab = 'social' | 'global' | 'requests';
@@ -30,6 +31,13 @@ interface Request {
     avatar: string;
     time: string;
 }
+
+const SpectateIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
 
 
 // SVG Icons
@@ -60,7 +68,7 @@ const RejectIcon = () => (
 );
 
 
-export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPanelProps) {
+export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate }: FriendsPanelProps) {
     const { profile, address: connectedAddress } = useCurrentUser();
     const userFid = (profile as any)?.fid;
 
@@ -107,8 +115,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                     status,
                     user_address,
                     friend_address,
-                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at),
-                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at)
+                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at, current_room_code),
+                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at, current_room_code)
                 `)
                 .eq('status', 'accepted')
                 .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
@@ -359,6 +367,17 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile }: FriendsPa
                                 <PokeIcon />
                             )}
                         </button>
+
+                        {/* Spectate Button (only if In Match) */}
+                        {friend.status === 'In Match' && (friend as any).current_room_code && (
+                            <button
+                                onClick={() => onSpectate?.((friend as any).current_room_code)}
+                                className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center hover:bg-orange-500 hover:text-white transition-all shadow-sm border border-orange-500/30"
+                                title="Spectate Match"
+                            >
+                                <SpectateIcon />
+                            </button>
+                        )}
 
                         {/* DM Button */}
                         <button

@@ -7,7 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 
 // Tab Type
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'tournaments' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -30,6 +30,13 @@ const UsersIcon = () => (
 const TrophyIcon = () => (
     <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M8 21h8M12 17v4M7 4h10M5 4h14v5a7 7 0 0 1-14 0V4z" />
+    </svg>
+);
+
+const TournamentIcon = () => (
+    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" y1="22" x2="4" y2="15" />
     </svg>
 );
 
@@ -97,6 +104,7 @@ export const FooterNavPanel = ({
                     { id: 'profile', icon: ProfileIcon, label: 'Profile' },
                     { id: 'friends', icon: UsersIcon, label: 'Friends' },
                     { id: 'leaderboard', icon: TrophyIcon, label: 'Leaderboard' },
+                    { id: 'tournaments', icon: TournamentIcon, label: 'Arena' },
                     { id: 'mission', icon: TargetIcon, label: 'Mission' },
                     { id: 'marketplace', icon: ShopIcon, label: 'Market' }
                 ].map((tab) => {

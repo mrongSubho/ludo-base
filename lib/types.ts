@@ -1,8 +1,34 @@
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL';
+
+// ─── Spectator & Betting Types ───
+export type BetType = 'winner' | 'dice_roll' | 'elimination' | 'custom';
+
+export interface BetWindowPayload {
+    windowId: string;
+    betType: BetType;
+    expiresAt: number;           // epoch ms — spectators close UI at this time
+    matchId?: string;
+}
+
+export interface BetWindowClosedPayload {
+    windowId: string;
+    windowClosedAt: string;      // ISO — bets after this are invalid server-side
+}
+
+export interface SpectatorBet {
+    match_id: string;
+    bet_type: BetType;
+    bet_value: string;
+    amount: number;
+    odds?: number;
+    potential_payout?: number;
+    window_closed_at: string;    // snapshot from BET_WINDOW_CLOSED event
+}
+
 
 export interface GameState {
     positions: {
@@ -31,11 +57,22 @@ export interface GameState {
     isStarted: boolean;
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';
+    matchId?: string;
     lastAction?: { type: GameActionType; payload: any };
     initialBoardConfig?: {
         players: any[];
         colorCorner: any;
     };
+}
+
+export interface StartGamePayload {
+    initialBoardConfig: {
+        players: any[]; // Add more specific type if possible
+        colorCorner: any; // Add more specific type if possible
+    };
+    playerCount: '1v1' | '2v2' | '4P';
+    isBotMatch: boolean;
+    matchId?: string;
 }
 
 // --- Lobby System Types ---

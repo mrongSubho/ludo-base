@@ -1,6 +1,35 @@
 import { GameState, PlayerColor, LobbySlot, LobbyState } from './types';
 import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 
+export const INITIAL_GAME_STATE: GameState = {
+    positions: { green: [-1, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    currentPlayer: 'green',
+    diceValue: null,
+    gamePhase: 'rolling',
+    status: 'waiting',
+    winner: null,
+    winners: [],
+    captureMessage: null,
+    timeLeft: 15,
+    strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
+    powerTiles: [],
+    playerPowers: { green: null, red: null, yellow: null, blue: null },
+    activeTraps: [],
+    activeShields: [],
+    consecutiveSixes: 0,
+    afkStats: {
+        green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+        blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+    },
+    idleWarning: null,
+    participantPeers: {},
+    isStarted: false,
+    lastUpdate: Date.now(),
+    playerCount: '4P',
+};
+
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
     if (playerCount !== '2v2') return null;
     const teams: Record<PlayerColor, PlayerColor> = {

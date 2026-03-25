@@ -154,4 +154,65 @@ Gameplay intents and lobby chats are encrypted using `AES-GCM` 256-bit keys deri
 - **Presence:** Realtime tracking of online friends via the `PresenceManager`.
 
 ---
+
+## 8. GambleFi Spectator System [hooks/, supabase/functions/resolve-bet/]
+
+> Added: 2026-03-23 | Status: Phase 1–3 complete, Phase 4 (UI) in progress
+
+### 8.1 Architecture: State-Sync Streaming ("Zero-Video")
+
+Spectators do **not** watch a video stream. Instead, they subscribe to the same Supabase Realtime Broadcast channel as players (`game-room-${roomCode}`) via the `useSpectatorSync` hook. Their browser receives the same `GameAction` payloads and re-renders `Board.tsx` locally in `spectatorMode`.
+
+This approach costs zero additional bandwidth per spectator and scales horizontally with Supabase infrastructure.
+
+```
+[Host] → broadcastAction() → Supabase Broadcast Channel → [Players] + [Spectators]
+                                                                          ↓
+                                                             useSpectatorSync() applies
+                                                             game state locally → Board.tsx renders
+```
+
+### 8.2 Betting Window Protocol (V2 Hardened)
+
+The host broadcasts a `BET_WINDOW_OPEN` event **before** initiating the dice commit. After 3 seconds, the host broadcasts `BET_WINDOW_CLOSED` with an ISO timestamp. **DICE_COMMIT is only sent after BET_WINDOW_CLOSED.** 
+
+**Security V2:** The `settle_match_bets` RPC on Supabase performs a server-side check ensuring `NOW() > window_closed_at`. This prevents front-running even if the client-side Edge Function trigger is spoofed.
+
+**State machine:** `Idle → WindowOpen → WindowClosed → DiceReveal → Resolution (RPC V2) → Idle`
+
+### 8.3 New Game Action Types
+
+Added to `GameActionType` in `lib/types.ts`:
+
+| Event | Sender | Payload |
+|-------|--------|---------|
+| `BET_WINDOW_OPEN` | Host | `{ windowId, betType, expiresAt, matchId }` |
+| `BET_WINDOW_CLOSED` | Host | `{ windowId, windowClosedAt }` |
+
+### 8.4 New Hooks
+
+| Hook | File | Purpose |
+|------|------|---------|
+| `useBettingWindow` | `hooks/useBettingWindow.ts` | Host-side: opens/closes betting windows, fires callback for dice proceed |
+| `useSpectatorSync` | `hooks/useSpectatorSync.ts` | Spectator-side: subscribes to broadcast, applies game state locally |
+| `useSpectatorPresence` | `hooks/useSpectatorPresence.ts` | Live spectator count via Supabase Presence on `spectators-${roomCode}` |
+
+### 8.5 Edge Function: `resolve-bet`
+
+Deployed to Supabase (slug: `resolve-bet`, JWT-protected). Acts as a secure relay to the `settle_match_bets` RPC. It handles the mapping of game events (dice roll values, winner addresses) to the database resolution logic. Idempotent via `WHERE status = 'pending'`. 
+
+**Tokenomics split (5% of total spectator bet volume):**
+- 3% → match players (split equally)
+- 2% → protocol treasury
+
+### 8.6 New Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `live_matches` | Betting window lifecycle per match (open/closed/resolving) |
+| `spectator_bets` | All spectator wagers with timing guard + idempotency columns |
+
+See `supabase/schema_list.md` Phase 4 for full DDL and RLS policies.
+
+---
 *Created by Antigravity AI for Ludo Base.*

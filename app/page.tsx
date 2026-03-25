@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Board from './components/Board';
 import SnakesBoard from './components/SnakesBoard';
-// Unused slide-up panels were extracted to their own components or removed natively
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -13,10 +12,14 @@ import { FooterNavPanel } from './components/FooterNavPanel';
 import UserProfilePanel from './components/UserProfilePanel';
 import FriendsPanel from './components/FriendsPanel';
 import Leaderboard from './components/Leaderboard';
+import RankingsPanel from './components/RankingsPanel';
+import TournamentPanel from './components/TournamentPanel';
 import MissionPanel from './components/MissionPanel';
 import MarketplacePanel from './components/MarketplacePanel';
 import MessagesPanel from './components/MessagesPanel';
 import PublicProfileModal from './components/PublicProfileModal';
+import { LiveArenaDirectory } from './components/LiveArenaDirectory';
+import { SpectatorHUD } from './components/SpectatorHUD';
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useTeamUp } from '@/hooks/useTeamUp';
@@ -24,11 +27,13 @@ import PresenceManager from './components/PresenceManager';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
+import { useSpectatorSync } from '@/hooks/useSpectatorSync';
+import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
-type AppState = 'dashboard' | 'game';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
+type AppState = 'dashboard' | 'game' | 'spectating';
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'tournaments' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
 
 // Mock user data has been removed
 
@@ -68,6 +73,39 @@ const SplashScreen = () => (
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMessages } from '@/hooks/useMessages';
 
+const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }) => {
+   const [isStreaming, setIsStreaming] = useState(false);
+   const [isPending, setIsPending] = useState(false);
+
+   if (!isHost || !matchId) return null;
+
+   const toggleStream = async () => {
+     setIsPending(true);
+     try {
+       const res = await fetch('/api/match/stream', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ matchId, enabled: !isStreaming })
+       });
+       if(res.ok) setIsStreaming(!isStreaming);
+     } finally {
+       setIsPending(false);
+     }
+   };
+
+   return (
+      <button 
+         onClick={toggleStream} 
+         disabled={isPending}
+         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest transition-all ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <div className={`w-1.5 h-1.5 rounded-full ${isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
+        {isStreaming ? 'LIVE GAMBLEFI' : 'STREAM MATCH'}
+      </button>
+   );
+}
+
+
 export default function Page() {
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
@@ -75,6 +113,7 @@ export default function Page() {
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
+  const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
   const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useTeamUp();
@@ -89,6 +128,23 @@ export default function Page() {
 
   const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
   const { level, tier } = progression;
+
+  // ─── Spectator mode hooks (only active when spectatingRoomCode is set) ───────
+  const {
+    gameState: spectatorGameState,
+    activeBetWindow,
+  } = useSpectatorSync(spectatingRoomCode);
+  const { spectatorCount } = useSpectatorPresence(spectatingRoomCode, address?.toLowerCase());
+
+  const handleWatchMatch = useCallback((roomCode: string) => {
+    setSpectatingRoomCode(roomCode);
+    setAppState('spectating');
+  }, []);
+
+  const handleLeaveSpectating = useCallback(() => {
+    setSpectatingRoomCode(null);
+    setAppState('dashboard');
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setShowSplash(false), 1500);
@@ -143,7 +199,7 @@ export default function Page() {
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
-  const handlePlayNow = () => {
+  const handlePlayNow = async () => {
     console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'playerCount:', playerCount, 'lobbyStatus:', lobbyState?.status);
     if (isHost) {
       const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
@@ -203,10 +259,33 @@ export default function Page() {
         }
       }
 
+      let newMatchId: string | undefined;
+
+      try {
+        const res = await fetch('/api/match/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+             roomCode: lobbyState?.roomCode || `local-${Date.now()}`,
+             gameMode: lobbyState?.gameMode || selectedMode,
+             participants: players.filter(p => !p.isAi).map(p => p.walletAddress || 'anonymous')
+          })
+        });
+        if (res.ok) {
+           const data = await res.json();
+           newMatchId = data.matchId;
+        } else {
+           console.warn('⚠️ /api/match/start failed:', await res.text());
+        }
+      } catch (err) {
+        console.error('❌ Error calling /api/match/start:', err);
+      }
+
       broadcastAction('START_GAME', {
         initialBoardConfig: { players, colorCorner: cc },
         playerCount,
-        isBotMatch
+        isBotMatch,
+        matchId: newMatchId
       });
     }
     setAppState('game');
@@ -276,6 +355,7 @@ export default function Page() {
                   wager={betAmount}
                   setWager={setBetAmount}
                   onStartGame={onStartGame}
+                  onWatchMatch={handleWatchMatch}
                 />
               </main>
 
@@ -302,16 +382,24 @@ export default function Page() {
                       setSelectedChatId(friendId);
                       toggle('messages');
                     }}
+                    onSpectate={(roomCode: string) => {
+                      setSpectatingRoomCode(roomCode);
+                      setAppState('spectating');
+                      closeTab();
+                    }}
                     onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                   />
                 )}
                 {activeTab === 'leaderboard' && (
-                  <Leaderboard
-                    key="leaderboard"
+                  <RankingsPanel
+                    key="rankings"
                     isOpen={true}
                     onClose={closeTab}
                     onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                   />
+                )}
+                {activeTab === 'tournaments' && (
+                  <TournamentPanel key="tournaments" isOpen={true} onClose={closeTab} />
                 )}
                 {activeTab === 'mission' && (
                   <MissionPanel key="mission" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
@@ -350,6 +438,56 @@ export default function Page() {
           )}
 
 
+          {/* ── Spectating State ── */}
+          {appState === 'spectating' && spectatingRoomCode && (
+            <>
+              {/* Spectator top bar */}
+              <div className="game-top-bar">
+                <div className="game-header-left">
+                  <button className="back-btn" onClick={handleLeaveSpectating}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                      <line x1="19" y1="12" x2="5" y2="12"></line>
+                      <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                  </button>
+                  <div className="game-status-info">
+                    <span className="game-mode-title">👁️ Live Match</span>
+                    <span className="game-status">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse mr-1" />
+                      {spectatorCount} watching · #{spectatingRoomCode}
+                    </span>
+                  </div>
+                </div>
+                <div className="game-header-right">
+                  <div className="game-bet-pill" style={{ background: '#ec489920', borderColor: '#ec489940' }}>
+                    <span className="text-pink-400 text-[10px] font-black uppercase">GambleFi</span>
+                  </div>
+                </div>
+              </div>
+
+              <main className="board-main has-top-back" style={{ paddingRight: spectatorGameState ? '296px' : undefined }}>
+                <Board
+                  playerCount="4P"
+                  gameMode="classic"
+                  isBotMatch={false}
+                  spectatorMode={true}
+                  externalGameState={spectatorGameState ?? undefined}
+                />
+              </main>
+
+              {/* SpectatorHUD — positioned on the right */}
+              {spectatorGameState && (
+                <SpectatorHUD
+                  roomCode={spectatingRoomCode}
+                  matchId={''}
+                  activeBetWindow={activeBetWindow}
+                  positions={spectatorGameState.positions}
+                  onClose={handleLeaveSpectating}
+                />
+              )}
+            </>
+          )}
+
           {/* ── Game State ── */}
           {appState === 'game' && (
             <>
@@ -367,7 +505,8 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="game-header-right">
+                <div className="game-header-right flex items-center gap-2">
+                  <StreamToggle matchId={gameState?.matchId} isHost={isHost} />
                   <div className="game-bet-pill">
                     <TokenIcon />
                     <span>{betAmount}</span>

@@ -46,24 +46,36 @@ async function updateMissionProgress(walletAddress: string, missionId: string, i
 
 export async function POST(request: Request) {
     try {
-        const { winnerAddress, roomCode, gameMode, participants, wager = 0 } = await request.json();
+        const { winnerAddress, roomCode, gameMode, participants, wager = 0, matchId } = await request.json();
 
         if (!winnerAddress || !participants || !Array.isArray(participants)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        console.log('📝 [API] Recording match result...', { winnerAddress, roomCode, gameMode, participants });
+        console.log('📝 [API] Recording match result...', { winnerAddress, roomCode, gameMode, participants, matchId });
 
         // 1. Record the match
-        const { error: matchError } = await supabase.from('matches').insert({
-            winner_address: winnerAddress,
-            room_code: roomCode,
-            game_mode: gameMode || 'classic',
-            participants: participants
-        });
+        let matchError = null;
+        if (matchId) {
+            const { error: updErr } = await supabase.from('matches').update({
+                winner_address: winnerAddress,
+                finished_at: new Date().toISOString()
+            }).eq('id', matchId);
+            matchError = updErr;
+        } else {
+            console.warn('⚠️ [API] No matchId provided, inserting match record instead of updating');
+            const { error: insErr } = await supabase.from('matches').insert({
+                winner_address: winnerAddress,
+                room_code: roomCode,
+                game_mode: gameMode || 'classic',
+                participants: participants,
+                finished_at: new Date().toISOString()
+            });
+            matchError = insErr;
+        }
 
         if (matchError) {
-            console.error('❌ [API] Error inserting match:', matchError);
+            console.error('❌ [API] Error saving match:', matchError);
             return NextResponse.json({ error: matchError.message }, { status: 500 });
         }
 

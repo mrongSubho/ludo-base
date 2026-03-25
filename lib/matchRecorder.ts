@@ -5,9 +5,10 @@ export async function recordMatchResult(
     winnerAddress: string,
     roomCode: string,
     gameMode: string,
-    participants: string[]
+    participants: string[],
+    matchId?: string
 ) {
-    console.log('📡 [MatchRecorder] Sending request to secure API...', { winnerAddress, roomCode, gameMode, participants });
+    console.log('📡 [MatchRecorder] Sending request to secure API...', { winnerAddress, roomCode, gameMode, participants, matchId });
 
     try {
         const response = await fetch('/api/match/record', {
@@ -19,7 +20,8 @@ export async function recordMatchResult(
                 winnerAddress,
                 roomCode,
                 gameMode,
-                participants
+                participants,
+                matchId
             }),
         });
 

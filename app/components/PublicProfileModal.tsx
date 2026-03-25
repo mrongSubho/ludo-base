@@ -149,7 +149,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     // Graph Data Mocking (Assuming we implement a history tracking table later, mocking for now as requested by user)
     const [monthlyGraphHeights] = useState([30, 50, 20, 80, 40, 90, 60, 100, 40, 70]);
 
-    const handleAction = async (action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report' | 'Poke') => {
+    const handleAction = async (action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report' | 'Poke' | 'Congratulate') => {
         if (!currentUserAddress || !userAddress || isActionLoading) return;
 
         if (action === 'Report') {
@@ -221,6 +221,17 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     .eq('blocker_address', currentUserAddress)
                     .ilike('blocked_address', userAddress);
                 if (!error) setIsBlocked(false);
+            } else if (action === 'Congratulate') {
+                // Celebrate accomplishment / High rank
+                const { error } = await (supabase as any).from('activities').insert({
+                    actor_id: currentUserAddress,
+                    type: 'congratulate',
+                    metadata: { target_id: userAddress }
+                });
+                if (!error) {
+                    setActionSuccess("Celebrated!");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                }
             }
         } catch (err) {
             console.error(`Failed to handle action ${action}:`, err);
@@ -455,14 +466,24 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             ) : (
                                                                 <div className="flex flex-col gap-2 w-full">
                                                                     {!isBlocked && (
-                                                                        <button
-                                                                            onClick={() => handleAction('Poke')}
-                                                                            disabled={isActionLoading}
-                                                                            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                                        >
-                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
-                                                                            POKE
-                                                                        </button>
+                                                                        <div className="flex gap-2 w-full">
+                                                                            <button
+                                                                                onClick={() => handleAction('Poke')}
+                                                                                disabled={isActionLoading}
+                                                                                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                                                            >
+                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
+                                                                                POKE
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => handleAction('Congratulate')}
+                                                                                disabled={isActionLoading}
+                                                                                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                                                            >
+                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="m6 9 6 6 6-6"></path><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"></path></svg>
+                                                                                GUD LUCK
+                                                                            </button>
+                                                                        </div>
                                                                     )}
                                                                     <div className="flex gap-2 w-full">
                                                                         {isBlocked ? (

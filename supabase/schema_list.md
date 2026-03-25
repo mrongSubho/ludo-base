@@ -305,3 +305,201 @@ CREATE POLICY "Users manage own invites"
 ON public.game_invites FOR ALL 
 USING (host_address = (auth.jwt() ->> 'sub')::text OR guest_address = (auth.jwt() ->> 'sub')::text);
 ```
+
+---
+
+## Phase 4: Spectator & GambleFi Betting System
+
+> Migration name: `phase1_spectator_betting_foundation`
+> Applied: 2026-03-23
+
+### 4.1 Modified Tables
+
+#### `matches` — New Columns
+```sql
+ALTER TABLE public.matches
+  ADD COLUMN IF NOT EXISTS streaming_enabled  BOOLEAN   DEFAULT false,
+  ADD COLUMN IF NOT EXISTS total_bet_volume   BIGINT    DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS spectator_count    INT       DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS metadata           JSONB     DEFAULT '{}';
+```
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `streaming_enabled` | boolean | Host opts this match into the Live Arena directory |
+| `total_bet_volume` | bigint | Running total of all coins wagered by spectators |
+| `spectator_count` | int | Cached live spectator count (synced via Presence) |
+| `metadata` | jsonb | Extensible match metadata (e.g. bet market config) |
+
+---
+
+### 4.2 New Tables
+
+#### `live_matches`
+Tracks the betting window lifecycle for each live match. Entry is created when host enables streaming.
+
+```sql
+CREATE TABLE public.live_matches (
+    match_id           UUID        PRIMARY KEY REFERENCES public.matches(id) ON DELETE CASCADE,
+    room_code          TEXT        NOT NULL,
+    bet_window_status  TEXT        NOT NULL DEFAULT 'closed',  -- 'open' | 'closed' | 'resolving'
+    window_opened_at   TIMESTAMPTZ,
+    window_closed_at   TIMESTAMPTZ,  -- spectator bets MUST have created_at < this
+    current_bet_type   TEXT,
+    spectator_count    INT         NOT NULL DEFAULT 0,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+    CONSTRAINT valid_window_status CHECK (bet_window_status IN ('open', 'closed', 'resolving'))
+);
+
+CREATE INDEX idx_live_matches_streaming ON public.live_matches(bet_window_status);
+```
+
+**RLS:**
+- `SELECT`: public (needed for Live Arena directory)
+- `INSERT/UPDATE/DELETE`: blocked for all users — only the `resolve-bet` Edge Function (service role) may write
+
+---
+
+#### `spectator_bets`
+All wagers placed by the audience during a live match.
+
+```sql
+CREATE TABLE public.spectator_bets (
+    id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    player_id        TEXT        NOT NULL REFERENCES public.players(wallet_address) ON DELETE CASCADE,
+    match_id         UUID        NOT NULL REFERENCES public.matches(id) ON DELETE CASCADE,
+    bet_type         TEXT        NOT NULL,   -- 'winner' | 'dice_roll' | 'elimination' | 'custom'
+    bet_value        TEXT        NOT NULL,   -- predicted outcome
+    bet_metadata     JSONB       DEFAULT '{}',
+    amount           BIGINT      NOT NULL,
+    odds             NUMERIC(10, 2),
+    potential_payout BIGINT,
+    status           TEXT        NOT NULL DEFAULT 'pending',   -- 'pending' | 'won' | 'lost' | 'cancelled'
+    action_id        TEXT,                   -- game action that resolved this bet (audit trail)
+    window_closed_at TIMESTAMPTZ NOT NULL,   -- snapshot at bet time — timing guard
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+    resolved_at      TIMESTAMPTZ,
+    CONSTRAINT positive_bet_amount CHECK (amount > 0),
+    CONSTRAINT valid_bet_status    CHECK (status IN ('pending', 'won', 'lost', 'cancelled'))
+);
+
+CREATE INDEX idx_bets_match_pending  ON public.spectator_bets(match_id, status) WHERE status = 'pending';
+CREATE INDEX idx_bets_player         ON public.spectator_bets(player_id);
+CREATE INDEX idx_bets_window_timing  ON public.spectator_bets(match_id, window_closed_at, created_at);
+```
+
+**RLS:**
+- `SELECT`: public (for live odds calculation)
+- `INSERT`: authenticated users, own bets only (`player_id = auth.jwt() ->> 'sub'`)
+- `UPDATE/DELETE`: blocked for all users — only Edge Function (service role)
+
+---
+
+### 4.3 Settle Match Bets RPC
+
+```sql
+-- Called by resolve-bet Edge Function with SECURITY DEFINER
+CREATE OR REPLACE FUNCTION public.settle_match_bets(
+    p_match_id UUID,
+    p_result TEXT,
+    p_bet_type TEXT
+)
+RETURNS TABLE (
+    payout_count INT,
+    total_payout BIGINT
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER -- Runs with elevated permissions to update player coins
+AS $$
+DECLARE
+    v_payout_count INT := 0;
+    v_total_payout BIGINT := 0;
+    v_window_closed TIMESTAMPTZ;
+BEGIN
+    -- 0. Security Check: Has the betting window actually closed?
+    SELECT window_closed_at INTO v_window_closed
+    FROM public.live_matches
+    WHERE match_id = p_match_id;
+
+    IF v_window_closed IS NULL OR v_window_closed > NOW() THEN
+        RAISE EXCEPTION 'Betting window still open or match not found';
+    END IF;
+
+    -- 1. Mark winners and update their coins
+    WITH winners AS (
+        UPDATE public.spectator_bets
+        SET status = 'won',
+            resolved_at = NOW()
+        WHERE match_id = p_match_id
+          AND status = 'pending'
+          AND bet_type = p_bet_type
+          AND bet_value = p_result
+        RETURNING player_id, potential_payout
+    ),
+    coin_updates AS (
+        UPDATE public.players p
+        SET coins = p.coins + w.potential_payout
+        FROM winners w
+        WHERE p.wallet_address = w.player_id
+        RETURNING w.potential_payout
+    )
+    SELECT count(*), COALESCE(sum(potential_payout), 0)
+    INTO v_payout_count, v_total_payout
+    FROM winners;
+
+    -- 2. Mark losers
+    UPDATE public.spectator_bets
+    SET status = 'lost',
+        resolved_at = NOW()
+    WHERE match_id = p_match_id
+      AND status = 'pending'
+      AND bet_type = p_bet_type
+      AND bet_value != p_result;
+
+    RETURN QUERY SELECT v_payout_count, v_total_payout;
+END;
+$$;
+```
+
+---
+
+### 4.4 Realtime Publication
+
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.live_matches;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.spectator_bets;
+```
+
+Spectators subscribe to `live_matches` changes to power the Live Arena directory.
+
+---
+
+### 4.5 Edge Function: `resolve-bet`
+
+| Property | Value |
+|----------|-------|
+| Slug | `resolve-bet` |
+| Version | 1 |
+| Status | ACTIVE |
+| Auth | JWT required |
+| Idempotency | `WHERE status = 'pending'` on every UPDATE |
+
+**Request body:**
+```json
+{
+  "matchId": "uuid",
+  "actionId": "string",
+  "betType": "dice_roll | winner | elimination | custom",
+  "resultValue": "string",
+  "participants": ["0xabc...", "0xdef..."]
+}
+```
+
+**Tokenomics (on `betType='winner'`):**
+| Recipient | Cut |
+|-----------|-----|
+| Match Players | 3.0% of `total_bet_volume` |
+| Protocol Treasury | 2.0% of `total_bet_volume` |
+| **Total Fee** | **5.0%** |
+

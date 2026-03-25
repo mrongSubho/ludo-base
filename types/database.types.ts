@@ -146,29 +146,85 @@ export type Database = {
           },
         ]
       }
+      live_matches: {
+        Row: {
+          bet_window_status: string
+          created_at: string
+          current_bet_type: string | null
+          match_id: string
+          room_code: string
+          spectator_count: number
+          updated_at: string
+          window_closed_at: string | null
+          window_opened_at: string | null
+        }
+        Insert: {
+          bet_window_status?: string
+          created_at?: string
+          current_bet_type?: string | null
+          match_id: string
+          room_code: string
+          spectator_count?: number
+          updated_at?: string
+          window_closed_at?: string | null
+          window_opened_at?: string | null
+        }
+        Update: {
+          bet_window_status?: string
+          created_at?: string
+          current_bet_type?: string | null
+          match_id?: string
+          room_code?: string
+          spectator_count?: number
+          updated_at?: string
+          window_closed_at?: string | null
+          window_opened_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_matches_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           created_at: string | null
           game_mode: string | null
           id: string
+          metadata: Json | null
           participants: string[] | null
           room_code: string | null
+          spectator_count: number | null
+          streaming_enabled: boolean | null
+          total_bet_volume: number | null
           winner_address: string | null
         }
         Insert: {
           created_at?: string | null
           game_mode?: string | null
           id?: string
+          metadata?: Json | null
           participants?: string[] | null
           room_code?: string | null
+          spectator_count?: number | null
+          streaming_enabled?: boolean | null
+          total_bet_volume?: number | null
           winner_address?: string | null
         }
         Update: {
           created_at?: string | null
           game_mode?: string | null
           id?: string
+          metadata?: Json | null
           participants?: string[] | null
           room_code?: string | null
+          spectator_count?: number | null
+          streaming_enabled?: boolean | null
+          total_bet_volume?: number | null
           winner_address?: string | null
         }
         Relationships: [
@@ -192,6 +248,7 @@ export type Database = {
           player_id: string
           room_code: string | null
           status: string | null
+          validation_token: string | null
           wager: number | null
         }
         Insert: {
@@ -204,6 +261,7 @@ export type Database = {
           player_id: string
           room_code?: string | null
           status?: string | null
+          validation_token?: string | null
           wager?: number | null
         }
         Update: {
@@ -216,9 +274,17 @@ export type Database = {
           player_id?: string
           room_code?: string | null
           status?: string | null
+          validation_token?: string | null
           wager?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "matchmaking_queue_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "matchmaking_queue_player_id_fkey"
             columns: ["player_id"]
@@ -339,6 +405,72 @@ export type Database = {
         }
         Relationships: []
       }
+      spectator_bets: {
+        Row: {
+          action_id: string | null
+          amount: number
+          bet_metadata: Json | null
+          bet_type: string
+          bet_value: string
+          created_at: string
+          id: string
+          match_id: string
+          odds: number | null
+          player_id: string
+          potential_payout: number | null
+          resolved_at: string | null
+          status: string
+          window_closed_at: string
+        }
+        Insert: {
+          action_id?: string | null
+          amount: number
+          bet_metadata?: Json | null
+          bet_type: string
+          bet_value: string
+          created_at?: string
+          id?: string
+          match_id: string
+          odds?: number | null
+          player_id: string
+          potential_payout?: number | null
+          resolved_at?: string | null
+          status?: string
+          window_closed_at: string
+        }
+        Update: {
+          action_id?: string | null
+          amount?: number
+          bet_metadata?: Json | null
+          bet_type?: string
+          bet_value?: string
+          created_at?: string
+          id?: string
+          match_id?: string
+          odds?: number | null
+          player_id?: string
+          potential_payout?: number | null
+          resolved_at?: string | null
+          status?: string
+          window_closed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spectator_bets_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spectator_bets_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -347,12 +479,18 @@ export type Database = {
       cleanup_matchmaking_queue: { Args: never; Returns: undefined }
       cleanup_old_messages: { Args: never; Returns: undefined }
       cleanup_stale_data: { Args: never; Returns: undefined }
+      increment_coins: {
+        Args: { p_amount: number; p_wallet: string }
+        Returns: undefined
+      }
       join_matchmaking: {
         Args: {
           p_game_mode: string
           p_match_type: string
           p_player_id: string
           p_wager: number
+          p_wager_max?: number
+          p_wager_min?: number
         }
         Returns: Json
       }
