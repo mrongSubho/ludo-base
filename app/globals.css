@@ -27,30 +27,32 @@
 }
 
 :root {
-  /* ─── 1. Primary Ludo Palette (Original Soft Tones) ─── */
-  --ludo-sage: #A8E6CF;
-  --ludo-rose: #FF8B94;
-  --ludo-sky: #A2E1F6;
-  --ludo-amber: #FFD3B6;
+  /* ─── 1. Vibrant Ludo Palette (From Mockup) ─── */
+  --ludo-emerald: #22c55e;
+  --ludo-red-vibrant: #ef4444;
+  --ludo-blue-vibrant: #3b82f6;
+  --ludo-amber-vibrant: #eab308;
 
-  /* Aliases for Global / Legacy / Retro-themed usage */
-  --ludo-green: var(--ludo-sage);
-  --ludo-red: var(--ludo-rose);
-  --ludo-blue: var(--ludo-sky);
-  --ludo-yellow: var(--ludo-amber);
+  /* Theme-specific Overrides for Bases (Default to Soft Sage/Rose) */
+  --ludo-base-green: #A8E6CF;
+  --ludo-base-red: #FF8B94;
+  --ludo-base-blue: #A2E1F6;
+  --ludo-base-yellow: #FFD3B6;
 
-  /* Contrast Tokens */
-  --ludo-sage-contrast: #FFFFFF;
-  --ludo-rose-contrast: #FFFFFF;
-  --ludo-sky-contrast: #FFFFFF;
-  --ludo-amber-contrast: #000000;
+  /* Aliases for better code readability */
+  --ludo-green: var(--ludo-base-green);
+  --ludo-red: var(--ludo-base-red);
+  --ludo-blue: var(--ludo-base-blue);
+  --ludo-yellow: var(--ludo-base-yellow);
 
-  --ludo-green-contrast: var(--ludo-sage-contrast);
-  --ludo-red-contrast: var(--ludo-rose-contrast);
-  --ludo-blue-contrast: var(--ludo-sky-contrast);
-  --ludo-yellow-contrast: var(--ludo-amber-contrast);
+  --ludo-green-contrast: #FFFFFF;
+  --ludo-red-contrast: #FFFFFF;
+  --ludo-blue-contrast: #FFFFFF;
+  --ludo-yellow-contrast: #000000;
 
   /* ─── 2. Global UI Tokens ─── */
+  --ludo-path-bg: #f8fafc; /* Standard Off-White Path */
+  --ludo-pad-bg: #f3f4f6;  /* Standard Light Pad */
   --ludo-bg-cosmic:
     radial-gradient(circle at 10% 10%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
     radial-gradient(ellipse at 60% 30%, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
@@ -79,6 +81,7 @@
   --radius-pill: 9999px;
 }
 
+/* ─── Theme Overrides (Consolidated) ─── */
 body.theme-cosmic-ui {
   --ludo-bg: #0d0d0d;
   --ludo-card: rgba(255, 255, 255, 0.05);
@@ -86,7 +89,17 @@ body.theme-cosmic-ui {
   --ludo-slate: #ffffff;
   --ludo-bg-image: var(--ludo-bg-cosmic);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  /* Vibrant Bases for Cosmic UI */
+  --ludo-base-green: #22c55e;
+  --ludo-base-red: #ef4444;
+  --ludo-base-blue: #3b82f6;
+  --ludo-base-yellow: #eab308;
+  --ludo-path-bg: #f8fafc; /* Off-White as requested */
+  --ludo-pad-bg: rgba(0, 0, 0, 0.4); /* Dark Pad Tint */
 }
+
+body.theme-cosmic-ui .cosmic-orb { display: block; }
+body.theme-cosmic-ui .boot-dot { display: none; }
 
 body.theme-cosmic-dark {
   --ludo-bg: #050505;
@@ -96,7 +109,16 @@ body.theme-cosmic-dark {
   --ludo-slate: #f8fafc;
   --ludo-bg-image: var(--ludo-bg-cosmic);
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --ludo-base-green: #22c55e;
+  --ludo-base-red: #ef4444;
+  --ludo-base-blue: #3b82f6;
+  --ludo-base-yellow: #eab308;
+  --ludo-path-bg: #475569; /* Slate Gray for Dark */
+  --ludo-pad-bg: rgba(0, 0, 0, 0.4);
 }
+
+body.theme-cosmic-dark .cosmic-orb { display: none; }
+body.theme-cosmic-dark .boot-dot { display: block; }
 
 /* ─── Step 2: Base styles ─── */
 *,
@@ -162,52 +184,26 @@ a {
   overflow: hidden;
 }
 
-body.theme-cosmic-ui {
-  --ludo-bg: #0d0d0d;
-  --ludo-card: rgba(255, 255, 255, 0.05);
-  --ludo-text: #ffffff;
-  --ludo-slate: #ffffff;
-  --ludo-bg-image: var(--ludo-bg-cosmic);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-}
-
-body.theme-cosmic-ui .cosmic-orb { display: block; }
-body.theme-cosmic-ui .boot-dot { display: none; }
-
-body.theme-cosmic-dark {
-  --ludo-bg: #050505;
-  --ludo-card: rgba(15, 15, 20, 0.82);
-  --ludo-text: #f8fafc;
-  --ludo-border: rgba(255, 255, 255, 0.1);
-  --ludo-slate: #f8fafc;
-  --ludo-bg-image: var(--ludo-bg-cosmic);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6);
-  --panel-bg: rgba(13, 13, 13, 0.95);
-  --panel-border: rgba(255, 255, 255, 0.05);
-  --panel-blur: 32px;
-  --panel-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-}
-
-body.theme-cosmic-dark .cosmic-orb { display: none; }
-body.theme-cosmic-dark .boot-dot { display: block; }
+/* Remove duplicated theme blocks */
 
 /* 🧬 Theme: Retro-Futurism (Synthwave) */
 body.theme-retro-futurism {
   /* Core Variables (overrides :root) */
   --ludo-bg: #0F0F23;
   --ludo-card: rgba(15, 15, 35, 0.85);
+  --ludo-path-bg: #e2e8f0; /* Off-White for Synthwave */
   --ludo-border: rgba(124, 58, 237, 0.4);
   --ludo-text: #E2E8F0;
   --ludo-muted: #94A3B8;
   --ludo-faint: #475569;
 
-  /* Brand Tokens */
-  --ludo-blue: #00D1FF;
-  --ludo-blue-soft: rgba(0, 209, 255, 0.1);
-  --ludo-yellow: #FFD700;
-  --ludo-red: #FF2D55;
-  --ludo-green: #00FF9F;
-  --ludo-slate: #7C3AED;
+  /* Vibrant Tokens (Match Mockup) */
+  --ludo-base-green: #22c55e;
+  --ludo-base-red: #ef4444;
+  --ludo-base-blue: #3b82f6;
+  --ludo-base-yellow: #eab308;
+  --ludo-path-bg: #334155; /* Slate Gray for Retro */
+  --ludo-pad-bg: rgba(0, 0, 0, 0.4);
 
   /* Panel Variables */
   --panel-bg: rgba(15, 15, 35, 0.9);
@@ -1963,20 +1959,20 @@ body.theme-retro-futurism::before {
   border-bottom-right-radius: 20px;
 }
 
-body:not(.theme-retro-futurism) .board-home.green {
-  background: var(--ludo-sage) !important;
+.board-home.green {
+  background: var(--ludo-base-green) !important;
 }
 
-body:not(.theme-retro-futurism) .board-home.red {
-  background: var(--ludo-rose) !important;
+.board-home.red {
+  background: var(--ludo-base-red) !important;
 }
 
-body:not(.theme-retro-futurism) .board-home.yellow {
-  background: var(--ludo-amber) !important;
+.board-home.yellow {
+  background: var(--ludo-base-yellow) !important;
 }
 
-body:not(.theme-retro-futurism) .board-home.blue {
-  background: var(--ludo-sky) !important;
+.board-home.blue {
+  background: var(--ludo-base-blue) !important;
 }
 
 .home-pad {
@@ -1984,13 +1980,14 @@ body:not(.theme-retro-futurism) .board-home.blue {
   height: 62%;
   flex-shrink: 0;
   aspect-ratio: 1;
-  background: #f3f4f6;
+  background: var(--ludo-pad-bg);
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
   padding: 14%;
   gap: 10%;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(4px);
 }
 
 /* 🧬 Retro-Futurism Home Overrides */
@@ -2046,7 +2043,7 @@ body.theme-retro-futurism .home-pad {
 
 /* ── Path Cells ── */
 .board-cell {
-  background: var(--ludo-card); /* Off-white pathway for Layout A */
+  background: var(--ludo-path-bg); /* Final standardized off-white/gray */
   position: relative;
   transition: background 0.15s ease;
   display: flex;
@@ -2063,21 +2060,25 @@ body.theme-retro-futurism .home-pad {
   pointer-events: none;
 }
 
-/* ── Finish Lanes — translucent tints ── */
+/* ── Finish Lanes — themed pathway colors (Emerald, Red, Blue, Amber) ── */
 .lane-green {
-  background: color-mix(in srgb, var(--ludo-sage) 90%, #f3f4f6) !important;
+  background: var(--ludo-base-green);
 }
 
 .lane-red {
-  background: color-mix(in srgb, var(--ludo-rose) 90%, #f3f4f6) !important;
+  background: var(--ludo-base-red);
 }
 
 .lane-blue {
-  background: color-mix(in srgb, var(--ludo-sky) 90%, #f3f4f6) !important;
+  background: var(--ludo-base-blue);
 }
 
 .lane-yellow {
-  background: color-mix(in srgb, var(--ludo-amber) 90%, #f3f4f6) !important;
+  background: var(--ludo-base-yellow);
+}
+
+.lane-yellow {
+  background: var(--ludo-base-yellow) !important;
 }
 
 .board-cell.star-cell {

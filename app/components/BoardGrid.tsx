@@ -1,37 +1,76 @@
 import React from 'react';
-import { motion, useTransform, MotionValue } from 'framer-motion';
-import { StarMarker, ArrowMarker } from './BoardHome';
-import { CORNER_SLOTS, getGridCellInfo, ColorCorner, Corner, Point } from '@/lib/boardLayout';
+import { motion } from 'framer-motion';
+import { getGridCellInfo, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
+import { Player } from '@/hooks/useGameEngine';
 
 interface BoardGridProps {
-    pathCells: any[];
+    pathCells: PathCell[];
     colorCorner: ColorCorner;
     localGameState: any;
-    activeColor: string;
-    sweepProgress: MotionValue<number>;
-    pointRotation: MotionValue<number>;
-    counterRotationDeg: number;
+    players?: Player[];
+    activeColor?: string;
     children?: React.ReactNode;
 }
+
+const StarMarker = ({ color = "#eab308" }: { color?: string }) => (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" style={{ filter: `drop-shadow(0 0 4px ${color})` }}>
+        <path fill={color} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z" />
+    </svg>
+);
+
+const ArrowMarker = ({ dir, color = "rgba(0,0,0,0.3)" }: { dir: 'up' | 'down' | 'left' | 'right', color?: string }) => {
+    const rotation = { up: 0, right: 90, down: 180, left: 270 }[dir];
+    return (
+        <motion.div style={{ rotate: rotation }}>
+            <svg viewBox="0 0 24 24" className="w-3 h-3">
+                <path fill={color} d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            </svg>
+        </motion.div>
+    );
+};
 
 export function BoardGrid({
     pathCells,
     colorCorner,
     localGameState,
-    activeColor,
-    sweepProgress,
-    pointRotation,
-    counterRotationDeg,
-    children
+    children,
+    activeColor: propActiveColor
 }: BoardGridProps) {
+    // Resolve active color from prop or state
+    const activeColor = propActiveColor || localGameState?.currentPlayer;
+    
+    // Fallback Hex Colors (from mockup)
+    const COLOR_MAP: Record<string, string> = {
+        green: '#22c55e',
+        red: '#ef4444',
+        blue: '#3b82f6',
+        yellow: '#eab308'
+    };
+
     return (
-        <div className="board-grid">
+        <div className="board-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(15, 1fr)',
+            gridTemplateRows: 'repeat(15, 1fr)',
+            width: '100%',
+            aspectRatio: '1 / 1',
+            gap: '1px',
+            background: 'var(--ludo-bg, #000000)',
+            padding: '1px',
+            position: 'relative'
+        }}>
             {/* ── Path Squares ── */}
-            {pathCells.map(({ row, col, cls }: { row: number, col: number, cls: string }) => {
+            {(pathCells || []).map(({ row, col, cls }: PathCell) => {
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState.powerTiles.some((pt: { r: number, c: number }) => pt.r === row && pt.c === col);
-                const trap = localGameState.activeTraps.find((t: { r: number, c: number }) => t.r === row && t.c === col);
+                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
+                const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                
+                let bg = 'var(--ludo-path-bg)';
+                if (cellInfo.type === 'home-lane' && cellInfo.color) {
+                    const fallbackHex = COLOR_MAP[cellInfo.color as string] || '#000000';
+                    bg = `var(--ludo-base-${cellInfo.color}, ${fallbackHex})`;
+                }
 
                 return (
                     <div
@@ -40,16 +79,20 @@ export function BoardGrid({
                         style={{ 
                             gridRow: row, 
                             gridColumn: col,
-                            backgroundColor: cls.includes('lane-') ? undefined : 'var(--ludo-card)'
+                            backgroundColor: bg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative'
                         }}
                     >
-                        {cellInfo.type === 'safe' && <StarMarker />}
+                        {cellInfo.type === 'safe' && <StarMarker color="#eab308" />}
                         {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
-                        {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([, corner]) => {
+                        {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
                             const slot = CORNER_SLOTS[corner];
                             if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
-                                return <ArrowMarker key={`arrow-${row}-${col}`} dir={slot.arrowDir} />;
+                                return <ArrowMarker key={corner} dir={slot.arrowDir} />;
                             }
                             return null;
                         })}
@@ -57,150 +100,122 @@ export function BoardGrid({
                 );
             })}
 
-            {/* ── Tokens ── */}
+            {/* ── Home Bases & Tokens (Children) ── */}
             {children}
 
-            {/* ── Center Finish Zone ── */}
-            <div
-                className={`finish-center ${localGameState.invalidMove ? 'shake-feedback' : ''}`}
+            {/* ── Multi-Layered Finish Junction ── */}
+            <div 
+                className="finish-center"
                 style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: `translate(-50%, -50%) rotate(${counterRotationDeg}deg)`,
-                    width: '20%',
-                    height: '20%',
+                    gridRow: '7 / 10',
+                    gridColumn: '7 / 10',
+                    zIndex: 10,
+                    position: 'relative',
+                    background: 'transparent',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '16px',
-                    overflow: 'visible',
-                    background: 'transparent',
-                    boxShadow: 'none',
-                    zIndex: 10,
-                    ['--active-player-color' as any]: activeColor
+                    justifyContent: 'center'
                 }}
-                key={localGameState.currentPlayer}
             >
+                {/* 1. Ambient Backdrop Pulse (Layer 1) */}
                 <motion.div 
-                    className="finish-center-corner-glimpse" 
                     animate={{ 
-                        boxShadow: localGameState.winners.length > 0 ? [
-                            "0 0 20px rgba(255,215,0,0.4)", 
-                            "0 0 40px rgba(255,215,0,0.8)", 
-                            "0 0 20px rgba(255,215,0,0.4)"
-                        ] : "none" 
+                        opacity: activeColor ? [0.4, 0.8, 0.4] : 0 
                     }}
-                    transition={{ repeat: Infinity, duration: 2 }}
+                    transition={{ repeat: Infinity, duration: 3 }}
                     style={{
                         position: 'absolute',
-                        inset: 0,
-                        borderRadius: '16px',
-                        opacity: 0.8,
-                        overflow: 'hidden',
-                        zIndex: 0
+                        width: '140%',
+                        height: '140%',
+                        background: `radial-gradient(circle, ${COLOR_MAP[activeColor as string] || '#ffffff'}33 0%, transparent 70%)`,
+                        borderRadius: '50%',
+                        zIndex: 0,
+                        pointerEvents: 'none'
                     }}
-                >
-                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                </motion.div>
+                />
 
-                <div className="finish-center-functional-core glass-panel" style={{
+                {/* 2. Outer Ceramic Bezel (Layer 2) */}
+                <div style={{
                     position: 'absolute',
-                    inset: '1%',
+                    inset: '-5%',
                     borderRadius: '50%',
-                    background: 'rgba(0, 0, 0, 0.35)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
+                    background: 'linear-gradient(135deg, #1A1A2E 0%, #0F0F23 100%)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
-                    zIndex: 1,
-                    overflow: 'hidden',
-                    boxShadow: '0 0 50px rgba(0,0,0,0.8)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.05)',
+                    zIndex: 1
+                }} />
+
+                {/* 3. The "Trench" - Glassmorphic Inset (Layer 3) */}
+                <div style={{
+                    position: 'absolute',
+                    inset: '5%',
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5)',
+                    zIndex: 2,
+                    overflow: 'hidden'
+                }}>
+                    {/* 4. Rotating Neon Energy Arc (Layer 4) */}
+                    {activeColor && (
+                        <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
+                            style={{
+                                position: 'absolute',
+                                inset: '-50%',
+                                background: `conic-gradient(from 0deg, transparent 0%, ${COLOR_MAP[activeColor as string]} 10%, transparent 40%)`,
+                                opacity: 0.6,
+                                mixBlendMode: 'screen',
+                                zIndex: 1
+                            }}
+                        />
+                    )}
+                </div>
+
+                {/* 5. Vacuum Core - The deepest void (Layer 5) */}
+                <div style={{
+                    position: 'absolute',
+                    inset: '22%',
+                    borderRadius: '50%',
+                    background: '#000000',
+                    boxShadow: `0 0 20px ${COLOR_MAP[activeColor as string] || '#ffffff'}33, inset 0 0 10px rgba(0,0,0,0.9)`,
+                    border: `1px solid ${COLOR_MAP[activeColor as string] || 'rgba(255,255,255,0.1)'}33`,
+                    zIndex: 3,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                 }}>
+                    {/* 6. The Heart - Star or Dice Value (Layer 6) */}
                     <motion.div
-                        animate={{ scale: [1, 1.05, 1], opacity: [0.05, 0.1, 0.05] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                        style={{
-                            position: 'absolute',
-                            inset: '15%',
-                            borderRadius: '50%',
-                            background: `radial-gradient(circle, white 0%, transparent 70%)`,
-                            zIndex: 0
-                        }}
-                    />
-
-                    <motion.div
-                        animate={{ scale: [1, 1.15, 1], rotate: [0, 8, 0, -8, 0] }}
-                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                        style={{
-                            position: 'absolute',
-                            inset: '20%',
-                            zIndex: 10,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
+                        key={localGameState?.gamePhase === 'moving' ? 'dice' : 'star'}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
-                        <div className="glass-core" style={{
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            backdropFilter: 'blur(8px)',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: activeColor,
-                            boxShadow: `0 0 30px -5px ${activeColor}66`
-                        }}>
-                            <StarMarker color={activeColor} />
-                        </div>
-                    </motion.div>
-                </div>
-
-                <div className="junction-timer-container" style={{
-                    position: 'absolute',
-                    inset: '6%',
-                    width: '88%',
-                    height: '88%',
-                    pointerEvents: 'none',
-                    zIndex: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '50%'
-                }}>
-                    <div className="junction-timer-track-css" />
-                    <motion.div
-                        className="junction-timer-color-ring"
-                        style={{
-                            background: useTransform(sweepProgress, (v) =>
-                                `conic-gradient(#000000 0% ${v}%, ${activeColor} ${v + 0.2}% 100%)`
-                            ),
-                            zIndex: 2,
-                            position: 'absolute',
-                            inset: 0
-                        }}
-                    />
-                    <motion.div
-                        className="junction-timer-point"
-                        style={{ rotate: pointRotation, position: 'absolute', inset: 0, zIndex: 10 }}
-                    >
-                        <div style={{
-                            position: 'absolute',
-                            right: '0px',
-                            top: '50%',
-                            marginTop: '-0.5px',
-                            width: '1px',
-                            height: '1px',
-                            borderRadius: '50%',
-                            backgroundColor: activeColor,
-                            boxShadow: `0 0 8px 3px ${activeColor}`,
-                        }} />
+                         {localGameState?.gamePhase === 'moving' && localGameState?.diceValue ? (
+                             <motion.span 
+                                animate={{ scale: [1, 1.2, 1] }}
+                                transition={{ repeat: Infinity, duration: 1.5 }}
+                                style={{
+                                    fontSize: 32,
+                                    fontFamily: "'Russo One', sans-serif",
+                                    color: COLOR_MAP[activeColor as string] || '#ffffff',
+                                    textShadow: `0 0 10px ${COLOR_MAP[activeColor as string]}aa, 0 0 20px ${COLOR_MAP[activeColor as string]}66`
+                                }}
+                             >
+                                 {localGameState.diceValue}
+                             </motion.span>
+                         ) : (
+                             <motion.div
+                                animate={{ scale: [1, 1.1, 1] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                             >
+                                 <StarMarker color={COLOR_MAP[activeColor as string] || '#eab308'} />
+                             </motion.div>
+                         )}
                     </motion.div>
                 </div>
             </div>
