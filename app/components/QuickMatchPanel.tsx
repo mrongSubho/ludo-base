@@ -89,8 +89,9 @@ export const QuickMatchPanel = ({
         wager,
         onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
+            // Note: hostGame and joinGame in TeamUpContext are parameterless because they use internal or context state
             if (isMatchHost) {
-                hostGame(matchType, gameMode, wager, validationToken, foundRoomCode);
+                hostGame(); // Fixed: context hostGame expects 0 args
             } else {
                 joinGame(foundRoomCode, validationToken);
             }
@@ -101,6 +102,7 @@ export const QuickMatchPanel = ({
         roomId, 
         hostGame, 
         joinGame, 
+        leaveGame,
         isLobbyConnected, 
         isHost: p2pHost,
         lobbyState,
@@ -237,28 +239,17 @@ export const QuickMatchPanel = ({
         }
     }, [status, activeRoomCode, normalizedAddress, matchData, hookRoomCode, roomCode]);
 
-    const didStartRef = useRef(false);
-
     useEffect(() => {
         // Wait for wallet address before starting search
         if (!normalizedAddress) return;
 
-        // Ensure we only trigger once per mount
-        if (didStartRef.current) return;
-        didStartRef.current = true;
-
-        console.log('🏁 [QuickMatch] Search initialized with address:', normalizedAddress);
+        console.log('🏁 [QuickMatch] Triggering search initialization...');
         if (isHybrid && roomCode) {
             startHybridSearch(roomCode, slotsNeeded, matchType);
         } else {
-            startSearch();
+            startSearch(wagerRange?.min, wagerRange?.max);
         }
-
-        return () => {
-            console.log('📡 [QuickMatch] Cleaning up search on unmount...');
-            cancelSearch();
-        };
-    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, startSearch, startHybridSearch, cancelSearch]); 
+    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, startSearch, startHybridSearch]); 
 
     const handleBackToLobby = () => {
         cancelSearch();
@@ -266,6 +257,7 @@ export const QuickMatchPanel = ({
     };
 
     const handleForceBotMatch = () => {
+        leaveGame(); // 🧹 Clear any stale network state (ROOM_ID, connections, etc.)
         cancelSearch();
         onStartGame(true);
     };

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing ticketId or playerId' }, { status: 400 });
         }
 
-        console.log('📡 [Matchmaking] Cancelling search...', { ticketId, playerId });
+        console.log('📡 [Matchmaking] Received cancellation request:', { ticketId, playerId });
 
         let query = supabase.from('matchmaking_queue').update({ status: 'cancelled' });
 
