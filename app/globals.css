@@ -27,6 +27,30 @@
 }
 
 :root {
+  /* ─── 1. Primary Ludo Palette (Original Soft Tones) ─── */
+  --ludo-sage: #A8E6CF;
+  --ludo-rose: #FF8B94;
+  --ludo-sky: #A2E1F6;
+  --ludo-amber: #FFD3B6;
+
+  /* Aliases for Global / Legacy / Retro-themed usage */
+  --ludo-green: var(--ludo-sage);
+  --ludo-red: var(--ludo-rose);
+  --ludo-blue: var(--ludo-sky);
+  --ludo-yellow: var(--ludo-amber);
+
+  /* Contrast Tokens */
+  --ludo-sage-contrast: #FFFFFF;
+  --ludo-rose-contrast: #FFFFFF;
+  --ludo-sky-contrast: #FFFFFF;
+  --ludo-amber-contrast: #000000;
+
+  --ludo-green-contrast: var(--ludo-sage-contrast);
+  --ludo-red-contrast: var(--ludo-rose-contrast);
+  --ludo-blue-contrast: var(--ludo-sky-contrast);
+  --ludo-yellow-contrast: var(--ludo-amber-contrast);
+
+  /* ─── 2. Global UI Tokens ─── */
   --ludo-bg-cosmic:
     radial-gradient(circle at 10% 10%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
     radial-gradient(ellipse at 60% 30%, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
@@ -41,28 +65,6 @@
   --ludo-muted: #64748b;
   --ludo-faint: #cbd5e1;
   --ludo-slate: #1e293b;
-
-  /* Standard Ludo Palette (Original Soft Tones) */
-  --ludo-sage: #A8E6CF;
-  --ludo-rose: #FF8B94;
-  --ludo-sky: #A2E1F6;
-  --ludo-amber: #FFD3B6;
-
-  /* Aliases for better code readability / retro-compatibility */
-  --ludo-green: var(--ludo-sage);
-  --ludo-red: var(--ludo-rose);
-  --ludo-blue: var(--ludo-sky);
-  --ludo-yellow: var(--ludo-amber);
-
-  --ludo-sage-contrast: #FFFFFF;
-  --ludo-rose-contrast: #FFFFFF;
-  --ludo-sky-contrast: #FFFFFF;
-  --ludo-amber-contrast: #000000;
-
-  --ludo-green-contrast: var(--ludo-sage-contrast);
-  --ludo-red-contrast: var(--ludo-rose-contrast);
-  --ludo-blue-contrast: var(--ludo-sky-contrast);
-  --ludo-yellow-contrast: var(--ludo-amber-contrast);
 
   --ludo-bg-image: none;
   --ludo-bg-rgb: 248, 250, 252;
@@ -1961,20 +1963,20 @@ body.theme-retro-futurism::before {
   border-bottom-right-radius: 20px;
 }
 
-.board-home.green {
-  background: var(--ludo-sage);
+body:not(.theme-retro-futurism) .board-home.green {
+  background: var(--ludo-sage) !important;
 }
 
-.board-home.red {
-  background: var(--ludo-rose);
+body:not(.theme-retro-futurism) .board-home.red {
+  background: var(--ludo-rose) !important;
 }
 
-.board-home.yellow {
-  background: var(--ludo-amber);
+body:not(.theme-retro-futurism) .board-home.yellow {
+  background: var(--ludo-amber) !important;
 }
 
-.board-home.blue {
-  background: var(--ludo-sky);
+body:not(.theme-retro-futurism) .board-home.blue {
+  background: var(--ludo-sky) !important;
 }
 
 .home-pad {
