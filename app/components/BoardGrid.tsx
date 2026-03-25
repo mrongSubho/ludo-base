@@ -11,6 +11,9 @@ interface BoardGridProps {
     players?: Player[];
     activeColor?: string;
     children?: React.ReactNode;
+    sweepProgress?: any; // MotionValue<number> (0 to 1)
+    pointRotation?: any; // MotionValue<number>
+    counterRotationDeg?: number;
 }
 
 const StarMarker = ({ color = "#eab308" }: { color?: string }) => (
@@ -35,10 +38,13 @@ export function BoardGrid({
     colorCorner,
     localGameState,
     children,
-    activeColor: propActiveColor
+    activeColor: propActiveColor,
+    sweepProgress,
+    pointRotation,
+    counterRotationDeg
 }: BoardGridProps) {
-    // Resolve active color from prop or state
-    const activeColor = propActiveColor || localGameState?.currentPlayer;
+    // Resolve active color key (e.g., 'green', 'red')
+    const activeColor = localGameState?.currentPlayer || propActiveColor;
     
     // Fallback Hex Colors (from mockup)
     const COLOR_MAP: Record<string, string> = {
@@ -114,7 +120,8 @@ export function BoardGrid({
                     background: 'transparent',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    pointerEvents: 'none' // Ensure no clicks are blocked
                 }}
             >
                 {/* 1. Ambient Backdrop Pulse (Layer 1) */}
@@ -129,8 +136,7 @@ export function BoardGrid({
                         height: '140%',
                         background: `radial-gradient(circle, ${COLOR_MAP[activeColor as string] || '#ffffff'}33 0%, transparent 70%)`,
                         borderRadius: '50%',
-                        zIndex: 0,
-                        pointerEvents: 'none'
+                        zIndex: 0
                     }}
                 />
 
@@ -174,6 +180,30 @@ export function BoardGrid({
                     )}
                 </div>
 
+                {/* 4.5. Timer Ring - Sweep Progress (Layer 4.5) */}
+                {sweepProgress && (
+                    <div style={{
+                        position: 'absolute',
+                        inset: '2%',
+                        zIndex: 3,
+                        transform: 'rotate(-90deg)'
+                    }}>
+                        <svg width="100%" height="100%" viewBox="0 0 100 100">
+                             <motion.circle
+                                 cx="50"
+                                 cy="50"
+                                 r="44"
+                                 fill="transparent"
+                                 stroke={COLOR_MAP[activeColor as string] || '#ffffff'}
+                                 strokeWidth="3"
+                                 strokeDasharray="276.46" // 2 * pi * 44
+                                 style={{ pathLength: sweepProgress }}
+                                 opacity={0.8}
+                             />
+                        </svg>
+                    </div>
+                )}
+
                 {/* 5. Vacuum Core - The deepest void (Layer 5) */}
                 <div style={{
                     position: 'absolute',
@@ -182,7 +212,7 @@ export function BoardGrid({
                     background: '#000000',
                     boxShadow: `0 0 20px ${COLOR_MAP[activeColor as string] || '#ffffff'}33, inset 0 0 10px rgba(0,0,0,0.9)`,
                     border: `1px solid ${COLOR_MAP[activeColor as string] || 'rgba(255,255,255,0.1)'}33`,
-                    zIndex: 3,
+                    zIndex: 4,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
