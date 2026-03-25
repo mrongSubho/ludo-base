@@ -43,15 +43,26 @@
   --ludo-slate: #1e293b;
 
   /* Standard Ludo Palette (Original Soft Tones) */
-  --ludo-green: #A8E6CF;
-  --ludo-red: #FF8B94;
-  --ludo-blue: #A2E1F6;
-  --ludo-yellow: #FFD3B6;
+  --ludo-sage: #A8E6CF;
+  --ludo-rose: #FF8B94;
+  --ludo-sky: #A2E1F6;
+  --ludo-amber: #FFD3B6;
 
-  --ludo-green-contrast: #FFFFFF;
-  --ludo-red-contrast: #FFFFFF;
-  --ludo-blue-contrast: #FFFFFF;
-  --ludo-yellow-contrast: #000000;
+  /* Aliases for better code readability / retro-compatibility */
+  --ludo-green: var(--ludo-sage);
+  --ludo-red: var(--ludo-rose);
+  --ludo-blue: var(--ludo-sky);
+  --ludo-yellow: var(--ludo-amber);
+
+  --ludo-sage-contrast: #FFFFFF;
+  --ludo-rose-contrast: #FFFFFF;
+  --ludo-sky-contrast: #FFFFFF;
+  --ludo-amber-contrast: #000000;
+
+  --ludo-green-contrast: var(--ludo-sage-contrast);
+  --ludo-red-contrast: var(--ludo-rose-contrast);
+  --ludo-blue-contrast: var(--ludo-sky-contrast);
+  --ludo-yellow-contrast: var(--ludo-amber-contrast);
 
   --ludo-bg-image: none;
   --ludo-bg-rgb: 248, 250, 252;
