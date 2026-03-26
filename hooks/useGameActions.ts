@@ -114,7 +114,7 @@ export function useGameActions({
                 captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
                 strikes: { ...prev.strikes, [color]: 0 },
                 consecutiveSixes: (newState.currentPlayer !== color) ? 0 : prev.consecutiveSixes,
-                gamePhase: isBonusTurn ? 'rolling' : (isHost && isLobbyConnected ? 'moving' : 'rolling'),
+                gamePhase: 'rolling', // Next turn (or bonus turn) always starts with a roll
                 timeLeft: (newState.currentPlayer !== prev.currentPlayer) ? 15 : prev.timeLeft,
                 lastUpdate: Date.now()
             };
@@ -276,12 +276,12 @@ export function useGameActions({
                         return switchState;
                     });
                 }, 1500); // 1.5s delay so user can see the dice
-                return { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling' };
+                return { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'moving' };
             }
 
             // --- Zero-Click Auto-Move Flow ---
-            const allAtHome = prev.positions[targetColor].every(p => p === -1);
-            const tokensOnBoard = prev.positions[targetColor].filter(p => p >= 0 && p < 57).length;
+            const allAtHome = prev.positions[targetColor].every((p: number) => p === -1);
+            const tokensOnBoard = prev.positions[targetColor].filter((p: number) => p >= 0 && p < 57).length;
             const isForcedStart = allAtHome && rollValue === 6;
             const isSingleMove = validMovesCount === 1;
             const isEndGame = tokensOnBoard === 1 && validMovesCount === 1;

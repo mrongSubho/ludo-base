@@ -162,7 +162,7 @@ export function useGameEngine({
         setLocalGameState,
         initialPlayers,
         address,
-        isHost,
+        isHost: isHost || isBotMatch,
         isLobbyConnected,
         broadcastAction: broadcastAction as any,
         sendIntent: sendIntent as any,
@@ -187,13 +187,13 @@ export function useGameEngine({
         moveToken,
         getNextPlayer,
         broadcastAction: broadcastAction as any,
-        isHost
+        isHost: isHost || isBotMatch
     });
 
     useAIBrain({
         localGameState,
         initialPlayers,
-        isHost,
+        isHost: isHost || isBotMatch,
         handleRoll,
         moveToken,
         handleUsePower,

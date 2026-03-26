@@ -158,7 +158,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 setRoomCode(typedData.room_code || '');
                 setStatus('matched');
                 
-                onMatchFoundRef.current(typedData.match_id, typedData.room_code || '', false, typedData.validation_token);
+                onMatchFoundRef.current(typedData.match_id, typedData.room_code || '', true, typedData.validation_token);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
