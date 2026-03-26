@@ -139,19 +139,39 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     const checkTicketStatus = useCallback(async (id: string) => {
         if (statusRef.current === 'matched') return;
         
-        console.log(`📡 [Matchmaking] Checking status for ticket: ${id}...`);
+        console.log(`📡 [Matchmaking] Checking status (ID: ${id})...`);
         try {
+            // 1. Primary check by specific ticket ID
             const { data, error } = await supabase
                 .from('matchmaking_queue')
                 .select('status, match_id, room_code, validation_token')
                 .eq('id', id)
-                .single();
+                .maybeSingle();
 
             if (error) throw error;
 
-            const typedData = data as any;
+            let typedData = data as any;
+
+            // 2. Secondary fallback (Defensive): Check if ANY matched ticket exists for this player
+            // This handles cases where ID might have changed or been mis-matched during a race
+            if (!typedData || typedData.status !== 'matched') {
+                const { data: fallbackData } = await supabase
+                    .from('matchmaking_queue')
+                    .select('status, match_id, room_code, validation_token')
+                    .eq('player_id', playerId.toLowerCase())
+                    .eq('status', 'matched')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (fallbackData) {
+                    console.log('📡 [Matchmaking] Secondary fallback found match!');
+                    typedData = fallbackData;
+                }
+            }
+
             if (typedData?.status === 'matched' && typedData.match_id) {
-                console.log(`✅ [Matchmaking] Polling found MATCH! Match: ${typedData.match_id}`);
+                console.log(`✅ [Matchmaking] Match found! ID: ${typedData.match_id}`);
                 if (pollingRef.current) clearInterval(pollingRef.current);
                 
                 setMatchId(typedData.match_id);
@@ -163,7 +183,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
         }
-    }, []);
+    }, [playerId]);
 
     // --- Continuous 1s Timer Effect ---
     useEffect(() => {
@@ -220,8 +240,6 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         isStartingRef.current = true;
         console.log(`📡 [Matchmaking] Starting UNIFIED search for player: ${normalizedPlayerId}`);
         
-        setStatus('searching');
-        lastSearchRef.current = criteria;
         setIsConnectingToEdge(true);
         setMatchId(null);
         setRoomCode(null);
@@ -233,6 +251,10 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             // Purge stale tickets (Supabase side) - BLOCKING to avoid race with join
             console.log('📡 [Matchmaking] Triggering blocking purge for player:', normalizedPlayerId);
             await cancelSearch(true, true);
+
+            // Now officially in searching state
+            setStatus('searching');
+            lastSearchRef.current = criteria;
 
             // Attempt Edge Server
             if (edgeClient) {
