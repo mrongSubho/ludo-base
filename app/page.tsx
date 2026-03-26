@@ -24,6 +24,7 @@ import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
+import { HostMigrationPanel } from './components/HostMigrationPanel';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
@@ -557,24 +558,7 @@ export default function Page() {
 
               {/* ── Host Migration Overlay ── */}
               {!isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
-                <div className="absolute inset-0 z-[1000] bg-black/40 backdrop-blur-xl flex items-center justify-center">
-                  <div className="text-center p-8 bg-white/5 border border-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl max-w-md">
-                    <div className="w-20 h-20 mx-auto mb-6 relative">
-                      <div className="absolute inset-0 border-4 border-cyan-400/30 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-t-cyan-400 rounded-full animate-spin"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-cyan-400">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                         </svg>
-                      </div>
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Host Migrating</h2>
-                    <p className="text-white/60 mb-6">Host disconnected. Re-assigning a new host to continue your match...</p>
-                    <div className="px-4 py-2 bg-cyan-400/10 border border-cyan-400/20 rounded-xl text-cyan-400 text-sm font-medium">
-                      Don't leave, your wager is safe!
-                    </div>
-                  </div>
-                </div>
+                <HostMigrationPanel onQuit={() => leaveGame()} />
               )}
             </>
           )}
