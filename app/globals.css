@@ -5,6 +5,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Russo+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -79,6 +80,14 @@
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-pill: 9999px;
+
+  /* ─── 3. Cyberpunk Design System (Ludo Base) ─── */
+  --cyber-primary: #7C3AED;   /* Violet */
+  --cyber-secondary: #A78BFA; /* Lavender */
+  --cyber-cta: #F43F5E;       /* Rose/Crimson */
+  --cyber-bg: #0F0F23;        /* Deep Space */
+  --cyber-text: #E2E8F0;      /* Slate White */
+  --cyber-accent: #00FFFF;    /* Cyan Neon */
 }
 
 /* ─── Theme Overrides (Consolidated) ─── */
@@ -150,10 +159,7 @@ body {
 }
 
 /* ─── Global Gutter for Rounded Elements (Guaranteed Minimum) ─── */
-div[class*="rounded"] {
-  padding-left: 4px;
-  padding-right: 4px;
-}
+
 
 /* ─── Match/Board Scoped Theme Wrapper ─── */
 .board-match-theme-wrapper {
@@ -244,7 +250,7 @@ body.theme-retro-futurism::before {
   bottom: 0;
   right: 0;
   background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-  z-index: 9999;
+  z-index: 40;
   background-size: 100% 2px, 3px 100%;
   pointer-events: none;
   opacity: 0.4;
@@ -345,8 +351,21 @@ body.theme-retro-futurism::before {
 }
 
 .neon-glow-purple {
-  color: #00FFFF;
-  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3);
+  color: #7C3AED;
+  text-shadow: 0 0 5px rgba(124, 58, 237, 0.5), 0 0 10px rgba(124, 58, 237, 0.3);
+}
+
+.neon-border-cyber {
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.2), inset 0 0 10px rgba(124, 58, 237, 0.1);
+}
+
+.glass-modal {
+  background: rgba(15, 15, 35, 0.85);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .shimmer-effect {
