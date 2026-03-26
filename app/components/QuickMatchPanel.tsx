@@ -145,7 +145,8 @@ export const QuickMatchPanel = ({
 
     // ─── Phase 24: Universal Transition Resilience ───
     useEffect(() => {
-        if (status === 'matched' && p2pHost) {
+        // Wait for P2P connection or Host availability before starting countdown
+        if (status === 'matched' && p2pHost && isLobbyConnected) {
             // 1. Immediate P2P Fast-Path: If all synced, start NOW
             const joinedSlots = lobbyState?.slots.filter(s => s.status === 'joined') || [];
             const targetCount = matchType === '1v1' ? 2 : 4;

@@ -366,6 +366,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setCurrentRoomCode(code);
         const peer = new Peer(code);
         peerRef.current = peer;
+        
+        peer.on('open', (id) => {
+            console.log('📡 [Host] Peer opened with ID:', id);
+            setIsLobbyConnected(true);
+        });
 
         // ☁️ Register preliminary match node
         // match_id will be updated once START_GAME is called

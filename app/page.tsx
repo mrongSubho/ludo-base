@@ -557,7 +557,8 @@ export default function Page() {
               )}
 
               {/* ── Host Migration Overlay ── */}
-              {!isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
+              {/* Only show for Guest if connection is lost after game started */}
+              {!isHost && !isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
                 <HostMigrationPanel onQuit={() => leaveGame()} />
               )}
             </>

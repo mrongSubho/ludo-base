@@ -20,7 +20,8 @@ export function useSupabaseRelay({
     const processedActionIds = useRef<Set<string>>(new Set());
 
     const relayViaSupabase = useCallback((type: string, data: any, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
-        if (!lobbyStateRef.current?.roomCode) return;
+        const targetCode = currentRoomCode || lobbyStateRef.current?.roomCode;
+        if (!targetCode) return;
         
         const actionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const payload = {
@@ -32,7 +33,7 @@ export function useSupabaseRelay({
         processedActionIds.current.add(actionId);
 
         supabase
-            .channel(`game-room-${lobbyStateRef.current.roomCode}`)
+            .channel(`game-room-${targetCode}`)
             .send({
                 type: 'broadcast',
                 event: 'game-action',
@@ -41,7 +42,7 @@ export function useSupabaseRelay({
             .then((status) => {
                 if (status !== 'ok') console.error('🚨 Supabase Relay Error:', status);
             });
-    }, [myAddress]);
+    }, [myAddress, currentRoomCode]);
 
     useEffect(() => {
         const targetCode = currentRoomCode || lobbyState?.roomCode;
