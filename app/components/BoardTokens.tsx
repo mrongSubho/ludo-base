@@ -11,6 +11,7 @@ interface TokenProps {
     isDraggable?: boolean;
     count?: number;
     isBlockade?: boolean;
+    counterRotationDeg?: number;
 }
 
 export function Token({
@@ -18,12 +19,14 @@ export function Token({
     onClick,
     isDraggable,
     count = 1,
-    isBlockade = false
+    isBlockade = false,
+    counterRotationDeg = 0
 }: TokenProps) {
     return (
         <motion.div
             layout
             initial={false}
+            animate={{ rotate: counterRotationDeg }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className={`ludo-token ${color}-token ${isDraggable ? 'draggable' : ''} ${isBlockade ? 'token-blockade' : ''}`}
             onClick={onClick}

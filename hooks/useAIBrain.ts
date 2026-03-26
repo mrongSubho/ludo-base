@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { PlayerColor, PowerType } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
@@ -32,6 +32,8 @@ export function useAIBrain({
     playerCount,
     isLobbyConnected
 }: UseAIBrainProps) {
+    const lastActionRef = useRef<string>('');
+
     useEffect(() => {
         if (localGameState.winner) return;
 
@@ -39,39 +41,77 @@ export function useAIBrain({
         if (isLobbyConnected && !isHost) return;
 
         const color = localGameState.currentPlayer;
+        const phase = localGameState.gamePhase;
+        const diceValue = localGameState.diceValue;
+        const isRolling = localGameState.isRolling;
+        
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats[color].isKicked;
+        const isBot = currentPlayerInfo?.isAi || localGameState.afkStats[color]?.isKicked;
 
-        if (isCurrentlyBot) {
-            if (localGameState.gamePhase === 'rolling') {
-                const randomDelay = Math.floor(Math.random() * (BOT_ROLL_DELAY_MAX - BOT_ROLL_DELAY_MIN + 1)) + BOT_ROLL_DELAY_MIN;
-
-                const timer = setTimeout(() => {
-                    const shouldUsePower = getBestPowerUsage(localGameState, color, playerPaths, playerCount);
-                    if (shouldUsePower) {
-                        handleUsePower(color);
-                        return;
-                    }
-                    handleRoll();
-                }, randomDelay);
-                return () => clearTimeout(timer);
-            } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
-                const timer = setTimeout(() => {
-                    const bestMove = getBestMove(
-                        localGameState.positions,
-                        color,
-                        localGameState.diceValue as number,
-                        playerPaths,
-                        playerCount,
-                        localGameState.powerTiles,
-                        localGameState
-                    );
-                    if (bestMove !== null) {
-                        moveToken(color, bestMove, localGameState.diceValue as number);
-                    }
-                }, BOT_MOVE_DELAY);
-                return () => clearTimeout(timer);
-            }
+        if (!isBot) {
+            lastActionRef.current = '';
+            return;
         }
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, isLobbyConnected, isHost, initialPlayers, localGameState.afkStats, localGameState.playerPowers, localGameState.positions, handleUsePower, handleRoll, moveToken, playerCount, playerPaths]);
+
+        // Action Key: prevent double-scheduling the same turn state
+        const actionKey = `${color}-${phase}-${diceValue}-${isRolling}`;
+        if (lastActionRef.current === actionKey) return;
+
+        console.log('🤖 [AIBrain] Evaluation turn:', actionKey);
+
+        if (phase === 'rolling' && !isRolling && diceValue === null) {
+            const randomDelay = Math.floor(Math.random() * (BOT_ROLL_DELAY_MAX - BOT_ROLL_DELAY_MIN + 1)) + BOT_ROLL_DELAY_MIN;
+            lastActionRef.current = actionKey;
+
+            const timer = setTimeout(() => {
+                const shouldUsePower = getBestPowerUsage(localGameState, color, playerPaths, playerCount);
+                if (shouldUsePower) {
+                    handleUsePower(color);
+                } else {
+                    handleRoll();
+                }
+            }, randomDelay);
+            return () => clearTimeout(timer);
+        } 
+        
+        if (phase === 'moving' && diceValue !== null && !isRolling) {
+            lastActionRef.current = actionKey;
+            
+            const timer = setTimeout(() => {
+                const bestMove = getBestMove(
+                    localGameState.positions,
+                    color,
+                    diceValue,
+                    playerPaths,
+                    playerCount,
+                    localGameState.powerTiles,
+                    localGameState
+                );
+                
+                if (bestMove !== null) {
+                    moveToken(color, bestMove, diceValue);
+                } else {
+                    console.log('🤖 [AIBrain] No valid moves found for bot, waiting for turn switch.');
+                }
+            }, BOT_MOVE_DELAY);
+            return () => clearTimeout(timer);
+        }
+    }, [
+        localGameState.winner, 
+        localGameState.currentPlayer, 
+        localGameState.gamePhase, 
+        localGameState.diceValue, 
+        localGameState.isRolling,
+        isLobbyConnected, 
+        isHost, 
+        initialPlayers, 
+        localGameState.afkStats, 
+        localGameState.playerPowers, 
+        localGameState.positions, 
+        handleUsePower, 
+        handleRoll, 
+        moveToken, 
+        playerCount, 
+        playerPaths
+    ]);
 }

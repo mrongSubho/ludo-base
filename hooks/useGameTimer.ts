@@ -42,5 +42,5 @@ export function useGameTimer({
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [localGameState.winner, setLocalGameState]);
+    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, setLocalGameState]);
 }

@@ -137,7 +137,7 @@ export function assignCorners2v2(): ColorCorner {
 export function assignCornersFFA(playerCount: '1v1' | '4P' = '4P'): ColorCorner {
     const cc: Partial<ColorCorner> = {};
     const allColors: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
-    const corners: Corner[] = ['BL', 'TR', 'BR', 'TL'];
+    const corners: Corner[] = ['BL', 'BR', 'TR', 'TL'];
 
     if (playerCount === '1v1') {
         // For 1v1, we MUST ensure the two active players (first two in LOBBY_COLORS)

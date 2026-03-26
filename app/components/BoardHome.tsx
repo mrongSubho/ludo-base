@@ -31,6 +31,7 @@ interface HomeBlockProps {
     tokensInHome: number[];
     onTokenClick: (tokenIndex: number) => void;
     isDraggable?: boolean;
+    counterRotationDeg?: number;
 }
 
 export function HomeBlock({
@@ -41,6 +42,7 @@ export function HomeBlock({
     tokensInHome,
     onTokenClick,
     isDraggable,
+    counterRotationDeg = 0
 }: HomeBlockProps) {
     return (
         <div
@@ -56,6 +58,7 @@ export function HomeBlock({
                                 color={color}
                                 onClick={() => onTokenClick(idx)}
                                 isDraggable={isDraggable}
+                                counterRotationDeg={counterRotationDeg}
                             />
                         )}
                         {!tokensInHome.includes(idx) && <span className="token-dot-placeholder" />}

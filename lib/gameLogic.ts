@@ -18,6 +18,7 @@ export const INITIAL_GAME_STATE: GameState = {
     },
     currentPlayer: 'green',
     diceValue: null,
+    isRolling: false,
     gamePhase: 'rolling',
     status: 'waiting',
     winner: null,

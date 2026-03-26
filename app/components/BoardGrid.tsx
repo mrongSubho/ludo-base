@@ -121,7 +121,8 @@ export function BoardGrid({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    pointerEvents: 'none' // Ensure no clicks are blocked
+                    pointerEvents: 'none', // Ensure no clicks are blocked
+                    transform: `rotate(${counterRotationDeg || 0}deg)`
                 }}
             >
                 {/* 1. Ambient Backdrop Pulse (Layer 1) */}
@@ -219,26 +220,27 @@ export function BoardGrid({
                 }}>
                     {/* 6. The Heart - Star or Dice Value (Layer 6) */}
                     <motion.div
-                        key={localGameState?.gamePhase === 'moving' ? 'dice' : 'star'}
+                        key={localGameState?.diceValue || 'star'}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
-                         {localGameState?.gamePhase === 'moving' && localGameState?.diceValue ? (
+                        {localGameState?.diceValue ? (
                              <motion.span 
                                 animate={{ scale: [1, 1.2, 1] }}
                                 transition={{ repeat: Infinity, duration: 1.5 }}
                                 style={{
-                                    fontSize: 32,
+                                    fontSize: 48,
                                     fontFamily: "'Russo One', sans-serif",
                                     color: COLOR_MAP[activeColor as string] || '#ffffff',
-                                    textShadow: `0 0 10px ${COLOR_MAP[activeColor as string]}aa, 0 0 20px ${COLOR_MAP[activeColor as string]}66`
+                                    textShadow: `0 0 10px ${COLOR_MAP[activeColor as string]}aa, 0 0 20px ${COLOR_MAP[activeColor as string]}66`,
+                                    display: 'inline-block'
                                 }}
                              >
                                  {localGameState.diceValue}
                              </motion.span>
-                         ) : (
+                          ) : (
                              <motion.div
                                 animate={{ scale: [1, 1.1, 1] }}
                                 transition={{ repeat: Infinity, duration: 2 }}

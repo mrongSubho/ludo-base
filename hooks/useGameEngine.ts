@@ -185,7 +185,9 @@ export function useGameEngine({
         initialPlayers,
         handleRoll,
         moveToken,
-        getNextPlayer
+        getNextPlayer,
+        broadcastAction: broadcastAction as any,
+        isHost
     });
 
     useAIBrain({
@@ -199,6 +201,29 @@ export function useGameEngine({
         playerCount,
         isLobbyConnected
     });
+
+    // 🌍 Synchronize local state with network state (Guest only)
+    useEffect(() => {
+        if (isLobbyConnected && !isHost && networkGameState) {
+            setLocalGameState(networkGameState);
+        }
+    }, [isLobbyConnected, isHost, networkGameState]);
+
+    // 📬 Listen for Guest Intents (Host only)
+    useEffect(() => {
+        if (isHost && lastIntent) {
+            const { type, payload } = lastIntent;
+            console.log('📬 [Host] Processing Intent:', type, payload);
+            
+            if (type === 'REQUEST_ROLL') {
+                handleRoll(payload?.value);
+            } else if (type === 'REQUEST_MOVE') {
+                moveToken(payload.color, payload.tokenIndex, payload.diceValue || localGameState.diceValue);
+            }
+            
+            clearIntent();
+        }
+    }, [isHost, lastIntent, handleRoll, moveToken, clearIntent, localGameState.diceValue]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
         setLocalGameState((prev: any) => ({

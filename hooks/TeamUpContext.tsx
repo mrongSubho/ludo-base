@@ -75,6 +75,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const { address: myAddress } = useAccount();
     const { myProfile } = useGameData();
+    const [lastIntent, setLastIntent] = useState<any | null>(null);
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -133,7 +134,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     });
 
     // 3. Broadcast Helpers
-    const broadcastAction = useCallback((type: GameActionType, payload?: any) => {
+    const broadcastAction = useCallback((type: GameActionType, payload?: any, fullState?: any) => {
         if (!isHost) return;
 
         if (type === 'START_GAME') {
@@ -175,12 +176,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const actionData = {
             type,
             ...payload,
-            gameState: type === 'SYNC_STATE' ? gameStateRef.current : { ...gameStateRef.current, lastAction: { type, payload } }
+            stateOverride: fullState,
+            gameState: fullState || (type === 'SYNC_STATE' ? gameStateRef.current : { ...gameStateRef.current, lastAction: { type, payload } })
         };
 
         broadcastToAll(actionData);
         relayViaSupabase('game-action', actionData, lobbyStateRef as any);
-    }, [isHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef]);
+    }, [isHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
 
     const broadcastLobbyAction = useCallback((type: LobbyActionType, payload?: any) => {
         if (!isHost) return;
@@ -262,11 +264,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     // 6. Game Engine Action Processor
     const processGameAction = useCallback((data: any) => {
-        const { type, actionId } = data;
+        const { type, actionId, stateOverride } = data;
         if (actionId && processedActionIds.current.has(actionId)) return;
         if (actionId) processedActionIds.current.add(actionId);
 
         console.log('🕹️ Processing action:', type, data);
+
+        // 🌟 Authoritative State Override (If provided by Host)
+        if (stateOverride && !isHost) {
+            console.log('🌟 [Guest] Applying State Override');
+            setGameState(prev => ({
+                ...stateOverride,
+                lastUpdate: Date.now(),
+                lastAction: { type, payload: data }
+            }));
+            // If it's a state override, we may still want to trigger type-specific side effects
+            // but we skip the manual state patches below.
+        }
 
         if (type === 'START_GAME') {
             setGameState(prev => ({
@@ -289,10 +303,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     .then();
             }
         } else if (type === 'ROLL_DICE') {
-            setGameState(prev => ({
+            setGameState((prev: GameState) => ({
                 ...prev,
-                diceValue: data.value,
-                gamePhase: 'moving',
+                diceValue: data.value ?? prev.diceValue,
+                isRolling: data.isRolling ?? false,
+                gamePhase: data.gamePhase ?? prev.gamePhase,
                 lastAction: { type: 'ROLL_DICE', payload: data }
             }));
         } else if (type === 'MOVE_TOKEN') {
@@ -305,10 +320,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return { ...prev, positions: newPos, lastUpdate: Date.now(), lastAction: { type: 'MOVE_TOKEN', payload } };
             });
         } else if (type === 'TURN_SWITCH') {
-            setGameState(prev => ({
+            const nextPlayer = data.nextPlayer || data.currentPlayer;
+            setGameState((prev: GameState) => ({
                 ...prev,
-                currentPlayer: data.currentPlayer,
+                currentPlayer: nextPlayer,
                 diceValue: null,
+                isRolling: false,
                 gamePhase: 'rolling',
                 lastUpdate: Date.now(),
                 lastAction: { type: 'TURN_SWITCH', payload: data }
@@ -331,7 +348,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     color: prev[data.address]?.color
                 }
             }));
-        } else if (data.type === 'GAME_ACTION' || data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
+        } else if (data.type === 'GAME_ACTION') {
+            if (isHost) {
+                console.log('📬 [Host] Received Intent:', data.action);
+                setLastIntent(data.action);
+            }
+        } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
             processGameAction(data);
         }
     }, [processGameAction, setParticipants]);
@@ -418,18 +440,27 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const rejectInvite = useCallback(() => setPendingInvite(null), [setPendingInvite]);
     const startQuickMatch = useCallback(() => { /* Quick match logic would go here */ }, []);
     const updateGameState = useCallback((s: any) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
-    const clearIntent = useCallback(() => { /* Clear intent logic here */ }, []);
+    
+    const sendIntent = useCallback((type: string, payload: any) => {
+        if (!isLobbyConnected || isHost) return;
+        const conn = Array.from(connections.values())[0];
+        if (conn && conn.open) {
+            conn.send({ type: 'GAME_ACTION', action: { type, payload, sender: myAddress } });
+        }
+    }, [isLobbyConnected, isHost, connections, myAddress]);
+
+    const clearIntent = useCallback(() => setLastIntent(null), []);
 
     const value = useMemo(() => ({
         roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, gameState, lobbyState,
-        pendingInvite, hostGame, joinGame, sendIntent: (t: any, p: any) => {}, broadcastAction, broadcastLobbyAction,
+        pendingInvite, hostGame, joinGame, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
-        participants, lastIntent: null, clearIntent, leaveGame, validationToken,
+        participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow
     }), [
         roomId, connections, isLobbyConnected, isHost, gameState, lobbyState, pendingInvite, hostGame, joinGame,
-        broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
-        startQuickMatch, myAddress, updateGameState, participants, leaveGame, validationToken,
+        sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
+        startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow
     ]);
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import Dice from './Dice';
+import LudoDice from './LudoDice';
 import { Player } from '@/hooks/useGameEngine';
 import { PowerType, PlayerColor } from '@/lib/types';
 import { Corner } from '@/lib/boardLayout';
@@ -79,7 +79,7 @@ export function PlayerRow({
     myPlayerColor
 }: PlayerRowProps) {
     return (
-        <div className={`player-row player-row-${corners.includes('TL') ? 'top' : 'bottom'}`}>
+        <div className={`player-row player-row-${(corners as any).includes('TL') ? 'top' : 'bottom'}`}>
             {(corners as any as Corner[]).map((corner) => {
                 const color = uiSlots[corner];
                 const p = players.find(player => player.color === color);
@@ -89,8 +89,8 @@ export function PlayerRow({
                 
                 const isMyTurn = localGameState.currentPlayer === p.color;
                 const isMyColor = p.color === myPlayerColor;
-                const isCurrentlyBot = p.isAi;
-                const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling';
+                const isCurrentlyBot = p.isAi || localGameState.afkStats[p.color].isKicked;
+                const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
                 
                 const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
 
@@ -103,10 +103,12 @@ export function PlayerRow({
                             onPowerClick={() => !spectatorMode && handleUsePower(p.color)}
                         />
                         {isMyTurn && !spectatorMode && (
-                            <Dice
+                            <LudoDice
                                 onRoll={(val) => handleRoll(val)}
                                 disabled={!canRoll}
                                 currentValue={localGameState.diceValue}
+                                isRolling={localGameState.isRolling}
+                                activeColor={p.color}
                             />
                         )}
                         {isMyTurn && spectatorMode && localGameState.diceValue != null && (

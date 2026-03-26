@@ -9,6 +9,8 @@ interface UseAFKManagerProps {
     handleRoll: (value?: number) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
+    broadcastAction?: (type: string, payload: any, stateOverride?: any) => void;
+    isHost?: boolean;
 }
 
 export function useAFKManager({
@@ -17,7 +19,9 @@ export function useAFKManager({
     initialPlayers,
     handleRoll,
     moveToken,
-    getNextPlayer
+    getNextPlayer,
+    broadcastAction,
+    isHost
 }: UseAFKManagerProps) {
     useEffect(() => {
         if (localGameState.winner || localGameState.idleWarning) return;
@@ -82,12 +86,21 @@ export function useAFKManager({
                 });
 
                 if (options.length === 0) {
-                    setLocalGameState((s: any) => ({
-                        ...s,
-                        gamePhase: 'rolling',
-                        currentPlayer: getNextPlayer(s.currentPlayer),
-                        timeLeft: 15
-                    }));
+                    setLocalGameState((s: any) => {
+                        const nextPlayer = getNextPlayer(s.currentPlayer);
+                        const switchState = {
+                            ...s,
+                            gamePhase: 'rolling',
+                            currentPlayer: nextPlayer,
+                            diceValue: null,
+                            timeLeft: 15,
+                            lastUpdate: Date.now()
+                        };
+                        if (isHost && broadcastAction) {
+                            broadcastAction('TURN_SWITCH', { nextPlayer }, switchState);
+                        }
+                        return switchState;
+                    });
                 } else {
                     const randomIdx = options[Math.floor(Math.random() * options.length)];
                     moveToken(color, randomIdx, diceValue);

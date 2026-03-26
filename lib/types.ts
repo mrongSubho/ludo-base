@@ -39,6 +39,7 @@ export interface GameState {
     };
     currentPlayer: PlayerColor;
     diceValue: number | null;
+    isRolling: boolean;
     gamePhase: 'rolling' | 'moving';
     status: 'waiting' | 'playing' | 'finished';
     winner: string | null;

@@ -191,6 +191,7 @@ export default function Board({
                                     tokensInHome={tokensInHome}
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
                                     isDraggable={localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && localGameState.diceValue === 6}
+                                    counterRotationDeg={counterRotationDeg}
                                 />
                             );
                         })}
@@ -201,6 +202,7 @@ export default function Board({
                             address={address}
                             playerCount={playerCount}
                             handleTokenClick={handleTokenClick}
+                            counterRotationDeg={counterRotationDeg}
                         />
                     </BoardGrid>
                     

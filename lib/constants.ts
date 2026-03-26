@@ -36,7 +36,7 @@ export const AI_SCORES = {
 };
 
 // --- Animations & Delays ---
-export const BOT_ROLL_DELAY_MIN = 3000;
+export const BOT_ROLL_DELAY_MIN = 1500;
 export const BOT_ROLL_DELAY_MAX = 6000;
 export const BOT_MOVE_DELAY = 1500;
 export const GUEST_SYNC_DELAY = 800; // ms to wait for host init
