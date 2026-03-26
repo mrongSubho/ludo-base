@@ -230,11 +230,9 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         if (pollingRef.current) clearInterval(pollingRef.current);
         
         try {
-            // Purge stale tickets (Supabase side) - NON-BLOCKING
-            console.log('📡 [Matchmaking] Triggering non-blocking purge for player:', normalizedPlayerId);
-            cancelSearch(true, true).catch(e => 
-                console.error('❌ [Matchmaking] Non-blocking purge background error:', e)
-            );
+            // Purge stale tickets (Supabase side) - BLOCKING to avoid race with join
+            console.log('📡 [Matchmaking] Triggering blocking purge for player:', normalizedPlayerId);
+            await cancelSearch(true, true);
 
             // Attempt Edge Server
             if (edgeClient) {
@@ -358,6 +356,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         if (pollingRef.current) clearInterval(pollingRef.current);
         
         try {
+            // Purge stale tickets (Supabase side) - BLOCKING to avoid race with join
             await cancelSearch(true, true);
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
