@@ -105,6 +105,7 @@ export const QuickMatchPanel = ({
         leaveGame,
         isLobbyConnected, 
         isHost: p2pHost,
+        gameState,
         lobbyState,
         participants
     } = useTeamUpContext();
@@ -145,9 +146,8 @@ export const QuickMatchPanel = ({
 
     // ─── Phase 24: Universal Transition Resilience ───
     useEffect(() => {
-        // Wait for P2P connection or Host availability before starting countdown
+        // SCENARIO 1: I am the Host and P2P is ready
         if (status === 'matched' && p2pHost && isLobbyConnected) {
-            // 1. Immediate P2P Fast-Path: If all synced, start NOW
             const joinedSlots = lobbyState?.slots.filter(s => s.status === 'joined') || [];
             const targetCount = matchType === '1v1' ? 2 : 4;
             
@@ -162,15 +162,20 @@ export const QuickMatchPanel = ({
                 return;
             }
 
-            // 2. Universal Fallback: Heartbeat / Power-On if P2P hangs
             const forceTimer = setTimeout(() => {
                 console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}). Force-starting via Supabase Relay...`);
                 onStartGame(false);
-            }, 6000); // 6s to allow PeerJS a fair chance, but no more stalls
+            }, 6000);
 
             return () => clearTimeout(forceTimer);
         }
-    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants]);
+
+        // SCENARIO 2: I am the Guest and the Game has already started on the Host
+        if (status === 'matched' && !p2pHost && gameState.isStarted) {
+            console.log('🏁 [QuickMatch] Received GAME_START from Host. Synchronizing UI...');
+            onStartGame(false);
+        }
+    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants, gameState.isStarted]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
@@ -343,9 +348,9 @@ export const QuickMatchPanel = ({
                                         <div className="w-[1px] h-2 bg-white/10" />
                                         <span className="text-[9px] uppercase font-black tracking-widest text-white/40">{matchType}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-amber-400 font-bold">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                        <span>{wager}</span>
+                                    <div className="flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                                        <span className="text-sm font-black text-amber-400 tracking-tight">{wager.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>

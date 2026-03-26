@@ -159,6 +159,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     .from('matchmaking_queue')
                     .select('status, match_id, room_code, validation_token')
                     .eq('player_id', playerId.toLowerCase())
+                    .eq('game_mode', gameMode)
+                    .eq('match_type', matchType)
                     .eq('status', 'matched')
                     .order('created_at', { ascending: false })
                     .limit(1)

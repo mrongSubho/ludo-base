@@ -161,7 +161,9 @@ export function useGameActions({
         
         rollingRef.current = true;
 
-        const isCurrentlyBot = initialPlayers.find(p => p.color === localGameState.currentPlayer)?.isAi;
+        const color = localGameState.currentPlayer;
+        const currentPlayerInfo = initialPlayers.find(p => p.color === color);
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats[color]?.isKicked;
         
         // 🚨 CRITICAL FIX: Bots are host-only in lobby, but in local match, we are the host.
         if (!isRemote && (isLobbyConnected && !isHost) && isCurrentlyBot) {
@@ -259,7 +261,6 @@ export function useGameActions({
                 console.log(`🎲 [Engine] No valid moves for ${color}. Switching turn.`);
                 setTimeout(() => {
                     setLocalGameState((latest: any) => {
-                        // Use latest state to find next player
                         const nextPlayer = getNextPlayer(latest.currentPlayer, latest.positions);
                         const switchState = { 
                             ...latest, 
@@ -275,8 +276,9 @@ export function useGameActions({
                         rollingRef.current = false;
                         return switchState;
                     });
-                }, 1500); // 1.5s delay so user can see the dice
-                return { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'moving' };
+                }, 1500);
+                // 🚨 CRITICAL: Keep phase as 'rolling' or a neutral 'landing' to prevent AI interference
+                return { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling' };
             }
 
             // --- Zero-Click Auto-Move Flow ---
