@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
+import LudoWalletModal from './LudoWalletModal';
 
 interface WalletConnectCardProps {
     onConnect?: () => void;
@@ -7,6 +8,7 @@ interface WalletConnectCardProps {
 
 export default function WalletConnectCard({ onConnect }: WalletConnectCardProps) {
     const [mounted, setMounted] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -52,12 +54,17 @@ export default function WalletConnectCard({ onConnect }: WalletConnectCardProps)
                         {/* Custom Glow behind button */}
                         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-cyan-600 blur-xl opacity-20 group-hover/btn:opacity-40 transition-opacity pointer-events-none" />
 
-                        <Wallet className="w-full flex justify-center">
-                            <ConnectWallet
-                                className="w-full !max-w-full !bg-indigo-600 hover:!bg-indigo-500 !text-white !font-black !rounded-2xl !py-6 !transition-all !shadow-xl !border-0 !flex !items-center !justify-center !text-lg !italic !tracking-tighter !uppercase !h-auto !cursor-pointer z-30"
-                                disconnectedLabel="LOGIN WITH WALLET"
-                            />
-                        </Wallet>
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="w-full bg-white text-black font-black italic tracking-tighter rounded-2xl py-5 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] border-0 flex items-center justify-center text-xl uppercase h-auto cursor-pointer"
+                        >
+                            Connect Wallet
+                        </button>
+
+                        <LudoWalletModal 
+                            isOpen={isModalOpen}
+                            onClose={() => setIsModalOpen(false)}
+                        />
                     </div>
                 ) : (
                     <div className="w-full h-16 bg-white/5 rounded-2xl animate-pulse border border-white/10" />

@@ -4,7 +4,7 @@ import "@coinbase/onchainkit/styles.css";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
-import { coinbaseWallet, injected } from "wagmi/connectors";
+import { coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import ProfileSyncer from "./components/ProfileSyncer";
@@ -18,13 +18,14 @@ const config = createConfig({
     connectors: [
         coinbaseWallet({
             appName: "Ludo Base",
-            preference: {
-                options: 'smartWalletOnly',
-                // @ts-ignore - disabling telemetry to fix inlined script error
-                telemetry: false
-            } as any,
+            preference: "smartWalletOnly",
         }),
         injected(),
+        walletConnect({
+            projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || '673e0d259a5dc10d64b0fec83f6e8eca',
+        }),
+        metaMask(),
+        safe(),
     ],
     transports: {
         [base.id]: http(),
@@ -42,7 +43,12 @@ export function Providers({ children }: { children: ReactNode }) {
                 <OnchainKitProvider
                     apiKey="YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
                     chain={base}
-                    config={{ analytics: false }}
+                    config={{
+                        analytics: false,
+                        wallet: {
+                            display: 'modal',
+                        },
+                    }}
                 >
                     <FrameProvider>
                         <GameDataProvider>
