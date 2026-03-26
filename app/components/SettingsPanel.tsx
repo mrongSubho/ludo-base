@@ -62,6 +62,7 @@ const LogOutIcon = () => (
 );
 
 import { usePreferences } from '@/hooks/usePreferences';
+import { BUILD_ID } from '../version';
 
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
     const { preferences, updatePreference } = usePreferences();
@@ -253,7 +254,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         </div>
                         <div className="mt-4 flex flex-col items-center justify-center text-center">
                             <p className="text-white/60 font-bold tracking-widest uppercase text-xs">Ludo Base : The Onchain Arena</p>
-                            <p className="text-white/30 text-[10px] uppercase font-mono">Build: 2d85646</p>
+                            <p className="text-white/30 text-[10px] uppercase font-mono">Build: {BUILD_ID}</p>
                             <p className="text-white/20 text-[8px] mt-1">Version 1.0.0</p>
                         </div>
                     </div>
