@@ -91,7 +91,7 @@ export const QuickMatchPanel = ({
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
             // Note: hostGame and joinGame in TeamUpContext are parameterless because they use internal or context state
             if (isMatchHost) {
-                hostGame(); // Fixed: context hostGame expects 0 args
+                hostGame(foundRoomCode); 
             } else {
                 joinGame(foundRoomCode, validationToken);
             }

@@ -38,7 +38,7 @@ export interface TeamUpContextType {
     gameState: GameState;
     lobbyState: LobbyState | null;
     pendingInvite: InvitePayload | null;
-    hostGame: () => void;
+    hostGame: (roomId?: string) => void;
     joinGame: (roomId: string, token?: string) => void;
     sendIntent: (type: string, payload: any) => void;
     broadcastAction: (type: GameActionType, payload?: any) => void;
@@ -358,10 +358,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
     }, [processGameAction, setParticipants]);
 
-    const hostGame = useCallback(() => {
+    const hostGame = useCallback((forcedRoomId?: string) => {
         destroyPeer();
         setIsHost(true);
-        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
         const peer = new Peer(code);
