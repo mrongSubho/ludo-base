@@ -29,6 +29,7 @@ interface HomeBlockProps {
     gridRow: string;
     gridCol: string;
     tokensInHome: number[];
+    finishedTokens?: number[];
     onTokenClick: (tokenIndex: number) => void;
     isDraggable?: boolean;
     counterRotationDeg?: number;
@@ -40,6 +41,7 @@ export function HomeBlock({
     gridRow,
     gridCol,
     tokensInHome,
+    finishedTokens = [],
     onTokenClick,
     isDraggable,
     counterRotationDeg = 0
@@ -51,19 +53,36 @@ export function HomeBlock({
             style={{ gridRow, gridColumn: gridCol }}
         >
             <div className="home-pad">
-                {[0, 1, 2, 3].map((idx) => (
-                    <div key={idx} className="token-dot-wrapper">
-                        {tokensInHome.includes(idx) && (
-                            <Token
-                                color={color}
-                                onClick={() => onTokenClick(idx)}
-                                isDraggable={isDraggable}
-                                counterRotationDeg={counterRotationDeg}
-                            />
-                        )}
-                        {!tokensInHome.includes(idx) && <span className="token-dot-placeholder" />}
-                    </div>
-                ))}
+                {[0, 1, 2, 3].map((idx) => {
+                    const isFinished = finishedTokens.includes(idx);
+                    const isInHome = tokensInHome.includes(idx);
+                    return (
+                        <div key={idx} className="token-dot-wrapper">
+                            {isInHome && (
+                                <Token
+                                    color={color}
+                                    onClick={() => onTokenClick(idx)}
+                                    isDraggable={isDraggable}
+                                    counterRotationDeg={counterRotationDeg}
+                                />
+                            )}
+                            {isFinished && (
+                                <motion.div 
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                                    className="finished-tick-mark drop-shadow-md"
+                                    style={{ color: `var(--ludo-${color})` }}
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 opacity-90 drop-shadow-lg mix-blend-plus-lighter">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </motion.div>
+                            )}
+                            {!isInHome && !isFinished && <span className="token-dot-placeholder" />}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

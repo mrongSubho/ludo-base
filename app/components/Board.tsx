@@ -180,6 +180,9 @@ export default function Board({
                             const tokensInHome = isActivePlayer
                                 ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === -1 ? idx : -1).filter((idx: number) => idx !== -1)
                                 : [];
+                            const finishedTokens = isActivePlayer
+                                ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === 57 ? idx : -1).filter((idx: number) => idx !== -1)
+                                : [];
                             return (
                                 <HomeBlock
                                     key={color}
@@ -188,6 +191,7 @@ export default function Board({
                                     gridRow={CORNER_SLOTS[colorCorner[color]].gridRow}
                                     gridCol={CORNER_SLOTS[colorCorner[color]].gridCol}
                                     tokensInHome={tokensInHome}
+                                    finishedTokens={finishedTokens}
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
                                     isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
                                     counterRotationDeg={counterRotationDeg}
