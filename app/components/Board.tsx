@@ -6,7 +6,7 @@ import { PlayerColor } from '@/lib/types';
 import { useAccount } from 'wagmi';
 import {
     assignCorners2v2, assignCornersFFA,
-    buildPlayerPaths, buildPathCellsDynamic,
+    buildPathCellsDynamic,
     shufflePlayers, ColorCorner, CORNER_SLOTS
 } from '@/lib/boardLayout';
 import { useGameEngine, Player } from '@/hooks/useGameEngine';
@@ -57,16 +57,14 @@ export default function Board({
         if (initialPlayers && initialColorCorner) {
             return {
                 players: initialPlayers,
-                colorCorner: initialColorCorner,
-                playerPaths: buildPlayerPaths(initialColorCorner)
+                colorCorner: initialColorCorner
             };
         }
         const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
         const generatedPlayers = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
         return {
             players: generatedPlayers,
-            colorCorner: cc,
-            playerPaths: buildPlayerPaths(cc)
+            colorCorner: cc
         };
     });
 
@@ -74,13 +72,12 @@ export default function Board({
         if (initialPlayers && initialColorCorner) {
             setBoardConfig({
                 players: initialPlayers,
-                colorCorner: initialColorCorner,
-                playerPaths: buildPlayerPaths(initialColorCorner)
+                colorCorner: initialColorCorner
             });
         }
     }, [initialPlayers, initialColorCorner]);
 
-    const { players, colorCorner, playerPaths } = boardConfig;
+    const { players, colorCorner } = boardConfig;
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
     const [isShaking, setIsShaking] = useState(false);
 
@@ -91,7 +88,6 @@ export default function Board({
         playerCount,
         gameMode,
         isBotMatch,
-        playerPaths,
         colorCorner,
         pathCells,
         setBoardConfig
@@ -198,7 +194,7 @@ export default function Board({
                         <BoardTokens
                             players={players}
                             localGameState={localGameState}
-                            playerPaths={playerPaths}
+                            colorCorner={colorCorner}
                             address={address}
                             playerCount={playerCount}
                             handleTokenClick={handleTokenClick}

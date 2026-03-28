@@ -73,9 +73,13 @@ export function useAFKManager({
         const isKicked = localGameState.afkStats[color].isKicked;
         const isCurrentlyBot = isOriginalBot || isKicked;
         
-        if (!isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
+        // ONLY the Host (or Computer Host) triggers forced AFK actions for ANY player.
+        // This prevents Guests from spamming intents while 'timeLeft' is 0.
+        if (isHost && !isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
             if (localGameState.gamePhase === 'rolling') {
                 const forcedRoll = Math.floor(Math.random() * 6) + 1;
+                // Reset timeLeft immediately before async call to prevent loop
+                setLocalGameState((s: any) => ({ ...s, timeLeft: 15 }));
                 handleRoll(forcedRoll);
             } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const diceValue = localGameState.diceValue;
@@ -103,6 +107,8 @@ export function useAFKManager({
                     });
                 } else {
                     const randomIdx = options[Math.floor(Math.random() * options.length)];
+                    // Reset timeLeft immediately to prevent loop
+                    setLocalGameState((s: any) => ({ ...s, timeLeft: 15 }));
                     moveToken(color, randomIdx, diceValue);
                 }
             }

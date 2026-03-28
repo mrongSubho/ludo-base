@@ -200,14 +200,15 @@ export default function Page() {
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
-  const handlePlayNow = async () => {
-    console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'playerCount:', playerCount, 'lobbyStatus:', lobbyState?.status);
+   const handlePlayNow = async (isBotOverride?: boolean) => {
+    const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
+    console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'playerCount:', playerCount, 'isBotMatch:', effectiveIsBotMatch);
     if (isHost) {
       const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
       let players: Player[] = [];
 
       const isInLobby = isLobbyConnected || (isHost && !!lobbyState);
-      if (isInLobby && lobbyState && !isBotMatch) {
+      if (isInLobby && lobbyState && !effectiveIsBotMatch) {
         // --- MULTIPLAYER LOBBY START ---
         // Map Lobby Slots directly to Player objects
         players = lobbyState.slots
@@ -228,16 +229,22 @@ export default function Page() {
             } as Player;
           });
 
-        if (players.length === 0) {
-          console.warn('⚠️ No players found in joined slots, falling back to local host.');
-          players = shufflePlayers(playerCount, false, cc) as Player[];
+        // --- Strict Synchronous Validation ---
+        const joinedHumanCount = players.length;
+        const requiredHumans = playerCount === '1v1' ? 2 : 4;
+
+        if (joinedHumanCount < requiredHumans) {
+          console.warn(`⚠️ Only ${joinedHumanCount}/${requiredHumans} players joined. Aborting multiplayer start to prevent ghost fallback.`);
+          // If we are missing players, we don't proceed to setAppState('game').
+          // The QuickMatchPanel will catch this and either retry or show a stall warning.
+          return;
         }
       } else {
         // --- OFFLINE / BOT MATCH START ---
-        players = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
+        players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
 
         // Legacy mapping for simple teamup without lobby (if still reachable)
-        if (isLobbyConnected && !isBotMatch && !lobbyState) {
+        if (isLobbyConnected && !effectiveIsBotMatch && !lobbyState) {
           const attendeeAddresses = Object.keys(participants);
           if (address && !attendeeAddresses.map(a => a.toLowerCase()).includes(address.toLowerCase())) {
             attendeeAddresses.unshift(address.toLowerCase());
@@ -285,7 +292,7 @@ export default function Page() {
       broadcastAction('START_GAME', {
         initialBoardConfig: { players, colorCorner: cc },
         playerCount,
-        isBotMatch,
+        isBotMatch: effectiveIsBotMatch,
         matchId: newMatchId
       });
     }
@@ -299,7 +306,7 @@ export default function Page() {
 
   const onStartGame = useCallback((isBot?: boolean) => {
     setIsBotMatch(!!isBot);
-    handlePlayNow();
+    handlePlayNow(!!isBot);
   }, [handlePlayNow]);
 
   return (

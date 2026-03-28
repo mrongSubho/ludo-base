@@ -36,7 +36,10 @@ export function useGameTimer({
                 }
 
                 // Normal Turn Timer
-                if (prev.timeLeft <= 0) return prev;
+                // Tick the timer as long as we aren't actively rolling the dice and the game isn't finished.
+                const isInteractive = prev.gamePhase !== 'finished' && !prev.isRolling && !prev.winner;
+                
+                if (!isInteractive || prev.timeLeft <= 0) return prev;
                 return { ...prev, timeLeft: prev.timeLeft - 1 };
             });
         }, 1000);

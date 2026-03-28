@@ -176,16 +176,36 @@ export function buildPlayerPaths(cc: ColorCorner): Record<string, Point[]> {
     const paths: Record<string, Point[]> = {};
     (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).forEach(color => {
         const corner = cc[color];
-        if (!corner) return; // Skip players not in this match (e.g. 1v1)
+        if (!corner) return;
 
         const slot = CORNER_SLOTS[corner];
         paths[color] = [
-            ...rotatePath(SHARED_PATH, slot.startIdx).slice(0, 51),
-            ...slot.homeCells,
-            slot.finishCell,
+            ...rotatePath(SHARED_PATH, slot.startIdx).slice(0, 51), // 0-50
+            SHARED_PATH[(slot.startIdx + 50) % 52], // 51: The gate cell (shared path) - unused in old static logic but let's keep array padded if UI depends on it?
+            // Wait, to make FINISH 57 and HOME 52-56, we need 58 cells total in this mapped array if we want 1:1 mapping for the UI.
+            // Let's pad index 51. The UI expects local positions. 
+            // The math engine calculates nextPos abstractly.
+            // Actually, we'll return the full 58 size array so `paths[color][pos]` handles indices up to 57!
+            ...slot.homeCells, // 52-56
+            slot.finishCell,   // 57
         ];
     });
     return paths;
+}
+
+export function getBoardCoordinate(pos: number, color: PlayerColor, cc: ColorCorner): Point | null {
+    if (pos < 0) return null; // Base or invalid
+    if (pos < 52) {
+        return SHARED_PATH[pos];
+    }
+    const corner = cc[color];
+    if (!corner) return null;
+    const slot = CORNER_SLOTS[corner];
+    if (pos === 57) return slot.finishCell;
+    if (pos >= 52 && pos <= 56) {
+        return slot.homeCells[pos - 52];
+    }
+    return null;
 }
 
 export function cornerToColor(cc: ColorCorner): Record<Corner, PlayerColor> {

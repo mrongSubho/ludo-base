@@ -8,6 +8,7 @@ import { useGameData } from '@/hooks/GameDataContext';
 import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
 import { useProvablyFairDice } from '@/hooks/useProvablyFairDice';
+import { useGamePresence } from '@/hooks/useGamePresence';
 import {
     GameState,
     PlayerColor,
@@ -34,14 +35,16 @@ export interface TeamUpContextType {
     connection: DataConnection | null; // Primary connection (first one)
     connections: Map<string, DataConnection>; // All active connections
     isLobbyConnected: boolean;
-    isHost: boolean;
+    isHost: boolean; // P2P Host / Creator
+    isComputeHost: boolean; // Dynamic AFK/Bot Executor
+    activePlayers: string[]; // Active presence list
     gameState: GameState;
     lobbyState: LobbyState | null;
     pendingInvite: InvitePayload | null;
     hostGame: (roomId?: string) => void;
     joinGame: (roomId: string, token?: string) => void;
     sendIntent: (type: string, payload: any) => void;
-    broadcastAction: (type: GameActionType, payload?: any) => void;
+    broadcastAction: (type: GameActionType, payload?: any, fullState?: any) => void;
     broadcastLobbyAction: (type: LobbyActionType, payload?: any) => void;
     swapPlayers: (fromIdx: number, toIdx: number) => void;
     kickPlayer: (slotIdx: number) => void;
@@ -133,11 +136,25 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         joinGame: (id: string) => joinGame(id)
     });
 
+    // 2.5. Presence Manager (AFK Failsafe Baton Pass)
+    const { isComputeHost, activePlayers } = useGamePresence(currentRoomCode, myAddress);
+
     // 3. Broadcast Helpers
     const broadcastAction = useCallback((type: GameActionType, payload?: any, fullState?: any) => {
-        if (!isHost) return;
+        if (!isHost && !isComputeHost) return;
+        
+        // Only the original P2P Host handles START_GAME logic
+        if (type === 'START_GAME' && isHost) {
+            // 🚀 Escrow Pre-Warm logic for Zero-Trust RNG
+            fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ isPreWarm: true })
+            }).catch(err => console.error('Failed to pre-warm roll-dice function', err));
 
-        if (type === 'START_GAME') {
             setGameState((prev: GameState) => ({
                 ...prev,
                 isStarted: true,
@@ -180,9 +197,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             gameState: fullState || (type === 'SYNC_STATE' ? gameStateRef.current : { ...gameStateRef.current, lastAction: { type, payload } })
         };
 
+        // For Compute Host, broadcastToAll will only reach the P2P host (if still connected)
+        // relayViaSupabase reaches everyone.
         broadcastToAll(actionData);
         relayViaSupabase('game-action', actionData, lobbyStateRef as any);
-    }, [isHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
+    }, [isHost, isComputeHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
 
     const broadcastLobbyAction = useCallback((type: LobbyActionType, payload?: any) => {
         if (!isHost) return;
@@ -249,8 +268,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         broadcastAction: (type: any, payload: any) => broadcastAction(type, payload),
         broadcastToAll,
         resolveBet: (matchId: string, result: string, betType: string) => {
-            if (!isHost) return;
-            console.log('🎰 [Host] Triggering Bet Resolution:', { matchId, result, betType });
+            if (!isHost && !isComputeHost) return;
+            console.log('🎰 [Authority] Triggering Bet Resolution:', { matchId, result, betType });
             fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-bet`, {
                 method: 'POST',
                 headers: { 
@@ -447,7 +466,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const updateGameState = useCallback((s: any) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
     const sendIntent = useCallback((type: string, payload: any) => {
-        if (!isLobbyConnected || isHost) return;
+        if (!isLobbyConnected || isHost || isComputeHost) return;
         const conn = Array.from(connections.values())[0];
         if (conn && conn.open) {
             conn.send({ type: 'GAME_ACTION', action: { type, payload, sender: myAddress } });
@@ -457,13 +476,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const clearIntent = useCallback(() => setLastIntent(null), []);
 
     const value = useMemo(() => ({
-        roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, gameState, lobbyState,
+        roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState,
         pendingInvite, hostGame, joinGame, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow
     }), [
-        roomId, connections, isLobbyConnected, isHost, gameState, lobbyState, pendingInvite, hostGame, joinGame,
+        roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow

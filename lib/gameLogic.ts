@@ -1,5 +1,5 @@
 import { GameState, PlayerColor, LobbySlot, LobbyState } from './types';
-import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
+import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS, CORNER_SLOTS, getBoardCoordinate } from './boardLayout';
 import { 
     BOARD_FINISH_INDEX, 
     TOTAL_PATH_CELLS, 
@@ -114,31 +114,100 @@ export function getTeam(color: PlayerColor, playerCount: string = '4P'): number 
     return map[color];
 }
 
-export function calculateNextPosition(currentPos: number, steps: number): number {
+export function calculateNextPosition(
+    currentPos: number,
+    steps: number,
+    color: PlayerColor,
+    cc: ColorCorner
+): number {
     if (currentPos === BASE_INDEX) {
-        return steps === DICE_ROLL_SIX ? 0 : BASE_INDEX;
+        if (steps === DICE_ROLL_SIX) {
+            // Enter the board at the player's global start index
+            const corner = cc[color];
+            if (!corner) return BASE_INDEX;
+            return CORNER_SLOTS[corner].startIdx;
+        }
+        return BASE_INDEX;
     }
-    const nextPos = currentPos + steps;
-    if (nextPos > BOARD_FINISH_INDEX) return currentPos;
-    return nextPos;
+
+    if (currentPos >= 52) {
+        // Already in private home stretch
+        const nextPos = currentPos + steps;
+        if (nextPos > 57) return currentPos; // Overshot invalid
+        return nextPos;
+    }
+
+    // Currently on the global shared path (0-51)
+    const corner = cc[color];
+    if (!corner) return currentPos;
+    const startIdx = CORNER_SLOTS[corner].startIdx;
+    const endGlobalIdx = (startIdx + 50) % 52;
+    
+    // Special logic for crossing the gate. The gate is the endGlobalIdx.
+    // If we are "behind" or at the gate from the perspective of completion.
+    // Since it's a circular track, we determine if we cross `endGlobalIdx` in this exact roll.
+    // A token crosses the gate if its current distance from start + steps > 50.
+    
+    // Calculate distance traveled on the shared path so far
+    let distanceTraveled = currentPos - startIdx;
+    if (distanceTraveled < 0) distanceTraveled += 52;
+    
+    const nextDistance = distanceTraveled + steps;
+
+    if (nextDistance > 50) {
+        // Crossing the gate into the home stretch
+        const overshoot = nextDistance - 50; // Steps taken inside the home stretch (1-based)
+        // overshoot=1 -> index 52, overshoot=2 -> index 53, ..., overshoot=6 -> index 57.
+        const nextPos = 51 + overshoot;
+        if (nextPos > 57) return currentPos; // Overshot finish
+        return nextPos;
+    }
+
+    // Normal movement on the shared path
+    return (currentPos + steps) % 52;
+}
+
+/**
+ * Returns the sequence of (r, c) coordinates for a token moving from fromPos to toPos.
+ * Used for "hopping" animations in the UI.
+ */
+export function getIntermediatePathCoords(
+    fromPos: number,
+    toPos: number,
+    color: PlayerColor,
+    cc: ColorCorner
+): Point[] {
+    if (fromPos === BASE_INDEX || toPos === BASE_INDEX || fromPos === toPos) return [];
+
+    const coords: Point[] = [];
+    let current = fromPos;
+    
+    // We move 1 step at a time until we reach toPos
+    // Safety break at 6 steps (max ludo move)
+    for (let i = 0; i < 6; i++) {
+        current = calculateNextPosition(current, 1, color, cc);
+        const pt = getBoardCoordinate(current, color, cc);
+        if (pt) coords.push(pt);
+        if (current === toPos) break;
+    }
+    
+    return coords;
 }
 
 export function getTeamForceAtPoint(
     team: number,
-    point: Point,
+    pointPos: number, // Using global index for shared, or local for private
     state: GameState,
-    playerPaths: Record<string, Point[]>,
     playerCount: string = '4P'
 ): number {
     let force = 0;
-    for (const [color, positions] of Object.entries(state.positions)) {
-        if (getTeam(color as PlayerColor, playerCount) !== team) continue;
+    for (const [colorStr, positions] of Object.entries(state.positions)) {
+        const c = colorStr as PlayerColor;
+        if (getTeam(c, playerCount) !== team) continue;
+        
         positions.forEach(pos => {
-            if (pos >= 0 && pos < TOTAL_PATH_CELLS) {
-                const pt = playerPaths[color][pos];
-                if (pt.r === point.r && pt.c === point.c) {
-                    force++;
-                }
+            if (pos === pointPos) {
+                force++;
             }
         });
     }
@@ -147,22 +216,23 @@ export function getTeamForceAtPoint(
 
 export function checkMultiCapture(
     color: PlayerColor,
-    nextPos: number,
+    nextPos: number, // Global index (0-51) or Local (52-57)
     state: GameState,
-    playerPaths: Record<string, Point[]>,
+    cc: ColorCorner,
     playerCount: string = '4P'
 ): { capturedColor: PlayerColor; capturedIdx: number }[] {
-    if (nextPos < 0 || nextPos >= TOTAL_PATH_CELLS) return [];
+    if (nextPos < 0 || nextPos >= 52) return []; // Cannot capture in home lane or finish
 
-    const targetPoint = playerPaths[color][nextPos];
+    const targetPoint = getBoardCoordinate(nextPos, color, cc);
+    if (!targetPoint) return [];
+    
     const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
     if (isSafeSquare) return [];
 
     const actingTeam = getTeam(color, playerCount);
     // Force AFTER move. 
-    // Wait, the state passed to checkMultiCapture is the state BEFORE the move.
-    // So we add 1 to the acting team's force.
-    const actingForce = getTeamForceAtPoint(actingTeam, targetPoint, state, playerPaths) + 1;
+    // State passed is BEFORE the move. We add 1 to acting team's force.
+    const actingForce = getTeamForceAtPoint(actingTeam, nextPos, state, playerCount) + 1;
     const captured: { capturedColor: PlayerColor; capturedIdx: number }[] = [];
 
     for (const [otherColor, positions] of Object.entries(state.positions)) {
@@ -170,20 +240,17 @@ export function checkMultiCapture(
         const otherTeam = getTeam(otherColorTyped, playerCount);
         if (otherTeam === actingTeam) continue;
 
-        const otherForce = getTeamForceAtPoint(otherTeam, targetPoint, state, playerPaths);
+        const otherForce = getTeamForceAtPoint(otherTeam, nextPos, state, playerCount);
 
         // TRUCE Logic: Capture only if actingForce >= otherForce
         if (otherForce > 0 && actingForce >= otherForce) {
             // Check which tokens of this other color are at that point
             positions.forEach((pos, i) => {
-                if (pos >= 0 && pos < TOTAL_PATH_CELLS) {
-                    const pt = playerPaths[otherColor][pos];
-                    if (pt.r === targetPoint.r && pt.c === targetPoint.c) {
-                        // Check for Shield
-                        const hasShield = state.activeShields.some(s => s.color === otherColor && s.tokenIdx === i);
-                        if (!hasShield) {
-                            captured.push({ capturedColor: otherColorTyped, capturedIdx: i });
-                        }
+                if (pos === nextPos) {
+                    // Check for Shield
+                    const hasShield = state.activeShields.some(s => s.color === otherColor && s.tokenIdx === i);
+                    if (!hasShield) {
+                        captured.push({ capturedColor: otherColorTyped, capturedIdx: i });
                     }
                 }
             });
@@ -213,11 +280,11 @@ export function resolveCapturesInPositions(
     state: GameState, 
     tokenColor: PlayerColor, 
     nextPos: number, 
-    playerPaths: Record<string, Point[]>, 
+    cc: ColorCorner, 
     playerCount: string,
     currentPositions: Record<PlayerColor, number[]>
 ): { captured: boolean, newPositions: Record<PlayerColor, number[]> } {
-    const captures = checkMultiCapture(tokenColor, nextPos, state, playerPaths, playerCount);
+    const captures = checkMultiCapture(tokenColor, nextPos, state, cc, playerCount);
     if (captures.length === 0) return { captured: false, newPositions: currentPositions };
 
     const newPositions = { ...currentPositions };
@@ -252,23 +319,23 @@ export function processMove(
     tokenColor: PlayerColor,
     tokenIndex: number,
     steps: number,
-    playerPaths: Record<string, Point[]>,
     playerCount: string,
+    cc: ColorCorner,
     actingPlayer?: PlayerColor, 
-    activeColors?: PlayerColor[],
-    colorCorner?: ColorCorner
+    activeColors?: PlayerColor[]
 ): MoveResult {
     const actingColor = actingPlayer || tokenColor;
     if (state.winner) return { newState: state, captured: false, bonusRoll: false };
 
     const initialPos = state.positions[tokenColor][tokenIndex];
-    const nextPos = calculateNextPosition(initialPos, steps);
+    const nextPos = calculateNextPosition(initialPos, steps, tokenColor, cc);
 
     if (nextPos === initialPos && steps !== 0) {
         return { newState: state, captured: false, bonusRoll: false };
     }
 
-    const targetPoint = playerPaths[tokenColor][nextPos];
+    const targetPoint = getBoardCoordinate(nextPos, tokenColor, cc);
+    if (!targetPoint) return { newState: state, captured: false, bonusRoll: false };
     
     // 1. Resolve Traps
     const trapResult = resolveTrap(state, targetPoint, tokenColor, tokenIndex);
@@ -281,7 +348,7 @@ export function processMove(
                 positions: trapResult.newPositions, 
                 activeTraps: newTraps, 
                 lastUpdate: Date.now(),
-                currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, colorCorner),
+                currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
                 gamePhase: 'rolling'
             },
             captured: false,
@@ -290,7 +357,7 @@ export function processMove(
     }
 
     // 2. Resolve Captures
-    const { captured, newPositions } = resolveCapturesInPositions(state, tokenColor, nextPos, playerPaths, playerCount, {
+    const { captured, newPositions } = resolveCapturesInPositions(state, tokenColor, nextPos, cc, playerCount, {
         ...state.positions,
         [tokenColor]: [...state.positions[tokenColor]].map((p, i) => i === tokenIndex ? nextPos : p)
     });
@@ -319,7 +386,7 @@ export function processMove(
     }
 
     const bonusRoll = captured || steps === DICE_ROLL_SIX;
-    const nextPlayer = (bonusRoll && status !== 'finished') ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, colorCorner);
+    const nextPlayer = (bonusRoll && status !== 'finished') ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, cc);
 
     return {
         newState: {

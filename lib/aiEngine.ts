@@ -1,6 +1,6 @@
 import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor } from './gameLogic';
-import { Point, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
+import { Point, ColorCorner, getBoardCoordinate, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 import { 
     BOARD_FINISH_INDEX, 
     HOME_LANE_START_INDEX, 
@@ -23,7 +23,7 @@ export function getBestMove(
     positions: Record<PlayerColor, number[]>,
     playerId: PlayerColor,
     roll: number,
-    playerPaths: Record<string, Point[]>,
+    colorCorner: ColorCorner,
     playerCount: string = '4P',
     powerTiles: { r: number, c: number }[] = [],
     state?: GameState
@@ -55,7 +55,7 @@ export function getBestMove(
             positions,
             actingColorTyped,
             roll,
-            playerPaths,
+            colorCorner,
             playerCount,
             powerTiles,
             state
@@ -75,7 +75,7 @@ export function calculateMoveScore(
     positions: Record<PlayerColor, number[]>,
     actingColor: PlayerColor,
     roll: number,
-    playerPaths: Record<string, Point[]>,
+    colorCorner: ColorCorner,
     playerCount: string,
     powerTiles: { r: number, c: number }[],
     state?: GameState
@@ -100,7 +100,7 @@ export function calculateMoveScore(
     }
 
     // Power Tile Hunting (+120)
-    const targetPoint = playerPaths[actingColor][nextPos];
+    const targetPoint = getBoardCoordinate(nextPos, actingColor, colorCorner);
     if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
         const isOnPowerTile = powerTiles.some(pt => pt.r === targetPoint.r && pt.c === targetPoint.c);
         if (isOnPowerTile) {
@@ -112,14 +112,14 @@ export function calculateMoveScore(
     if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
         const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
         const teamId = getTeam(actingColor, playerCount);
-        const actingForce = getTeamForceAtPoint(teamId, targetPoint, { positions } as any, playerPaths, playerCount) + 1;
+        const actingForce = getTeamForceAtPoint(teamId, nextPos, { positions } as any, playerCount) + 1;
 
         // Check if any opponent has tokens here and compare forces
         let maxOppForce = 0;
         (['green', 'red', 'blue', 'yellow'] as const).forEach(color => {
             const otherTeam = getTeam(color, playerCount);
             if (otherTeam !== teamId) {
-                const force = getTeamForceAtPoint(otherTeam, targetPoint, { positions } as any, playerPaths, playerCount);
+                const force = getTeamForceAtPoint(otherTeam, nextPos, { positions } as any, playerCount);
                 if (force > maxOppForce) maxOppForce = force;
             }
         });
@@ -134,7 +134,7 @@ export function calculateMoveScore(
 
         // Check for Captures (+100 per token)
         const dummyState = state || { positions, activeShields: [], activeTraps: [] } as any;
-        const captures = checkMultiCapture(actingColor, nextPos, dummyState, playerPaths, playerCount);
+        const captures = checkMultiCapture(actingColor, nextPos, dummyState, colorCorner, playerCount);
         score += captures.length * AI_SCORES.CAPTURE_TOKEN;
     }
 
@@ -147,16 +147,16 @@ export function calculateMoveScore(
 export function getBestPowerUsage(
     state: GameState,
     color: PlayerColor,
-    playerPaths: Record<string, Point[]>,
+    colorCorner: ColorCorner,
     playerCount: string
 ): boolean {
     const power = state.playerPowers[color];
     if (!power) return false;
 
     if (power === 'bomb') {
-        return checkBombTarget(state, color, playerPaths, playerCount);
+        return checkBombTarget(state, color, colorCorner, playerCount);
     } else if (power === 'shield') {
-        return checkShieldNeed(state, color, playerPaths, playerCount);
+        return checkShieldNeed(state, color, colorCorner, playerCount);
     } else if (power === 'boost' || power === 'warp') {
         return true; // Always use boost/warp if available (simple AI strategy)
     }
@@ -164,7 +164,7 @@ export function getBestPowerUsage(
     return false;
 }
 
-function checkBombTarget(state: GameState, color: PlayerColor, playerPaths: Record<string, Point[]>, playerCount: string): boolean {
+function checkBombTarget(state: GameState, color: PlayerColor, colorCorner: ColorCorner, playerCount: string): boolean {
     let targetFound = false;
     state.positions[color].forEach((myPos: number) => {
         if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
@@ -173,13 +173,14 @@ function checkBombTarget(state: GameState, color: PlayerColor, playerPaths: Reco
             if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
             state.positions[oppColor].forEach((oppPos: number) => {
                 if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
-                const myPt = playerPaths[color][myPos];
-                const oppPt = playerPaths[oppColor][oppPos];
+                const myPt = getBoardCoordinate(myPos, color, colorCorner);
+                const oppPt = getBoardCoordinate(oppPos, oppColor, colorCorner);
+                if (!myPt || !oppPt) return;
                 for (let s = 1; s <= DICE_MAX; s++) {
                     const checkPos = myPos + s;
                     if (checkPos >= HOME_LANE_START_INDEX) break;
-                    const checkPt = playerPaths[color][checkPos];
-                    if (checkPt.r === oppPt.r && checkPt.c === oppPt.c) targetFound = true;
+                    const checkPt = getBoardCoordinate(checkPos, color, colorCorner);
+                    if (checkPt && checkPt.r === oppPt.r && checkPt.c === oppPt.c) targetFound = true;
                 }
             });
         });
@@ -187,11 +188,13 @@ function checkBombTarget(state: GameState, color: PlayerColor, playerPaths: Reco
     return targetFound;
 }
 
-function checkShieldNeed(state: GameState, color: PlayerColor, playerPaths: Record<string, Point[]>, playerCount: string): boolean {
+function checkShieldNeed(state: GameState, color: PlayerColor, colorCorner: ColorCorner, playerCount: string): boolean {
     let vulnerable = false;
     state.positions[color].forEach((myPos: number) => {
         if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
-        if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === playerPaths[color][myPos].r && p.c === playerPaths[color][myPos].c)) return;
+        const myPoint = getBoardCoordinate(myPos, color, colorCorner);
+        if (!myPoint) return;
+        if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === myPoint.r && p.c === myPoint.c)) return;
         
         (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
             if (oppColor === color) return;
@@ -201,9 +204,8 @@ function checkShieldNeed(state: GameState, color: PlayerColor, playerPaths: Reco
                 for (let s = 1; s <= DICE_MAX; s++) {
                     const checkPos = oppPos + s;
                     if (checkPos >= HOME_LANE_START_INDEX) break;
-                    const checkPt = playerPaths[oppColor][checkPos];
-                    const myPt = playerPaths[color][myPos];
-                    if (checkPt.r === myPt.r && checkPt.c === myPt.c) vulnerable = true;
+                    const checkPt = getBoardCoordinate(checkPos, oppColor, colorCorner);
+                    if (checkPt && checkPt.r === myPoint.r && checkPt.c === myPoint.c) vulnerable = true;
                 }
             });
         });

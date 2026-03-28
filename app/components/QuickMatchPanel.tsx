@@ -123,6 +123,9 @@ export const QuickMatchPanel = ({
         total_games: number;
     } | null>(null);
     const [isLoadingRival, setIsLoadingRival] = useState(false);
+    const [expectedOpponent, setExpectedOpponent] = useState<string | null>(null);
+
+    const [isStalled, setIsStalled] = useState(false);
 
     // Auto-reveal Optimizer at 15s, vanish at 21s if no interaction
     useEffect(() => {
@@ -134,7 +137,15 @@ export const QuickMatchPanel = ({
                 setShowExpansionOptions(false);
             }
         }
-    }, [searchTime, status, isInteractingWithOptimizer]);
+        
+        // Stall detection: If matched but haven't started after 4s
+        if (status === 'matched' && !gameState?.isStarted) {
+            const stallTimer = setTimeout(() => setIsStalled(true), 4000);
+            return () => clearTimeout(stallTimer);
+        } else {
+            setIsStalled(false);
+        }
+    }, [searchTime, status, isInteractingWithOptimizer, gameState?.isStarted]);
 
     // Tip rotation
     useEffect(() => {
@@ -151,31 +162,33 @@ export const QuickMatchPanel = ({
             const joinedSlots = lobbyState?.slots.filter(s => s.status === 'joined') || [];
             const targetCount = matchType === '1v1' ? 2 : 4;
             
+            // Critical Sync: Ensure the opponent we expect from the DB is actually in our lobby
+            const expectedOpponentJoined = !expectedOpponent || joinedSlots.some(s => s.playerId?.toLowerCase() === expectedOpponent.toLowerCase());
+
             const allProfilesSynced = joinedSlots.length >= targetCount && joinedSlots.every(s => {
                 const pid = s.playerId?.toLowerCase();
                 return pid && pid !== 'guest' && participants[pid];
             });
 
-            if (allProfilesSynced && isLobbyConnected) {
-                console.log('🚀 [QuickMatch] P2P Mesh ready! Fast-starting game...');
+            if (allProfilesSynced && isLobbyConnected && expectedOpponentJoined) {
+                console.log('🚀 [QuickMatch] P2P Mesh ready and expected opponent verified! Fast-starting game...');
                 onStartGame(false);
                 return;
             }
 
+            // Shorter timeout for dual-human matches to prevent long ghost hangs
             const forceTimer = setTimeout(() => {
-                console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}). Force-starting via Supabase Relay...`);
+                console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}, opponentJoined=${expectedOpponentJoined}). Force-starting...`);
                 onStartGame(false);
-            }, 6000);
-
-            return () => clearTimeout(forceTimer);
+            }, 5000); 
         }
 
         // SCENARIO 2: I am the Guest and the Game has already started on the Host
-        if (status === 'matched' && !p2pHost && gameState.isStarted) {
-            console.log('🏁 [QuickMatch] Received GAME_START from Host. Synchronizing UI...');
+        if (status === 'matched' && !p2pHost && gameState?.isStarted) {
+            console.log('🏁 [QuickMatch] Received GAME_START or playing status from Host. Synchronizing UI...');
             onStartGame(false);
         }
-    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants, gameState.isStarted]);
+    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants, gameState?.isStarted, expectedOpponent]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
@@ -216,6 +229,7 @@ export const QuickMatchPanel = ({
 
                     const opponentAddress = match.participants.find((p: string) => p.toLowerCase() !== normalizedAddress);
                     if (opponentAddress) {
+                        setExpectedOpponent(opponentAddress.toLowerCase());
                         const { data: player } = await supabase
                             .from('players')
                             .select('username, avatar_url, xp, rating, total_wins, total_games')
@@ -787,6 +801,15 @@ export const QuickMatchPanel = ({
 
                                     {/* Connection Status Subtext */}
                                     <div className="mt-4 flex flex-col items-center gap-4">
+                                        {isStalled && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest animate-pulse"
+                                            >
+                                                Opponent is connecting...
+                                            </motion.div>
+                                        )}
                                         <div className="flex items-center gap-3">
                                             <div className="flex gap-1.5">
                                                 {[0, 1, 2].map(i => (

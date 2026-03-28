@@ -346,8 +346,9 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 
                 if (pollingRef.current) clearInterval(pollingRef.current);
                 pollingRef.current = setInterval(() => {
-                    if (data.ticket_id) checkTicketStatus(data.ticket_id);
-                }, 3000);
+                    // Re-run startSearch to heartbeat/extend the ticket in the 10s window
+                    startSearch(wagerMin, wagerMax);
+                }, 5000);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Ultimate error starting search:', err);
@@ -416,8 +417,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 
                 if (pollingRef.current) clearInterval(pollingRef.current);
                 pollingRef.current = setInterval(() => {
-                    if (data.ticket_id) checkTicketStatus(data.ticket_id);
-                }, 3000);
+                    startHybridSearch(roomCode, slotsNeeded, lobbyMatchType, wagerMin, wagerMax);
+                }, 5000);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Hybrid search error:', err);

@@ -32,11 +32,10 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
     - **Sync Delay:** Guests wait **800ms** before the first connection attempt to allow Host initialization.
 
 ### 2.2 Hybrid Communication Model
-- **Primary Matchmaker:** `EdgeServerClient` (WebSocket) for real-time pairing and instant metadata reveals.
-- **Primary Gameplay:** PeerJS (WebRTC) for low-latency turns, dice sync, and movement.
-- **Secondary (Relay):** Supabase Realtime Broadcast acts as a fallback for both matchmaking (RPC) and gameplay intents (`broadcastAction`).
-- **Audit:** All actions are signed with an `actionId` to prevent double-processing.
-- **Cleanup:** Automatically clears searching tickets upon component unmount to prevent ghost matches.
+- **Primary Matchmaker:** `join_matchmaking` RPC with a strict 10s ticket expiration and a 5s client-side heartbeat. Liveness strictly enforced via `last_seen_at`.
+- **Primary Gameplay:** Supabase Realtime Broadcast (`TeamUpContext.tsx`). The old PeerJS requirement was removed for reliability. Games run entirely over Supabase channels (`game-room-<roomCode>`).
+- **Audit:** All actions are signed with an `actionId` to prevent double-processing. P2P deduping relies on a processed actions Set (`processedActionsRef`).
+- **Cleanup:** Automatically clears searching tickets upon component unmount and forces immediate termination of stale sessions to prevent ghost matches.
 
 ---
 
@@ -71,10 +70,11 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 
 ## 4. Board Intelligence [Spatial Systems]
 
-### 4.1 Grid & Perimeter
+### 4.1 Grid & Perimeter 
 - **Grid:** 15x15 pixel-perfect layout.
-- **Path:** 52 shared perimeter cells.
-- **Dynamic Perspective:** The board and its path are dynamically rotated (via `rotatePath()`) based on the client's assigned corner, ensuring the player always sees their tokens starting from their perspective.
+- **Pathing System:** Tokens move around a global parity index map (0 to 51). The `getBoardCoordinate(pos, color, colorCorner)` calculates raw row/col rendering coordinates on the fly.
+- **Home Lane System:** Tokens enter their designated colored Home stretch at positions 52 through 57.
+- **Deprecation:** The legacy static `playerPaths` array map has been structurally ripped out in favor of purely mathematical parity calculations, drastically reducing state bloat.
 
 ### 4.2 Safe Positioning
 Standardized star positions: `{r:2, c:9}, {r:7, c:2}, {r:9, c:14}, {r:14, c:7}` (and their 4 rotations).
@@ -128,7 +128,8 @@ AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently o
 - **Matchmaking Realtime**: The `matchmaking_queue` table must be enrolled in the `supabase_realtime` publication with `REPLICA IDENTITY FULL`. This ensures "Waiters" (Hosts) are notified immediately when an opponent joins via the RPC.
 - **Joiner Synchronization Delay**: Joiners wait for joined **1500ms** to allow Host P2P ID registration.
 - **Diagnostic Slot Monitoring**: Real-time logging of slot synchronization status to identify which peer is blocking the match start.
-- **Modular Game Logic**: Core logic is decoupled from hooks. `processMove` uses decomposed helpers (`resolveTrap`, `resolveCaptures`, `checkWinStatus`) for unit-testable game rules.
+- **Strict-Mode Stability**: Core engine files (`useGameActions.ts`) strictly isolate state-mutating side effects (like `setTimeout` for turn switching and AI moves) outside of `setLocalGameState` updater callbacks to prevent Concurrent React double-invocation from launching "spinning turn" loops.
+- **Modular Game Logic**: Core logic is decoupled from hooks. `processMove`, `calculateNextPosition`, and `getBoardCoordinate` handle discrete, testable game rules.
 - **Centralized Constants**: All engine parameters (delays, indices, scores) are imported from `lib/constants.ts` to ensure consistency.
 - **Sandwich Layout**: All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
 - **Presence**: Realtime tracking of online friends via the `PresenceManager`.
@@ -137,11 +138,12 @@ AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently o
 
 ## 7. Technical Guardrails [Quality of Service]
 
-### 7.1 Provably Fair Dice
-To prevent Host cheating, a hash commitment scheme is used:
-1. Both host and guest commit to a `sha256(nonce)`.
-2. Once both commitment hashes are received, both reveal their `nonce`.
-3. The nonces are combined and hashed to derive the 1-6 result.
+### 7.1 Provably Fair Dice (Edge Function)
+To prevent front-end cheating and to replace the overly-complex hash commitment scheme, all dice rolls are executed via a Supabase Edge Function (`/functions/v1/roll-dice`):
+1. Client broadcasts a `REQUEST_ROLL` intent (`isRolling`, UI spins).
+2. Client queries the `roll-dice` Edge Function, returning a cryptographically secure 1-6 result.
+3. Client broadcasts `ROLL_RESULT` with the fetched value.
+4. **Anti-Drop Security:** If a player receives a bad Edge Function roll and drops the payload instead of broadcasting it, the engine's built-in 15s turn timer (`useGameTimer.ts`) will eventually expire, hitting the user with an AFK strike and forcing an auto-move.
 
 ### 7.2 End-to-End Encryption
 Gameplay intents and lobby chats are encrypted using `AES-GCM` 256-bit keys derived from the shared secrets of the participants' wallet addresses.
