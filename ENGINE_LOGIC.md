@@ -31,10 +31,10 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
     - **Edge Verified UDP:** Matches identified by the Edge server are marked with a diagnostic badge in the UI.
     - **Sync Delay:** Guests wait **800ms** before the first connection attempt to allow Host initialization.
 
-### 2.2 Hybrid Communication Model
-- **Primary Matchmaker:** `join_matchmaking` RPC with a strict 10s ticket expiration and a 5s client-side heartbeat. Liveness strictly enforced via `last_seen_at`.
-- **Primary Gameplay:** Supabase Realtime Broadcast (`TeamUpContext.tsx`). The old PeerJS requirement was removed for reliability. Games run entirely over Supabase channels (`game-room-<roomCode>`).
-- **Audit:** All actions are signed with an `actionId` to prevent double-processing. P2P deduping relies on a processed actions Set (`processedActionsRef`).
+### 2.2 Hybrid Mesh Communication Model
+- **Reliability Layer (Supabase Broadcast):** The primary channel for high-frequency game actions (dice rolls, token moves, turns). Subscribing to `game-room-<roomCode>` ensures low-latency delivery across the Supabase global mesh.
+- **P2P Identity & Initial Handshake (PeerJS):** Still strictly utilized for initial peer discovery, identity validation (`validation_token`), and specialized profile synchronization (`SYNC_PROFILE`). 
+- **Mesh Redundancy:** Actions are signed with a unique `actionId`. The engine implements a processed actions Set (`processedActionsRef`) to deduplicate payloads received via both PeerJS and Supabase.
 - **Cleanup:** Automatically clears searching tickets upon component unmount and forces immediate termination of stale sessions to prevent ghost matches.
 
 ---
@@ -100,7 +100,13 @@ Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
 7.  **Enter Home Lane (+25):** Prioritizing entries to the protected home stretch.
 8.  **Progression (+1x):** Small reward for each step moved towards the finish.
 
-### 5.3 Strategic Power Usage
+### 5.3 Authority Logic (`isAuthority`)
+In multiplayer networked matches, turn orchestration (AI moves, AFK detection, state transitions) is strictly limited to the **P2P Host** (or the designated `isComputeHost` if the original host leaves). 
+- **Authority Calculation**: `isHost || isComputeHost` in networked matches; `true` for all local matches.
+- **Conflicts**: Guests explicitly reset `isBotMatch` to `false` upon joining to prevent redundant or conflicting AI turn orchestration in the same match ID.
+- **Start-Game Sync**: The Host broadcasts the definitive `isBotMatch` state and `initialBoardConfig` to all Guests via the `START_GAME` signal.
+
+### 5.4 Strategic Power Usage
 AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently of movement:
 - **Shield:** Triggered if any ally token is vulnerable to an opponent within 6 steps.
 - **Bomb:** Triggered if an opponent token is within landing range of a multi-token capture.
@@ -120,10 +126,13 @@ AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently o
 - **Edge Diagnostic HUD**: Redesigned bottom-anchored HUD showing `📡 EDGE PRIMARY` or `SUPABASE FALLBACK` status, ensuring users are aware of the connection engine.
 
 ### Technical Guardrails
-- **Profile-Sync Guard**: The game transitions to the board **only after** all participants have synchronized their real usernames and avatars. This prevents "Guest" placeholders from persisting on the final board.
+- **Identity & Naming Guard**: 
+    - **Convention**: Players without a resolved social identity default to **`Guest [Last 6 Uppercase]`** (e.g., `Guest D1F23A`) derived from their wallet address.
+    - **Resolution**: The `ProfileSyncer` component attempts to resolve decentralized profiles via Farcaster Frame SDK, Neynar API, and OnchainKit (Base Names/ENS).
+    - **Sync**: Once resolved, the profile is broadcast via a specialized `SYNC_PROFILE` event in `TeamUpContext.tsx`, updating the lobby's `participants` list in real-time.
 - **Atomic Ticket Purging**: Initiating a new search (`startSearch`) triggers an immediate purge of all stale `searching` records for that player's wallet, preventing "Shadow Matches" with orphaned sessions.
 - **Safe Match Cancellation**: Users can safely exit the "Match Found" screen before the P2P synchronization finishes without losing coins or rating points.
-- **P2P Synchronization**: The game only starts once all PeerJS slots are occupied, ensuring all participants are connected before the board loads.
+- **Hybrid P2P Synchronization**: The game only starts once all PeerJS slots are occupied *and* the Host signals `START_GAME` via Supabase, ensuring all participants are connected before the board loads.
 - **State Synchronization**: Strictly synced `roomCode` and `matchId` state across `useMatchmaking` and `QuickMatchPanel` to prevent UI stalls.
 - **Matchmaking Realtime**: The `matchmaking_queue` table must be enrolled in the `supabase_realtime` publication with `REPLICA IDENTITY FULL`. This ensures "Waiters" (Hosts) are notified immediately when an opponent joins via the RPC.
 - **Joiner Synchronization Delay**: Joiners wait for joined **1500ms** to allow Host P2P ID registration.

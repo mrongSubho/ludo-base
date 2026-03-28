@@ -42,6 +42,8 @@ CREATE TABLE public.players (
     classic_played integer DEFAULT 0,
     power_played integer DEFAULT 0,
     ai_played integer DEFAULT 0,
+    total_wins integer DEFAULT 0,
+    rank_tier TEXT DEFAULT 'Bronze',
     last_played_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     CONSTRAINT enforce_lowercase_wallet CHECK (wallet_address = LOWER(wallet_address))
