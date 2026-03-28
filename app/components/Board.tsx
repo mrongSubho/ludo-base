@@ -176,7 +176,11 @@ export default function Board({
                         counterRotationDeg={counterRotationDeg}
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
-                            const tokensInHome = localGameState.positions[color].map((pos: number, idx: number) => pos === -1 ? idx : -1).filter((idx: number) => idx !== -1);
+                            const isActivePlayer = players.some(p => p.color === color);
+                            // Inactive corners have no player — show empty base (placeholder dots only)
+                            const tokensInHome = isActivePlayer
+                                ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === -1 ? idx : -1).filter((idx: number) => idx !== -1)
+                                : [];
                             return (
                                 <HomeBlock
                                     key={color}
@@ -186,7 +190,7 @@ export default function Board({
                                     gridCol={CORNER_SLOTS[colorCorner[color]].gridCol}
                                     tokensInHome={tokensInHome}
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
-                                    isDraggable={localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && localGameState.diceValue === 6}
+                                    isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
                                     counterRotationDeg={counterRotationDeg}
                                 />
                             );
@@ -201,6 +205,7 @@ export default function Board({
                             counterRotationDeg={counterRotationDeg}
                         />
                     </BoardGrid>
+
                     
                     <StatusNotification message={localGameState.captureMessage} />
                 </div>

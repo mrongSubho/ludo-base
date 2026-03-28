@@ -2003,8 +2003,9 @@ body.theme-retro-futurism::before {
   border-radius: var(--radius-md);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  padding: 14%;
-  gap: 10%;
+  grid-template-rows: 1fr 1fr;
+  padding: 10%;
+  gap: 8%;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
   backdrop-filter: blur(4px);
 }
@@ -2041,6 +2042,8 @@ body.theme-retro-futurism .home-pad {
   justify-content: center;
   width: 100%;
   height: 100%;
+  min-height: 0;
+  overflow: visible;
 }
 
 
@@ -2310,59 +2313,82 @@ body.theme-retro-futurism .home-pad {
   animation-delay: 0.2s;
 }
 
-/* ─── Ludo Tokens ─── */
+/* ─── Ludo Tokens (Premium Redesign) ─── */
 .ludo-token {
-  width: 75%;
-  height: 75%;
+  width: 82%;
+  height: 82%;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.15),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
   position: relative;
   z-index: 5;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Glassmorphic Shine Overlay */
+.ludo-token::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 40%;
+  height: 30%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent);
+  border-radius: 50%;
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+/* Inner Core Detail */
+.ludo-token::after {
+  content: '';
+  width: 25%;
+  height: 25%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  pointer-events: none;
 }
 
 .ludo-token:hover {
-  transform: scale(1.15) translateY(-2px);
-  z-index: 10;
+  transform: scale(1.2) translateY(-4px);
+  z-index: 100 !important; /* Ensure hovered token is on top */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .ludo-token.draggable {
-  animation: pulse-border 1.5s infinite alternate;
+  animation: pulse-draggable 1.5s infinite ease-in-out;
 }
 
-@keyframes pulse-border {
-  from {
-    box-shadow: 0 0 0 0px rgba(0, 82, 255, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15);
-  }
-
-  to {
-    box-shadow: 0 0 0 6px rgba(0, 82, 255, 0), 0 2px 6px rgba(0, 0, 0, 0.15);
-  }
+@keyframes pulse-draggable {
+  0% { transform: scale(1); box-shadow: 0 0 0 0px var(--ludo-blue); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(0, 82, 255, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0px var(--ludo-blue); }
 }
 
 .green-token {
-  background: linear-gradient(135deg, var(--ludo-green), color-mix(in srgb, var(--ludo-green), black 15%));
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(145deg, #10b981, #059669) !important;
 }
 
 .red-token {
-  background: linear-gradient(135deg, var(--ludo-red), color-mix(in srgb, var(--ludo-red), black 15%));
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(145deg, #ef4444, #dc2626) !important;
 }
 
 .yellow-token {
-  background: linear-gradient(135deg, var(--ludo-yellow), color-mix(in srgb, var(--ludo-yellow), black 15%));
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(145deg, #f59e0b, #d97706) !important;
 }
 
 .blue-token {
-  background: linear-gradient(135deg, var(--ludo-blue), color-mix(in srgb, var(--ludo-blue), black 15%));
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
 }
+
 
 /* 🧬 Retro-Futurism Token Enhancements */
 body.theme-retro-futurism .ludo-token {
@@ -2446,6 +2472,8 @@ body.theme-retro-futurism .token-count-badge {
   justify-content: center;
   width: 100%;
   height: 100%;
+  min-height: 0;
+  overflow: visible;
 }
 
 .token-dot-placeholder {

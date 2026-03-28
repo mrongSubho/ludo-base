@@ -92,14 +92,14 @@ function TokenPiece({
         prevPosRef.current = pos;
 
         // Teleport cases: BASE -> Board or Board -> BASE (Capture)
-        if (oldPos === BASE_INDEX || pos === BASE_INDEX) {
+        if (Number(oldPos) === BASE_INDEX || Number(pos) === BASE_INDEX) {
             setVisualPt(targetPt);
             return;
         }
 
         // Hopping sequence
-        if (pos > oldPos && !isAnimatingRef.current) {
-            const intermediateCoords = getIntermediatePathCoords(oldPos, pos, color, colorCorner);
+        if (Number(pos) > Number(oldPos) && !isAnimatingRef.current) {
+            const intermediateCoords = getIntermediatePathCoords(Number(oldPos), Number(pos), color, colorCorner);
             if (intermediateCoords.length > 0) {
                 isAnimatingRef.current = true;
                 let step = 0;
@@ -123,39 +123,42 @@ function TokenPiece({
     return (
         <motion.div
             layout
-            initial={false}
+            initial={{ opacity: 0, scale: 0.5 }}
             animate={{ 
-                gridRow: visualPt.r,
-                gridColumn: visualPt.c,
+                opacity: 1,
+                scale: 1,
                 x: offset.x,
                 y: offset.y,
                 rotate: counterRotationDeg,
-                scale: isColorTurn ? [1, 1.05, 1] : 1
             }}
             transition={{
                 layout: { type: "spring", stiffness: 300, damping: 30 },
-                scale: isColorTurn ? { repeat: Infinity, duration: 1.5, ease: "easeInOut" } : { duration: 0.2 },
                 default: { duration: 0.3 }
             }}
             style={{ 
+                gridRow: visualPt.r,
+                gridColumn: visualPt.c,
                 width: '100%', 
                 height: '100%', 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                position: 'absolute',
-                zIndex: isAnimatingRef.current ? 50 : (isColorTurn ? 30 : 10 + index)
+                zIndex: isAnimatingRef.current ? 50 : (isColorTurn ? 30 : 10 + index),
+                position: 'relative',
             }}
         >
             {/* The "Hop" animation wrapper */}
             <motion.div
+                style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 animate={isAnimatingRef.current ? { 
-                    y: [0, -25, 0],
-                    scale: [1, 1.2, 1]
-                } : { y: 0, scale: 1 }}
+                    y: [0, -20, 0],
+                    scale: [1, 1.15, 1]
+                } : { y: 0, scale: isColorTurn ? [1, 1.06, 1] : 1 }}
                 transition={isAnimatingRef.current ? { 
                     duration: 0.25,
-                    repeat: Infinity // Repeat for each intermediate step in the interval
+                    repeat: Infinity
+                } : isColorTurn ? {
+                    scale: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
                 } : { duration: 0.2 }}
             >
                 <Token
@@ -188,9 +191,11 @@ export function BoardTokens({
 
     ALL_COLORS.forEach(color => {
         if (!players.some(p => p.color === color)) return;
-        localGameState.positions[color].forEach((pos: number, index: number) => {
-            if (pos >= 0 && pos < 57) {
-                const pt = getBoardCoordinate(pos, color, colorCorner);
+        const colorPositions = localGameState.positions[color] || [];
+        colorPositions.forEach((pos: number, index: number) => {
+            const numericPos = Number(pos);
+            if (numericPos >= 0 && numericPos < 57) {
+                const pt = getBoardCoordinate(numericPos, color, colorCorner);
                 if (pt) {
                     const key = `${pt.r}-${pt.c}`;
                     if (!occupancy[key]) occupancy[key] = [];
@@ -203,9 +208,15 @@ export function BoardTokens({
     return (
         <>
             {ALL_COLORS.map(color => {
-                if (!players.some(p => p.color === color)) return null;
-                return localGameState.positions[color].map((pos: number, index: number) => {
-                    const targetPt = getBoardCoordinate(pos, color, colorCorner);
+                const playerForColor = players.find(p => p.color === color);
+                const colorPositions = localGameState.positions[color] || [];
+                
+                return colorPositions.map((pos: number, index: number) => {
+                    const numericPos = Number(pos);
+                    // Don't render board tokens if in base
+                    if (numericPos === BASE_INDEX) return null;
+
+                    const targetPt = getBoardCoordinate(numericPos, color, colorCorner);
                     
                     // Stacking offset calculation
                     let offset = { x: 0, y: 0 };
