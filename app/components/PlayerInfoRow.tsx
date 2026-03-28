@@ -6,10 +6,18 @@ import { Corner } from '@/lib/boardLayout';
 
 export const getDisplayNameHelper = (player: Player) => {
     if (player.isAi) return player.name;
-    if (player.name && !player.name.startsWith('0x')) return player.name;
-    if (player.walletAddress) {
-        return `Guest ${player.walletAddress.slice(-6).toUpperCase()}`;
+    
+    // If the name is already specific (not 'Guest' or 'Host' default), use it.
+    if (player.name && !['Guest', 'Host'].includes(player.name) && !player.name.startsWith('0x')) {
+        return player.name;
     }
+
+    // If we have a wallet address, show Guest + last 6 uppercase characters
+    if (player.walletAddress) {
+        const addr = player.walletAddress;
+        return `Guest ${addr.slice(-6).toUpperCase()}`;
+    }
+
     return player.name || 'Guest';
 };
 

@@ -193,9 +193,16 @@ export default function Page() {
 
     if (isActuallyStarted && appState !== 'game') {
       console.log('🏁 TRANSITIONING TO GAME! (isStarted:', gameState?.isStarted, 'lobbyStatus:', lobbyState?.status, ')');
+      
+      // 🔧 SYNC FIX: If we are joining a game as a Guest, reset local isBotMatch 
+      // based on the authoritative Host broadcast.
+      if (!isHost && gameState?.isBotMatch !== undefined) {
+        setIsBotMatch(gameState.isBotMatch);
+      }
+      
       setAppState('game');
     }
-  }, [gameState?.isStarted, lobbyState?.status, appState]);
+  }, [gameState?.isStarted, gameState?.isBotMatch, lobbyState?.status, appState, isHost]);
 
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
@@ -219,7 +226,7 @@ export default function Page() {
             const corner = cc[slot.color];
 
             return {
-              name: slot.playerName || profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : 'Guest'),
+              name: slot.playerName || profileData?.username || 'Guest',
               avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
               level: 1, // Default level
               isAi: false,
@@ -519,7 +526,7 @@ export default function Page() {
                   <Board
                     playerCount={playerCount}
                     gameMode={selectedMode as any}
-                    isBotMatch={isBotMatch}
+                    isBotMatch={gameState?.isBotMatch ?? isBotMatch}
                     onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
                     initialPlayers={gameState?.initialBoardConfig?.players}
                     initialColorCorner={gameState?.initialBoardConfig?.colorCorner}

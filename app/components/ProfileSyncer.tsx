@@ -25,27 +25,37 @@ export default function ProfileSyncer() {
     useEffect(() => {
         async function syncProfile() {
             if (isConnected && address) {
+                console.log("🔄 [ProfileSyncer] Starting sync for:", address);
                 // 1. Try Frame SDK (if in Warpcast)
                 const fcUser = fcContext?.user;
                 let finalName = fcUser?.displayName || fcUser?.username || null;
                 let finalAvatar = fcUser?.pfpUrl || null;
 
+                if (finalName) console.log("✅ [ProfileSyncer] Found Farcaster SDK Profile:", finalName);
+
                 // 2. Try Neynar API fallback (if in Base App or normal browser)
                 if (!finalName) {
                     try {
+                        console.log("🔍 [ProfileSyncer] Fetching Neynar fallback...");
                         const res = await fetch(`/api/farcaster?wallet=${address}`);
                         if (res.ok) {
                             const fcData = await res.json();
                             finalName = fcData.displayName || fcData.username;
                             finalAvatar = fcData.avatarUrl;
+                            if (finalName) console.log("✅ [ProfileSyncer] Found Neynar Profile:", finalName);
+                        } else {
+                            console.log("⚠️ [ProfileSyncer] Neynar fallback returned:", res.status);
                         }
                     } catch (e) {
-                        console.error("Farcaster API fallback failed", e);
+                        console.error("❌ [ProfileSyncer] Farcaster API fallback failed:", e);
                     }
                 }
 
                 // 3. Fallback to OnchainKit (Base/ENS)
-                if (!finalName) finalName = onchainName || null;
+                if (!finalName) {
+                    finalName = onchainName || null;
+                    if (finalName) console.log("✅ [ProfileSyncer] Found OnchainKit Name:", finalName);
+                }
                 if (!finalAvatar) finalAvatar = onchainAvatar || null;
 
                 const updateData: any = {
@@ -63,8 +73,8 @@ export default function ProfileSyncer() {
                 const isNameDifferent = updateData.username && myProfile?.username !== updateData.username;
                 const isAvatarDifferent = updateData.avatar_url && myProfile?.avatar_url !== updateData.avatar_url;
                 
-                // Always update `last_played_at`, but we don't need a loud optimistic re-render just for that unless it's their very first boot.
                 if (!myProfile || isNameDifferent || isAvatarDifferent) {
+                     console.log("📤 [ProfileSyncer] Dispatching update to Store:", updateData);
                      updateMyProfileOptimistic(updateData);
                 } else {
                      // Silently touch last_played_at

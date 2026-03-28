@@ -56,6 +56,7 @@ export interface GameState {
     idleWarning: { player: PlayerColor; timeLeft: number } | null;
     participantPeers: Record<string, string>; // walletAddress -> peerId
     isStarted: boolean;
+    isBotMatch: boolean;
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';
     matchId?: string;

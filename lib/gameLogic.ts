@@ -40,6 +40,7 @@ export const INITIAL_GAME_STATE: GameState = {
     idleWarning: null,
     participantPeers: {},
     isStarted: false,
+    isBotMatch: false,
     lastUpdate: Date.now(),
     playerCount: '4P',
 };

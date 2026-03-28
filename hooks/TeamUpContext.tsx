@@ -305,6 +305,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             setGameState(prev => ({
                 ...prev,
                 isStarted: true,
+                isBotMatch: data.isBotMatch || false,
                 playerCount: data.playerCount || prev.playerCount,
                 initialBoardConfig: data.initialBoardConfig,
                 matchId: data.matchId,
@@ -355,6 +356,26 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
         }
     }, [processedActionIds, handleCommitReceived, handleRevealReceived, setGameState]);
+
+    // 🔄 Sync Profile to peers when local profile updates
+    useEffect(() => {
+        if (!isLobbyConnected || !myAddress || !myProfile) return;
+        
+        const payload = {
+            type: 'SYNC_PROFILE',
+            address: myAddress,
+            username: myProfile.username,
+            avatar_url: myProfile.avatar_url,
+            validationToken
+        };
+
+        connections.forEach(conn => {
+            if (conn.open) {
+                console.log('📤 [TeamUp] Broadcasting updated profile to:', conn.peer);
+                conn.send(payload);
+            }
+        });
+    }, [myProfile, myAddress, connections, isLobbyConnected, validationToken]);
 
     const handleGuestData = useCallback((data: any, conn: DataConnection) => {
         if (data.type === 'SYNC_PROFILE') {

@@ -15,8 +15,10 @@ export async function GET(request: Request) {
         });
         const data = await response.json();
 
-        // Extract the first user found for this wallet
-        const user = data[wallet.toLowerCase()]?.[0];
+        // Extract the user found for this wallet (Case-Insensitive)
+        const lowWallet = wallet.toLowerCase();
+        const userKey = Object.keys(data).find(k => k.toLowerCase() === lowWallet);
+        const user = userKey ? data[userKey]?.[0] : null;
 
         if (user) {
             return NextResponse.json({
