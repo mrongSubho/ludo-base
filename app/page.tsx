@@ -466,11 +466,6 @@ export default function Page() {
                     </span>
                   </div>
                 </div>
-                <div className="game-header-right">
-                  <div className="game-bet-pill" style={{ background: '#ec489920', borderColor: '#ec489940' }}>
-                    <span className="text-pink-400 text-[10px] font-black uppercase">GambleFi</span>
-                  </div>
-                </div>
               </div>
 
               <main className="board-main has-top-back" style={{ paddingRight: spectatorGameState ? '296px' : undefined }}>
@@ -515,10 +510,6 @@ export default function Page() {
 
                 <div className="game-header-right flex items-center gap-2">
                   <StreamToggle matchId={gameState?.matchId} isHost={isHost} />
-                  <div className="game-bet-pill">
-                    <TokenIcon />
-                    <span>{betAmount}</span>
-                  </div>
                 </div>
               </div>
               <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>

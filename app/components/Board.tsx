@@ -17,7 +17,6 @@ import { HomeBlock } from './BoardHome';
 import { BoardTokens } from './BoardTokens';
 import { BoardGrid } from './BoardGrid';
 import { 
-    StatusNotification, 
     IdleWarningOverlay, 
     CelebrationOverlay, 
     NameOverlay 
@@ -206,8 +205,6 @@ export default function Board({
                         />
                     </BoardGrid>
 
-                    
-                    <StatusNotification message={localGameState.captureMessage} />
                 </div>
 
                 <NameOverlay uiSlots={uiSlots} players={players} getDisplayName={getDisplayNameHelper} />

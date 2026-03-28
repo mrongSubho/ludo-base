@@ -4,7 +4,7 @@ import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { Point, getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
 import { getTeammateColor, getIntermediatePathCoords } from '@/lib/gameLogic';
-import { BASE_INDEX } from '@/lib/constants';
+import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
 
 interface BoardTokensProps {
     players: Player[];
@@ -44,14 +44,7 @@ export function Token({
             whileHover={isDraggable ? { scale: 1.15, y: -4 } : { scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
         >
-            {count > 1 && (
-                <div className="token-count-badge">
-                    {count}
-                </div>
-            )}
-            {isBlockade && (
-                <div className="blockade-glow" />
-            )}
+            {isBlockade && <div className="blockade-glow" />}
         </motion.div>
     );
 }
@@ -213,8 +206,8 @@ export function BoardTokens({
                 
                 return colorPositions.map((pos: number, index: number) => {
                     const numericPos = Number(pos);
-                    // Don't render board tokens if in base
-                    if (numericPos === BASE_INDEX) return null;
+                    // Don't render board tokens if in base or finished
+                    if (numericPos === BASE_INDEX || numericPos === BOARD_FINISH_INDEX) return null;
 
                     const targetPt = getBoardCoordinate(numericPos, color, colorCorner);
                     
