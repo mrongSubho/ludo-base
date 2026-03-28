@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { PlayerColor, PowerType } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
-import { Point } from '@/lib/boardLayout';
+import { Point, ColorCorner } from '@/lib/boardLayout';
 import { 
     BOT_ROLL_DELAY_MIN, 
     BOT_ROLL_DELAY_MAX, 
@@ -16,7 +16,7 @@ interface UseAIBrainProps {
     handleRoll: (value?: number) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     handleUsePower: (color: PlayerColor) => void;
-    playerPaths: Record<string, Point[]>;
+    colorCorner: ColorCorner;
     playerCount: '1v1' | '4P' | '2v2';
     isLobbyConnected: boolean;
 }
@@ -28,11 +28,25 @@ export function useAIBrain({
     handleRoll,
     moveToken,
     handleUsePower,
-    playerPaths,
+    colorCorner,
     playerCount,
     isLobbyConnected
 }: UseAIBrainProps) {
     const lastActionRef = useRef<string>('');
+    
+    // 🔧 FIX 1: Store function refs so the effect doesn't depend on function identity.
+    // This prevents the effect cleanup from killing pending timers when
+    // handleRoll/moveToken/handleUsePower get recreated by useCallback.
+    const handleRollRef = useRef(handleRoll);
+    const moveTokenRef = useRef(moveToken);
+    const handleUsePowerRef = useRef(handleUsePower);
+    const rollTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const moveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Keep function refs fresh on every render
+    useEffect(() => { handleRollRef.current = handleRoll; }, [handleRoll]);
+    useEffect(() => { moveTokenRef.current = moveToken; }, [moveToken]);
+    useEffect(() => { handleUsePowerRef.current = handleUsePower; }, [handleUsePower]);
 
     useEffect(() => {
         if (localGameState.winner) return;
@@ -46,7 +60,8 @@ export function useAIBrain({
         const isRolling = localGameState.isRolling;
         
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
-        const isBot = currentPlayerInfo?.isAi || localGameState.afkStats[color]?.isKicked;
+        const afkStats = localGameState.afkStats?.[color];
+        const isBot = currentPlayerInfo?.isAi || afkStats?.isKicked;
 
         if (!isBot) {
             lastActionRef.current = '';
@@ -57,45 +72,68 @@ export function useAIBrain({
         const actionKey = `${color}-${phase}-${diceValue}-${isRolling}`;
         if (lastActionRef.current === actionKey) return;
 
+        // 🔧 FIX 1: When the actionKey changes, clear any stale timers from the
+        // PREVIOUS state. This is the only place we clear timers — NOT in
+        // effect cleanup, which would kill timers on spurious re-renders.
+        if (rollTimerRef.current) {
+            clearTimeout(rollTimerRef.current);
+            rollTimerRef.current = null;
+        }
+        if (moveTimerRef.current) {
+            clearTimeout(moveTimerRef.current);
+            moveTimerRef.current = null;
+        }
+
         console.log('🤖 [AIBrain] Evaluation turn:', actionKey);
 
         if (phase === 'rolling' && !isRolling && diceValue === null) {
-            const randomDelay = Math.floor(Math.random() * (BOT_ROLL_DELAY_MAX - BOT_ROLL_DELAY_MIN + 1)) + BOT_ROLL_DELAY_MIN;
+            const minDelay = BOT_ROLL_DELAY_MIN;
+            const maxDelay = BOT_ROLL_DELAY_MAX;
+            const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
             lastActionRef.current = actionKey;
 
-            const timer = setTimeout(() => {
-                const shouldUsePower = getBestPowerUsage(localGameState, color, playerPaths, playerCount);
+            // 🔧 FIX 1: Use ref for timer AND call function via ref.
+            // Timer survives effect re-runs. Function ref is always fresh.
+            rollTimerRef.current = setTimeout(() => {
+                rollTimerRef.current = null;
+                const shouldUsePower = getBestPowerUsage(localGameState, color, colorCorner, playerCount);
                 if (shouldUsePower) {
-                    handleUsePower(color);
+                    handleUsePowerRef.current(color);
                 } else {
-                    handleRoll();
+                    handleRollRef.current();
                 }
             }, randomDelay);
-            return () => clearTimeout(timer);
         } 
         
         if (phase === 'moving' && diceValue !== null && !isRolling) {
             lastActionRef.current = actionKey;
             
-            const timer = setTimeout(() => {
+            // 🔧 FIX 1: Same ref-based pattern for move timer.
+            moveTimerRef.current = setTimeout(() => {
+                moveTimerRef.current = null;
                 const bestMove = getBestMove(
                     localGameState.positions,
                     color,
                     diceValue,
-                    playerPaths,
+                    colorCorner,
                     playerCount,
                     localGameState.powerTiles,
                     localGameState
                 );
                 
                 if (bestMove !== null) {
-                    moveToken(color, bestMove, diceValue);
+                    moveTokenRef.current(color, bestMove, diceValue);
                 } else {
-                    console.log('🤖 [AIBrain] No valid moves found for bot, waiting for turn switch.');
+                    console.warn('🤖 [AIBrain] No valid moves found for bot. Forcing turn switch.');
+                    // 🔧 SAFETY: If getBestMove returns null, reset lastActionRef
+                    // so the next effect run can try again or let the engine handle it.
+                    lastActionRef.current = '';
                 }
             }, BOT_MOVE_DELAY);
-            return () => clearTimeout(timer);
         }
+
+        // 🔧 FIX 1: NO cleanup return. Timers are managed via refs and only
+        // cleared when the actionKey meaningfully changes (above).
     }, [
         localGameState.winner, 
         localGameState.currentPlayer, 
@@ -107,11 +145,10 @@ export function useAIBrain({
         initialPlayers, 
         localGameState.afkStats, 
         localGameState.playerPowers, 
-        localGameState.positions, 
-        handleUsePower, 
-        handleRoll, 
-        moveToken, 
+        localGameState.positions,
+        // 🔧 FIX 1: handleRoll, moveToken, handleUsePower REMOVED from deps.
+        // They are accessed via refs, so their identity changes don't re-run this effect.
         playerCount, 
-        playerPaths
+        colorCorner
     ]);
 }

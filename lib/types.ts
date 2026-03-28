@@ -1,8 +1,8 @@
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED';
-export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'CMD_REQUEST_TRUST';
+export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
 
 // ─── Spectator & Betting Types ───
 export type BetType = 'winner' | 'dice_roll' | 'elimination' | 'custom';
@@ -40,7 +40,7 @@ export interface GameState {
     currentPlayer: PlayerColor;
     diceValue: number | null;
     isRolling: boolean;
-    gamePhase: 'rolling' | 'moving';
+    gamePhase: 'rolling' | 'moving' | 'landing';
     status: 'waiting' | 'playing' | 'finished';
     winner: string | null;
     winners: string[];

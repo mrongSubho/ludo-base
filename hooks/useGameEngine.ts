@@ -38,13 +38,11 @@ interface UseGameEngineProps {
     playerCount: '1v1' | '4P' | '2v2';
     gameMode: 'classic' | 'power' | 'snakes';
     isBotMatch: boolean;
-    playerPaths: Record<string, Point[]>;
     colorCorner: ColorCorner;
     pathCells: PathCell[];
     setBoardConfig: React.Dispatch<React.SetStateAction<{
         players: Player[];
         colorCorner: ColorCorner;
-        playerPaths: Record<string, Point[]>;
     }>>;
 }
 
@@ -53,7 +51,6 @@ export function useGameEngine({
     playerCount,
     gameMode,
     isBotMatch,
-    playerPaths,
     colorCorner,
     pathCells,
     setBoardConfig
@@ -68,6 +65,7 @@ export function useGameEngine({
     const {
         gameState: networkGameState,
         isHost,
+        isComputeHost,
         sendIntent,
         broadcastAction,
         roomId,
@@ -162,15 +160,14 @@ export function useGameEngine({
         setLocalGameState,
         initialPlayers,
         address,
-        isHost: isHost || isBotMatch,
+        isHost: isHost || isComputeHost || isBotMatch,
         isLobbyConnected,
         broadcastAction: broadcastAction as any,
         sendIntent: sendIntent as any,
-        playerPaths,
         playerCount,
         colorCorner,
         activeColorsArr,
-        audio: { playMove, playCapture, playWin },
+        audio: useMemo(() => ({ playMove, playCapture, playWin }), [playMove, playCapture, playWin]),
         triggerWinConfetti,
         recordWin,
         autoMoveTimeoutRef,
@@ -187,20 +184,42 @@ export function useGameEngine({
         moveToken,
         getNextPlayer,
         broadcastAction: broadcastAction as any,
-        isHost: isHost || isBotMatch
+        isHost: isComputeHost || isBotMatch
     });
 
     useAIBrain({
         localGameState,
         initialPlayers,
-        isHost: isHost || isBotMatch,
+        isHost: isComputeHost || isBotMatch,
         handleRoll,
         moveToken,
         handleUsePower,
-        playerPaths,
+        colorCorner,
         playerCount,
         isLobbyConnected
     });
+
+    // 🔧 FIX 4: Safety net — if gamePhase is stuck at 'landing' for >3s, force transition.
+    // This catches edge cases where moveToken's turn-switch setTimeout fails to fire.
+    useEffect(() => {
+        if (localGameState.gamePhase !== 'landing' || localGameState.winner) return;
+        const safetyTimer = setTimeout(() => {
+            setLocalGameState((prev: any) => {
+                if (prev.gamePhase !== 'landing') return prev; // Already resolved
+                console.warn('⚠️ [Engine] Landing safety net triggered! Forcing phase to rolling.');
+                const nextPlayer = getNextPlayer(prev.currentPlayer);
+                return {
+                    ...prev,
+                    gamePhase: 'rolling',
+                    currentPlayer: nextPlayer,
+                    diceValue: null,
+                    timeLeft: 15,
+                    lastUpdate: Date.now()
+                };
+            });
+        }, 3000);
+        return () => clearTimeout(safetyTimer);
+    }, [localGameState.gamePhase, localGameState.winner, getNextPlayer, setLocalGameState]);
 
     // 🌍 Synchronize local state with network state (Guest only)
     useEffect(() => {
@@ -208,22 +227,6 @@ export function useGameEngine({
             setLocalGameState(networkGameState);
         }
     }, [isLobbyConnected, isHost, networkGameState]);
-
-    // 📬 Listen for Guest Intents (Host only)
-    useEffect(() => {
-        if (isHost && lastIntent) {
-            const { type, payload } = lastIntent;
-            console.log('📬 [Host] Processing Intent:', type, payload);
-            
-            if (type === 'REQUEST_ROLL') {
-                handleRoll(payload?.value);
-            } else if (type === 'REQUEST_MOVE') {
-                moveToken(payload.color, payload.tokenIndex, payload.diceValue || localGameState.diceValue);
-            }
-            
-            clearIntent();
-        }
-    }, [isHost, lastIntent, handleRoll, moveToken, clearIntent, localGameState.diceValue]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
         setLocalGameState((prev: any) => ({
@@ -240,14 +243,53 @@ export function useGameEngine({
         }));
     }, []);
 
+    const toggleAutoPlay = useCallback((color: PlayerColor, forceTrust: boolean = false) => {
+        setLocalGameState((prev: any) => {
+            const nextState = {
+                ...prev,
+                afkStats: {
+                    ...prev.afkStats,
+                    [color]: {
+                        ...prev.afkStats[color],
+                        isAutoPlaying: forceTrust || !prev.afkStats[color].isAutoPlaying,
+                        isKicked: forceTrust ? true : prev.afkStats[color].isKicked // Manual rage quit -> bot converts permanently
+                    }
+                }
+            };
+            if (isHost && isLobbyConnected) {
+                broadcastAction('CMD_REQUEST_TRUST', { color, isBotTrusted: nextState.afkStats[color].isAutoPlaying, isKicked: nextState.afkStats[color].isKicked }, nextState);
+            } else if (!isHost && isLobbyConnected) {
+                sendIntent('CMD_REQUEST_TRUST', { color, isBotTrusted: nextState.afkStats[color].isAutoPlaying, isKicked: nextState.afkStats[color].isKicked });
+            }
+            return nextState;
+        });
+    }, [isHost, isLobbyConnected, broadcastAction, sendIntent]);
+
+    // 📬 Listen for Guest Intents (Host only)
+    useEffect(() => {
+        if (isHost && lastIntent) {
+            const { type, payload } = lastIntent;
+            console.log('📬 [Host] Processing Intent:', type, payload);
+            
+            if (type === 'REQUEST_ROLL') {
+                handleRoll(payload?.value);
+            } else if (type === 'REQUEST_MOVE') {
+                moveToken(payload.color, payload.tokenIndex, payload.diceValue || localGameState.diceValue);
+            } else if (type === 'CMD_REQUEST_TRUST') {
+                toggleAutoPlay(payload.color, payload.isKicked);
+            }
+            
+            clearIntent();
+        }
+    }, [isHost, lastIntent, handleRoll, moveToken, toggleAutoPlay, clearIntent, localGameState.diceValue]);
+
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
         const newPlayers = shufflePlayers(playerCount, isBotMatch, newCC) as Player[];
 
         setBoardConfig({
             players: newPlayers,
-            colorCorner: newCC,
-            playerPaths: buildPlayerPaths(newCC)
+            colorCorner: newCC
         });
         setLocalGameState({
             ...INITIAL_GAME_STATE,
@@ -294,6 +336,7 @@ export function useGameEngine({
         handleTokenClick,
         handleUsePower,
         cancelAfk,
+        toggleAutoPlay,
         resetGame,
         getNextPlayer
     };
