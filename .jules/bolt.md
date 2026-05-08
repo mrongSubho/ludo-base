@@ -1,0 +1,3 @@
+## 2025-05-08 - [Board Rendering Optimizations]
+**Learning:** Frequent state updates (like a 1s turn timer) in a parent component can cause significant performance degradation if child components are not memoized or if expensive calculations are performed inline. Specifically, performing O(N) searches (like `.some()` or `.find()`) inside a loop that renders the game board leads to O(BoardSize * N) complexity on every tick.
+**Action:** Always memoize high-frequency components (e.g., `Token`, `HomeBlock`) and use `useMemo` to pre-calculate `Set` or `Map` lookups for data used inside render loops to achieve O(1) access.

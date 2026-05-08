@@ -25,14 +25,14 @@ interface TokenProps {
     counterRotationDeg?: number;
 }
 
-export function Token({
+export const Token = React.memo(({
     color,
     onClick,
     isDraggable,
     count = 1,
     isBlockade = false,
     counterRotationDeg = 0
-}: TokenProps) {
+}: TokenProps) => {
     return (
         <motion.div
             layout
@@ -47,7 +47,7 @@ export function Token({
             {isBlockade && <div className="blockade-glow" />}
         </motion.div>
     );
-}
+});
 
 interface TokenPieceProps {
     color: PlayerColor;
@@ -62,7 +62,7 @@ interface TokenPieceProps {
     onClick: () => void;
 }
 
-function TokenPiece({
+const TokenPiece = React.memo(({
     color,
     index,
     pos,
@@ -73,7 +73,7 @@ function TokenPiece({
     counterRotationDeg,
     colorCorner,
     onClick
-}: TokenPieceProps) {
+}: TokenPieceProps) => {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
     const prevPosRef = React.useRef(pos);
     const isAnimatingRef = React.useRef(false);
@@ -164,7 +164,7 @@ function TokenPiece({
             </motion.div>
         </motion.div>
     );
-}
+});
 
 export function BoardTokens({
     players,
@@ -178,25 +178,28 @@ export function BoardTokens({
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
     const myColor = myPlayer?.color;
 
-    // 1. Calculate occupancy for stacking
-    const occupancy: Record<string, { color: PlayerColor, index: number }[]> = {};
-    const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    // 1. Calculate occupancy for stacking - memoized to avoid re-calculation on timer ticks
+    const occupancy = React.useMemo(() => {
+        const occ: Record<string, { color: PlayerColor, index: number }[]> = {};
+        const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
 
-    ALL_COLORS.forEach(color => {
-        if (!players.some(p => p.color === color)) return;
-        const colorPositions = localGameState.positions[color] || [];
-        colorPositions.forEach((pos: number, index: number) => {
-            const numericPos = Number(pos);
-            if (numericPos >= 0 && numericPos < 57) {
-                const pt = getBoardCoordinate(numericPos, color, colorCorner);
-                if (pt) {
-                    const key = `${pt.r}-${pt.c}`;
-                    if (!occupancy[key]) occupancy[key] = [];
-                    occupancy[key].push({ color, index });
+        ALL_COLORS.forEach(color => {
+            if (!players.some(p => p.color === color)) return;
+            const colorPositions = localGameState.positions[color] || [];
+            colorPositions.forEach((pos: number, index: number) => {
+                const numericPos = Number(pos);
+                if (numericPos >= 0 && numericPos < 57) {
+                    const pt = getBoardCoordinate(numericPos, color, colorCorner);
+                    if (pt) {
+                        const key = `${pt.r}-${pt.c}`;
+                        if (!occ[key]) occ[key] = [];
+                        occ[key].push({ color, index });
+                    }
                 }
-            }
+            });
         });
-    });
+        return occ;
+    }, [localGameState.positions, players, colorCorner]);
 
     return (
         <>

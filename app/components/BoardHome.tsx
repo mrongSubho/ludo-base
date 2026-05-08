@@ -35,7 +35,7 @@ interface HomeBlockProps {
     counterRotationDeg?: number;
 }
 
-export function HomeBlock({
+export const HomeBlock = React.memo(({
     color,
     corner,
     gridRow,
@@ -45,7 +45,7 @@ export function HomeBlock({
     onTokenClick,
     isDraggable,
     counterRotationDeg = 0
-}: HomeBlockProps) {
+}: HomeBlockProps) => {
     return (
         <div
             className={`board-home ${color}`}
@@ -86,4 +86,4 @@ export function HomeBlock({
             </div>
         </div>
     );
-}
+});
