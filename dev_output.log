@@ -1,0 +1,15 @@
+
+> ludo-base@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+✓ Ready in 1338ms
+○ Compiling / ...
+Lit is in dev mode. Not recommended for production! See https://lit.dev/msg/dev-mode for more information.
+✓ Finished writing to filesystem cache in 12.6s
+ GET / 200 in 383ms (compile: 278ms, render: 105ms)
+ HEAD / 200 in 1319ms (compile: 1179ms, render: 140ms)
