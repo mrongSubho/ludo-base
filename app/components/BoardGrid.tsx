@@ -54,6 +54,68 @@ export function BoardGrid({
         yellow: '#eab308'
     };
 
+    // ⚡ Bolt Optimization: O(1) lookups for power-ups, traps, and arrows
+    // Prevents expensive O(N) searches inside the 52+ cell render loop.
+    const powerSet = React.useMemo(() => {
+        const set = new Set<string>();
+        localGameState?.powerTiles?.forEach((pt: any) => set.add(`${pt.r}-${pt.c}`));
+        return set;
+    }, [localGameState?.powerTiles]);
+
+    const trapMap = React.useMemo(() => {
+        const map = new Map<string, any>();
+        localGameState?.activeTraps?.forEach((t: any) => map.set(`${t.r}-${t.c}`, t));
+        return map;
+    }, [localGameState?.activeTraps]);
+
+    const arrowMap = React.useMemo(() => {
+        const map = new Map<string, { dir: 'up' | 'down' | 'left' | 'right', corner: Corner }>();
+        (Object.entries(colorCorner) as [PlayerColor, Corner][]).forEach(([color, corner]) => {
+            const slot = CORNER_SLOTS[corner];
+            map.set(`${slot.arrowCell.r}-${slot.arrowCell.c}`, { dir: slot.arrowDir, corner });
+        });
+        return map;
+    }, [colorCorner]);
+
+    // ⚡ Bolt Optimization: Memoize the path grid to prevent re-rendering 52+ cells
+    // on every timer tick (which updates localGameState frequently).
+    const memoizedPathCells = React.useMemo(() => {
+        return (pathCells || []).map(({ row, col, cls }: PathCell) => {
+            const cellKey = `${row}-${col}`;
+            const cellInfo = getGridCellInfo(row, col, colorCorner);
+            const isPower = powerSet.has(cellKey);
+            const trap = trapMap.get(cellKey);
+            const arrow = arrowMap.get(cellKey);
+
+            let bg = 'var(--ludo-path-bg)';
+            if (cellInfo.type === 'home-lane' && cellInfo.color) {
+                const fallbackHex = COLOR_MAP[cellInfo.color as string] || '#000000';
+                bg = `var(--ludo-base-${cellInfo.color}, ${fallbackHex})`;
+            }
+
+            return (
+                <div
+                    key={cellKey}
+                    className={`${cls} ${isPower ? 'power-cell' : ''}`}
+                    style={{
+                        gridRow: row,
+                        gridColumn: col,
+                        backgroundColor: bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative'
+                    }}
+                >
+                    {cellInfo.type === 'safe' && <StarMarker color="#eab308" />}
+                    {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
+                    {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
+                    {arrow && <ArrowMarker dir={arrow.dir} />}
+                </div>
+            );
+        });
+    }, [pathCells, colorCorner, powerSet, trapMap, arrowMap]);
+
     return (
         <div className="board-grid" style={{
             display: 'grid',
@@ -67,44 +129,7 @@ export function BoardGrid({
             position: 'relative'
         }}>
             {/* ── Path Squares ── */}
-            {(pathCells || []).map(({ row, col, cls }: PathCell) => {
-                const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
-                const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
-                
-                let bg = 'var(--ludo-path-bg)';
-                if (cellInfo.type === 'home-lane' && cellInfo.color) {
-                    const fallbackHex = COLOR_MAP[cellInfo.color as string] || '#000000';
-                    bg = `var(--ludo-base-${cellInfo.color}, ${fallbackHex})`;
-                }
-
-                return (
-                    <div
-                        key={`${row}-${col}`}
-                        className={`${cls} ${isPower ? 'power-cell' : ''}`}
-                        style={{ 
-                            gridRow: row, 
-                            gridColumn: col,
-                            backgroundColor: bg,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative'
-                        }}
-                    >
-                        {cellInfo.type === 'safe' && <StarMarker color="#eab308" />}
-                        {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
-                        {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
-                        {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
-                            const slot = CORNER_SLOTS[corner];
-                            if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
-                                return <ArrowMarker key={corner} dir={slot.arrowDir} />;
-                            }
-                            return null;
-                        })}
-                    </div>
-                );
-            })}
+            {memoizedPathCells}
 
             {/* ── Home Bases & Tokens (Children) ── */}
             {children}
