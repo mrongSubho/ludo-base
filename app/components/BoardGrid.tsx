@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { getGridCellInfo, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
@@ -45,6 +45,19 @@ export function BoardGrid({
 }: BoardGridProps) {
     // Resolve active color key (e.g., 'green', 'red')
     const activeColor = localGameState?.currentPlayer || propActiveColor;
+
+    // Optimize lookups for power tiles and traps (O(1) instead of O(N))
+    const powerTilesSet = useMemo(() => {
+        const set = new Set<string>();
+        localGameState?.powerTiles?.forEach((pt: any) => set.add(`${pt.r}-${pt.c}`));
+        return set;
+    }, [localGameState?.powerTiles]);
+
+    const trapsMap = useMemo(() => {
+        const map = new Map<string, any>();
+        localGameState?.activeTraps?.forEach((t: any) => map.set(`${t.r}-${t.c}`, t));
+        return map;
+    }, [localGameState?.activeTraps]);
     
     // Fallback Hex Colors (from mockup)
     const COLOR_MAP: Record<string, string> = {
@@ -69,8 +82,9 @@ export function BoardGrid({
             {/* ── Path Squares ── */}
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
-                const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                const cellKey = `${row}-${col}`;
+                const isPower = powerTilesSet.has(cellKey);
+                const trap = trapsMap.get(cellKey);
                 
                 let bg = 'var(--ludo-path-bg)';
                 if (cellInfo.type === 'home-lane' && cellInfo.color) {
