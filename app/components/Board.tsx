@@ -93,7 +93,17 @@ export default function Board({
     });
 
     const localGameState = (spectatorMode && externalGameState) ? externalGameState : engine.gameState;
-    const { handleRoll, handleTokenClick, handleUsePower, resetGame, cancelAfk } = engine;
+
+    // Destructure stable handlers from the engine.
+    // engine itself is an object returned by useGameEngine, but its properties
+    // are stable references from useGameActions/useAFKManager etc.
+    const {
+        handleRoll,
+        handleTokenClick,
+        handleUsePower,
+        resetGame,
+        cancelAfk
+    } = engine;
 
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useBoardLayout({
         players,
@@ -192,7 +202,7 @@ export default function Board({
                                     gridCol={CORNER_SLOTS[colorCorner[color]].gridCol}
                                     tokensInHome={tokensInHome}
                                     finishedTokens={finishedTokens}
-                                    onTokenClick={(idx) => handleTokenClick(color, idx)}
+                                    onTokenClick={handleTokenClick}
                                     isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
                                     counterRotationDeg={counterRotationDeg}
                                 />
