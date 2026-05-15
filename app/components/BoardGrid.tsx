@@ -33,7 +33,7 @@ const ArrowMarker = ({ dir, color = "rgba(0,0,0,0.3)" }: { dir: 'up' | 'down' | 
     );
 };
 
-export function BoardGrid({
+export const BoardGrid = React.memo(({
     pathCells,
     colorCorner,
     localGameState,
@@ -42,7 +42,7 @@ export function BoardGrid({
     sweepProgress,
     pointRotation,
     counterRotationDeg
-}: BoardGridProps) {
+}: BoardGridProps) => {
     // Resolve active color key (e.g., 'green', 'red')
     const activeColor = localGameState?.currentPlayer || propActiveColor;
     
@@ -253,4 +253,29 @@ export function BoardGrid({
             </div>
         </div>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison to ignore timer ticks (timeLeft and lastUpdate)
+    if (prevProps.pathCells !== nextProps.pathCells) return false;
+    if (prevProps.colorCorner !== nextProps.colorCorner) return false;
+    if (prevProps.activeColor !== nextProps.activeColor) return false;
+    if (prevProps.counterRotationDeg !== nextProps.counterRotationDeg) return false;
+    if (prevProps.children !== nextProps.children) return false;
+    if (prevProps.sweepProgress !== nextProps.sweepProgress) return false;
+    if (prevProps.pointRotation !== nextProps.pointRotation) return false;
+
+    const pG = prevProps.localGameState;
+    const nG = nextProps.localGameState;
+
+    // Fast check for identity or nulls
+    if (pG === nG) return true;
+    if (!pG || !nG) return false;
+
+    // Compare all keys EXCEPT timer-related ones
+    const keys = Object.keys(nG) as (keyof typeof nG)[];
+    for (const key of keys) {
+        if (key === 'timeLeft' || key === 'lastUpdate') continue;
+        if (pG[key] !== nG[key]) return false;
+    }
+
+    return true;
+});

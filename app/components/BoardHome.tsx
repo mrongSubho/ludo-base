@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Token } from './BoardTokens';
 import { Corner } from '@/lib/boardLayout';
+import { PlayerColor } from '@/lib/types';
 
 export const StarMarker = ({ color }: { color?: string }) => (
     <svg className="star-svg" viewBox="0 0 24 24" fill="currentColor" style={{ color }}>
@@ -24,18 +25,18 @@ export const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) 
 };
 
 interface HomeBlockProps {
-    color: 'green' | 'red' | 'yellow' | 'blue';
+    color: PlayerColor;
     corner: Corner;
     gridRow: string;
     gridCol: string;
     tokensInHome: number[];
     finishedTokens?: number[];
-    onTokenClick: (tokenIndex: number) => void;
+    onTokenClick: (color: PlayerColor, tokenIndex: number) => void;
     isDraggable?: boolean;
     counterRotationDeg?: number;
 }
 
-export function HomeBlock({
+export const HomeBlock = React.memo(({
     color,
     corner,
     gridRow,
@@ -45,7 +46,7 @@ export function HomeBlock({
     onTokenClick,
     isDraggable,
     counterRotationDeg = 0
-}: HomeBlockProps) {
+}: HomeBlockProps) => {
     return (
         <div
             className={`board-home ${color}`}
@@ -61,7 +62,7 @@ export function HomeBlock({
                             {isInHome && (
                                 <Token
                                     color={color}
-                                    onClick={() => onTokenClick(idx)}
+                                    onClick={() => onTokenClick(color, idx)}
                                     isDraggable={isDraggable}
                                     counterRotationDeg={counterRotationDeg}
                                 />
@@ -86,4 +87,4 @@ export function HomeBlock({
             </div>
         </div>
     );
-}
+});

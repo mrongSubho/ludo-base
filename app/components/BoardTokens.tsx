@@ -25,14 +25,14 @@ interface TokenProps {
     counterRotationDeg?: number;
 }
 
-export function Token({
+export const Token = React.memo(({
     color,
     onClick,
     isDraggable,
     count = 1,
     isBlockade = false,
     counterRotationDeg = 0
-}: TokenProps) {
+}: TokenProps) => {
     return (
         <motion.div
             layout
@@ -47,7 +47,7 @@ export function Token({
             {isBlockade && <div className="blockade-glow" />}
         </motion.div>
     );
-}
+});
 
 interface TokenPieceProps {
     color: PlayerColor;
@@ -62,7 +62,7 @@ interface TokenPieceProps {
     onClick: () => void;
 }
 
-function TokenPiece({
+const TokenPiece = React.memo(({
     color,
     index,
     pos,
@@ -73,7 +73,7 @@ function TokenPiece({
     counterRotationDeg,
     colorCorner,
     onClick
-}: TokenPieceProps) {
+}: TokenPieceProps) => {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
     const prevPosRef = React.useRef(pos);
     const isAnimatingRef = React.useRef(false);
@@ -164,9 +164,9 @@ function TokenPiece({
             </motion.div>
         </motion.div>
     );
-}
+});
 
-export function BoardTokens({
+export const BoardTokens = React.memo(({
     players,
     localGameState,
     colorCorner,
@@ -174,7 +174,7 @@ export function BoardTokens({
     playerCount,
     handleTokenClick,
     counterRotationDeg = 0
-}: BoardTokensProps) {
+}: BoardTokensProps) => {
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
     const myColor = myPlayer?.color;
 
@@ -258,4 +258,28 @@ export function BoardTokens({
             })}
         </>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison to ignore timer ticks (timeLeft and lastUpdate)
+    if (prevProps.players !== nextProps.players) return false;
+    if (prevProps.colorCorner !== nextProps.colorCorner) return false;
+    if (prevProps.address !== nextProps.address) return false;
+    if (prevProps.playerCount !== nextProps.playerCount) return false;
+    if (prevProps.handleTokenClick !== nextProps.handleTokenClick) return false;
+    if (prevProps.counterRotationDeg !== nextProps.counterRotationDeg) return false;
+
+    const pG = prevProps.localGameState;
+    const nG = nextProps.localGameState;
+
+    // Fast check for identity or nulls
+    if (pG === nG) return true;
+    if (!pG || !nG) return false;
+
+    // Compare all keys EXCEPT timer-related ones
+    const keys = Object.keys(nG) as (keyof typeof nG)[];
+    for (const key of keys) {
+        if (key === 'timeLeft' || key === 'lastUpdate') continue;
+        if (pG[key] !== nG[key]) return false;
+    }
+
+    return true;
+});
