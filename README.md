@@ -1,123 +1,129 @@
-# Ludo Base
+# 🎲 Ludo Base
 
-A Next.js 16 Farcaster-ready Ludo game with wallet integration, teamup hooks, social panels, and a glassmorphism dashboard UI.
+[![Project Status: Active](https://img.shields.io/badge/Project%20Status-Active-brightgreen.svg)]()
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
+[![Base](https://img.shields.io/badge/Network-Base-blue)](https://base.org/)
 
-## Documentation
+**Ludo Base** is a high-performance, Farcaster-native competitive board game platform built on the Base ecosystem. Experience the classic Ludo and Snakes & Ladders you love, upgraded with glassmorphism UI, real-time multiplayer, on-chain identity, and a secure spectator betting system.
 
-- [Game Design Document](./GAME_DESIGN_DOCUMENT.md)
-- [GDD Visual Asset Guide](./docs/gdd/README.md)
+---
 
-## Current State (March 2026)
+## 📸 Visual Tour
 
-The UI and lobby were recently refined across multiple commits and now include:
+<p align="center">
+  <img src="docs/gdd/dashboard-overview.svg" alt="Dashboard Overview" width="400" />
+  <img src="docs/gdd/lobby-flow.svg" alt="Lobby Flow" width="400" />
+</p>
 
-- Silvery swirly gradient dashboard background with textured glassmorphism styling.
-- Refined `GameLobby` setup flow with pill-style section headers.
-- Horizontal game mode selection with nested descriptor pills.
-- Synced match-type button styling (`1v1`, `2v2`, `4P`) with clearer default/active states.
-- Updated wager area using an **Entry Fee** label, large numeric input, stepper controls, and quick-select chips.
-- Rounded chips/buttons and horizontal dual CTAs (`QUICK MATCH`, `WITH FRIENDS`).
-- Cyan focus ring/active accent behavior for the wager input and key selectable controls.
-- Mobile and desktop layout/padding parity updates for lobby sections.
-- Footer active nav text/icon/underline treatment aligned to glassmorph white styling.
+<p align="center">
+  <img src="docs/gdd/classic-board.svg" alt="Classic Ludo Board" width="280" />
+  <img src="docs/gdd/snakes-board.svg" alt="Snakes and Ladders" width="280" />
+  <img src="docs/gdd/social-surface.svg" alt="Social Surface" width="280" />
+</p>
 
-## Recent Changelog
+---
 
-- `0c61cd2`: Mobile-synced desktop lobby layout/padding updates, default states, cyan input focus ring.
-- `e8e5062`: Final lobby refinements with pill headers, synced match-type styles, rounded chips, horizontal CTAs.
-- `73508c5`: Wager layout reverted to “Bet Amount” flow, restored quick chips, nested sub-pill styling.
-- `8ca28bb`: Reference dashboard replication with silvery swirly gradient and horizontal glass mode pills.
-- `627d5da`: Documentation update for grey gradient dashboard verification.
-- `d95fcee`: Replaced cosmic-core dashboard background with textured grey gradient glassmorphism.
-- `8761d4f`: Footer active nav text/icon/underline switched from cyan to glassmorph white.
-- `bd4a98e`: Modal base color corrections, tab focus-ring fixes, footer nav opacity tuning.
-- `90aac47`: Global deep-purple panel background pass and footer opacity fixes.
-- `8f29db9`: Purple theme finalization and updated footer hover squircle behavior.
-- `deb1dca`: Global purple theme alignment across primary panels.
-- `b0eafa5`: PlayWithFriendsPanel styling aligned with UserProfilePanel visual system.
+## ✨ Key Features
 
-## Tech Stack
+- **🎮 Multiple Game Modes:**
+  - **Ludo Classic:** Standard rules with competitive 1v1, 2v2, and 4P modes.
+  - **Ludo Power:** Strategic twist with Shield, Bomb, Warp, and Boost tiles.
+  - **Snakes & Ladders:** A fast-paced race to the top on a 10x10 grid.
+- **🤝 Social-First Experience:**
+  - **Farcaster Integrated:** Sign in with your Farcaster identity.
+  - **Social Hub:** Friends lists, real-time messaging, and global leaderboards.
+  - **Lobby System:** Host private rooms, invite friends, or jump into Quick Match.
+- **🛡️ Competitive Integrity:**
+  - **Edge Matchmaking:** Sub-20ms pairing via specialized edge servers.
+  - **Provably Fair Dice:** Cryptographically secure dice rolls via Supabase Edge Functions.
+  - **AFK Protection:** Intelligent strike system and AI-takeover for disconnected players.
+- **💎 GambleFi & Spectator System:**
+  - **Live Streaming:** Watch matches in real-time with zero-video state-sync technology.
+  - **Spectator Betting:** Securely bet on matches with automated resolution and protocol revenue sharing.
+- **🎨 Premium UI/UX:** Silvery swirly gradient dashboard with a textured glassmorphism aesthetic and responsive mobile-first design.
 
-- Next.js 16 (App Router)
-- React 19
-- TypeScript 5
-- Tailwind CSS 4
-- Framer Motion
-- Wagmi + Coinbase OnchainKit
-- Supabase
-- PeerJS
+---
 
-## Main App Areas
+## 🛠️ Tech Stack
 
-- `app/page.tsx`: app shell, tab panel orchestration, routing between lobby and game boards.
-- `app/components/GameLobby.tsx`: game setup, matchmaking entry, wager controls, private room flow.
-- `app/components/Board.tsx`: core Ludo gameplay.
-- `app/components/SnakesBoard.tsx`: snakes-and-ladders variant.
-- `app/globals.css`: theme tokens + glass dashboard/background system.
-- `hooks/TeamUpContext.tsx`: room host/join + teamup context state.
-- `lib/matchRecorder.ts`: match result persistence helpers.
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Framer Motion.
+- **Web3:** Wagmi, Coinbase OnchainKit, Farcaster Frame SDK.
+- **Backend/Realtime:** Supabase (Auth, DB, Realtime, Edge Functions), PeerJS.
+- **Networking:** Hybrid WebRTC UDP + P2P Mesh architecture.
 
-## UI Standards
+---
 
-### Terminal Theme
+## 🏗️ Architecture
 
-- Visual direction: dark terminal-glass surface with high-contrast cyan accents for active/focus states.
-- Primary background: charcoal/graphite gradients (`#0B0F14` to `#141A22`) with subtle texture noise.
-- Accent color: terminal cyan (`#00E5FF`) for focus ring, active pills, and key interactive states.
-- Typography: monospaced support text and labels where terminal feel is needed; avoid overusing decorative styles.
+Ludo Base uses a **Hybrid Mesh Communication Model** for maximum performance and reliability:
 
-### File Pathing System
+1.  **Reliability Layer (Supabase):** High-frequency actions (dice rolls, moves) are broadcast via Supabase global mesh.
+2.  **P2P Layer (PeerJS):** Identity validation and specialized profile synchronization.
+3.  **Edge Matchmaking:** Uses WebRTC UDP for near-instant pairing and "Edge Verified" match integrity.
 
-- Use absolute repo-relative paths in docs and tickets, for example:
-  - `app/components/GameLobby.tsx`
-  - `app/globals.css`
-  - `hooks/TeamUpContext.tsx`
-- Keep naming consistent with existing structure (`PascalCase` for React component files, `camelCase` for utilities/hooks where applicable).
-- Prefer explicit path references in changelogs and implementation notes so updates are traceable.
+For a deep dive into the engine, see [ENGINE_LOGIC.md](./ENGINE_LOGIC.md).
 
-### Text Guidelines
+---
 
-- Keep UI copy short and action-first.
-- Use uppercase for compact CTA labels where already established (for example `QUICK MATCH`, `WITH FRIENDS`).
-- Keep labels consistent across mobile and desktop (same wording, no semantic drift).
-- Reserve technical wording for developer-facing surfaces; player-facing text should remain simple and clear.
+## 🚀 Getting Started
 
-## Run Locally
-
-Prerequisites:
+### Prerequisites
 
 - Node.js 20+
 - npm
 
-Install and start:
+### Installation
 
 ```bash
+git clone <repository-url>
+cd ludo-base
 npm install
-npm run dev
 ```
 
-App URL:
+### Environment Setup
 
-- `http://localhost:3000`
+Create a `.env.local` file in the root directory:
 
-Production build:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
+# Add other required environment variables for Wallet/Farcaster
+```
+
+### Development
+
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to see the app.
+
+### Production
 
 ```bash
 npm run build
 npm start
 ```
 
-Lint:
+### Linting
 
 ```bash
 npm run lint
 ```
 
-## Environment
+---
 
-Create `.env.local` with required values for your deployment context (wallet/network + Supabase + Farcaster/Neynar integrations).
+## 📖 Documentation
 
-## Notes
+- [Game Design Document (GDD)](./docs/gdd/GAME_DESIGN_DOCUMENT.md) - Full game mechanics and roadmap.
+- [Engine Logic](./ENGINE_LOGIC.md) - Detailed technical source of truth.
+- [Changelog](./CHANGELOG.md) - Recent updates and improvements.
 
-- Some panels still use placeholder/mock data while backend wiring is expanded.
-- TeamUp and match persistence flows exist but still need continued hardening for reconnection and edge cases.
+---
+
+## 📄 License
+
+This project is licensed under the [LICENSE](./LICENSE) file.
+
+---
+
+*Created with ❤️ for the Base Ecosystem.*
