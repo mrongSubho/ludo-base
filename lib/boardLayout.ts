@@ -225,8 +225,8 @@ export const SAFE_POSITIONS: Point[] = [
  * Returns detailed information about a grid cell at (r, c).
  * This is the central source of truth for board geometry.
  */
-export function getGridCellInfo(r: number, c: number, cc: ColorCorner) {
-    const inv = cornerToColor(cc);
+export function getGridCellInfo(r: number, c: number, cc: ColorCorner, preComputedInv?: Record<Corner, PlayerColor>) {
+    const inv = preComputedInv || cornerToColor(cc);
 
     const inVert = c >= 7 && c <= 9;
     const inHoriz = r >= 7 && r <= 9;
@@ -260,10 +260,11 @@ export function getGridCellInfo(r: number, c: number, cc: ColorCorner) {
 
 export function buildPathCellsDynamic(cc: ColorCorner): PathCell[] {
     const cells: PathCell[] = [];
+    const inv = cornerToColor(cc);
 
     for (let r = 1; r <= 15; r++) {
         for (let c = 1; c <= 15; c++) {
-            const info = getGridCellInfo(r, c, cc);
+            const info = getGridCellInfo(r, c, cc, inv);
 
             if (info.type === 'home-base' || info.type === 'finish' || info.type === 'empty') {
                 continue;
