@@ -168,7 +168,10 @@ export default function Board({
                     <BoardGrid
                         pathCells={pathCells}
                         colorCorner={colorCorner}
-                        localGameState={localGameState}
+                        powerTiles={localGameState.powerTiles}
+                        activeTraps={localGameState.activeTraps}
+                        diceValue={localGameState.diceValue}
+                        currentPlayer={localGameState.currentPlayer}
                         activeColor={activeColor}
                         sweepProgress={smoothProgress}
                         pointRotation={useBoardLayoutRotation(smoothProgress)}

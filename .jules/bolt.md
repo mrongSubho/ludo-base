@@ -1,0 +1,3 @@
+## 2026-05-09 - [O(N) to O(1) Lookup Optimization in Board Grid]
+**Learning:** For performance-critical render loops, such as the 15x15 Ludo board grid, using O(N) array methods like `.some()` or `.find()` inside the loop creates a significant performance bottleneck (O(G x N) where G is grid size). Additionally, passing large, frequently-changing state objects (like `localGameState` containing a 1s timer) to these components prevents `React.memo` from being effective.
+**Action:** Replace O(N) searches with O(1) Map/Set lookups by pre-calculating them with `useMemo`. Decouple large state objects into individual, stable props to enable effective memoization with `React.memo`.
