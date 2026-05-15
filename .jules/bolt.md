@@ -1,0 +1,3 @@
+## 2026-05-15 - Component Isolation for High-Frequency Updates
+**Learning:** In React 19 apps with high-frequency state updates (like 1s turn timers), components that receive the full state object re-render unnecessarily even if their logic doesn't depend on the ticking field. Memoizing the child sub-tree in the parent using `useMemo` and passing narrowed state slices is the most effective way to "break" the re-render chain without requiring complex custom comparison functions in every child.
+**Action:** Always prefer narrowing state props and memoizing child lists in the parent shell for complex board games or real-time dashboards.
