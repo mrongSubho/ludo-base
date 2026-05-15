@@ -1,0 +1,3 @@
+## 2025-05-15 - [Grid Optimization & Token Stacking Memoization]
+**Learning:** Grid-based board games often implement cell-by-cell rendering. In this codebase, `BoardGrid` was performing $O(N)$ array searches (`.find`, `.some`) for every one of the 225 cells on every render. Additionally, `BoardTokens` was recalculating complex token stacking logic ($O(\text{Tokens}^2)$) on every render, including those triggered by the 1s turn timer interval.
+**Action:** Always replace $O(N)$ array lookups inside high-frequency render loops (like board grids) with $O(1)$ lookups using memoized `Set` or `Map` objects. Ensure complex spatial calculations (like token occupancy/stacking) are memoized to prevent execution during non-spatial state updates (like timers).

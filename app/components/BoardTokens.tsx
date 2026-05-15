@@ -178,31 +178,37 @@ export function BoardTokens({
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
     const myColor = myPlayer?.color;
 
-    // 1. Calculate occupancy for stacking
-    const occupancy: Record<string, { color: PlayerColor, index: number }[]> = {};
-    const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    // 1. ⚡ Bolt Optimization: Memoize occupancy calculation for stacking
+    // This avoids redundant iterations over all player tokens during every timer tick.
+    const occupancy = React.useMemo(() => {
+        const occ: Record<string, { color: PlayerColor, index: number }[]> = {};
+        const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
 
-    ALL_COLORS.forEach(color => {
-        if (!players.some(p => p.color === color)) return;
-        const colorPositions = localGameState.positions[color] || [];
-        colorPositions.forEach((pos: number, index: number) => {
-            const numericPos = Number(pos);
-            if (numericPos >= 0 && numericPos < 57) {
-                const pt = getBoardCoordinate(numericPos, color, colorCorner);
-                if (pt) {
-                    const key = `${pt.r}-${pt.c}`;
-                    if (!occupancy[key]) occupancy[key] = [];
-                    occupancy[key].push({ color, index });
+        ALL_COLORS.forEach(color => {
+            if (!players.some(p => p.color === color)) return;
+            const colorPositions = localGameState?.positions?.[color] || [];
+            colorPositions.forEach((pos: number, index: number) => {
+                const numericPos = Number(pos);
+                if (numericPos >= 0 && numericPos < 57) {
+                    const pt = getBoardCoordinate(numericPos, color, colorCorner);
+                    if (pt) {
+                        const key = `${pt.r}-${pt.c}`;
+                        if (!occ[key]) occ[key] = [];
+                        occ[key].push({ color, index });
+                    }
                 }
-            }
+            });
         });
-    });
+        return occ;
+    }, [localGameState?.positions, colorCorner, players]);
+
+    const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
 
     return (
         <>
             {ALL_COLORS.map(color => {
                 const playerForColor = players.find(p => p.color === color);
-                const colorPositions = localGameState.positions[color] || [];
+                const colorPositions = localGameState?.positions?.[color] || [];
                 
                 return colorPositions.map((pos: number, index: number) => {
                     const numericPos = Number(pos);
@@ -229,14 +235,14 @@ export function BoardTokens({
                         }
                     }
 
-                    const isItsMyTurn = localGameState.currentPlayer === myColor;
+                    const isItsMyTurn = localGameState?.currentPlayer === myColor;
                     const teammate = getTeammateColor(myColor as PlayerColor, playerCount);
                     const isTeammateColor = teammate === color;
-                    const posMap = localGameState.positions as Record<PlayerColor, number[]>;
-                    const isSelfFinished = myColor ? posMap[myColor].every((p: number) => p === 57) : false;
+                    const posMap = (localGameState?.positions || {}) as Record<PlayerColor, number[]>;
+                    const isSelfFinished = myColor ? posMap[myColor]?.every((p: number) => p === 57) : false;
                     const canHelpTeammate = isTeammateColor && isSelfFinished && playerCount === '2v2';
                     
-                    const isDraggable = isItsMyTurn && localGameState.gamePhase === 'moving' &&
+                    const isDraggable = isItsMyTurn && localGameState?.gamePhase === 'moving' &&
                         (color === myColor || canHelpTeammate);
                     
                     return (
@@ -248,7 +254,7 @@ export function BoardTokens({
                             targetPt={targetPt}
                             offset={offset}
                             isDraggable={isDraggable}
-                            isColorTurn={localGameState.currentPlayer === color}
+                            isColorTurn={localGameState?.currentPlayer === color}
                             counterRotationDeg={counterRotationDeg}
                             colorCorner={colorCorner}
                             onClick={() => handleTokenClick(color, index)}

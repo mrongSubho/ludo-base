@@ -33,6 +33,14 @@ const ArrowMarker = ({ dir, color = "rgba(0,0,0,0.3)" }: { dir: 'up' | 'down' | 
     );
 };
 
+// Fallback Hex Colors (from mockup)
+const COLOR_MAP: Record<string, string> = {
+    green: '#22c55e',
+    red: '#ef4444',
+    blue: '#3b82f6',
+    yellow: '#eab308'
+};
+
 export function BoardGrid({
     pathCells,
     colorCorner,
@@ -45,14 +53,28 @@ export function BoardGrid({
 }: BoardGridProps) {
     // Resolve active color key (e.g., 'green', 'red')
     const activeColor = localGameState?.currentPlayer || propActiveColor;
-    
-    // Fallback Hex Colors (from mockup)
-    const COLOR_MAP: Record<string, string> = {
-        green: '#22c55e',
-        red: '#ef4444',
-        blue: '#3b82f6',
-        yellow: '#eab308'
-    };
+
+    // ⚡ Bolt Optimization: Memoize expensive lookups into O(1) Maps/Sets
+    const powerTilesMap = React.useMemo(() => {
+        const map = new Set<string>();
+        localGameState?.powerTiles?.forEach((pt: any) => map.add(`${pt.r}-${pt.c}`));
+        return map;
+    }, [localGameState?.powerTiles]);
+
+    const activeTrapsMap = React.useMemo(() => {
+        const map = new Map<string, any>();
+        localGameState?.activeTraps?.forEach((t: any) => map.set(`${t.r}-${t.c}`, t));
+        return map;
+    }, [localGameState?.activeTraps]);
+
+    const arrowMarkersMap = React.useMemo(() => {
+        const map = new Map<string, { corner: Corner, dir: 'up' | 'down' | 'left' | 'right' }>();
+        (Object.entries(colorCorner) as [PlayerColor, Corner][]).forEach(([_, corner]) => {
+            const slot = CORNER_SLOTS[corner];
+            map.set(`${slot.arrowCell.r}-${slot.arrowCell.c}`, { corner, dir: slot.arrowDir });
+        });
+        return map;
+    }, [colorCorner]);
 
     return (
         <div className="board-grid" style={{
@@ -68,9 +90,11 @@ export function BoardGrid({
         }}>
             {/* ── Path Squares ── */}
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
+                const key = `${row}-${col}`;
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
-                const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                const isPower = powerTilesMap.has(key);
+                const trap = activeTrapsMap.get(key);
+                const arrow = arrowMarkersMap.get(key);
                 
                 let bg = 'var(--ludo-path-bg)';
                 if (cellInfo.type === 'home-lane' && cellInfo.color) {
@@ -80,7 +104,7 @@ export function BoardGrid({
 
                 return (
                     <div
-                        key={`${row}-${col}`}
+                        key={key}
                         className={`${cls} ${isPower ? 'power-cell' : ''}`}
                         style={{ 
                             gridRow: row, 
@@ -95,13 +119,7 @@ export function BoardGrid({
                         {cellInfo.type === 'safe' && <StarMarker color="#eab308" />}
                         {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
-                        {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
-                            const slot = CORNER_SLOTS[corner];
-                            if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
-                                return <ArrowMarker key={corner} dir={slot.arrowDir} />;
-                            }
-                            return null;
-                        })}
+                        {arrow && <ArrowMarker key={arrow.corner} dir={arrow.dir} />}
                     </div>
                 );
             })}
