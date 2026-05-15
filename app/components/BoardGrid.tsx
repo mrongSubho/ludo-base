@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { getGridCellInfo, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
@@ -7,12 +7,16 @@ import { Player } from '@/hooks/useGameEngine';
 interface BoardGridProps {
     pathCells: PathCell[];
     colorCorner: ColorCorner;
-    localGameState: any;
+    localGameState: {
+        currentPlayer: PlayerColor;
+        diceValue: number | null;
+        powerTiles?: { r: number; c: number }[];
+        activeTraps?: { r: number; c: number }[];
+    };
     players?: Player[];
     activeColor?: string;
     children?: React.ReactNode;
     sweepProgress?: any; // MotionValue<number> (0 to 1)
-    pointRotation?: any; // MotionValue<number>
     counterRotationDeg?: number;
 }
 
@@ -33,14 +37,13 @@ const ArrowMarker = ({ dir, color = "rgba(0,0,0,0.3)" }: { dir: 'up' | 'down' | 
     );
 };
 
-export function BoardGrid({
+export const BoardGrid = React.memo(function BoardGrid({
     pathCells,
     colorCorner,
     localGameState,
     children,
     activeColor: propActiveColor,
     sweepProgress,
-    pointRotation,
     counterRotationDeg
 }: BoardGridProps) {
     // Resolve active color key (e.g., 'green', 'red')
@@ -53,6 +56,18 @@ export function BoardGrid({
         blue: '#3b82f6',
         yellow: '#eab308'
     };
+
+    // Performance: O(1) lookups for board markers
+    const powerSet = useMemo(() => new Set(localGameState?.powerTiles?.map(p => `${p.r}-${p.c}`)), [localGameState?.powerTiles]);
+    const trapSet = useMemo(() => new Set(localGameState?.activeTraps?.map(t => `${t.r}-${t.c}`)), [localGameState?.activeTraps]);
+    const arrowMap = useMemo(() => {
+        const map = new Map<string, { color: PlayerColor; dir: 'up' | 'down' | 'left' | 'right' }>();
+        (Object.entries(colorCorner) as [PlayerColor, Corner][]).forEach(([color, corner]) => {
+            const slot = CORNER_SLOTS[corner];
+            map.set(`${slot.arrowCell.r}-${slot.arrowCell.c}`, { color, dir: slot.arrowDir });
+        });
+        return map;
+    }, [colorCorner]);
 
     return (
         <div className="board-grid" style={{
@@ -68,9 +83,11 @@ export function BoardGrid({
         }}>
             {/* ── Path Squares ── */}
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
+                const cellKey = `${row}-${col}`;
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
-                const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                const isPower = powerSet.has(cellKey);
+                const trap = trapSet.has(cellKey);
+                const arrow = arrowMap.get(cellKey);
                 
                 let bg = 'var(--ludo-path-bg)';
                 if (cellInfo.type === 'home-lane' && cellInfo.color) {
@@ -80,7 +97,7 @@ export function BoardGrid({
 
                 return (
                     <div
-                        key={`${row}-${col}`}
+                        key={cellKey}
                         className={`${cls} ${isPower ? 'power-cell' : ''}`}
                         style={{ 
                             gridRow: row, 
@@ -95,13 +112,7 @@ export function BoardGrid({
                         {cellInfo.type === 'safe' && <StarMarker color="#eab308" />}
                         {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
-                        {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
-                            const slot = CORNER_SLOTS[corner];
-                            if (slot.arrowCell.r === row && slot.arrowCell.c === col) {
-                                return <ArrowMarker key={corner} dir={slot.arrowDir} />;
-                            }
-                            return null;
-                        })}
+                        {arrow && <ArrowMarker key={arrow.color} dir={arrow.dir} />}
                     </div>
                 );
             })}
@@ -253,4 +264,4 @@ export function BoardGrid({
             </div>
         </div>
     );
-}
+});

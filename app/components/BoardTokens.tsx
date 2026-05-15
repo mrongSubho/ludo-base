@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
@@ -8,7 +8,13 @@ import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
 
 interface BoardTokensProps {
     players: Player[];
-    localGameState: any;
+    localGameState: {
+        positions: Record<PlayerColor, number[]>;
+        currentPlayer: PlayerColor;
+        gamePhase: string;
+        diceValue: number | null;
+        canMoveTokens?: boolean;
+    };
     colorCorner: ColorCorner;
     address: string | undefined;
     playerCount: '1v1' | '4P' | '2v2';
@@ -62,7 +68,7 @@ interface TokenPieceProps {
     onClick: () => void;
 }
 
-function TokenPiece({
+const TokenPiece = React.memo(function TokenPiece({
     color,
     index,
     pos,
@@ -164,9 +170,8 @@ function TokenPiece({
             </motion.div>
         </motion.div>
     );
-}
-
-export function BoardTokens({
+});
+export const BoardTokens = React.memo(function BoardTokens({
     players,
     localGameState,
     colorCorner,
@@ -179,24 +184,26 @@ export function BoardTokens({
     const myColor = myPlayer?.color;
 
     // 1. Calculate occupancy for stacking
-    const occupancy: Record<string, { color: PlayerColor, index: number }[]> = {};
     const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
-
-    ALL_COLORS.forEach(color => {
-        if (!players.some(p => p.color === color)) return;
-        const colorPositions = localGameState.positions[color] || [];
-        colorPositions.forEach((pos: number, index: number) => {
-            const numericPos = Number(pos);
-            if (numericPos >= 0 && numericPos < 57) {
-                const pt = getBoardCoordinate(numericPos, color, colorCorner);
-                if (pt) {
-                    const key = `${pt.r}-${pt.c}`;
-                    if (!occupancy[key]) occupancy[key] = [];
-                    occupancy[key].push({ color, index });
+    const occupancy = useMemo(() => {
+        const occ: Record<string, { color: PlayerColor, index: number }[]> = {};
+        ALL_COLORS.forEach(color => {
+            if (!players.some(p => p.color === color)) return;
+            const colorPositions = localGameState.positions[color] || [];
+            colorPositions.forEach((pos: number, index: number) => {
+                const numericPos = Number(pos);
+                if (numericPos >= 0 && numericPos < 57) {
+                    const pt = getBoardCoordinate(numericPos, color, colorCorner);
+                    if (pt) {
+                        const key = `${pt.r}-${pt.c}`;
+                        if (!occ[key]) occ[key] = [];
+                        occ[key].push({ color, index });
+                    }
                 }
-            }
+            });
         });
-    });
+        return occ;
+    }, [localGameState.positions, players, colorCorner]);
 
     return (
         <>
@@ -258,4 +265,4 @@ export function BoardTokens({
             })}
         </>
     );
-}
+});
