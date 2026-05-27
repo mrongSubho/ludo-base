@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { getGridCellInfo, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
@@ -7,7 +7,11 @@ import { Player } from '@/hooks/useGameEngine';
 interface BoardGridProps {
     pathCells: PathCell[];
     colorCorner: ColorCorner;
-    localGameState: any;
+    // Optimization: Pass specific state slices instead of the whole localGameState
+    powerTiles?: { r: number, c: number }[];
+    activeTraps?: { r: number, c: number }[];
+    diceValue?: number | null;
+    currentPlayer?: string;
     players?: Player[];
     activeColor?: string;
     children?: React.ReactNode;
@@ -33,26 +37,37 @@ const ArrowMarker = ({ dir, color = "rgba(0,0,0,0.3)" }: { dir: 'up' | 'down' | 
     );
 };
 
-export function BoardGrid({
+// Fallback Hex Colors (from mockup)
+const COLOR_MAP: Record<string, string> = {
+    green: '#22c55e',
+    red: '#ef4444',
+    blue: '#3b82f6',
+    yellow: '#eab308'
+};
+
+export const BoardGrid = React.memo(({
     pathCells,
     colorCorner,
-    localGameState,
+    powerTiles = [],
+    activeTraps = [],
+    diceValue,
+    currentPlayer,
     children,
     activeColor: propActiveColor,
     sweepProgress,
     pointRotation,
     counterRotationDeg
-}: BoardGridProps) {
+}: BoardGridProps) => {
     // Resolve active color key (e.g., 'green', 'red')
-    const activeColor = localGameState?.currentPlayer || propActiveColor;
-    
-    // Fallback Hex Colors (from mockup)
-    const COLOR_MAP: Record<string, string> = {
-        green: '#22c55e',
-        red: '#ef4444',
-        blue: '#3b82f6',
-        yellow: '#eab308'
-    };
+    const activeColor = currentPlayer || propActiveColor;
+
+    // Performance Optimization: Use Set/Map for O(1) lookups in the grid loop
+    const powerSet = useMemo(() => new Set(powerTiles.map(p => `${p.r}-${p.c}`)), [powerTiles]);
+    const trapMap = useMemo(() => {
+        const m = new Map();
+        activeTraps.forEach(t => m.set(`${t.r}-${t.c}`, t));
+        return m;
+    }, [activeTraps]);
 
     return (
         <div className="board-grid" style={{
@@ -69,8 +84,9 @@ export function BoardGrid({
             {/* ── Path Squares ── */}
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
-                const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                const coordKey = `${row}-${col}`;
+                const isPower = powerSet.has(coordKey);
+                const trap = trapMap.get(coordKey);
                 
                 let bg = 'var(--ludo-path-bg)';
                 if (cellInfo.type === 'home-lane' && cellInfo.color) {
@@ -220,13 +236,13 @@ export function BoardGrid({
                 }}>
                     {/* 6. The Heart - Star or Dice Value (Layer 6) */}
                     <motion.div
-                        key={localGameState?.diceValue || 'star'}
+                        key={diceValue || 'star'}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
-                        {localGameState?.diceValue ? (
+                        {diceValue ? (
                              <motion.span 
                                 animate={{ scale: [1, 1.2, 1] }}
                                 transition={{ repeat: Infinity, duration: 1.5 }}
@@ -238,7 +254,7 @@ export function BoardGrid({
                                     display: 'inline-block'
                                 }}
                              >
-                                 {localGameState.diceValue}
+                                 {diceValue}
                              </motion.span>
                           ) : (
                              <motion.div
@@ -253,4 +269,6 @@ export function BoardGrid({
             </div>
         </div>
     );
-}
+});
+
+BoardGrid.displayName = 'BoardGrid';

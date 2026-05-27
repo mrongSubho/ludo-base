@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
@@ -131,7 +131,62 @@ export default function Board({
         yellow: 'var(--ludo-yellow)'
     }[localGameState.currentPlayer] || 'var(--ludo-muted)';
 
-    const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+    const myPlayer = useMemo(() => players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi), [players, address]);
+
+    // Optimization: Move hook call out of JSX props
+    const pointRotation = useBoardLayoutRotation(smoothProgress);
+
+    // Performance Optimization: Memoize children of BoardGrid to isolate them from timer updates
+    const gridChildren = useMemo(() => (
+        <>
+            {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
+                const isActivePlayer = players.some(p => p.color === color);
+                // Inactive corners have no player — show empty base (placeholder dots only)
+                const tokensInHome = isActivePlayer
+                    ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === -1 ? idx : -1).filter((idx: number) => idx !== -1)
+                    : [];
+                const finishedTokens = isActivePlayer
+                    ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === 57 ? idx : -1).filter((idx: number) => idx !== -1)
+                    : [];
+                return (
+                    <HomeBlock
+                        key={color}
+                        color={color}
+                        corner={colorCorner[color]}
+                        gridRow={CORNER_SLOTS[colorCorner[color]].gridRow}
+                        gridCol={CORNER_SLOTS[colorCorner[color]].gridCol}
+                        tokensInHome={tokensInHome}
+                        finishedTokens={finishedTokens}
+                        onTokenClick={(idx) => handleTokenClick(color, idx)}
+                        isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
+                        counterRotationDeg={counterRotationDeg}
+                    />
+                );
+            })}
+            <BoardTokens
+                players={players}
+                positions={localGameState.positions}
+                currentPlayer={localGameState.currentPlayer}
+                gamePhase={localGameState.gamePhase}
+                colorCorner={colorCorner}
+                address={address}
+                playerCount={playerCount}
+                handleTokenClick={handleTokenClick}
+                counterRotationDeg={counterRotationDeg}
+            />
+        </>
+    ), [
+        players,
+        localGameState.positions,
+        localGameState.currentPlayer,
+        localGameState.gamePhase,
+        localGameState.diceValue,
+        colorCorner,
+        handleTokenClick,
+        counterRotationDeg,
+        address,
+        playerCount
+    ]);
 
     return (
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
@@ -168,45 +223,16 @@ export default function Board({
                     <BoardGrid
                         pathCells={pathCells}
                         colorCorner={colorCorner}
-                        localGameState={localGameState}
+                        powerTiles={localGameState.powerTiles}
+                        activeTraps={localGameState.activeTraps}
+                        diceValue={localGameState.diceValue}
+                        currentPlayer={localGameState.currentPlayer}
                         activeColor={activeColor}
                         sweepProgress={smoothProgress}
-                        pointRotation={useBoardLayoutRotation(smoothProgress)}
+                        pointRotation={pointRotation}
                         counterRotationDeg={counterRotationDeg}
                     >
-                        {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
-                            const isActivePlayer = players.some(p => p.color === color);
-                            // Inactive corners have no player — show empty base (placeholder dots only)
-                            const tokensInHome = isActivePlayer
-                                ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === -1 ? idx : -1).filter((idx: number) => idx !== -1)
-                                : [];
-                            const finishedTokens = isActivePlayer
-                                ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === 57 ? idx : -1).filter((idx: number) => idx !== -1)
-                                : [];
-                            return (
-                                <HomeBlock
-                                    key={color}
-                                    color={color}
-                                    corner={colorCorner[color]}
-                                    gridRow={CORNER_SLOTS[colorCorner[color]].gridRow}
-                                    gridCol={CORNER_SLOTS[colorCorner[color]].gridCol}
-                                    tokensInHome={tokensInHome}
-                                    finishedTokens={finishedTokens}
-                                    onTokenClick={(idx) => handleTokenClick(color, idx)}
-                                    isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
-                                    counterRotationDeg={counterRotationDeg}
-                                />
-                            );
-                        })}
-                        <BoardTokens
-                            players={players}
-                            localGameState={localGameState}
-                            colorCorner={colorCorner}
-                            address={address}
-                            playerCount={playerCount}
-                            handleTokenClick={handleTokenClick}
-                            counterRotationDeg={counterRotationDeg}
-                        />
+                        {gridChildren}
                     </BoardGrid>
 
                 </div>
