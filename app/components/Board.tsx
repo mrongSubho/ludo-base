@@ -93,6 +93,24 @@ export default function Board({
     });
 
     const localGameState = (spectatorMode && externalGameState) ? externalGameState : engine.gameState;
+
+    // Narrow state for BoardGrid to prevent re-renders on timer ticks
+    const gridState = React.useMemo(() => ({
+        currentPlayer: localGameState.currentPlayer,
+        diceValue: localGameState.diceValue,
+        powerTiles: localGameState.powerTiles,
+        activeTraps: localGameState.activeTraps,
+    }), [localGameState.currentPlayer, localGameState.diceValue, localGameState.powerTiles, localGameState.activeTraps]);
+
+    // Narrow state for BoardTokens
+    const tokensState = React.useMemo(() => ({
+        positions: localGameState.positions,
+        currentPlayer: localGameState.currentPlayer,
+        gamePhase: localGameState.gamePhase,
+        diceValue: localGameState.diceValue,
+        canMoveTokens: localGameState.canMoveTokens,
+    }), [localGameState.positions, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.canMoveTokens]);
+
     const { handleRoll, handleTokenClick, handleUsePower, resetGame, cancelAfk } = engine;
 
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useBoardLayout({
@@ -168,10 +186,9 @@ export default function Board({
                     <BoardGrid
                         pathCells={pathCells}
                         colorCorner={colorCorner}
-                        localGameState={localGameState}
+                        localGameState={gridState}
                         activeColor={activeColor}
                         sweepProgress={smoothProgress}
-                        pointRotation={useBoardLayoutRotation(smoothProgress)}
                         counterRotationDeg={counterRotationDeg}
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
@@ -200,7 +217,7 @@ export default function Board({
                         })}
                         <BoardTokens
                             players={players}
-                            localGameState={localGameState}
+                            localGameState={tokensState}
                             colorCorner={colorCorner}
                             address={address}
                             playerCount={playerCount}
@@ -240,7 +257,3 @@ export default function Board({
     );
 }
 
-// Helper for the timer translation
-function useBoardLayoutRotation(smoothProgress: any) {
-    return useTransform(smoothProgress, [0, 1], [270, -90]);
-}
