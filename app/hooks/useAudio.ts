@@ -146,9 +146,8 @@ export const useAudio = () => {
 
         let lfo: OscillatorNode | undefined;
 
-        // Theme mapping Fix: match real theme classes
+        // Theme mapping: Retro-Futurism neon pulse, Cosmic UI classic
         const isRetro = theme.includes('retro');
-        const isDark = theme.includes('dark');
 
         if (isRetro) {
             // Retro-Futurism: Neon Pulse
@@ -168,14 +167,6 @@ export const useAudio = () => {
             lfo.connect(lfoGain);
             lfoGain.connect(filter.frequency);
             lfo.start();
-        } else if (isDark) {
-            // Cosmic Dark: Space Drone
-            osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(40, ctx.currentTime);
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(61.74, ctx.currentTime); // B1
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(120, ctx.currentTime);
         } else {
             // Cosmic UI / Classic: Soft Ethereal
             osc1.type = 'triangle';

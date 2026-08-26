@@ -126,6 +126,7 @@ export default function Page() {
   const [playerCount, setPlayerCount] = useState<'1v1' | '2v2' | '4P'>('1v1');
   const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);
+  const [boardSeed, setBoardSeed] = useState<{ players: Player[]; colorCorner: any; isBotMatch: boolean } | null>(null);
 
   const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
   const { level, tier } = progression;
@@ -210,15 +211,16 @@ export default function Page() {
    const handlePlayNow = async (isBotOverride?: boolean) => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
     console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'playerCount:', playerCount, 'isBotMatch:', effectiveIsBotMatch);
-    if (isHost) {
-      const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
-      let players: Player[] = [];
 
-      const isInLobby = isLobbyConnected || (isHost && !!lobbyState);
-      if (isInLobby && lobbyState && !effectiveIsBotMatch) {
-        // --- MULTIPLAYER LOBBY START ---
-        // Map Lobby Slots directly to Player objects
-        players = lobbyState.slots
+    const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
+    let players: Player[] = [];
+    const isInLobby = isLobbyConnected || (isHost && !!lobbyState);
+
+    if (isInLobby && lobbyState && !effectiveIsBotMatch) {
+      // --- MULTIPLAYER LOBBY START (host only; guests hydrate from broadcast) ---
+      if (!isHost) return;
+      // Map Lobby Slots directly to Player objects
+      players = lobbyState.slots
           .filter(slot => slot.status === 'joined')
           .map(slot => {
             const addr = slot.playerId || '';
@@ -248,7 +250,26 @@ export default function Page() {
         }
       } else {
         // --- OFFLINE / BOT MATCH START ---
-        players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
+        // Any offline-seeded match (bot pick or matchmaking fallback) must seat
+        // exactly one human - the local user - and fill the rest with bots.
+        players = shufflePlayers(playerCount, true, cc) as Player[];
+
+        // Bind the local user to the single human seat so wallet-keyed lookups resolve
+        const myAddr = address?.toLowerCase();
+        if (myAddr) {
+          const profileData = participants[myAddr];
+          players = players.map(p => {
+            if (p && !p.isAi && !p.walletAddress) {
+              return {
+                ...p,
+                walletAddress: myAddr,
+                name: finalName || profileData?.username || 'You',
+                avatar: profileData?.avatar_url || p.avatar
+              } as Player;
+            }
+            return p;
+          });
+        }
 
         // Legacy mapping for simple teamup without lobby (if still reachable)
         if (isLobbyConnected && !effectiveIsBotMatch && !lobbyState) {
@@ -276,6 +297,10 @@ export default function Page() {
 
       let newMatchId: string | undefined;
 
+      // Authoritative seating for locally-started games: hand the exact roster we
+      // just built to the Board, bypassing any stale networked gameState.
+      setBoardSeed({ players, colorCorner: cc, isBotMatch: effectiveIsBotMatch });
+
       try {
         const res = await fetch('/api/match/start', {
           method: 'POST',
@@ -302,12 +327,13 @@ export default function Page() {
         isBotMatch: effectiveIsBotMatch,
         matchId: newMatchId
       });
-    }
+
     setAppState('game');
   };
 
   const handleBackToSubMenu = () => {
     leaveGame();
+    setBoardSeed(null);
     setAppState('dashboard');
   };
 
@@ -526,10 +552,10 @@ export default function Page() {
                   <Board
                     playerCount={playerCount}
                     gameMode={selectedMode as any}
-                    isBotMatch={gameState?.isBotMatch ?? isBotMatch}
+                    isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
                     onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
-                    initialPlayers={gameState?.initialBoardConfig?.players}
-                    initialColorCorner={gameState?.initialBoardConfig?.colorCorner}
+                    initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
+                    initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
                   />
                 )}
               </main>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { getGridCellInfo, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
+import { getGridCellInfo, getBoardCoordinate, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 
@@ -43,7 +43,6 @@ export function BoardGrid({
     pointRotation,
     counterRotationDeg
 }: BoardGridProps) {
-    // Resolve active color key (e.g., 'green', 'red')
     const activeColor = localGameState?.currentPlayer || propActiveColor;
     
     // Fallback Hex Colors (from mockup)
@@ -53,6 +52,22 @@ export function BoardGrid({
         blue: '#3b82f6',
         yellow: '#eab308'
     };
+
+    // Calculate occupied cells to hide star markers
+    const occupiedCells = new Set<string>();
+    const ALL_COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    if (localGameState?.positions) {
+        ALL_COLORS.forEach(color => {
+            const positions = localGameState.positions[color] || [];
+            positions.forEach((pos: number) => {
+                const numericPos = Number(pos);
+                if (numericPos >= 0 && numericPos < 57) {
+                    const pt = getBoardCoordinate(numericPos, color, colorCorner);
+                    if (pt) occupiedCells.add(`${pt.r}-${pt.c}`);
+                }
+            });
+        });
+    }
 
     return (
         <div className="board-grid" style={{
@@ -92,7 +107,7 @@ export function BoardGrid({
                             position: 'relative'
                         }}
                     >
-                        {cellInfo.type === 'safe' && <StarMarker color="#eab308" />}
+                        {cellInfo.type === 'safe' && !occupiedCells.has(`${row}-${col}`) && <StarMarker color="#eab308" />}
                         {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
                         {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {

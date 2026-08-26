@@ -125,16 +125,45 @@ export default function LudoDice({
     const accentColor = COLOR_MAP[activeColor] || '#ffffff';
 
     return (
-        <div className="ludo-dice-container relative flex flex-col items-center justify-center p-4">
-            {/* Ambient Aura */}
-            <motion.div 
-                className="absolute w-24 h-24 rounded-full blur-2xl pointer-events-none opacity-40"
-                animate={{
-                    scale: isRolling ? 0.8 : 1.4,
-                    opacity: isRolling ? 0.2 : 0.5,
-                    backgroundColor: accentColor
-                }}
+        <motion.div
+            className="ludo-dice-container relative flex flex-col items-center justify-center p-4"
+            initial={{ scale: 0, opacity: 0, y: 46, rotate: -32 }}
+            animate={{
+                scale: [0, 1.22, 0.94, 1.06, 1],
+                opacity: [0, 1, 1, 1, 1],
+                y: [46, -12, 4, 0, 0],
+                rotate: [-32, 10, -6, 2, 0],
+            }}
+            transition={{ duration: 0.85, times: [0, 0.45, 0.68, 0.85, 1], ease: 'easeOut' }}
+        >
+            {/* Turn-pass flash ring: one-shot expanding halo on arrival */}
+            <motion.span
+                className="absolute w-16 h-16 rounded-full pointer-events-none"
+                style={{ border: `3px solid ${accentColor}`, top: '50%', left: '50%', marginTop: -32, marginLeft: -32 }}
+                initial={{ scale: 0.3, opacity: 1 }}
+                animate={{ scale: 2.6, opacity: 0 }}
+                transition={{ duration: 0.9, ease: 'easeOut', delay: 0.15 }}
             />
+            {/* Ambient Aura — steady soft glow (the ring above carries the rhythm) */}
+            <motion.div
+                className="absolute w-24 h-24 rounded-full blur-2xl pointer-events-none"
+                initial={false}
+                animate={{
+                    scale: isRolling ? 0.8 : 1.5,
+                    opacity: isRolling ? 0.2 : 0.5,
+                    backgroundColor: accentColor,
+                }}
+                transition={{ duration: 0.3 }}
+            />
+            {/* Expanding color ring while awaiting the roll — one clean wave */}
+            {!disabled && !isRolling && (
+                <motion.span
+                    className="absolute w-14 h-14 rounded-full pointer-events-none"
+                    style={{ border: `3px solid ${accentColor}`, top: '50%', left: '50%', marginTop: -28, marginLeft: -28 }}
+                    animate={{ scale: [0.5, 1.9], opacity: [0.95, 0] }}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+                />
+            )}
 
             {/* 3D Scene Wrapper */}
             <div 
@@ -181,7 +210,7 @@ export default function LudoDice({
                     user-select: none;
                 }
             `}</style>
-        </div>
+        </motion.div>
     );
 }
 

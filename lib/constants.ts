@@ -25,6 +25,7 @@ export const DICE_ROLL_SIX = 6;
 
 // --- AI Heuristics & Scoring ---
 export const AI_SCORES = {
+  PROMOTION: 150, // Entering home lane (Queen)
   REACH_FINISH: 150,
   POWER_TILE_HUNT: 120,
   CAPTURE_TOKEN: 100,
@@ -36,8 +37,8 @@ export const AI_SCORES = {
 };
 
 // --- Animations & Delays ---
-export const BOT_ROLL_DELAY_MIN = 1500;
-export const BOT_ROLL_DELAY_MAX = 6000;
-export const BOT_MOVE_DELAY = 1500;
+export const BOT_ROLL_DELAY_MIN = 150;
+export const BOT_ROLL_DELAY_MAX = 1900;
+export const BOT_MOVE_DELAY = 900;
 export const GUEST_SYNC_DELAY = 800; // ms to wait for host init
 export const JOINER_SYNC_DELAY = 1500; // ms wait for Host PeerJS ID

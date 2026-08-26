@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useDisconnect } from 'wagmi';
 import { motion } from 'framer-motion';
 import ThemeSwitcher from './ThemeSwitcher';
+import TokenStyleSwitcher from './TokenStyleSwitcher';
 
 // ─── Settings Drawer Icons ───────────────────────────────────────────────────
 
@@ -206,6 +207,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Theme</h3>
                         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden p-4 flex justify-center items-center">
                             <ThemeSwitcher />
+                        </div>
+                    </div>
+
+                    {/* Token Style Section */}
+                    <div className="flex flex-col">
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Token Style</h3>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden p-4 flex justify-center items-center">
+                            <TokenStyleSwitcher />
                         </div>
                     </div>
 

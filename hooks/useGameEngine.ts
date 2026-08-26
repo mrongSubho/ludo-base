@@ -290,7 +290,18 @@ export function useGameEngine({
 
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
-        const newPlayers = shufflePlayers(playerCount, isBotMatch, newCC) as Player[];
+        // Preserve seating mode: a single-human (offline/bot-seated) board stays bot-seeded;
+        // real multiplayer boards keep template shuffling.
+        const offlineSeeded = initialPlayers.filter(p => !p.isAi).length === 1;
+        const newPlayers = shufflePlayers(playerCount, isBotMatch || offlineSeeded, newCC) as Player[];
+
+        const prevHuman = initialPlayers.find(p => !p.isAi);
+        const nextHuman = newPlayers.find(p => !p.isAi);
+        if (prevHuman?.walletAddress && nextHuman) {
+            nextHuman.walletAddress = prevHuman.walletAddress;
+            nextHuman.name = prevHuman.name;
+            nextHuman.avatar = prevHuman.avatar;
+        }
 
         setBoardConfig({
             players: newPlayers,
@@ -307,7 +318,7 @@ export function useGameEngine({
             isStarted: true,
             lastUpdate: Date.now()
         });
-    }, [playerCount, gameMode, pathCells, isBotMatch, setBoardConfig]);
+    }, [playerCount, gameMode, pathCells, isBotMatch, setBoardConfig, initialPlayers]);
 
     useEffect(() => {
         if (localGameState.winner) return;

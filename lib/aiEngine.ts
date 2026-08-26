@@ -89,9 +89,9 @@ export function calculateMoveScore(
         score += AI_SCORES.REACH_FINISH;
     }
 
-    // Enter Home Lane (+25) - Safe from captures
+    // Enter Home Lane (Promotion to Queen: +150, Enter safe lane: +25)
     if (nextPos >= HOME_LANE_START_INDEX && currentPos < HOME_LANE_START_INDEX) {
-        score += AI_SCORES.ENTER_HOME_LANE;
+        score += AI_SCORES.ENTER_HOME_LANE + AI_SCORES.PROMOTION;
     }
 
     // Move out of Home (+40) - Getting a new piece on the board

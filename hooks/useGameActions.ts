@@ -156,6 +156,10 @@ export function useGameActions({
         if (pTurnSwitchPending) {
             if (autoMoveTimeoutRef.current) clearTimeout(autoMoveTimeoutRef.current);
             autoMoveTimeoutRef.current = setTimeout(() => {
+                // Release the roll guard — this path skips the normal-flow
+                // reset, and a stuck guard deadlocks every future roll
+                // (AFK auto-play then loops on strikes forever).
+                rollingRef.current = false;
                 setLocalGameState((latest: any) => {
                     const switchState = { 
                         ...latest, 
@@ -352,7 +356,7 @@ export function useGameActions({
         }
 
         if (pDelayedAction === 'turnSwitch') {
-            await new Promise(r => setTimeout(r, 2000)); // Delay for visual clarity
+            // Instant pass: no dead time when nobody can move
             setLocalGameState((latest: any) => {
                 const switchState = { 
                     ...latest, 
@@ -475,10 +479,9 @@ export function useGameActions({
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
 
         const actingPlayerColor = localGameState.currentPlayer;
-        const myPlayer = initialPlayers.find(p => 
-            (address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || 
-            (!address && !p.isAi)
-        );
+        const myPlayer =
+            initialPlayers.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) ||
+            initialPlayers.find(p => !p.isAi);
         const myColor = myPlayer?.color;
         const isMyTurn = actingPlayerColor === myColor;
         const isCurrentlyBot = initialPlayers.find(p => p.color === actingPlayerColor)?.isAi;

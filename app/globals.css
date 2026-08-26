@@ -110,25 +110,6 @@ body.theme-cosmic-ui {
 body.theme-cosmic-ui .cosmic-orb { display: block; }
 body.theme-cosmic-ui .boot-dot { display: none; }
 
-body.theme-cosmic-dark {
-  --ludo-bg: #050505;
-  --ludo-card: rgba(15, 15, 20, 0.82);
-  --ludo-text: #f8fafc;
-  --ludo-border: rgba(255, 255, 255, 0.1);
-  --ludo-slate: #f8fafc;
-  --ludo-bg-image: var(--ludo-bg-cosmic);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.6);
-  --ludo-base-green: #22c55e;
-  --ludo-base-red: #ef4444;
-  --ludo-base-blue: #3b82f6;
-  --ludo-base-yellow: #eab308;
-  --ludo-path-bg: #475569; /* Slate Gray for Dark */
-  --ludo-pad-bg: rgba(0, 0, 0, 0.4);
-}
-
-body.theme-cosmic-dark .cosmic-orb { display: none; }
-body.theme-cosmic-dark .boot-dot { display: block; }
-
 /* ─── Step 2: Base styles ─── */
 *,
 *::before,
@@ -2037,6 +2018,7 @@ body.theme-retro-futurism .home-pad {
 }
 
 .token-dot-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2313,18 +2295,12 @@ body.theme-retro-futurism .home-pad {
   animation-delay: 0.2s;
 }
 
-/* ─── Ludo Tokens (Premium Redesign) ─── */
+/* ─── Ludo Tokens (Grandmaster's Path SVGs) ─── */
 .ludo-token {
-  width: 82%;
-  height: 82%;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.3),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  width: 90%;
+  height: 90%;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   z-index: 5;
   display: flex !important;
@@ -2332,68 +2308,50 @@ body.theme-retro-futurism .home-pad {
   justify-content: center;
 }
 
-/* Glassmorphic Shine Overlay */
-.ludo-token::before {
-  content: '';
-  position: absolute;
-  top: 10%;
-  left: 15%;
-  width: 40%;
-  height: 30%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent);
-  border-radius: 50%;
-  transform: rotate(-15deg);
-  pointer-events: none;
-}
-
-/* Inner Core Detail */
-.ludo-token::after {
-  content: '';
-  width: 25%;
-  height: 25%;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
-  pointer-events: none;
-}
-
 .ludo-token:hover {
-  transform: scale(1.2) translateY(-4px);
-  z-index: 100 !important; /* Ensure hovered token is on top */
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  transform: scale(1.15) translateY(-2px);
+  z-index: 100 !important;
 }
 
 .ludo-token.draggable {
-  animation: pulse-draggable 1.5s infinite ease-in-out;
+  animation: pulse-draggable-svg 2s infinite ease-in-out;
 }
 
-@keyframes pulse-draggable {
-  0% { transform: scale(1); box-shadow: 0 0 0 0px var(--ludo-blue); }
-  50% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(0, 82, 255, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0px var(--ludo-blue); }
+/* Pulse wrapper for board tokens: carries the scale animation on a child
+   element so it cannot override framer-motion's inline counter-rotation
+   on the .ludo-token root (which caused upside-down/horizontal tokens). */
+.ludo-token-pulse {
+  width: 100%;
+  height: 100%;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  animation: pulse-draggable-svg 2s infinite ease-in-out;
 }
 
-.green-token {
-  background: linear-gradient(145deg, #10b981, #059669) !important;
+@keyframes pulse-draggable-svg {
+  0% { transform: scale(1); filter: drop-shadow(0 0 0px var(--ludo-blue)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 8px var(--ludo-blue)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 0px var(--ludo-blue)); }
 }
 
-.red-token {
-  background: linear-gradient(145deg, #ef4444, #dc2626) !important;
-}
-
-.yellow-token {
-  background: linear-gradient(145deg, #f59e0b, #d97706) !important;
-}
-
-.blue-token {
-  background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
+/* Ensure Tokens don't have backgrounds and are pure SVGs */
+.green-token, .red-token, .yellow-token, .blue-token {
+  background: none !important;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
 }
 
 
-/* 🧬 Retro-Futurism Token Enhancements */
+/* 🧬 Retro-Futurism Token Enhancements
+   Tokens are full-bleed SVG pieces — hard-reset any box chrome and add a
+   soft silhouette glow so they pop on the dark grid. */
 body.theme-retro-futurism .ludo-token {
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 15px currentColor;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 body.theme-retro-futurism .green-token { color: #10B981; }
@@ -2467,6 +2425,7 @@ body.theme-retro-futurism .token-count-badge {
 }
 
 .token-dot-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4192,4 +4151,154 @@ body.theme-retro-futurism .token-dot-placeholder {
 .animate-marquee {
   display: inline-flex;
   animation: marquee 20s linear infinite;
+}
+/* ─── Awaiting-move avatar blink: pulses until the player moves a token ─── */
+.avatar-circle.await-move {
+  animation: avatar-await-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes avatar-await-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor, 0 0 10px 2px currentColor;
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0), 0 0 26px 7px currentColor;
+    transform: scale(1.09);
+  }
+}
+
+/* Expanding circular ring for the awaiting-move avatar */
+.await-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 9999px;
+  border: 3.5px solid currentColor;
+  pointer-events: none;
+  animation: await-ring-expand 1.6s ease-out infinite;
+}
+
+@keyframes await-ring-expand {
+  0% { transform: scale(0.85); opacity: 1; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* ─── Classic Orb Token Style (opt-in via Settings → Token Style) ───
+   Restores the original glossy disc tokens: the .ludo-token div itself
+   becomes the orb, SVG pieces are hidden. Appended last → wins cascade. */
+body.token-style-orb .ludo-token svg {
+  display: none !important;
+}
+
+body.token-style-orb .ludo-token {
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.9) !important;
+  background: none !important;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
+  filter: none;
+}
+
+body.token-style-orb .ludo-token::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 40%;
+  height: 30%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent);
+  border-radius: 50%;
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+body.token-style-orb .ludo-token::after {
+  content: '';
+  width: 25%;
+  height: 25%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+body.token-style-orb .green-token {
+  background: linear-gradient(145deg, #10b981, #059669) !important;
+}
+
+body.token-style-orb .red-token {
+  background: linear-gradient(145deg, #ef4444, #dc2626) !important;
+}
+
+body.token-style-orb .yellow-token {
+  background: linear-gradient(145deg, #f59e0b, #d97706) !important;
+}
+
+body.token-style-orb .blue-token {
+  background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
+}
+
+/* ─── Valid Move Highlight ─── */
+.token-valid {
+  z-index: 12 !important;
+  filter: drop-shadow(0 0 10px currentColor) brightness(1.15);
+}
+
+.token-valid-ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2.5px solid;
+  pointer-events: none;
+}
+
+.token-valid-arrow {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+  z-index: 5;
+}
+
+.token-dimmed {
+  opacity: 0.38 !important;
+  filter: saturate(0.4) brightness(0.85) !important;
+  pointer-events: none;
+}
+
+.token-home-invalid {
+  opacity: 0.5;
+}
+
+.token-destination-marker {
+  width: 70%;
+  height: 70%;
+  align-self: center;
+  justify-self: center;
+  border-radius: 50%;
+  border: 2.5px dashed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+}
+
+.token-destination-inner {
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  border: 1.5px solid;
 }

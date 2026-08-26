@@ -21,10 +21,18 @@ export const getDisplayNameHelper = (player: Player) => {
     return player.name || 'Guest';
 };
 
+const AWAIT_RING_COLORS: Record<string, string> = {
+    green: '#10b981',
+    red: '#ef4444',
+    yellow: '#eab308',
+    blue: '#3b82f6',
+};
+
 interface PlayerCardProps {
     player: Player;
     isActive: boolean;
     power: PowerType | null;
+    awaitingMove?: boolean;
     onPowerClick?: () => void;
 }
 
@@ -32,15 +40,24 @@ export function PlayerCard({
     player,
     isActive,
     power,
+    awaitingMove,
     onPowerClick,
 }: PlayerCardProps) {
     const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
         <div className={`player-card player-card-corner ${player.position}`}>
-            <div className="avatar-circle-wrapper">
+            <div className="avatar-circle-wrapper" style={{ position: 'relative' }}>
+                {awaitingMove && ([0, 0.8] as const).map(delay => (
+                    <span
+                        key={delay}
+                        className="await-ring"
+                        style={{ borderColor: AWAIT_RING_COLORS[player.color] || '#ffffff', animationDelay: `${delay}s` }}
+                        aria-hidden
+                    />
+                ))}
                 <div
-                    className={`avatar-circle ${player.color} ${isActive ? 'active-glow' : ''}`}
+                    className={`avatar-circle ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''}`}
                     title={getDisplayNameHelper(player)}
                     onClick={onPowerClick}
                 >
@@ -108,10 +125,12 @@ export function PlayerRow({
                             player={p}
                             isActive={isMyTurn}
                             power={localGameState.playerPowers[p.color]}
+                            awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
                             onPowerClick={() => !spectatorMode && handleUsePower(p.color)}
                         />
                         {isMyTurn && !spectatorMode && (
                             <LudoDice
+                                key={p.color}
                                 onRoll={(val) => handleRoll(val)}
                                 disabled={!canRoll}
                                 currentValue={localGameState.diceValue}

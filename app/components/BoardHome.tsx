@@ -33,6 +33,9 @@ interface HomeBlockProps {
     onTokenClick: (tokenIndex: number) => void;
     isDraggable?: boolean;
     counterRotationDeg?: number;
+    diceValue?: number | null;
+    gamePhase?: string;
+    currentPlayer?: string;
 }
 
 export function HomeBlock({
@@ -44,7 +47,10 @@ export function HomeBlock({
     finishedTokens = [],
     onTokenClick,
     isDraggable,
-    counterRotationDeg = 0
+    counterRotationDeg = 0,
+    diceValue = null,
+    gamePhase = 'rolling',
+    currentPlayer = ''
 }: HomeBlockProps) {
     return (
         <div
@@ -56,27 +62,34 @@ export function HomeBlock({
                 {[0, 1, 2, 3].map((idx) => {
                     const isFinished = finishedTokens.includes(idx);
                     const isInHome = tokensInHome.includes(idx);
+                    const isPlayerTurn = currentPlayer === color && gamePhase === 'moving';
+                    const isValidHome = isInHome && isPlayerTurn && diceValue === 6;
                     return (
-                        <div key={idx} className="token-dot-wrapper">
+                        <div key={idx} className={`token-dot-wrapper ${isPlayerTurn && isInHome && !isValidHome ? 'token-home-invalid' : ''}`}>
                             {isInHome && (
                                 <Token
                                     color={color}
                                     onClick={() => onTokenClick(idx)}
                                     isDraggable={isDraggable}
+                                    isValidMove={isValidHome}
                                     counterRotationDeg={counterRotationDeg}
+                                    rank="Pawn"
+                                    pos={-1}
                                 />
                             )}
                             {isFinished && (
                                 <motion.div 
-                                    initial={{ scale: 0, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
+                                    initial={{ scale: 0, opacity: 0, filter: 'brightness(200%)' }}
+                                    animate={{ scale: 1, opacity: 1, filter: 'brightness(100%)' }}
                                     transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                                    className="finished-tick-mark drop-shadow-md"
-                                    style={{ color: `var(--ludo-${color})` }}
+                                    className="finished-king-mark absolute inset-0 flex items-center justify-center"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 opacity-90 drop-shadow-lg mix-blend-plus-lighter">
-                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                    </svg>
+                                    <Token
+                                        color={color}
+                                        rank="King"
+                                        pos={57}
+                                        counterRotationDeg={counterRotationDeg}
+                                    />
                                 </motion.div>
                             )}
                             {!isInHome && !isFinished && <span className="token-dot-placeholder" />}

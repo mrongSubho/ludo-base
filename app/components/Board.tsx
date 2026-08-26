@@ -195,6 +195,9 @@ export default function Board({
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
                                     isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
                                     counterRotationDeg={counterRotationDeg}
+                                    diceValue={localGameState.diceValue}
+                                    gamePhase={localGameState.gamePhase}
+                                    currentPlayer={localGameState.currentPlayer}
                                 />
                             );
                         })}
