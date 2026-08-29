@@ -1985,10 +1985,15 @@ body.theme-retro-futurism::before {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  padding: 10%;
-  gap: 8%;
+  padding: 12%;
+  gap: 14%;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
   backdrop-filter: blur(4px);
+}
+
+.home-pad .ludo-token {
+  width: 75%;
+  height: 75%;
 }
 
 /* 🧬 Retro-Futurism Home Overrides */
@@ -2086,7 +2091,7 @@ body.theme-retro-futurism .home-pad {
 }
 
 .board-cell.star-cell {
-  background: var(--ludo-card);
+  background: none;
 }
 
 /* ── Star / Safe Cells ── */
@@ -2094,15 +2099,12 @@ body.theme-retro-futurism .home-pad {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ludo-card) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .star-svg {
-  width: 58%;
-  height: 58%;
-  color: #F59E0B;
-  /* Restore gold color */
+  width: 96%;
+  height: 96%;
   fill: currentColor;
 }
 
@@ -4184,9 +4186,9 @@ body.theme-retro-futurism .token-dot-placeholder {
 }
 
 /* ─── Classic Orb Token Style (opt-in via Settings → Token Style) ───
-   Restores the original glossy disc tokens: the .ludo-token div itself
-   becomes the orb, SVG pieces are hidden. Appended last → wins cascade. */
-body.token-style-orb .ludo-token svg {
+   Premium glass-marble orbs: deep gradients, specular highlight, inner ring depth. */
+body.token-style-orb .ludo-token svg,
+body.token-style-orb .ludo-token img {
   display: none !important;
 }
 
@@ -4194,52 +4196,77 @@ body.token-style-orb .ludo-token {
   width: 82%;
   height: 82%;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.9) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.6) !important;
   background: none !important;
   box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.3),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.35),
+    inset 0 3px 6px rgba(255, 255, 255, 0.25) !important;
   filter: none;
+  position: relative;
+  overflow: hidden;
 }
 
+/* Top-left specular highlight — the "glass shine" */
 body.token-style-orb .ludo-token::before {
   content: '';
   position: absolute;
-  top: 10%;
-  left: 15%;
-  width: 40%;
-  height: 30%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent);
+  top: 8%;
+  left: 12%;
+  width: 45%;
+  height: 28%;
+  background: linear-gradient(160deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
   border-radius: 50%;
-  transform: rotate(-15deg);
+  transform: rotate(-20deg);
   pointer-events: none;
+  z-index: 3;
 }
 
+/* Bottom-right soft glow + center star */
 body.token-style-orb .ludo-token::after {
   content: '';
-  width: 25%;
-  height: 25%;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30%;
+  height: 30%;
+  transform: translate(-50%, -50%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.7));
   pointer-events: none;
+  z-index: 3;
 }
 
 body.token-style-orb .green-token {
-  background: linear-gradient(145deg, #10b981, #059669) !important;
+  background: radial-gradient(circle at 38% 35%, #34d399 0%, #10b981 30%, #059669 65%, #047857 100%) !important;
+}
+body.token-style-orb .green-token::after {
+  filter: drop-shadow(0 0 4px #34d399) drop-shadow(0 0 2px #34d399);
 }
 
 body.token-style-orb .red-token {
-  background: linear-gradient(145deg, #ef4444, #dc2626) !important;
+  background: radial-gradient(circle at 38% 35%, #f87171 0%, #ef4444 30%, #dc2626 65%, #b91c1c 100%) !important;
+}
+body.token-style-orb .red-token::after {
+  filter: drop-shadow(0 0 4px #f87171) drop-shadow(0 0 2px #f87171);
 }
 
 body.token-style-orb .yellow-token {
-  background: linear-gradient(145deg, #f59e0b, #d97706) !important;
+  background: radial-gradient(circle at 38% 35%, #fbbf24 0%, #f59e0b 30%, #d97706 65%, #b45309 100%) !important;
+}
+body.token-style-orb .yellow-token::after {
+  filter: drop-shadow(0 0 4px #fbbf24) drop-shadow(0 0 2px #fbbf24);
 }
 
 body.token-style-orb .blue-token {
-  background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
+  background: radial-gradient(circle at 38% 35%, #60a5fa 0%, #3b82f6 30%, #2563eb 65%, #1d4ed8 100%) !important;
+}
+body.token-style-orb .blue-token::after {
+  filter: drop-shadow(0 0 4px #60a5fa) drop-shadow(0 0 2px #60a5fa);
 }
 
 /* ─── Valid Move Highlight ─── */
@@ -4258,17 +4285,14 @@ body.token-style-orb .blue-token {
 
 .token-valid-arrow {
   position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 14px;
-  height: 10px;
+  top: -18px;
+  left: 0;
+  right: 0;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
-  z-index: 5;
 }
 
 .token-dimmed {

@@ -183,6 +183,7 @@ export default function Board({
                             const finishedTokens = isActivePlayer
                                 ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === 57 ? idx : -1).filter((idx: number) => idx !== -1)
                                 : [];
+                            const positions = localGameState.positions?.[color] as number[] | undefined;
                             return (
                                 <HomeBlock
                                     key={color}
@@ -192,6 +193,9 @@ export default function Board({
                                     gridCol={CORNER_SLOTS[colorCorner[color]].gridCol}
                                     tokensInHome={tokensInHome}
                                     finishedTokens={finishedTokens}
+                                    positions={positions}
+                                    colorCorner={colorCorner}
+                                    viewerColor={uiSlots.BL ?? undefined}
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
                                     isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
                                     counterRotationDeg={counterRotationDeg}

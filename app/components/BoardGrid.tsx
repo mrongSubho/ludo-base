@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { getGridCellInfo, getBoardCoordinate, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType } from '@/lib/boardLayout';
+import { getGridCellInfo, getBoardCoordinate, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType, SHARED_PATH, SAFE_POSITIONS } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 
@@ -16,17 +16,38 @@ interface BoardGridProps {
     counterRotationDeg?: number;
 }
 
-const StarMarker = ({ color = "#eab308" }: { color?: string }) => (
-    <svg viewBox="0 0 24 24" className="w-4 h-4" style={{ filter: `drop-shadow(0 0 4px ${color})` }}>
-        <path fill={color} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z" />
+const ZONE_HEX: Record<string, string> = {
+    green: '#00ff88',
+    red: '#ff3344',
+    yellow: '#ffcc00',
+    blue: '#00ccff',
+};
+
+const StarMarker = ({ color = "#eab308", counterRotationDeg = 0 }: { color?: string; counterRotationDeg?: number }) => (
+    <svg viewBox="0 0 24 24" style={{ width: '96%', height: '96%', transform: `rotate(${counterRotationDeg}deg)` }}>
+        <path fill={color} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
     </svg>
 );
 
-const ArrowMarker = ({ dir, color = "rgba(0,0,0,0.3)" }: { dir: 'up' | 'down' | 'left' | 'right', color?: string }) => {
-    const rotation = { up: 0, right: 90, down: 180, left: 270 }[dir];
+function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner): string {
+    const globalIdx = SHARED_PATH.findIndex(p => p.r === r && p.c === c);
+    if (globalIdx === -1) return '#eab308';
+    const colors = Object.keys(cc) as string[];
+    for (const color of colors) {
+        const corner = cc[color as keyof ColorCorner] as Corner | undefined;
+        if (!corner) continue;
+        const sc = CORNER_SLOTS[corner].startIdx;
+        const d = (globalIdx - sc + 52) % 52;
+        if (d < 13) return ZONE_HEX[color] || '#eab308';
+    }
+    return '#eab308';
+}
+
+const ArrowMarker = ({ dir, color = "#ffffff" }: { dir: 'up' | 'down' | 'left' | 'right', color?: string }) => {
+    const rotation = { right: 0, down: 90, left: 180, up: 270 }[dir];
     return (
         <motion.div style={{ rotate: rotation }}>
-            <svg viewBox="0 0 24 24" className="w-3 h-3">
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
                 <path fill={color} d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
             </svg>
         </motion.div>
@@ -93,6 +114,12 @@ export function BoardGrid({
                     bg = `var(--ludo-base-${cellInfo.color}, ${fallbackHex})`;
                 }
 
+                const isSafe = cellInfo.type === 'safe';
+                const safeZoneColor = isSafe ? getZoneColorForSafeCell(row, col, colorCorner) : null;
+                if (isSafe && safeZoneColor) {
+                    bg = `${safeZoneColor}33`;
+                }
+
                 return (
                     <div
                         key={`${row}-${col}`}
@@ -107,7 +134,7 @@ export function BoardGrid({
                             position: 'relative'
                         }}
                     >
-                        {cellInfo.type === 'safe' && !occupiedCells.has(`${row}-${col}`) && <StarMarker color="#eab308" />}
+                        {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
                         {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
                         {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
@@ -257,10 +284,13 @@ export function BoardGrid({
                              </motion.span>
                           ) : (
                              <motion.div
-                                animate={{ scale: [1, 1.1, 1] }}
-                                transition={{ repeat: Infinity, duration: 2 }}
+                                 animate={{ scale: [1, 1.1, 1] }}
+                                 transition={{ repeat: Infinity, duration: 2 }}
+                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                              >
-                                 <StarMarker color={COLOR_MAP[activeColor as string] || '#eab308'} />
+                                 <svg viewBox="0 0 24 24" style={{ width: '55%', height: '55%' }}>
+                                     <path fill={COLOR_MAP[activeColor as string] || '#eab308'} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
+                                 </svg>
                              </motion.div>
                          )}
                     </motion.div>

@@ -6,7 +6,7 @@ import { Player } from '@/hooks/useGameEngine';
 import { Point, getBoardCoordinate, ColorCorner, CORNER_SLOTS } from '@/lib/boardLayout';
 import { getTeammateColor, getIntermediatePathCoords, calculateNextPosition } from '@/lib/gameLogic';
 import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
-import { ChessRank, ChessPiece, getTokenRank, RANK_ORDER, shade } from './ChessTokens';
+import { ChessRank, ChessPiece, COLOR_PIECE, RANK_ORDER, shade } from './ChessTokens';
 
 interface BoardTokensProps {
     players: Player[];
@@ -124,7 +124,7 @@ export function Token({
                 rotate: skipRotation ? 0 : counterRotationDeg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}
-            className={`ludo-token ${color}-token ${isBlockade ? 'token-blockade' : ''} ${showValid ? 'token-valid' : ''} ${shouldDim ? 'token-dimmed' : ''}`}
+            className={`ludo-token ${color}-token ${isBlockade ? 'token-blockade' : ''} ${shouldDim ? 'token-dimmed' : ''}`}
             onClick={onClick}
             // "Premium" Hover: Higher scale + lift + subtle bloom
             whileHover={isDraggable ? {
@@ -159,35 +159,19 @@ export function Token({
                     }}
                     className="w-full h-full flex items-center justify-center p-0.5 relative"
                 >
-                    <ChessPiece color={color} rank={rank} />
+                    <ChessPiece color={color} rank={rank} size="board" />
                     {showPromoFX && <PromoFX color={color} />}
                     {showValid && (
-                        <>
+                        <div className="token-valid-arrow" style={{ color: colorMapSafe(color) }}>
                             <motion.div
-                                className="token-valid-ring"
-                                style={{ borderColor: colorMapSafe(color) }}
-                                initial={{ scale: 0.7, opacity: 0 }}
-                                animate={{ scale: [0.7, 1.35], opacity: [0.9, 0] }}
-                                transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut" }}
-                            />
-                            <motion.div
-                                className="token-valid-ring token-valid-ring--delayed"
-                                style={{ borderColor: colorMapSafe(color) }}
-                                initial={{ scale: 0.7, opacity: 0 }}
-                                animate={{ scale: [0.7, 1.35], opacity: [0.9, 0] }}
-                                transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut", delay: 0.55 }}
-                            />
-                            <motion.div
-                                className="token-valid-arrow"
-                                style={{ color: colorMapSafe(color) }}
                                 animate={{ y: [0, -6, 0] }}
                                 transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
                             >
-                                <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
-                                    <path d="M7 9L1 3L2.2 1.8L7 6.6L11.8 1.8L13 3L7 9Z" fill="currentColor" />
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                    <path d="M7 12.5 L3 8.5 L4.2 7.3 L6.2 9.3 L6.2 1.5 L7.8 1.5 L7.8 9.3 L9.8 7.3 L11 8.5 Z" fill="currentColor" />
                                 </svg>
                             </motion.div>
-                        </>
+                        </div>
                     )}
                 </motion.div>
             </AnimatePresence>
@@ -231,6 +215,69 @@ const ShatterFX = ({ pt, color }: { pt: Point; color: PlayerColor }) => {
                 initial={{ scale: 0.4, opacity: 0.9 }}
                 animate={{ scale: 1.9, opacity: 0 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
+            />
+        </div>
+    );
+};
+
+/* ── Finish starburst: glow ring + sparkles when a token reaches the end ── */
+const FinishFX = ({ pt, color }: { pt: Point; color: PlayerColor }) => {
+    const base = colorMapSafe(color);
+    const light = shade(base, 50);
+    const sparkles = [
+        { x: -18, y: -20, s: 4, delay: 0 },
+        { x: 16, y: -16, s: 3, delay: 0.04 },
+        { x: -10, y: 18, s: 3.5, delay: 0.08 },
+        { x: 20, y: 10, s: 4, delay: 0.02 },
+        { x: 0, y: -22, s: 3, delay: 0.06 },
+        { x: -20, y: 0, s: 3.5, delay: 0.1 },
+    ];
+    return (
+        <div className="absolute inset-0 pointer-events-none z-[60]" style={{ gridRow: pt.r, gridColumn: pt.c }}>
+            {/* Expanding glow ring */}
+            <motion.div
+                className="absolute left-1/2 top-1/2 rounded-full"
+                style={{
+                    width: 24, height: 24, marginLeft: -12, marginTop: -12,
+                    border: `2px solid ${light}`,
+                    boxShadow: `0 0 12px ${base}, 0 0 24px ${alphaHex(base, 0.4)}`,
+                }}
+                initial={{ scale: 0.3, opacity: 1 }}
+                animate={{ scale: 2.5, opacity: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+            />
+            {/* Star sparkle particles */}
+            {sparkles.map((sp, i) => (
+                <motion.span
+                    key={i}
+                    className="absolute left-1/2 top-1/2"
+                    style={{
+                        width: sp.s, height: sp.s,
+                        background: light,
+                        borderRadius: '50%',
+                        boxShadow: `0 0 6px ${light}`,
+                    }}
+                    initial={{ x: '-50%', y: '-50%', opacity: 1, scale: 1 }}
+                    animate={{
+                        x: `calc(-50% + ${sp.x}px)`,
+                        y: `calc(-50% + ${sp.y}px)`,
+                        opacity: 0,
+                        scale: 0.2,
+                    }}
+                    transition={{ duration: 0.55, ease: 'easeOut', delay: sp.delay }}
+                />
+            ))}
+            {/* Central flash */}
+            <motion.div
+                className="absolute left-1/2 top-1/2 rounded-full"
+                style={{
+                    width: 14, height: 14, marginLeft: -7, marginTop: -7,
+                    background: `radial-gradient(circle, #ffffff, ${light})`,
+                    boxShadow: `0 0 16px ${light}`,
+                }}
+                initial={{ scale: 0.2, opacity: 1 }}
+                animate={{ scale: 2, opacity: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
             />
         </div>
     );
@@ -314,7 +361,7 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
                         className={`ludo-token ${color}-token`}
                         style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
-                        <ChessPiece color={color} rank={getTokenRank(fromPos)} />
+                        <ChessPiece color={color} size="board" />
                     </div>
                 </div>
             </div>
@@ -328,6 +375,8 @@ interface TokenPieceProps {
     pos: number;
     targetPt: Point | null;
     offset: { x: number, y: number };
+    stackScale?: number;
+    stackZ?: number;
     isDraggable: boolean;
     isValidMove: boolean;
     isColorTurn: boolean;
@@ -342,6 +391,8 @@ export function TokenPiece({
     pos,
     targetPt,
     offset,
+    stackScale = 1,
+    stackZ = 0,
     isDraggable,
     isValidMove,
     isColorTurn,
@@ -469,14 +520,6 @@ export function TokenPiece({
 
                 setVisualPt(final);
 
-                // TEMP DEBUG: trace every animated move (console.log = visible by default)
-                console.log('[move-debug]', c, `${oldPos}->${pos}`, {
-                    rank: getTokenRank(pos),
-                    path: all.map(p => `${p.r},${p.c}`),
-                    cell: `${Math.round(cw)}x${Math.round(ch)}`,
-                    from: `x${Math.round(xs[0])},y${Math.round(ys[0])}`,
-                });
-
                 // Immediate write: the offset MUST be on the element before
                 // this paint, or the token flashes at its destination cell.
                 // (tl.set would defer to the timeline's first tick — too late.)
@@ -528,7 +571,7 @@ export function TokenPiece({
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{
                 opacity: 1,
-                scale: 1,
+                scale: stackScale,
                 x: offset.x,
                 y: offset.y,
             }}
@@ -553,7 +596,7 @@ export function TokenPiece({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: isAnimatingRef.current ? 50 : (isColorTurn ? 30 : 10 + index),
+                zIndex: isAnimatingRef.current ? 60 : 20 + stackZ * 2 + (isColorTurn ? 10 : 0),
                 position: 'relative',
             }}
         >
@@ -603,7 +646,6 @@ export function TokenPiece({
                         isValidMove={isValidMove}
                         counterRotationDeg={counterRotationDeg}
                         onClick={onClick}
-                        rank={getTokenRank(pos)}
                         pos={pos}
                         skipRotation
                     />
@@ -663,6 +705,7 @@ export function BoardTokens({
     // Capture detection: token vanished from the board (sent back to base)
     const prevPositionsRef = React.useRef<Record<string, number[]>>({});
     const [captureBursts, setCaptureBursts] = React.useState<{ id: number; pt: Point; color: PlayerColor }[]>([]);
+    const [finishBursts, setFinishBursts] = React.useState<{ id: number; pt: Point; color: PlayerColor }[]>([]);
     const [runHomeGhosts, setRunHomeGhosts] = React.useState<{ id: number; fromPos: number; color: PlayerColor }[]>([]);
     const burstIdRef = React.useRef(0);
 
@@ -670,6 +713,7 @@ export function BoardTokens({
         const prev = prevPositionsRef.current;
         const bursts: { id: number; pt: Point; color: PlayerColor }[] = [];
         const ghosts: { id: number; fromPos: number; color: PlayerColor }[] = [];
+        const finBursts: { id: number; pt: Point; color: PlayerColor }[] = [];
         ALL_COLORS.forEach(color => {
             const prevArr = prev[color];
             if (!prevArr) return;
@@ -680,16 +724,24 @@ export function BoardTokens({
                     if (pt) bursts.push({ id: burstIdRef.current, pt, color });
                     ghosts.push({ id: burstIdRef.current++, fromPos: pp, color });
                 }
+                if (pp >= 0 && pp < 57 && nextArr[idx] !== undefined && Number(nextArr[idx]) === BOARD_FINISH_INDEX) {
+                    const pt = getBoardCoordinate(pp, color, colorCorner);
+                    if (pt) finBursts.push({ id: burstIdRef.current++, pt, color });
+                }
             });
         });
         prevPositionsRef.current = JSON.parse(JSON.stringify(localGameState.positions));
-        if (bursts.length === 0) return;
+        if (bursts.length === 0 && finBursts.length === 0) return;
         setCaptureBursts(b => [...b, ...bursts]);
         setRunHomeGhosts(g => [...g, ...ghosts]);
+        setFinishBursts(b => [...b, ...finBursts]);
         const timers = bursts.map(b => setTimeout(() => {
             setCaptureBursts(cur => cur.filter(x => x.id !== b.id));
         }, 700));
-        return () => timers.forEach(clearTimeout);
+        const finTimers = finBursts.map(b => setTimeout(() => {
+            setFinishBursts(cur => cur.filter(x => x.id !== b.id));
+        }, 800));
+        return () => { timers.forEach(clearTimeout); finTimers.forEach(clearTimeout); };
     }, [localGameState.positions, colorCorner]);
 
     // 2. Flatten all active tokens for AnimatePresence to track correctly
@@ -705,90 +757,41 @@ export function BoardTokens({
         }).filter((t: { color: PlayerColor, index: number, pos: number } | null): t is { color: PlayerColor, index: number, pos: number } => t !== null);
     }) as { color: PlayerColor, index: number, pos: number }[];
 
-    // Destination markers for valid moves — shows where the token will land
-    const diceForDest: number | null = localGameState.diceValue ?? null;
-    const isMovingPhase = localGameState.gamePhase === 'moving' && diceForDest !== null;
-    const destMarkers: { key: string; pt: Point; color: PlayerColor }[] = [];
-    if (isMovingPhase) {
-        // On-board tokens
-        activeTokens.forEach(({ color, pos, index }) => {
-            const isItsMyTurn = localGameState.currentPlayer === myColor;
-            const teammate = getTeammateColor(myColor as PlayerColor, playerCount);
-            const isTeammateColor = teammate === color;
-            const posMap = localGameState.positions as Record<PlayerColor, number[]>;
-            const isSelfFinished = myColor ? posMap[myColor].every((p: number) => p === 57) : false;
-            const canHelpTeammate = isTeammateColor && isSelfFinished && playerCount === '2v2';
-            const isDraggable = isItsMyTurn && (color === myColor || canHelpTeammate);
-            if (!isDraggable) return;
-            const next = calculateNextPosition(pos, diceForDest!, color as PlayerColor, colorCorner);
-            if (next === pos) return;
-            const pt = getBoardCoordinate(next, color as PlayerColor, colorCorner);
-            if (pt) destMarkers.push({ key: `${color}-${index}-dest`, pt, color });
-        });
-        // Home tokens that can enter (dice 6)
-        if (diceForDest === 6) {
-            (['green','red','yellow','blue'] as PlayerColor[]).forEach(color => {
-                if (!players.some(p => p.color === color)) return;
-                const isItsMyTurn = localGameState.currentPlayer === myColor;
-                const isDraggable = isItsMyTurn && (color === myColor) && localGameState.gamePhase === 'moving';
-                if (!isDraggable) return;
-                const arr: number[] = localGameState.positions[color] || [];
-                arr.forEach((pos, idx) => {
-                    if (Number(pos) !== BASE_INDEX) return;
-                    const next = calculateNextPosition(BASE_INDEX, 6, color, colorCorner);
-                    const pt = getBoardCoordinate(next, color, colorCorner);
-                    if (pt && !destMarkers.some(m => m.pt.r === pt.r && m.pt.c === pt.c)) {
-                        destMarkers.push({ key: `${color}-home-${idx}-dest`, pt, color });
-                    }
-                });
-            });
-        }
-    }
-
+    // Sort so own tokens render last (on top in DOM order)
+    const sortedTokens = [...activeTokens].sort((a, b) => (a.color === myColor ? 1 : 0) - (b.color === myColor ? 1 : 0));
     return (
         <AnimatePresence>
-            {/* Valid destination markers — subtle landing targets */}
-            {isMovingPhase && destMarkers.map(({ key, pt, color }) => (
-                <motion.div
-                    key={key}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="token-destination-marker"
-                    style={{
-                        gridRow: pt.r,
-                        gridColumn: pt.c,
-                        borderColor: colorMapSafe(color),
-                        boxShadow: `0 0 10px ${alphaHex(colorMapSafe(color), 0.8)}`,
-                    }}
-                >
-                    <motion.div
-                        className="token-destination-inner"
-                        style={{ background: alphaHex(colorMapSafe(color), 0.18), borderColor: alphaHex(colorMapSafe(color), 0.45) }}
-                        animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
-                        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                </motion.div>
-            ))}
-            {activeTokens.map(({ color, index, pos }) => {
+            {sortedTokens.map(({ color, index, pos }) => {
                 const targetPt = getBoardCoordinate(pos, color, colorCorner);
 
-                // Stacking offset calculation
+                // Stacking — grid layout so each token is identifiable; own token prioritized on top
                 let offset = { x: 0, y: 0 };
+                let stackScale = 1;
+                let stackZ = 0;
                 if (targetPt) {
                     const key = `${targetPt.r}-${targetPt.c}`;
-                    const stack = occupancy[key] || [];
+                    let stack = occupancy[key] || [];
                     if (stack.length > 1) {
-                        const myStackIdx = stack.findIndex(s => s.color === color && s.index === index);
-                        if (myStackIdx >= 0) {
-                            const angle = (myStackIdx * (360 / stack.length)) * (Math.PI / 180);
-                            const radius = 5;
-                            offset = {
-                                x: Math.cos(angle) * radius,
-                                y: Math.sin(angle) * radius
-                            };
-                        }
+                        // Sort so myColor is last (rendered on top) — stable for others
+                        const sorted = [...stack].sort((a, b) => {
+                            const aOwn = a.color === myColor ? 1 : 0;
+                            const bOwn = b.color === myColor ? 1 : 0;
+                            return aOwn - bOwn;
+                        });
+                        const myStackIdx = sorted.findIndex(s => s.color === color && s.index === index);
+                        stackZ = myStackIdx;
+                        stackScale = 0.88;
+                        // Grid offsets per stack size (back → front order)
+                        const grids: Record<number, { x: number; y: number }[]> = {
+                            2: [{ x: -9, y: -4 }, { x: 9, y: 6 }],
+                            3: [{ x: -10, y: -8 }, { x: 10, y: -8 }, { x: 0, y: 10 }],
+                            4: [{ x: -9, y: -9 }, { x: 9, y: -9 }, { x: -9, y: 9 }, { x: 9, y: 9 }],
+                        };
+                        const pts = grids[sorted.length] || sorted.map((_, i) => {
+                            const ang = (i * (360 / sorted.length)) * (Math.PI / 180);
+                            return { x: Math.cos(ang) * 12, y: Math.sin(ang) * 12 };
+                        });
+                        offset = pts[myStackIdx] || { x: 0, y: 0 };
                     }
                 }
 
@@ -814,6 +817,8 @@ export function BoardTokens({
                         pos={pos}
                         targetPt={targetPt}
                         offset={offset}
+                        stackScale={stackScale}
+                        stackZ={stackZ}
                         isDraggable={isDraggable}
                         isValidMove={isValidMove}
                         isColorTurn={localGameState.currentPlayer === color}
@@ -825,6 +830,9 @@ export function BoardTokens({
             })}
             {captureBursts.map(b => (
                 <ShatterFX key={`burst-${b.id}`} pt={b.pt} color={b.color} />
+            ))}
+            {finishBursts.map(b => (
+                <FinishFX key={`finish-${b.id}`} pt={b.pt} color={b.color} />
             ))}
             {runHomeGhosts.map(g => (
                 <RunHomeGhost
