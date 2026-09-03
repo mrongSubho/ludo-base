@@ -25,6 +25,8 @@ import { ActiveBettingWindow } from './useSpectatorSync';
 import {
     handleThreeSixes,
     getNextPlayer,
+    createLobbySlots,
+    assignJoinerToSlot,
     INITIAL_GAME_STATE
 } from '@/lib/gameLogic';
 
@@ -43,6 +45,7 @@ export interface TeamUpContextType {
     pendingInvite: InvitePayload | null;
     hostGame: (roomId?: string) => void;
     joinGame: (roomId: string, token?: string) => void;
+    initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
     sendIntent: (type: string, payload: any) => void;
     broadcastAction: (type: GameActionType, payload?: any, fullState?: any) => void;
     broadcastLobbyAction: (type: LobbyActionType, payload?: any) => void;
@@ -289,6 +292,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         console.log('🕹️ Processing action:', type, data);
 
+        // 🏟️ Lobby sync (guest applies host state; host ignores echoes)
+        if (type === 'LOBBY_SYNC' && (data as any).lobbyState && !isHost) {
+            console.log('🏟️ [Guest] Applying lobby sync');
+            setLobbyState((data as any).lobbyState);
+            return;
+        }
+
         // 🌟 Authoritative State Override (If provided by Host)
         if (stateOverride && !isHost) {
             console.log('🌟 [Guest] Applying State Override');
@@ -355,7 +365,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
         }
-    }, [processedActionIds, handleCommitReceived, handleRevealReceived, setGameState]);
+    }, [processedActionIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -388,6 +398,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     color: prev[data.address]?.color
                 }
             }));
+            // Seat the joiner (host authority). Runs for host only; guests ignore.
+            if (isHost && data.address) {
+                const cur = lobbyStateRef.current;
+                if (cur) {
+                    const next = assignJoinerToSlot(cur.slots, cur.matchType, data.address, data.username, data.avatar_url, conn.peer);
+                    if (next) {
+                        const lobby = { ...cur, slots: next };
+                        setLobbyState(lobby);
+                        lobbyStateRef.current = lobby;
+                        broadcastLobbyAction('LOBBY_SYNC', { lobbyState: lobby });
+                    }
+                }
+            }
+        } else if (data.type === 'LOBBY_SYNC' && data.lobbyState && !isHost) {
+            setLobbyState(data.lobbyState);
+        } else if (data.type === 'START_GAME') {
+            processGameAction(data);
         } else if (data.type === 'GAME_ACTION') {
             if (isHost) {
                 console.log('📬 [Host] Received Intent:', data.action);
@@ -396,7 +423,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
             processGameAction(data);
         }
-    }, [processGameAction, setParticipants]);
+    }, [processGameAction, setParticipants, isHost, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
 
     const hostGame = useCallback((forcedRoomId?: string) => {
         destroyPeer();
@@ -463,6 +490,37 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         peer.on('open', () => connect(peer, 1));
     }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData]);
 
+    // Initialize a quick-match lobby the moment a match is found (host side).
+    // Seats self in slot 0 and publishes immediately so the guest sees a
+    // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
+    // isHost gate (setIsHost may not have flushed yet) by sending directly.
+    const initQuickLobby = useCallback((roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'classic', entryFee: number = 0) => {
+        const slots = createLobbySlots(matchType);
+        slots[0] = {
+            ...slots[0],
+            status: 'joined',
+            playerId: myAddress?.toLowerCase(),
+            playerName: myProfile?.username ?? undefined,
+            playerAvatar: myProfile?.avatar_url ?? undefined,
+            peerId: roomCode,
+        };
+        const lobby: LobbyState = {
+            roomCode,
+            hostId: myAddress?.toLowerCase() || '',
+            matchType,
+            gameMode,
+            entryFee,
+            slots,
+            status: 'forming',
+            createdAt: Date.now(),
+        };
+        setLobbyState(lobby);
+        lobbyStateRef.current = lobby;
+        const payload = { type: 'LOBBY_SYNC', lobbyState: lobby };
+        broadcastToAll(payload);
+        relayViaSupabase('lobby-action', payload, lobbyStateRef as any);
+    }, [myAddress, myProfile, setLobbyState, lobbyStateRef, broadcastToAll, relayViaSupabase]);
+
     const leaveGame = useCallback(() => {
         destroyPeer();
         setIsHost(false);
@@ -498,12 +556,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const value = useMemo(() => ({
         roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState,
-        pendingInvite, hostGame, joinGame, sendIntent, broadcastAction, broadcastLobbyAction,
+        pendingInvite, hostGame, joinGame, initQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow
     }), [
-        roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame,
+        roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow

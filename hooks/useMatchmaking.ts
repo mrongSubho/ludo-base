@@ -276,9 +276,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setMatchId(data.match_id);
             setRoomCode(data.room_code || '');
 
-            setTimeout(() => {
-                onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
-            }, 1500);
+            onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
             return true;
         }
         if (!data.ticket_id) throw new Error('Join returned neither match nor ticket');
@@ -302,6 +300,71 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             refreshingRef.current = false;
         }
     }, [joinSupabase, checkTicketStatus]);
+
+    // Background Edge attempt: runs AFTER (never before) the fast Supabase join,
+    // fire-and-forget. A silent Edge server can delay but never wedge searching.
+    // If Edge wins after Supabase already matched, it stands down and kills our orphan ticket.
+    const attemptEdgeInBackground = useCallback(async (wagerMin?: number, wagerMax?: number) => {
+        if (!edgeClient) return;
+        const normalizedPlayerId = playerId?.toLowerCase();
+        if (!normalizedPlayerId) return;
+        try {
+            setIsConnectingToEdge(true);
+            let connected = false;
+            const startTime = Date.now();
+            while (Date.now() - startTime < 3000) {
+                try {
+                    await edgeClient.connect();
+                    connected = true;
+                    break;
+                } catch (e) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+            if (!connected) return;
+
+            const targetWager = (wagerMin !== undefined && wagerMin === wagerMax) ? wagerMin : wager;
+            const edgeMatch = await Promise.race([
+                edgeClient.findMatch({
+                    playerId: normalizedPlayerId,
+                    mode: gameMode as any,
+                    entryFee: targetWager,
+                    minWager: wagerMin !== undefined ? wagerMin : targetWager,
+                    maxWager: wagerMax !== undefined ? wagerMax : targetWager,
+                    matchType: matchType as any,
+                    gameMode: gameMode as any,
+                    gameType: 'quick'
+                } as any),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Edge findMatch timed out after 8s')), 8000)),
+            ]) as any;
+
+            if (!edgeMatch || isMatched()) {
+                // Lost the race to Supabase: kill our orphan ticket so it can't ghost-match later
+                if (edgeMatch && ticketIdRef.current) {
+                    fetch('/api/matchmaking/cancel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ticketId: ticketIdRef.current, playerId: null })
+                    }).catch(() => {});
+                }
+                return;
+            }
+            console.log('✅ [Matchmaking] EDGE MATCH found (background)!', edgeMatch.matchId);
+            if (pollingRef.current) clearInterval(pollingRef.current);
+
+            setStatus('matched');
+            setMatchId(edgeMatch.matchId);
+            setMatchData(edgeMatch);
+            setRoomCode(edgeMatch.matchId);
+
+            const isIHost = edgeMatch.players[0].id.toLowerCase() === normalizedPlayerId;
+            onMatchFoundRef.current(edgeMatch.matchId, edgeMatch.matchId, isIHost, edgeMatch.validationToken);
+        } catch (edgeErr) {
+            console.warn('⚠️ [Matchmaking] Background Edge attempt failed quietly.', edgeErr);
+        } finally {
+            setIsConnectingToEdge(false);
+        }
+    }, [edgeClient, playerId, gameMode, matchType, wager, isMatched]);
 
     // --- Search Triggers ---
 
@@ -330,7 +393,6 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         isStartingRef.current = true;
         console.log(`📡 [Matchmaking] Starting UNIFIED search for player: ${normalizedPlayerId}`);
 
-        setIsConnectingToEdge(true);
         setMatchId(null);
         setRoomCode(null);
         setError(null);
@@ -346,64 +408,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setStatus('searching');
             lastSearchRef.current = criteria;
 
-            // Attempt Edge Server
-            if (edgeClient) {
-                try {
-                    console.log('📡 [Matchmaking] Attempting Edge Server connection...');
-                    let connected = false;
-                    const startTime = Date.now();
-                    while (Date.now() - startTime < 5000) {
-                        try {
-                            await edgeClient.connect();
-                            connected = true;
-                            break;
-                        } catch (e) {
-                            await new Promise(r => setTimeout(r, 1000));
-                        }
-                    }
-
-                    if (connected) {
-                        const targetWager = (wagerMin !== undefined && wagerMin === wagerMax) ? wagerMin : wager;
-                        console.log('📡 [Matchmaking] Requesting match from Edge Server...');
-                        // Bounded: a silent Edge server must never wedge the Supabase fallback
-                        const edgeMatch = await Promise.race([
-                            edgeClient.findMatch({
-                                playerId: normalizedPlayerId,
-                                mode: gameMode as any,
-                                entryFee: targetWager,
-                                minWager: wagerMin !== undefined ? wagerMin : targetWager,
-                                maxWager: wagerMax !== undefined ? wagerMax : targetWager,
-                                matchType: matchType as any,
-                                gameMode: gameMode as any,
-                                gameType: 'quick'
-                            } as any),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('Edge findMatch timed out after 8s')), 8000)),
-                        ]) as any;
-
-                        if (edgeMatch && !isMatched()) {
-                            console.log('✅ [Matchmaking] EDGE MATCH found!', edgeMatch.matchId);
-                            if (pollingRef.current) clearInterval(pollingRef.current);
-
-                            setStatus('matched');
-                            setMatchId(edgeMatch.matchId);
-                            setMatchData(edgeMatch);
-                            setRoomCode(edgeMatch.matchId);
-
-                            const isIHost = edgeMatch.players[0].id.toLowerCase() === normalizedPlayerId;
-                            setTimeout(() => {
-                                onMatchFoundRef.current(edgeMatch.matchId, edgeMatch.matchId, isIHost, edgeMatch.validationToken);
-                            }, 1000);
-                            return;
-                        }
-                    }
-                } catch (edgeErr) {
-                    console.warn('⚠️ [Matchmaking] Edge Server failed. Falling back to Supabase RPC.', edgeErr);
-                } finally {
-                    setIsConnectingToEdge(false);
-                }
-            }
-
-            // Fallback: Supabase RPC (+ heartbeat detect loop while waiting)
+            // Fast path first: Supabase RPC join (hundreds of ms, never wedges).
             try {
                 const matched = await joinSupabase(wagerMin, wagerMax);
                 if (!matched) {
@@ -411,6 +416,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     pollingRef.current = setInterval(() => {
                         heartbeatTick(wagerMin, wagerMax);
                     }, 5000);
+                    // Slow path in background: Edge hunts in parallel, stands down if RPC wins.
+                    attemptEdgeInBackground(wagerMin, wagerMax);
                 }
             } catch (err) {
                 console.error('❌ [Matchmaking] Supabase join failed:', err);
@@ -424,7 +431,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } finally {
             isStartingRef.current = false;
         }
-    }, [playerId, gameMode, matchType, wager, cancelSearch, edgeClient, joinSupabase, heartbeatTick, isMatched]);
+    }, [playerId, gameMode, matchType, wager, cancelSearch, joinSupabase, heartbeatTick, attemptEdgeInBackground, isMatched]);
 
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
         if (isStartingRef.current) {
@@ -476,9 +483,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 setMatchId(data.match_id);
                 setRoomCode(data.room_code || '');
 
-                setTimeout(() => {
-                    onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
-                }, 800);
+                onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
             } else {
                 setTicketId(data.ticket_id);
                 checkTicketStatus(data.ticket_id);

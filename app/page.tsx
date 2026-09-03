@@ -278,8 +278,11 @@ export default function Page() {
           });
 
         // --- Strict Synchronous Validation ---
+        // Required seats come from the LOBBY's match type (the ticket), never the
+        // local UI selector — a 1v1 ticket starts at 2 even if the UI says 4P.
+        const effectiveMatchType = lobbyState?.matchType || playerCount;
         const joinedHumanCount = players.length;
-        const requiredHumans = playerCount === '1v1' ? 2 : 4;
+        const requiredHumans = effectiveMatchType === '1v1' ? 2 : 4;
 
         if (joinedHumanCount < requiredHumans) {
           console.warn(`⚠️ Only ${joinedHumanCount}/${requiredHumans} players joined. Aborting multiplayer start to prevent ghost fallback.`);

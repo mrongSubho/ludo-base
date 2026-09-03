@@ -90,19 +90,20 @@ export const QuickMatchPanel = ({
         wager,
         onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
-            // Note: hostGame and joinGame in TeamUpContext are parameterless because they use internal or context state
             if (isMatchHost) {
-                hostGame(foundRoomCode); 
+                hostGame(foundRoomCode);
+                initQuickLobby(foundRoomCode, matchType as '1v1' | '2v2' | '4P', gameMode as 'classic' | 'power', wager);
             } else {
                 joinGame(foundRoomCode, validationToken);
             }
         }
     });
 
-    const { 
-        roomId, 
-        hostGame, 
-        joinGame, 
+    const {
+        roomId,
+        hostGame,
+        joinGame,
+        initQuickLobby,
         leaveGame,
         isLobbyConnected, 
         isHost: p2pHost,
@@ -177,11 +178,12 @@ export const QuickMatchPanel = ({
                 return;
             }
 
-            // Shorter timeout for dual-human matches to prevent long ghost hangs
+            // Short fuse: lobby sync now flows over Supabase, so 2s is plenty.
+            // Falls through to handlePlayNow's start gate if P2P is still dark.
             const forceTimer = setTimeout(() => {
                 console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}, opponentJoined=${expectedOpponentJoined}). Force-starting...`);
                 onStartGame(false);
-            }, 5000); 
+            }, 2000); 
         }
 
         // SCENARIO 2: I am the Guest and the Game has already started on the Host
