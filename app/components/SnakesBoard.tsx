@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import Dice from './Dice';
 import { useAudio } from '../hooks/useAudio';
 import { calculateSnakesMove } from '@/lib/snakesLogic';
+import { BOT_TEMPLATES } from '@/lib/boardLayout';
 
 type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
@@ -18,12 +19,7 @@ interface Player {
     isAi?: boolean;
 }
 
-const PLAYER_TEMPLATES = [
-    { name: 'Alex', level: 12, avatar: '🎮', isAi: false },
-    { name: 'Gemini', level: 8, avatar: '🤖', isAi: true },
-    { name: 'Deep', level: 15, avatar: '💾', isAi: true },
-    { name: 'Core', level: 10, avatar: '⚙️', isAi: true },
-];
+const HUMAN_TEMPLATE = { name: 'Alex', level: 12, avatar: '🎮', isAi: false };
 
 const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = [
     { color: 'green', position: 'bottom-left' },
@@ -33,7 +29,9 @@ const COLOR_SEATS: { color: Player['color']; position: Player['position'] }[] = 
 ];
 
 function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4', isBotMatch: boolean = false): Player[] {
-    const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
+    const shuffledBots = [...BOT_TEMPLATES].sort(() => Math.random() - 0.5);
+    const allTemplates = [HUMAN_TEMPLATE, ...shuffledBots];
+    const templates = [...allTemplates].sort(() => Math.random() - 0.5);
     const usePair1 = Math.random() > 0.5;
     const activeIndices = playerCount === '2' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
 

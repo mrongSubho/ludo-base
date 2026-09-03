@@ -281,11 +281,28 @@ export function buildPathCellsDynamic(cc: ColorCorner): PathCell[] {
 
 export const PLAYER_TEMPLATES = [
     { name: 'Alex', level: 12, avatar: '🎮', isAi: false },
-    { name: 'Gemini', level: 8, avatar: '🤖', isAi: true },
     { name: 'Sarah', level: 15, avatar: '⭐', isAi: false },
     { name: 'Mike', level: 5, avatar: '🎯', isAi: false },
-    { name: 'Nexus', level: 20, avatar: '⚡', isAi: true },
     { name: 'Emma', level: 10, avatar: '🦊', isAi: false },
+];
+
+export const BOT_TEMPLATES = [
+    { name: 'Claude',    level: 18, avatar: '/avatars/claude.png',      isAi: true },
+    { name: 'GPT-4o',    level: 16, avatar: '/avatars/openai.png',     isAi: true },
+    { name: 'Gemini',    level: 14, avatar: '/avatars/gemini.png',     isAi: true },
+    { name: 'Llama',     level: 12, avatar: '/avatars/meta.png',       isAi: true },
+    { name: 'Mistral',   level: 11, avatar: '/avatars/mistral.png',    isAi: true },
+    { name: 'Groq',      level: 15, avatar: '/avatars/groq.png',       isAi: true },
+    { name: 'DeepSeek',  level: 17, avatar: '/avatars/deepseek.png',   isAi: true },
+    { name: 'Kimi',      level: 10, avatar: '/avatars/moonshot.png',   isAi: true },
+    { name: 'GLM',       level: 13, avatar: '/avatars/zhipu.png',      isAi: true },
+    { name: 'Qwen',      level: 12, avatar: '/avatars/qwen.png',       isAi: true },
+    { name: 'Grok',      level: 14, avatar: '/avatars/xai.png',        isAi: true },
+    { name: 'Command R', level: 11, avatar: '/avatars/cohere.png',     isAi: true },
+    { name: 'Perplexity',level: 13, avatar: '/avatars/perplexity.png', isAi: true },
+    { name: 'Yi',        level: 10, avatar: '/avatars/yi.png',         isAi: true },
+    { name: 'MiniMax',   level: 9,  avatar: '/avatars/minimax.png',    isAi: true },
+    { name: 'Falcon',    level: 8,  avatar: '/avatars/nvidia.png',     isAi: true },
 ];
 
 type Position = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -317,7 +334,7 @@ export function shufflePlayers(
     const activeIndices = playerCount === '1v1' ? (usePair1 ? [0, 3] : [1, 2]) : [0, 1, 2, 3];
 
     const humanTemplate = PLAYER_TEMPLATES.find(p => !p.isAi)!;
-    const botTemplates = PLAYER_TEMPLATES.filter(p => p.isAi);
+    const botTemplates = [...BOT_TEMPLATES].sort(() => Math.random() - 0.5);
 
     // If cc is provided, we ignore COLOR_SEATS and use the dynamic mapping
     if (cc) {
@@ -377,7 +394,7 @@ export function shufflePlayers(
         }).filter(Boolean);
 
     } else {
-        const templates = [...PLAYER_TEMPLATES].sort(() => Math.random() - 0.5);
+        const templates = [...PLAYER_TEMPLATES, ...BOT_TEMPLATES].sort(() => Math.random() - 0.5);
         return COLOR_SEATS.map((seat, i) => {
             if (!activeIndices.includes(i)) return null;
             return { ...templates[i], ...seat };

@@ -30,6 +30,7 @@ import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
+import confetti from 'canvas-confetti';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -130,6 +131,27 @@ export default function Page() {
 
   const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
   const { level, tier } = progression;
+  const prevLevelRef = useRef(level);
+
+  useEffect(() => {
+    if (level > prevLevelRef.current) {
+      prevLevelRef.current = level;
+      const duration = 2 * 1000;
+      const end = Date.now() + duration;
+      const colors = ['#00E5FF', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ffffff'];
+      (function frame() {
+        confetti({
+          particleCount: 30,
+          spread: 100,
+          origin: { x: 0.5, y: 0.6 },
+          colors: colors.slice(0, Math.floor(Math.random() * colors.length) + 2),
+          gravity: 0.6,
+          scalar: 1.2,
+        });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      })();
+    }
+  }, [level]);
 
   // ─── Spectator mode hooks (only active when spectatingRoomCode is set) ───────
   const {

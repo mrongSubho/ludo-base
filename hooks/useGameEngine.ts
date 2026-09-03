@@ -26,6 +26,8 @@ import { useAIBrain } from './useAIBrain';
 export interface Player {
     name: string;
     level: number;
+    xp?: number;
+    rating?: number;
     avatar: string;
     color: 'green' | 'red' | 'yellow' | 'blue';
     position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';

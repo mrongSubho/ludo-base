@@ -3,6 +3,7 @@ import { PlayerColor } from '@/lib/types';
 import { Corner, ColorCorner } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 import { supabase } from '@/lib/supabase';
+import { calculateLevel } from '@/lib/progression';
 
 const CORNER_ORDER: Corner[] = ['TL', 'TR', 'BR', 'BL'];
 
@@ -57,11 +58,12 @@ export function useBoardLayout({
             try {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('username, avatar_url, total_wins')
+                    .select('username, avatar_url, xp')
                     .eq('wallet_address', address.toLowerCase())
                     .single();
 
                 if (data && !error) {
+                    const newLevel = calculateLevel(data.xp || 0).level;
                     setBoardConfig((prev: any) => ({
                         ...prev,
                         players: prev.players.map((p: Player) => {
@@ -71,7 +73,9 @@ export function useBoardLayout({
                                     name: data.username || p.name,
                                     avatar: data.avatar_url || p.avatar,
                                     walletAddress: address.toLowerCase(),
-                                    level: Math.max(p.level, Math.floor((data.total_wins || 0) / 5) + 1)
+                                    level: Math.max(p.level, newLevel),
+                                    xp: data.xp ?? p.xp,
+                                    rating: data.rating ?? p.rating
                                 };
                             }
                             return p;
