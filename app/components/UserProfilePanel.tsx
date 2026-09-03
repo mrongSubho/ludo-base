@@ -39,7 +39,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
                         /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
+                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
                 {/* Authentic Subdued Cosmic Orbs */}
@@ -52,7 +52,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Header */}
-                <div className="px-panel-gutter pb-4 border-b border-white/10">
+                <div className="px-panel-gutter pb-3 border-b border-white/10">
                     <div className="flex items-center justify-between mt-2">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-cyan-400">
@@ -71,11 +71,11 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-6 custom-scrollbar">
+                <div className="flex-1 min-h-0 overflow-y-auto px-panel-gutter py-3 space-y-4 no-scrollbar">
 
                     <div className="flex flex-col items-center glass-card relative">
                         <div
-                            className="w-24 h-24 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-4xl mb-4 relative shadow-lg overflow-hidden"
+                            className="w-20 h-20 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-400 p-1 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-3xl mb-2 relative shadow-lg overflow-hidden"
                             title="Your Profile Avatar"
                         >
                             <div className="w-full h-full bg-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
@@ -88,7 +88,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                         </div>
 
                         <div className="flex flex-col items-center w-full max-w-[200px]">
-                            <h2 className="text-2xl font-bold text-white py-1">{finalName}</h2>
+                            <h2 className="text-xl font-bold text-white py-0.5">{finalName}</h2>
                             <div className="flex items-center gap-2 mt-2 bg-black/40 px-3 py-1 rounded-full border border-white/10">
                                 <span className={`text-[11px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${getProgression(profile?.xp || 0, profile?.rating || 0).tier === 'Arena Master' ? 'from-orange-400 to-red-600' : 'from-gray-300 to-slate-400'}`}>
                                     {progression.tier} {progression.subRank}
@@ -101,18 +101,18 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
 
                     {/* Stats Section - Redesigned Performance */}
                     <div className="flex flex-col">
-                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Performance</h3>
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Performance</h3>
                         <div className="space-y-3">
 
                             {/* Central Wins Hub */}
-                            <div className="glass-card flex flex-col items-center justify-center py-8 relative overflow-hidden group">
+                            <div className="glass-card flex flex-col items-center justify-center py-5 relative overflow-hidden group">
                                 {/* Background Decorations */}
                                 <div className="absolute inset-0 bg-gradient-to-b from-cyan-600/10 to-transparent opacity-50" />
                                 <div className="absolute -top-10 -around-10 w-32 h-32 bg-white/5 blur-[60px] rounded-full group-hover:bg-cyan-600/30 transition-colors" />
 
                                 <div className="relative z-10 flex flex-col items-center">
-                                    <div className="mb-2 p-3 bg-white/5 rounded-2xl border border-cyan-600/20 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-cyan-400">
+                                    <div className="mb-2 p-2 bg-white/5 rounded-2xl border border-cyan-600/20 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-cyan-400">
                                             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
                                             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
                                             <path d="M4 22h16"></path>
@@ -121,7 +121,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                             <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
                                         </svg>
                                     </div>
-                                    <span className="text-5xl font-black text-white tracking-tighter mb-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">42</span>
+                                    <span className="text-4xl font-black text-white tracking-tighter mb-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">42</span>
                                     <span className="text-xs font-black uppercase tracking-[0.3em] text-cyan-400/80">Total Wins</span>
                                 </div>
                             </div>
@@ -175,10 +175,10 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
 
                     {/* Privacy & Social Controls */}
                     <div className="flex flex-col">
-                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-3 px-2">Privacy</h3>
+                        <h3 className="text-sm font-bold text-white/40 uppercase tracking-wider mb-2 px-2">Privacy</h3>
 
                         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                            <div className="flex items-center justify-between p-4 border-b border-white/5">
+                            <div className="flex items-center justify-between p-3 border-b border-white/5">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-white/5 text-cyan-400 flex items-center justify-center">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -201,7 +201,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                                 </button>
                             </div>
 
-                            <div className="flex items-center justify-between p-4">
+                            <div className="flex items-center justify-between p-3">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">

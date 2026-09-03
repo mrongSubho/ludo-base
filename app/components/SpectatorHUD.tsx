@@ -494,7 +494,7 @@ export const SpectatorHUD = ({
                     <span className="text-[10px] font-black text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">{chatMessages.length} nodes</span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 custom-scrollbar">
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 no-scrollbar">
                     <AnimatePresence initial={false}>
                         {chatMessages.map(msg => (
                             <motion.div

@@ -115,7 +115,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                 </div>
 
                                 {/* List */}
-                                <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3 custom-scrollbar relative z-10">
+                                <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-3 no-scrollbar relative z-10">
                                     {isBooting ? (
                                         <div className="h-full flex flex-col items-center justify-center gap-4">
                                             <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />

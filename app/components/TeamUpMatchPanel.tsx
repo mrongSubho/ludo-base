@@ -109,7 +109,7 @@ export const TeamUpMatchPanel = ({
             <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
-                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden pb-[40px]"
+                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
@@ -246,7 +246,7 @@ export const TeamUpMatchPanel = ({
                                             RETURN
                                         </button>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar pb-4">
+                                    <div className="flex-1 min-h-0 overflow-y-auto pr-2 space-y-3 no-scrollbar pb-4">
                                         {isLoadingFriends ? (
                                             <div className="h-full flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         ) : (

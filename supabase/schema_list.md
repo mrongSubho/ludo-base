@@ -33,8 +33,8 @@ CREATE TABLE public.players (
     wallet_address TEXT UNIQUE NOT NULL,
     username TEXT,
     avatar_url TEXT,
-    xp BIGINT DEFAULT 0,
-    rating INT DEFAULT 0,
+    lxp BIGINT DEFAULT 0,
+    rxp INT DEFAULT 0,
     coins BIGINT DEFAULT 1000,
     season_id INT DEFAULT 20241,
     status TEXT DEFAULT 'Offline',
@@ -54,8 +54,8 @@ ALTER TABLE public.players ADD COLUMN total_games INT GENERATED ALWAYS AS (
     COALESCE(classic_played, 0) + COALESCE(power_played, 0) + COALESCE(ai_played, 0)
 ) STORED;
 
-CREATE INDEX idx_players_xp ON public.players (xp DESC);
-CREATE INDEX idx_players_rating ON public.players (rating DESC);
+CREATE INDEX idx_players_lxp ON public.players (lxp DESC);
+CREATE INDEX idx_players_rxp ON public.players (rxp DESC);
 CREATE INDEX idx_players_status ON public.players(status);
 
 -- 3. SOCIAL & MESSAGING
@@ -504,4 +504,23 @@ Spectators subscribe to `live_matches` changes to power the Live Arena directory
 | Match Players | 3.0% of `total_bet_volume` |
 | Protocol Treasury | 2.0% of `total_bet_volume` |
 | **Total Fee** | **5.0%** |
+
+---
+
+## Phase 5: LXP / RXP Rename (existing databases only)
+
+> ⚠️ Skip this phase on fresh setups — Phase 1 already creates `lxp`/`rxp`.
+> Run this block on a **live** database to rename `xp` → `lxp` (Level XP, permanent)
+> and `rating` → `rxp` (Rank XP, seasonal) without losing data.
+> Run **before** deploying the matching code change.
+
+```sql
+-- 1. Rename columns (atomic, preserves all data)
+ALTER TABLE public.players RENAME COLUMN xp TO lxp;
+ALTER TABLE public.players RENAME COLUMN rating TO rxp;
+
+-- 2. Rename indexes to match
+ALTER INDEX IF EXISTS idx_players_xp RENAME TO idx_players_lxp;
+ALTER INDEX IF EXISTS idx_players_rating RENAME TO idx_players_rxp;
+```
 

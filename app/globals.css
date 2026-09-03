@@ -4117,6 +4117,16 @@ body.theme-retro-futurism .token-dot-placeholder {
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
+/* ─── No-Scrollbar Utility (app-like panels: touch/wheel scroll still works, bar hidden) ─── */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ─── Layout Helpers ─── */
 .pb-safe-footer {
   padding-bottom: 100px;

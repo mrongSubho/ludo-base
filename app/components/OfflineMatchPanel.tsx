@@ -29,7 +29,7 @@ export const OfflineMatchPanel = ({
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
                         /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
+                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
                     {/* Authentic Subdued Cosmic Orbs */}
@@ -57,7 +57,7 @@ export const OfflineMatchPanel = ({
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                    <div className="flex-1 min-h-0 overflow-y-auto p-8 space-y-8 no-scrollbar">
                         <div className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
                             <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
                                 <span>Selected Mode</span>

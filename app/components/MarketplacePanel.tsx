@@ -333,7 +333,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         <div className="w-full max-w-[500px] relative h-full">
                             <div
                                 /* Unified global panel layout: top-64, bottom-80 sandwich */
-                                className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
+                                className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                                 style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                             >
                         {/* Authentic Subdued Cosmic Orbs */}
@@ -435,7 +435,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         </div>
 
                         {/* Inventory Grid Container */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar pt-2 px-panel-gutter mb-4">
+                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-panel-gutter mb-4">
                             <div
                                 className="grid grid-cols-4 gap-2 pb-safe-footer"
                             >
@@ -514,7 +514,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     </div>
 
                                     {/* Scrollable Content */}
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar px-safe pb-32 text-left">
+                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-safe pb-32 text-left">
                                         <div className="pt-8">
                                             <div className={`aspect-square w-full max-w-[280px] mx-auto rounded-3xl ${selectedItem.previewColor} mb-8 border border-white/10 flex items-center justify-center text-6xl shadow-2xl relative overflow-hidden group`}>
                                                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent transition-opacity group-hover:opacity-80" />
@@ -681,7 +681,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </div>
 
                                                 {/* Scrollable Sell Content */}
-                                                <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 px-5 pt-8 pb-32">
+                                                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative z-10 px-5 pt-8 pb-32">
                                                     <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-8 backdrop-blur-md">
                                                         <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center text-3xl shadow-lg border border-white/5`}>
                                                             {selectedItem.previewIcon}

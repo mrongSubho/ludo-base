@@ -154,7 +154,7 @@ export const LiveMatchmakingFeed = () => {
                                     </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto px-8 custom-scrollbar relative z-10">
+                                <div className="flex-1 min-h-0 overflow-y-auto px-8 no-scrollbar relative z-10">
                                     {pooledSearches.length > 0 ? pooledSearches.map((s, i) => (
                                         <div key={i} className="group relative mb-3 hover:scale-[1.02] transition-all duration-300">
                                             <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />

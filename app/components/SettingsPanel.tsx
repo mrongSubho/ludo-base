@@ -90,7 +90,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
                         /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-y-auto pb-[40px]"
+                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
                 {/* Authentic Subdued Cosmic Orbs */}
@@ -122,7 +122,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto px-panel-gutter py-4 space-y-6 custom-scrollbar">
+                <div className="flex-1 min-h-0 overflow-y-auto px-panel-gutter py-4 space-y-6 no-scrollbar">
 
 
 

@@ -368,7 +368,7 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                             </div>
 
                                             {/* Match list */}
-                                            <div className="flex-1 overflow-y-auto px-8 pt-4 pb-8 relative z-10 custom-scrollbar">
+                                            <div className="flex-1 min-h-0 overflow-y-auto px-8 pt-4 pb-8 relative z-10 no-scrollbar">
                                                 <AnimatePresence>
                                                     {liveMatches.length > 0 ? (
                                                         liveMatches.map(match => (
