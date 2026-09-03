@@ -314,6 +314,9 @@ export default function GameLobby({
                     onKickPlayer={kickPlayer}
                     onSendInvite={sendInvite}
                     onQuickMatch={startQuickMatch}
+                    matchType={matchType}
+                    gameMode={gameMode}
+                    entryFee={wager}
                 />
             )}
 
