@@ -90,6 +90,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const [isLoading, setIsLoading] = useState(true);
     const [pokingId, setPokingId] = useState<string | null>(null);
     const [justSent, setJustSent] = useState<string[]>([]);
+    const [onlineOnly, setOnlineOnly] = useState(false);
 
     const fetchPokes = React.useCallback(async () => {
         if (!connectedAddress) return;
@@ -325,15 +326,15 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => onOpenProfile?.(friend.wallet_address)}
-                            className="relative w-12 h-12 rounded-full overflow-hidden bg-cyan-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 hover:scale-105 transition-transform"
+                            className={`relative w-12 h-12 rounded-full overflow-hidden bg-cyan-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 hover:scale-105 transition-transform ${friend.status === 'In Match' ? 'ring-2 ring-orange-500/80' : ''}`}
                         >
                             <img
                                 src={friend.avatar_url || '/default-avatar.png'}
                                 alt={friend.displayName}
                                 className="w-full h-full object-cover"
                             />
-                            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#1a1c29] 
-                  ${friend.status === 'Online' ? 'bg-green-500' : friend.status === 'In Match' ? 'bg-orange-500' : 'bg-gray-500'}`}
+                            <span className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[#1a1c29]
+                  ${friend.status === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)] animate-pulse' : friend.status === 'In Match' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse' : 'bg-gray-500/70'}`}
                             />
                         </button>
                         <button
@@ -571,10 +572,21 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                         <div className="flex-1 min-h-0 overflow-y-auto px-panel-gutter py-4 no-scrollbar relative">
                             {activeMainTab === 'social' && (
                                 <div className="pb-safe-footer animate-in fade-in duration-200">
-                                    <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
-                                        Social Friends ({onchainFriends.length})
+                                    <div className="px-2 pb-2 flex items-center justify-between">
+                                        <span className="text-[12px] font-bold text-white/40 uppercase tracking-wider">
+                                            Social Friends ({onchainFriends.length})
+                                        </span>
+                                        {onchainFriends.some(f => f.status === 'Online' || f.status === 'In Match') && (
+                                            <button
+                                                onClick={() => setOnlineOnly(v => !v)}
+                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${onlineOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                                            >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${onlineOnly ? 'bg-green-400 animate-pulse' : 'bg-white/30'}`} />
+                                                Online ({onchainFriends.filter(f => f.status === 'Online' || f.status === 'In Match').length})
+                                            </button>
+                                        )}
                                     </div>
-                                    {renderFriendList(onchainFriends)}
+                                    {renderFriendList(onlineOnly ? onchainFriends.filter(f => f.status === 'Online' || f.status === 'In Match') : onchainFriends)}
                                 </div>
                             )}
 
