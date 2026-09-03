@@ -165,6 +165,7 @@ END; $$ LANGUAGE plpgsql;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.game_invites;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.matchmaking_queue;
 
 -- 4. REALTIME INDEXING
 CREATE INDEX idx_game_invites_guest ON public.game_invites(guest_address) WHERE status = 'pending';

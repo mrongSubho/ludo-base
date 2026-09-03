@@ -69,16 +69,17 @@ export const QuickMatchPanel = ({
     const { address, profile, displayName: finalName } = useCurrentUser();
     const normalizedAddress = address?.toLowerCase() || '';
 
-    const { 
-        status, 
-        searchTime, 
+    const {
+        status,
+        searchTime,
         ticketId,
         matchId: hookMatchId,
         roomCode: hookRoomCode,
         matchData,
         nearbyPools,
+        error: matchError,
         isConnectingToEdge,
-        startSearch, 
+        startSearch,
         startHybridSearch, 
         cancelSearch,
         extendSearch
@@ -303,7 +304,7 @@ export const QuickMatchPanel = ({
             max = Math.floor(wager * 1.5);
         } else if (param === 'any') {
             min = 0;
-            max = wager; // Match with any lower fee
+            max = undefined; // Truly any fee: NULL upper bound = unbounded in the RPC
         } else {
             // Specific wager (Smart Suggestion)
             min = param;
@@ -591,25 +592,27 @@ export const QuickMatchPanel = ({
                                 )}
                             </AnimatePresence>
 
-                            {/* Timeout / Server Quiet Screen */}
-                            {status === 'timeout' && (
+                            {/* Timeout / Error Recovery Screen */}
+                            {(status === 'timeout' || status === 'error') && (
                                 <div
                                     className="absolute inset-0 z-[160] bg-[#0d0d0d]/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center pointer-events-auto"
                                 >
                                     <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-6 border border-amber-500/20">
                                         <span className="text-3xl animate-pulse">📡</span>
                                     </div>
-                                    
+
                                     <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">
-                                        Server is Quiet
+                                        {status === 'error' ? 'Connection Fault' : 'Server is Quiet'}
                                     </h3>
                                     <p className="text-sm text-white/40 font-medium mb-8 max-w-[240px]">
-                                        No players found matching your criteria. It's a bit lonely out here!
+                                        {status === 'error' && matchError
+                                            ? matchError
+                                            : "No players found matching your criteria. It's a bit lonely out here!"}
                                     </p>
-                                    
+
                                     <div className="w-full flex flex-col gap-3">
-                                        <button 
-                                            onClick={() => startSearch()}
+                                        <button
+                                            onClick={handleRetry}
                                             className="w-full py-4 rounded-2xl bg-white text-black font-bold hover:scale-[1.02] transition-all active:scale-98"
                                         >
                                             Retry Search

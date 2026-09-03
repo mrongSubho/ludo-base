@@ -43,6 +43,9 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     const onMatchFoundRef = useRef(onMatchFound);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const refreshingRef = useRef(false);
+    const poolsFiredRef = useRef(false);
+    const expandFiredRef = useRef(false);
 
     // --- Memoized Clients ---
     const edgeClient = useMemo(() => getEdgeClient(), []);
@@ -56,7 +59,10 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     }, [status, onMatchFound, ticketId, maxSearchTime]);
 
     // --- Stable Callbacks ---
-    
+
+    // Stable matched-check (avoids TS narrowing issues with statusRef across awaits)
+    const isMatched = useCallback(() => statusRef.current === 'matched', []);
+
     const fetchNearbyPools = useCallback(async () => {
         try {
             const { data, error } = await supabase
@@ -185,7 +191,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
         }
-    }, [playerId]);
+    }, [playerId, gameMode, matchType]);
 
     // --- Continuous 1s Timer Effect ---
     useEffect(() => {
@@ -200,26 +206,102 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             interval = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - (searchStartTimeRef.current || Date.now())) / 1000);
                 setSearchTime(elapsed);
-                
-                // Triggers
-                if (elapsed === 15) fetchNearbyPools();
-                if (elapsed === 16) setStatus('expanding');
-                
+
+                // Triggers (>= so throttled background tabs can't skip them)
+                if (elapsed >= 15 && !poolsFiredRef.current) {
+                    poolsFiredRef.current = true;
+                    fetchNearbyPools();
+                }
+                if (elapsed >= 16 && !expandFiredRef.current) {
+                    expandFiredRef.current = true;
+                    setStatus('expanding');
+                }
+
                 if (elapsed >= maxSearchTimeRef.current) {
                     console.error('❌ [Matchmaking] Search timed out after', maxSearchTimeRef.current, 'seconds');
+                    if (pollingRef.current) {
+                        clearInterval(pollingRef.current);
+                        pollingRef.current = null;
+                    }
+                    // Server-side cancel only — keep the timeout UI on screen
+                    cancelSearch(false, true);
                     setError('Matchmaking timed out. Please try again.');
                     setStatus('timeout');
                 }
             }, 1000);
         } else if (status === 'idle' || status === 'timeout' || status === 'error') {
             searchStartTimeRef.current = null;
+            poolsFiredRef.current = false;
+            expandFiredRef.current = false;
             setSearchTime(0);
         }
 
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [status, fetchNearbyPools]);
+    }, [status, fetchNearbyPools, cancelSearch]);
+
+    // --- Supabase RPC join only: no purge, no Edge, no dedupe ---
+    // Heartbeat-safe: re-running it re-uses our ticket (bumps expiry server-side),
+    // retries opponent matching, and re-checks status. Returns true on direct match.
+    const joinSupabase = useCallback(async (wagerMin?: number, wagerMax?: number) => {
+        const normalizedPlayerId = playerId?.toLowerCase();
+        if (!normalizedPlayerId) return false;
+
+        console.log('📡 [Matchmaking] Joining via Supabase RPC...');
+        const response = await fetch('/api/matchmaking/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                playerId: normalizedPlayerId,
+                gameMode,
+                matchType,
+                wager,
+                wagerMin,
+                wagerMax
+            })
+        });
+        if (!response.ok) {
+            const errText = await response.text().catch(() => '');
+            throw new Error(`Join request failed (${response.status}): ${errText.slice(0, 120)}`);
+        }
+        const data = await response.json();
+        console.log('📡 [Matchmaking] Join response:', data);
+
+        if (data.status === 'matched') {
+            console.log('✅ [Matchmaking] DIRECT MATCH found via RPC.');
+            if (pollingRef.current) clearInterval(pollingRef.current);
+
+            setStatus('matched');
+            setMatchId(data.match_id);
+            setRoomCode(data.room_code || '');
+
+            setTimeout(() => {
+                onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
+            }, 1500);
+            return true;
+        }
+        if (!data.ticket_id) throw new Error('Join returned neither match nor ticket');
+        console.log('📡 [Matchmaking] No direct match. Ticket:', data.ticket_id);
+        setTicketId(data.ticket_id);
+        checkTicketStatus(data.ticket_id);
+        return false;
+    }, [playerId, gameMode, matchType, wager, checkTicketStatus]);
+
+    // 5s heartbeat: extend ticket + detect matches. Never purges, never touches Edge.
+    const heartbeatTick = useCallback(async (wagerMin?: number, wagerMax?: number) => {
+        if (statusRef.current !== 'searching' && statusRef.current !== 'expanding') return;
+        if (refreshingRef.current) return;
+        refreshingRef.current = true;
+        try {
+            const matched = await joinSupabase(wagerMin, wagerMax);
+            if (!matched && ticketIdRef.current) await checkTicketStatus(ticketIdRef.current);
+        } catch (err) {
+            console.error('❌ [Matchmaking] Heartbeat failed:', err);
+        } finally {
+            refreshingRef.current = false;
+        }
+    }, [joinSupabase, checkTicketStatus]);
 
     // --- Search Triggers ---
 
@@ -232,6 +314,12 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         const normalizedPlayerId = playerId?.toLowerCase();
         if (!normalizedPlayerId) return;
 
+        // Never purge/restart once a match landed (kills the purge race)
+        if (isMatched()) {
+            console.log('📡 [Matchmaking] Already matched. Ignoring startSearch call.');
+            return;
+        }
+
         const criteria = `${normalizedPlayerId}-${gameMode}-${matchType}-${wager}-${wagerMin}-${wagerMax}`;
         // If we are already searching with the same criteria, don't reset the timer/state
         if (statusRef.current === 'searching' && lastSearchRef.current === criteria) {
@@ -241,14 +329,14 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
         isStartingRef.current = true;
         console.log(`📡 [Matchmaking] Starting UNIFIED search for player: ${normalizedPlayerId}`);
-        
+
         setIsConnectingToEdge(true);
         setMatchId(null);
         setRoomCode(null);
         setError(null);
 
         if (pollingRef.current) clearInterval(pollingRef.current);
-        
+
         try {
             // Purge stale tickets (Supabase side) - BLOCKING to avoid race with join
             console.log('📡 [Matchmaking] Triggering blocking purge for player:', normalizedPlayerId);
@@ -264,7 +352,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     console.log('📡 [Matchmaking] Attempting Edge Server connection...');
                     let connected = false;
                     const startTime = Date.now();
-                    while (Date.now() - startTime < 5000) { 
+                    while (Date.now() - startTime < 5000) {
                         try {
                             await edgeClient.connect();
                             connected = true;
@@ -277,31 +365,35 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     if (connected) {
                         const targetWager = (wagerMin !== undefined && wagerMin === wagerMax) ? wagerMin : wager;
                         console.log('📡 [Matchmaking] Requesting match from Edge Server...');
-                        const edgeMatch = await edgeClient.findMatch({
-                            playerId: normalizedPlayerId,
-                            mode: gameMode as any,
-                            entryFee: targetWager,
-                            minWager: wagerMin !== undefined ? wagerMin : targetWager,
-                            maxWager: wagerMax !== undefined ? wagerMax : targetWager,
-                            matchType: matchType as any,
-                            gameMode: gameMode as any,
-                            gameType: 'quick'
-                        } as any);
+                        // Bounded: a silent Edge server must never wedge the Supabase fallback
+                        const edgeMatch = await Promise.race([
+                            edgeClient.findMatch({
+                                playerId: normalizedPlayerId,
+                                mode: gameMode as any,
+                                entryFee: targetWager,
+                                minWager: wagerMin !== undefined ? wagerMin : targetWager,
+                                maxWager: wagerMax !== undefined ? wagerMax : targetWager,
+                                matchType: matchType as any,
+                                gameMode: gameMode as any,
+                                gameType: 'quick'
+                            } as any),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('Edge findMatch timed out after 8s')), 8000)),
+                        ]) as any;
 
-                        if (edgeMatch && statusRef.current !== 'matched') {
+                        if (edgeMatch && !isMatched()) {
                             console.log('✅ [Matchmaking] EDGE MATCH found!', edgeMatch.matchId);
                             if (pollingRef.current) clearInterval(pollingRef.current);
 
                             setStatus('matched');
                             setMatchId(edgeMatch.matchId);
                             setMatchData(edgeMatch);
-                            setRoomCode(edgeMatch.matchId); 
+                            setRoomCode(edgeMatch.matchId);
 
                             const isIHost = edgeMatch.players[0].id.toLowerCase() === normalizedPlayerId;
                             setTimeout(() => {
                                 onMatchFoundRef.current(edgeMatch.matchId, edgeMatch.matchId, isIHost, edgeMatch.validationToken);
                             }, 1000);
-                            return; 
+                            return;
                         }
                     }
                 } catch (edgeErr) {
@@ -311,52 +403,28 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 }
             }
 
-            // Fallback: Supabase RPC
-            console.log('📡 [Matchmaking] Falling back to Supabase RPC...');
-            const response = await fetch('/api/matchmaking/join', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    playerId: normalizedPlayerId, 
-                    gameMode, 
-                    matchType, 
-                    wager,
-                    wagerMin,
-                    wagerMax
-                })
-            });
-            const data = await response.json();
-            console.log('📡 [Matchmaking] Join response:', data);
-
-            if (data.status === 'matched') {
-                console.log('✅ [Matchmaking] DIRECT MATCH found via RPC.');
-                if (pollingRef.current) clearInterval(pollingRef.current);
-                
-                setStatus('matched');
-                setMatchId(data.match_id);
-                setRoomCode(data.room_code || '');
-                
-                setTimeout(() => {
-                    onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token); 
-                }, 1500);
-            } else {
-                console.log('📡 [Matchmaking] No direct match. Ticket created:', data.ticket_id);
-                setTicketId(data.ticket_id);
-                checkTicketStatus(data.ticket_id);
-                
-                if (pollingRef.current) clearInterval(pollingRef.current);
-                pollingRef.current = setInterval(() => {
-                    // Re-run startSearch to heartbeat/extend the ticket in the 10s window
-                    startSearch(wagerMin, wagerMax);
-                }, 5000);
+            // Fallback: Supabase RPC (+ heartbeat detect loop while waiting)
+            try {
+                const matched = await joinSupabase(wagerMin, wagerMax);
+                if (!matched) {
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+                    pollingRef.current = setInterval(() => {
+                        heartbeatTick(wagerMin, wagerMax);
+                    }, 5000);
+                }
+            } catch (err) {
+                console.error('❌ [Matchmaking] Supabase join failed:', err);
+                setError(err instanceof Error ? err.message : 'Matchmaking join failed.');
+                setStatus('error');
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Ultimate error starting search:', err);
+            setError(err instanceof Error ? err.message : 'Matchmaking failed to start.');
             setStatus('error');
         } finally {
             isStartingRef.current = false;
         }
-    }, [playerId, gameMode, matchType, wager, cancelSearch, checkTicketStatus, fetchNearbyPools, edgeClient]);
+    }, [playerId, gameMode, matchType, wager, cancelSearch, edgeClient, joinSupabase, heartbeatTick, isMatched]);
 
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
         if (isStartingRef.current) {
