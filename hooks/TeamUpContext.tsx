@@ -27,6 +27,7 @@ import {
     getNextPlayer,
     createLobbySlots,
     assignJoinerToSlot,
+    generateRoomCode,
     INITIAL_GAME_STATE
 } from '@/lib/gameLogic';
 
@@ -46,6 +47,7 @@ export interface TeamUpContextType {
     hostGame: (roomId?: string) => void;
     joinGame: (roomId: string, token?: string) => void;
     initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
+    hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => string;
     sendIntent: (type: string, payload: any) => void;
     broadcastAction: (type: GameActionType, payload?: any, fullState?: any) => void;
     broadcastLobbyAction: (type: LobbyActionType, payload?: any) => void;
@@ -490,7 +492,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         peer.on('open', () => connect(peer, 1));
     }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData]);
 
-    // Initialize a quick-match lobby the moment a match is found (host side).
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
     // isHost gate (setIsHost may not have flushed yet) by sending directly.
@@ -520,6 +521,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         broadcastToAll(payload);
         relayViaSupabase('lobby-action', payload, lobbyStateRef as any);
     }, [myAddress, myProfile, setLobbyState, lobbyStateRef, broadcastToAll, relayViaSupabase]);
+
+    // One-call room hosting for manual lobbies (Team Up panel, invites):
+    // generates a code, spins up PeerJS hosting, AND creates lobby state.
+    // Returns the room code synchronously so invite links work immediately.
+    const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'classic', entryFee: number = 0) => {
+        const code = generateRoomCode();
+        hostGame(code);
+        initQuickLobby(code, matchType, gameMode, entryFee);
+        return code;
+    }, [hostGame, initQuickLobby]);
 
     const leaveGame = useCallback(() => {
         destroyPeer();
@@ -556,12 +567,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const value = useMemo(() => ({
         roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState,
-        pendingInvite, hostGame, joinGame, initQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
+        pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow
     }), [
-        roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby,
+        roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
         activeBetWindow, startBettingWindow

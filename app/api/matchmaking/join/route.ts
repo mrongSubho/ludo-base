@@ -7,8 +7,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
     try {
-        let { playerId, gameMode, matchType, wager, wagerMin, wagerMax } = await request.json();
-        
+        let { playerId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, isHybrid } = await request.json();
+
         if (playerId) {
             playerId = playerId.toLowerCase();
         }
@@ -17,7 +17,29 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager, wagerMin, wagerMax });
+        console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, isHybrid });
+
+        // Hybrid party fill: host advertises a room, guests match straight into it.
+        // slotsNeeded is host-side bookkeeping only (the host tracks its seats).
+        if (isHybrid) {
+            const { data, error } = await supabase.rpc('join_matchmaking_hybrid', {
+                p_player_id: playerId,
+                p_game_mode: gameMode,
+                p_match_type: matchType,
+                p_wager: wager || 0,
+                p_wager_min: wagerMin ?? null,
+                p_wager_max: wagerMax ?? null,
+                p_room_code: roomCode || null
+            });
+
+            if (error) {
+                console.error('❌ [Matchmaking] Hybrid RPC Error:', error);
+                return NextResponse.json({ error: error.message }, { status: 500 });
+            }
+
+            console.log('✅ [Matchmaking] Hybrid RPC Result:', data);
+            return NextResponse.json(data);
+        }
 
         // Call the atomic join RPC
         const { data, error } = await supabase.rpc('join_matchmaking', {

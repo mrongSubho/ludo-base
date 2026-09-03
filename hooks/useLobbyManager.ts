@@ -83,7 +83,10 @@ export function useLobbyManager({
     }, [isHost, lobbyState, broadcastToAll, connectionsRef]);
 
     const sendInvite = useCallback((friendId: string, friendName?: string) => {
-        if (!lobbyState || !myAddress) return;
+        if (!lobbyState || !myAddress) {
+            console.warn('⚠️ [Lobby] sendInvite dropped: no active lobby (host a room first).');
+            return;
+        }
         const lowerFriendId = friendId.toLowerCase();
 
         setLobbyState(prev => {

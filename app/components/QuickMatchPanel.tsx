@@ -8,6 +8,7 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
+import { canStartMatch } from '@/lib/gameLogic';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -90,6 +91,12 @@ export const QuickMatchPanel = ({
         wager,
         onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
+            // Hybrid hosting: WE are the room. Guests come to us via joinGame —
+            // never re-host or leave our own lobby on our own match events.
+            if (isHybrid && roomCode) {
+                console.log('🏟️ [QuickMatch] Hybrid host: ignoring self-match event, waiting for guests to join.');
+                return;
+            }
             if (isMatchHost) {
                 hostGame(foundRoomCode);
                 initQuickLobby(foundRoomCode, matchType as '1v1' | '2v2' | '4P', gameMode as 'classic' | 'power', wager);
@@ -192,6 +199,14 @@ export const QuickMatchPanel = ({
             onStartGame(false);
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants, gameState?.isStarted, expectedOpponent]);
+
+    // Hybrid hosting: seats fill via direct joins — auto-start the moment full.
+    useEffect(() => {
+        if (isHybrid && lobbyState && canStartMatch(lobbyState)) {
+            console.log('🏁 [QuickMatch] Hybrid lobby full. Starting game...');
+            onStartGame(false);
+        }
+    }, [isHybrid, lobbyState, onStartGame]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;

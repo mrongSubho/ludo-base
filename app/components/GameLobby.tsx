@@ -40,6 +40,7 @@ export default function GameLobby({
         isHost,
         hostGame,
         joinGame,
+        hostQuickLobby,
         lobbyState,
         sendInvite,
         swapPlayers,
@@ -54,6 +55,7 @@ export default function GameLobby({
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
+    const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P' } | null>(null);
     const [searchId, setSearchId] = useState(0);
     const [tournaments, setTournaments] = useState<any[]>([]);
 
@@ -128,7 +130,24 @@ export default function GameLobby({
         setIsQuickMatchActive(true);
     };
 
-    const handleCancelQuickMatch = useCallback(() => setIsQuickMatchActive(false), []);
+    const handleCancelQuickMatch = useCallback(() => {
+        setIsQuickMatchActive(false);
+        setHybridParams(null);
+    }, []);
+
+    // Fill Remaining with Quick Match: host advertises the room, the hybrid
+    // search pairs public-pool guests straight into it (they joinGame the
+    // room code and get seated). Closes TeamUp; seats fill live behind this.
+    const handleFillWithQuickMatch = () => {
+        if (!lobbyState) return;
+        const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
+        if (empty === 0) return;
+        playSelect();
+        setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType });
+        setShowTeamUpOptions(false);
+        setSearchId(prev => prev + 1);
+        setIsQuickMatchActive(true);
+    };
 
     return (
         <div className="relative w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center justify-center">
@@ -301,7 +320,7 @@ export default function GameLobby({
                         setShowTeamUpOptions(false);
                     }}
                     onJoin={(code: string) => joinGame(code)}
-                    onHost={() => hostGame()}
+                    onHost={() => hostQuickLobby(matchType, gameMode, wager)}
                     currentRoomId={roomId}
                     isHost={isHost}
                     isLobbyConnected={isLobbyConnected}
@@ -313,7 +332,7 @@ export default function GameLobby({
                     onSwapPlayers={swapPlayers}
                     onKickPlayer={kickPlayer}
                     onSendInvite={sendInvite}
-                    onQuickMatch={startQuickMatch}
+                    onQuickMatch={handleFillWithQuickMatch}
                     matchType={matchType}
                     gameMode={gameMode}
                     entryFee={wager}
@@ -333,17 +352,17 @@ export default function GameLobby({
                 />
             )}
 
-            {(isQuickMatchActive || lobbyState?.status === 'quickmatch') && (
+            {(isQuickMatchActive || lobbyState?.status === 'quickmatch' || hybridParams) && (
                 <QuickMatchPanel
                     key={`quickmatch-${searchId}`}
                     gameMode={gameMode}
-                    matchType={matchType}
+                    matchType={hybridParams?.matchType ?? matchType}
                     wager={wager}
                     onStartGame={onStartGame}
                     onCancel={handleCancelQuickMatch}
-                    isHybrid={lobbyState?.status === 'quickmatch'}
-                    roomCode={roomId}
-                    slotsNeeded={lobbyState?.slots.filter(s => s.status === 'empty').length}
+                    isHybrid={!!hybridParams || lobbyState?.status === 'quickmatch'}
+                    roomCode={hybridParams?.roomCode ?? roomId}
+                    slotsNeeded={hybridParams?.slotsNeeded ?? lobbyState?.slots.filter(s => s.status === 'empty').length}
                 />
             )}
         </div>
