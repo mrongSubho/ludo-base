@@ -7,7 +7,7 @@ import { useTeamUp } from '@/hooks/useTeamUp';
 
 export default function PresenceManager() {
     const { address, isConnected } = useAccount();
-    const { gameState } = useTeamUp();
+    const { gameState, lobbyState } = useTeamUp();
     const lastStatusRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -20,10 +20,13 @@ export default function PresenceManager() {
                 currentStatus = 'In Match';
             }
 
+            // Publish room code with status so EVERY client (host or guest)
+            // is spectatable — the old host-only write left guests invisible.
             await supabase
                 .from('players')
                 .update({
                     status: currentStatus,
+                    current_room_code: currentStatus === 'In Match' ? (lobbyState as any)?.roomCode ?? null : null,
                     last_seen_at: new Date().toISOString()
                 })
                 .eq('wallet_address', address.toLowerCase());
@@ -53,7 +56,7 @@ export default function PresenceManager() {
             window.removeEventListener('beforeunload', handleUnload);
             syncStatus('Offline');
         };
-    }, [address, isConnected, gameState.status, gameState.isStarted]);
+    }, [address, isConnected, gameState.status, gameState.isStarted, (lobbyState as any)?.roomCode]);
 
     return null;
 }

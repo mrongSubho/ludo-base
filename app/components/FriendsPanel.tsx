@@ -22,6 +22,8 @@ interface Friend {
     avatar_url: string;
     displayName: string;
     status: 'Online' | 'In Match' | 'Offline';
+    last_played_at?: string | null;
+    current_room_code?: string | null;
 }
 
 interface Request {
@@ -91,6 +93,30 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const [pokingId, setPokingId] = useState<string | null>(null);
     const [justSent, setJustSent] = useState<string[]>([]);
     const [onlineOnly, setOnlineOnly] = useState(false);
+    const [activeOnly, setActiveOnly] = useState(false);
+
+    // Default order: in-match first, then online, then most recently active.
+    // Friends with no activity timestamp sink to the bottom — never random.
+    const sortFriends = (list: Friend[]) => [...list].sort((a, b) => {
+        const rank = (f: Friend) => f.status === 'In Match' ? 0 : f.status === 'Online' ? 1 : 2;
+        const lastActive = (f: Friend) => f.last_played_at ? new Date(f.last_played_at).getTime() : 0;
+        return rank(a) - rank(b) || lastActive(b) - lastActive(a);
+    });
+
+    const isLive = (f: Friend) => f.status === 'Online' || f.status === 'In Match';
+    const isActive30 = (f: Friend) => {
+        if (isLive(f)) return true;
+        if (!f.last_played_at) return false;
+        return Date.now() - new Date(f.last_played_at).getTime() <= 30 * 86400000;
+    };
+
+    const onlineCount = onchainFriends.filter(isLive).length;
+    const activeCount = onchainFriends.filter(isActive30).length;
+    const visibleSocial = sortFriends(onchainFriends.filter(f => {
+        if (onlineOnly && !isLive(f)) return false;
+        if (activeOnly && !isActive30(f)) return false;
+        return true;
+    }));
 
     const fetchPokes = React.useCallback(async () => {
         if (!connectedAddress) return;
@@ -239,7 +265,11 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                     const updatedPlayer = payload.new;
                     const updateList = (list: Friend[]) =>
                         list.map(f => f.wallet_address.toLowerCase() === updatedPlayer.wallet_address.toLowerCase()
-                            ? { ...f, status: updatedPlayer.status }
+                            ? {
+                                ...f,
+                                status: updatedPlayer.status,
+                                current_room_code: (updatedPlayer as any).current_room_code ?? (f as any).current_room_code
+                            }
                             : f
                         );
 
@@ -572,21 +602,27 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                         <div className="flex-1 min-h-0 overflow-y-auto px-panel-gutter py-4 no-scrollbar relative">
                             {activeMainTab === 'social' && (
                                 <div className="pb-safe-footer animate-in fade-in duration-200">
-                                    <div className="px-2 pb-2 flex items-center justify-between">
+                                    <div className="px-2 pb-2 flex items-center justify-between gap-2 flex-wrap">
                                         <span className="text-[12px] font-bold text-white/40 uppercase tracking-wider">
                                             Social Friends ({onchainFriends.length})
                                         </span>
-                                        {onchainFriends.some(f => f.status === 'Online' || f.status === 'In Match') && (
+                                        <div className="flex items-center gap-1.5">
                                             <button
                                                 onClick={() => setOnlineOnly(v => !v)}
                                                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${onlineOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
                                             >
                                                 <span className={`w-1.5 h-1.5 rounded-full ${onlineOnly ? 'bg-green-400 animate-pulse' : 'bg-white/30'}`} />
-                                                Online ({onchainFriends.filter(f => f.status === 'Online' || f.status === 'In Match').length})
+                                                Online ({onlineCount})
                                             </button>
-                                        )}
+                                            <button
+                                                onClick={() => setActiveOnly(v => !v)}
+                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${activeOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                                            >
+                                                Active ({activeCount})
+                                            </button>
+                                        </div>
                                     </div>
-                                    {renderFriendList(onlineOnly ? onchainFriends.filter(f => f.status === 'Online' || f.status === 'In Match') : onchainFriends)}
+                                    {renderFriendList(visibleSocial)}
                                 </div>
                             )}
 

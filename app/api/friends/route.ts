@@ -81,7 +81,7 @@ export async function GET(request: Request) {
             const orQuery = followingWallets.map((addr: string) => `wallet_address.ilike.${addr}`).join(',');
             const { data, error } = await supabase
                 .from('players')
-                .select('wallet_address, username, avatar_url, total_wins, status, last_played_at')
+                .select('wallet_address, username, avatar_url, total_wins, status, last_played_at, current_room_code')
                 .or(orQuery);
             if (error) {
                 console.error("Supabase Onchain Friends Fetch Error:", error);

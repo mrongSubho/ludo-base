@@ -171,6 +171,12 @@ export default function Page() {
   } = useSpectatorSync(spectatingRoomCode);
   const { spectatorCount } = useSpectatorPresence(spectatingRoomCode, address?.toLowerCase());
 
+  // Read-only spectator count for the match we're PLAYING (no wallet passed,
+  // so we never track ourselves into the count — players just observe it).
+  const { spectatorCount: liveSpectators } = useSpectatorPresence(
+    appState === 'game' ? (lobbyState?.roomCode ?? null) : null
+  );
+
   const handleWatchMatch = useCallback((roomCode: string) => {
     setSpectatingRoomCode(roomCode);
     setAppState('spectating');
@@ -575,6 +581,15 @@ export default function Page() {
                 </div>
 
                 <div className="game-header-right flex items-center gap-2">
+                  {liveSpectators > 0 && (
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.25)]"
+                      title="Spectators watching this match"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
+                      {liveSpectators} watching
+                    </div>
+                  )}
                   <StreamToggle matchId={gameState?.matchId} isHost={isHost} />
                 </div>
               </div>
