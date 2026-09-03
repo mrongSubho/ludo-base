@@ -246,6 +246,16 @@ export const QuickMatchPanel = ({
                                 total_wins: player.total_wins || 0,
                                 total_games: player.total_games || 0
                             });
+                        } else if (opponentAddress) {
+                            // Profile row missing (bare wallet) — still show who they are
+                            setOpponentProfile({
+                                username: 'Guest ' + opponentAddress.slice(-6).toUpperCase(),
+                                avatar_url: null,
+                                xp: 0,
+                                rating: 1500,
+                                total_wins: 0,
+                                total_games: 0
+                            });
                         }
                     }
                 } catch (err) {
