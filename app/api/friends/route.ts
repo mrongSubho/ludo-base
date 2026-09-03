@@ -1,5 +1,30 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+// Accepted onchain friendships (both directions) — the only game-native
+// friendship evidence. Needs service role: anon RLS can't read others' rows.
+async function fetchAcceptedFriends(walletLower: string): Promise<string[]> {
+    try {
+        const { data, error } = await serviceClient
+            .from('friendships')
+            .select('user_address, friend_address')
+            .eq('status', 'accepted')
+            .or(`user_address.eq.${walletLower},friend_address.eq.${walletLower}`);
+        if (error || !data) return [];
+        return [...new Set(data.map((r: any) =>
+            (r.user_address || '').toLowerCase() === walletLower
+                ? (r.friend_address || '').toLowerCase()
+                : (r.user_address || '').toLowerCase()
+        ).filter(Boolean))];
+    } catch {
+        return [];
+    }
+}
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -28,7 +53,8 @@ export async function GET(request: Request) {
                 .order('last_played_at', { ascending: false, nullsFirst: false })
                 .limit(20);
 
-            return NextResponse.json({ onchainFriends: [], gameFriends: gameFriends || [] });
+            const acceptedFriends = await fetchAcceptedFriends(wallet.toLowerCase());
+            return NextResponse.json({ onchainFriends: [], gameFriends: gameFriends || [], acceptedFriends });
         }
 
         const fid = userProfile.fid;
@@ -92,7 +118,8 @@ export async function GET(request: Request) {
 
         return NextResponse.json({
             onchainFriends: healStatus(onchainFriends),
-            gameFriends: healStatus(gameFriends || [])
+            gameFriends: healStatus(gameFriends || []),
+            acceptedFriends: await fetchAcceptedFriends(wallet.toLowerCase())
         });
     } catch (error) {
         console.error("Friends API failure:", error);

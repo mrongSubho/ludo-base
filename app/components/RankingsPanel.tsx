@@ -30,10 +30,15 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                 const res = await fetch(`/api/friends?wallet=${address}`);
                 if (!res.ok) throw new Error('friends fetch failed');
                 const data = await res.json();
-                const addrs = [...(data.onchainFriends || []), ...(data.gameFriends || [])]
+                // Friendship evidence = Farcaster follows + accepted game friendships.
+                // gameFriends is just recent active players (directory) — excluded.
+                const follows = [...(data.onchainFriends || [])]
                     .map((f: any) => (f.address || f.wallet_address || '').toLowerCase())
                     .filter(Boolean);
-                if (!cancelled) setFriendWallets([...new Set([address.toLowerCase(), ...addrs])]);
+                const accepted = (data.acceptedFriends || [])
+                    .map((a: any) => (typeof a === 'string' ? a : a.wallet_address || a.address || '').toLowerCase())
+                    .filter(Boolean);
+                if (!cancelled) setFriendWallets([...new Set([address.toLowerCase(), ...follows, ...accepted])]);
             } catch {
                 if (!cancelled) setFriendWallets([address.toLowerCase()]);
             } finally {

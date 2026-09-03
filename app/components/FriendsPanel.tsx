@@ -89,6 +89,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const [incomingPokes, setIncomingPokes] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [pokingId, setPokingId] = useState<string | null>(null);
+    const [justSent, setJustSent] = useState<string[]>([]);
 
     const fetchPokes = React.useCallback(async () => {
         if (!connectedAddress) return;
@@ -392,6 +393,74 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         });
     };
 
+    // Directory rows (GLOBAL tab): profile only + Add Friend. No poke/DM/spectate — those are friends-only.
+    const handleAddFriend = async (wallet: string) => {
+        if (!connectedAddress) return;
+        const target = wallet.toLowerCase();
+        try {
+            await supabase.from('players').upsert([
+                { wallet_address: connectedAddress.toLowerCase() },
+                { wallet_address: target }
+            ], { onConflict: 'wallet_address', ignoreDuplicates: true });
+            const { error } = await supabase.from('friendships').upsert({
+                user_address: connectedAddress.toLowerCase(),
+                friend_address: target,
+                status: 'pending'
+            }, { onConflict: 'user_address,friend_address' });
+            if (!error) setJustSent(prev => prev.includes(target) ? prev : [...prev, target]);
+        } catch (err) {
+            console.error('Add friend error:', err);
+        }
+    };
+
+    const renderDirectoryList = (players: Friend[]) => {
+        if (players.length === 0) {
+            return <div className="text-center text-white/50 py-8 text-sm">No players found.</div>;
+        }
+        const friendSet = new Set(onchainFriends.map(f => f.wallet_address.toLowerCase()));
+        const sentSet = new Set([...pendingOutgoing.map(r => r.wallet_address.toLowerCase()), ...justSent]);
+
+        return players.map((p) => {
+            const low = p.wallet_address.toLowerCase();
+            const alreadyFriend = friendSet.has(low);
+            const pending = sentSet.has(low);
+            return (
+                <div key={p.wallet_address} className="flex items-center justify-between p-3 mb-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                    <button
+                        onClick={() => onOpenProfile?.(p.wallet_address)}
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity focus:outline-none text-left min-w-0"
+                    >
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-cyan-900 border-2 border-transparent shrink-0">
+                            <img src={p.avatar_url || '/default-avatar.png'} alt={p.displayName} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-white font-medium text-[15px] truncate">{p.displayName}</span>
+                            <span className="text-[12px] text-white/40 font-medium">{p.status}</span>
+                        </div>
+                    </button>
+                    {alreadyFriend ? (
+                        <span className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20 shrink-0">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Friends
+                        </span>
+                    ) : pending ? (
+                        <span className="px-3 py-2 rounded-full bg-white/5 text-white/40 text-xs font-bold border border-white/10 shrink-0">
+                            Pending
+                        </span>
+                    ) : (
+                        <button
+                            onClick={() => handleAddFriend(p.wallet_address)}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-cyan-600/20 text-cyan-300 text-xs font-bold hover:bg-cyan-600 hover:text-white transition-all border border-cyan-500/30 shrink-0"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                            Add
+                        </button>
+                    )}
+                </div>
+            );
+        });
+    };
+
     // Renders the list items for Requests (Incoming / Sent)
     const renderRequestList = (requests: Request[], isIncoming: boolean) => {
         if (requests.length === 0) {
@@ -514,7 +583,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                     <div className="px-2 pb-2 text-[12px] font-bold text-white/40 uppercase tracking-wider">
                                         Global Players ({gameFriends.length})
                                     </div>
-                                    {renderFriendList(gameFriends)}
+                                    {renderDirectoryList(gameFriends)}
                                 </div>
                             )}
 

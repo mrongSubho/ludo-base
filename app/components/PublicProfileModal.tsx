@@ -93,11 +93,13 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 if (response.ok) {
                     const data = await response.json();
 
-                    // Check if targeted user exists in Onchain or Game Friends
+                    // Check if targeted user exists in Onchain follows or accepted game friendships.
+                    // NOTE: gameFriends from the API is just recent active players (a directory),
+                    // NOT friendship evidence — never use it here.
                     const isFollowing = data.onchainFriends?.some((f: any) => (f.address?.toLowerCase() === userAddress.toLowerCase() || f.wallet_address?.toLowerCase() === userAddress.toLowerCase())) || false;
-                    const isGameFriend = data.gameFriends?.some((f: any) => (f.address?.toLowerCase() === userAddress.toLowerCase() || f.wallet_address?.toLowerCase() === userAddress.toLowerCase())) || false;
+                    const isAccepted = (data.acceptedFriends || [])?.some((a: any) => (typeof a === 'string' ? a : a.wallet_address || a.address || '').toLowerCase() === userAddress.toLowerCase()) || false;
 
-                    setIsFriend(isFollowing || isGameFriend);
+                    setIsFriend(isFollowing || isAccepted);
                 }
 
                 // 3. Fetch pending friend request state
