@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProgression, getRankProgress } from '@/lib/progression';
@@ -15,6 +15,48 @@ const TIER_GRADIENT: Record<string, string> = {
     'Bronze': 'from-amber-600 to-orange-800',
 };
 
+const RANGES = [
+    { id: '1D', days: 1 },
+    { id: '1W', days: 7 },
+    { id: '1M', days: 30 },
+    { id: '3M', days: 90 },
+    { id: '1Y', days: 365 },
+    { id: 'All', days: Infinity },
+];
+
+/* Price-chart style sparkline: gradient area fill, min/max markers + labels */
+function FormChart({ points, positive }: { points: number[]; positive: boolean }) {
+    const W = 300, H = 96, PAD = 8;
+    if (points.length === 0) return null;
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const span = max - min || 1;
+    const n = points.length;
+    const x = (i: number) => (n === 1 ? W / 2 : PAD + (i * (W - PAD * 2)) / (n - 1));
+    const y = (v: number) => H - PAD - ((v - min) / span) * (H - PAD * 2);
+    const line = points.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const area = `${line} L${x(n - 1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
+    const stroke = positive ? '#22d3ee' : '#f87171';
+    const minIdx = points.indexOf(min);
+    const maxIdx = points.indexOf(max);
+    return (
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[96px]">
+            <defs>
+                <linearGradient id="formFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+                    <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+                </linearGradient>
+            </defs>
+            <path d={area} fill="url(#formFill)" />
+            <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <circle cx={x(maxIdx)} cy={y(max)} r="3" fill={stroke} />
+            <circle cx={x(minIdx)} cy={y(min)} r="3" fill={stroke} />
+            <text x={x(maxIdx)} y={Math.max(10, y(max) - 8)} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.45)">{max > 0 ? `+${max}` : `${max}`}</text>
+            <text x={x(minIdx)} y={Math.min(H - 4, y(min) + 14)} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.45)">{min > 0 ? `+${min}` : `${min}`}</text>
+        </svg>
+    );
+}
+
 export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
     const { profile, address, displayName: finalName } = useCurrentUser();
 
@@ -28,9 +70,10 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
     const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
     const coins = profile?.coins || 0;
 
-    const [streak, setStreak] = useState(0);
+    const [range, setRange] = useState<string>('All');
+    const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string }[]>([]);
 
-    // Live win streak from recent matches (consecutive wins, most recent first)
+    // Recent matches power both the live streak and the form chart (single query)
     useEffect(() => {
         if (!address) return;
         let cancelled = false;
@@ -38,24 +81,53 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
             try {
                 const { data } = await supabase
                     .from('matches')
-                    .select('winner_address')
+                    .select('winner_address, created_at')
                     .overlaps('participants', [address.toLowerCase(), address])
                     .order('created_at', { ascending: false })
-                    .limit(20);
-                if (cancelled) return;
-                const me = address.toLowerCase();
-                let s = 0;
-                for (const m of data || []) {
-                    if ((m.winner_address || '').toLowerCase() === me) s++;
-                    else break;
-                }
-                setStreak(s);
+                    .limit(100);
+                if (!cancelled) setRecentMatches(data || []);
             } catch {
-                if (!cancelled) setStreak(0);
+                if (!cancelled) setRecentMatches([]);
             }
         })();
         return () => { cancelled = true; };
     }, [address]);
+
+    // Live win streak: consecutive wins, most recent first
+    const streak = useMemo(() => {
+        const me = (address || '').toLowerCase();
+        if (!me) return 0;
+        let s = 0;
+        for (const m of recentMatches) {
+            if ((m.winner_address || '').toLowerCase() === me) s++;
+            else break;
+        }
+        return s;
+    }, [recentMatches, address]);
+
+    // Form series for the selected range: cumulative +30/win, -15/loss (mirrors RXP)
+    const form = useMemo(() => {
+        const me = (address || '').toLowerCase();
+        const def = RANGES.find(r => r.id === range) || RANGES[RANGES.length - 1];
+        const cutoff = def.days === Infinity ? 0 : Date.now() - def.days * 86400000;
+        const inRange = recentMatches.filter(m => new Date(m.created_at).getTime() >= cutoff).reverse();
+        let score = 0;
+        const pts: number[] = [];
+        let w = 0;
+        for (const m of inRange) {
+            if (me && (m.winner_address || '').toLowerCase() === me) { score += 30; w++; }
+            else score -= 15;
+            pts.push(score);
+        }
+        return {
+            pts,
+            wins: w,
+            played: inRange.length,
+            net: score,
+            rate: inRange.length ? Math.round((w / inRange.length) * 100) : 0,
+            positive: score >= 0,
+        };
+    }, [recentMatches, range, address]);
 
     const [isPublic, setIsPublic] = useState(true);
     const [allowRequests, setAllowRequests] = useState(true);
@@ -179,6 +251,44 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                         </div>
                         <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
                             {rank.nextLabel === 'MAX' ? 'Top of the arena' : `Next: ${rank.nextLabel} • resets quarterly`}
+                        </div>
+                    </div>
+
+                    {/* Form chart: price-chart style performance sparkline */}
+                    <div className="glass-card !p-3 space-y-2">
+                        <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Form</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-2xl font-black text-white tabular-nums leading-none">
+                                    {form.played ? `${form.rate}%` : '–'}
+                                </span>
+                                {form.played > 0 && (
+                                    <span className={`text-[11px] font-black tabular-nums ${form.positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {form.net > 0 ? `+${form.net}` : `${form.net}`}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">
+                                {form.played} matches • {range}
+                            </div>
+                        </div>
+                        {form.pts.length > 0 ? (
+                            <FormChart points={form.pts} positive={form.positive} />
+                        ) : (
+                            <div className="h-[96px] flex items-center justify-center border border-dashed border-white/10 rounded-xl">
+                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Play matches to build form</span>
+                            </div>
+                        )}
+                        <div className="flex items-center justify-between pt-1">
+                            {RANGES.map((r) => (
+                                <button
+                                    key={r.id}
+                                    onClick={() => setRange(r.id)}
+                                    className={`px-2 py-1 rounded-full text-[10px] font-black transition-all ${range === r.id ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+                                >
+                                    {r.id}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
