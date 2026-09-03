@@ -120,8 +120,14 @@ export function useGameEngine({
         
         if (isMeKicked) return;
 
+        const iAmWinner = !!address && !!player.walletAddress &&
+            player.walletAddress.toLowerCase() === address.toLowerCase();
+        const iPlayed = !!myPlayer && !myPlayer.isAi;
+
+        // Truthful XP toast: win amount on win, loss amount when we participated but lost
         const winXpGain = 150 + Math.floor(wager * 0.1);
-        setXpGain(winXpGain);
+        const lossXpGain = 50 + Math.floor(wager * 0.05);
+        setXpGain(iAmWinner ? winXpGain : (iPlayed ? lossXpGain : winXpGain));
         setTimeout(() => setXpGain(null), 3000);
 
         const data = localStorage.getItem('ludo-leaderboard');
@@ -137,15 +143,24 @@ export function useGameEngine({
 
         localStorage.setItem('ludo-leaderboard', JSON.stringify(stats));
 
-        if (address && player.walletAddress === address && !hasRecordedWin.current) {
+        if (!hasRecordedWin.current && (iAmWinner || isBotMatch)) {
             hasRecordedWin.current = true;
-            const participants = initialPlayers
+            const humans = initialPlayers
                 .map(p => p.walletAddress)
                 .filter(Boolean) as string[];
 
-            await recordMatchResult(address, roomId || 'local', gameMode, participants, localGameState.matchId);
+            // Skip unattributable edge cases (no human involved)
+            if (humans.length === 0) return;
+
+            await recordMatchResult(
+                player.walletAddress || null,
+                roomId || 'local',
+                gameMode,
+                humans,
+                localGameState.matchId
+            );
         }
-    }, [initialPlayers, address, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager]);
+    }, [initialPlayers, address, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;

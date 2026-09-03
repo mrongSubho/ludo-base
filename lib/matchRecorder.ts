@@ -2,7 +2,7 @@
  * Records a match result and updates the winner's statistics via the secure API.
  */
 export async function recordMatchResult(
-    winnerAddress: string,
+    winnerAddress: string | null,
     roomCode: string,
     gameMode: string,
     participants: string[],

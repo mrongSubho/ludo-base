@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     try {
         const { winnerAddress, roomCode, gameMode, participants, wager = 0, matchId } = await request.json();
 
-        if (!winnerAddress || !participants || !Array.isArray(participants)) {
+        if (!participants || !Array.isArray(participants)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -93,11 +93,11 @@ export async function POST(request: Request) {
         // For classic matches, pot = participants.length * wager
         const prizePool = participants.length * wager;
 
-        const { data: player, error: fetchError } = await supabase
+        const { data: player, error: fetchError } = winnerAddress ? await supabase
             .from('players')
             .select('total_wins, total_games, xp, rating, coins, season_id')
             .ilike('wallet_address', winnerAddress)
-            .single();
+            .single() : { data: null, error: null };
 
         if (!fetchError && player) {
             const isNewSeason = (player.season_id || 0) < currentSeasonId;
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
         }
 
         // 3. Update other participants (Loss)
-        const others = participants.filter(p => p.toLowerCase() !== winnerAddress.toLowerCase());
+        const others = participants.filter(p => !winnerAddress || p.toLowerCase() !== winnerAddress.toLowerCase());
         const baseXpGain = 50 + Math.floor(wager * 0.05);
         const lossRpPenalty = 15;
 

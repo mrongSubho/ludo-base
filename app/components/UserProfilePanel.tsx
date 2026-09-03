@@ -71,7 +71,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
     const coins = profile?.coins || 0;
 
     const [range, setRange] = useState<string>('All');
-    const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string }[]>([]);
+    const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string | null }[]>([]);
 
     // Recent matches power both the live streak and the form chart (single query)
     useEffect(() => {
@@ -110,7 +110,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
         const me = (address || '').toLowerCase();
         const def = RANGES.find(r => r.id === range) || RANGES[RANGES.length - 1];
         const cutoff = def.days === Infinity ? 0 : Date.now() - def.days * 86400000;
-        const inRange = recentMatches.filter(m => new Date(m.created_at).getTime() >= cutoff).reverse();
+        const inRange = recentMatches.filter(m => m.created_at && new Date(m.created_at).getTime() >= cutoff).reverse();
         let score = 0;
         const pts: number[] = [];
         let w = 0;
@@ -276,7 +276,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                             <FormChart points={form.pts} positive={form.positive} />
                         ) : (
                             <div className="h-[96px] flex items-center justify-center border border-dashed border-white/10 rounded-xl">
-                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Play matches to build form</span>
+                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{recentMatches.length ? 'No matches in this range' : 'Play matches to build form'}</span>
                             </div>
                         )}
                         <div className="flex items-center justify-between pt-1">
