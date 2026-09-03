@@ -317,6 +317,79 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         }
     };
 
+    // Self check: own profile gets stats only, no social actions
+    const isSelf = !!userAddress && !!currentUserAddress &&
+        userAddress.toLowerCase() === currentUserAddress.toLowerCase();
+
+    // Shared blocks across self / friend / stranger views
+    const renderBreakdown = () => (
+        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3 flex justify-between items-center">
+            <div className="flex flex-col items-center flex-1">
+                <span className="text-sm font-bold text-white">{classicPlayed}</span>
+                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Classic</span>
+            </div>
+            <div className="w-px h-6 bg-white/10" />
+            <div className="flex flex-col items-center flex-1">
+                <span className="text-sm font-bold text-white">{powerPlayed}</span>
+                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Power</span>
+            </div>
+            <div className="w-px h-6 bg-white/10" />
+            <div className="flex flex-col items-center flex-1">
+                <span className="text-sm font-bold text-white">{aiPlayed}</span>
+                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">vs AI</span>
+            </div>
+        </div>
+    );
+
+    const renderActivity = () => (
+        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col">
+            <div className="flex justify-between items-center mb-3">
+                <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
+                <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
+            </div>
+            <div className="flex items-end justify-between h-8 gap-1">
+                {activityBuckets.map((h, i) => (
+                    <div key={i} className="flex-1 bg-cyan-500/40 rounded-t-sm hover:bg-cyan-400 transition-colors" style={{ height: `${Math.max(8, (h / activityMax) * 100)}%`, opacity: h === 0 ? 0.25 : 1 }} />
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderScout = () => (
+        scout.pts.length > 0 ? (
+            <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
+                    <span className={`text-[11px] font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {scout.net > 0 ? `+${scout.net}` : `${scout.net}`}
+                    </span>
+                </div>
+                <FormChart points={scout.pts} positive={scout.positive} />
+            </div>
+        ) : null
+    );
+
+    const renderPokeRow = () => (
+        <div className="flex gap-2 w-full">
+            <button
+                onClick={() => handleAction('Poke')}
+                disabled={isActionLoading}
+                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
+                POKE
+            </button>
+            <button
+                onClick={() => handleAction('Congratulate')}
+                disabled={isActionLoading}
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="m6 9 6 6 6-6"></path><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"></path></svg>
+                GUD LUCK
+            </button>
+        </div>
+    );
+
     return (
         <>
             {isOpen && userAddress && (
@@ -340,7 +413,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                         {/* Top Controls */}
                         <div className="flex justify-end p-4 relative z-10 w-full pl-6 pr-4">
-                            {!isFriendValidationLoading && isFriend && (
+                            {!isFriendValidationLoading && (isFriend || isSelf) && (
                                 <div className="absolute left-6 top-6 flex items-center gap-2">
                                     <div className={`w-2.5 h-2.5 rounded-full 
                                         ${(profile?.status === 'Online' && isOnline) ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' :
@@ -391,6 +464,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                                     <div className="h-8 mb-5 flex flex-col items-center justify-center">
                                         <div className="flex items-center gap-2 mb-1">
+                                            {isSelf && (
+                                                <span className="bg-cyan-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
+                                            )}
                                             <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 bg-cyan-400/10 rounded-full border border-cyan-400/20">
                                                 {progression.tier} {progression.subRank}
                                             </span>
@@ -398,7 +474,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                 Lv. {progression.level}
                                             </span>
                                         </div>
-                                        {!isFriendValidationLoading && isFriend && (
+                                        {!isFriendValidationLoading && (isFriend || isSelf) && (
                                             <div className="bg-black/40 px-3 py-0.5 rounded-full border border-white/5 flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
                                                 <span className="text-[9px] text-white/40 font-mono">
@@ -453,36 +529,19 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                             </div>
                                         ) : (
                                             <>
-                                                {isFriend ? (
+                                                {isSelf ? (
                                                     <div className="w-full flex flex-col gap-3 mb-4">
-                                                        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3 flex justify-between items-center">
-                                                            <div className="flex flex-col items-center flex-1">
-                                                                <span className="text-sm font-bold text-white">{classicPlayed}</span>
-                                                                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Classic</span>
-                                                            </div>
-                                                            <div className="w-px h-6 bg-white/10" />
-                                                            <div className="flex flex-col items-center flex-1">
-                                                                <span className="text-sm font-bold text-white">{powerPlayed}</span>
-                                                                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Power</span>
-                                                            </div>
-                                                            <div className="w-px h-6 bg-white/10" />
-                                                            <div className="flex flex-col items-center flex-1">
-                                                                <span className="text-sm font-bold text-white">{aiPlayed}</span>
-                                                                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">vs AI</span>
-                                                            </div>
+                                                        <div className="w-full flex items-center justify-center">
+                                                            <span className="bg-cyan-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">This is you</span>
                                                         </div>
-
-                                                        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col">
-                                                            <div className="flex justify-between items-center mb-3">
-                                                                <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
-                                                                <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
-                                                            </div>
-                                                            <div className="flex items-end justify-between h-8 gap-1">
-                                                                {activityBuckets.map((h, i) => (
-                                                                    <div key={i} className="flex-1 bg-cyan-500/40 rounded-t-sm hover:bg-cyan-400 transition-colors" style={{ height: `${Math.max(8, (h / activityMax) * 100)}%`, opacity: h === 0 ? 0.25 : 1 }} />
-                                                                ))}
-                                                            </div>
-                                                        </div>
+                                                        {renderBreakdown()}
+                                                        {renderActivity()}
+                                                        {renderScout()}
+                                                    </div>
+                                                ) : isFriend && !isBlocked ? (
+                                                    <div className="w-full flex flex-col gap-3 mb-4">
+                                                        {renderBreakdown()}
+                                                        {renderActivity()}
 
                                                         <button
                                                             onClick={() => onDM(userAddress)}
@@ -491,6 +550,34 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             <HiOutlineAtSymbol className="w-5 h-5" />
                                                             DIRECT MESSAGE
                                                         </button>
+
+                                                        {renderPokeRow()}
+
+                                                        <div className="flex gap-2 w-full">
+                                                            <button
+                                                                onClick={() => handleAction('Unfriend')}
+                                                                disabled={isActionLoading}
+                                                                className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                            >
+                                                                Remove Friend
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleAction('Block')}
+                                                                disabled={isActionLoading}
+                                                                className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                            >
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                                                Block
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleAction('Report')}
+                                                                disabled={isActionLoading}
+                                                                className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
+                                                                title="Report User"
+                                                            >
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ) : (
                                                     <div className="w-full flex pb-3">
@@ -543,37 +630,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex flex-col gap-2 w-full">
-                                                                    {scout.pts.length > 0 && (
-                                                                        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3">
-                                                                            <div className="flex items-center justify-between mb-1">
-                                                                                <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
-                                                                                <span className={`text-[11px] font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                                                                                    {scout.net > 0 ? `+${scout.net}` : `${scout.net}`}
-                                                                                </span>
-                                                                            </div>
-                                                                            <FormChart points={scout.pts} positive={scout.positive} />
-                                                                        </div>
-                                                                    )}
-                                                                    {!isBlocked && (
-                                                                        <div className="flex gap-2 w-full">
-                                                                            <button
-                                                                                onClick={() => handleAction('Poke')}
-                                                                                disabled={isActionLoading}
-                                                                                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                                            >
-                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
-                                                                                POKE
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => handleAction('Congratulate')}
-                                                                                disabled={isActionLoading}
-                                                                                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                                                                            >
-                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="m6 9 6 6 6-6"></path><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"></path></svg>
-                                                                                GUD LUCK
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
+                                                                    {renderScout()}
+                                                                    {!isBlocked && renderPokeRow()}
                                                                     <div className="flex gap-2 w-full">
                                                                         {isBlocked ? (
                                                                             <button
@@ -587,13 +645,11 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                         ) : (
                                                                             <>
                                                                                 <button
-                                                                                    onClick={() => handleAction(isFriend ? 'Unfriend' : 'Add Friend')}
+                                                                                    onClick={() => handleAction('Add Friend')}
                                                                                     disabled={isActionLoading || isPending}
                                                                                     className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                                                 >
-                                                                                    {isFriend ? (
-                                                                                        <span className="text-white/50 hover:text-red-400 transition-colors">Unfriend</span>
-                                                                                    ) : isPending ? (
+                                                                                    {isPending ? (
                                                                                         <span className="text-white/60">Pending</span>
                                                                                     ) : (
                                                                                         <>
