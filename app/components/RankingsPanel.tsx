@@ -17,11 +17,47 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
     const { leaderboard: players, isBooting } = useGameData();
     const [activeFilter, setActiveFilter] = useState<'global' | 'friends'>('global');
     const [searchQuery, setSearchQuery] = useState('');
+    const [friendWallets, setFriendWallets] = useState<string[]>([]);
+    const [friendsLoading, setFriendsLoading] = useState(false);
 
-    const filteredPlayers = players.filter(p => 
-        p.username?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    // Live friends list for the FRIENDS tab (same source as the profile modal)
+    useEffect(() => {
+        if (!isOpen || !address || activeFilter !== 'friends') return;
+        let cancelled = false;
+        setFriendsLoading(true);
+        (async () => {
+            try {
+                const res = await fetch(`/api/friends?wallet=${address}`);
+                if (!res.ok) throw new Error('friends fetch failed');
+                const data = await res.json();
+                const addrs = [...(data.onchainFriends || []), ...(data.gameFriends || [])]
+                    .map((f: any) => (f.address || f.wallet_address || '').toLowerCase())
+                    .filter(Boolean);
+                if (!cancelled) setFriendWallets([...new Set([address.toLowerCase(), ...addrs])]);
+            } catch {
+                if (!cancelled) setFriendWallets([address.toLowerCase()]);
+            } finally {
+                if (!cancelled) setFriendsLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [isOpen, address, activeFilter]);
+
+    const basePlayers = activeFilter === 'friends'
+        ? players.filter(p => friendWallets.includes(p.wallet_address.toLowerCase()))
+        : players;
+
+    const filteredPlayers = basePlayers.filter(p =>
+        p.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.wallet_address.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Live season countdown (quarters match the DB season_id convention YYYYQ)
+    const now = new Date();
+    const quarter = Math.floor(now.getMonth() / 3);
+    const quarterEnd = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+    const daysLeft = Math.max(0, Math.ceil((quarterEnd.getTime() - now.getTime()) / 86400000));
+    const seasonId = now.getFullYear() * 10 + (quarter + 1);
 
     const getTierColor = (tier: string) => {
         switch (tier) {
@@ -116,10 +152,20 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
 
                                 {/* List */}
                                 <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-3 no-scrollbar relative z-10">
-                                    {isBooting ? (
+                                    {isBooting || (activeFilter === 'friends' && friendsLoading) ? (
                                         <div className="h-full flex flex-col items-center justify-center gap-4">
                                             <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
                                             <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Synching Tiers</span>
+                                        </div>
+                                    ) : filteredPlayers.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center gap-2 px-8 text-center">
+                                            <LuUsers className="w-8 h-8 text-white/20" />
+                                            <span className="text-xs font-black text-white/40 uppercase tracking-widest">
+                                                {activeFilter === 'friends' ? 'No friends on the board yet' : 'No players found'}
+                                            </span>
+                                            <span className="text-[10px] text-white/25">
+                                                {activeFilter === 'friends' ? 'Add friends to rank against them' : 'Try a different search'}
+                                            </span>
                                         </div>
                                     ) : filteredPlayers.map((p, idx) => (
                                         <motion.div 
@@ -162,7 +208,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                 {/* Footer Info */}
                                 <div className="p-5 bg-black/40 border-t border-white/5 mt-auto">
                                     <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/30">
-                                        <span>Season 1 Ends in 24 Days</span>
+                                        <span>Season {seasonId} ends in {daysLeft} day{daysLeft === 1 ? '' : 's'}</span>
                                         <span className="text-cyan-400">Prizepool: $50,000</span>
                                     </div>
                                 </div>

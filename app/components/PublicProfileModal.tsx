@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getProgression } from '@/lib/progression';
+import { getProgression, getRankProgress } from '@/lib/progression';
+import { FormChart } from './FormChart';
 import { HiOutlineAtSymbol } from "react-icons/hi";
 
 interface PublicProfileModalProps {
@@ -30,6 +31,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const [reportStep, setReportStep] = useState<'none' | 'select' | 'submitting' | 'done'>('none');
     const [selectedReportReason, setSelectedReportReason] = useState<string>('');
 
+    // Target user's match history (powers live activity + scout sparkline)
+    const [targetMatches, setTargetMatches] = useState<{ winner_address: string | null; created_at: string | null }[]>([]);
+
     // Reset when modal opens with new user
     useEffect(() => {
         if (!isOpen || !userAddress || !currentUserAddress) {
@@ -42,6 +46,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             setSelectedReportReason('');
             setProfileLoading(false);
             setFriendValidationLoading(false);
+            setTargetMatches([]);
             return;
         }
 
@@ -116,8 +121,30 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     }, [isOpen, userAddress, currentUserAddress]);
 
+    // Target match history (separate effect so profile paint isn't blocked)
+    useEffect(() => {
+        if (!isOpen || !userAddress) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data } = await supabase
+                    .from('matches')
+                    .select('winner_address, created_at')
+                    .overlaps('participants', [userAddress.toLowerCase(), userAddress])
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+                if (!cancelled) setTargetMatches(data || []);
+            } catch (err) {
+                console.error("Error fetching target matches:", err);
+                if (!cancelled) setTargetMatches([]);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [isOpen, userAddress]);
+
     // Derived Display Values
     const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
+    const targetRank = getRankProgress(profile?.rating || 0);
 
     const displayName = profile?.username && !profile.username.startsWith('0x')
         ? profile.username
@@ -125,9 +152,39 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     const displayAvatar = profile?.avatar_url || '1';
     const displayWins = profile?.total_wins || 0;
+    const displayGames = profile?.total_games || 0;
+    const displayWinRate = displayGames > 0 ? `${Math.round((displayWins / displayGames) * 100)}%` : '-';
     const classicPlayed = profile?.classic_played || 0;
     const powerPlayed = profile?.power_played || 0;
     const aiPlayed = profile?.ai_played || 0;
+
+    // Live 30-day activity buckets (10 x 3-day buckets, match counts)
+    const activityBuckets = useMemo(() => {
+        const now = Date.now();
+        const day = 86400000;
+        const buckets = new Array(10).fill(0);
+        for (const m of targetMatches) {
+            if (!m.created_at) continue;
+            const age = now - new Date(m.created_at).getTime();
+            if (age < 0 || age >= 30 * day) continue;
+            buckets[9 - Math.floor(age / (3 * day))]++;
+        }
+        return buckets;
+    }, [targetMatches]);
+    const activityMax = Math.max(1, ...activityBuckets);
+
+    // Scout sparkline for strangers: cumulative +30/win, -15/loss over last 100
+    const scout = useMemo(() => {
+        const me = (userAddress || '').toLowerCase();
+        let score = 0;
+        const pts: number[] = [];
+        for (const m of [...targetMatches].reverse()) {
+            if (me && (m.winner_address || '').toLowerCase() === me) score += 30;
+            else score -= 15;
+            pts.push(score);
+        }
+        return { pts, positive: score >= 0, net: score };
+    }, [targetMatches, userAddress]);
 
     // Online Status from DB heuristics (Self-Healing)
     const lastPlayedAt = profile?.last_played_at ? new Date(profile.last_played_at) : null;
@@ -145,9 +202,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const localTimeString = lastPlayedAt ? new Intl.DateTimeFormat('default', {
         hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short'
     }).format(lastPlayedAt) : 'Never';
-
-    // Graph Data Mocking (Assuming we implement a history tracking table later, mocking for now as requested by user)
-    const [monthlyGraphHeights] = useState([30, 50, 20, 80, 40, 90, 60, 100, 40, 70]);
 
     const handleAction = async (action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report' | 'Poke' | 'Congratulate') => {
         if (!currentUserAddress || !userAddress || isActionLoading) return;
@@ -274,7 +328,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                     {/* Pop-up Modal Container */}
                     <div
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm border border-white/10 rounded-3xl z-[210] overflow-hidden shadow-2xl flex flex-col"
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-y-auto no-scrollbar border border-white/10 rounded-3xl z-[210] shadow-2xl flex flex-col"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
@@ -361,8 +415,32 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
                                         </div>
                                         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
-                                            <span className="text-2xl font-black text-white/80">-</span>
+                                            <span className="text-2xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Level + Rank bars (public) */}
+                                    <div className="w-full flex flex-col gap-2 mb-3">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
+                                                <span className="text-[9px] font-bold text-white/50 tabular-nums">{progression.currentXp.toLocaleString()} / {progression.xpToNextLevel.toLocaleString()} XP</span>
+                                            </div>
+                                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                                <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full" style={{ width: `${progression.progressPercentage}%` }} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">Rank — {progression.tier} {progression.subRank}</span>
+                                                <span className="text-[9px] font-bold text-white/50 tabular-nums">
+                                                    {targetRank.target === null ? `${targetRank.current.toLocaleString()} RXP` : `${targetRank.current.toLocaleString()} / ${targetRank.target.toLocaleString()} RXP`}
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                                <div className="h-full bg-gradient-to-r from-amber-400 to-orange-600 rounded-full" style={{ width: `${Math.min(100, Math.max(0, targetRank.pct))}%` }} />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -400,8 +478,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                 <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
                                                             </div>
                                                             <div className="flex items-end justify-between h-8 gap-1">
-                                                                {monthlyGraphHeights.map((h, i) => (
-                                                                    <div key={i} className="flex-1 bg-white/10 rounded-t-sm hover:bg-cyan-500/50 transition-colors" style={{ height: `${h}%` }} />
+                                                                {activityBuckets.map((h, i) => (
+                                                                    <div key={i} className="flex-1 bg-cyan-500/40 rounded-t-sm hover:bg-cyan-400 transition-colors" style={{ height: `${Math.max(8, (h / activityMax) * 100)}%`, opacity: h === 0 ? 0.25 : 1 }} />
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -465,6 +543,17 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex flex-col gap-2 w-full">
+                                                                    {scout.pts.length > 0 && (
+                                                                        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3">
+                                                                            <div className="flex items-center justify-between mb-1">
+                                                                                <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
+                                                                                <span className={`text-[11px] font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                                    {scout.net > 0 ? `+${scout.net}` : `${scout.net}`}
+                                                                                </span>
+                                                                            </div>
+                                                                            <FormChart points={scout.pts} positive={scout.positive} />
+                                                                        </div>
+                                                                    )}
                                                                     {!isBlocked && (
                                                                         <div className="flex gap-2 w-full">
                                                                             <button
