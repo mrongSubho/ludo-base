@@ -46,6 +46,7 @@ interface UseGameEngineProps {
         players: Player[];
         colorCorner: ColorCorner;
     }>>;
+    wager?: number;
 }
 
 export function useGameEngine({
@@ -55,8 +56,10 @@ export function useGameEngine({
     isBotMatch,
     colorCorner,
     pathCells,
-    setBoardConfig
+    setBoardConfig,
+    wager = 0,
 }: UseGameEngineProps) {
+    const [xpGain, setXpGain] = useState<number | null>(null);
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const { address } = useAccount();
     const hasRecordedWin = useRef<boolean>(false);
@@ -117,6 +120,10 @@ export function useGameEngine({
         
         if (isMeKicked) return;
 
+        const winXpGain = 150 + Math.floor(wager * 0.1);
+        setXpGain(winXpGain);
+        setTimeout(() => setXpGain(null), 3000);
+
         const data = localStorage.getItem('ludo-leaderboard');
         const stats = data ? JSON.parse(data) : {};
 
@@ -138,7 +145,7 @@ export function useGameEngine({
 
             await recordMatchResult(address, roomId || 'local', gameMode, participants, localGameState.matchId);
         }
-    }, [initialPlayers, address, roomId, gameMode, localGameState.afkStats, localGameState.matchId]);
+    }, [initialPlayers, address, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;
@@ -350,6 +357,7 @@ export function useGameEngine({
 
     return {
         gameState: localGameState,
+        xpGain,
         handleRoll,
         handleTokenClick,
         handleUsePower,

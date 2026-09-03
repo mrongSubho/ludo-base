@@ -132,10 +132,13 @@ export default function Page() {
   const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
   const { level, tier } = progression;
   const prevLevelRef = useRef(level);
+  const milestoneRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (level > prevLevelRef.current) {
       prevLevelRef.current = level;
+
+      // Level-up confetti
       const duration = 2 * 1000;
       const end = Date.now() + duration;
       const colors = ['#00E5FF', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ffffff'];
@@ -150,6 +153,14 @@ export default function Page() {
         });
         if (Date.now() < end) requestAnimationFrame(frame);
       })();
+
+      // Milestone check (every 5 levels)
+      if (level % 5 === 0 && level !== milestoneRef.current) {
+        milestoneRef.current = level;
+        setTimeout(() => {
+          confetti({ particleCount: 80, spread: 120, origin: { x: 0.5, y: 0.5 }, colors: ['#f59e0b', '#00E5FF', '#ffffff'], scalar: 1.5 });
+        }, 400);
+      }
     }
   }, [level]);
 
@@ -249,15 +260,15 @@ export default function Page() {
             const profileData = participants[addr.toLowerCase()];
             const corner = cc[slot.color];
 
-            return {
-              name: slot.playerName || profileData?.username || 'Guest',
-              avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
-              level: 1, // Default level
-              isAi: false,
-              color: slot.color,
-              position: corner ? CORNER_TO_POSITION[corner] : 'bottom-left',
-              walletAddress: addr
-            } as Player;
+              return {
+                name: slot.playerName || profileData?.username || 'Guest',
+                avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
+                level: calculateLevel(profileData?.xp || 0).level,
+                isAi: false,
+                color: slot.color,
+                position: corner ? CORNER_TO_POSITION[corner] : 'bottom-left',
+                walletAddress: addr
+              } as Player;
           });
 
         // --- Strict Synchronous Validation ---
@@ -578,6 +589,7 @@ export default function Page() {
                     onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
                     initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
                     initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
+                    wager={betAmount}
                   />
                 )}
               </main>

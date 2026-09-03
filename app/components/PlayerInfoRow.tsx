@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LudoDice from './LudoDice';
 import { Player } from '@/hooks/useGameEngine';
 import { PowerType, PlayerColor } from '@/lib/types';
@@ -44,6 +44,19 @@ export function PlayerCard({
     awaitingMove,
     onPowerClick,
 }: PlayerCardProps) {
+    const [levelUp, setLevelUp] = useState(false);
+    const prevLevelRef = useRef(player.level);
+
+    useEffect(() => {
+        if (player.level > prevLevelRef.current) {
+            prevLevelRef.current = player.level;
+            setLevelUp(true);
+            const timer = setTimeout(() => setLevelUp(false), 800);
+            return () => clearTimeout(timer);
+        }
+        prevLevelRef.current = player.level;
+    }, [player.level]);
+
     const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
@@ -77,7 +90,7 @@ export function PlayerCard({
                         </div>
                     )}
                 </div>
-                <div className="avatar-level-badge" style={{ background: getTierInfo(player.rating || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rating || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rating || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rating || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rating || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
+                <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rating || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rating || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rating || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rating || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rating || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
                     <span className="text-[8px] font-black">{player.level}</span>
                 </div>
             </div>

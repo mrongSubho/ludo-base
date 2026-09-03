@@ -1,4 +1,5 @@
 import { PlayerColor } from './types';
+import { calculateLevel } from './progression';
 
 export type Point = { r: number; c: number };
 
@@ -287,22 +288,22 @@ export const PLAYER_TEMPLATES = [
 ];
 
 export const BOT_TEMPLATES = [
-    { name: 'Claude',    level: 18, avatar: '/avatars/claude.png',      isAi: true },
-    { name: 'GPT-4o',    level: 16, avatar: '/avatars/openai.png',     isAi: true },
-    { name: 'Gemini',    level: 14, avatar: '/avatars/gemini.png',     isAi: true },
-    { name: 'Llama',     level: 12, avatar: '/avatars/meta.png',       isAi: true },
-    { name: 'Mistral',   level: 11, avatar: '/avatars/mistral.png',    isAi: true },
-    { name: 'Groq',      level: 15, avatar: '/avatars/groq.png',       isAi: true },
-    { name: 'DeepSeek',  level: 17, avatar: '/avatars/deepseek.png',   isAi: true },
-    { name: 'Kimi',      level: 10, avatar: '/avatars/moonshot.png',   isAi: true },
-    { name: 'GLM',       level: 13, avatar: '/avatars/zhipu.png',      isAi: true },
-    { name: 'Qwen',      level: 12, avatar: '/avatars/qwen.png',       isAi: true },
-    { name: 'Grok',      level: 14, avatar: '/avatars/xai.png',        isAi: true },
-    { name: 'Command R', level: 11, avatar: '/avatars/cohere.png',     isAi: true },
-    { name: 'Perplexity',level: 13, avatar: '/avatars/perplexity.png', isAi: true },
-    { name: 'Yi',        level: 10, avatar: '/avatars/yi.png',         isAi: true },
-    { name: 'MiniMax',   level: 9,  avatar: '/avatars/minimax.png',    isAi: true },
-    { name: 'Falcon',    level: 8,  avatar: '/avatars/nvidia.png',     isAi: true },
+    { name: 'Claude',    level: 18, xp: 28900, avatar: '/avatars/claude.png',      isAi: true },
+    { name: 'GPT-4o',    level: 16, xp: 22500, avatar: '/avatars/openai.png',     isAi: true },
+    { name: 'Gemini',    level: 14, xp: 16900, avatar: '/avatars/gemini.png',     isAi: true },
+    { name: 'Llama',     level: 12, xp: 12100, avatar: '/avatars/meta.png',       isAi: true },
+    { name: 'Mistral',   level: 11, xp: 10000, avatar: '/avatars/mistral.png',    isAi: true },
+    { name: 'Groq',      level: 15, xp: 19600, avatar: '/avatars/groq.png',       isAi: true },
+    { name: 'DeepSeek',  level: 17, xp: 25600, avatar: '/avatars/deepseek.png',   isAi: true },
+    { name: 'Kimi',      level: 10, xp: 8100,  avatar: '/avatars/moonshot.png',   isAi: true },
+    { name: 'GLM',       level: 13, xp: 14400, avatar: '/avatars/zhipu.png',      isAi: true },
+    { name: 'Qwen',      level: 12, xp: 12100, avatar: '/avatars/qwen.png',       isAi: true },
+    { name: 'Grok',      level: 14, xp: 16900, avatar: '/avatars/xai.png',        isAi: true },
+    { name: 'Command R', level: 11, xp: 10000, avatar: '/avatars/cohere.png',     isAi: true },
+    { name: 'Perplexity',level: 13, xp: 14400, avatar: '/avatars/perplexity.png', isAi: true },
+    { name: 'Yi',        level: 10, xp: 8100,  avatar: '/avatars/yi.png',         isAi: true },
+    { name: 'MiniMax',   level: 9,  xp: 6400,  avatar: '/avatars/minimax.png',    isAi: true },
+    { name: 'Falcon',    level: 8,  xp: 4900,  avatar: '/avatars/nvidia.png',     isAi: true },
 ];
 
 type Position = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -364,18 +365,19 @@ export function shufflePlayers(
                 template = templates[i % templates.length];
             }
 
-            return {
-                ...template,
-                color,
-                position: CORNER_TO_POSITION[corner],
-                isAi: template.isAi
-            };
-        });
-    }
-
-    // Legacy fallback (preserving original logic for snakes or other modes not yet converted)
-    if (isBotMatch) {
-        let assignedHuman = false;
+             return {
+                 ...template,
+                 level: calculateLevel(template.xp || 0).level,
+                 color,
+                 position: CORNER_TO_POSITION[corner],
+                 isAi: template.isAi
+             };
+         });
+     }
+ 
+     // Legacy fallback (preserving original logic for snakes or other modes not yet converted)
+     if (isBotMatch) {
+         let assignedHuman = false;
         let botIndex = 0;
 
         return COLOR_SEATS.map((seat, i) => {
@@ -390,14 +392,16 @@ export function shufflePlayers(
                 botIndex++;
             }
 
-            return { ...template, ...seat, isAi: template.isAi };
-        }).filter(Boolean);
-
-    } else {
-        const templates = [...PLAYER_TEMPLATES, ...BOT_TEMPLATES].sort(() => Math.random() - 0.5);
-        return COLOR_SEATS.map((seat, i) => {
-            if (!activeIndices.includes(i)) return null;
-            return { ...templates[i], ...seat };
+             const lvl = calculateLevel((template as any).xp || 0).level;
+             return { ...template, ...seat, level: lvl, isAi: template.isAi };
+         }).filter(Boolean);
+ 
+     } else {
+         const templates = [...PLAYER_TEMPLATES, ...BOT_TEMPLATES].sort(() => Math.random() - 0.5);
+         return COLOR_SEATS.map((seat, i) => {
+             if (!activeIndices.includes(i)) return null;
+             const t = templates[i];
+             return { ...t, ...seat, level: calculateLevel((t as any).xp || 0).level };
         }).filter(Boolean);
     }
 }
