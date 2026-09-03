@@ -4,13 +4,15 @@ import { supabase } from '@/lib/supabase';
 
 export function useCurrentUser() {
     const { address, isConnected } = useAccount();
-    const [profile, setProfile] = useState<{ 
-        username: string | null; 
-        avatar_url: string | null; 
+    const [profile, setProfile] = useState<{
+        username: string | null;
+        avatar_url: string | null;
         displayName: string;
         xp?: number;
         rating?: number;
         coins?: number;
+        total_wins?: number | null;
+        total_games?: number | null;
     } | null>(null);
 
     useEffect(() => {
@@ -18,7 +20,7 @@ export function useCurrentUser() {
             if (isConnected && address) {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('username, avatar_url, xp, rating, coins')
+                    .select('username, avatar_url, xp, rating, coins, total_wins, total_games')
                     .or(`wallet_address.ilike.${address},wallet_address.eq.${address.toLowerCase()},wallet_address.eq.${address}`)
                     .limit(1);
 
@@ -57,6 +59,8 @@ export function useCurrentUser() {
                             xp: payload.new.xp,
                             rating: payload.new.rating,
                             coins: payload.new.coins,
+                            total_wins: payload.new.total_wins,
+                            total_games: payload.new.total_games,
                             displayName: (payload.new.username && !payload.new.username.startsWith('0x')) ? payload.new.username : "Guest " + address.slice(-6).toUpperCase()
                         });
                     }

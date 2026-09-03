@@ -65,3 +65,35 @@ export const getProgression = (xp: number = 0, rating: number = 0): ProgressionI
         rating
     };
 };
+
+export interface RankProgress {
+    pct: number;
+    current: number;
+    target: number | null;
+    nextLabel: string;
+}
+
+/**
+ * Progress of `rxp` (rank XP) toward the next tier.
+ * Mirrors getTierInfo thresholds; open-ended top tiers report progress
+ * within Diamond (3001–5000) and MAX for Arena Master.
+ */
+export const getRankProgress = (rxp: number = 0): RankProgress => {
+    if (rxp >= 5001) return { pct: 100, current: rxp, target: null, nextLabel: 'MAX' };
+    if (rxp >= 3001) return { pct: ((rxp - 3001) / 2000) * 100, current: rxp, target: 5001, nextLabel: 'Arena Master' };
+
+    const tiers = [
+        { name: 'Platinum', min: 1801, max: 3000, next: 'Diamond' },
+        { name: 'Gold', min: 901, max: 1800, next: 'Platinum' },
+        { name: 'Silver', min: 301, max: 900, next: 'Gold' },
+        { name: 'Bronze', min: 0, max: 300, next: 'Silver' }
+    ];
+
+    const t = tiers.find(t => rxp >= t.min && rxp <= t.max) || tiers[3];
+    return {
+        pct: ((rxp - t.min) / (t.max - t.min)) * 100,
+        current: rxp,
+        target: t.max + 1,
+        nextLabel: t.next
+    };
+};
