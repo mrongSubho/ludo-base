@@ -1,21 +1,37 @@
 -- ============================================================================
--- Ludo Base — Matchmaking Phase 1 (finding)
--- Run in Supabase Dashboard > SQL Editor. Section A is REQUIRED.
--- Sections B–D are optional / conditional — read the headers.
+-- Ludo Base — Matchmaking Phase 1 SQL (CORRECTED 2026-09-04)
+-- Run in Supabase Dashboard > SQL Editor, top to bottom. Safe to re-run.
+--
+-- Correction history: the publication ADD was verified live to be unnecessary
+-- (error 42710 "already member"). Event delivery for matchmaking_queue was
+-- then proven end-to-end with a raw-WS test (INSERT + UPDATE events arrive).
 -- ============================================================================
 
--- ── A. REQUIRED: realtime publication for match detection ───────────────────
--- Without this, the host is never pushed its 'matched' ticket update and
--- waits forever. Verified missing live via raw-WS event test (Phase 0).
-ALTER PUBLICATION supabase_realtime ADD TABLE public.matchmaking_queue;
+-- ── 0. VERIFY (read-only): publication membership ───────────────────────────
+-- Expect a row for matchmaking_queue. If missing, run section A.
+SELECT schemaname, tablename
+FROM pg_publication_tables
+WHERE pubname = 'supabase_realtime'
+  AND tablename IN ('matchmaking_queue', 'messages', 'conversations', 'game_invites');
 
--- ── B. REQUIRED HYGIENE: remove the Phase-0 diagnostic ghost ticket ─────────
--- Inert cancelled test ticket (absurd wager, matches nobody). Safe to delete.
-DELETE FROM public.matchmaking_queue WHERE id = 'd9beb8ea-a2ff-4fbe-86d3-4875bf525185';
+-- ── 0b. VERIFY (read-only): current queue state ─────────────────────────────
+SELECT status, count(*), max(created_at) AS newest
+FROM public.matchmaking_queue
+GROUP BY status;
+
+-- ── A. PUBLICATION (fresh setups only — SKIP if section 0 shows the row) ────
+-- ALTER PUBLICATION supabase_realtime ADD TABLE public.matchmaking_queue;
+
+-- ── B. GHOST CLEANUP (safe, qualified) ──────────────────────────────────────
+-- Cancelled rows are dead by definition. Searching rows expired over an hour
+-- ago cannot be live (client ticket TTL is ~30s with heartbeat refresh).
+DELETE FROM public.matchmaking_queue WHERE status = 'cancelled';
+DELETE FROM public.matchmaking_queue
+WHERE status = 'searching' AND expires_at < NOW() - INTERVAL '1 hour';
 
 -- ── C. OPTIONAL: schedule the cleanup functions (needs pg_cron) ─────────────
 -- 1. Dashboard > Database > Extensions > enable pg_cron (one click).
--- 2. Uncomment + run the two lines below. They delete stale tickets/rows
+-- 2. Uncomment + run the two lines below. They sweep stale tickets/rows
 --    every 5 minutes so ghosts can never pile up again.
 -- SELECT cron.schedule('cleanup-matchmaking-5m', '*/5 * * * *', $$SELECT public.cleanup_matchmaking_queue()$$);
 -- SELECT cron.schedule('cleanup-stale-5m', '*/5 * * * *', $$SELECT public.cleanup_stale_data()$$);
