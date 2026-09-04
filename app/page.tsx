@@ -13,8 +13,7 @@ import UserProfilePanel from './components/UserProfilePanel';
 import FriendsPanel from './components/FriendsPanel';
 import Leaderboard from './components/Leaderboard';
 import RankingsPanel from './components/RankingsPanel';
-import TournamentPanel from './components/TournamentPanel';
-import MissionPanel from './components/MissionPanel';
+import ArenaPanel from './components/ArenaPanel';
 import MarketplacePanel from './components/MarketplacePanel';
 import MessagesPanel from './components/MessagesPanel';
 import PublicProfileModal from './components/PublicProfileModal';
@@ -35,7 +34,7 @@ import confetti from 'canvas-confetti';
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
 type AppState = 'dashboard' | 'game' | 'spectating';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'tournaments' | 'mission' | 'marketplace' | 'settings' | 'messages' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | null;
 
 // Mock user data has been removed
 
@@ -481,11 +480,8 @@ export default function Page() {
                     onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                   />
                 )}
-                {activeTab === 'tournaments' && (
-                  <TournamentPanel key="tournaments" isOpen={true} onClose={closeTab} />
-                )}
-                {activeTab === 'mission' && (
-                  <MissionPanel key="mission" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
+                {activeTab === 'arena' && (
+                  <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
                 )}
                 {activeTab === 'marketplace' && (
                   <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />
