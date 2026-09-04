@@ -298,18 +298,14 @@ export const TeamUpMatchPanel = ({
                                     </div>
 
                                     {/* Join with Code */}
-                                    <button onClick={() => { playSelect(); setView('join'); }} className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] hover:text-cyan-400 transition-colors self-center shrink-0">
+                                    <button
+                                        onClick={() => { playSelect(); setView('join'); }}
+                                        className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-white/15 text-white/60 text-[10px] font-black uppercase tracking-[0.25em] hover:text-white hover:border-white/30 hover:bg-white/5 transition-all shrink-0"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 15h.01M12 15h.01M16 15h.01M7 10V7a5 5 0 0 1 10 0v3" /></svg>
                                         Join with Code
                                     </button>
 
-                                    {/* Hybrid Quick Match Trigger (host only — guests wait) */}
-                                    {isHost && lobbyState && !isReady && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center shrink-0">
-                                            <button onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }} className="text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.2em] hover:text-cyan-400 transition-colors py-2 px-4 rounded-full border border-cyan-400/20 hover:border-cyan-400/50 bg-cyan-400/5">
-                                                Fill Remaining with Quick Match
-                                            </button>
-                                        </motion.div>
-                                    )}
                                 </div>
                             )}
 
@@ -406,6 +402,19 @@ export const TeamUpMatchPanel = ({
                                 <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Entry Fee: <span className="text-amber-400">{feeLabel}</span></span>
                             </div>
 
+                            {isHost && lobbyState && !isReady && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }}
+                                    className="w-full py-3.5 rounded-[1.5rem] bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 transition-all hover:bg-cyan-500/20 active:scale-95 flex flex-col items-center justify-center gap-0.5"
+                                >
+                                    <span className="flex items-center gap-2 font-black italic tracking-widest text-sm uppercase">
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+                                        Quick Match
+                                    </span>
+                                    <span className="text-[9px] font-bold normal-case tracking-wide text-cyan-400/60">Auto-fill empty seats with random players</span>
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => {
                                     if (isHost && isReady) {
@@ -418,7 +427,7 @@ export const TeamUpMatchPanel = ({
                                 className={`w-full py-5 rounded-[2rem] font-black italic tracking-widest text-lg uppercase transition-all duration-300 relative overflow-hidden border active:scale-95
                                     ${isHost && isReady
                                         ? 'bg-white text-slate-950 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)]'
-                                        : 'bg-white/5 text-white/10 border-white/5 cursor-not-allowed'
+                                        : 'bg-white/[0.07] text-white/40 border-white/15 cursor-not-allowed'
                                     }
                                 `}
                             >
