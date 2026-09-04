@@ -508,7 +508,11 @@ Spectators subscribe to `live_matches` changes to power the Live Arena directory
 
 ---
 
-## Phase 5: LXP / RXP Rename (existing databases only)
+## Phase 5: LXP / RXP Rename (already live — do NOT re-run)
+
+> ✅ Verified 2026-09-04: the live `players` table already carries `lxp`/`rxp`
+> (running the RENAME below now fails with `42703: column "xp" does not exist`).
+> Fresh setups get the right names from Phase 1 directly. Kept for history.
 
 > ⚠️ Skip this phase on fresh setups — Phase 1 already creates `lxp`/`rxp`.
 > Run this block on a **live** database to rename `xp` → `lxp` (Level XP, permanent)
