@@ -90,7 +90,7 @@ export function PlayerCard({
                         </div>
                     )}
                 </div>
-                <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rating || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rating || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rating || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rating || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rating || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
+                <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
                     <span className="text-[8px] font-black">{player.level}</span>
                 </div>
             </div>

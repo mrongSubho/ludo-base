@@ -145,8 +145,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     }, [isOpen, userAddress]);
 
     // Derived Display Values
-    const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
-    const targetRank = getRankProgress(profile?.rating || 0);
+    const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
+    const targetRank = getRankProgress(profile?.rxp || 0);
 
     const displayName = profile?.username && !profile.username.startsWith('0x')
         ? profile.username
@@ -503,7 +503,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         <div>
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
-                                                <span className="text-[9px] font-bold text-white/50 tabular-nums">{progression.currentXp.toLocaleString()} / {progression.xpToNextLevel.toLocaleString()} XP</span>
+                                                <span className="text-[9px] font-bold text-white/50 tabular-nums">{progression.currentLxp.toLocaleString()} / {progression.lxpToNextLevel.toLocaleString()} XP</span>
                                             </div>
                                             <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                                 <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full" style={{ width: `${progression.progressPercentage}%` }} />

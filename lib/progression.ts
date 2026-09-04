@@ -1,37 +1,37 @@
 export interface ProgressionInfo {
     level: number;
-    currentXp: number;
-    xpToNextLevel: number;
+    currentLxp: number;
+    lxpToNextLevel: number;
     progressPercentage: number;
     tier: string;
     subRank: string;
-    rating: number;
+    rxp: number;
 }
 
-export const calculateLevel = (xp: number = 0): { level: number; progress: number; xpInLevel: number; nextLevelXp: number } => {
-    // Level = floor(sqrt(xp / 100)) + 1
-    const level = Math.floor(Math.sqrt(xp / 100)) + 1;
+export const calculateLevel = (lxp: number = 0): { level: number; progress: number; lxpInLevel: number; nextLevelLxp: number } => {
+    // Level = floor(sqrt(lxp / 100)) + 1
+    const level = Math.floor(Math.sqrt(lxp / 100)) + 1;
     
-    // XP for current level start: (level - 1)^2 * 100
-    const currentLevelStartXp = Math.pow(level - 1, 2) * 100;
-    // XP for next level start: level^2 * 100
-    const nextLevelStartXp = Math.pow(level, 2) * 100;
+    // LXP for current level start: (level - 1)^2 * 100
+    const currentLevelStartLxp = Math.pow(level - 1, 2) * 100;
+    // LXP for next level start: level^2 * 100
+    const nextLevelStartLxp = Math.pow(level, 2) * 100;
     
-    const xpInLevel = xp - currentLevelStartXp;
-    const xpNeededForLevel = nextLevelStartXp - currentLevelStartXp;
-    const progress = (xpInLevel / xpNeededForLevel) * 100;
+    const lxpInLevel = lxp - currentLevelStartLxp;
+    const lxpNeededForLevel = nextLevelStartLxp - currentLevelStartLxp;
+    const progress = (lxpInLevel / lxpNeededForLevel) * 100;
 
     return {
         level,
         progress: Math.min(100, Math.max(0, progress)),
-        xpInLevel,
-        nextLevelXp: xpNeededForLevel
+        lxpInLevel,
+        nextLevelLxp: lxpNeededForLevel
     };
 };
 
-export const getTierInfo = (rating: number = 0): { tier: string; subRank: string; color: string } => {
-    if (rating >= 5001) return { tier: 'Arena Master', subRank: '', color: 'from-orange-400 to-red-600' };
-    if (rating >= 3001) return { tier: 'Diamond', subRank: '', color: 'from-cyan-300 to-blue-500' };
+export const getTierInfo = (rxp: number = 0): { tier: string; subRank: string; color: string } => {
+    if (rxp >= 5001) return { tier: 'Arena Master', subRank: '', color: 'from-orange-400 to-red-600' };
+    if (rxp >= 3001) return { tier: 'Diamond', subRank: '', color: 'from-cyan-300 to-blue-500' };
     
     const tiers = [
         { name: 'Platinum', min: 1801, max: 3000, color: 'from-blue-400 to-indigo-600' },
@@ -40,29 +40,29 @@ export const getTierInfo = (rating: number = 0): { tier: string; subRank: string
         { name: 'Bronze', min: 0, max: 300, color: 'from-amber-600 to-orange-800' }
     ];
 
-    const currentTier = tiers.find(t => rating >= t.min && rating <= t.max) || tiers[3];
+    const currentTier = tiers.find(t => rxp >= t.min && rxp <= t.max) || tiers[3];
     const range = currentTier.max - currentTier.min;
     const step = range / 3;
     
     let subRank = 'III';
-    if (rating >= currentTier.min + step * 2) subRank = 'I';
-    else if (rating >= currentTier.min + step) subRank = 'II';
+    if (rxp >= currentTier.min + step * 2) subRank = 'I';
+    else if (rxp >= currentTier.min + step) subRank = 'II';
 
     return { tier: currentTier.name, subRank, color: currentTier.color };
 };
 
-export const getProgression = (xp: number = 0, rating: number = 0): ProgressionInfo => {
-    const levelInfo = calculateLevel(xp);
-    const tierInfo = getTierInfo(rating);
+export const getProgression = (lxp: number = 0, rxp: number = 0): ProgressionInfo => {
+    const levelInfo = calculateLevel(lxp);
+    const tierInfo = getTierInfo(rxp);
     
     return {
         level: levelInfo.level,
-        currentXp: levelInfo.xpInLevel,
-        xpToNextLevel: levelInfo.nextLevelXp,
+        currentLxp: levelInfo.lxpInLevel,
+        lxpToNextLevel: levelInfo.nextLevelLxp,
         progressPercentage: levelInfo.progress,
         tier: tierInfo.tier,
         subRank: tierInfo.subRank,
-        rating
+        rxp
     };
 };
 

@@ -202,7 +202,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-end mr-1">
-                                                <div className="text-lg font-black text-white tracking-tighter leading-none">{p.rating || 1200}</div>
+                                                <div className="text-lg font-black text-white tracking-tighter leading-none">{p.rxp || 1200}</div>
                                                 <div className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
                                             </div>
                                             <LuChevronRight className="w-4 h-4 text-white/10 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />

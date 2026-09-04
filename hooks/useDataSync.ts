@@ -105,7 +105,7 @@ export const useDataSync = ({
                         const idx = prev.findIndex(p => p.wallet_address === addr);
                         if (idx !== -1) {
                             const newArr = [...prev];
-                            const prog = getProgression(updatedPlayer.xp || 0, updatedPlayer.rating || 0);
+                            const prog = getProgression(updatedPlayer.lxp || 0, updatedPlayer.rxp || 0);
                             newArr[idx] = { 
                                 ...updatedPlayer, 
                                 tierName: prog.tier,

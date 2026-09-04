@@ -21,8 +21,8 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
 
     const finalAvatar = profile?.avatar_url || null;
 
-    const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
-    const rank = getRankProgress(profile?.rating || 0);
+    const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
+    const rank = getRankProgress(profile?.rxp || 0);
 
     const wins = profile?.total_wins || 0;
     const games = profile?.total_games || 0;
@@ -176,7 +176,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                     <div className="glass-card !p-3 space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
-                            <span className="text-[10px] font-bold text-white/60 tabular-nums">{progression.currentXp.toLocaleString()} / {progression.xpToNextLevel.toLocaleString()} XP</span>
+                            <span className="text-[10px] font-bold text-white/60 tabular-nums">{progression.currentLxp.toLocaleString()} / {progression.lxpToNextLevel.toLocaleString()} XP</span>
                         </div>
                         <div className="h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
                             <motion.div
@@ -187,7 +187,7 @@ export default function UserProfilePanel({ onClose }: { onClose: () => void }) {
                             />
                         </div>
                         <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
-                            {(progression.xpToNextLevel - progression.currentXp).toLocaleString()} XP to Lv. {progression.level + 1} • {(profile?.xp || 0).toLocaleString()} lifetime
+                            {(progression.lxpToNextLevel - progression.currentLxp).toLocaleString()} XP to Lv. {progression.level + 1} • {(profile?.lxp || 0).toLocaleString()} lifetime
                         </div>
                     </div>
 

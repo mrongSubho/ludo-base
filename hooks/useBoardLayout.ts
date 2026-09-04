@@ -58,12 +58,12 @@ export function useBoardLayout({
             try {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('username, avatar_url, xp')
+                    .select('username, avatar_url, lxp, rxp')
                     .eq('wallet_address', address.toLowerCase())
                     .single();
 
                 if (data && !error) {
-                    const newLevel = calculateLevel(data.xp || 0).level;
+                    const newLevel = calculateLevel(data.lxp || 0).level;
                     setBoardConfig((prev: any) => ({
                         ...prev,
                         players: prev.players.map((p: Player) => {
@@ -74,8 +74,8 @@ export function useBoardLayout({
                                     avatar: data.avatar_url || p.avatar,
                                     walletAddress: address.toLowerCase(),
                                     level: Math.max(p.level, newLevel),
-                                    xp: data.xp ?? p.xp,
-                                    rating: data.rating ?? p.rating
+                                    lxp: data.lxp ?? p.lxp,
+                                    rxp: data.rxp ?? p.rxp
                                 };
                             }
                             return p;

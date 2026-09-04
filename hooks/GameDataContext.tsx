@@ -15,8 +15,8 @@ export interface UserProfile {
     total_wins: number | null;
     last_played_at: string | null;
     status?: string | null;
-    xp?: number | null;
-    rating?: number | null;
+    lxp?: number | null;
+    rxp?: number | null;
     rank_tier?: string | null;
     coins?: number | null;
 }

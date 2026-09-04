@@ -288,22 +288,22 @@ export const PLAYER_TEMPLATES = [
 ];
 
 export const BOT_TEMPLATES = [
-    { name: 'Claude',    level: 18, xp: 28900, avatar: '/avatars/claude.png',      isAi: true },
-    { name: 'GPT-4o',    level: 16, xp: 22500, avatar: '/avatars/openai.png',     isAi: true },
-    { name: 'Gemini',    level: 14, xp: 16900, avatar: '/avatars/gemini.png',     isAi: true },
-    { name: 'Llama',     level: 12, xp: 12100, avatar: '/avatars/meta.png',       isAi: true },
-    { name: 'Mistral',   level: 11, xp: 10000, avatar: '/avatars/mistral.png',    isAi: true },
-    { name: 'Groq',      level: 15, xp: 19600, avatar: '/avatars/groq.png',       isAi: true },
-    { name: 'DeepSeek',  level: 17, xp: 25600, avatar: '/avatars/deepseek.png',   isAi: true },
-    { name: 'Kimi',      level: 10, xp: 8100,  avatar: '/avatars/moonshot.png',   isAi: true },
-    { name: 'GLM',       level: 13, xp: 14400, avatar: '/avatars/zhipu.png',      isAi: true },
-    { name: 'Qwen',      level: 12, xp: 12100, avatar: '/avatars/qwen.png',       isAi: true },
-    { name: 'Grok',      level: 14, xp: 16900, avatar: '/avatars/xai.png',        isAi: true },
-    { name: 'Command R', level: 11, xp: 10000, avatar: '/avatars/cohere.png',     isAi: true },
-    { name: 'Perplexity',level: 13, xp: 14400, avatar: '/avatars/perplexity.png', isAi: true },
-    { name: 'Yi',        level: 10, xp: 8100,  avatar: '/avatars/yi.png',         isAi: true },
-    { name: 'MiniMax',   level: 9,  xp: 6400,  avatar: '/avatars/minimax.png',    isAi: true },
-    { name: 'Falcon',    level: 8,  xp: 4900,  avatar: '/avatars/nvidia.png',     isAi: true },
+    { name: 'Claude',    level: 18, lxp: 28900, avatar: '/avatars/claude.png',      isAi: true },
+    { name: 'GPT-4o',    level: 16, lxp: 22500, avatar: '/avatars/openai.png',     isAi: true },
+    { name: 'Gemini',    level: 14, lxp: 16900, avatar: '/avatars/gemini.png',     isAi: true },
+    { name: 'Llama',     level: 12, lxp: 12100, avatar: '/avatars/meta.png',       isAi: true },
+    { name: 'Mistral',   level: 11, lxp: 10000, avatar: '/avatars/mistral.png',    isAi: true },
+    { name: 'Groq',      level: 15, lxp: 19600, avatar: '/avatars/groq.png',       isAi: true },
+    { name: 'DeepSeek',  level: 17, lxp: 25600, avatar: '/avatars/deepseek.png',   isAi: true },
+    { name: 'Kimi',      level: 10, lxp: 8100,  avatar: '/avatars/moonshot.png',   isAi: true },
+    { name: 'GLM',       level: 13, lxp: 14400, avatar: '/avatars/zhipu.png',      isAi: true },
+    { name: 'Qwen',      level: 12, lxp: 12100, avatar: '/avatars/qwen.png',       isAi: true },
+    { name: 'Grok',      level: 14, lxp: 16900, avatar: '/avatars/xai.png',        isAi: true },
+    { name: 'Command R', level: 11, lxp: 10000, avatar: '/avatars/cohere.png',     isAi: true },
+    { name: 'Perplexity',level: 13, lxp: 14400, avatar: '/avatars/perplexity.png', isAi: true },
+    { name: 'Yi',        level: 10, lxp: 8100,  avatar: '/avatars/yi.png',         isAi: true },
+    { name: 'MiniMax',   level: 9,  lxp: 6400,  avatar: '/avatars/minimax.png',    isAi: true },
+    { name: 'Falcon',    level: 8,  lxp: 4900,  avatar: '/avatars/nvidia.png',     isAi: true },
 ];
 
 type Position = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -367,7 +367,7 @@ export function shufflePlayers(
 
              return {
                  ...template,
-                 level: calculateLevel(template.xp || 0).level,
+                  level: calculateLevel(template.lxp || 0).level,
                  color,
                  position: CORNER_TO_POSITION[corner],
                  isAi: template.isAi
@@ -392,7 +392,7 @@ export function shufflePlayers(
                 botIndex++;
             }
 
-             const lvl = calculateLevel((template as any).xp || 0).level;
+             const lvl = calculateLevel((template as any).lxp || 0).level;
              return { ...template, ...seat, level: lvl, isAi: template.isAi };
          }).filter(Boolean);
  
@@ -401,7 +401,7 @@ export function shufflePlayers(
          return COLOR_SEATS.map((seat, i) => {
              if (!activeIndices.includes(i)) return null;
              const t = templates[i];
-             return { ...t, ...seat, level: calculateLevel((t as any).xp || 0).level };
+              return { ...t, ...seat, level: calculateLevel((t as any).lxp || 0).level };
         }).filter(Boolean);
     }
 }

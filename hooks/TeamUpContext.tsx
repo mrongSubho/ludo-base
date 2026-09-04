@@ -59,7 +59,7 @@ export interface TeamUpContextType {
     startQuickMatch: () => void;
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
-    participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor }>;
+    participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor; lxp?: number; rxp?: number }>;
     lastIntent: any | null;
     clearIntent: () => void;
     leaveGame: () => void;

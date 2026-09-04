@@ -159,7 +159,7 @@ To prevent front-end cheating and to replace the overly-complex hash commitment 
 Gameplay intents and lobby chats are encrypted using `AES-GCM` 256-bit keys derived from the shared secrets of the participants' wallet addresses.
 
 ### 7.3 Player Progression
-- **Level:** `floor(sqrt(xp / 100)) + 1`.
+- **Level:** `floor(sqrt(lxp / 100)) + 1`.
 - **Rank Tiers:** Bronze (0) -> Silver (301) -> Gold (901) -> Platinum (1801) -> Diamond (3001) -> Arena Master (5001+).
 
 ---

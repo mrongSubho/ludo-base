@@ -16,7 +16,7 @@ interface LeaderboardEntry {
     name: string;
     avatar: string | null;
     wins: number;
-    rating: number;
+    rxp: number;
     lastWin: number;
     isCurrentUser?: boolean;
 
@@ -49,7 +49,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
         name: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + player.wallet_address.slice(-6).toUpperCase(),
         avatar: player.avatar_url,
         wins: player.total_wins || 0,
-        rating: player.rating || 1200,
+        rxp: player.rxp || 1200,
         lastWin: new Date(player.last_played_at || Date.now()).getTime(),
         isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
         tierName: player.rank_tier || player.tierName || 'Bronze',
@@ -291,10 +291,10 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
 
                                                     <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-cyan-600/50 border-cyan-600/30' : 'bg-black/40 border-white/5'}`}>
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-cyan-300' : 'text-cyan-400'}`}>
-                                                            {activeTab === 'tier' ? entry.rating : entry.wins}
+                                                            {activeTab === 'tier' ? entry.rxp : entry.wins}
                                                         </span>
                                                         <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">
-                                                            {activeTab === 'tier' ? 'Rating' : 'Wins'}
+                                                            {activeTab === 'tier' ? 'RXP' : 'Wins'}
                                                         </span>
                                                     </div>
                                                 </motion.div>

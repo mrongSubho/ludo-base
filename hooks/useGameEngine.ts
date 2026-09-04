@@ -26,8 +26,8 @@ import { useAIBrain } from './useAIBrain';
 export interface Player {
     name: string;
     level: number;
-    xp?: number;
-    rating?: number;
+    lxp?: number;
+    rxp?: number;
     avatar: string;
     color: 'green' | 'red' | 'yellow' | 'blue';
     position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -59,7 +59,7 @@ export function useGameEngine({
     setBoardConfig,
     wager = 0,
 }: UseGameEngineProps) {
-    const [xpGain, setXpGain] = useState<number | null>(null);
+    const [lxpGain, setLxpGain] = useState<number | null>(null);
     const { playMove, playCapture, playWin, playTurn } = useAudio();
     const { address } = useAccount();
     const hasRecordedWin = useRef<boolean>(false);
@@ -125,10 +125,10 @@ export function useGameEngine({
         const iPlayed = !!myPlayer && !myPlayer.isAi;
 
         // Truthful XP toast: win amount on win, loss amount when we participated but lost
-        const winXpGain = 150 + Math.floor(wager * 0.1);
-        const lossXpGain = 50 + Math.floor(wager * 0.05);
-        setXpGain(iAmWinner ? winXpGain : (iPlayed ? lossXpGain : winXpGain));
-        setTimeout(() => setXpGain(null), 3000);
+        const winLxpGain = 150 + Math.floor(wager * 0.1);
+        const lossLxpGain = 50 + Math.floor(wager * 0.05);
+        setLxpGain(iAmWinner ? winLxpGain : (iPlayed ? lossLxpGain : winLxpGain));
+        setTimeout(() => setLxpGain(null), 3000);
 
         const data = localStorage.getItem('ludo-leaderboard');
         const stats = data ? JSON.parse(data) : {};
@@ -372,7 +372,7 @@ export function useGameEngine({
 
     return {
         gameState: localGameState,
-        xpGain,
+        lxpGain,
         handleRoll,
         handleTokenClick,
         handleUsePower,

@@ -86,8 +86,8 @@ export async function POST(request: Request) {
         const currentSeasonId = currentYear * 10 + currentQuarter;
 
         // 2. Update winner stats, XP, RP, and COINS
-        const winXpGain = 150 + Math.floor(wager * 0.1);
-        const winRpGain = 30;
+        const winLxpGain = 150 + Math.floor(wager * 0.1);
+        const winRxpGain = 30;
         
         // Winner takes the pot (assuming everyone paid at match start, but here we'll just award the calculated prize)
         // For classic matches, pot = participants.length * wager
@@ -95,21 +95,21 @@ export async function POST(request: Request) {
 
         const { data: player, error: fetchError } = winnerAddress ? await supabase
             .from('players')
-            .select('total_wins, total_games, xp, rating, coins, season_id')
+            .select('total_wins, total_games, lxp, rxp, coins, season_id')
             .ilike('wallet_address', winnerAddress)
             .single() : { data: null, error: null };
 
         if (!fetchError && player) {
             const isNewSeason = (player.season_id || 0) < currentSeasonId;
-            const currentRating = isNewSeason ? 0 : (player.rating || 0);
+            const currentRxp = isNewSeason ? 0 : (player.rxp || 0);
 
             await supabase
                 .from('players')
                 .update({
                     total_wins: (player.total_wins || 0) + 1,
                     total_games: (player.total_games || 0) + 1,
-                    xp: (player.xp || 0) + winXpGain,
-                    rating: currentRating + winRpGain,
+                    lxp: (player.lxp || 0) + winLxpGain,
+                    rxp: currentRxp + winRxpGain,
                     coins: (player.coins || 0) + prizePool,
                     season_id: currentSeasonId,
                     last_played_at: new Date().toISOString()
@@ -122,26 +122,26 @@ export async function POST(request: Request) {
 
         // 3. Update other participants (Loss)
         const others = participants.filter(p => !winnerAddress || p.toLowerCase() !== winnerAddress.toLowerCase());
-        const baseXpGain = 50 + Math.floor(wager * 0.05);
-        const lossRpPenalty = 15;
+        const baseLxpGain = 50 + Math.floor(wager * 0.05);
+        const lossRxpPenalty = 15;
 
         for (const addr of others) {
             const { data: op, error: ef } = await supabase
                 .from('players')
-                .select('total_games, xp, rating, coins, season_id')
+                .select('total_games, lxp, rxp, coins, season_id')
                 .ilike('wallet_address', addr)
                 .single();
 
             if (!ef && op) {
                 const isNewSeason = (op.season_id || 0) < currentSeasonId;
-                const currentRating = isNewSeason ? 0 : (op.rating || 0);
+                const currentRxp = isNewSeason ? 0 : (op.rxp || 0);
 
                 await supabase
                     .from('players')
                     .update({
                         total_games: (op.total_games || 0) + 1,
-                        xp: (op.xp || 0) + baseXpGain,
-                        rating: Math.max(0, currentRating - lossRpPenalty),
+                        lxp: (op.lxp || 0) + baseLxpGain,
+                        rxp: Math.max(0, currentRxp - lossRxpPenalty),
                         // Note: Entry fee deduction should ideally happen at start, 
                         // but if we are doing it at end for simplicity:
                         coins: Math.max(0, (op.coins || 0) - wager), 

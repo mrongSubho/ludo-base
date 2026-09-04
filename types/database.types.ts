@@ -354,14 +354,14 @@ export type Database = {
           last_seen_at: string | null
           peer_id: string | null
           power_played: number | null
-          rating: number | null
+          rxp: number | null
           season_id: number | null
           status: string | null
           total_games: number | null
           total_wins: number | null
           username: string | null
           wallet_address: string
-          xp: number | null
+          lxp: number | null
         }
         Insert: {
           ai_played?: number | null
@@ -374,14 +374,14 @@ export type Database = {
           last_seen_at?: string | null
           peer_id?: string | null
           power_played?: number | null
-          rating?: number | null
+          rxp?: number | null
           season_id?: number | null
           status?: string | null
           total_games?: number | null
           total_wins?: number | null
           username?: string | null
           wallet_address: string
-          xp?: number | null
+          lxp?: number | null
         }
         Update: {
           ai_played?: number | null
@@ -394,14 +394,14 @@ export type Database = {
           last_seen_at?: string | null
           peer_id?: string | null
           power_played?: number | null
-          rating?: number | null
+          rxp?: number | null
           season_id?: number | null
           status?: string | null
           total_games?: number | null
           total_wins?: number | null
           username?: string | null
           wallet_address?: string
-          xp?: number | null
+          lxp?: number | null
         }
         Relationships: []
       }

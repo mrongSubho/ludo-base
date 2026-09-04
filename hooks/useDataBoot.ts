@@ -34,7 +34,7 @@ export const useDataBoot = (address: string | undefined) => {
                 msgRes
             ] = await Promise.all([
                 supabase.from('players').select('*').eq('wallet_address', lowerAddr).maybeSingle(),
-                (supabase.from('players') as any).select('wallet_address, username, avatar_url, total_wins, last_played_at, status, xp, rating, rank_tier').order('total_wins', { ascending: false }).limit(50),
+                (supabase.from('players') as any).select('wallet_address, username, avatar_url, total_wins, last_played_at, status, lxp, rxp, rank_tier').order('total_wins', { ascending: false }).limit(50),
                 fetch(`/api/friends?wallet=${lowerAddr}`).then(res => res.json()),
                 supabase.from('conversations').select('*').or(`user_a.eq.${lowerAddr},user_b.eq.${lowerAddr}`).order('last_message_at', { ascending: false }),
                 supabase.from('messages').select('*').or(`sender_id.ilike.${lowerAddr},receiver_id.ilike.${lowerAddr}`).order('created_at', { ascending: false }).limit(30)
@@ -49,7 +49,7 @@ export const useDataBoot = (address: string | undefined) => {
             // Process Leaderboard
             if (leaderboardRes.data) {
                 const formattedLeaders = leaderboardRes.data.map(p => {
-                    const prog = getProgression(p.xp || 0, p.rating || 1200);
+                    const prog = getProgression(p.lxp || 0, p.rxp || 1200);
                     return {
                         ...p,
                         tierName: p.rank_tier || prog.tier,

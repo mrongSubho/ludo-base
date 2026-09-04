@@ -125,8 +125,8 @@ export const QuickMatchPanel = ({
     const [opponentProfile, setOpponentProfile] = useState<{ 
         username: string; 
         avatar_url: string | null;
-        xp: number;
-        rating: number;
+        lxp: number;
+        rxp: number;
         total_wins: number;
         total_games: number;
     } | null>(null);
@@ -216,8 +216,8 @@ export const QuickMatchPanel = ({
                     setOpponentProfile({
                         username: rival.name || 'Rival',
                         avatar_url: null, // Edge server doesn't have avatars yet
-                        xp: rival.xp || 0,
-                        rating: rival.rating || 1500,
+                        lxp: rival.lxp || 0,
+                        rxp: rival.rxp || 1500,
                         total_wins: 0,
                         total_games: 0
                     });
@@ -245,7 +245,7 @@ export const QuickMatchPanel = ({
                         setExpectedOpponent(opponentAddress.toLowerCase());
                         const { data: player } = await supabase
                             .from('players')
-                            .select('username, avatar_url, xp, rating, total_wins, total_games')
+                            .select('username, avatar_url, lxp, rxp, total_wins, total_games')
                             .eq('wallet_address', opponentAddress.toLowerCase())
                             .maybeSingle();
 
@@ -253,8 +253,8 @@ export const QuickMatchPanel = ({
                             setOpponentProfile({
                                 username: player.username || 'Rival',
                                 avatar_url: player.avatar_url,
-                                xp: player.xp || 0,
-                                rating: player.rating || 0,
+                                lxp: player.lxp || 0,
+                                rxp: player.rxp || 0,
                                 total_wins: player.total_wins || 0,
                                 total_games: player.total_games || 0
                             });
@@ -263,8 +263,8 @@ export const QuickMatchPanel = ({
                             setOpponentProfile({
                                 username: 'Guest ' + opponentAddress.slice(-6).toUpperCase(),
                                 avatar_url: null,
-                                xp: 0,
-                                rating: 1500,
+                                lxp: 0,
+                                rxp: 1500,
                                 total_wins: 0,
                                 total_games: 0
                             });
@@ -758,7 +758,7 @@ export const QuickMatchPanel = ({
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
                                                     <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.xp || 0, profile?.rating || 0).level}</span>
+                                                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -807,10 +807,10 @@ export const QuickMatchPanel = ({
                                                 {opponentProfile && (
                                                     <div className="flex flex-col items-center gap-1.5 mt-2">
                                                         <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                                                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.xp, opponentProfile.rating).level}</span>
+                                                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}</span>
                                                             <div className="w-1 h-1 bg-white/20 rounded-full" />
                                                             <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
-                                                                {getProgression(opponentProfile.xp, opponentProfile.rating).tier} {getProgression(opponentProfile.xp, opponentProfile.rating).subRank}
+                                                                {getProgression(opponentProfile.lxp, opponentProfile.rxp).tier} {getProgression(opponentProfile.lxp, opponentProfile.rxp).subRank}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">

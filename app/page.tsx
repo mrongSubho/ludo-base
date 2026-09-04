@@ -129,7 +129,7 @@ export default function Page() {
   const [isBotMatch, setIsBotMatch] = useState(false);
   const [boardSeed, setBoardSeed] = useState<{ players: Player[]; colorCorner: any; isBotMatch: boolean } | null>(null);
 
-  const progression = getProgression(profile?.xp || 0, profile?.rating || 0);
+  const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
   const { level, tier } = progression;
   const prevLevelRef = useRef(level);
   const milestoneRef = useRef<number | null>(null);
@@ -269,7 +269,7 @@ export default function Page() {
               return {
                 name: slot.playerName || profileData?.username || 'Guest',
                 avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
-                level: calculateLevel(profileData?.xp || 0).level,
+                level: calculateLevel(profileData?.lxp || 0).level,
                 isAi: false,
                 color: slot.color,
                 position: corner ? CORNER_TO_POSITION[corner] : 'bottom-left',

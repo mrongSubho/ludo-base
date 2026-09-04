@@ -8,8 +8,8 @@ export function useCurrentUser() {
         username: string | null;
         avatar_url: string | null;
         displayName: string;
-        xp?: number;
-        rating?: number;
+        lxp?: number;
+        rxp?: number;
         coins?: number;
         total_wins?: number | null;
         total_games?: number | null;
@@ -20,7 +20,7 @@ export function useCurrentUser() {
             if (isConnected && address) {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('username, avatar_url, xp, rating, coins, total_wins, total_games')
+                    .select('username, avatar_url, lxp, rxp, coins, total_wins, total_games')
                     .or(`wallet_address.ilike.${address},wallet_address.eq.${address.toLowerCase()},wallet_address.eq.${address}`)
                     .limit(1);
 
@@ -56,8 +56,8 @@ export function useCurrentUser() {
                         setProfile({
                             username: payload.new.username,
                             avatar_url: payload.new.avatar_url,
-                            xp: payload.new.xp,
-                            rating: payload.new.rating,
+                            lxp: payload.new.lxp,
+                            rxp: payload.new.rxp,
                             coins: payload.new.coins,
                             total_wins: payload.new.total_wins,
                             total_games: payload.new.total_games,

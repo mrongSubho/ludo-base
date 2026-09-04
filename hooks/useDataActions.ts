@@ -37,8 +37,8 @@ export const useDataActions = ({
                 avatar_url: null,
                 total_wins: 0,
                 last_played_at: new Date().toISOString(),
-                xp: 0,
-                rating: 0,
+                lxp: 0,
+                rxp: 0,
                 coins: 1000,
                 peer_id: null
             };
