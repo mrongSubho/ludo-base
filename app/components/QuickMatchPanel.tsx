@@ -8,7 +8,6 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
-import { canStartMatch } from '@/lib/gameLogic';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -187,10 +186,14 @@ export const QuickMatchPanel = ({
 
             // Short fuse: lobby sync now flows over Supabase, so 2s is plenty.
             // Falls through to handlePlayNow's start gate if P2P is still dark.
-            const forceTimer = setTimeout(() => {
-                console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}, opponentJoined=${expectedOpponentJoined}). Force-starting...`);
-                onStartGame(false);
-            }, 2000); 
+            // Hybrid hosting excluded: the host starts manually from Team Up.
+            let forceTimer: ReturnType<typeof setTimeout> | undefined;
+            if (!isHybrid) {
+                forceTimer = setTimeout(() => {
+                    console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}, opponentJoined=${expectedOpponentJoined}). Force-starting...`);
+                    onStartGame(false);
+                }, 2000);
+            } 
         }
 
         // SCENARIO 2: I am the Guest and the Game has already started on the Host
@@ -199,14 +202,6 @@ export const QuickMatchPanel = ({
             onStartGame(false);
         }
     }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants, gameState?.isStarted, expectedOpponent]);
-
-    // Hybrid hosting: seats fill via direct joins — auto-start the moment full.
-    useEffect(() => {
-        if (isHybrid && lobbyState && canStartMatch(lobbyState)) {
-            console.log('🏁 [QuickMatch] Hybrid lobby full. Starting game...');
-            onStartGame(false);
-        }
-    }, [isHybrid, lobbyState, onStartGame]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;

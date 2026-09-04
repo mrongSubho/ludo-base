@@ -86,6 +86,7 @@ export const TeamUpMatchPanel = ({
     onJoin,
     onHost,
     currentRoomId,
+    isHost,
     isLobbyConnected,
     lobbyState,
     onStartMatch,
@@ -301,8 +302,8 @@ export const TeamUpMatchPanel = ({
                                         Join with Code
                                     </button>
 
-                                    {/* Hybrid Quick Match Trigger */}
-                                    {lobbyState && !isReady && (
+                                    {/* Hybrid Quick Match Trigger (host only — guests wait) */}
+                                    {isHost && lobbyState && !isReady && (
                                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center shrink-0">
                                             <button onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }} className="text-[10px] font-black text-cyan-400/60 uppercase tracking-[0.2em] hover:text-cyan-400 transition-colors py-2 px-4 rounded-full border border-cyan-400/20 hover:border-cyan-400/50 bg-cyan-400/5">
                                                 Fill Remaining with Quick Match
@@ -407,21 +408,21 @@ export const TeamUpMatchPanel = ({
 
                             <button
                                 onClick={() => {
-                                    if (isReady) {
+                                    if (isHost && isReady) {
                                         playDiceLand();
                                         if (typeof window !== 'undefined' && navigator.vibrate) navigator.vibrate([40, 60, 40]);
                                         onStartMatch();
                                     }
                                 }}
-                                disabled={!isReady}
+                                disabled={!isHost || !isReady}
                                 className={`w-full py-5 rounded-[2rem] font-black italic tracking-widest text-lg uppercase transition-all duration-300 relative overflow-hidden border active:scale-95
-                                    ${isReady
+                                    ${isHost && isReady
                                         ? 'bg-white text-slate-950 shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)]'
                                         : 'bg-white/5 text-white/10 border-white/5 cursor-not-allowed'
                                     }
                                 `}
                             >
-                                {isReady ? 'Start Game' : 'Waiting for Players…'}
+                                {!isHost ? 'Waiting for Host…' : isReady ? 'Start Game' : 'Waiting for Players…'}
                             </button>
                         </div>
                     </div>

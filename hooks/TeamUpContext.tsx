@@ -401,10 +401,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 }
             }));
             // Seat the joiner (host authority). Runs for host only; guests ignore.
+            // Invitees already hold their seat as 'invited' — upgrade them to
+            // 'joined' instead of bouncing off the already-seated guard.
             if (isHost && data.address) {
                 const cur = lobbyStateRef.current;
                 if (cur) {
-                    const next = assignJoinerToSlot(cur.slots, cur.matchType, data.address, data.username, data.avatar_url, conn.peer);
+                    const addr = data.address.toLowerCase();
+                    const invitedIdx = cur.slots.findIndex(s => s.playerId?.toLowerCase() === addr && s.status !== 'joined');
+                    let next: LobbySlot[] | null = null;
+                    if (invitedIdx !== -1) {
+                        next = cur.slots.map((s, i) => i === invitedIdx
+                            ? { ...s, status: 'joined' as const, playerName: data.username || s.playerName, playerAvatar: data.avatar_url || s.playerAvatar, peerId: conn.peer }
+                            : { ...s });
+                    } else {
+                        next = assignJoinerToSlot(cur.slots, cur.matchType, data.address, data.username, data.avatar_url, conn.peer);
+                    }
                     if (next) {
                         const lobby = { ...cur, slots: next };
                         setLobbyState(lobby);

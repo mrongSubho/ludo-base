@@ -139,7 +139,7 @@ export default function GameLobby({
     // search pairs public-pool guests straight into it (they joinGame the
     // room code and get seated). Closes TeamUp; seats fill live behind this.
     const handleFillWithQuickMatch = () => {
-        if (!lobbyState) return;
+        if (!lobbyState || !isHost) return;
         const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
         if (empty === 0) return;
         playSelect();
