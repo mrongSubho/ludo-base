@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
+import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
 
 interface RankingsPanelProps {
@@ -19,6 +20,23 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
     const [searchQuery, setSearchQuery] = useState('');
     const [friendWallets, setFriendWallets] = useState<string[]>([]);
     const [friendsLoading, setFriendsLoading] = useState(false);
+    const [prizepool, setPrizepool] = useState<number | null>(null);
+
+    // Live prizepool: sum of upcoming tournaments (hidden when zero/none)
+    useEffect(() => {
+        if (!isOpen) return;
+        (async () => {
+            try {
+                const { data } = await (supabase.from('tournaments') as any)
+                    .select('prize_pool')
+                    .eq('status', 'upcoming');
+                const sum = (data || []).reduce((s: number, t: any) => s + (Number(t.prize_pool) || 0), 0);
+                setPrizepool(sum > 0 ? sum : null);
+            } catch {
+                setPrizepool(null);
+            }
+        })();
+    }, [isOpen]);
 
     // Live friends list for the FRIENDS tab (same source as the profile modal)
     useEffect(() => {
@@ -214,7 +232,9 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                 <div className="p-5 bg-black/40 border-t border-white/5 mt-auto">
                                     <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-white/30">
                                         <span>Season {seasonId} ends in {daysLeft} day{daysLeft === 1 ? '' : 's'}</span>
-                                        <span className="text-cyan-400">Prizepool: $50,000</span>
+                                        {prizepool !== null && (
+                                            <span className="text-cyan-400">Prizepool: ${prizepool.toLocaleString()}</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>

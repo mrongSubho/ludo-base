@@ -827,12 +827,12 @@ export const QuickMatchPanel = ({
                                     {/* Connection Status Subtext */}
                                     <div className="mt-4 flex flex-col items-center gap-4">
                                         {isStalled && (
-                                            <motion.div 
+                                            <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest animate-pulse"
                                             >
-                                                Opponent is connecting...
+                                                Still waiting for your opponent…
                                             </motion.div>
                                         )}
                                         <div className="flex items-center gap-3">
@@ -846,7 +846,13 @@ export const QuickMatchPanel = ({
                                                     />
                                                 ))}
                                             </div>
-                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Establishing P2P Secure Link</span>
+                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">
+                                                {isStalled
+                                                    ? 'Holding your seat'
+                                                    : isLobbyConnected
+                                                        ? 'Players linked — starting…'
+                                                        : 'Match found — setting up the table…'}
+                                            </span>
                                         </div>
 
                                         <button

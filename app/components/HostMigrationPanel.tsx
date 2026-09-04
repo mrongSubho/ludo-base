@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface HostMigrationPanelProps {
@@ -8,6 +8,17 @@ interface HostMigrationPanelProps {
 }
 
 export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
+    // Snooze: hide for 45s to let a slow handshake finish instead of forcing quit.
+    // If the connection recovers, the parent unmounts this panel anyway.
+    const [snoozed, setSnoozed] = useState(false);
+    useEffect(() => {
+        if (!snoozed) return;
+        const t = setTimeout(() => setSnoozed(false), 45000);
+        return () => clearTimeout(t);
+    }, [snoozed]);
+
+    if (snoozed) return null;
+
     return (
         <>
             {/* Backdrop with standard Top/Bottom Gaps */}
@@ -70,13 +81,19 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
                                 </p>
                                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
                                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Wager is Sage</span>
+                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Wager is Safe</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Footer / Actions */}
-                        <div className="px-6 py-8 border-t border-white/5 bg-black/20 backdrop-blur-sm relative z-10">
+                        <div className="px-6 py-8 border-t border-white/5 bg-black/20 backdrop-blur-sm relative z-10 space-y-3">
+                            <button
+                                onClick={() => setSnoozed(true)}
+                                className="w-full py-4 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold hover:bg-cyan-500/25 transition-all flex items-center justify-center gap-2"
+                            >
+                                Keep Waiting
+                            </button>
                             <button
                                 onClick={onQuit}
                                 className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
@@ -85,7 +102,7 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
                                 Quit Match
                             </button>
                             <p className="text-center mt-4 text-[9px] text-white/20 uppercase font-black tracking-widest">
-                                Your position will be saved for 60s
+                                No coins are deducted if you leave
                             </p>
                         </div>
                     </div>

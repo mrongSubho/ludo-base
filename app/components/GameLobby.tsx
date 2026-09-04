@@ -45,7 +45,6 @@ export default function GameLobby({
         sendInvite,
         swapPlayers,
         kickPlayer,
-        onQuickMatch: startQuickMatch,
         leaveGame
     } = useTeamUpContext();
     const { address } = useAccount();
