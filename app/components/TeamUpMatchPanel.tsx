@@ -349,11 +349,11 @@ export const TeamUpMatchPanel = ({
                                                                 {f.avatar_url ? (
                                                                     <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" />
                                                                 ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black">{f.username[0]}</div>
+                                                                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black">{(f.username?.[0] || '?').toUpperCase()}</div>
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-col">
-                                                                <span className="text-xs font-black text-white uppercase italic tracking-tight">{f.username}</span>
+                                                                <span className="text-xs font-black text-white uppercase italic tracking-tight">{(f.username && !f.username.startsWith('0x')) ? f.username : `Guest ${f.wallet_address.slice(-6).toUpperCase()}`}</span>
                                                                 <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{f.status || 'OFFLINE'}</span>
                                                             </div>
                                                         </div>
