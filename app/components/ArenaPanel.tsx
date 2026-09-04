@@ -168,6 +168,8 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
     };
 
     const visibleMissions = missions.filter(m => activeMissionTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily'));
+    const dailyLeft = missions.filter(m => m.id.startsWith('daily') && !(m as any).is_claimed).length;
+    const weeklyLeft = missions.filter(m => !m.id.startsWith('daily') && !(m as any).is_claimed).length;
 
     return (
         <AnimatePresence>
@@ -292,19 +294,28 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                     /* Missions Content */
                                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                                         <div className="px-4 pt-3">
-                                            <div className="flex bg-black/30 p-1.5 rounded-2xl w-full max-w-sm mx-auto self-center">
-                                                {(['daily', 'weekly'] as MissionTab[]).map((tab) => (
-                                                    <button
-                                                        key={tab}
-                                                        onClick={() => setActiveMissionTab(tab)}
-                                                        className={`flex-1 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all ${activeMissionTab === tab
-                                                            ? 'bg-cyan-600/80 text-white shadow-lg border border-cyan-600/30'
-                                                            : 'text-white/40 hover:text-white/70'
-                                                            }`}
-                                                    >
-                                                        {tab}
-                                                    </button>
-                                                ))}
+                                            <div className="flex items-center gap-5 border-b border-white/5 px-2">
+                                                {(['daily', 'weekly'] as MissionTab[]).map((tab) => {
+                                                    const left = tab === 'daily' ? dailyLeft : weeklyLeft;
+                                                    const active = activeMissionTab === tab;
+                                                    return (
+                                                        <button
+                                                            key={tab}
+                                                            onClick={() => setActiveMissionTab(tab)}
+                                                            className={`pb-2.5 text-xs font-bold uppercase tracking-widest transition-colors relative ${active ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                                                        >
+                                                            <span className="flex items-center gap-1.5">
+                                                                {tab}
+                                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${active ? 'bg-teal-500/20 text-teal-300' : 'bg-white/5 text-white/30'}`}>
+                                                                    {left}
+                                                                </span>
+                                                            </span>
+                                                            {active && (
+                                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-400 rounded-t-full" />
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                         <div className="flex-1 min-h-0 overflow-y-auto px-panel-gutter py-4 space-y-4 no-scrollbar relative">
