@@ -82,25 +82,28 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                             position: 'relative',
                             width: '100%',
                             maxWidth: '360px',
-                            backgroundColor: '#ffffff',
-                            borderRadius: '24px',
-                            boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                            background: 'var(--ludo-bg-cosmic)',
+                            backgroundColor: 'rgba(13,13,13,0.95)',
+                            backdropFilter: 'blur(32px)',
+                            borderRadius: '32px',
+                            boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
                             display: 'flex',
                             flexDirection: 'column',
-                            padding: '24px',
-                            color: '#000000',
-                            border: '1px solid #f3f4f6',
+                            padding: '20px',
+                            color: '#ffffff',
+                            border: '1px solid rgba(255,255,255,0.1)',
                             zIndex: 10,
                             overflow: 'hidden'
                         }}
                     >
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
-                            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#000', textTransform: 'none' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#fff', textTransform: 'none' }}>
                                 Ludo Base : The Onchain Arena
                             </h3>
                             <button
                                 onClick={onClose}
-                                className="!bg-[#f3f4f6] hover:!bg-[#e5e7eb] transition-colors"
+                                aria-label="Close wallet options"
+                                className="!bg-white/10 hover:!bg-white/20 transition-colors"
                                 style={{
                                     position: 'absolute',
                                     right: 0,
@@ -110,8 +113,8 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     borderRadius: '50%',
-                                    color: '#6b7280',
-                                    border: 'none',
+                                    color: 'rgba(255,255,255,0.7)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
                                     cursor: 'pointer'
                                 }}
                             >
@@ -119,10 +122,10 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                             </button>
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <button
                                 onClick={() => coinbaseConnector && handleConnect(coinbaseConnector)}
-                                className="!bg-[#f3f4f6] hover:!bg-[#e5e7eb] transition-colors"
+                                className="!bg-white/[0.06] hover:!bg-white/10 transition-colors"
                                 style={{
                                     width: '100%',
                                     height: '50px',
@@ -130,24 +133,24 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     padding: '0 16px',
-                                    borderRadius: '12px',
-                                    border: 'none',
+                                    borderRadius: '16px',
+                                    border: '1px solid rgba(255,255,255,0.1)',
                                     cursor: 'pointer'
                                 }}
                             >
-                                <span style={{ color: '#000', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>Sign in with Base</span>
+                                <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>Sign in with Base</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     {WALLET_ICONS.base}
                                 </div>
                             </button>
 
-                            <div style={{ padding: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                                <div style={{ height: '1px', flex: 1, backgroundColor: '#e5e7eb' }} />
-                                <span style={{ color: '#9ca3af', fontSize: '12px', fontWeight: 500, textTransform: 'none' }}>or use another wallet</span>
-                                <div style={{ height: '1px', flex: 1, backgroundColor: '#e5e7eb' }} />
+                            <div style={{ padding: '12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                                <div style={{ height: '1px', flex: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
+                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', fontWeight: 500, textTransform: 'none' }}>or use another wallet</span>
+                                <div style={{ height: '1px', flex: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {[
                                     { connector: coinbaseConnector, name: 'Coinbase Wallet' },
                                     { connector: metamaskConnector, name: 'MetaMask' },
@@ -157,7 +160,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                         <button
                                             key={item.connector.uid}
                                             onClick={() => handleConnect(item.connector!)}
-                                            className="!bg-[#f3f4f6] hover:!bg-[#e5e7eb] transition-colors"
+                                            className="!bg-white/[0.06] hover:!bg-white/10 transition-colors"
                                             style={{
                                                 width: '100%',
                                                 height: '50px',
@@ -165,12 +168,12 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
                                                 padding: '0 16px',
-                                                borderRadius: '12px',
-                                                border: 'none',
+                                                borderRadius: '16px',
+                                                border: '1px solid rgba(255,255,255,0.1)',
                                                 cursor: 'pointer'
                                             }}
                                         >
-                                            <span style={{ color: '#000', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>{item.name}</span>
+                                            <span style={{ color: '#fff', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>{item.name}</span>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                 {getWalletIcon(item.connector)}
                                             </div>
@@ -180,10 +183,10 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                             </div>
                         </div>
 
-                        <div style={{ marginTop: '24px', textAlign: 'center', padding: '0 8px' }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280', fontWeight: 500, lineHeight: 1.4, textTransform: 'none' }}>
+                        <div style={{ marginTop: '20px', textAlign: 'center', padding: '0 8px' }}>
+                            <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.45)', fontWeight: 500, lineHeight: 1.4, textTransform: 'none' }}>
                                 By connecting a wallet, you agree to our<br />
-                                <a href="#" style={{ color: '#0052FF', textDecoration: 'none' }}>Terms of Service</a> and <a href="#" style={{ color: '#0052FF', textDecoration: 'none' }}>Privacy Policy</a>.
+                                <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Terms of Service</a> and <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Privacy Policy</a>.
                             </p>
                         </div>
                     </motion.div>

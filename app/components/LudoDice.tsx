@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAudio } from '../hooks/useAudio';
+import { usePreferences } from '@/hooks/usePreferences';
 
 interface LudoDiceProps {
     onRoll: (value: number) => void;
@@ -30,6 +31,13 @@ const COLOR_MAP: Record<string, string> = {
     purple: '#a855f7'
 };
 
+// Dice skins (equipped from the Marketplace): face + pip colors.
+const DICE_SKINS: Record<string, { face: string; pip: string; edge: string }> = {
+    classic: { face: '#ffffff', pip: '#0F172A', edge: 'rgba(0,0,0,0.1)' },
+    midnight: { face: '#0b1220', pip: '#22d3ee', edge: 'rgba(34,211,238,0.35)' },
+    gold: { face: '#451a03', pip: '#fcd34a', edge: 'rgba(252,211,77,0.35)' },
+};
+
 const FACE_MAP = [
     { num: 1, rx: 0, ry: 0 },       // Front
     { num: 2, rx: 0, ry: -90 },     // Right
@@ -48,6 +56,8 @@ export default function LudoDice({
 }: LudoDiceProps) {
     const { playDiceRoll, playDiceLand } = useSoundEffects();
     const { triggerHaptic } = useAudio();
+    const { preferences } = usePreferences();
+    const diceSkin = DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic;
     const controls = useAnimation();
     
     // Track rotation persistently to enable smooth continuous tumbling
@@ -184,10 +194,12 @@ export default function LudoDice({
                         style={{ transformStyle: 'preserve-3d' }}
                     >
                         {FACE_MAP.map((face, i) => (
-                            <DiceFace 
-                                key={i} 
-                                num={face.num} 
-                                transform={getFaceTransform(i)} 
+                            <DiceFace
+                                key={i}
+                                num={face.num}
+                                transform={getFaceTransform(i)}
+                                faceColor={diceSkin.face}
+                                pipColor={diceSkin.pip}
                             />
                         ))}
                     </button>
@@ -226,19 +238,21 @@ function getFaceTransform(index: number) {
     ][index];
 }
 
-function DiceFace({ num, transform }: { num: number, transform: string }) {
+function DiceFace({ num, transform, faceColor, pipColor }: { num: number, transform: string, faceColor: string, pipColor: string }) {
     return (
         <div
-            className="absolute inset-0 w-12 h-12 flex items-center justify-center p-1 rounded-lg bg-white border border-gray-100 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]"
-            style={{ 
+            className="absolute inset-0 w-12 h-12 flex items-center justify-center p-1 rounded-lg border shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]"
+            style={{
                 transform,
                 backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden'
+                WebkitBackfaceVisibility: 'hidden',
+                background: faceColor,
+                borderColor: 'rgba(0,0,0,0.08)'
             }}
         >
             <svg viewBox="0 0 100 100" className="w-full h-full opacity-90 drop-shadow-sm">
                 {DOT_POSITIONS[num as keyof typeof DOT_POSITIONS].map(([cx, cy], i) => (
-                    <circle key={i} cx={cx} cy={cy} r="8.5" fill="#0F172A" />
+                    <circle key={i} cx={cx} cy={cy} r="8.5" fill={pipColor} />
                 ))}
             </svg>
         </div>

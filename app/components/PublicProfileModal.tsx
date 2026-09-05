@@ -3,9 +3,27 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useGuestWall } from '@/hooks/GuestWallContext';
 import { getProgression, getRankProgress } from '@/lib/progression';
 import { FormChart } from './FormChart';
 import { HiOutlineAtSymbol } from "react-icons/hi";
+
+// ─── Theme-agnostic contract (holds for current + future themes) ───────────
+// Same vocabulary as the synced sandwich panels, applied to this centered
+// modal shell: white-ink + white-opacity surfaces + cyan/status accents.
+// No font-family is set (inherits the active theme's display font). Spacing
+// inside `.ludo-pubprofile-scope` is re-asserted in globals.css (the global
+// unlayered reset zeroes Tailwind utilities).
+
+// Section label: pill + gradient rule (marketplace vocabulary)
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="mt-1 mb-1 flex items-center gap-2.5">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+            {children}
+        </span>
+        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
+    </div>
+);
 
 interface PublicProfileModalProps {
     isOpen: boolean;
@@ -16,6 +34,8 @@ interface PublicProfileModalProps {
 
 export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM }: PublicProfileModalProps) {
     const { address: currentUserAddress } = useCurrentUser();
+    // Guests can scout profiles, but social writes hit the wall.
+    const { guard } = useGuestWall();
     const [isProfileLoading, setProfileLoading] = useState(false);
     const [isFriendValidationLoading, setFriendValidationLoading] = useState(false);
 
@@ -208,6 +228,11 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const handleAction = async (action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report' | 'Poke' | 'Congratulate') => {
         if (!currentUserAddress || !userAddress || isActionLoading) return;
 
+        // Guest wall: reward-bearing + graph writes need a wallet.
+        if (action === 'Add Friend' && !guard('friend-add')) return;
+        if ((action === 'Poke' || action === 'Congratulate') && !guard('poke')) return;
+        if (action === 'Block' && !guard('friend-add')) return;
+
         if (action === 'Report') {
             setReportStep('select');
             return;
@@ -325,7 +350,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     // Shared blocks across self / friend / stranger views
     const renderBreakdown = () => (
-        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3 flex justify-between items-center">
+        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex justify-between items-center">
             <div className="flex flex-col items-center flex-1">
                 <span className="text-sm font-bold text-white">{classicPlayed}</span>
                 <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Classic</span>
@@ -344,8 +369,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     );
 
     const renderActivity = () => (
-        <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-4 flex flex-col">
-            <div className="flex justify-between items-center mb-3">
+        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col">
+            <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
                 <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
             </div>
@@ -359,7 +384,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     const renderScout = () => (
         scout.pts.length > 0 ? (
-            <div className="w-full bg-black/30 border border-white/5 rounded-2xl p-3">
+            <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3">
                 <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
                     <span className={`text-[11px] font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -376,7 +401,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             <button
                 onClick={() => handleAction('Poke')}
                 disabled={isActionLoading}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
                 POKE
@@ -384,7 +409,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             <button
                 onClick={() => handleAction('Congratulate')}
                 disabled={isActionLoading}
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="m6 9 6 6 6-6"></path><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"></path></svg>
                 GUD LUCK
@@ -403,8 +428,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                     {/* Pop-up Modal Container */}
                     <div
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-y-auto no-scrollbar border border-white/10 rounded-3xl z-[210] shadow-2xl flex flex-col"
-                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}
+                        className="ludo-pubprofile-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-y-auto no-scrollbar border border-white/10 rounded-[32px] z-[210] shadow-2xl flex flex-col"
+                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
@@ -414,9 +439,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         <div className="h-16 bg-gradient-to-b from-cyan-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
 
                         {/* Top Controls */}
-                        <div className="flex justify-end p-4 relative z-10 w-full pl-6 pr-4">
+                        <div className="flex justify-end px-5 pt-3 pb-1 relative z-10 w-full">
                             {!isFriendValidationLoading && (isFriend || isSelf) && (
-                                <div className="absolute left-6 top-6 flex items-center gap-2">
+                                <div className="absolute left-5 top-5 flex items-center gap-2">
                                     <div className={`w-2.5 h-2.5 rounded-full 
                                         ${(profile?.status === 'Online' && isOnline) ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' :
                                             profile?.status === 'In Match' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] animate-pulse' :
@@ -440,9 +465,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         </div>
 
                         {/* Profile Content */}
-                        <div className="px-6 pb-6 pt-0 flex flex-col items-center relative z-10">
+                        <div className="px-5 pb-5 pt-0 flex flex-col items-center relative z-10">
                             {isProfileLoading ? (
-                                <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                                <div className="py-12 flex flex-col items-center justify-center gap-4">
                                     <div className="w-8 h-8 border-3 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                                     <span className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Decrypting Hex...</span>
                                 </div>
@@ -487,19 +512,19 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     </div>
 
                                     {/* Stats Grid */}
-                                    <div className="grid grid-cols-2 gap-3 w-full mb-3">
-                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
+                                    <div className="grid grid-cols-2 gap-2 w-full mb-1">
+                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
                                             <span className="text-2xl font-black text-cyan-400">{displayWins}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
                                         </div>
-                                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
+                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
                                             <span className="text-2xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
                                         </div>
                                     </div>
 
                                     {/* Level + Rank bars (public) */}
-                                    <div className="w-full flex flex-col gap-2 mb-3">
+                                    <div className="w-full flex flex-col gap-2 mb-1">
                                         <div>
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
@@ -526,8 +551,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     <div className="w-full relative min-h-[140px] flex flex-col justify-end">
                                         {isFriendValidationLoading ? (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center animate-pulse gap-3">
-                                                <div className="w-full h-12 bg-white/5 rounded-xl" />
-                                                <div className="w-full h-12 bg-white/5 rounded-xl" />
+                                                <div className="w-full h-12 bg-white/5 rounded-2xl" />
+                                                <div className="w-full h-12 bg-white/5 rounded-2xl" />
                                             </div>
                                         ) : (
                                             <>
@@ -546,8 +571,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                         {renderActivity()}
 
                                                         <button
-                                                            onClick={() => onDM(userAddress)}
-                                                            className="w-full mt-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3.5 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2"
+                                                            onClick={() => guard('dm', () => onDM(userAddress))}
+                                                            className="w-full mt-1 bg-cyan-500 hover:bg-cyan-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2"
                                                         >
                                                             <HiOutlineAtSymbol className="w-5 h-5" />
                                                             DIRECT MESSAGE
@@ -559,14 +584,14 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             <button
                                                                 onClick={() => handleAction('Unfriend')}
                                                                 disabled={isActionLoading}
-                                                                className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-red-400 text-sm font-bold py-2.5 rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                             >
                                                                 Remove Friend
                                                             </button>
                                                             <button
                                                                 onClick={() => handleAction('Block')}
                                                                 disabled={isActionLoading}
-                                                                className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-2xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                             >
                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
                                                                 Block
@@ -574,7 +599,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             <button
                                                                 onClick={() => handleAction('Report')}
                                                                 disabled={isActionLoading}
-                                                                className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
+                                                                className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-2xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
                                                                 title="Report User"
                                                             >
                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
@@ -585,14 +610,14 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                     <div className="w-full flex pb-3">
                                                         <div className="flex flex-col gap-2 w-full mt-4">
                                                             {actionSuccess ? (
-                                                                <div className="w-full bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex flex-col items-center justify-center gap-1 my-2">
+                                                                <div className="w-full bg-green-500/10 border border-green-500/20 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 my-2">
                                                                     <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mb-1">
                                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-400"><path d="M20 6L9 17l-5-5"></path></svg>
                                                                     </div>
                                                                     <span className="text-sm font-bold text-green-400">{actionSuccess}</span>
                                                                 </div>
                                                             ) : reportStep !== 'none' ? (
-                                                                <div className="w-full bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-2 overflow-hidden">
+                                                                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-2 overflow-hidden">
                                                                     {reportStep === 'done' ? (
                                                                         <div className="flex items-center justify-center p-2 text-green-400 font-bold text-sm gap-2">
                                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -606,7 +631,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                     <button
                                                                                         key={reason}
                                                                                         onClick={() => setSelectedReportReason(reason)}
-                                                                                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
+                                                                                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
                                                                                     >
                                                                                         {reason}
                                                                                     </button>
@@ -622,7 +647,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                 <button
                                                                                     onClick={submitReport}
                                                                                     disabled={!selectedReportReason || reportStep === 'submitting'}
-                                                                                    className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-all flex justify-center items-center"
+                                                                                     className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all flex justify-center items-center"
                                                                                 >
                                                                                     {reportStep === 'submitting' ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Submit'}
                                                                                 </button>
@@ -639,7 +664,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                             <button
                                                                                 onClick={() => handleAction('Unblock')}
                                                                                 disabled={isActionLoading}
-                                                                                className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                                className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                                             >
                                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2v20"></path><path d="M2.5 10.5 12 2l9.5 8.5"></path><path d="M2.5 22.5 12 14l9.5 8.5"></path></svg>
                                                                                 Unblock
@@ -649,7 +674,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                 <button
                                                                                     onClick={() => handleAction('Add Friend')}
                                                                                     disabled={isActionLoading || isPending}
-                                                                                    className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                                    className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                                                 >
                                                                                     {isPending ? (
                                                                                         <span className="text-white/60">Pending</span>
@@ -664,7 +689,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                 <button
                                                                                     onClick={() => handleAction('Block')}
                                                                                     disabled={isActionLoading}
-                                                                                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                                                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-2xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
                                                                                 >
                                                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
                                                                                     Block
@@ -673,7 +698,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                 <button
                                                                                     onClick={() => handleAction('Report')}
                                                                                     disabled={isActionLoading}
-                                                                                    className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
+                                                                                    className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-2xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
                                                                                     title="Report User"
                                                                                 >
                                                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>

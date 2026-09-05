@@ -27,6 +27,8 @@ import { HostMigrationPanel } from './components/HostMigrationPanel';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
+import { GuestWallProvider } from '@/hooks/GuestWallContext';
+import { enterGuest, exitGuest } from '@/lib/guest';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import confetti from 'canvas-confetti';
@@ -40,7 +42,7 @@ type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'se
 
 const SplashScreen = () => (
   <div
-    className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md"
+    className="ludo-splash-scope fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md"
   >
     <div
       className="flex flex-col items-center"
@@ -50,7 +52,12 @@ const SplashScreen = () => (
           className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-cyan-600 to-teal-400 opacity-20 blur-xl animate-slow-rotate"
         />
         <div className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(34,211,238,0.4)] flex items-center justify-center border border-white/20">
-          <span className="text-5xl drop-shadow-lg">🎲</span>
+          <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-lg">
+            <rect x="6" y="6" width="88" height="88" rx="20" fill="#fff" />
+            {[[30, 30], [70, 30], [50, 50], [30, 70], [70, 70]].map(([cx, cy], i) => (
+              <circle key={i} cx={cx} cy={cy} r="9" fill="#0b0b12" />
+            ))}
+          </svg>
         </div>
       </div>
 
@@ -74,8 +81,7 @@ const SplashScreen = () => (
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMessages } from '@/hooks/useMessages';
 
-const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }) => {
-   const [isStreaming, setIsStreaming] = useState(false);
+const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }) => {   const [isStreaming, setIsStreaming] = useState(false);
    const [isPending, setIsPending] = useState(false);
 
    if (!isHost || !matchId) return null;
@@ -107,6 +113,21 @@ const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }
 }
 
 
+// Floating trial-status pill (overlay only — header itself is untouched).
+const GuestPill = ({ onConnect }: { onConnect: () => void }) => (
+  <div className="ludo-guestpill-scope fixed top-[72px] right-2 z-[95] flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-full border border-amber-500/30 bg-black/60 backdrop-blur-xl shadow-lg">
+    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+    <span className="text-[9px] font-black text-amber-300 uppercase tracking-[0.2em]">Guest Pass</span>
+    <button
+      onClick={onConnect}
+      className="px-2.5 py-1 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
+    >
+      Connect
+    </button>
+  </div>
+);
+
+
 export default function Page() {
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
@@ -115,7 +136,7 @@ export default function Page() {
   const [showSplash, setShowSplash] = useState(true);
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
-  const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
+  const { profile, address, isConnected, displayName: finalName, isGuest } = useCurrentUser();
   const { totalUnreadCount } = useMessages(address);
   const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useTeamUp();
 
@@ -405,9 +426,10 @@ export default function Page() {
 
       {!isConnected ? (
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
-          <WalletConnectCard />
+          <WalletConnectCard onGuest={() => enterGuest()} />
         </div>
       ) : (
+        <GuestWallProvider>
         <div className="app-shell dashboard-shell">
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
@@ -454,7 +476,7 @@ export default function Page() {
               {/* Universal Panel Layer (Sandwich Layout) */}
               <>
                 {activeTab === 'profile' && (
-                  <UserProfilePanel key="profile" onClose={closeTab} />
+                  <UserProfilePanel key="profile" onClose={closeTab} onOpenMarketplace={() => toggle('marketplace')} />
                 )}
                 {activeTab === 'friends' && (
                   <FriendsPanel
@@ -501,6 +523,9 @@ export default function Page() {
                   <SettingsPanel key="settings" onClose={closeTab} />
                 )}
               </>
+
+              {/* Guest trial-status pill (overlay — header untouched) */}
+              {isGuest && <GuestPill onConnect={() => exitGuest()} />}
 
               {/* Global Public Profile Popup */}
               <PublicProfileModal
@@ -610,14 +635,17 @@ export default function Page() {
 
               {/* ── Quit Match Warning Overlay ── */}
               {showQuitWarning && (
-                <div className="absolute inset-0 z-[999] bg-black/60 backdrop-blur-md flex items-center justify-center">
-                  <div className="bg-white/5 border border-white/10 backdrop-blur-2xl p-8 rounded-2xl shadow-2xl max-w-sm w-[90%] text-center">
-                    <h2 className="text-2xl font-bold text-white mb-3">Leave Match?</h2>
-                    <p className="text-white/70 mb-8 font-medium">All progress will be lost. Are you sure you want to quit?</p>
-                    <div className="flex gap-4 justify-center">
+                <div className="absolute inset-0 z-[999] bg-black/60 backdrop-blur-md flex items-center justify-center p-5">
+                  <div
+                    className="ludo-quit-scope border border-white/10 rounded-[32px] shadow-2xl max-w-sm w-full text-center p-5"
+                    style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+                  >
+                    <h2 className="text-xl font-bold text-white mb-1">Leave Match?</h2>
+                    <p className="text-white/60 text-sm font-medium mb-4">All progress will be lost. Are you sure you want to quit?</p>
+                    <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => setShowQuitWarning(false)}
-                        className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 transition-colors"
+                        className="flex-1 py-3 px-4 rounded-2xl text-sm font-black uppercase tracking-[0.2em] text-white bg-white/10 hover:bg-white/20 transition-all active:scale-95"
                       >
                         Cancel
                       </button>
@@ -626,7 +654,7 @@ export default function Page() {
                           setShowQuitWarning(false);
                           handleBackToSubMenu();
                         }}
-                        className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-red-600/80 hover:bg-red-500 transition-colors"
+                        className="flex-1 py-3 px-4 rounded-2xl text-sm font-black uppercase tracking-[0.2em] text-white bg-red-600/80 hover:bg-red-500 transition-all active:scale-95"
                       >
                         Quit Game
                       </button>
@@ -643,6 +671,7 @@ export default function Page() {
             </>
           )}
         </div>
+        </GuestWallProvider>
       )}
     </>
   );

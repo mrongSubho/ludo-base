@@ -119,6 +119,445 @@ body.theme-cosmic-ui .boot-dot { display: none; }
   padding: 0;
 }
 
+/* Scoped spacing repair (marketplace only): the unlayered reset above beats
+   Tailwind v4's layered utilities, zeroing every padding/margin utility
+   app-wide. These unlayered, panel-scoped re-assertions restore spacing ONLY
+   inside `.ludo-market-scope` — zero blast radius on the rest of the app. */
+.ludo-market-scope .mb-0\.5 { margin-bottom: 0.125rem; }
+.ludo-market-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-market-scope .mb-1\.5 { margin-bottom: 0.375rem; }
+.ludo-market-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-market-scope .mb-3 { margin-bottom: 0.75rem; }
+.ludo-market-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-market-scope .mb-5 { margin-bottom: 1.25rem; }
+.ludo-market-scope .mb-6 { margin-bottom: 1.5rem; }
+.ludo-market-scope .mb-8 { margin-bottom: 2rem; }
+.ludo-market-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-market-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-market-scope .mt-1\.5 { margin-top: 0.375rem; }
+.ludo-market-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-market-scope .mt-3\.5 { margin-top: 0.875rem; }
+.ludo-market-scope .mt-4 { margin-top: 1rem; }
+.ludo-market-scope .mt-5 { margin-top: 1.25rem; }
+.ludo-market-scope .my-2 { margin-block: 0.5rem; }
+.ludo-market-scope .mx-1 { margin-inline: 0.25rem; }
+.ludo-market-scope .p-0 { padding: 0; }
+.ludo-market-scope .p-0\.5 { padding: 0.125rem; }
+.ludo-market-scope .p-1 { padding: 0.25rem; }
+.ludo-market-scope .p-1\.5 { padding: 0.375rem; }
+.ludo-market-scope .p-2 { padding: 0.5rem; }
+.ludo-market-scope .p-2\.5 { padding: 0.625rem; }
+.ludo-market-scope .p-3 { padding: 0.75rem; }
+.ludo-market-scope .p-4 { padding: 1rem; }
+.ludo-market-scope .p-5 { padding: 1.25rem; }
+.ludo-market-scope .p-8 { padding: 2rem; }
+.ludo-market-scope .pb-0\.5 { padding-bottom: 0.125rem; }
+.ludo-market-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-market-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-market-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-market-scope .pb-3\.5 { padding-bottom: 0.875rem; }
+.ludo-market-scope .pb-32 { padding-bottom: 8rem; }
+.ludo-market-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-market-scope .pb-40 { padding-bottom: 10rem; }
+.ludo-market-scope .pb-7 { padding-bottom: 1.75rem; }
+.ludo-market-scope .pb-8 { padding-bottom: 2rem; }
+.ludo-market-scope .pl-2 { padding-left: 0.5rem; }
+.ludo-market-scope .pr-1 { padding-right: 0.25rem; }
+.ludo-market-scope .pr-6 { padding-right: 1.5rem; }
+.ludo-market-scope .pt-1 { padding-top: 0.25rem; }
+.ludo-market-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-market-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-market-scope .pt-4 { padding-top: 1rem; }
+.ludo-market-scope .pt-5 { padding-top: 1.25rem; }
+.ludo-market-scope .pt-6 { padding-top: 1.5rem; }
+.ludo-market-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-market-scope .px-1 { padding-inline: 0.25rem; }
+.ludo-market-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-market-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-market-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-market-scope .px-3 { padding-inline: 0.75rem; }
+.ludo-market-scope .px-4 { padding-inline: 1rem; }
+.ludo-market-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-market-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-market-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-market-scope .py-1 { padding-block: 0.25rem; }
+.ludo-market-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-market-scope .py-16 { padding-block: 4rem; }
+.ludo-market-scope .py-2 { padding-block: 0.5rem; }
+.ludo-market-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-market-scope .py-3 { padding-block: 0.75rem; }
+.ludo-market-scope .py-3\.5 { padding-block: 0.875rem; }
+.ludo-market-scope .py-4 { padding-block: 1rem; }
+.ludo-market-scope .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-block-start: 0.75rem; }
+
+/* Scoped spacing repair (settings only): same landmine as marketplace —
+   unlayered global reset zeroes Tailwind spacing utilities. Panel-scoped
+   re-assertions only. Zero blast radius on the rest of the app. */
+.ludo-settings-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-settings-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-settings-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-settings-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-settings-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-settings-scope .mt-3 { margin-top: 0.75rem; }
+.ludo-settings-scope .p-0\.5 { padding: 0.125rem; }
+.ludo-settings-scope .p-1 { padding: 0.25rem; }
+.ludo-settings-scope .p-3\.5 { padding: 0.875rem; }
+.ludo-settings-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-settings-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-settings-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-settings-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-settings-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-settings-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-settings-scope .px-1 { padding-inline: 0.25rem; }
+.ludo-settings-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-settings-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-settings-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-settings-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-settings-scope .py-3\.5 { padding-block: 0.875rem; }
+
+/* Scoped spacing repair (rankings only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-rankings-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-rankings-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-rankings-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-rankings-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-rankings-scope .mt-1\.5 { margin-top: 0.375rem; }
+.ludo-rankings-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-rankings-scope .p-0 { padding: 0; }
+.ludo-rankings-scope .p-1 { padding: 0.25rem; }
+.ludo-rankings-scope .p-3 { padding: 0.75rem; }
+.ludo-rankings-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-rankings-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-rankings-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-rankings-scope .pl-2\.5 { padding-left: 0.625rem; }
+.ludo-rankings-scope .pr-1\.5 { padding-right: 0.375rem; }
+.ludo-rankings-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-rankings-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-rankings-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-rankings-scope .px-1 { padding-inline: 0.25rem; }
+.ludo-rankings-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-rankings-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-rankings-scope .px-4 { padding-inline: 1rem; }
+.ludo-rankings-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-rankings-scope .px-8 { padding-inline: 2rem; }
+.ludo-rankings-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-rankings-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-rankings-scope .py-16 { padding-block: 4rem; }
+.ludo-rankings-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-rankings-scope .py-3 { padding-block: 0.75rem; }
+
+/* Scoped spacing repair (friends only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-friends-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-friends-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-friends-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-friends-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-friends-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-friends-scope .p-0 { padding: 0; }
+.ludo-friends-scope .p-1 { padding: 0.25rem; }
+.ludo-friends-scope .p-3 { padding: 0.75rem; }
+.ludo-friends-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-friends-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-friends-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-friends-scope .pl-2\.5 { padding-left: 0.625rem; }
+.ludo-friends-scope .pr-1 { padding-right: 0.25rem; }
+.ludo-friends-scope .pr-1\.5 { padding-right: 0.375rem; }
+.ludo-friends-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-friends-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-friends-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-friends-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-friends-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-friends-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-friends-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-friends-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-friends-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-friends-scope .py-1 { padding-block: 0.25rem; }
+.ludo-friends-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-friends-scope .py-16 { padding-block: 4rem; }
+/* Scoped spacing repair (messages only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-messages-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-messages-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-messages-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-messages-scope .mr-2 { margin-right: 0.5rem; }
+.ludo-messages-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-messages-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-messages-scope .mx-4 { margin-inline: 1rem; }
+.ludo-messages-scope .p-0 { padding: 0; }
+.ludo-messages-scope .p-3 { padding: 0.75rem; }
+.ludo-messages-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-messages-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-messages-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-messages-scope .pl-2\.5 { padding-left: 0.625rem; }
+.ludo-messages-scope .pl-3 { padding-left: 0.75rem; }
+.ludo-messages-scope .pr-1\.5 { padding-right: 0.375rem; }
+.ludo-messages-scope .pr-12 { padding-right: 3rem; }
+.ludo-messages-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-messages-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-messages-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-messages-scope .px-1 { padding-inline: 0.25rem; }
+.ludo-messages-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-messages-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-messages-scope .px-3\.5 { padding-inline: 0.875rem; }
+.ludo-messages-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-messages-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-messages-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-messages-scope .py-1 { padding-block: 0.25rem; }
+.ludo-messages-scope .py-16 { padding-block: 4rem; }
+.ludo-messages-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-messages-scope .py-px { padding-block: 1px; }
+/* Scoped spacing repair (arena only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-arena-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-arena-scope .mb-1\.5 { margin-bottom: 0.375rem; }
+.ludo-arena-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-arena-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-arena-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-arena-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-arena-scope .p-1 { padding: 0.25rem; }
+.ludo-arena-scope .p-2 { padding: 0.5rem; }
+.ludo-arena-scope .p-4 { padding: 1rem; }
+.ludo-arena-scope .p-5 { padding: 1.25rem; }
+.ludo-arena-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-arena-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-arena-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-arena-scope .pr-2 { padding-right: 0.5rem; }
+.ludo-arena-scope .pt-0\.5 { padding-top: 0.125rem; }
+.ludo-arena-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-arena-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-arena-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-arena-scope .px-1 { padding-inline: 0.25rem; }
+.ludo-arena-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-arena-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-arena-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-arena-scope .px-3 { padding-inline: 0.75rem; }
+.ludo-arena-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-arena-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-arena-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-arena-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-arena-scope .py-2 { padding-block: 0.5rem; }
+.ludo-arena-scope .py-3 { padding-block: 0.75rem; }
+.ludo-arena-scope .py-16 { padding-block: 4rem; }
+/* Scoped spacing repair (profile only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-profile-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-profile-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-profile-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-profile-scope .p-1 { padding: 0.25rem; }
+.ludo-profile-scope .p-2 { padding: 0.5rem; }
+.ludo-profile-scope .p-2\.5 { padding: 0.625rem; }
+.ludo-profile-scope .p-3 { padding: 0.75rem; }
+.ludo-profile-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-profile-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-profile-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-profile-scope .pt-1 { padding-top: 0.25rem; }
+.ludo-profile-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-profile-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-profile-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-profile-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-profile-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-profile-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-profile-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-profile-scope .py-1 { padding-block: 0.25rem; }
+.ludo-profile-scope .py-1\.5 { padding-block: 0.375rem; }
+/* Scoped spacing repair (offline sheet only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-offline-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-offline-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-offline-scope .p-5 { padding: 1.25rem; }
+.ludo-offline-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-offline-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-offline-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-offline-scope .pb-5 { padding-bottom: 1.25rem; }
+.ludo-offline-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-offline-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-offline-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-offline-scope .px-4 { padding-inline: 1rem; }
+.ludo-offline-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-offline-scope .py-3 { padding-block: 0.75rem; }
+.ludo-offline-scope .py-16 { padding-block: 4rem; }
+/* Scoped spacing repair (host-migration sheet only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-migrate-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-migrate-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-migrate-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-migrate-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-migrate-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-migrate-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-migrate-scope .pb-5 { padding-bottom: 1.25rem; }
+.ludo-migrate-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-migrate-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-migrate-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-migrate-scope .px-4 { padding-inline: 1rem; }
+.ludo-migrate-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-migrate-scope .py-2 { padding-block: 0.5rem; }
+.ludo-migrate-scope .py-3 { padding-block: 0.75rem; }
+/* Scoped spacing repair (teamup sheet only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-teamup-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-teamup-scope .ml-2 { margin-left: 0.5rem; }
+.ludo-teamup-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-teamup-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-teamup-scope .p-3 { padding: 0.75rem; }
+.ludo-teamup-scope .p-4 { padding: 1rem; }
+.ludo-teamup-scope .p-5 { padding: 1.25rem; }
+.ludo-teamup-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-teamup-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-teamup-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-teamup-scope .pb-5 { padding-bottom: 1.25rem; }
+.ludo-teamup-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-teamup-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-teamup-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-teamup-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-teamup-scope .px-3 { padding-inline: 0.75rem; }
+.ludo-teamup-scope .px-3\.5 { padding-inline: 0.875rem; }
+.ludo-teamup-scope .px-4 { padding-inline: 1rem; }
+.ludo-teamup-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-teamup-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-teamup-scope .py-2 { padding-block: 0.5rem; }
+.ludo-teamup-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-teamup-scope .py-3 { padding-block: 0.75rem; }
+/* Scoped spacing repair (quickmatch sheet only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-quick-scope .mb-0\.5 { margin-bottom: 0.125rem; }
+.ludo-quick-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-quick-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-quick-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-quick-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-quick-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-quick-scope .mt-3 { margin-top: 0.75rem; }
+.ludo-quick-scope .mt-4 { margin-top: 1rem; }
+.ludo-quick-scope .p-4 { padding: 1rem; }
+.ludo-quick-scope .p-5 { padding: 1.25rem; }
+.ludo-quick-scope .p-6 { padding: 1.5rem; }
+.ludo-quick-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-quick-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-quick-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-quick-scope .pb-5 { padding-bottom: 1.25rem; }
+.ludo-quick-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-quick-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-quick-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-quick-scope .px-3 { padding-inline: 0.75rem; }
+.ludo-quick-scope .px-4 { padding-inline: 1rem; }
+.ludo-quick-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-quick-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-quick-scope .px-8 { padding-inline: 2rem; }
+.ludo-quick-scope .py-1 { padding-block: 0.25rem; }
+.ludo-quick-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-quick-scope .py-2 { padding-block: 0.5rem; }
+.ludo-quick-scope .py-3 { padding-block: 0.75rem; }
+/* Scoped spacing repair (public-profile modal only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-pubprofile-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-pubprofile-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-pubprofile-scope .mb-5 { margin-bottom: 1.25rem; }
+.ludo-pubprofile-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-pubprofile-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-pubprofile-scope .mt-4 { margin-top: 1rem; }
+.ludo-pubprofile-scope .my-2 { margin-block: 0.5rem; }
+.ludo-pubprofile-scope .p-2 { padding: 0.5rem; }
+.ludo-pubprofile-scope .p-3 { padding: 0.75rem; }
+.ludo-pubprofile-scope .p-4 { padding: 1rem; }
+.ludo-pubprofile-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-pubprofile-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-pubprofile-scope .pb-5 { padding-bottom: 1.25rem; }
+.ludo-pubprofile-scope .pt-0 { padding-top: 0; }
+.ludo-pubprofile-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-pubprofile-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-pubprofile-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-pubprofile-scope .px-3 { padding-inline: 0.75rem; }
+.ludo-pubprofile-scope .px-4 { padding-inline: 1rem; }
+.ludo-pubprofile-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-pubprofile-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-pubprofile-scope .py-1 { padding-block: 0.25rem; }
+.ludo-pubprofile-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-pubprofile-scope .py-12 { padding-block: 3rem; }
+.ludo-pubprofile-scope .py-2 { padding-block: 0.5rem; }
+.ludo-pubprofile-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-pubprofile-scope .py-3 { padding-block: 0.75rem; }
+/* Scoped spacing repair (live-arena panel only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. (The floating ticker trigger is
+   a separate widget outside this scope and is intentionally untouched.) */
+.ludo-livearena-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-livearena-scope .mb-3 { margin-bottom: 0.75rem; }
+.ludo-livearena-scope .ml-0\.5 { margin-left: 0.125rem; }
+.ludo-livearena-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-livearena-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-livearena-scope .p-4 { padding: 1rem; }
+.ludo-livearena-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-livearena-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-livearena-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-livearena-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-livearena-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-livearena-scope .px-4 { padding-inline: 1rem; }
+.ludo-livearena-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-livearena-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-livearena-scope .py-2 { padding-block: 0.5rem; }
+.ludo-livearena-scope .py-3 { padding-block: 0.75rem; }
+.ludo-livearena-scope .py-16 { padding-block: 4rem; }
+/* Scoped spacing repair (in-game leaderboard only): panel-scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-leaderboard-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-leaderboard-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-leaderboard-scope .ml-1 { margin-left: 0.25rem; }
+.ludo-leaderboard-scope .mr-1 { margin-right: 0.25rem; }
+.ludo-leaderboard-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-leaderboard-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-leaderboard-scope .mt-3 { margin-top: 0.75rem; }
+.ludo-leaderboard-scope .p-1 { padding: 0.25rem; }
+.ludo-leaderboard-scope .p-3 { padding: 0.75rem; }
+.ludo-leaderboard-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-leaderboard-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-leaderboard-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-leaderboard-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-leaderboard-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-leaderboard-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-leaderboard-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-leaderboard-scope .px-1 { padding-inline: 0.25rem; }
+.ludo-leaderboard-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-leaderboard-scope .px-4 { padding-inline: 1rem; }
+.ludo-leaderboard-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-leaderboard-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-leaderboard-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-leaderboard-scope .py-2 { padding-block: 0.5rem; }
+.ludo-leaderboard-scope .py-16 { padding-block: 4rem; }
+/* Scoped spacing repair (invite toast only): scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-invite-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-invite-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-invite-scope .mt-3 { margin-top: 0.75rem; }
+.ludo-invite-scope .p-5 { padding: 1.25rem; }
+.ludo-invite-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-invite-scope .py-3 { padding-block: 0.75rem; }
+/* Scoped spacing repair (wallet entrance card only): scoped re-assertions.
+   Zero blast radius on the rest of the app. (LudoWalletModal uses inline
+   styles only, so it needs no scope.) */
+.ludo-wallet-scope .mt-8 { margin-top: 2rem; }
+.ludo-wallet-scope .mt-3 { margin-top: 0.75rem; }
+.ludo-wallet-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-wallet-scope .px-8 { padding-inline: 2rem; }
+.ludo-wallet-scope .py-2 { padding-block: 0.5rem; }
+.ludo-wallet-scope .py-5 { padding-block: 1.25rem; }
+.ludo-wallet-scope .py-10 { padding-block: 2.5rem; }
+/* Scoped spacing repair (guest wall modal only): scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-wall-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-wall-scope .p-5 { padding: 1.25rem; }
+.ludo-wall-scope .pt-0\.5 { padding-top: 0.125rem; }
+.ludo-wall-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-wall-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-wall-scope .py-0\.5 { padding-block: 0.125rem; }
+.ludo-wall-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-wall-scope .py-2 { padding-block: 0.5rem; }
+.ludo-wall-scope .py-3 { padding-block: 0.75rem; }
+/* Scoped spacing repair (guest pill only): scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-guestpill-scope .pl-2\.5 { padding-left: 0.625rem; }
+.ludo-guestpill-scope .pr-1\.5 { padding-right: 0.375rem; }
+.ludo-guestpill-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-guestpill-scope .py-1 { padding-block: 0.25rem; }
+.ludo-guestpill-scope .py-1\.5 { padding-block: 0.375rem; }
+
 html,
 body {
   height: 100%;
@@ -2508,10 +2947,17 @@ body.theme-retro-futurism .token-dot-placeholder {
   color: white;
 }
 
-.celebration-emoji {
-  font-size: 64px;
-  display: block;
-  margin-bottom: 16px;
+.celebration-tile {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.25);
 }
 
 .winner-card h2 {
@@ -2553,20 +2999,46 @@ body.theme-retro-futurism .token-dot-placeholder {
 
 .play-again-btn {
   width: 100%;
-  padding: 14px;
-  background: var(--color-ludo-blue);
-  color: white;
+  padding: 12px 16px;
+  background: #ffffff;
+  color: #0b0b12;
   border: none;
-  border-radius: var(--radius-pill);
-  font-weight: 600;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
 }
 
 .play-again-btn:hover {
   transform: scale(1.02);
-  filter: brightness(1.1);
+  box-shadow: 0 0 50px rgba(255, 255, 255, 0.35);
 }
+
+.play-again-btn:active {
+  transform: scale(0.95);
+}
+
+/* Scoped spacing repair (idle-warning overlay only): the Tailwind utilities
+   on its CTA are zeroed by the global reset. Zero blast radius. */
+.ludo-idle-scope .px-8 { padding-inline: 2rem; }
+.ludo-idle-scope .py-3 { padding-block: 0.75rem; }
+
+/* Scoped spacing repair (boot splash only): scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-splash-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-splash-scope .mb-6 { margin-bottom: 1.5rem; }
+.ludo-splash-scope .mb-12 { margin-bottom: 3rem; }
+/* Scoped spacing repair (quit-match popup only): scoped re-assertions.
+   Zero blast radius on the rest of the app. */
+.ludo-quit-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-quit-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-quit-scope .p-5 { padding: 1.25rem; }
+.ludo-quit-scope .px-4 { padding-inline: 1rem; }
+.ludo-quit-scope .py-3 { padding-block: 0.75rem; }
 
 /* ─── Capture Notification ─── */
 .capture-toast {

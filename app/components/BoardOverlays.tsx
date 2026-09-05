@@ -39,6 +39,7 @@ export function IdleWarningOverlay({ idleWarning, myPlayer, onCancelAfk }: IdleW
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                className="ludo-idle-scope"
                 style={{
                     position: 'absolute',
                     inset: 0,
@@ -77,7 +78,7 @@ export function IdleWarningOverlay({ idleWarning, myPlayer, onCancelAfk }: IdleW
                             e.stopPropagation();
                             if (myPlayer?.color) onCancelAfk(myPlayer.color);
                         }}
-                        className="px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-bold transition-all duration-300"
+                        className="px-8 py-3 bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:bg-white/90 border-0 rounded-2xl transition-all duration-300 active:scale-95"
                     >
                         I'm Back!
                     </button>
@@ -102,7 +103,16 @@ export function CelebrationOverlay({ winner, onReset }: CelebrationOverlayProps)
                         animate={{ scale: 1, opacity: 1 }}
                         className="winner-card"
                     >
-                        <span className="celebration-emoji">🏆</span>
+                        <span className="celebration-tile">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-amber-300">
+                                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                                <path d="M4 22h16"></path>
+                                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+                                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+                                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+                            </svg>
+                        </span>
                         <h2 style={{ textTransform: 'capitalize' }}>{winner} Wins!</h2>
                         <p>Masterful play!</p>
                         <button className="play-again-btn" onClick={onReset}>Rematch</button>

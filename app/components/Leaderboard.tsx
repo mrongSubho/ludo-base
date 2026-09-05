@@ -5,6 +5,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 
+// ─── Theme-agnostic contract (holds for current + future themes) ───────────
+// Same as the lobby RankingsPanel (which covers the lobby side — this is the
+// in-game overlay): white-ink + white-opacity surfaces + cyan/medal accents.
+// No font-family is set (inherits the active theme's display font). Spacing
+// inside `.ludo-leaderboard-scope` is re-asserted in globals.css (the global
+// unlayered reset zeroes Tailwind utilities).
+
+// Icon tile: amber glow square (rank accent — pairs with the trophy).
+const BoardTrophyTile = () => (
+    <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.25)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-amber-300">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+            <path d="M4 22h16"></path>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+        </svg>
+    </div>
+);
+
 const ITEMS_PER_PAGE = 20;
 
 // getTierFromWins moved to GameDataContext
@@ -99,127 +120,137 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         <div className="w-full max-w-[500px] relative h-full">
                             <div
                                 /* Unified global panel layout: top-64, bottom-80 sandwich */
-                                className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
+                                className="ludo-leaderboard-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                                 style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                             >
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
-                        <div className="w-full flex justify-center pt-4 pb-2">
+                        <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
-                        <div className="px-panel-gutter pb-4 border-b border-white/10 flex flex-col gap-4">
-                            <div className="flex items-center justify-between mt-2">
-                                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-yellow-500">
-                                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
-                                        <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
-                                        <path d="M4 22h16"></path>
-                                        <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
-                                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
-                                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
-                                    </svg>
+                        <div className="px-5 pb-3 border-b border-white/10 flex flex-col gap-2 relative z-10">
+                            <div className="flex items-center justify-between mb-1 mt-1">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <BoardTrophyTile />
                                     Leaderboard
                                 </h2>
                                 <button
                                     onClick={onClose}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    aria-label="Close leaderboard"
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
                             </div>
+                            <div className="flex items-center gap-2 px-0.5">
+                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                    {leaders.length} ranked
+                                </span>
+                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
+                                <span className="text-[11px] font-black text-amber-300 tracking-wide uppercase">
+                                    Q{currentQuarter} season
+                                </span>
+                            </div>
 
-                            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                            <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
                                 <button
                                     onClick={() => setScope('global')}
-                                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-1.5 transition-all ${scope === 'global' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
+                                    className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'global' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
                                     Global
                                 </button>
                                 <button
                                     onClick={() => setScope('friends')}
-                                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-1.5 transition-all ${scope === 'friends' ? 'bg-white/15 text-white shadow-md' : 'text-white/40 hover:text-white/70'}`}
+                                    className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'friends' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                     Friends
                                 </button>
                             </div>
 
-                            <div className="flex bg-black/30 p-1.5 rounded-2xl w-full max-w-sm mx-auto self-center">
-                                {(['tier', 'daily', 'monthly'] as LeaderboardTab[]).map((tab) => (
+                            {/* Child tabs: text-underline row, subordinate to the
+                                parent segmented block above (no fill, smaller type). */}
+                            <div className="flex items-center gap-5 border-b border-white/5 px-1" role="tablist" aria-label="Leaderboard period">
+                                {(['tier', 'daily', 'monthly'] as LeaderboardTab[]).map((tab) => {
+                                    const active = activeTab === tab;
+                                    return (
                                     <button
                                         key={tab}
+                                        role="tab"
+                                        aria-selected={active}
                                         onClick={() => setActiveTab(tab)}
-                                        className={`flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all ${activeTab === tab ? 'bg-cyan-700 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)] scale-[1.02]' : 'text-white/30 hover:text-white/60'}`}
+                                        className={`pb-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-sm ${active ? 'text-white' : 'text-white/35 hover:text-white/70'}`}
                                     >
-                                        {tab === 'tier' ? (
-                                            <>
-                                                TIER
-                                                <div
-                                                    className="relative"
+                                        <span className="flex items-center gap-1.5">
+                                            {tab}
+                                            {tab === 'tier' && (
+                                                <span
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowQuarterInfo(!showQuarterInfo);
+                                                    }}
                                                     onMouseEnter={() => setShowQuarterInfo(true)}
                                                     onMouseLeave={() => setShowQuarterInfo(false)}
+                                                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
                                                 >
-                                                    <span
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setShowQuarterInfo(!showQuarterInfo);
-                                                        }}
-                                                        className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold cursor-pointer ${activeTab === 'tier' ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white/10 text-white/30'}`}
-                                                    >
-                                                        Q{currentQuarter}
-                                                    </span>
+                                                    Q{currentQuarter}
+                                                </span>
+                                            )}
+                                        </span>
+                                        {active && (
+                                            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400 rounded-t-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                        )}
+                                        <AnimatePresence>
+                                            {showQuarterInfo && tab === 'tier' && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                                                    className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-50 normal-case tracking-normal text-left"
+                                                >
+                                                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
 
-                                                    <AnimatePresence>
-                                                        {showQuarterInfo && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                                exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                                className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl z-50 normal-case tracking-normal text-left"
-                                                            >
-                                                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
-
-                                                                <div className="relative z-10">
-                                                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                                                        <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
-                                                                    </div>
-                                                                    <p className="text-[10px] text-white/70 leading-snug">
-                                                                        The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
-                                                                    </p>
-                                                                </div>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-                                            </>
-                                        ) : tab}
+                                                    <div className="relative z-10">
+                                                        <div className="flex items-center gap-1.5 mb-1">
+                                                            <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-white/70 leading-snug">
+                                                            The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </button>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        <div className="flex-1 min-h-0 overflow-y-auto p-4 no-scrollbar relative">
+                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">
                             {isLoading ? (
-                                <div className="flex flex-col items-center justify-center h-full space-y-4">
+                                <div className="flex flex-col items-center justify-center h-full gap-4">
                                     <div className="w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
                                     <p className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Syncing Throne...</p>
                                 </div>
                             ) : leaders.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-16 h-16 mb-4 text-white/40">
-                                        <path d="M6 3h12l4 6-10 13L2 9z"></path>
-                                        <path d="M11 3 8 9l4 13 4-13-3-6"></path>
-                                        <path d="M2 9h20"></path>
-                                    </svg>
-                                    <h3 className="text-xl font-bold text-white mb-2">The throne is empty</h3>
-                                    <p className="text-sm text-white/60">No records found for this period.</p>
+                                <div className="flex flex-col items-center justify-center h-full text-center py-16 px-5">
+                                    <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+                                            <path d="M6 3h12l4 6-10 13L2 9z"></path>
+                                            <path d="M11 3 8 9l4 13 4-13-3-6"></path>
+                                            <path d="M2 9h20"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-white font-black text-sm mb-1">The throne is empty</h3>
+                                    <p className="text-white/40 text-xs max-w-[220px]">No records found for this period.</p>
                                 </div>
                             ) : (
-                                <div className="space-y-3 px-panel-gutter pb-4">
+                                <div className="flex flex-col gap-2 pb-2">
                                     <AnimatePresence mode="popLayout">
                                         {paginatedLeaders.map((entry, idx) => {
                                             const tierStyles = getTierConfig(entry.tierName);
@@ -234,8 +265,8 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     exit={{ opacity: 0, scale: 0.95 }}
                                                     key={entry.id}
                                                     className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${isMe
-                                                        ? 'bg-white/5 border-2 border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
-                                                        : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                                                        ? 'bg-white/[0.04] border border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
+                                                        : 'bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] hover:border-white/25'
                                                         }`}
                                                 >
                                                     <div className="flex-shrink-0 mr-1">
@@ -289,7 +320,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                         ) : null}
                                                     </button>
 
-                                                    <div className={`flex flex-col items-end justify-center rounded-xl px-4 py-2 border ${isMe ? 'bg-cyan-600/50 border-cyan-600/30' : 'bg-black/40 border-white/5'}`}>
+                                                    <div className={`flex flex-col items-end justify-center rounded-2xl px-4 py-2 border ${isMe ? 'bg-cyan-600/50 border-cyan-600/30' : 'bg-black/40 border-white/5'}`}>
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-cyan-300' : 'text-cyan-400'}`}>
                                                             {activeTab === 'tier' ? entry.rxp : entry.wins}
                                                         </span>
@@ -303,11 +334,11 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                     </AnimatePresence>
 
                                     {totalPages > 1 && (
-                                        <div className="flex justify-center items-center gap-2 mt-4 pt-4 border-t border-white/10 pb-6 shrink-0">
+                                        <div className="flex justify-center items-center gap-2 mt-1 pt-3 pb-2 border-t border-white/10 shrink-0">
                                             <button
                                                 disabled={currentPage === 1}
                                                 onClick={() => setCurrentPage(prev => prev - 1)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
+                                                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="15 18 9 12 15 6"></polyline></svg>
                                             </button>
@@ -316,7 +347,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     <button
                                                         key={page}
                                                         onClick={() => setCurrentPage(page)}
-                                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${currentPage === page ? 'bg-cyan-700 text-white shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 'bg-transparent text-white/50 hover:bg-white/5'}`}
+                                                        className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-bold transition-all ${currentPage === page ? 'bg-cyan-700 text-white shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 'bg-transparent text-white/50 hover:bg-white/5'}`}
                                                     >
                                                         {page}
                                                     </button>
@@ -325,7 +356,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                             <button
                                                 disabled={currentPage === totalPages}
                                                 onClick={() => setCurrentPage(prev => prev + 1)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
+                                                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                             </button>

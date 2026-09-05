@@ -9,6 +9,7 @@ export interface Preferences {
     music: boolean;
     haptics: boolean;
     tokenStyle: string;
+    diceStyle: string;
 }
 
 export function usePreferences() {
@@ -18,6 +19,7 @@ export function usePreferences() {
         music: true,
         haptics: true,
         tokenStyle: 'pawn',
+        diceStyle: 'classic',
     });
 
     // Initialize from cookies or localStorage
@@ -33,8 +35,10 @@ export function usePreferences() {
         const music = getVal('ludo-music', 'on') === 'on';
         const haptics = getVal('ludo-haptic', 'on') === 'on';
         const tokenStyle = getVal('token-style', 'pawn') === 'orb' ? 'orb' : 'pawn';
+        const diceRaw = getVal('dice-style', 'classic');
+        const diceStyle = diceRaw === 'midnight' || diceRaw === 'gold' ? diceRaw : 'classic';
 
-        setPreferences({ theme, sfx, music, haptics, tokenStyle });
+        setPreferences({ theme, sfx, music, haptics, tokenStyle, diceStyle });
 
         // Apply token style class immediately on load
         if (tokenStyle === 'orb') document.body.classList.add('token-style-orb');
@@ -51,6 +55,7 @@ export function usePreferences() {
             music: key === 'ludo-music' ? value === 'on' : prev.music,
             haptics: key === 'ludo-haptic' ? value === 'on' : prev.haptics,
             tokenStyle: key === 'token-style' ? value : prev.tokenStyle,
+            diceStyle: key === 'dice-style' ? value : prev.diceStyle,
         }));
 
         // Trigger side effects immediately if needed (e.g. theme application)

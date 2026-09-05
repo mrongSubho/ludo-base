@@ -12,9 +12,34 @@ import { useAccount } from 'wagmi';
 //
 // Listens to `live_matches` table via Supabase Realtime for
 // real-time updates. Uses useSpectatorPresence per-card to
-// show live spectator counts. Matches the project's cosmic
-// glassmorphism aesthetic.
+// show live spectator counts.
 // ─────────────────────────────────────────────────────────────
+//
+// ─── Theme-agnostic contract (holds for current + future themes) ───────────
+// Same as the other synced panels: the full panel renders on the shared
+// dark-glass sandwich shell, so content uses only white-ink + white-opacity
+// surfaces + cyan/status accents (pot-tier colors are data-driven and kept).
+// No font-family is set (inherits the active theme's display font). Spacing
+// inside `.ludo-livearena-scope` is re-asserted in globals.css (the global
+// unlayered reset zeroes Tailwind utilities).
+
+// Icon tile: cyan glow square shared with the other synced panels.
+const LiveTile = () => (
+    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
+        <FiTv className="w-4 h-4 text-cyan-300" />
+    </div>
+);
+
+// Section label: pill + gradient rule (marketplace vocabulary)
+const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
+    <div className="mt-1 mb-1 flex items-center gap-2.5">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+            {children}
+        </span>
+        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
+        {right}
+    </div>
+);
 
 interface LiveMatch {
     match_id: string;
@@ -59,16 +84,16 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
             whileTap={{ scale: 0.98 }}
             className="group relative cursor-pointer mb-3"
             onClick={() => onWatch(match.room_code)}
-            style={{ borderRadius: '20px' }}
+            style={{ borderRadius: '16px' }}
         >
             {/* Glow on hover */}
             <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[20px]"
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"
                 style={{ background: `radial-gradient(ellipse at center, ${tier.color}18 0%, transparent 70%)` }}
             />
 
             <div
-                className="relative p-4 rounded-[20px] border border-white/5 bg-white/[0.025] flex items-center gap-4"
+                className="relative p-4 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center gap-4"
                 style={{ backdropFilter: 'blur(16px)' }}
             >
                 {/* Left: Mode Badge */}
@@ -86,7 +111,7 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
                 {/* Center: Match Info */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-black italic text-white uppercase tracking-tight">
+                        <span className="text-xs font-bold text-white uppercase tracking-wide">
                             {match.game_mode?.toUpperCase() ?? 'CLASSIC'}
                         </span>
                         {/* Bet window open indicator */}
@@ -129,7 +154,7 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
 
                 {/* Right: Watch button */}
                 <button
-                    className="px-4 py-2 rounded-full text-[10px] font-black italic uppercase tracking-tighter transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+                    className="px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 flex-shrink-0"
                     style={{
                         background: tier.color,
                         color: '#000',
@@ -274,48 +299,12 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: 24, scale: 0.98 }}
                                     transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-                                    className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-cyan-500/20 rounded-[32px] flex flex-col shadow-[0_0_50px_rgba(34,211,238,0.1)] overflow-hidden"
+                                    className="ludo-livearena-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
+                                    style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                                 >
-                                    {/* Immersive Stage Environment Background */}
-                                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                        {/* Stage Background */}
-                                        <div className="absolute inset-0 bg-[#020205]" />
-                                        <div className="absolute inset-0 bg-gradient-to-b from-blue-900/10 via-transparent to-black" />
-                                        
-                                        {/* Top Spotlights */}
-                                        <div className="absolute -top-24 -left-20 w-[400px] h-[600px] bg-cyan-400/10 blur-[100px] rotate-45 transform-gpu" />
-                                        <div className="absolute -top-24 -right-20 w-[400px] h-[600px] bg-pink-400/10 blur-[100px] -rotate-45 transform-gpu" />
-                                        
-                                        {/* Sharp Beam Lights */}
-                                        <div className="absolute top-0 left-1/4 w-[1px] h-full bg-gradient-to-b from-cyan-400/40 to-transparent rotate-[15deg] blur-[2px]" />
-                                        <div className="absolute top-0 right-1/4 w-[1px] h-full bg-gradient-to-b from-pink-400/40 to-transparent -rotate-[15deg] blur-[2px]" />
-
-                                        {/* Audience Silhouettes at bottom */}
-                                        <div className="absolute bottom-0 left-0 right-0 h-32 z-20">
-                                            <div className="absolute bottom-0 left-0 right-0 h-16 bg-black" />
-                                            <div className="absolute bottom-0 left-0 right-0 h-24 flex items-end justify-around px-4 opacity-80">
-                                                {[...Array(12)].map((_, i) => (
-                                                    <motion.div
-                                                        key={i}
-                                                        animate={{ y: [0, -2, 0] }}
-                                                        transition={{ duration: 3 + i, repeat: Infinity, ease: "easeInOut" }}
-                                                        className="w-8 h-12 bg-black rounded-t-full relative"
-                                                        style={{ 
-                                                            marginLeft: i % 2 === 0 ? '-10px' : '0px',
-                                                            opacity: 0.6 + (i % 4) * 0.1
-                                                        }}
-                                                    >
-                                                        {/* Rim light on heads */}
-                                                        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent rounded-full" />
-                                                    </motion.div>
-                                                ))}
-                                            </div>
-                                            <div className="absolute bottom-4 left-0 right-0 h-32 bg-gradient-to-t from-black via-black/80 to-transparent" />
-                                        </div>
-
-                                        {/* Laser Scanlines */}
-                                        <div className="absolute inset-0 opacity-[0.05] bg-[linear-gradient(transparent_50%,rgba(0,0,0,1)_50%)] bg-[length:100%_4px]" />
-                                    </div>
+                                    {/* Authentic Subdued Cosmic Orbs */}
+                                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                     <motion.div 
                                         style={{ 
@@ -333,42 +322,52 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                             className="flex-1 flex flex-col"
                                         >
                                             {/* Header */}
-                                            <div className="w-full flex justify-between items-center p-8 relative z-10 border-b border-white/5 bg-white/[0.01]">
-                                                <div>
-                                                    <h3 className="text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-200 font-black italic text-3xl tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]">
-                                                        Live Arena Node
-                                                    </h3>
-                                                    <div className="flex items-center gap-3 mt-1.5 text-cyan-400/60">
-                                                        <span className="text-[10px] font-black tracking-[0.4em] uppercase">Status: Connected</span>
-                                                        <div className="w-1 h-1 bg-cyan-400 animate-pulse rounded-full" />
+                                            <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
+                                                <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                            </div>
+                                            <div className="px-5 pb-3 border-b border-white/10 flex items-center justify-between relative z-10">
+                                                <div className="flex items-center gap-2">
+                                                    <LiveTile />
+                                                    <div>
+                                                        <h2 className="text-xl font-bold text-white leading-tight">Live Arena</h2>
+                                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                                            <span className="w-1 h-1 bg-cyan-400 animate-pulse rounded-full" />
+                                                            <span className="text-[10px] font-black tracking-[0.2em] uppercase text-cyan-300">
+                                                                {liveMatches.length} live
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <button
                                                     onClick={() => setIsOpen(false)}
-                                                    className="w-10 h-10 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-500/50 hover:text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all"
+                                                    aria-label="Close live arena"
+                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
                                                 >
-                                                    <FiX className="w-5 h-5" />
+                                                    <FiX className="w-4 h-4" />
                                                 </button>
                                             </div>
 
                                             {/* Stats bar */}
-                                            <div className="px-8 py-3 flex items-center gap-6 relative z-10 bg-white/[0.01] border-b border-white/5">
+                                            <div className="px-5 py-2 flex items-center gap-6 relative z-10 border-b border-white/10">
                                                 <div className="flex items-center gap-2">
-                                                    <FiEye className="w-3.5 h-3.5 text-cyan-200/50" />
-                                                    <span className="text-[10px] font-black text-cyan-200/50 uppercase tracking-widest">
-                                                        {liveMatches.reduce((s, m) => s + m.spectator_count, 0).toLocaleString()} Linked
+                                                    <FiEye className="w-3.5 h-3.5 text-white/40" />
+                                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">
+                                                        {liveMatches.reduce((s, m) => s + m.spectator_count, 0).toLocaleString()} watching
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <FiTrendingUp className="w-3.5 h-3.5 text-pink-400/60" />
-                                                    <span className="text-[10px] font-black text-pink-400/60 uppercase tracking-widest">
-                                                        {liveMatches.reduce((s, m) => s + (m.total_bet_volume ?? 0), 0).toLocaleString()} Total Value Locked
+                                                    <FiTrendingUp className="w-3.5 h-3.5 text-white/40" />
+                                                    <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">
+                                                        {liveMatches.reduce((s, m) => s + (m.total_bet_volume ?? 0), 0).toLocaleString()} vol
                                                     </span>
                                                 </div>
                                             </div>
 
                                             {/* Match list */}
-                                            <div className="flex-1 min-h-0 overflow-y-auto px-8 pt-4 pb-8 relative z-10 no-scrollbar">
+                                            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">
+                                                <SectionLabel>
+                                                    {liveMatches.length} stream{liveMatches.length === 1 ? '' : 's'}
+                                                </SectionLabel>
                                                 <AnimatePresence>
                                                     {liveMatches.length > 0 ? (
                                                         liveMatches.map(match => (
@@ -382,16 +381,13 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                                         <motion.div
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
-                                                            className="h-full flex flex-col items-center justify-center text-cyan-500/20 py-20 gap-4"
+                                                            className="flex flex-col items-center justify-center text-center py-16 px-6 gap-2"
                                                         >
-                                                            <div className="relative">
-                                                                <FiTv className="w-16 h-16 opacity-30" />
-                                                                <div className="absolute inset-0 border border-cyan-500/20 rounded-lg animate-[spin_4s_linear_infinite]" />
+                                                            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-1 text-white/25">
+                                                                <FiTv className="w-7 h-7" />
                                                             </div>
-                                                            <div className="flex flex-col items-center gap-1">
-                                                                <p className="text-[11px] font-black uppercase tracking-[0.4em] text-cyan-300 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">No Active Datastreams</p>
-                                                                <p className="text-[9px] font-medium text-cyan-200/40 uppercase tracking-wider">Awaiting match initiation phase</p>
-                                                            </div>
+                                                            <p className="text-white font-black text-sm">No live matches</p>
+                                                            <p className="text-white/40 text-xs max-w-[220px]">Awaiting match initiation phase</p>
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
@@ -399,10 +395,9 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                         </motion.div>
                                     </motion.div>
 
-                                    <div className="w-full p-6 bg-black/50 border-t border-cyan-500/10 text-center relative z-20 flex flex-col gap-1 items-center">
-                                        <div className="w-1/3 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent mb-1" />
-                                        <span className="text-[9px] font-black text-cyan-200/30 uppercase tracking-[0.4em]">
-                                            MCP GambleFi Spectator Node · Secure Uplink
+                                    <div className="w-full px-5 py-3 bg-black/20 border-t border-white/10 text-center relative z-20 flex flex-col gap-1 items-center">
+                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
+                                            Spectating is read-only • Wagers stay safe
                                         </span>
                                     </div>
                                 </motion.div>

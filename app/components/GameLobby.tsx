@@ -12,6 +12,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { LuMinus, LuPlus, LuTrophy, LuTimer, LuUsers } from 'react-icons/lu';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
+import { useGuestWall } from '@/hooks/GuestWallContext';
 
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
@@ -48,6 +49,8 @@ export default function GameLobby({
         leaveGame
     } = useTeamUpContext();
     const { address } = useAccount();
+    // Guests can only enter offline/bot matches — online entry shows the wall.
+    const { guard } = useGuestWall();
 
     // Configuration State
     const { playSelect, playCoin } = useSoundEffects();
@@ -125,8 +128,10 @@ export default function GameLobby({
     }, [setWager, setGameMode, setMatchType]);
 
     const handleStartQuickMatch = () => {
-        setSearchId(prev => prev + 1);
-        setIsQuickMatchActive(true);
+        guard('online-play', () => {
+            setSearchId(prev => prev + 1);
+            setIsQuickMatchActive(true);
+        });
     };
 
     const handleCancelQuickMatch = useCallback(() => {
@@ -245,7 +250,7 @@ export default function GameLobby({
                     <div className="w-full flex justify-center pt-8 relative z-30">
                         <ActionDice 
                             onSelectQuickMatch={handleStartQuickMatch}
-                            onSelectTeamUp={() => setShowTeamUpOptions(true)}
+                            onSelectTeamUp={() => guard('teamup', () => setShowTeamUpOptions(true))}
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}
                         />
                     </div>

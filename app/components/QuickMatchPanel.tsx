@@ -18,6 +18,20 @@ const PRO_TIPS = [
     "Block your opponents to slow them down."
 ];
 
+// ─── Theme-agnostic contract (holds for current + future themes) ───────────
+// Same as the other synced panels: this sheet always renders on the shared
+// dark-glass sandwich shell, so content uses only white-ink + white-opacity
+// surfaces + cyan/status accents. No font-family is set (inherits the active
+// theme's display font). Spacing inside `.ludo-quick-scope` is re-asserted
+// in globals.css (the global unlayered reset zeroes Tailwind utilities).
+
+// Icon tile: cyan glow square shared with the other synced panels.
+const QuickTile = () => (
+    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
+    </div>
+);
+
 const DashedRadarRing = ({ color = "#22d3ee", className = "" }) => (
     <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
@@ -334,7 +348,7 @@ export const QuickMatchPanel = ({
         }
 
         setWagerRange({ min, max });
-        console.log(`📡 [Matchmaking] Expanding search range: ${min} - ${max || 'Infinity'}`);
+        console.log(`[Matchmaking] Expanding search range: ${min} - ${max || 'Infinity'}`);
         startSearch(min, max);
     };
 
@@ -359,24 +373,22 @@ export const QuickMatchPanel = ({
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
                         /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
+                        className="ludo-quick-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
-                        {/* Header / Title */}
-                        <div className="w-full flex justify-center pt-4 pb-2">
+                        {/* Handle Bar */}
+                        <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
                             <div className="w-12 h-1.5 bg-white/20 rounded-full cursor-pointer" onClick={handleCancelAndClose} />
                         </div>
 
-                        <div className="px-panel-gutter pb-4 border-b border-white/10 relative">
-                            <div className="flex items-center justify-between mt-2">
-                                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                                    <span className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
-                                    </span>
+                        <div className="px-5 pb-3 border-b border-white/10 relative z-10">
+                            <div className="flex items-center justify-between mb-1 mt-1">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <QuickTile />
                                     Quick Match
                                 </h2>
                                 <div className="flex flex-col items-end">
@@ -393,9 +405,9 @@ export const QuickMatchPanel = ({
                             </div>
                             
                             {/* Diagnostic Bar */}
-                            <div className="absolute -bottom-[2px] left-6 flex gap-3">
+                            <div className="absolute -bottom-[2px] left-5 flex gap-3">
                                 <span className={`text-[6px] font-black uppercase tracking-tighter ${status === 'matched' ? 'text-green-400' : (isConnectingToEdge ? 'text-amber-400 animate-pulse' : 'text-cyan-400')}`}>
-                                    📡 {isConnectingToEdge ? 'WAKING SERVER...' : (matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK')} | {status}
+                                    {isConnectingToEdge ? 'WAKING SERVER...' : (matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK')} | {status}
                                 </span>
                                 <span className="text-[6px] font-black uppercase tracking-tighter text-white/20">
                                     ID: {normalizedAddress.slice(-4)}
@@ -409,7 +421,7 @@ export const QuickMatchPanel = ({
                         </div>
 
                         {/* Dynamic Matchmaking Content */}
-                        <div className="flex-1 overflow-hidden flex flex-col items-center justify-center relative px-6">
+                        <div className="flex-1 overflow-hidden flex flex-col items-center justify-center relative px-5">
                             <TeamUpWrapper
                                 mode="quick"
                                 entryFee={wager}
@@ -560,7 +572,7 @@ export const QuickMatchPanel = ({
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                                <h3 className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em] italic">Match Optimizer</h3>
+                                                <h3 className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em]">Match Optimizer</h3>
                                             </div>
                                             <button 
                                                 onClick={() => setShowExpansionOptions(false)} 
@@ -578,7 +590,7 @@ export const QuickMatchPanel = ({
                                                         onClick={() => handleExpandWager(pool.wager)}
                                                         className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
                                                     >
-                                                        <span className="text-[10px] font-black text-cyan-400">{pool.wager.toLocaleString()} 🟡</span>
+                                                        <span className="flex items-center gap-1.5 text-[10px] font-black text-cyan-400">{pool.wager.toLocaleString()}<span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" /></span>
                                                         <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">{pool.waiters} Waiting</span>
                                                     </button>
                                                 ))
@@ -617,25 +629,25 @@ export const QuickMatchPanel = ({
                             {/* Timeout / Error Recovery Screen */}
                             {(status === 'timeout' || status === 'error') && (
                                 <div
-                                    className="absolute inset-0 z-[160] bg-[#0d0d0d]/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center pointer-events-auto"
+                                    className="absolute inset-0 z-[160] bg-[#0d0d0d]/95 backdrop-blur-xl flex flex-col items-center justify-center p-5 text-center pointer-events-auto"
                                 >
-                                    <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-6 border border-amber-500/20">
-                                        <span className="text-3xl animate-pulse">📡</span>
+                                    <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20 text-amber-400">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-8 h-8 animate-pulse"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
                                     </div>
 
-                                    <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">
+                                    <h3 className="text-xl font-bold text-white uppercase tracking-wide mb-1">
                                         {status === 'error' ? 'Connection Fault' : 'Server is Quiet'}
                                     </h3>
-                                    <p className="text-sm text-white/40 font-medium mb-8 max-w-[240px]">
+                                    <p className="text-sm text-white/40 font-medium mb-4 max-w-[240px]">
                                         {status === 'error' && matchError
                                             ? matchError
                                             : "No players found matching your criteria. It's a bit lonely out here!"}
                                     </p>
 
-                                    <div className="w-full flex flex-col gap-3">
+                                    <div className="w-full flex flex-col gap-2">
                                         <button
                                             onClick={handleRetry}
-                                            className="w-full py-4 rounded-2xl bg-white text-black font-bold hover:scale-[1.02] transition-all active:scale-98"
+                                            className="w-full py-3 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all active:scale-95"
                                         >
                                             Retry Search
                                         </button>
@@ -663,7 +675,7 @@ export const QuickMatchPanel = ({
                             )}
 
                             {/* Tip Section */}
-                            <div className="absolute bottom-8 left-0 right-0 px-8">
+                            <div className="absolute bottom-8 left-0 right-0 px-5">
                                 <div
                                     key={tipIndex}
                                     className="flex flex-col items-center gap-2"
@@ -677,16 +689,16 @@ export const QuickMatchPanel = ({
                         </div>
 
                         {/* Single Control Action */}
-                        <div className="mt-auto px-panel-gutter pb-panel-gutter pt-4 border-t border-white/5 bg-black/20 backdrop-blur-sm relative z-10">
+                        <div className="mt-auto px-5 pb-5 pt-3 border-t border-white/10 bg-black/20 backdrop-blur-sm relative z-10">
                             <button
                                 onClick={handleBackToLobby}
-                                className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all flex items-center justify-center gap-2 group"
+                                className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 group"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/40 group-hover:text-white transition-colors"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 Cancel Search
                             </button>
 
-                            <div className="text-center mt-3">
+                            <div className="text-center mt-2">
                                 <button
                                     onClick={handleForceBotMatch}
                                     className="text-[10px] uppercase font-black tracking-widest text-white/20 hover:text-cyan-400/60 transition-colors"
@@ -712,15 +724,16 @@ export const QuickMatchPanel = ({
                                 {/* Close Button */}
                                 <button
                                     onClick={handleCancelAndClose}
-                                    className="absolute top-8 right-8 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all z-[210] pointer-events-auto"
+                                    aria-label="Close match found"
+                                    className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white ring-1 ring-white/10 flex items-center justify-center transition-all z-[210] pointer-events-auto"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
 
                                 <div className="relative z-10 flex flex-col items-center gap-10 w-full" style={{ pointerEvents: 'auto' }}>
                                     <div className="flex flex-col items-center gap-2">
                                         <div
-                                            className="text-6xl md:text-8xl font-black italic text-white tracking-tighter uppercase drop-shadow-[0_0_50px_rgba(255,255,255,0.3)]"
+                                            className="text-6xl md:text-8xl font-black text-white tracking-tight uppercase drop-shadow-[0_0_50px_rgba(255,255,255,0.3)]"
                                         >
                                             Match!
                                         </div>
@@ -754,7 +767,7 @@ export const QuickMatchPanel = ({
                                                 <div className="absolute -inset-1 border border-cyan-400/30 rounded-[28px] animate-pulse pointer-events-none" />
                                             </div>
                                             <div className="flex flex-col items-center">
-                                                <span className="text-lg md:text-xl font-black text-white italic tracking-tight">{finalName}</span>
+                                                <span className="text-lg md:text-xl font-bold text-white tracking-tight">{finalName}</span>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
                                                     <div className="w-1 h-1 bg-white/20 rounded-full" />
@@ -766,7 +779,7 @@ export const QuickMatchPanel = ({
                                         {/* VS Badge */}
                                         <div className="flex flex-col items-center gap-4">
                                             <div
-                                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-black flex items-center justify-center text-2xl md:text-3xl font-black italic shadow-[0_0_40px_white]"
+                                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-black flex items-center justify-center text-2xl md:text-3xl font-black shadow-[0_0_40px_white]"
                                             >
                                                 VS
                                             </div>
@@ -801,7 +814,7 @@ export const QuickMatchPanel = ({
                                                 {!isLoadingRival && <div className="absolute -inset-1 border border-purple-400/30 rounded-[28px] animate-pulse pointer-events-none" />}
                                             </div>
                                             <div className="flex flex-col items-center">
-                                                <h3 className="text-lg md:text-xl font-black text-white italic tracking-tighter text-center">
+                                                <h3 className="text-lg md:text-xl font-bold text-white tracking-tight text-center">
                                                     {isLoadingRival ? 'Scanning...' : (opponentProfile?.username || 'Rival')}
                                                 </h3>
                                                 {opponentProfile && (
@@ -857,12 +870,12 @@ export const QuickMatchPanel = ({
 
                                         <button
                                             onClick={handleCancelAndClose}
-                                            className="px-8 py-3 rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-[0.2em]"
+                                            className="px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-[0.2em]"
                                         >
                                             Cancel Match
                                         </button>
                                         
-                                        <p className="max-w-[280px] text-[9px] text-white/20 italic leading-relaxed">
+                                        <p className="max-w-[280px] text-[9px] text-white/20 leading-relaxed">
                                             Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.
                                         </p>
                                     </div>

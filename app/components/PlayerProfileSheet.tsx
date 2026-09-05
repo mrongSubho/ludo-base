@@ -65,11 +65,12 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
             {/* Compact floating popup */}
             <div
                 className="profile-popup relative"
-                style={{ 
-                    ...verticalAnchor, 
+                style={{
+                    ...verticalAnchor,
                     ...horizAnchor,
                     background: 'var(--ludo-bg-cosmic)',
-                    backgroundColor: '#1c1c1c',
+                    backgroundColor: 'rgba(13,13,13,0.92)',
+                    backdropFilter: 'blur(32px)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '24px',
                     overflow: 'hidden',
@@ -79,7 +80,9 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                 {/* Coloured top strip + avatar */}
                 <div className="pp-header" style={{ background: COLOR_MAP[player.color] }}>
                     <div className="pp-avatar">{player.avatar}</div>
-                    <button className="pp-close" onClick={onClose}>✕</button>
+                    <button className="pp-close" onClick={onClose} aria-label="Close player profile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                 </div>
 
                 {/* Name + level */}
@@ -116,9 +119,15 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                             disabled={friendStatus === 'friends'}
                             title={friendStatus === 'none' ? 'Add Friend' : friendStatus === 'sent' ? 'Request sent' : 'Friends'}
                         >
-                            {friendStatus === 'none' && '➕'}
-                            {friendStatus === 'sent' && '⏳'}
-                            {friendStatus === 'friends' && '✅'}
+                            {friendStatus === 'none' && (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                            )}
+                            {friendStatus === 'sent' && (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            )}
+                            {friendStatus === 'friends' && (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            )}
                             <span>{friendStatus === 'none' ? 'Add' : friendStatus === 'sent' ? 'Pending' : 'Friends'}</span>
                         </button>
 
@@ -126,7 +135,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                             className={`pp-btn ${dmSent ? 'pp-btn-active' : ''}`}
                             onClick={handleDm}
                         >
-                            💬
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"></path></svg>
                             <span>{dmSent ? 'Sent!' : 'DM'}</span>
                         </button>
 
@@ -134,7 +143,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                             className={`pp-btn pp-btn-danger ${blocked ? 'pp-btn-active-danger' : ''}`}
                             onClick={() => setBlocked(b => !b)}
                         >
-                            🚫
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
                             <span>{blocked ? 'Unblock' : 'Block'}</span>
                         </button>
                     </div>

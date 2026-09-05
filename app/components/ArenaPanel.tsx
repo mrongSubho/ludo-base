@@ -3,11 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useGuestWall } from '@/hooks/GuestWallContext';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTimer, LuUsers, LuX, LuShieldCheck } from 'react-icons/lu';
 
+// ─── Theme-agnostic contract (holds for current + future themes) ───────────
+// Same as marketplace/settings/rankings/friends/messages: this panel always
+// renders on the shared dark-glass sandwich shell, so content uses only
+// white-ink + white-opacity surfaces + cyan/status accents. No font-family is
+// set (inherits the active theme's display font). Spacing inside
+// `.ludo-arena-scope` is re-asserted in globals.css (the global unlayered
+// reset zeroes Tailwind spacing utilities).
+
 type ArenaTab = 'tournaments' | 'missions';
 type MissionTab = 'daily' | 'weekly';
+
+// Icon tile: cyan glow square shared with the other synced panels.
+const TrophyTile = () => (
+    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
+        <LuTrophy className="w-4 h-4 text-cyan-300" />
+    </div>
+);
+
+// Section label: pill + gradient rule (marketplace vocabulary)
+const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
+    <div className="mt-1 mb-1 flex items-center gap-2.5">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+            {children}
+        </span>
+        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
+        {right}
+    </div>
+);
 
 interface Mission {
     id: string;
@@ -29,6 +56,8 @@ interface ArenaPanelProps {
 
 export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelProps) {
     const { address } = useCurrentUser();
+    // Guests can view missions, but claiming pays onchain — walled.
+    const { guard } = useGuestWall();
     const [arenaTab, setArenaTab] = useState<ArenaTab>('tournaments');
 
     // ─── Tournaments state ───
@@ -111,6 +140,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
 
     const handleClaim = async (missionId: string) => {
         if (!address || claimingId) return;
+        if (!guard('arena-claim')) return;
         setClaimingId(missionId);
         try {
             const response = await fetch('/api/missions/claim', {
@@ -190,7 +220,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                             className="w-full max-w-[500px] relative h-full pointer-events-auto"
                         >
                             <div
-                                className="absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
+                                className="ludo-arena-scope absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                                 style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13, 13, 13, 0.92)', backdropFilter: 'blur(32px)' }}
                             >
                                 {/* Authentic Subdued Cosmic Orbs */}
@@ -198,37 +228,44 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                 {/* Drag Handle */}
-                                <div className="w-full flex justify-center pt-4 pb-2">
+                                <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
                                     <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
                                 {/* Header */}
-                                <div className="px-6 pb-4 border-b border-white/10 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30">
-                                            <LuTrophy className="text-cyan-400 w-6 h-6" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-xl font-black text-white uppercase tracking-wider italic">Arena</h2>
-                                            <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.2em]">Tournaments & Missions</p>
-                                        </div>
-                                    </div>
+                                <div className="px-5 pb-3 border-b border-white/10 relative z-10">
+                                    <div className="flex items-center justify-between mb-1 mt-1">
+                                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                            <TrophyTile />
+                                            Arena
+                                        </h2>
                                     <button
                                         onClick={onClose}
-                                        className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/5 text-white/40 hover:text-white transition-all border border-white/5"
+                                        aria-label="Close arena"
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
                                     >
-                                        <LuX className="w-5 h-5" />
+                                        <LuX className="w-4 h-4" />
                                     </button>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-0.5">
+                                        <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                            {tournaments.length} arena{tournaments.length === 1 ? '' : 's'}
+                                        </span>
+                                        <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
+                                        <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
+                                            {dailyLeft + weeklyLeft} missions left
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Inner Tabs */}
-                                <div className="px-4 pt-4">
-                                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 shadow-inner">
+                                <div className="px-5 pt-3 relative z-10">
+                                    <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
                                         {(['tournaments', 'missions'] as ArenaTab[]).map((tab) => (
                                             <button
                                                 key={tab}
                                                 onClick={() => setArenaTab(tab)}
-                                                className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${arenaTab === tab ? 'bg-cyan-700 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                                                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${arenaTab === tab ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
                                             >
                                                 {tab}
                                             </button>
@@ -238,17 +275,22 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
 
                                 {arenaTab === 'tournaments' ? (
                                     /* List */
-                                    <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar relative z-10">
+                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative z-10">
+                                        <SectionLabel>
+                                            {tournaments.length} arena{tournaments.length === 1 ? '' : 's'}
+                                        </SectionLabel>
                                         {isLoadingTournaments ? (
-                                            <div className="h-full flex flex-col items-center justify-center gap-4">
+                                            <div className="h-full flex flex-col items-center justify-center gap-4 py-16">
                                                 <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
                                                 <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Locating Arenas</span>
                                             </div>
                                         ) : tournaments.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
-                                                <LuShieldCheck className="text-5xl text-white/20 mb-4" />
-                                                <h3 className="text-xl font-bold text-white mb-2">Construction Mode</h3>
-                                                <p className="text-sm text-white/60">Automated brackets coming soon. Check back shortly!</p>
+                                            <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                                                <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                                                    <LuShieldCheck className="w-7 h-7" />
+                                                </div>
+                                                <h3 className="text-white font-black text-sm mb-1">Construction Mode</h3>
+                                                <p className="text-white/40 text-xs max-w-[220px]">Automated brackets coming soon. Check back shortly!</p>
                                             </div>
                                         ) : tournaments.map((t, idx) => (
                                             <motion.div
@@ -256,7 +298,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                                 initial={{ opacity: 0, scale: 0.95 }}
                                                 animate={{ opacity: 1, scale: 1 }}
                                                 transition={{ delay: idx * 0.1 }}
-                                                className="group relative flex flex-col gap-4 p-5 rounded-3xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all overflow-hidden"
+                                                className="group relative flex flex-col gap-4 p-5 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] hover:border-white/25 transition-all overflow-hidden mb-2"
                                             >
                                                 <div className="flex items-start justify-between">
                                                     <div>
@@ -292,45 +334,52 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                     </div>
                                 ) : (
                                     /* Missions Content */
-                                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                                        <div className="px-4 pt-3">
-                                            <div className="flex items-center gap-5 border-b border-white/5 px-2">
+                                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10">
+                                        <div className="px-5 pt-2">
+                                            {/* Child tabs: text-underline row, deliberately subordinate to the
+                                                parent segmented block above (no fill, smaller type). */}
+                                            <div className="flex items-center gap-5 border-b border-white/5 px-1" role="tablist" aria-label="Mission cadence">
                                                 {(['daily', 'weekly'] as MissionTab[]).map((tab) => {
                                                     const left = tab === 'daily' ? dailyLeft : weeklyLeft;
                                                     const active = activeMissionTab === tab;
                                                     return (
                                                         <button
                                                             key={tab}
+                                                            role="tab"
+                                                            aria-selected={active}
                                                             onClick={() => setActiveMissionTab(tab)}
-                                                            className={`pb-2.5 text-xs font-bold uppercase tracking-widest transition-colors relative ${active ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
+                                                            className={`pb-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-sm ${active ? 'text-white' : 'text-white/35 hover:text-white/70'}`}
                                                         >
                                                             <span className="flex items-center gap-1.5">
                                                                 {tab}
-                                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${active ? 'bg-teal-500/20 text-teal-300' : 'bg-white/5 text-white/30'}`}>
-                                                                    {left}
-                                                                </span>
+                                                                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>{left}</span>
                                                             </span>
                                                             {active && (
-                                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-400 rounded-t-full" />
+                                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400 rounded-t-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                                                             )}
                                                         </button>
                                                     );
                                                 })}
                                             </div>
                                         </div>
-                                        <div className="flex-1 min-h-0 overflow-y-auto px-panel-gutter py-4 space-y-4 no-scrollbar relative">
+                                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative">
+                                            <SectionLabel>
+                                                {visibleMissions.length} mission{visibleMissions.length === 1 ? '' : 's'} left
+                                            </SectionLabel>
                                             {isLoadingMissions && missions.length === 0 ? (
-                                                <div className="flex items-center justify-center h-full">
+                                                <div className="flex items-center justify-center py-16">
                                                     <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                                                 </div>
                                             ) : visibleMissions.length === 0 ? (
-                                                <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
-                                                    <span className="text-6xl mb-4">✨</span>
-                                                    <h3 className="text-xl font-bold text-white mb-2">All Caught Up!</h3>
-                                                    <p className="text-sm text-white/60">Check back later for new missions.</p>
+                                                <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                                                    <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                                                        <LuShieldCheck className="w-7 h-7" />
+                                                    </div>
+                                                    <h3 className="text-white font-black text-sm mb-1">All Caught Up!</h3>
+                                                    <p className="text-white/40 text-xs max-w-[220px]">Check back later for new missions.</p>
                                                 </div>
                                             ) : (
-                                                <div className="space-y-4 pb-safe-footer">
+                                                <div className="flex flex-col gap-2 pb-2">
                                                     <AnimatePresence mode="popLayout">
                                                         {visibleMissions.map((mission) => {
                                                             const isCompleted = (mission.progress || 0) >= mission.target;
@@ -345,7 +394,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                                                     animate={{ opacity: 1, scale: 1 }}
                                                                     exit={{ opacity: 0, scale: 0.95 }}
                                                                     key={mission.id}
-                                                                    className="flex flex-col gap-3 bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-colors relative overflow-hidden group"
+                                                                    className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden group"
                                                                 >
                                                                     {/* Background Glow for completed missions */}
                                                                     {isCompleted && (
