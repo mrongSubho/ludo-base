@@ -429,7 +429,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     {/* Pop-up Modal Container */}
                     <div
                         className="ludo-pubprofile-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-y-auto no-scrollbar border border-white/10 rounded-[32px] z-[210] shadow-2xl flex flex-col"
-                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
@@ -514,11 +514,11 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     {/* Stats Grid */}
                                     <div className="grid grid-cols-2 gap-2 w-full mb-1">
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
-                                            <span className="text-2xl font-black text-cyan-400">{displayWins}</span>
+                                            <span className="porcelain-hero text-2xl font-black text-cyan-400">{displayWins}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
                                         </div>
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
-                                            <span className="text-2xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
+                                            <span className="porcelain-hero text-2xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
                                         </div>
                                     </div>

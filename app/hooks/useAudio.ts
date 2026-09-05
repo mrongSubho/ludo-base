@@ -146,7 +146,7 @@ export const useAudio = () => {
 
         let lfo: OscillatorNode | undefined;
 
-        // Theme mapping: Retro-Futurism neon pulse, Cosmic UI classic
+        // Theme mapping: Retro-Futurism neon pulse, Daybreak soft ethereal
         const isRetro = theme.includes('retro');
 
         if (isRetro) {
@@ -168,7 +168,7 @@ export const useAudio = () => {
             lfoGain.connect(filter.frequency);
             lfo.start();
         } else {
-            // Cosmic UI / Classic: Soft Ethereal
+            // Daybreak: Soft Ethereal
             osc1.type = 'triangle';
             osc1.frequency.setValueAtTime(261.63, ctx.currentTime); // C4
             osc2.type = 'sine';

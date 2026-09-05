@@ -154,7 +154,9 @@ export default function GameLobby({
     };
 
     return (
-        <div className="relative w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center justify-center">
+        <div className="ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center justify-center">
+            {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
+            <div className="lobby-backdrop" aria-hidden />
             {/* 1. INITIAL SETUP PANEL */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div

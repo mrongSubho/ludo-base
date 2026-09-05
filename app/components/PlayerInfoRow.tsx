@@ -82,7 +82,13 @@ export function PlayerCard({
                             className="w-full h-full object-cover rounded-full"
                         />
                     ) : (
-                        <span className="avatar-emoji">{player.avatar || '👤'}</span>
+                        player.avatar ? (
+                          <span className="avatar-emoji">{player.avatar}</span>
+                        ) : (
+                          <span className="avatar-emoji flex items-center justify-center text-white/40">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                          </span>
+                        )
                     )}
                     {power && (
                         <div className="absolute -bottom-1 -right-1 bg-black/50 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center text-xs border border-white/20">

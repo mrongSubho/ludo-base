@@ -35,7 +35,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
     return (
         <div
             className="ludo-wallet-scope w-[calc(100%-32px)] max-w-[420px] rounded-[32px] border border-white/10 px-8 py-10 flex flex-col items-center gap-8 relative overflow-hidden group shadow-2xl"
-            style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+            style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
         >
             {/* Animated Flare Decorators to match Lobby */}
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 blur-[60px] rounded-full animate-pulse" />

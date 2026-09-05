@@ -44,8 +44,8 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
                     <div
                         className="ludo-migrate-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ 
-                            background: 'var(--ludo-bg-cosmic)', 
-                            backgroundColor: 'rgba(13,13,13,0.95)', 
+                            background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
+                            backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))',
                             backdropFilter: 'blur(32px)' 
                         }}
                     >

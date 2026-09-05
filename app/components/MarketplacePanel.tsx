@@ -202,9 +202,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         // ─── Themes (equip = instant theme activation) ───
         {
             id: 'theme-retro', type: 'themes', kind: 'theme', equipValue: 'retro',
-            name: 'Retro Terminal',
+            name: 'Retro Night',
             description: 'Deep space terminal aesthetic for focused gaming.',
-            lore: 'Forged in the heart of a dying star, the Retro Terminal brings the calm of the void to your board.',
+            lore: 'Forged in the heart of a dying star, Retro Night brings the calm of the void to your board.',
             price: 0, owned: true, rarity: 'common', collection: 'Foundations', creator: 'LudoCorp',
             collectionStats: { floor: 0, volume: 100000, owners: 50000 },
             stats: [{ label: 'Mode', value: 'Dark' }, { label: 'Applies', value: 'Instant' }],
@@ -214,10 +214,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             previewColor: 'bg-[#0a0b14]'
         },
         {
-            id: 'theme-ui', type: 'themes', kind: 'theme', equipValue: 'ui',
-            name: 'Cosmic Light',
-            description: 'Bright airy interface for daytime grinders.',
-            lore: 'When the void gets too dark, the Cosmic Light interface opens a window to a brighter arena.',
+            id: 'theme-daybreak', type: 'themes', kind: 'theme', equipValue: 'light',
+            name: 'Daybreak Porcelain',
+            description: 'Soft-UI daylight porcelain for daytime grinders.',
+            lore: 'When the void gets too dark, Daybreak opens a sunlit window onto a porcelain arena.',
             price: 500, owned: false, rarity: 'rare', collection: 'Prism', creator: 'Lux',
             collectionStats: { floor: 420, volume: 8600, owners: 1930 },
             stats: [{ label: 'Mode', value: 'Light' }, { label: 'Applies', value: 'Instant' }],
@@ -627,7 +627,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         if (item.type === 'tokens') {
             return <img src="/tokens/king.png" alt={item.name} style={{ width: px, height: px, objectFit: 'contain' }} />;
         }
-        if (item.type === 'themes') return <ThemeSwatch light={item.equipValue === 'ui'} size={px} />;
+        if (item.type === 'themes') return <ThemeSwatch light={item.equipValue === 'light'} size={px} />;
         if (item.kind === 'item') return <ItemRelic px={px} tint={item.previewColor} />;
         return item.previewIcon ?? null;
     };
@@ -665,7 +665,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                             <div
                                 ref={panelRef}
                                 className="ludo-market-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                                style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+                                style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                             >
                                 {/* Cosmic orbs */}
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
@@ -950,7 +950,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                                     <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[8px] font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
                                                                         {equipped ? 'Active' : 'Showcasing'}
                                                                     </div>
-                                                                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
+                                                                    <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
                                                                         <CheckIcon className="w-3 h-3 text-white" />
                                                                     </div>
                                                                 </>
@@ -1282,7 +1282,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
-                                                        <span className="text-3xl font-black text-white font-mono">{selectedItem.price.toLocaleString()}</span>
+                                                        <span className="porcelain-hero text-3xl font-black text-white font-mono">{selectedItem.price.toLocaleString()}</span>
                                                         <span className="text-sm font-bold text-white/35">coins</span>
                                                     </div>
                                                     {!owned && !canAfford && (

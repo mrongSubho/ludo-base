@@ -76,7 +76,7 @@ export const InviteNotification = () => {
                 >
                     <div
                         className="ludo-invite-scope border border-white/10 rounded-[32px] p-5 shadow-2xl overflow-hidden relative"
-                        style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
                         {/* Glowing Background Pulse */}
                         <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />

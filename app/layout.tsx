@@ -42,10 +42,11 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const theme = cookieStore.get('ludo-theme')?.value;
 
-  // Two themes only: Retro-Futurism (default) and Cosmic UI.
-  // Legacy 'dark' cookies migrate to Retro-Futurism.
+  // Two themes: Retro-Futurism (default, dark) and Daybreak (soft-UI light).
+  // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism; legacy 'porcelain'
+  // cookies migrate to Daybreak.
   let themeClass = 'theme-retro-futurism'; // Default
-  if (theme === 'ui') themeClass = 'theme-cosmic-ui';
+  if (theme === 'light' || theme === 'porcelain') themeClass = 'theme-daybreak';
   return (
     <html lang="en">
       <head>

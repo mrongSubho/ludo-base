@@ -68,8 +68,8 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                 style={{
                     ...verticalAnchor,
                     ...horizAnchor,
-                    background: 'var(--ludo-bg-cosmic)',
-                    backgroundColor: 'rgba(13,13,13,0.92)',
+                    background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
+                    backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))',
                     backdropFilter: 'blur(32px)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '24px',

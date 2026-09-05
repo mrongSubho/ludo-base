@@ -91,7 +91,7 @@ export const FooterNavPanel = ({
 
     return (
         <>
-            <nav className="footer-nav relative overflow-hidden">
+            <nav className="footer-nav ludo-footer-scope relative overflow-hidden">
                 {[
                     { id: 'profile', icon: ProfileIcon, label: 'Profile' },
                     { id: 'friends', icon: UsersIcon, label: 'Friends' },
@@ -112,7 +112,7 @@ export const FooterNavPanel = ({
                                 <motion.div
                                     layoutId="active-nav-bg"
                                     className="absolute inset-0 border border-white/10 rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
-                                    style={{ background: 'rgba(13, 13, 13, 0.4)', backdropFilter: 'blur(8px)' }}
+                                    style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))', backdropFilter: 'blur(8px)' }}
                                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
                                 />
                             )}

@@ -36,7 +36,7 @@ export const HeaderNavPanel = ({
     onSettingsClick
 }: HeaderNavPanelProps) => {
     return (
-        <header className="header dash-header px-0 flex items-center justify-between py-4 gap-1.5 sticky top-0 z-[200]">
+        <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-4 gap-1.5 sticky top-0 z-[200]">
             {/* [x] Header Redesign (3 Pills) */}
             {/* [x] Header Refinement (Compact Symmetrical Spaced Pills) */}
             {/* [x] Verify changes (Fixed widths and "free space" gaps) */}
@@ -60,7 +60,9 @@ export const HeaderNavPanel = ({
                             {finalAvatar ? (
                                 <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-lg">🎮</div>
+                                <div className="w-full h-full flex items-center justify-center text-cyan-300">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                </div>
                             )}
                         </div>
                         {/* Green Online Status Dot */}

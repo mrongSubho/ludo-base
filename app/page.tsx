@@ -555,7 +555,10 @@ export default function Page() {
                     </svg>
                   </button>
                   <div className="game-status-info">
-                    <span className="game-mode-title">👁️ Live Match</span>
+                    <span className="game-mode-title flex items-center gap-1.5">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                      Live Match
+                    </span>
                     <span className="game-status">
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse mr-1" />
                       {spectatorCount} watching · #{spectatingRoomCode}
@@ -638,7 +641,7 @@ export default function Page() {
                 <div className="absolute inset-0 z-[999] bg-black/60 backdrop-blur-md flex items-center justify-center p-5">
                   <div
                     className="ludo-quit-scope border border-white/10 rounded-[32px] shadow-2xl max-w-sm w-full text-center p-5"
-                    style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.92)', backdropFilter: 'blur(32px)' }}
+                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                   >
                     <h2 className="text-xl font-bold text-white mb-1">Leave Match?</h2>
                     <p className="text-white/60 text-sm font-medium mb-4">All progress will be lost. Are you sure you want to quit?</p>

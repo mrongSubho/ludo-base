@@ -29,9 +29,11 @@ export function usePreferences() {
             return getPreferenceCookie(key) || localStorage.getItem(key) || fallback;
         };
 
-        // Legacy 'dark' cookies migrate to Retro-Futurism (the default)
+        // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism (the default);
+        // legacy 'porcelain' cookies migrate to Daybreak.
+        // Valid themes: retro (dark) | light (daybreak).
         const raw = getVal('ludo-theme', 'retro');
-        const theme = raw === 'ui' ? 'ui' : 'retro';
+        const theme = raw === 'light' || raw === 'porcelain' ? 'light' : 'retro';
         const sfx = getVal('ludo-sfx', 'on') === 'on';
         const music = getVal('ludo-music', 'on') === 'on';
         const haptics = getVal('ludo-haptic', 'on') === 'on';
@@ -70,8 +72,8 @@ export function usePreferences() {
 
         // Trigger side effects immediately if needed (e.g. theme application)
         if (key === 'ludo-theme') {
-            document.body.classList.remove('theme-cosmic-ui', 'theme-cosmic-dark', 'theme-retro-futurism');
-            if (value === 'ui') document.body.classList.add('theme-cosmic-ui');
+            document.body.classList.remove('theme-retro-futurism', 'theme-daybreak');
+            if (value === 'light') document.body.classList.add('theme-daybreak');
             else document.body.classList.add('theme-retro-futurism');
         }
 

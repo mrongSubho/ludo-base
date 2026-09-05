@@ -4,6 +4,7 @@
    =========================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Russo+One&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
@@ -90,25 +91,233 @@
   --cyber-accent: #00FFFF;    /* Cyan Neon */
 }
 
-/* ─── Theme Overrides (Consolidated) ─── */
-body.theme-cosmic-ui {
-  --ludo-bg: #0d0d0d;
-  --ludo-card: rgba(255, 255, 255, 0.05);
-  --ludo-text: #ffffff;
-  --ludo-slate: #ffffff;
-  --ludo-bg-image: var(--ludo-bg-cosmic);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-  /* Vibrant Bases for Cosmic UI */
-  --ludo-base-green: #22c55e;
-  --ludo-base-red: #ef4444;
-  --ludo-base-blue: #3b82f6;
-  --ludo-base-yellow: #eab308;
-  --ludo-path-bg: #f8fafc; /* Off-White as requested */
-  --ludo-pad-bg: rgba(0, 0, 0, 0.4); /* Dark Pad Tint */
+/* ─── Panel shell variables (all sandwich panels / sheets / modals read these
+   instead of hardcoded dark values, so Daybreak can go truly light) ─── */
+:root {
+  --panel-bg: rgba(13, 13, 13, 0.92);
+  --panel-bg-image: var(--ludo-bg-cosmic);
 }
 
-body.theme-cosmic-ui .cosmic-orb { display: block; }
-body.theme-cosmic-ui .boot-dot { display: none; }
+/* ─── Daybreak: the true light theme ───
+   Porcelain terminal — frosted white glass, slate ink, cyan-700 accents,
+   hairline borders, soft shadows instead of neon glows. */
+body.theme-daybreak {
+  --ludo-bg: #e6e8ec;
+  --ludo-card: #ffffff;
+  --ludo-text: #0f172a;
+  --ludo-muted: #475569;
+  --ludo-faint: #94a3b8;
+  --ludo-slate: #0f172a;
+  --ludo-border: #e2e8f0;
+  --ludo-bg-image:
+    radial-gradient(circle at 12% 8%, rgba(14, 165, 183, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 88% 90%, rgba(251, 146, 60, 0.08) 0%, transparent 45%);
+  --ludo-bg-rgb: 230, 232, 236;
+  --panel-bg: rgba(255, 255, 255, 0.88);
+  --panel-bg-image:
+    radial-gradient(circle at 12% 6%, rgba(14, 165, 183, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 88% 94%, rgba(251, 146, 60, 0.07) 0%, transparent 45%);
+  --shadow-card: 0 20px 45px -12px rgba(15, 23, 42, 0.18);
+  color: var(--ludo-text);
+  background-color: var(--ludo-bg);
+}
+
+body.theme-daybreak .cosmic-orb { display: block; }
+body.theme-daybreak .boot-dot { display: none; }
+/* ─── Porcelain signature: the holographic selected-state ───
+   The reference's one iridescent moment. Wired to loadout equipped marks
+   today; reuse .porcelain-holo-tick anywhere "this one is yours" applies. */
+body.theme-daybreak .porcelain-holo-tick {
+  background: conic-gradient(from 210deg, #fde68a, #f9a8d4, #a5b4fc, #fcd34d, #fde68a);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+body.theme-daybreak .porcelain-holo-tick .text-white { color: #171717; }
+
+/* ─── Porcelain monochrome discipline ───
+   The reference keeps chrome grayscale: tabs, pills, and tiles go slate,
+   color surviving only in data (status, teams) and the holo signature. */
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope, .ludo-header-scope, .ludo-footer-scope, .ludo-lobby-scope) :is(.bg-cyan-500\/20) { background-color: rgba(23, 23, 23, 0.07); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope, .ludo-header-scope, .ludo-footer-scope, .ludo-lobby-scope) :is(.bg-cyan-500\/15, .bg-cyan-400\/20) { background-color: rgba(23, 23, 23, 0.05); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope, .ludo-header-scope, .ludo-footer-scope, .ludo-lobby-scope) :is(.shadow-\[inset_0_0_0_1px_rgba\(34\,211\,238\,0\.5\)\]) { box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.28); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope, .ludo-header-scope, .ludo-footer-scope, .ludo-lobby-scope) :is(.border-cyan-400\/40, .border-cyan-500\/40, .border-cyan-500\/30) { border-color: rgba(23, 23, 23, 0.16); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope, .ludo-header-scope, .ludo-footer-scope, .ludo-lobby-scope) :is(.bg-cyan-500\/20 .text-cyan-300, .bg-cyan-500\/15 .text-cyan-300, .bg-cyan-400\/20 .text-cyan-200) { color: #171717; }
+
+/* ─── Porcelain hero numerals ───
+   Oversized tight grotesque for the numbers that matter (reference: 20GB).
+   Double-classed to outrank the accent mappings above. */
+body.theme-daybreak .porcelain-hero.porcelain-hero {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-size: 2.6rem;
+  line-height: 1;
+  color: #111111;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Porcelain voice: Inter Tight display grotesque ───
+   The reference speaks in a tight neo-grotesque (medium-bold, close tracking)
+   with tabular numerals — not our wide-tracked display fonts. */
+body.theme-daybreak {
+  --font-porcelain-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+}
+body.theme-daybreak h1,
+body.theme-daybreak h2,
+body.theme-daybreak h3 {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif !important;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+body.theme-daybreak :is(.font-mono) {
+  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+body.theme-daybreak .cosmic-orb-2 { background: rgba(253, 186, 116, 0.45); }
+
+/* ─── Lobby photo backdrop ───
+   Theme-mapped photography behind the lobby only (GameLobby unmounts
+   in-game, so the board is never affected). The layer lives inside the
+   lobby's isolated stacking context at z -1: always behind content, never
+   intercepting taps. Scrims blend the photo into the theme background. */
+:root {
+  --lobby-photo: url('/backgrounds/cyberpunk_bg.png');
+  --ludo-photo-opacity: 0.55;
+}
+body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-photo-opacity: 0.55; }
+.lobby-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(180deg, transparent 35%, var(--ludo-bg) 94%),
+    var(--lobby-photo);
+  background-size: auto, cover;
+  background-position: center, center 15%;
+  background-repeat: no-repeat;
+  opacity: var(--ludo-photo-opacity);
+}
+
+/* Wallet sheet inline-ink variables (rows use plain classes now, covered below) */
+:root {
+  --modal-ink: #ffffff;
+  --modal-ink-soft: rgba(255, 255, 255, 0.7);
+  --modal-muted: rgba(255, 255, 255, 0.45);
+  --nav-active-bg: rgba(13, 13, 13, 0.4);
+}
+body.theme-daybreak {
+  --modal-ink: #0f172a;
+  --modal-ink-soft: rgba(15, 23, 42, 0.6);
+  --modal-muted: #64748b;
+  --nav-active-bg: rgba(14, 165, 183, 0.12);
+}
+body.theme-daybreak .ludo-walletsheet-scope :is(.bg-white\/\[0\.06\]) { background-color: rgba(23, 23, 23, 0.05); }
+body.theme-daybreak .ludo-walletsheet-scope :is(.hover\:bg-white\/10:hover) { background-color: #eef2f7; }
+body.theme-daybreak .ludo-walletsheet-scope :is(.bg-white\/10) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-walletsheet-scope :is(.hover\:bg-white\/20:hover) { background-color: rgba(23, 23, 23, 0.10); }
+
+/* ─── Daybreak override layer ───
+   Maps the shared dark-glass vocabulary (white ink, white-opacity surfaces,
+   black fills) to porcelain-daylight values. Panel shells already read
+   var(--panel-bg); everything below only touches color utilities INSIDE the
+   listed scopes — zero blast radius on board/lobby/chrome (phase 2).
+   Unlayered selectors beat Tailwind v4's layered utilities by design. */
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-white) { color: #171717; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-white\/90, .text-white\/80, .text-white\/75, .text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-white\/60, .text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10, .text-white\/5) { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.hover\:text-white:hover, .hover\:text-white\/70:hover, .hover\:text-white\/60:hover) { color: #171717; }
+/* Daybreak surfaces: cards go solid white with a soft shadow, recessed
+   fills go light slate, hover fills go slate-100. */
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-white\/\[0\.04\], .bg-white\/\[0\.07\], .bg-white\/5, .bg-white\/10) { background-color: #ffffff; box-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(23, 23, 23, 0.04); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.rounded-2xl) { border-radius: 26px; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.rounded-xl) { border-radius: 18px; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.hover\:bg-white\/5:hover, .hover\:bg-white\/10:hover, .hover\:bg-white\/20:hover) { background-color: #f1f5f9; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-black\/20, .bg-black\/40, .bg-black\/50, .bg-black\/60) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-black\/30) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-white\/15, .bg-white\/30) { background-color: #ffffff; box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.10); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-white\/20) { background-color: rgba(23, 23, 23, 0.16); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-white\/25) { background-color: rgba(23, 23, 23, 0.22); }
+/* White primary CTAs keep their fill but gain a hairline so they read on white */
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-white) { box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.16), 0 8px 24px rgba(23, 23, 23, 0.10); }
+/* Daybreak lines: hairline slate borders, light dividers + rings, slate gradient rules */
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.border-white\/5, .border-white\/10, .border-white\/15, .border-white\/20, .border-white\/25, .border-white\/30, .border-white\/40) { border-color: rgba(23, 23, 23, 0.10); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.border-t-white) { border-top-color: #171717; }
+/* Panel shells carry the scope class themselves — match them directly too */
+body.theme-daybreak :is(.ludo-market-scope.border-white\/10, .ludo-settings-scope.border-white\/10, .ludo-rankings-scope.border-white\/10, .ludo-friends-scope.border-white\/10, .ludo-messages-scope.border-white\/10, .ludo-arena-scope.border-white\/10, .ludo-profile-scope.border-white\/10, .ludo-offline-scope.border-white\/10, .ludo-migrate-scope.border-white\/10, .ludo-teamup-scope.border-white\/10, .ludo-quick-scope.border-white\/10, .ludo-pubprofile-scope.border-white\/10, .ludo-livearena-scope.border-white\/10, .ludo-leaderboard-scope.border-white\/10, .ludo-invite-scope.border-white\/10, .ludo-wallet-scope.border-white\/10, .ludo-wall-scope.border-white\/10, .ludo-quit-scope.border-white\/10) { border-color: rgba(255, 255, 255, 0.9); box-shadow: 0 24px 60px -12px rgba(23, 23, 23, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.9); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.divide-white\/5) > :not([hidden]) ~ :not([hidden]) { border-color: rgba(23, 23, 23, 0.08); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.ring-white\/10) { --tw-ring-color: rgba(23, 23, 23, 0.14); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
+/* Daybreak accents: neon-on-black tones deepen to saturated-on-white tones */
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-100, .text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-300\/60, .text-cyan-300\/80, .text-cyan-400\/40, .text-cyan-400\/60, .text-cyan-400\/80, .text-cyan-400\/90, .text-cyan-500\/80) { color: color-mix(in srgb, #0e7490 70%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-amber-300, .text-amber-400, .text-amber-500, .text-yellow-300, .text-yellow-400, .text-yellow-500) { color: #b45309; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-200, .text-green-300, .text-green-400, .text-emerald-400) { color: #15803d; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-200\/60) { color: color-mix(in srgb, #15803d 65%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-red-300\/90, .text-red-400\/40) { color: color-mix(in srgb, #dc2626 70%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-500) { color: #16a34a; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-red-300, .text-red-400, .text-red-500) { color: #dc2626; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-orange-300, .text-orange-400, .text-orange-500) { color: #ea580c; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-blue-400) { color: #2563eb; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-teal-400) { color: #0f766e; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-fuchsia-100, .text-fuchsia-300) { color: #a21caf; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-slate-300) { color: #64748b; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.placeholder\:text-white\/25::placeholder, .placeholder\:text-white\/20::placeholder, .placeholder\:text-white\/10::placeholder, .placeholder\:text-white\/5::placeholder) { color: rgba(23, 23, 23, 0.35); }
+
+/* ─── Daybreak chrome: footer nav ─── */
+body.theme-daybreak .footer-nav { background: rgba(255, 255, 255, 0.85) !important; border-top: 1px solid rgba(23, 23, 23, 0.10); box-shadow: 0 -8px 30px rgba(23, 23, 23, 0.10); }
+body.theme-daybreak .nav-item .nav-icon { color: rgba(23, 23, 23, 0.45) !important; }
+body.theme-daybreak .nav-item.active .nav-icon { color: #0e7490 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0e7490 !important; }
+body.theme-daybreak .nav-item .nav-label { color: rgba(23, 23, 23, 0.55) !important; }
+body.theme-daybreak .nav-item.active .nav-label { color: #0e7490 !important; }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: #0e7490 !important; }
+body.theme-daybreak .footer-nav :is(.border-white\/10) { border-color: rgba(14, 165, 183, 0.35); }
+body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rgba(14, 165, 183, 0.08); }
+body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 165, 183, 0.20); }
+
+/* ─── Daybreak chrome: header pills ─── */
+body.theme-daybreak .ludo-header-scope > div { background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
+body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
+body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0e7490; }
+body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-header-scope :is(.hover\:text-white:hover) { color: #171717; }
+body.theme-daybreak .ludo-header-scope :is(.bg-white\/20) { background-color: rgba(23, 23, 23, 0.15); }
+body.theme-daybreak .ludo-header-scope [class*="bg-white text-black"] { background-color: #171717; color: #ffffff; }
+
+/* ─── Porcelain header, professional pass ───
+   Reference language: quiet pills, no neon, no flicker. Kills the cyan
+   borders, muddy drop shadows, shimmer sweep, and italic name. */
+body.theme-daybreak .ludo-header-scope > div { border-color: rgba(23, 23, 23, 0.12); box-shadow: 0 6px 18px rgba(23, 23, 23, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+body.theme-daybreak .ludo-header-scope :is(.border-cyan-500\/50) { border-color: rgba(23, 23, 23, 0.12); }
+body.theme-daybreak .ludo-header-scope :is(.shadow-\[0_4px_20px_rgba\(0\,0\,0\,0\.4\)\], .shadow-\[0_4px_25px_rgba\(0\,0\,0\,0\.45\)\], .shadow-\[0_4px_20px_rgba\(0\,0\,0\,0\.9\)\]) { box-shadow: 0 6px 18px rgba(23, 23, 23, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+body.theme-daybreak .ludo-header-scope .shimmer-effect::after { display: none; }
+body.theme-daybreak .ludo-header-scope :is(.italic) { font-style: normal; }
+body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: color-mix(in srgb, #171717 55%, transparent); }
+body.theme-daybreak .ludo-header-scope :is(.border-cyan-400\/60) { border-color: rgba(23, 23, 23, 0.22); }
+body.theme-daybreak .ludo-header-scope :is(.shadow-\[0_0_15px_rgba\(34\,211\,238\,0\.4\)\]) { box-shadow: 0 2px 8px rgba(23, 23, 23, 0.12); }
+body.theme-daybreak .ludo-header-scope :is(.drop-shadow-\[0_0_10px_rgba\(250\,204\,21\,0\.7\)\]) { filter: none; }
+
+/* ─── Daybreak chrome: lobby (setup, dice, tournaments, feed) ─── */
+body.theme-daybreak .ludo-lobby-scope .glass-panel { background: #ffffff; border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 8px 24px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-white) { color: #171717; }
+body.theme-daybreak .ludo-lobby-scope :is(.text-white\/90, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-white\/60, .text-white\/50, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-lobby-scope :is(.text-yellow-400, .text-yellow-500) { color: #b45309; }
+body.theme-daybreak .ludo-lobby-scope :is(.hover\:text-white:hover) { color: #171717; }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-white\/10, .bg-white\/15) { background-color: #ffffff; box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-\[rgba\(0\,0\,0\,0\.35\)\], .bg-\[rgba\(0\,0\,0\,0\.5\)\]) { background-color: #ffffff; box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-lobby-scope :is(.hover\:bg-white\/15:hover) { background-color: #f1f5f9; }
+body.theme-daybreak .ludo-lobby-scope :is(.hover\:bg-cyan-500:hover) { color: #ffffff; }
+body.theme-daybreak .ludo-lobby-scope :is(.border-white\/5, .border-white\/10, .border-white\/20, .border-white\/30, .border-white\/40) { border-color: rgba(23, 23, 23, 0.10); }
+body.theme-daybreak .ludo-lobby-scope :is(.hover\:border-white\/30:hover, .hover\:border-white\/40:hover) { border-color: rgba(14, 165, 183, 0.45); }
+
+/* ─── Daybreak chrome: game top bars (rest is var-driven) ─── */
+body.theme-daybreak .game-top-bar { background: rgba(255, 255, 255, 0.78); border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #be185d; }
 
 /* ─── Step 2: Base styles ─── */
 *,
@@ -2452,10 +2661,32 @@ body.theme-retro-futurism .board-home {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-body.theme-retro-futurism .board-home.green { background: #00FF9F; }
-body.theme-retro-futurism .board-home.red { background: #FF2D55; }
-body.theme-retro-futurism .board-home.yellow { background: #FFD700; }
-body.theme-retro-futurism .board-home.blue { background: #00D1FF; }
+body.theme-retro-futurism .board-home.green { background: #16a34a; }
+body.theme-retro-futurism .board-home.red { background: #dc2626; }
+body.theme-retro-futurism .board-home.yellow { background: #ca8a04; }
+body.theme-retro-futurism .board-home.blue { background: #2563eb; }
+
+/* Retro lanes follow the courts (were pastel from :root — same washout) */
+body.theme-retro-futurism {
+  --ludo-base-green: #16a34a;
+  --ludo-base-red: #dc2626;
+  --ludo-base-yellow: #ca8a04;
+  --ludo-base-blue: #2563eb;
+}
+
+/* ─── Daybreak board: classic vivid courts, white path, dark pads ─── */
+body.theme-daybreak {
+  --ludo-base-green: #22c55e;
+  --ludo-base-red: #ef4444;
+  --ludo-base-yellow: #eab308;
+  --ludo-base-blue: #3b82f6;
+  --ludo-path-bg: #ffffff;
+  --ludo-pad-bg: rgba(0, 0, 0, 0.35);
+}
+body.theme-daybreak .board-grid { border-color: rgba(23, 23, 23, 0.12); box-shadow: 0 24px 50px -12px rgba(23, 23, 23, 0.25); }
+body.theme-daybreak .board-grid::before { box-shadow: inset 0 0 40px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .star-cell { border-color: rgba(23, 23, 23, 0.10); }
+body.theme-daybreak .junction-timer-track-css { border-color: rgba(23, 23, 23, 0.10); }
 
 body.theme-retro-futurism .home-pad {
   background: rgba(0, 0, 0, 0.4);

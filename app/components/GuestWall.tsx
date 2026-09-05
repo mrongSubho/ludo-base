@@ -35,7 +35,7 @@ export default function GuestWall({ action, onClose, onConnect }: GuestWallProps
             >
                 <div
                     className="ludo-wall-scope border border-white/10 rounded-[32px] shadow-2xl max-w-sm w-full p-5 flex flex-col gap-3"
-                    style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: 'rgba(13,13,13,0.95)', backdropFilter: 'blur(32px)' }}
+                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
                     onClick={(e) => e.stopPropagation()}
                 >
                     <div className="flex items-start gap-3">
