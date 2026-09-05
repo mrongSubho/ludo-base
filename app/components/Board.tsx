@@ -3,7 +3,7 @@ import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor } from '@/lib/types';
-import { useAccount } from 'wagmi';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
     assignCorners2v2, assignCornersFFA,
     buildPathCellsDynamic,
@@ -51,7 +51,8 @@ export default function Board({
     externalGameState?: import('@/lib/types').GameState;
     wager?: number;
 }) {
-    const { address } = useAccount();
+    // Effective identity (wallet or guest id) so guests resolve as human.
+    const { address } = useCurrentUser();
     const { participants } = useTeamUp();
 
     const [boardConfig, setBoardConfig] = useState(() => {

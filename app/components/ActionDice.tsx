@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAudio } from '../hooks/useAudio';
@@ -18,11 +18,55 @@ const BASE_ACTIONS = [
     { id: 'offline', label: 'OFFLINE MATCH' }
 ];
 
-// Removed cyan from dots per request so text stands out
-const DOT_COLORS = [
-    'bg-blue-500', 'bg-emerald-500', 'bg-emerald-400', 
-    'bg-amber-400', 'bg-rose-400', 'bg-indigo-400'
+// Deterministic mode carousel: swipe right / up → next mode,
+// swipe left / down → previous mode. No randomness — the cube always
+// tumbles exactly one step and lands on the intended mode.
+
+// Fixed mode order around the carousel.
+const MODE_ORDER = ['quick', 'team', 'offline'] as const;
+type ModeId = typeof MODE_ORDER[number];
+
+const MODE_BLURB: Record<ModeId, string> = {
+    quick: 'Online matchmaking · entry fee applies',
+    team: 'Private lobby · invite friends',
+    offline: 'Practice vs bots · free',
+};
+
+// Fixed face layout: each mode owns two opposite faces, so wherever the
+// cube sits there is always a nearby face carrying the next/previous mode.
+const FACE_MODE: ModeId[] = ['quick', 'team', 'offline', 'quick', 'team', 'offline'];
+
+// Fixed dot color per mode (was re-randomized every roll).
+const MODE_DOT: Record<ModeId, string> = {
+    quick: 'bg-blue-500',
+    team: 'bg-amber-400',
+    offline: 'bg-emerald-500',
+};
+
+// Canonical orientation bringing each face index to the front.
+const FACE_ALIGN = [
+    { rx: 0, ry: 0 },       // Front
+    { rx: 0, ry: -90 },     // Right
+    { rx: 0, ry: 180 },     // Back
+    { rx: 0, ry: 90 },      // Left
+    { rx: -90, ry: 0 },     // Top
+    { rx: 90, ry: 0 },      // Bottom
 ];
+
+const LAST_MODE_KEY = 'ludo-last-mode';
+
+// Face index to boot on: first face carrying the remembered mode
+// (defaults to QUICK MATCH on the front face).
+const readBootFace = (): number => {
+    try {
+        const last = localStorage.getItem(LAST_MODE_KEY);
+        const idx = MODE_ORDER.indexOf(last as ModeId);
+        const mode = idx >= 0 ? MODE_ORDER[idx] : MODE_ORDER[0];
+        return Math.max(0, FACE_MODE.indexOf(mode));
+    } catch {
+        return 0;
+    }
+};
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
     onSelectQuickMatch,
@@ -36,131 +80,78 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     
     // ... rest of the component state ...
     
-    // Track multi-axis tumbling
-    const [currentRotateX, setCurrentRotateX] = useState(0);
-    const [currentRotateY, setCurrentRotateY] = useState(0);
+    // Boot face is read once — rotation, mode, and face all agree on mount.
+    const [bootFace] = useState(() => readBootFace());
 
-    const [activeIndex, setActiveIndex] = useState(0);
+    // Track multi-axis tumbling (booted on the remembered mode's face).
+    const [currentRotateX, setCurrentRotateX] = useState(() => FACE_ALIGN[bootFace].rx);
+    const [currentRotateY, setCurrentRotateY] = useState(() => FACE_ALIGN[bootFace].ry);
+
+    // Static faces (never regenerated) + remembered mode across visits.
+    const faces = useMemo(() => [1, 2, 3, 4, 5, 6].map((pips, i) => {
+        const id = FACE_MODE[i];
+        const action = BASE_ACTIONS.find(a => a.id === id)!;
+        return { pips, id, label: action.label, dotColor: MODE_DOT[id] };
+    }), []);
+
+    const [modeIndex, setModeIndex] = useState(() => MODE_ORDER.indexOf(FACE_MODE[bootFace]));
+    const [activeIndex, setActiveIndex] = useState(() => bootFace);
     const [isRolling, setIsRolling] = useState(false);
-    const [faces, setFaces] = useState<any[]>([]);
 
-    // Shuffle Bag for fair distribution
-    const [resultsPool, setResultsPool] = useState<string[]>([]);
+    // Step exactly one mode forward (+1) or back (-1). The result is fully
+    // determined by the swipe — the cube always tumbles one full turn in the
+    // swipe direction and lands on the nearest face carrying that mode.
+    const stepMode = (dir: 1 | -1, axis: 'x' | 'y') => {
+        if (isRolling) return; // Prevent double steps
 
-    const getNextResult = () => {
-        let currentPool = [...resultsPool];
-        if (currentPool.length === 0) {
-            // Priority: Quick Match first if pool is fresh, then randomized but complete
-            currentPool = ['quick', 'team', 'offline', 'quick', 'team', 'offline'].sort(() => Math.random() - 0.5);
-        }
-        const result = currentPool.pop()!;
-        setResultsPool(currentPool);
-        return result;
-    };
-
-    const generateRandomFaces = (targetActionId?: string, targetIndex?: number) => {
-        const pips = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5);
-        
-        // Always 2 of each to maintain visual balance
-        let actionsPool = ['quick', 'quick', 'team', 'team', 'offline', 'offline'];
-        
-        // If we have a target, ensure it's at the targetIndex
-        let finalActions: string[] = [];
-        if (targetActionId && targetIndex !== undefined) {
-            // Remove one instance of targetActionId from pool
-            const idx = actionsPool.indexOf(targetActionId);
-            if (idx > -1) actionsPool.splice(idx, 1);
-            
-            // Randomly shuffle the rest
-            actionsPool.sort(() => Math.random() - 0.5);
-            
-            // Insert target at proper index
-            actionsPool.splice(targetIndex, 0, targetActionId);
-            finalActions = actionsPool;
-        } else {
-            finalActions = actionsPool.sort(() => Math.random() - 0.5);
-        }
-
-        const dotColors = [...DOT_COLORS].sort(() => Math.random() - 0.5);
-        
-        return pips.map((pipCount, i) => {
-            const actionId = finalActions[i];
-            const action = BASE_ACTIONS.find(a => a.id === actionId)!;
-            return {
-                pips: pipCount,
-                id: action.id,
-                label: action.label,
-                dotColor: dotColors[i]
-            };
-        });
-    };
-
-    useEffect(() => {
-        // Initial setup: favored towards Quick Match
-        const firstResult = 'quick';
-        const initialFaces = generateRandomFaces(firstResult, 0);
-        setFaces(initialFaces);
-        setActiveIndex(0);
-        
-        // Prepare rest of the pool
-        setResultsPool(['team', 'offline', 'quick', 'team', 'offline'].sort(() => Math.random() - 0.5));
-        
-        setCurrentRotateX(0);
-        setCurrentRotateY(0);
-    }, []);
-
-    const performRoll = (dragDirX: number, dragDirY: number) => {
-        if (isRolling) return; // Prevent double rolls
-        
         playDiceRoll();
-        
+
         // Haptic Feedback: Initial swipe/thwack
-        triggerHaptic(40); 
-        
+        triggerHaptic(40);
+
         setIsRolling(true);
 
-        // 1. Determine the result logically first
-        const targetId = getNextResult();
-        const newFaceIndex = Math.floor(Math.random() * 6);
-        
-        // 2. Generate faces where the target face index matches that ID
-        const newFaces = generateRandomFaces(targetId, newFaceIndex);
-        setFaces(newFaces);
-        setActiveIndex(newFaceIndex);
-        
-        // Pure 90-degree increment Targets for the Motor
-        const align = [
-            { rx: 0, ry: 0 },       // Front
-            { rx: 0, ry: -90 },     // Right
-            { rx: 0, ry: 180 },     // Back
-            { rx: 0, ry: 90 },      // Left
-            { rx: -90, ry: 0 },     // Top
-            { rx: 90, ry: 0 }       // Bottom
-        ][newFaceIndex];
+        // 1. Determine the result logically first — pure carousel, no dice roll.
+        const nextModeIndex = (modeIndex + dir + MODE_ORDER.length) % MODE_ORDER.length;
+        const targetId = MODE_ORDER[nextModeIndex];
 
-        const alignX = align.rx;
-        const alignY = align.ry;
-
+        // 2. Nearest face carrying the target mode (each mode owns two faces).
         const normalize = (current: number, target: number) => {
-             let diff = (target - current) % 360;
-             if (diff > 180) diff -= 360;
-             if (diff < -180) diff += 360;
-             return current + diff;
+            let diff = (target - current) % 360;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            return current + diff;
         };
+        let bestFace = activeIndex;
+        let bestDist = Infinity;
+        FACE_MODE.forEach((id, i) => {
+            if (id !== targetId) return;
+            const align = FACE_ALIGN[i];
+            const dist = Math.abs(normalize(currentRotateX, align.rx))
+                + Math.abs(normalize(currentRotateY, align.ry));
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestFace = i;
+            }
+        });
 
-        const nearestX = normalize(currentRotateX, alignX);
-        const nearestY = normalize(currentRotateY, alignY);
+        // 3. Snap to that face, plus a long run-up in the swipe direction:
+        // two full tumbles before landing, so it feels like a real shuffle
+        // while still deterministically arriving on the intended mode.
+        const align = FACE_ALIGN[bestFace];
+        const baseX = normalize(currentRotateX, align.rx);
+        const baseY = normalize(currentRotateY, align.ry);
+        const tumble = (dir === 1 ? -360 : 360) * 2;
+        const targetX = baseX + (axis === 'x' ? tumble : 0);
+        const targetY = baseY + (axis === 'y' ? tumble : 0);
 
-        // Adds 2 to 4 spins (720 to 1440 degrees) per roll
-        const spinsX = Math.floor(Math.random() * 3) + 2; 
-        const spinsY = Math.floor(Math.random() * 3) + 2;
-
-        const dirX = dragDirY !== 0 ? dragDirY : (Math.random() > 0.5 ? 1 : -1); 
-        const dirY = dragDirX !== 0 ? dragDirX : (Math.random() > 0.5 ? 1 : -1);
-
-        const targetX = nearestX + (360 * spinsX * dirX);
-        const targetY = nearestY + (360 * spinsY * dirY);
-
+        setModeIndex(nextModeIndex);
+        setActiveIndex(bestFace);
+        try {
+            localStorage.setItem(LAST_MODE_KEY, targetId);
+        } catch {
+            /* workers/private mode — memory lasts for this session only */
+        }
         setCurrentRotateX(targetX);
         setCurrentRotateY(targetY);
 
@@ -174,28 +165,29 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         shadowControls.start({
             scale: [1, 0.4, 0.4, 1],
             opacity: [0.6, 0.2, 0.2, 0.6],
-            transition: { duration: 1.0, ease: "easeInOut" }
+            transition: { duration: 1.1, ease: "easeInOut" }
         });
 
-        // Landing impact after 1.0s matches shadow sequence
+        // Landing impact after 1.1s matches the longer tumble + shadow sequence
         setTimeout(() => {
             playDiceLand();
             triggerHaptic([30, 50, 30]); // Thud-thud-thud
             setIsRolling(false);
-        }, 1000);
+        }, 1100);
     };
 
     const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        const threshold = 20; 
+        const threshold = 20;
         const isHorizontal = Math.abs(info.offset.x) > Math.abs(info.offset.y);
-        
+
+        // Swipe right / up → next mode, swipe left / down → previous mode.
         if (isHorizontal) {
-             if (info.offset.x < -threshold) performRoll(1, 0);       
-             else if (info.offset.x > threshold) performRoll(-1, 0);  
+             if (info.offset.x > threshold) stepMode(1, 'y');
+             else if (info.offset.x < -threshold) stepMode(-1, 'y');
              else resetToCurrent();
         } else {
-             if (info.offset.y < -threshold) performRoll(0, 1);       
-             else if (info.offset.y > threshold) performRoll(0, -1);  
+             if (info.offset.y < -threshold) stepMode(1, 'x');
+             else if (info.offset.y > threshold) stepMode(-1, 'x');
              else resetToCurrent();
         }
     };
@@ -222,21 +214,21 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         else if (activeFaceId === 'offline') onSelectOfflineMatch();
     };
 
-    if (faces.length === 0) return null; 
+    const activeId = FACE_MODE[activeIndex];
 
     return (
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
             {/* TIER 1: The Camera (Perspective) */}
-            
+
             <div className="absolute top-0 w-full flex items-center justify-center gap-2">
-                <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Tumble Dice</span>
+                <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
             </div>
 
             <motion.div
                 animate={{ x: [-5, 5, -5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                 className="absolute left-6 md:left-24 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
-                onClick={() => performRoll(-1, 0)}
+                onClick={() => stepMode(-1, 'y')}
             >
                 <ChevronLeft />
             </motion.div>
@@ -260,7 +252,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     <motion.div
                         className="w-full h-full relative"
                         animate={controls}
-                        initial={{ rotateX: 0, rotateY: 0, rotateZ: 0 }} 
+                        initial={{ rotateX: FACE_ALIGN[bootFace].rx, rotateY: FACE_ALIGN[bootFace].ry, rotateZ: 0 }}
                         drag
                         dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
                         dragElastic={0.2}
@@ -285,11 +277,20 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 style={{ opacity: 0.6 }}
             />
 
+            {/* Active mode blurb — what this choice means */}
+            <div className="mt-2 h-4 flex items-center justify-center pointer-events-none">
+                {!isRolling && (
+                    <span className="text-white/40 text-[10px] uppercase font-bold tracking-[0.25em] text-center">
+                        {MODE_BLURB[activeId]}
+                    </span>
+                )}
+            </div>
+
             <motion.div
                 animate={{ x: [5, -5, 5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                 className="absolute right-6 md:right-24 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
-                onClick={() => performRoll(1, 0)}
+                onClick={() => stepMode(1, 'y')}
             >
                 <ChevronRight />
             </motion.div>

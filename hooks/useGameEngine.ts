@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useAccount } from 'wagmi';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType } from '@/lib/types';
@@ -61,7 +61,9 @@ export function useGameEngine({
 }: UseGameEngineProps) {
     const [lxpGain, setLxpGain] = useState<number | null>(null);
     const { playMove, playCapture, playWin, playTurn } = useAudio();
-    const { address } = useAccount();
+    // Effective identity (wallet or guest id) — guests must resolve as the
+    // human seat, never as bots.
+    const { address, isGuest } = useCurrentUser();
     const hasRecordedWin = useRef<boolean>(false);
     const autoMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -149,8 +151,10 @@ export function useGameEngine({
                 .map(p => p.walletAddress)
                 .filter(Boolean) as string[];
 
-            // Skip unattributable edge cases (no human involved)
-            if (humans.length === 0) return;
+            // Skip unattributable edge cases (no human involved) and guest
+            // trials (guest ids have no onchain row — recording would junk
+            // the match history).
+            if (humans.length === 0 || isGuest) return;
 
             await recordMatchResult(
                 player.walletAddress || null,
@@ -160,7 +164,7 @@ export function useGameEngine({
                 localGameState.matchId
             );
         }
-    }, [initialPlayers, address, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch]);
+    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;

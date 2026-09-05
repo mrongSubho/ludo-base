@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getPreferenceCookie, setPreferenceCookie, PreferenceKey } from '@/lib/preferencesUtils';
+import { isGuestActive } from '@/lib/guest';
 
 export interface Preferences {
     theme: string;
@@ -34,7 +35,16 @@ export function usePreferences() {
         const sfx = getVal('ludo-sfx', 'on') === 'on';
         const music = getVal('ludo-music', 'on') === 'on';
         const haptics = getVal('ludo-haptic', 'on') === 'on';
-        const tokenStyle = getVal('token-style', 'pawn') === 'orb' ? 'orb' : 'pawn';
+        // Guests default to orb tokens (their flagship trial look) unless
+        // they already picked a style — wallet users keep the pawn default.
+        const tokenFallback = (() => {
+            try {
+                return isGuestActive() ? 'orb' : 'pawn';
+            } catch {
+                return 'pawn';
+            }
+        })();
+        const tokenStyle = getVal('token-style', tokenFallback) === 'orb' ? 'orb' : 'pawn';
         const diceRaw = getVal('dice-style', 'classic');
         const diceStyle = diceRaw === 'midnight' || diceRaw === 'gold' ? diceRaw : 'classic';
 
