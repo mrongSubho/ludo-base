@@ -4,6 +4,7 @@ import React from 'react';
 import { useDisconnect } from 'wagmi';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
+import { PanelTabs } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -95,32 +96,6 @@ const GearTile = () => (
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
-    </div>
-);
-
-// Segmented control (marketplace STORE/LOADOUT vocabulary). Rebuilt natively so
-// panel options always fit their card — the legacy switcher styles assumed a
-// wider container and overflowed here. Their component files stay on disk,
-// untouched, for any other consumer.
-const Segmented = ({ options, value, onPick }: {
-    options: { value: string; label: string; icon: React.ReactNode }[];
-    value: string;
-    onPick: (v: string) => void;
-}) => (
-    <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
-        {options.map(o => {
-            const active = o.value === value;
-            return (
-                <button
-                    key={o.value}
-                    onClick={() => onPick(o.value)}
-                    className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${active ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                >
-                    <span className={active ? 'text-cyan-300' : ''}>{o.icon}</span>
-                    <span className="truncate">{o.label}</span>
-                </button>
-            );
-        })}
     </div>
 );
 
@@ -290,7 +265,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                                     <div className="p-3.5">
                                         <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Theme</div>
-                                        <Segmented
+                                        <PanelTabs
                                             value={preferences.theme}
                                             onPick={(v) => updatePreference('ludo-theme', v)}
                                             options={[
@@ -301,7 +276,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                     </div>
                                     <div className="p-3.5">
                                         <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Token style</div>
-                                        <Segmented
+                                        <PanelTabs
                                             value={preferences.tokenStyle}
                                             onPick={(v) => updatePreference('token-style', v)}
                                             options={[

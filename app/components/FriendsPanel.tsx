@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { PanelTabs, TabCount } from './PanelTabs';
 import { HiOutlineAtSymbol } from "react-icons/hi";
 import { useGameData } from '@/hooks/GameDataContext';
 
@@ -731,23 +732,21 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
                         {/* Tabs + Search */}
                         <div className="px-5 pt-3 relative z-10">
-                            <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
-                                {(['social', 'global', 'requests'] as MainTab[]).map((tab) => {
-                                    const active = activeMainTab === tab;
-                                    return (
-                                        <button
-                                            key={tab}
-                                            onClick={() => setActiveMainTab(tab)}
-                                            className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${active ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                        >
-                                            {tab}
-                                            {tab === 'requests' && pendingIncoming.length > 0 && (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <PanelTabs
+                                cols={3}
+                                value={activeMainTab}
+                                onPick={setActiveMainTab}
+                                options={[
+                                    { value: 'social', label: 'social' },
+                                    { value: 'global', label: 'global' },
+                                    {
+                                        value: 'requests', label: 'requests',
+                                        badge: pendingIncoming.length > 0
+                                            ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            : undefined,
+                                    },
+                                ]}
+                            />
                             <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl pl-2.5 pr-1.5 h-10 mt-2 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
                                 <SearchIcon />
                                 <input
@@ -807,21 +806,15 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
                             {activeMainTab === 'requests' && (
                                 <div>
-                                    <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10 mt-1 mb-1">
-                                        {(['incoming', 'sent'] as RequestTab[]).map((t) => {
-                                            const n = t === 'incoming' ? pendingIncoming.length : pendingOutgoing.length;
-                                            const active = activeRequestTab === t;
-                                            return (
-                                                <button
-                                                    key={t}
-                                                    onClick={() => setActiveRequestTab(t)}
-                                                    className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${active ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                                >
-                                                    {t}
-                                                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>{n}</span>
-                                                </button>
-                                            );
-                                        })}
+                                    <div className="mt-1 mb-1">
+                                        <PanelTabs
+                                            value={activeRequestTab}
+                                            onPick={setActiveRequestTab}
+                                            options={[
+                                                { value: 'incoming', label: 'incoming', badge: <TabCount active={activeRequestTab === 'incoming'}>{pendingIncoming.length}</TabCount> },
+                                                { value: 'sent', label: 'sent', badge: <TabCount active={activeRequestTab === 'sent'}>{pendingOutgoing.length}</TabCount> },
+                                            ]}
+                                        />
                                     </div>
                                     {activeRequestTab === 'incoming'
                                         ? renderRequestList(visibleIncoming, true)

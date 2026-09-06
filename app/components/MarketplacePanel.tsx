@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { getOwned, addOwned } from '@/lib/inventory';
 import { getShowcased, setShowcased } from '@/lib/showcase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { PanelTabs, TabCount } from './PanelTabs';
 
 type MarketTab = 'themes' | 'dices' | 'tokens' | 'items';
 type Rarity = 'common' | 'rare' | 'legendary';
@@ -678,7 +679,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                 {/* ─── Transaction overlays ─── */}
                                 {isProcessing && (
-                                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center" style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}>
+                                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
                                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                                         <div className="relative mb-6">
@@ -693,7 +694,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                 )}
 
                                 {transactionResult === 'success' && (
-                                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center" style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}>
+                                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
                                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                                         <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
@@ -742,26 +743,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     </div>
 
                                     {/* Mode switcher: STORE vs LOADOUT */}
-                                    <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
-                                        {(['market', 'loadout'] as Mode[]).map(m => {
-                                            const active = mode === m;
-                                            const count = m === 'market'
-                                                ? marketData.length
-                                                : totalOwned;
-                                            return (
-                                                <button
-                                                    key={m}
-                                                    onClick={() => switchMode(m)}
-                                                    className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${active ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                                >
-                                                    {m === 'market' ? 'Store' : 'Loadout'}
-                                                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
-                                                        {count}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    <PanelTabs
+                                        value={mode}
+                                        onPick={switchMode}
+                                        options={[
+                                            { value: 'market', label: 'Store', badge: <TabCount active={mode === 'market'}>{marketData.length}</TabCount> },
+                                            { value: 'loadout', label: 'Loadout', badge: <TabCount active={mode === 'loadout'}>{totalOwned}</TabCount> },
+                                        ]}
+                                    />
                                 </div>
 
                                 {/* ─── Category rail: separated browse zone with real air ─── */}
@@ -1204,7 +1193,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     })();
                                     const statusLive = equipped || showcased;
                                     return (
-                                        <div className="absolute inset-0 z-[120] flex flex-col rounded-[24px] overflow-hidden shadow-2xl border border-white/10" style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}>
+                                        <div className="absolute inset-0 z-[120] flex flex-col rounded-[24px] overflow-hidden shadow-2xl border border-white/10" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
                                             <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                             <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                                             {/* header */}
@@ -1376,7 +1365,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                             {/* sell overlay */}
                                             {isSelling && (
-                                                <div className="absolute inset-0 z-[130] flex flex-col overflow-hidden rounded-[24px] border border-white/10" style={{ background: 'var(--ludo-bg-cosmic)', backgroundColor: '#1c1c1c' }}>
+                                                <div className="absolute inset-0 z-[130] flex flex-col overflow-hidden rounded-[24px] border border-white/10" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
                                                     <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                                     <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                                                     <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">

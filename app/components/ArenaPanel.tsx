@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { PanelTabs, PanelChildTabs, TabCount } from './PanelTabs';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTimer, LuUsers, LuX, LuShieldCheck } from 'react-icons/lu';
 
@@ -260,17 +261,14 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
 
                                 {/* Inner Tabs */}
                                 <div className="px-5 pt-3 relative z-10">
-                                    <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
-                                        {(['tournaments', 'missions'] as ArenaTab[]).map((tab) => (
-                                            <button
-                                                key={tab}
-                                                onClick={() => setArenaTab(tab)}
-                                                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${arenaTab === tab ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                            >
-                                                {tab}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <PanelTabs
+                                        value={arenaTab}
+                                        onPick={setArenaTab}
+                                        options={[
+                                            { value: 'tournaments', label: 'tournaments' },
+                                            { value: 'missions', label: 'missions' },
+                                        ]}
+                                    />
                                 </div>
 
                                 {arenaTab === 'tournaments' ? (
@@ -338,29 +336,15 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                         <div className="px-5 pt-2">
                                             {/* Child tabs: text-underline row, deliberately subordinate to the
                                                 parent segmented block above (no fill, smaller type). */}
-                                            <div className="flex items-center gap-5 border-b border-white/5 px-1" role="tablist" aria-label="Mission cadence">
-                                                {(['daily', 'weekly'] as MissionTab[]).map((tab) => {
-                                                    const left = tab === 'daily' ? dailyLeft : weeklyLeft;
-                                                    const active = activeMissionTab === tab;
-                                                    return (
-                                                        <button
-                                                            key={tab}
-                                                            role="tab"
-                                                            aria-selected={active}
-                                                            onClick={() => setActiveMissionTab(tab)}
-                                                            className={`pb-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-sm ${active ? 'text-white' : 'text-white/35 hover:text-white/70'}`}
-                                                        >
-                                                            <span className="flex items-center gap-1.5">
-                                                                {tab}
-                                                                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>{left}</span>
-                                                            </span>
-                                                            {active && (
-                                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400 rounded-t-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                                                            )}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                            <PanelChildTabs
+                                                ariaLabel="Mission cadence"
+                                                value={activeMissionTab}
+                                                onPick={setActiveMissionTab}
+                                                options={[
+                                                    { value: 'daily', label: 'daily', pill: <TabCount active={activeMissionTab === 'daily'}>{dailyLeft}</TabCount> },
+                                                    { value: 'weekly', label: 'weekly', pill: <TabCount active={activeMissionTab === 'weekly'}>{weeklyLeft}</TabCount> },
+                                                ]}
+                                            />
                                         </div>
                                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative">
                                             <SectionLabel>

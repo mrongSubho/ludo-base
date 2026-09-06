@@ -161,18 +161,18 @@ export default function GameLobby({
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
                     key="setup"
-                    className="w-full max-w-[420px] mx-auto flex flex-col gap-6" 
+                    className="w-full max-w-[420px] mx-auto flex flex-col gap-4" 
                 >
                     {/* 1. SELECTION GROUP */}
-                    <div className="w-full space-y-6 flex flex-col">
+                    <div className="w-full space-y-4 flex flex-col">
                         {/* Mode Section */}
                         <div className="flex flex-col items-center w-full">
-                            <div className="flex justify-center w-full mb-4 mt-2">
-                                <div className="inline-block px-6 py-2 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
+                            <div className="flex justify-center w-full mb-3 mt-1">
+                                <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
+                                    <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
                                 </div>
                             </div>
-                            <div className="flex justify-center gap-4">
+                            <div className="flex justify-center gap-3">
                                 {(['classic', 'power'] as const).map(mode => (
                                     <button
                                         key={mode}
@@ -180,15 +180,20 @@ export default function GameLobby({
                                             playSelect();
                                             setGameMode(mode);
                                         }}
-                                        className={`relative px-8 py-4 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center min-w-[150px] hover:scale-[1.02] active:scale-95 ${gameMode === mode
+                                        className={`relative px-5 py-2.5 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center min-w-[128px] hover:scale-[1.02] active:scale-95 ${gameMode === mode
                                             ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
                                             : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
                                             }`}
                                     >
+                                        {gameMode === mode && (
+                                            <span className="porcelain-holo-tick absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                            </span>
+                                        )}
                                         <div className="relative z-10 text-center">
-                                            <span className={`block text-xl font-black italic tracking-tighter capitalize drop-shadow-md ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
-                                            <div className={`mt-1 inline-block px-3 py-1 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
+                                            <span className={`block text-base font-black italic tracking-tighter capitalize drop-shadow-md ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
+                                            <div className={`mt-1 inline-block px-2 py-0.5 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
+                                                <span className={`text-[9px] font-black uppercase tracking-[0.18em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
                                             </div>
                                         </div>
                                     </button>
@@ -198,9 +203,9 @@ export default function GameLobby({
 
                         {/* Match Type Section */}
                         <div className="flex flex-col items-center w-full">
-                            <div className="flex justify-center w-full mt-2 mb-4">
-                                <div className="inline-block px-6 py-2 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
+                            <div className="flex justify-center w-full mt-1 mb-3">
+                                <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
+                                    <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
                                 </div>
                             </div>
                             <div className="flex justify-center gap-3">
@@ -211,12 +216,17 @@ export default function GameLobby({
                                             playSelect();
                                             setMatchType(type);
                                         }}
-                                        className={`w-14 h-14 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 ${matchType === type
+                                        className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${matchType === type
                                             ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-[rgba(0,0,0,0.5)]'
                                             : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.5)]'
                                             }`}
                                     >
-                                        <span className={`block text-xl font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
+                                        {matchType === type && (
+                                            <span className="porcelain-holo-tick absolute -top-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                            </span>
+                                        )}
+                                        <span className={`block text-lg font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
                                     </button>
                                 ))}
                             </div>
@@ -224,24 +234,24 @@ export default function GameLobby({
                     </div>
 
                     {/* 2. ENTRY FEE PANEL */}
-                    <div className="p-6 pb-8 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                        <div className="inline-block px-8 py-2 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-4">
-                            <span className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
+                    <div className="p-4 pb-5 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-3">
+                            <span className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                         </div>
-                        <div className="flex items-center justify-between w-full px-2 mb-4">
-                            <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-12 h-12 rounded-[16px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
-                                <LuMinus className="w-6 h-6 stroke-[3px]" />
+                        <div className="flex items-center justify-between w-full px-2 mb-3">
+                            <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-10 h-10 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                                <LuMinus className="w-5 h-5 stroke-[3px]" />
                             </button>
                             <div className="flex-1 flex flex-col items-center justify-center relative">
-                                <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-6xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                             </div>
-                            <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} className="w-12 h-12 rounded-[16px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
-                                <LuPlus className="w-6 h-6 stroke-[3px]" />
+                            <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} className="w-10 h-10 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                                <LuPlus className="w-5 h-5 stroke-[3px]" />
                             </button>
                         </div>
-                        <div className="flex gap-2 justify-center flex-wrap">
+                        <div className="flex gap-1.5 justify-center flex-wrap">
                             {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-4 py-2 rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
+                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-2.5 py-1 rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[10px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
                                     {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                 </button>
                             ))}
@@ -249,7 +259,7 @@ export default function GameLobby({
                     </div>
 
                     {/* 3. ACTION DICE - Now perfectly spaced below the entry fee */}
-                    <div className="w-full flex justify-center pt-8 relative z-30">
+                    <div className="w-full flex justify-center pt-4 relative z-30">
                         <ActionDice 
                             onSelectQuickMatch={handleStartQuickMatch}
                             onSelectTeamUp={() => guard('teamup', () => setShowTeamUpOptions(true))}
@@ -262,7 +272,7 @@ export default function GameLobby({
 
             {/* --- LIVE ARENA DIRECTORY (GambleFi) --- */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
-                <div className="w-full flex flex-col gap-12 mt-12 pb-24">
+                <div className="w-full flex flex-col gap-12 mt-4 pb-24">
                     
                     {/* Upcoming Tournaments Section */}
                     {tournaments.length > 0 && (

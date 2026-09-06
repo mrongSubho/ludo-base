@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
+import { PanelTabs, PanelChildTabs } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the lobby RankingsPanel (which covers the lobby side — this is the
@@ -174,20 +175,15 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
 
                             {/* Child tabs: text-underline row, subordinate to the
                                 parent segmented block above (no fill, smaller type). */}
-                            <div className="flex items-center gap-5 border-b border-white/5 px-1" role="tablist" aria-label="Leaderboard period">
-                                {(['tier', 'daily', 'monthly'] as LeaderboardTab[]).map((tab) => {
-                                    const active = activeTab === tab;
-                                    return (
-                                    <button
-                                        key={tab}
-                                        role="tab"
-                                        aria-selected={active}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`pb-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-sm ${active ? 'text-white' : 'text-white/35 hover:text-white/70'}`}
-                                    >
-                                        <span className="flex items-center gap-1.5">
-                                            {tab}
-                                            {tab === 'tier' && (
+                            <PanelChildTabs
+                                ariaLabel="Leaderboard period"
+                                value={activeTab}
+                                onPick={setActiveTab}
+                                options={[
+                                    {
+                                        value: 'tier', label: 'tier',
+                                        pill: (
+                                            <>
                                                 <span
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -195,40 +191,38 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     }}
                                                     onMouseEnter={() => setShowQuarterInfo(true)}
                                                     onMouseLeave={() => setShowQuarterInfo(false)}
-                                                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
+                                                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono cursor-pointer ${activeTab === 'tier' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
                                                 >
                                                     Q{currentQuarter}
                                                 </span>
-                                            )}
-                                        </span>
-                                        {active && (
-                                            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400 rounded-t-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                                        )}
-                                        <AnimatePresence>
-                                            {showQuarterInfo && tab === 'tier' && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                    exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                    className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-50 normal-case tracking-normal text-left"
-                                                >
-                                                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
+                                                <AnimatePresence>
+                                                    {showQuarterInfo && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                                                            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-50 normal-case tracking-normal text-left"
+                                                        >
+                                                            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
 
-                                                    <div className="relative z-10">
-                                                        <div className="flex items-center gap-1.5 mb-1">
-                                                            <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
-                                                        </div>
-                                                        <p className="text-[10px] text-white/70 leading-snug">
-                                                            The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
-                                                        </p>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </button>
-                                    );
-                                })}
-                            </div>
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center gap-1.5 mb-1">
+                                                                    <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
+                                                                </div>
+                                                                <p className="text-[10px] text-white/70 leading-snug">
+                                                                    The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
+                                                                </p>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </>
+                                        ),
+                                    },
+                                    { value: 'daily', label: 'daily' },
+                                    { value: 'monthly', label: 'monthly' },
+                                ]}
+                            />
                         </div>
 
                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">

@@ -223,14 +223,14 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
     return (
         <>
             {/* ── Ticker Trigger Button ── */}
-            <div className="fixed bottom-[110px] left-0 right-0 flex justify-center pointer-events-none z-[60] px-4">
+            <div className="ludo-ticker-scope fixed bottom-[92px] left-0 right-0 flex justify-center pointer-events-none z-[60] px-4">
                 <div
                     className="pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
                     onClick={() => setIsOpen(true)}
                 >
                     {/* Cyber grid bg */}
-                    <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[length:100%_4px] opacity-20 pointer-events-none" />
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="ticker-deco absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[length:100%_4px] opacity-20 pointer-events-none" />
+                    <div className="ticker-deco absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
                     <div className="flex items-center gap-3 relative z-10">
                         <div className="w-10 h-10 rounded-xl border border-cyan-500/30 bg-cyan-950/50 flex items-center justify-center overflow-hidden shadow-[inset_0_0_15px_rgba(34,211,238,0.2)] relative">

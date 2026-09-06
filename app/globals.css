@@ -184,17 +184,17 @@ body.theme-daybreak .cosmic-orb-2 { background: rgba(253, 186, 116, 0.45); }
   --lobby-photo: url('/backgrounds/cyberpunk_bg.png');
   --ludo-photo-opacity: 0.55;
 }
-body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-photo-opacity: 0.55; }
+body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-photo-opacity: 0.3; }
 .lobby-backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(180deg, transparent 35%, var(--ludo-bg) 94%),
+    linear-gradient(180deg, transparent 0%, var(--ludo-bg) 72%),
     var(--lobby-photo);
-  background-size: auto, cover;
-  background-position: center, center 15%;
+  background-size: auto, 100% auto;
+  background-position: center, center top;
   background-repeat: no-repeat;
   opacity: var(--ludo-photo-opacity);
 }
@@ -206,6 +206,53 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
   --modal-muted: rgba(255, 255, 255, 0.45);
   --nav-active-bg: rgba(13, 13, 13, 0.4);
 }
+/* Scoped spacing repair (lobby only): the unlayered global reset zeroes
+   Tailwind spacing utilities — panel-scoped re-assertions only. */
+.ludo-lobby-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-lobby-scope .mb-4 { margin-bottom: 1rem; }
+.ludo-lobby-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-lobby-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-lobby-scope .mt-2 { margin-top: 0.5rem; }
+.ludo-lobby-scope .mt-8 { margin-top: 2rem; }
+.ludo-lobby-scope .mt-12 { margin-top: 3rem; }
+.ludo-lobby-scope .p-2 { padding: 0.5rem; }
+.ludo-lobby-scope .p-3 { padding: 0.75rem; }
+.ludo-lobby-scope .p-5 { padding: 1.25rem; }
+.ludo-lobby-scope .p-6 { padding: 1.5rem; }
+.ludo-lobby-scope .pb-8 { padding-bottom: 2rem; }
+.ludo-lobby-scope .pb-24 { padding-bottom: 6rem; }
+.ludo-lobby-scope .pt-8 { padding-top: 2rem; }
+.ludo-lobby-scope .px-2 { padding-inline: 0.5rem; }
+.ludo-lobby-scope .px-3 { padding-inline: 0.75rem; }
+.ludo-lobby-scope .px-4 { padding-inline: 1rem; }
+.ludo-lobby-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-lobby-scope .px-8 { padding-inline: 2rem; }
+.ludo-lobby-scope .py-1 { padding-block: 0.25rem; }
+.ludo-lobby-scope .py-0\.5 { padding-block: 0.125rem; }
+/* Scoped spacing repair (broadcast panel only): chrome utilities used by
+   the fixed overlay panel. Theme-agnostic like the rest. */
+.ludo-broadcast-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-broadcast-scope .mb-2 { margin-bottom: 0.5rem; }
+.ludo-broadcast-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-broadcast-scope .pt-2 { padding-top: 0.5rem; }
+.ludo-broadcast-scope .pt-3 { padding-top: 0.75rem; }
+.ludo-broadcast-scope .pb-1 { padding-bottom: 0.25rem; }
+.ludo-broadcast-scope .pb-2 { padding-bottom: 0.5rem; }
+.ludo-broadcast-scope .pb-3 { padding-bottom: 0.75rem; }
+.ludo-broadcast-scope .pb-4 { padding-bottom: 1rem; }
+.ludo-broadcast-scope .px-0\.5 { padding-inline: 0.125rem; }
+.ludo-broadcast-scope .px-1\.5 { padding-inline: 0.375rem; }
+.ludo-broadcast-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-broadcast-scope .py-16 { padding-block: 4rem; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-amber-300) { color: #b45309; }
+.ludo-lobby-scope .py-2 { padding-block: 0.5rem; }
+.ludo-lobby-scope .py-2\.5 { padding-block: 0.625rem; }
+.ludo-lobby-scope .pl-3 { padding-left: 0.75rem; }
+.ludo-lobby-scope .pr-12 { padding-right: 3rem; }
+.ludo-lobby-scope .py-3 { padding-block: 0.75rem; }
+.ludo-lobby-scope .py-4 { padding-block: 1rem; }
+.ludo-lobby-scope .py-5 { padding-block: 1.25rem; }
+.ludo-lobby-scope .py-8 { padding-block: 2rem; }
 body.theme-daybreak {
   --modal-ink: #0f172a;
   --modal-ink-soft: rgba(15, 23, 42, 0.6);
@@ -266,7 +313,6 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.placeholder\:text-white\/25::placeholder, .placeholder\:text-white\/20::placeholder, .placeholder\:text-white\/10::placeholder, .placeholder\:text-white\/5::placeholder) { color: rgba(23, 23, 23, 0.35); }
 
 /* ─── Daybreak chrome: footer nav ─── */
-body.theme-daybreak .footer-nav { background: rgba(255, 255, 255, 0.85) !important; border-top: 1px solid rgba(23, 23, 23, 0.10); box-shadow: 0 -8px 30px rgba(23, 23, 23, 0.10); }
 body.theme-daybreak .nav-item .nav-icon { color: rgba(23, 23, 23, 0.45) !important; }
 body.theme-daybreak .nav-item.active .nav-icon { color: #0e7490 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
 body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0e7490 !important; }
@@ -278,7 +324,7 @@ body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rg
 body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 165, 183, 0.20); }
 
 /* ─── Daybreak chrome: header pills ─── */
-body.theme-daybreak .ludo-header-scope > div { background: rgba(255, 255, 255, 0.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-header-scope > div { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
 body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
 body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0e7490; }
@@ -303,13 +349,26 @@ body.theme-daybreak .ludo-header-scope :is(.drop-shadow-\[0_0_10px_rgba\(250\,20
 /* ─── Daybreak chrome: lobby (setup, dice, tournaments, feed) ─── */
 body.theme-daybreak .ludo-lobby-scope .glass-panel { background: #ffffff; border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 8px 24px rgba(23, 23, 23, 0.08); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white) { color: #171717; }
-body.theme-daybreak .ludo-lobby-scope :is(.text-white\/90, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-white\/90, .text-white\/80, .text-white\/70) { color: color-mix(in srgb, #171717 80%, transparent); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/60, .text-white\/50, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10) { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-white\/35, .text-white\/30, .text-white\/20) { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-green-300) { color: #15803d; }
 body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
 body.theme-daybreak .ludo-lobby-scope :is(.text-yellow-400, .text-yellow-500) { color: #b45309; }
 body.theme-daybreak .ludo-lobby-scope :is(.hover\:text-white:hover) { color: #171717; }
 body.theme-daybreak .ludo-lobby-scope :is(.bg-white\/10, .bg-white\/15) { background-color: #ffffff; box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-white\/5, .bg-white\/\[0\.04\], .bg-white\/\[0\.07\]) { background-color: #ffffff; box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-white\/20) { background-color: rgba(23, 23, 23, 0.16); }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-white\/5) { background-color: #ffffff; box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-white\/\[0\.04\]) { background-color: #ffffff; box-shadow: 0 1px 2px rgba(23, 23, 23, 0.06); }
 body.theme-daybreak .ludo-lobby-scope :is(.bg-\[rgba\(0\,0\,0\,0\.35\)\], .bg-\[rgba\(0\,0\,0\,0\.5\)\]) { background-color: #ffffff; box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-lobby-scope :is(.bg-black\/50) { background-color: rgba(23, 23, 23, 0.05); }
+body.theme-daybreak .ludo-lobby-scope :is(.ring-white\/10) { --tw-ring-color: rgba(23, 23, 23, 0.14); }
+body.theme-daybreak .ludo-lobby-scope :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
+body.theme-daybreak .ludo-lobby-scope :is(.text-green-400) { color: #15803d; }
+body.theme-daybreak .ludo-lobby-scope :is(.text-amber-300) { color: #b45309; }
+body.theme-daybreak .ludo-lobby-scope :is(.placeholder\:text-white\/20::placeholder) { color: rgba(23, 23, 23, 0.35); }
 body.theme-daybreak .ludo-lobby-scope :is(.hover\:bg-white\/15:hover) { background-color: #f1f5f9; }
 body.theme-daybreak .ludo-lobby-scope :is(.hover\:bg-cyan-500:hover) { color: #ffffff; }
 body.theme-daybreak .ludo-lobby-scope :is(.border-white\/5, .border-white\/10, .border-white\/20, .border-white\/30, .border-white\/40) { border-color: rgba(23, 23, 23, 0.10); }
@@ -317,6 +376,28 @@ body.theme-daybreak .ludo-lobby-scope :is(.hover\:border-white\/30:hover, .hover
 
 /* ─── Daybreak chrome: game top bars (rest is var-driven) ─── */
 body.theme-daybreak .game-top-bar { background: rgba(255, 255, 255, 0.78); border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
+
+/* ─── Daybreak ticker: cyber widget goes porcelain ───
+   Frosted white bar, ink text, one cyan pulse kept as the live signal. */
+body.theme-daybreak .ludo-ticker-scope .mt-0\.5 { margin-top: 0.125rem; }
+.ludo-ticker-scope.mx-auto { margin-inline: auto; }
+.ludo-ticker-scope.mt-6 { margin-top: 1.5rem; }
+body.theme-daybreak .ludo-ticker-scope .ml-6 { margin-left: 1.5rem; }
+body.theme-daybreak .ludo-ticker-scope .px-4 { padding-inline: 1rem; }
+body.theme-daybreak .ludo-ticker-scope > div { background: rgba(255, 255, 255, 0.88); border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 10px 28px rgba(23, 23, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+body.theme-daybreak .ludo-ticker-scope > div:hover { border-color: rgba(14, 165, 183, 0.45); box-shadow: 0 10px 32px rgba(14, 165, 183, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-white\/80) { color: color-mix(in srgb, #171717 78%, transparent); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-white\/30) { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-300) { color: #171717; }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-500\/70, .text-cyan-500\/50) { color: color-mix(in srgb, #171717 60%, transparent); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-ticker-scope :is(.bg-cyan-950\/50) { background-color: rgba(14, 165, 183, 0.12); }
+body.theme-daybreak .ludo-ticker-scope :is(.border-cyan-500\/30) { border-color: rgba(23, 23, 23, 0.16); }
+body.theme-daybreak .ludo-ticker-scope :is(.from-black\/60) { --tw-gradient-from: rgba(255, 255, 255, 0.9); }
+body.theme-daybreak .ludo-ticker-scope .ticker-deco { display: none; }
+
+/* ─── Daybreak chrome: footer nav ─── */
+body.theme-daybreak .footer-nav { background: rgba(255, 255, 255, 0.94) !important; border-top: 1px solid rgba(23, 23, 23, 0.12); box-shadow: 0 -8px 30px rgba(23, 23, 23, 0.10); }
 body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #be185d; }
 
 /* ─── Step 2: Base styles ─── */

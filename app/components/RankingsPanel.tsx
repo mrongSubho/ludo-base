@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
+import { PanelTabs } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings: this panel always renders on the shared
@@ -239,21 +240,14 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
 
                                 {/* Filter + Search */}
                                 <div className="px-5 pt-3 relative z-10">
-                                    <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
-                                        {([
-                                            { id: 'global', label: 'Global', icon: <LuUsers className="w-3.5 h-3.5" /> },
-                                            { id: 'friends', label: 'Friends', icon: <LuTrophy className="w-3.5 h-3.5" /> },
-                                        ] as const).map(f => (
-                                            <button
-                                                key={f.id}
-                                                onClick={() => setActiveFilter(f.id)}
-                                                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${activeFilter === f.id ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                            >
-                                                <span className={activeFilter === f.id ? 'text-cyan-300' : ''}>{f.icon}</span>
-                                                {f.label}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <PanelTabs
+                                        value={activeFilter}
+                                        onPick={setActiveFilter}
+                                        options={[
+                                            { value: 'global', label: 'Global', icon: <LuUsers className="w-3.5 h-3.5" /> },
+                                            { value: 'friends', label: 'Friends', icon: <LuTrophy className="w-3.5 h-3.5" /> },
+                                        ]}
+                                    />
                                     <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl pl-2.5 pr-1.5 h-10 mt-2 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
                                         <LuSearch className="w-3.5 h-3.5 shrink-0 text-white/35" />
                                         <input

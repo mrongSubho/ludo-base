@@ -567,7 +567,8 @@ export const QuickMatchPanel = ({
                                             extendSearch(20);
                                         }}
                                         onMouseLeave={() => setIsInteractingWithOptimizer(false)}
-                                        className="absolute bottom-32 inset-x-4 z-[150] bg-[#1c1c1c]/90 backdrop-blur-2xl border border-cyan-500/20 rounded-2xl p-4 shadow-[0_-20px_40px_rgba(0,0,0,0.4)] flex flex-col gap-3 pointer-events-auto"
+                                        className="absolute bottom-32 inset-x-4 z-[150] backdrop-blur-2xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 pointer-events-auto"
+                                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))' }}
                                     >
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-2">
@@ -629,7 +630,8 @@ export const QuickMatchPanel = ({
                             {/* Timeout / Error Recovery Screen */}
                             {(status === 'timeout' || status === 'error') && (
                                 <div
-                                    className="absolute inset-0 z-[160] bg-[#0d0d0d]/95 backdrop-blur-xl flex flex-col items-center justify-center p-5 text-center pointer-events-auto"
+                                    className="absolute inset-0 z-[160] backdrop-blur-xl flex flex-col items-center justify-center p-5 text-center pointer-events-auto"
+                                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))' }}
                                 >
                                     <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20 text-amber-400">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-8 h-8 animate-pulse"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
