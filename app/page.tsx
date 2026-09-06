@@ -113,9 +113,10 @@ const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }
 }
 
 
-// Floating trial-status pill (overlay only — header itself is untouched).
+// Floating trial-status pill, anchored to the app column (overlay only —
+// header itself is untouched). Right edge tracks the column, not viewport.
 const GuestPill = ({ onConnect }: { onConnect: () => void }) => (
-  <div className="ludo-guestpill-scope fixed top-[72px] right-2 z-[95] flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-full border border-amber-500/30 bg-black/60 backdrop-blur-xl shadow-lg">
+  <div className="ludo-guestpill-scope guest-pill-anchor flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-full border border-amber-500/30 bg-black/60 backdrop-blur-xl shadow-lg">
     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
     <span className="text-[9px] font-black text-amber-300 uppercase tracking-[0.2em]">Guest Pass</span>
     <button

@@ -346,7 +346,7 @@ export const ActivityFeed = () => {
     return (
         <div className="w-full flex flex-col items-center gap-3">
             {/* ── Compact one-line bar (streaming-ticker language) ── */}
-            <div className="ludo-ticker-scope w-full max-w-[320px] mx-auto mt-6 relative z-10">
+            <div className="ludo-ticker-scope fixed bottom-[164px] left-1/2 -translate-x-1/2 w-full max-w-[320px] px-4 pointer-events-none z-[60]">
                 <div
                     onClick={() => setIsOpen(true)}
                     className="pointer-events-auto h-12 w-full rounded-2xl flex items-center gap-3 px-4 relative overflow-hidden transition-all cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 active:scale-[0.98]"
@@ -423,8 +423,8 @@ export const ActivityFeed = () => {
                                                 value={btab}
                                                 onPick={setBtab}
                                                 options={[
-                                                    { value: 'matches', label: 'Live Matches' },
                                                     { value: 'chat', label: 'Live Chat' },
+                                                    { value: 'matches', label: 'Live Matches' },
                                                 ]}
                                             />
                                         </div>
@@ -559,12 +559,12 @@ export const ActivityFeed = () => {
                                                                                 <span className="text-white/50 font-black text-xs">{(m.username?.[0] || 'U').toUpperCase()}</span>
                                                                             )}
                                                                         </div>
-                                                                        <div className={`flex flex-col max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
-                                                                            <span className="text-[10px] font-bold text-white/35 mb-0.5">
+                                                                        <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
+                                                                            <span className="text-[10px] font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
                                                                                 {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                             </span>
-                                                                            <div className={`py-2 px-3.5 rounded-2xl text-[13px] leading-snug ${mine ? 'bg-cyan-700 text-white rounded-tr-md' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'}`}>
-                                                                                {m.content}
+                                                                            <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
+                                                                                {m.content || '…'}
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -594,7 +594,7 @@ export const ActivityFeed = () => {
                                                             onClick={sendChat}
                                                             disabled={!input.trim() || cooldown > 0}
                                                             aria-label="Send shout"
-                                                            className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-cyan-700 text-white disabled:opacity-50 disabled:bg-white/10 transition-all hover:bg-cyan-600 relative overflow-hidden"
+                                                            className="chat-send w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-cyan-700 text-white disabled:opacity-60 transition-all hover:bg-cyan-600 active:scale-95 relative overflow-hidden shadow-lg"
                                                         >
                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                                                                 <line x1="22" y1="2" x2="11" y2="13"></line>

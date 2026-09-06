@@ -180,20 +180,20 @@ export default function GameLobby({
                                             playSelect();
                                             setGameMode(mode);
                                         }}
-                                        className={`relative px-5 py-2.5 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center min-w-[128px] hover:scale-[1.02] active:scale-95 ${gameMode === mode
+                                        className={`relative w-[150px] py-1.5 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
                                             ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
                                             : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
                                             }`}
                                     >
                                         {gameMode === mode && (
-                                            <span className="porcelain-holo-tick absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                            <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
                                             </span>
                                         )}
                                         <div className="relative z-10 text-center">
-                                            <span className={`block text-base font-black italic tracking-tighter capitalize drop-shadow-md ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
+                                            <span className={`block text-xl font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
                                             <div className={`mt-1 inline-block px-2 py-0.5 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                <span className={`text-[9px] font-black uppercase tracking-[0.18em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
+                                                <span className={`text-[9px] font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
                                             </div>
                                         </div>
                                     </button>
@@ -222,8 +222,8 @@ export default function GameLobby({
                                             }`}
                                     >
                                         {matchType === type && (
-                                            <span className="porcelain-holo-tick absolute -top-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                            <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
                                             </span>
                                         )}
                                         <span className={`block text-lg font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
