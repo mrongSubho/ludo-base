@@ -5,6 +5,7 @@ import { ChatIcon } from './icons';
 
 import { useGameData, Conversation } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useGuestWall } from '@/hooks/GuestWallContext';
 import { supabase } from '@/lib/supabase';
 import { PanelTabs, TabCount } from './PanelTabs';
 
@@ -60,25 +61,38 @@ const resolveAvatar = (avatar: string | null | undefined) =>
 const Avatar = ({ url, name, box = 'w-11 h-11', dot }: {
     url?: string | null; name: string; box?: string;
     dot?: 'Online' | 'In Match' | 'Offline' | null;
-}) => (
-    <div className={`${box} rounded-full overflow-hidden bg-cyan-900/50 shrink-0 relative`}>
-        {url ? (
-            <img src={url} alt={name} className="w-full h-full object-cover" />
-        ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/40 font-black text-base">
-                {(name?.[0] || 'L').toUpperCase()}
-            </div>
-        )}
-        {dot && (
-            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#14151f]
-                ${dot === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)] animate-pulse' : dot === 'In Match' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse' : 'bg-white/25'}`}
-            />
-        )}
-    </div>
-);
+}) => {
+    const [failed, setFailed] = useState(false);
+    useEffect(() => { setFailed(false); }, [url]);
+    const showImg = !!url && !failed;
+    return (
+        <div className={`${box} rounded-full overflow-hidden bg-cyan-900/50 shrink-0 relative`}>
+            {showImg ? (
+                <img
+                    src={url as string}
+                    alt=""
+                    aria-hidden
+                    onError={() => setFailed(true)}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center text-white/40 font-black text-base">
+                    {(name?.[0] || 'L').toUpperCase()}
+                </div>
+            )}
+            {dot && (
+                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#14151f]
+                    ${dot === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)] animate-pulse' : dot === 'In Match' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse' : 'bg-white/25'}`}
+                />
+            )}
+        </div>
+    );
+};
 
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
     const { address } = useCurrentUser();
+    // Guests read threads free; sending needs a wallet (wall, not a failure).
+    const { guard } = useGuestWall();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const { messages, conversations, sendMessage, markChatAsRead, isP2PActive } = useGameData();
     const markAsRead = markChatAsRead;
@@ -241,6 +255,36 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const scrollRef = useRef<HTMLDivElement>(null);
     const lastAddressRef = useRef<string | undefined>(address);
 
+    // Resolve the other side's profile on thread open — conversations only
+    // carry profiles for known chats, so new threads would show a generic
+    // "User XXXX" + broken avatar without this.
+    const [contactProfile, setContactProfile] = useState<{ username: string | null; avatar_url: string | null } | null>(null);
+    useEffect(() => {
+        if (!selectedChatId) {
+            setContactProfile(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data } = await supabase
+                    .from('players')
+                    .select('username, avatar_url')
+                    .ilike('wallet_address', selectedChatId)
+                    .single();
+                if (!cancelled && data) setContactProfile(data);
+            } catch {
+                /* keep fallback identity */
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [selectedChatId]);
+
+    const threadName = (contactProfile?.username && !contactProfile.username.startsWith('0x'))
+        ? contactProfile.username
+        : activeChat?.name;
+    const threadAvatar = contactProfile?.avatar_url || activeChat?.avatar;
+
     // Cooldown Timer
     useEffect(() => {
         if (!address) return;
@@ -294,6 +338,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     const handleSendMessage = async () => {
         if (!inputValue.trim() || !selectedChatId || !address || cooldownTime > 0) return;
+        if (!guard('dm')) return; // guests get the upgrade wall; input preserved
         const textToSent = inputValue.slice(0, 140); // Hard limit safety
         setInputValue(''); // Clear aggressively so it feels responsive
 
@@ -360,13 +405,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         </button>
                                         <button
                                             onClick={() => onOpenProfile?.(activeChat.id)}
-                                            aria-label={`Open ${activeChat.name} profile`}
+                                            aria-label={`Open ${threadName} profile`}
                                             className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
                                         >
-                                            <Avatar url={resolveAvatar(activeChat.avatar)} name={activeChat.name} box="w-9 h-9" dot={activeChat.status as any} />
+                                            <Avatar url={resolveAvatar(threadAvatar)} name={threadName || 'User'} box="w-9 h-9" dot={activeChat.status as any} />
                                         </button>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-white font-black text-base truncate leading-tight">{activeChat.name}</span>
+                                            <span className="text-white font-black text-base truncate leading-tight">{threadName}</span>
                                             <span className="flex items-center gap-1.5">
                                                 <span className={`text-[10px] font-black uppercase tracking-widest ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
                                                     {activeChat.status}
