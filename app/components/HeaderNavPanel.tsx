@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { HiOutlineAtSymbol } from "react-icons/hi";
+import { ChatIcon, SlidersIcon } from './icons';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ export const HeaderNavPanel = ({
                         onClick={onMessagesClick}
                         title="Messages"
                     >
-                        <HiOutlineAtSymbol className="w-6 h-6" />
+                        <ChatIcon className="w-6 h-6" />
                         {/* White Number Badge */}
                         {unreadCount > 0 && (
                             <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-white text-black text-[9px] font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
@@ -109,11 +109,7 @@ export const HeaderNavPanel = ({
                         onClick={onSettingsClick}
                         title="Settings"
                     >
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                            <circle cx="12" cy="5" r="2" />
-                            <circle cx="12" cy="12" r="2" />
-                            <circle cx="12" cy="19" r="2" />
-                        </svg>
+                        <SlidersIcon className="w-5 h-5" />
                     </button>
                 </div>
             </div>

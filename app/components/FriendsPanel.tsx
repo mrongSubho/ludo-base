@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
-import { HiOutlineAtSymbol } from "react-icons/hi";
+import { ChatIcon } from './icons';
 import { useGameData } from '@/hooks/GameDataContext';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -53,7 +53,7 @@ const SpectateIcon = () => (
 
 // SVG Icons
 const DMIcon = () => (
-    <HiOutlineAtSymbol className="w-4 h-4" />
+    <ChatIcon className="w-4 h-4" />
 );
 
 const PokeIcon = () => (
@@ -323,6 +323,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                     if (req.friend_address.toLowerCase() === currentAddrLower) {
                         // Incoming (Someone added us)
                         const p = req.requester;
+                        if (!p?.wallet_address) return;
                         incoming.push({
                             id: req.id,
                             wallet_address: p.wallet_address,
@@ -333,6 +334,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                     } else {
                         // Outgoing (We added someone)
                         const p = req.receiver;
+                        if (!p?.wallet_address) return;
                         outgoing.push({
                             id: req.id,
                             wallet_address: p.wallet_address,
@@ -392,9 +394,28 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             )
             .subscribe();
 
+        // 6. Real-time friendship rows (incoming requests + acceptances land live)
+        const friendshipChannel = supabase
+            .channel('friendships-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'friendships' },
+                (payload: any) => {
+                    const row = payload.new || payload.old;
+                    if (!row) return;
+                    const me = (connectedAddress || '').toLowerCase();
+                    const involved = [row.user_address, row.friend_address]
+                        .filter(Boolean)
+                        .some((a: string) => a.toLowerCase() === me);
+                    if (involved) fetchFriends();
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(channel);
             supabase.removeChannel(pokeChannel);
+            supabase.removeChannel(friendshipChannel);
         };
     }, [connectedAddress, userFid, fetchFriends, fetchPokes]);
 
@@ -459,9 +480,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                 friend_address: target,
                 status: 'pending'
             }, { onConflict: 'user_address,friend_address' });
-            if (!error) setJustSent(prev => prev.includes(target) ? prev : [...prev, target]);
-        } catch (err) {
+            if (!error) {
+                setJustSent(prev => prev.includes(target) ? prev : [...prev, target]);
+            } else {
+                alert(error.message || 'Failed to send request');
+            }
+        } catch (err: any) {
             console.error('Add friend error:', err);
+            alert(err?.message || 'Failed to send request');
         }
     };
 

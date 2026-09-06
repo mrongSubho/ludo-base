@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
-import { getProgression, getRankProgress } from '@/lib/progression';
+import { getProgression } from '@/lib/progression';
 import { FormChart } from './FormChart';
-import { HiOutlineAtSymbol } from "react-icons/hi";
+import { ChatIcon } from './icons';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same vocabulary as the synced sandwich panels, applied to this centered
@@ -166,7 +166,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     // Derived Display Values
     const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
-    const targetRank = getRankProgress(profile?.rxp || 0);
 
     const displayName = profile?.username && !profile.username.startsWith('0x')
         ? profile.username
@@ -286,6 +285,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     setIsFriend(false);
                     setActionSuccess("Friend Removed");
                     setTimeout(() => setActionSuccess(null), 2500);
+                } else {
+                    setActionSuccess("Couldn't remove friend");
+                    setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Block') {
                 const { error } = await (supabase as any).from('user_blocks').insert({
@@ -295,13 +297,25 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 if (!error) {
                     setIsBlocked(true);
                     setIsFriend(false); // Blocking someone immediately severs frontend friendship
+                    setActionSuccess("Blocked");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                } else {
+                    setActionSuccess(error.code === '23505' ? "Already blocked" : "Couldn't block user");
+                    setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Unblock') {
                 const { error } = await (supabase as any).from('user_blocks')
                     .delete()
                     .eq('blocker_address', currentUserAddress)
                     .ilike('blocked_address', userAddress);
-                if (!error) setIsBlocked(false);
+                if (!error) {
+                    setIsBlocked(false);
+                    setActionSuccess("Unblocked");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                } else {
+                    setActionSuccess("Couldn't unblock");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                }
             } else if (action === 'Congratulate') {
                 // Celebrate accomplishment / High rank
                 const { error } = await (supabase as any).from('activities').insert({
@@ -312,10 +326,15 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 if (!error) {
                     setActionSuccess("Celebrated!");
                     setTimeout(() => setActionSuccess(null), 2500);
+                } else {
+                    setActionSuccess("Couldn't celebrate");
+                    setTimeout(() => setActionSuccess(null), 2500);
                 }
             }
         } catch (err) {
             console.error(`Failed to handle action ${action}:`, err);
+            setActionSuccess("Something went wrong");
+            setTimeout(() => setActionSuccess(null), 2500);
         } finally {
             setIsActionLoading(false);
         }
@@ -374,7 +393,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
                 <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
             </div>
-            <div className="flex items-end justify-between h-8 gap-1">
+            <div className="flex items-end justify-between h-6 gap-1">
                 {activityBuckets.map((h, i) => (
                     <div key={i} className="flex-1 bg-cyan-500/40 rounded-t-sm hover:bg-cyan-400 transition-colors" style={{ height: `${Math.max(8, (h / activityMax) * 100)}%`, opacity: h === 0 ? 0.25 : 1 }} />
                 ))}
@@ -428,7 +447,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                     {/* Pop-up Modal Container */}
                     <div
-                        className="ludo-pubprofile-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-y-auto no-scrollbar border border-white/10 rounded-[32px] z-[210] shadow-2xl flex flex-col"
+                        className="ludo-pubprofile-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-hidden border border-white/10 rounded-[32px] z-[210] shadow-2xl flex flex-col"
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
                         {/* Authentic Subdued Cosmic Orbs */}
@@ -439,7 +458,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         <div className="h-16 bg-gradient-to-b from-cyan-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
 
                         {/* Top Controls */}
-                        <div className="flex justify-end px-5 pt-3 pb-1 relative z-10 w-full">
+                        <div className="flex justify-end px-5 pt-3 pb-1 relative z-10 w-full shrink-0">
                             {!isFriendValidationLoading && (isFriend || isSelf) && (
                                 <div className="absolute left-5 top-5 flex items-center gap-2">
                                     <div className={`w-2.5 h-2.5 rounded-full 
@@ -464,8 +483,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                             </button>
                         </div>
 
-                        {/* Profile Content */}
-                        <div className="px-5 pb-5 pt-0 flex flex-col items-center relative z-10">
+                        {/* Pinned identity (never scrolls) + scrollable lower section */}
+                        <div className="px-5 pt-0 flex flex-col items-center relative z-10 shrink-0">
                             {isProfileLoading ? (
                                 <div className="py-12 flex flex-col items-center justify-center gap-4">
                                     <div className="w-8 h-8 border-3 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
@@ -473,23 +492,31 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                 </div>
                             ) : (
                                 <>
-                                    {/* Avatar */}
-                                    <div className="relative mb-4 mt-2">
-                                        <div className="w-24 h-24 rounded-full overflow-hidden bg-[#1a1c29] border-4 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                                            <img
-                                                src={displayAvatar.startsWith('http') ? displayAvatar : `/avatars/${displayAvatar}.png`}
-                                                alt={displayName}
-                                                className="w-full h-full object-cover"
-                                            />
+                                    {/* Pinned identity block */}
+                                    <div className="w-full pb-3 flex flex-col items-center border-b border-white/10">
+                                    {/* Avatar (real photo or initial — never a broken file) */}
+                                    <div className="relative mb-3 mt-1">
+                                        <div className="w-20 h-20 rounded-full overflow-hidden bg-[#1a1c29] border-4 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.3)] flex items-center justify-center">
+                                            {displayAvatar.startsWith('http') ? (
+                                                <img
+                                                    src={displayAvatar}
+                                                    alt={displayName}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <span className="text-3xl font-black text-white/60">
+                                                    {(displayName?.[0] || 'U').toUpperCase()}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Name & Wallet */}
-                                    <h3 className="text-2xl font-bold text-white mb-1 text-center truncate w-full px-4">
+                                    <h3 className="text-xl font-bold text-white mb-1 text-center truncate w-full px-4">
                                         {displayName}
                                     </h3>
 
-                                    <div className="h-8 mb-5 flex flex-col items-center justify-center">
+                                    <div className="h-8 mb-3 flex flex-col items-center justify-center">
                                         <div className="flex items-center gap-2 mb-1">
                                             {isSelf && (
                                                 <span className="bg-cyan-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
@@ -512,40 +539,20 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     </div>
 
                                     {/* Stats Grid */}
-                                    <div className="grid grid-cols-2 gap-2 w-full mb-1">
-                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
-                                            <span className="porcelain-hero text-2xl font-black text-cyan-400">{displayWins}</span>
+                                    <div className="grid grid-cols-2 gap-2 w-full">
+                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
+                                            <span className="text-xl font-black text-cyan-400">{displayWins}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
                                         </div>
-                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center">
-                                            <span className="porcelain-hero text-2xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
+                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
+                                            <span className="text-xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
                                         </div>
                                     </div>
+                                </div>
 
-                                    {/* Level + Rank bars (public) */}
-                                    <div className="w-full flex flex-col gap-2 mb-1">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
-                                                <span className="text-[9px] font-bold text-white/50 tabular-nums">{progression.currentLxp.toLocaleString()} / {progression.lxpToNextLevel.toLocaleString()} XP</span>
-                                            </div>
-                                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                                <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full" style={{ width: `${progression.progressPercentage}%` }} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400">Rank — {progression.tier} {progression.subRank}</span>
-                                                <span className="text-[9px] font-bold text-white/50 tabular-nums">
-                                                    {targetRank.target === null ? `${targetRank.current.toLocaleString()} RXP` : `${targetRank.current.toLocaleString()} / ${targetRank.target.toLocaleString()} RXP`}
-                                                </span>
-                                            </div>
-                                            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                                <div className="h-full bg-gradient-to-r from-amber-400 to-orange-600 rounded-full" style={{ width: `${Math.min(100, Math.max(0, targetRank.pct))}%` }} />
-                                            </div>
-                                        </div>
-                                    </div>
+                                {/* Scrollable lower section */}
+                                <div className="w-full flex-1 min-h-0 overflow-y-auto no-scrollbar py-3 relative z-10">
 
                                     {/* Protected Friend Data Area */}
                                     <div className="w-full relative min-h-[140px] flex flex-col justify-end">
@@ -557,7 +564,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         ) : (
                                             <>
                                                 {isSelf ? (
-                                                    <div className="w-full flex flex-col gap-3 mb-4">
+                                                    <div className="w-full flex flex-col gap-2 mb-2">
                                                         <div className="w-full flex items-center justify-center">
                                                             <span className="bg-cyan-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">This is you</span>
                                                         </div>
@@ -566,7 +573,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                         {renderScout()}
                                                     </div>
                                                 ) : isFriend && !isBlocked ? (
-                                                    <div className="w-full flex flex-col gap-3 mb-4">
+                                                    <div className="w-full flex flex-col gap-2 mb-2">
                                                         {renderBreakdown()}
                                                         {renderActivity()}
 
@@ -574,7 +581,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                             onClick={() => guard('dm', () => onDM(userAddress))}
                                                             className="w-full mt-1 bg-cyan-500 hover:bg-cyan-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2"
                                                         >
-                                                            <HiOutlineAtSymbol className="w-5 h-5" />
+                                                            <ChatIcon className="w-5 h-5" />
                                                             DIRECT MESSAGE
                                                         </button>
 
@@ -607,8 +614,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="w-full flex pb-3">
-                                                        <div className="flex flex-col gap-2 w-full mt-4">
+                                                    <div className="w-full flex pb-2">
+                                                        <div className="flex flex-col gap-2 w-full mt-2">
                                                             {actionSuccess ? (
                                                                 <div className="w-full bg-green-500/10 border border-green-500/20 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 my-2">
                                                                     <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mb-1">
@@ -714,6 +721,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                             </>
                                         )}
                                     </div>
+                                </div>
                                 </>
                             )}
                         </div>

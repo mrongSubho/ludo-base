@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { HiOutlineAtSymbol } from "react-icons/hi";
+import { ChatIcon } from './icons';
 
 import { useGameData, Conversation } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { supabase } from '@/lib/supabase';
+import { PanelTabs, TabCount } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -21,7 +23,16 @@ interface MessagesPanelProps {
 
 const AtTile = () => (
     <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <HiOutlineAtSymbol className="w-4 h-4 text-cyan-300" />
+        <ChatIcon className="w-4 h-4 text-cyan-300" />
+    </div>
+);
+
+const BellTile = () => (
+    <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.25)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-amber-300">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.7 21a2 2 0 0 1-3.4 0"></path>
+        </svg>
     </div>
 );
 
@@ -74,6 +85,148 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    const [notifTab, setNotifTab] = useState<'notifications' | 'messages'>('notifications');
+
+    // ── Notifications inbox (requests + pokes + celebrations) ───
+    interface InboxRequest { id: string; wallet_address: string; name: string; avatar: string | null; time: string; }
+    interface InboxPoke { id: string; sender_id: string; name: string; avatar: string | null; time: string; }
+    interface InboxCongrats { id: string; actor_id: string; name: string; avatar: string | null; time: string; }
+    const [requests, setRequests] = useState<InboxRequest[]>([]);
+    const [pokes, setPokes] = useState<InboxPoke[]>([]);
+    const [congrats, setCongrats] = useState<InboxCongrats[]>([]);
+    const [pokingId, setPokingId] = useState<string | null>(null);
+
+    const timeAgo = (iso: string | null) => {
+        if (!iso) return 'Just now';
+        const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
+    };
+    const displayNameOf = (username: string | null | undefined, wallet: string) =>
+        (username && !username.startsWith('0x')) ? username : `User ${wallet.slice(0, 6).toUpperCase()}`;
+
+    const fetchNotifications = async () => {
+        if (!address) return;
+        const me = address.toLowerCase();
+        try {
+            const { data: reqData } = await supabase
+                .from('friendships')
+                .select('id,friend_address,created_at,requester:players!friendships_user_address_fkey(wallet_address,username,avatar_url)')
+                .eq('status', 'pending')
+                .eq('friend_address', me)
+                .order('created_at', { ascending: false })
+                .limit(20);
+            setRequests((reqData || []).flatMap((r: any) => {
+                const p = r.requester;
+                if (!p?.wallet_address) return [];
+                return [{
+                    id: r.id,
+                    wallet_address: p.wallet_address,
+                    name: displayNameOf(p.username, p.wallet_address),
+                    avatar: p.avatar_url || null,
+                    time: timeAgo(r.created_at),
+                }];
+            }));
+        } catch (err) {
+            console.error('Notifications requests error:', err);
+        }
+        try {
+            const res = await fetch(`/api/social/poke?wallet=${address}`);
+            if (res.ok) {
+                const data = await res.json();
+                setPokes((Array.isArray(data) ? data : []).slice(0, 20).map((p: any) => ({
+                    id: p.id,
+                    sender_id: p.sender_id,
+                    name: displayNameOf(p.players?.username, p.sender_id),
+                    avatar: p.players?.avatar_url || null,
+                    time: timeAgo(p.created_at),
+                })));
+            }
+        } catch (err) {
+            console.error('Notifications pokes error:', err);
+        }
+        try {
+            const { data: celData } = await (supabase as any)
+                .from('activities')
+                .select('id,actor_id,created_at,actor:players(username,avatar_url)')
+                .eq('type', 'congratulate')
+                .filter('metadata->>target_id', 'eq', me)
+                .order('created_at', { ascending: false })
+                .limit(10);
+            setCongrats((celData || []).map((c: any) => ({
+                id: c.id,
+                actor_id: c.actor_id,
+                name: displayNameOf(c.actor?.username, c.actor_id || ''),
+                avatar: c.actor?.avatar_url || null,
+                time: timeAgo(c.created_at),
+            })));
+        } catch {
+            /* celebrations are best-effort */
+        }
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+        if (!address) return;
+        const me = address.toLowerCase();
+        const notifChannel = supabase
+            .channel('messages-notif-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, (payload: any) => {
+                const row = payload.new || payload.old;
+                if (!row) return;
+                const involved = [row.user_address, row.friend_address]
+                    .filter(Boolean)
+                    .some((a: string) => a.toLowerCase() === me);
+                if (involved) fetchNotifications();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${me}` }, () => {
+                fetchNotifications();
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(notifChannel);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [address]);
+
+    const acceptRequest = async (id: string) => {
+        const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
+        if (!error) setRequests(prev => prev.filter(r => r.id !== id));
+    };
+    const declineRequest = async (id: string) => {
+        const { error } = await supabase.from('friendships').delete().eq('id', id);
+        if (!error) setRequests(prev => prev.filter(r => r.id !== id));
+    };
+    const pokeBack = async (friendId: string) => {
+        if (!address || pokingId) return;
+        setPokingId(friendId);
+        try {
+            const res = await fetch('/api/social/poke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sender: address.toLowerCase(), receiver: friendId.toLowerCase() })
+            });
+            if (res.ok) {
+                setPokes(prev => prev.filter(p => p.sender_id.toLowerCase() !== friendId.toLowerCase()));
+                window.dispatchEvent(new CustomEvent('mission-update'));
+            } else {
+                const err = await res.json().catch(() => ({}));
+                alert(err.error || 'Failed to poke back');
+            }
+        } catch (err) {
+            console.error('Poke back error:', err);
+        } finally {
+            setPokingId(null);
+        }
+    };
+    const openDM = (id: string) => {
+        setSelectedChatId(id);
+        setNotifTab('messages');
+    };
+    const notifCount = requests.length + pokes.length;
 
     const activeChat = conversations.find(c => c.id.toLowerCase() === selectedChatId?.toLowerCase()) || (selectedChatId ? {
         id: selectedChatId,
@@ -113,6 +266,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     useEffect(() => {
         if (initialChatId) {
             setSelectedChatId(initialChatId);
+            setNotifTab('messages');
         }
     }, [initialChatId]);
 
@@ -243,7 +397,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                     </svg>
                                 </button>
                             </div>
-                            {!selectedChatId && (
+                            {!selectedChatId && notifTab === 'messages' && (
                                 <div className="flex items-center gap-2 px-0.5">
                                     <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
                                         {conversations.length} chat{conversations.length === 1 ? '' : 's'}
@@ -258,11 +412,153 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                     )}
                                 </div>
                             )}
+                            {!selectedChatId && notifTab === 'notifications' && (
+                                <div className="flex items-center gap-2 px-0.5">
+                                    <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                        {notifCount} new
+                                    </span>
+                                    {notifCount > 0 && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                    )}
+                                </div>
+                            )}
                         </div>
+
+                        {/* Tabs (list mode only) */}
+                        {!selectedChatId && (
+                            <div className="px-5 pt-3 relative z-10">
+                                <PanelTabs
+                                    value={notifTab}
+                                    onPick={setNotifTab}
+                                    options={[
+                                        { value: 'notifications', label: 'Notifications', badge: notifCount > 0 ? <TabCount active={notifTab === 'notifications'}>{notifCount}</TabCount> : undefined },
+                                        { value: 'messages', label: 'Messages', badge: unreadCount > 0 ? <TabCount active={notifTab === 'messages'}>{unreadCount}</TabCount> : undefined },
+                                    ]}
+                                />
+                            </div>
+                        )}
 
                         {/* Content */}
                         <div className="flex-1 min-h-0 overflow-hidden relative z-10 flex flex-col">
-                            {!selectedChatId ? (
+                            {!selectedChatId ? (notifTab === 'notifications' ? (
+                                /* ── Notifications inbox ── */
+                                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2">
+                                    {requests.length > 0 && (
+                                        <>
+                                            <SectionLabel>{requests.length} request{requests.length === 1 ? '' : 's'}</SectionLabel>
+                                            <div className="flex flex-col gap-2 pb-2">
+                                                {requests.map((r) => (
+                                                    <div key={r.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+                                                        <button
+                                                            onClick={() => onOpenProfile?.(r.wallet_address)}
+                                                            aria-label={`Open ${r.name} profile`}
+                                                            className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
+                                                        >
+                                                            <Avatar url={resolveAvatar(r.avatar)} name={r.name} box="w-11 h-11" />
+                                                        </button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-white truncate text-[13px]">{r.name}</div>
+                                                            <div className="text-[10px] text-white/35 font-bold mt-0.5">Wants to be friends · {r.time}</div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <button
+                                                                onClick={() => acceptRequest(r.id)}
+                                                                aria-label={`Accept ${r.name}`}
+                                                                className="px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase hover:bg-cyan-500 hover:text-slate-950 active:scale-95 transition-all"
+                                                            >
+                                                                Accept
+                                                            </button>
+                                                            <button
+                                                                onClick={() => declineRequest(r.id)}
+                                                                aria-label={`Decline ${r.name}`}
+                                                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
+                                                            >
+                                                                Skip
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                    {pokes.length > 0 && (
+                                        <>
+                                            <SectionLabel>{pokes.length} poke{pokes.length === 1 ? '' : 's'}</SectionLabel>
+                                            <div className="flex flex-col gap-2 pb-2">
+                                                {pokes.map((p) => (
+                                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+                                                        <button
+                                                            onClick={() => onOpenProfile?.(p.sender_id)}
+                                                            aria-label={`Open ${p.name} profile`}
+                                                            className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
+                                                        >
+                                                            <Avatar url={resolveAvatar(p.avatar)} name={p.name} box="w-11 h-11" />
+                                                        </button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-white truncate text-[13px]">{p.name}</div>
+                                                            <div className="text-[10px] text-white/35 font-bold mt-0.5">Poked you · {p.time}</div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <button
+                                                                onClick={() => pokeBack(p.sender_id)}
+                                                                disabled={pokingId === p.sender_id}
+                                                                className="px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 text-[10px] font-black uppercase hover:bg-yellow-500 hover:text-black active:scale-95 transition-all disabled:opacity-50"
+                                                            >
+                                                                {pokingId === p.sender_id ? '…' : 'Poke back'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openDM(p.sender_id)}
+                                                                aria-label={`Message ${p.name}`}
+                                                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
+                                                            >
+                                                                DM
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                    {congrats.length > 0 && (
+                                        <>
+                                            <SectionLabel>Celebrations</SectionLabel>
+                                            <div className="flex flex-col gap-2 pb-2">
+                                                {congrats.map((c) => (
+                                                    <div key={c.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
+                                                        <button
+                                                            onClick={() => onOpenProfile?.(c.actor_id)}
+                                                            aria-label={`Open ${c.name} profile`}
+                                                            className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
+                                                        >
+                                                            <Avatar url={resolveAvatar(c.avatar)} name={c.name} box="w-11 h-11" />
+                                                        </button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-white truncate text-[13px]">{c.name}</div>
+                                                            <div className="text-[10px] text-white/35 font-bold mt-0.5">Celebrated you · {c.time}</div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => openDM(c.actor_id)}
+                                                            aria-label={`Thank ${c.name}`}
+                                                            className="shrink-0 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
+                                                        >
+                                                            Thanks
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                    {notifCount === 0 && congrats.length === 0 && (
+                                        <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                                            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                                                <BellTile />
+                                            </div>
+                                            <h3 className="text-white font-black text-sm mb-1">All caught up</h3>
+                                            <p className="text-white/40 text-xs max-w-[220px]">Requests, pokes, and celebrations land here.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
                                 <>
                                     <div className="px-5 pt-3">
                                         <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl pl-2.5 pr-1.5 h-10 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
@@ -288,7 +584,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         {visibleChats.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                                                 <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
-                                                    <HiOutlineAtSymbol className="w-7 h-7" />
+                                                    <ChatIcon className="w-7 h-7" />
                                                 </div>
                                                 <h3 className="text-white font-black text-sm mb-1">
                                                     {q ? 'No chats match' : 'No messages yet'}
@@ -337,7 +633,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         )}
                                     </div>
                                 </>
-                            ) : (
+                            )) : (
                                 /* Chat Detail */
                                 <div className="flex flex-col flex-1 min-h-0">
                                     <div
