@@ -23,6 +23,7 @@ interface GameLobbyProps {
     setWager: (wager: number) => void;
     onStartGame: (isBotMatch?: boolean) => void;
     onWatchMatch?: (roomCode: string) => void;
+    onOpenProfile?: (address: string) => void;
 }
 
 export default function GameLobby({
@@ -34,6 +35,7 @@ export default function GameLobby({
     setWager,
     onStartGame,
     onWatchMatch,
+    onOpenProfile,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -322,7 +324,7 @@ export default function GameLobby({
                         </div>
                     )}
 
-                    <ActivityFeed />
+                    <ActivityFeed onOpenProfile={onOpenProfile} />
                     <LiveArenaDirectory onWatchMatch={onWatchMatch} />
                 </div>
             )}

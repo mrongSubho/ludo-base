@@ -76,6 +76,17 @@ export const useDataActions = ({
             const key = await deriveSharedKey(lowerAddr, targetId);
             const encrypted = await encryptMessage(content, key);
 
+            // Ensure both ends exist or the messages FK rejects the insert.
+            // Minimal rows only — profiles fill in via ProfileSyncer.
+            try {
+                await supabase.from('players').upsert([
+                    { wallet_address: lowerAddr },
+                    { wallet_address: targetId },
+                ], { onConflict: 'wallet_address', ignoreDuplicates: true });
+            } catch {
+                /* pre-registration is best-effort */
+            }
+
             // P2P Attempt
             let p2pSent = false;
             const targetProfile = profilesMap[targetId];

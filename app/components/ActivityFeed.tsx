@@ -103,7 +103,7 @@ interface Activity {
     };
 }
 
-export const ActivityFeed = () => {
+export const ActivityFeed = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
     const [activities, setActivities] = useState<Activity[]>([]);
     const [searches, setSearches] = useState<LiveSearch[]>([]);
     const { address } = useAccount();
@@ -115,8 +115,9 @@ export const ActivityFeed = () => {
     const [btab, setBtab] = useState<BTab>('chat');
     const [cscope, setCscope] = useState<CScope>('global');
 
-    // ── Chat state ──
-    const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+    // ── Chat state: buffered per scope (session-only) ──
+    const [msgs, setMsgs] = useState<{ global: ChatMsg[]; local: ChatMsg[] }>({ global: [], local: [] });
+    const visibleMsgs = msgs[cscope];
     const [input, setInput] = useState('');
     const [cooldown, setCooldown] = useState(0);
     const [country, setCountry] = useState('XX');
@@ -257,28 +258,29 @@ export const ActivityFeed = () => {
         })();
     }, []);
 
-    // ── Chat state + history per scope + live INSERTs (vanish beyond 20) ──
-    // Session-only realtime: history GET retired — you see only shouts that
-    // arrive after you arrive; everything vanishes when you leave.
-    // Switching scope starts a fresh watch: prior scope's shouts don't carry.
-    useEffect(() => {
-        setMsgs([]);
-    }, [cscope]);
-
+    // ── Chat: session-only realtime, buffered PER SCOPE ────────────────
+    // You see only shouts that arrive after you arrive; tab switches keep
+    // each scope's session feed (global collects everything, local keeps
+    // your country's). Everything vanishes when you leave the app.
     useEffect(() => {
         if (btab !== 'chat') return;
         const channel = supabase
             .channel('live-broadcast-chat')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
                 const m = payload.new as ChatMsg;
-                if (cscope === 'local' && m.country !== country) return;
-                setMsgs(prev => [...prev, m].slice(-20));
+                setMsgs(prev => {
+                    const next = { ...prev, global: [...prev.global, m].slice(-20) };
+                    if (m.country === country) {
+                        next.local = [...prev.local, m].slice(-20);
+                    }
+                    return next;
+                });
             })
             .subscribe();
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [btab, cscope, country]);
+    }, [btab, country]);
 
     useEffect(() => {
         if (cooldown > 0) {
@@ -521,7 +523,7 @@ export const ActivityFeed = () => {
                                                 </div>
 
                                                 <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-2">
-                                                    {msgs.length === 0 ? (
+                                                    {visibleMsgs.length === 0 ? (
                                                         <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                                                             <h3 className="text-white font-black text-sm mb-1">Dead air</h3>
                                                             <p className="text-white/40 text-xs max-w-[220px]">
@@ -530,17 +532,22 @@ export const ActivityFeed = () => {
                                                         </div>
                                                     ) : (
                                                         <div className="flex flex-col gap-2 pb-2">
-                                                            {msgs.map((m) => {
+                                                            {visibleMsgs.map((m) => {
                                                                 const mine = m.sender_id.toLowerCase() === me;
                                                                 return (
                                                                     <div key={m.id} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                                                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
+                                                                        <button
+                                                                            onClick={() => !mine && onOpenProfile?.(m.sender_id)}
+                                                                            aria-label={mine ? 'Your avatar' : `Open ${m.username || 'user'} profile`}
+                                                                            disabled={mine}
+                                                                            className="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-cyan-400/60 transition-all"
+                                                                        >
                                                                             {m.avatar_url ? (
-                                                                                <img src={m.avatar_url} alt={m.username || 'user'} className="w-full h-full object-cover" />
+                                                                                <img src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
                                                                             ) : (
-                                                                                <span className="text-white/50 font-black text-xs">{(m.username?.[0] || 'U').toUpperCase()}</span>
+                                                                                <span className="text-white/50 font-black text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
                                                                             )}
-                                                                        </div>
+                                                                        </button>
                                                                         <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
                                                                             <span className="text-[10px] font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
                                                                                 {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

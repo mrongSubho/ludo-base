@@ -466,6 +466,7 @@ export default function Page() {
                   setWager={setBetAmount}
                   onStartGame={onStartGame}
                   onWatchMatch={handleWatchMatch}
+                  onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                 />
               </main>
 

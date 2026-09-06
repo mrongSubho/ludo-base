@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
@@ -214,15 +214,37 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
             setConversations(transformed);
 
-            const total = rawConversations.reduce((sum, c) => {
+            // Badge counts PEOPLE (unread threads), not messages — one friend
+            // pinging six times still shows 1.
+            const total = rawConversations.filter((c) => {
                 const isA = c.user_a.toLowerCase() === lowerAddr;
-                return sum + (isA ? c.unread_count_a : c.unread_count_b);
-            }, 0);
+                return (isA ? c.unread_count_a : c.unread_count_b) > 0;
+            }).length;
             setTotalUnreadCount(total);
         };
 
         transformConvos();
     }, [rawConversations, address, profilesMap, decryptStoredContent]);
+
+    // Session boundary: signing out (or switching wallets) wipes the
+    // previous identity's chats, threads, and badges instantly. Boot
+    // repopulates for the new wallet right after — nothing stale survives.
+    const prevAddressRef = useRef<string | undefined>(undefined);
+    const prevAddressInit = useRef(false);
+    useEffect(() => {
+        const cur = address?.toLowerCase();
+        if (!prevAddressInit.current) {
+            prevAddressInit.current = true;
+            prevAddressRef.current = cur;
+            return;
+        }
+        if (prevAddressRef.current !== cur) {
+            prevAddressRef.current = cur;
+            setMessages([]);
+            setRawConversations([]);
+            setTotalUnreadCount(0);
+        }
+    }, [address]);
 
     const value: GameDataContextType = {
         isBooting,

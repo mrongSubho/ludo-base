@@ -529,3 +529,72 @@ ALTER INDEX IF EXISTS idx_players_xp RENAME TO idx_players_lxp;
 ALTER INDEX IF EXISTS idx_players_rating RENAME TO idx_players_rxp;
 ```
 
+---
+
+## Phase 6: Social Graph, Session Inbox & Live Broadcast (applied 2026-09-06)
+
+> Migration files: `migrations/20260906_social_graph.sql`,
+> `migrations/20260906_messages_rls.sql`, `migrations/20260906_messages_flags.sql`,
+> `migrations/20260906_live_broadcast.sql` (the `live_chat` table + RLS).
+> All files are idempotent — safe to re-run.
+
+### 6.1 Correction to Phase 3 (read this first)
+
+Phase 3's identity-bound policies (`auth.jwt() ->> 'sub'`) **cannot work**: the
+app authenticates with the anon key and identity IS the wallet — there is no
+Supabase Auth session, so those predicates never match and anon writes 401.
+The fix is additive anon policies (CHECK-constrained, documented per table);
+permissive policies combine with OR, so nothing old needs dropping. Reads of
+ciphertext (`messages.content` is E2E-encrypted) stay safe under open reads.
+
+### 6.2 New tables
+
+#### `pokes`
+```sql
+CREATE TABLE public.pokes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sender_id TEXT NOT NULL CHECK (char_length(sender_id) BETWEEN 3 AND 64),
+    receiver_id TEXT NOT NULL CHECK (char_length(receiver_id) BETWEEN 3 AND 64),
+    status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'poked_back')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    poked_back_at TIMESTAMPTZ,
+    CHECK (sender_id <> receiver_id)
+);
+-- Named FK the poke inbox JOIN addresses explicitly:
+-- CONSTRAINT pokes_sender_id_fkey FOREIGN KEY (sender_id)
+--   REFERENCES public.players(wallet_address) ON DELETE CASCADE
+```
+**RLS:** open `SELECT`; validated `INSERT`/`UPDATE`. Realtime published.
+
+#### `user_blocks`
+`(id, blocker_address, blocked_address, created_at)`, unique pair.
+**RLS:** open `SELECT` (profile modal reads block status) + manage-all.
+
+#### `user_reports`
+`(id, reporter_address, reported_address, reason, created_at)`.
+**RLS:** insert-only for clients.
+
+#### `player_missions`
+`(id, player_id, mission_id, progress, is_claimed, last_updated, created_at)`,
+unique `(player_id, mission_id)`. Drives Arena missions + poke-back progress.
+**RLS:** open read/insert/update (API routes run under anon).
+
+#### `live_chat`
+`(id, sender_id, username, avatar_url, content≤140, country, created_at)`
++ created/country/sender indexes. Country is stamped server-side from the
+edge IP header. **RLS:** open read, length-checked insert. Pruned
+opportunistically (newest 300 kept, no cron).
+
+### 6.3 Altered tables
+
+- `friendships` — added the two **named** FKs the inbox JOINs address
+  (`friendships_user_address_fkey`, `friendships_friend_address_fkey`,
+  `NOT VALID` so legacy orphans can't block), pair unique, RLS opened
+  (read / validated insert / parties update+delete), realtime published.
+- `messages` — added `deleted_by_sender` / `deleted_by_receiver`
+  (`BOOLEAN NOT NULL DEFAULT FALSE`) powering the per-side Session Inbox
+  vanish; RLS opened (read / validated insert ≤8192 chars / parties update);
+  realtime published alongside `conversations`.
+- `players` — RLS opened (read/insert/update) so pre-registration upserts
+  (`{ wallet_address }` only) land; required by the `messages` FKs.
+

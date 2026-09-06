@@ -91,7 +91,7 @@ const Avatar = ({ url, name, box = 'w-11 h-11', dot }: {
 };
 
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
-    const { address } = useCurrentUser();
+    const { address, profile: myProfile } = useCurrentUser();
     // Guests read threads free; sending needs a wallet (wall, not a failure).
     const { guard } = useGuestWall();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -260,6 +260,73 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         }
     }, [selectedChatId, activeChat?.unread]);
 
+    // ── Client-side vanish ledger ──────────────────────────────────────
+    // Server flags are best-effort (migration/RLS dependent). This ledger
+    // makes vanish hold regardless: messages read this session stay visible
+    // until you leave; on persist they join the vanished set and are gone
+    // on every future return. Unread is never added — it always survives.
+    const vanishedKey = address ? `dm_vanished_${address.toLowerCase()}` : null;
+    const [vanishedIds, setVanishedIds] = useState<Set<string>>(new Set());
+    const readThisSessionRef = useRef<Set<string>>(new Set());
+
+    // Reload the vanish ledger whenever the identity resolves/changes.
+    useEffect(() => {
+        if (!vanishedKey) {
+            setVanishedIds(new Set());
+            return;
+        }
+        try {
+            const raw = localStorage.getItem(vanishedKey);
+            const arr = raw ? JSON.parse(raw) : [];
+            setVanishedIds(new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []));
+        } catch {
+            setVanishedIds(new Set());
+        }
+    }, [vanishedKey]);
+
+    // Whatever is read while this session lives stays visible this session…
+    useEffect(() => {
+        if (!selectedChatId || !address) return;
+        const me = address.toLowerCase();
+        const friend = selectedChatId.toLowerCase();
+        let changed = false;
+        for (const m of messages) {
+            const s = m.sender_id.toLowerCase();
+            const r = m.receiver_id.toLowerCase();
+            if ((s === me && r === friend) || (s === friend && r === me)) {
+                if (m.is_read && !readThisSessionRef.current.has(m.id)) {
+                    readThisSessionRef.current.add(m.id);
+                    changed = true;
+                }
+            }
+        }
+        if (changed) setVanishedIds(prev => new Set(prev)); // re-render
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [messages, selectedChatId, address]);
+
+    // …and is persisted as vanished on interval, page hide, and unmount.
+    useEffect(() => {
+        if (!vanishedKey) return;
+        const persist = () => {
+            if (readThisSessionRef.current.size === 0) return;
+            try {
+                const raw = localStorage.getItem(vanishedKey);
+                const arr = raw ? JSON.parse(raw) : [];
+                const merged = [...(Array.isArray(arr) ? arr : []), ...readThisSessionRef.current];
+                localStorage.setItem(vanishedKey, JSON.stringify([...new Set(merged)].slice(-500)));
+            } catch {
+                /* storage unavailable */
+            }
+        };
+        const timer = setInterval(persist, 15000);
+        window.addEventListener('beforeunload', persist);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('beforeunload', persist);
+            persist();
+        };
+    }, [vanishedKey]);
+
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -320,9 +387,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
     const isVisibleThisSession = (m: (typeof messages)[number]) => {
         const me = (address || '').toLowerCase();
+        // Vanished in a prior session: gone for good on this device.
+        if (vanishedIds.has(m.id)) return false;
         // Belt-and-suspenders with the boot filter: never show own-flagged rows.
         if (m.sender_id.toLowerCase() === me && m.deleted_by_sender) return false;
         if (m.receiver_id.toLowerCase() === me && m.deleted_by_receiver) return false;
+        // Read earlier this session stays visible until you leave.
+        if (readThisSessionRef.current.has(m.id)) return true;
         // Session rule: this session's messages + anything still unread.
         if (!m.is_read) return true;
         return new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime();
@@ -671,33 +742,50 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             {threadMessages.map((msg) => {
                                                 const isMe = msg.sender_id.toLowerCase() === address?.toLowerCase();
                                                 const timeString = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                                const otherAvatar = resolveAvatar(threadAvatar);
+                                                const otherName = threadName || 'User';
+                                                const myName = (myProfile?.username && !myProfile.username.startsWith('0x'))
+                                                    ? myProfile.username
+                                                    : (address ? `User ${address.slice(-4).toUpperCase()}` : 'Guest');
                                                 return (
                                                     <div
                                                         key={msg.id}
-                                                        className={`flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}
+                                                        className={`flex w-full gap-2 items-end ${isMe ? 'flex-row-reverse' : ''}`}
                                                     >
-                                                        <div
-                                                            className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
+                                                        <button
+                                                            onClick={() => onOpenProfile?.(isMe ? (address || '') : selectedChatId!)}
+                                                            aria-label={isMe ? 'Open your profile' : `Open ${otherName} profile`}
+                                                            className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
                                                         >
+                                                            <Avatar
+                                                                url={isMe ? resolveAvatar(myProfile?.avatar_url) : otherAvatar}
+                                                                name={isMe ? myName : otherName}
+                                                                box="w-7 h-7"
+                                                            />
+                                                        </button>
+                                                        <div
+                                                            className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
+                                                        >
+                                                            <div className={`text-[10px] font-bold px-1 mb-0.5 ${isMe ? 'text-white/30 text-right' : 'text-white/30 text-left'}`}>
+                                                                {msg.send_status === 'sending' ? 'Sending...' : isMe ? `${myName} · ${timeString}` : `${otherName} · ${timeString}`}
+                                                            </div>
                                                             {msg.send_status === 'failed' && isMe ? (
                                                                 <button
                                                                     onClick={() => retrySend(msg)}
-                                                                    className={`w-fit min-w-12 max-w-full py-2.5 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] text-left shadow-sm bg-red-600 text-white rounded-tr-md hover:bg-red-500 active:scale-[0.98] transition-all`}
+                                                                    className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] text-left shadow-sm bg-red-600 text-white rounded-tr-md hover:bg-red-500 active:scale-[0.98] transition-all`}
                                                                 >
                                                                     {msg.content}
                                                                 </button>
                                                             ) : (
-                                                                <div className={`w-fit min-w-12 max-w-full py-2.5 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] shadow-sm ${isMe
+                                                                <div className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] shadow-sm ${isMe
                                                                     ? 'bg-cyan-700 text-white rounded-tr-md'
                                                                     : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'
                                                                     }`}>
                                                                     {msg.content}
                                                                 </div>
                                                             )}
-                                                            {msg.send_status === 'failed' ? (
+                                                            {msg.send_status === 'failed' && (
                                                                 <button onClick={() => isMe && retrySend(msg)} className="text-[10px] text-red-400 mt-1 px-1 font-bold hover:text-red-300 transition-colors">Failed to send · tap to retry</button>
-                                                            ) : (
-                                                                <span className="text-[10px] text-white/30 mt-1 px-1">{msg.send_status === 'sending' ? 'Sending...' : timeString}</span>
                                                             )}
                                                         </div>
                                                     </div>

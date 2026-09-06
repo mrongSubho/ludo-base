@@ -174,7 +174,8 @@ BEGIN
         CREATE POLICY "pokes parties update" ON public.pokes FOR UPDATE USING (true);
     END IF;
 
-    -- user_blocks: blocker manages own rows (open, CHECK-constrained)
+    -- user_blocks: blocker manages own rows (open, CHECK-constrained).
+    -- SELECT is required: the profile modal reads block status on open.
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'blocks open read' AND tablename = 'user_blocks') THEN
         CREATE POLICY "blocks open read" ON public.user_blocks FOR SELECT USING (true);
     END IF;
@@ -198,7 +199,12 @@ BEGIN
         CREATE POLICY "missions update" ON public.player_missions FOR UPDATE USING (true);
     END IF;
 
-    -- players: ensure the pre-registration upsert (wallet_address only) can land
+    -- players: ensure the pre-registration upsert (wallet_address only) can land.
+    -- NOTE: SELECT first — enabling RLS without a read policy would black
+    -- out every profile/leaderboard read in the app.
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'players open read' AND tablename = 'players') THEN
+        CREATE POLICY "players open read" ON public.players FOR SELECT USING (true);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'players open insert' AND tablename = 'players') THEN
         CREATE POLICY "players open insert" ON public.players FOR INSERT WITH CHECK (true);
     END IF;
