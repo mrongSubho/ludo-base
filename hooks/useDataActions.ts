@@ -11,9 +11,9 @@ interface ActionProps {
     peer: Peer | null;
     connections: Record<string, DataConnection>;
     profilesMap: Record<string, UserProfile>;
-    setMessages: (fn: (prev: MessageData[]) => void) => void;
-    setMyProfile: (fn: (prev: UserProfile | null) => void) => void;
-    setRawConversations: (fn: (prev: any[]) => any[]) => void;
+    setMessages: React.Dispatch<React.SetStateAction<MessageData[]>>;
+    setMyProfile: React.Dispatch<React.SetStateAction<UserProfile | null>>;
+    setRawConversations: React.Dispatch<React.SetStateAction<any[]>>;
     setupConnectionListeners: (conn: DataConnection) => void;
 }
 

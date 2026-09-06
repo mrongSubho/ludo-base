@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, ReactNode, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
@@ -78,6 +78,14 @@ interface GameDataContextType {
     sendMessage: (receiverId: string, content: string) => Promise<void>;
     markChatAsRead: (senderId: string) => Promise<void>;
     deleteMessageLocal: (msg: MessageData) => Promise<void>;
+
+    // Session Inbox (ephemeral, per device + wallet)
+    /** ids read this session — visible until you leave, vanished after */
+    markThreadSeen: (friendId: string) => void;
+    /** thread has anything you haven't seen (sender is friend, not vanished, not seen) */
+    threadHasUnread: (friendId: string) => boolean;
+    /** unread THREAD count for badges (people, not pings) */
+    unreadThreadCount: number;
 }
 
 const GameDataContext = createContext<GameDataContextType | undefined>(undefined);
@@ -115,6 +123,131 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+
+    // ─── Session Inbox ──────────────────────────────────────────────
+    // Vanish holds client-side so no DB state can break it: message ids you
+    // open this session persist to a per-wallet ledger (interval + page hide
+    // + unmount); ids in a prior session's ledger are hidden everywhere.
+    // Session = provider mount for this wallet (resets on switch).
+    const sessionStartRef = useRef<string>(new Date().toISOString());
+    const readThisSessionRef = useRef<Set<string>>(new Set());
+    const [vanishedIds, setVanishedIds] = useState<Set<string>>(new Set());
+    const [, setSessionTick] = useState(0);
+
+    const vanishedKey = address ? `dm_vanished_${address.toLowerCase()}` : null;
+
+    const loadVanished = useCallback((): Set<string> => {
+        if (!vanishedKey) return new Set();
+        try {
+            const raw = localStorage.getItem(vanishedKey);
+            const arr = raw ? JSON.parse(raw) : [];
+            return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []);
+        } catch {
+            return new Set();
+        }
+    }, [vanishedKey]);
+
+    // Fresh session per wallet: reset clock + ledger, reload vanished.
+    useEffect(() => {
+        sessionStartRef.current = new Date().toISOString();
+        readThisSessionRef.current = new Set();
+        setVanishedIds(loadVanished());
+    }, [address, loadVanished]);
+
+    // Persist read ids as vanished (interval + hide + unmount).
+    useEffect(() => {
+        if (!vanishedKey) return;
+        const persist = () => {
+            if (readThisSessionRef.current.size === 0) return;
+            try {
+                const raw = localStorage.getItem(vanishedKey);
+                const arr = raw ? JSON.parse(raw) : [];
+                const merged = [...(Array.isArray(arr) ? arr : []), ...readThisSessionRef.current];
+                localStorage.setItem(vanishedKey, JSON.stringify([...new Set(merged)].slice(-500)));
+            } catch {
+                /* storage unavailable */
+            }
+        };
+        const timer = setInterval(persist, 15000);
+        window.addEventListener('pagehide', persist);
+        window.addEventListener('beforeunload', persist);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('pagehide', persist);
+            window.removeEventListener('beforeunload', persist);
+            persist();
+        };
+    }, [vanishedKey]);
+
+    const isThreadMessage = useCallback((_m: MessageData, _friendLower: string, _meLower: string) => {
+        void _m; void _friendLower; void _meLower;
+        return false;
+    }, []);
+
+    // Opening a thread marks everything currently in it as seen this session.
+    const markThreadSeen = useCallback((friendId: string) => {
+        if (!address) return;
+        const me = address.toLowerCase();
+        const friend = friendId.toLowerCase();
+        let changed = false;
+        setMessages(prev => {
+            for (const m of prev) {
+                const s = m.sender_id.toLowerCase();
+                const r = m.receiver_id.toLowerCase();
+                if (((s === me && r === friend) || (s === friend && r === me)) && !readThisSessionRef.current.has(m.id)) {
+                    readThisSessionRef.current.add(m.id);
+                    changed = true;
+                }
+            }
+            if (changed) setSessionTick(t => t + 1);
+            return prev;
+        });
+    }, [address, setMessages]);
+
+    const isMessageVisible = useCallback((m: MessageData) => {
+        if (!address) return true;
+        const me = address.toLowerCase();
+        if (vanishedIds.has(m.id)) return false;
+        if (m.sender_id.toLowerCase() === me && m.deleted_by_sender) return false;
+        if (m.receiver_id.toLowerCase() === me && m.deleted_by_receiver) return false;
+        if (readThisSessionRef.current.has(m.id)) return true;
+        if (!m.is_read) return true;
+        return new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime();
+    }, [address, vanishedIds]);
+
+    // A thread is unread when the FRIEND has anything you haven't seen:
+    // not vanished, not seen this session, and not DB-read.
+    const threadHasUnread = useCallback((friendId: string) => {
+        if (!address) return false;
+        const me = address.toLowerCase();
+        const friend = friendId.toLowerCase();
+        return messages.some(m =>
+            m.sender_id.toLowerCase() === friend &&
+            m.receiver_id.toLowerCase() === me &&
+            !m.is_read &&
+            !vanishedIds.has(m.id) &&
+            !readThisSessionRef.current.has(m.id)
+        );
+    }, [address, messages, vanishedIds]);
+
+    const unreadThreadCount = useMemo(() => {
+        if (!address) return 0;
+        const me = address.toLowerCase();
+        const senders = new Set<string>();
+        for (const m of messages) {
+            if (
+                m.receiver_id.toLowerCase() === me &&
+                !m.is_read &&
+                !vanishedIds.has(m.id) &&
+                !readThisSessionRef.current.has(m.id) &&
+                !m.deleted_by_receiver
+            ) {
+                senders.add(m.sender_id.toLowerCase());
+            }
+        }
+        return senders.size;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [address, messages, vanishedIds]);
 
     // --- DECRYPTION HELPER ---
     const decryptStoredContent = useCallback(async (content: string, otherId: string) => {
@@ -256,6 +389,9 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         conversations,
         totalUnreadCount,
         isP2PActive,
+        markThreadSeen,
+        threadHasUnread,
+        unreadThreadCount,
         updateMyProfileOptimistic,
         sendMessage,
         markChatAsRead,
