@@ -11,8 +11,9 @@ interface ActionProps {
     peer: Peer | null;
     connections: Record<string, DataConnection>;
     profilesMap: Record<string, UserProfile>;
-    setMessages: (fn: (prev: MessageData[]) => MessageData[]) => void;
-    setMyProfile: (fn: (prev: UserProfile | null) => UserProfile | null) => void;
+    setMessages: (fn: (prev: MessageData[]) => void) => void;
+    setMyProfile: (fn: (prev: UserProfile | null) => void) => void;
+    setRawConversations: (fn: (prev: any[]) => any[]) => void;
     setupConnectionListeners: (conn: DataConnection) => void;
 }
 
@@ -23,6 +24,7 @@ export const useDataActions = ({
     profilesMap,
     setMessages,
     setMyProfile,
+    setRawConversations,
     setupConnectionListeners
 }: ActionProps) => {
 
@@ -128,17 +130,28 @@ export const useDataActions = ({
     const markChatAsRead = useCallback(async (senderId: string) => {
         if (!address) return;
         const lowerAddr = address.toLowerCase();
+        const friendLower = senderId.toLowerCase();
 
         setMessages(prev => prev.map(m => {
-            if (m.sender_id.toLowerCase() === senderId.toLowerCase() && m.receiver_id.toLowerCase() === lowerAddr && !m.is_read) {
+            if (m.sender_id.toLowerCase() === friendLower && m.receiver_id.toLowerCase() === lowerAddr && !m.is_read) {
                 return { ...m, is_read: true };
             }
             return m;
         }));
 
-        supabase.rpc('mark_conversation_read', { me: lowerAddr, friend: senderId.toLowerCase() });
+        // Optimistic: zero this thread's unread counts so every badge
+        // (header, footer, panel) cleans the instant a thread opens.
+        setRawConversations(prev => prev.map(c => {
+            const a = (c.user_a || '').toLowerCase();
+            const b = (c.user_b || '').toLowerCase();
+            const involves = (a === lowerAddr && b === friendLower) || (b === lowerAddr && a === friendLower);
+            if (!involves) return c;
+            return { ...c, unread_count_a: 0, unread_count_b: 0 };
+        }));
+
+        supabase.rpc('mark_conversation_read', { me: lowerAddr, friend: friendLower });
         supabase.from('messages').update({ is_read: true }).ilike('sender_id', senderId).ilike('receiver_id', lowerAddr).eq('is_read', false);
-    }, [address, setMessages]);
+    }, [address, setMessages, setRawConversations]);
 
     const deleteMessageLocal = useCallback(async (msg: MessageData) => {
         if (!address) return;

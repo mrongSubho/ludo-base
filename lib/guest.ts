@@ -94,7 +94,8 @@ export type WallAction =
     | 'arena-claim'
     | 'friend-add'
     | 'poke'
-    | 'dm';
+    | 'dm'
+    | 'profile-edit';
 
 export const WALL_COPY: Record<WallAction, { title: string; body: string; unlock: string }> = {
     'online-play': {
@@ -131,6 +132,11 @@ export const WALL_COPY: Record<WallAction, { title: string; body: string; unlock
         title: 'Messages need a wallet',
         body: 'DMs are encrypted between onchain identities. Connect to start conversations.',
         unlock: 'Encrypted DMs & P2P chat',
+    },
+    'profile-edit': {
+        title: 'Identity needs a wallet',
+        body: 'Names and avatars live on your onchain profile so friends recognize you everywhere.',
+        unlock: 'Custom name, avatar library & trust',
     },
 };
 

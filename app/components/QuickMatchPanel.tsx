@@ -275,7 +275,7 @@ export const QuickMatchPanel = ({
                         } else if (opponentAddress) {
                             // Profile row missing (bare wallet) — still show who they are
                             setOpponentProfile({
-                                username: 'Guest ' + opponentAddress.slice(-6).toUpperCase(),
+                                username: 'User ' + opponentAddress.slice(-4).toUpperCase(),
                                 avatar_url: null,
                                 lxp: 0,
                                 rxp: 1500,

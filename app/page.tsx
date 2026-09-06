@@ -79,7 +79,8 @@ const SplashScreen = () => (
 );
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useMessages } from '@/hooks/useMessages';
+import { useGameData } from '@/hooks/GameDataContext';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }) => {   const [isStreaming, setIsStreaming] = useState(false);
    const [isPending, setIsPending] = useState(false);
@@ -138,7 +139,10 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName, isGuest } = useCurrentUser();
-  const { totalUnreadCount } = useMessages(address);
+  // DM unread badge reads the same GameData store the panel writes, so it
+  // cleans the instant a thread opens (no second source of truth).
+  const { totalUnreadCount } = useGameData();
+  const { notifCount } = useNotifications();
   const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useTeamUp();
 
   const finalAvatar = profile?.avatar_url || null;
@@ -288,7 +292,7 @@ export default function Page() {
             const corner = cc[slot.color];
 
               return {
-                name: slot.playerName || profileData?.username || 'Guest',
+                name: slot.playerName || profileData?.username || (addr ? `User ${addr.slice(-4).toUpperCase()}` : 'Guest'),
                 avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
                 level: calculateLevel(profileData?.lxp || 0).level,
                 isAi: false,
@@ -349,7 +353,7 @@ export default function Page() {
               return {
                 ...p,
                 walletAddress: addr,
-                name: profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : 'Guest'),
+                name: profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : (addr ? `User ${addr.slice(-4).toUpperCase()}` : 'Guest')),
                 avatar: profileData?.avatar_url || p.avatar
               } as Player;
             }
@@ -446,6 +450,7 @@ export default function Page() {
                     tier={tier}
                     coins={profile?.coins || 0}
                     unreadCount={totalUnreadCount}
+                    hasNotifications={notifCount > 0}
                     onMessagesClick={() => toggle('messages')}
                     onSettingsClick={() => toggle('settings')}
                 />

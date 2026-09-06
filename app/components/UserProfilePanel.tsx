@@ -7,6 +7,11 @@ import { getProgression, getRankProgress } from '@/lib/progression';
 import { supabase } from '@/lib/supabase';
 import { RANGES, FormChart, rangeCutoff } from './FormChart';
 import { getShowcased } from '@/lib/showcase';
+import { useGuestWall } from '@/hooks/GuestWallContext';
+import {
+    AVATARS, AvatarDef, encodeAvatar, isDirectImage, isUnlocked,
+    resolveAvatarDef, validateName, NAME_RULES,
+} from '@/lib/avatars';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings/rankings/friends/messages/arena: this panel
@@ -64,10 +69,33 @@ const TIER_GRADIENT: Record<string, string> = {
     'Bronze': 'from-amber-600 to-orange-800',
 };
 
+// Library avatar face: image mark, monogram initial, or trophy ring.
+const AvatarFace = ({ def, letter, box = 'w-14 h-14' }: {
+    def: AvatarDef | null; letter: string; box?: string;
+}) => {
+    if (def?.kind === 'image' && def.src) {
+        return (
+            <div className={`${box} rounded-full overflow-hidden shrink-0 bg-cyan-900/50 ${def.series === 'trophy' ? 'ring-2 ring-amber-400/70' : ''}`}>
+                <img src={def.src} alt={def.label} className="w-full h-full object-cover" />
+            </div>
+        );
+    }
+    if (def?.kind === 'monogram') {
+        return (
+            <div className={`${box} rounded-full overflow-hidden shrink-0 bg-gradient-to-tr ${def.bg || 'from-cyan-600 to-teal-400'} ${def.series === 'trophy' ? 'ring-2 ring-amber-400/70' : ''} flex items-center justify-center`}>
+                <span className="text-white font-black text-xl drop-shadow">{letter}</span>
+            </div>
+        );
+    }
+    return null;
+};
+
 export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClose: () => void; onOpenMarketplace?: () => void }) {
-    const { profile, address, displayName: finalName } = useCurrentUser();
+    const { profile, address, displayName: finalName, isGuest } = useCurrentUser();
+    const { guard } = useGuestWall();
 
     const finalAvatar = profile?.avatar_url || null;
+    const avatarDef = resolveAvatarDef(finalAvatar);
 
     // Showcased vault relic: single SKU per wallet, set from Marketplace loadout.
     const [showcasedId, setShowcasedId] = useState<string | null>(null);
@@ -90,6 +118,65 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
     const games = profile?.total_games || 0;
     const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
     const coins = profile?.coins || 0;
+
+    // ── Identity editor (name + avatar library) ───
+    const [editing, setEditing] = useState(false);
+    const [draftName, setDraftName] = useState('');
+    const [draftAvatarId, setDraftAvatarId] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [savedFlash, setSavedFlash] = useState(false);
+
+    const openEditor = () => {
+        if (!guard('profile-edit')) return;
+        setDraftName(profile?.username && !profile.username.startsWith('0x') ? profile.username : '');
+        setDraftAvatarId(avatarDef?.id ?? null);
+        setSaveError(null);
+        setEditing(true);
+    };
+
+    const saveIdentity = async () => {
+        if (!address || saving) return;
+        if (!guard('profile-edit')) return;
+        const err = validateName(draftName);
+        if (err) {
+            setSaveError(err);
+            return;
+        }
+        const clean = draftName.trim();
+        setSaving(true);
+        setSaveError(null);
+        try {
+            // Uniqueness (case-insensitive), excluding self.
+            const { data: clash } = await supabase
+                .from('players')
+                .select('wallet_address')
+                .ilike('username', clean)
+                .neq('wallet_address', address.toLowerCase())
+                .limit(1);
+            if (clash && clash.length > 0) {
+                setSaveError('That name is taken');
+                setSaving(false);
+                return;
+            }
+            const { error } = await supabase
+                .from('players')
+                .update({
+                    username: clean,
+                    avatar_url: draftAvatarId ? encodeAvatar(draftAvatarId) : profile?.avatar_url || null,
+                })
+                .eq('wallet_address', address.toLowerCase());
+            if (error) throw error;
+            // The profile realtime channel picks the update up.
+            setEditing(false);
+            setSavedFlash(true);
+            setTimeout(() => setSavedFlash(false), 2500);
+        } catch (e: any) {
+            setSaveError(e?.message || 'Couldn\'t save — try again');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const [range, setRange] = useState<string>('All');
     const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string | null }[]>([]);
@@ -213,20 +300,40 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
 
                     {/* Identity row: avatar + name/tier + coins */}
                     <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center gap-3">
-                        <div
-                            className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-400 p-0.5 shrink-0 shadow-lg overflow-hidden"
-                            title="Your Profile Avatar"
-                        >
-                            <div className="w-full h-full bg-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
-                                {finalAvatar ? (
-                                    <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-2xl">🎮</span>
-                                )}
+                        {avatarDef ? (
+                            <AvatarFace def={avatarDef} letter={(finalName?.[0] || 'U').toUpperCase()} />
+                        ) : (
+                            <div
+                                className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-400 p-0.5 shrink-0 shadow-lg overflow-hidden"
+                                title="Your Profile Avatar"
+                            >
+                                <div className="w-full h-full bg-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
+                                    {finalAvatar && isDirectImage(finalAvatar) ? (
+                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-2xl font-black text-white/80">
+                                            {(finalName?.[0] || 'U').toUpperCase()}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
                         <div className="flex-1 min-w-0">
-                            <h2 className="text-base font-bold text-white truncate">{finalName}</h2>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <h2 className="text-base font-bold text-white truncate">{finalName}</h2>
+                                <button
+                                    onClick={openEditor}
+                                    aria-label="Edit name and avatar"
+                                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {savedFlash && (
+                                <div className="text-[10px] font-black text-green-400 uppercase tracking-widest mt-0.5">Saved</div>
+                            )}
                             <div className="flex items-center gap-1.5 mt-1">
                                 <span className={`text-[10px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${TIER_GRADIENT[progression.tier] || TIER_GRADIENT['Bronze']}`}>
                                     {progression.tier} {progression.subRank}
@@ -240,6 +347,86 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
                             <span className="text-xs font-black text-white tabular-nums">{coins.toLocaleString()}</span>
                         </div>
                     </div>
+
+                    {/* Identity editor */}
+                    {editing && (
+                        <section>
+                            <SectionLabel>Edit identity</SectionLabel>
+                            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-3">
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Avatar library</div>
+                                    {(['legion', 'monogram', 'trophy'] as const).map((series) => {
+                                        const items = AVATARS.filter(a => a.series === series);
+                                        if (items.length === 0) return null;
+                                        return (
+                                            <div key={series} className="mb-2 last:mb-0">
+                                                <div className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1.5 capitalize">{series}</div>
+                                                <div className="grid grid-cols-6 gap-1.5">
+                                                    {items.map((item) => {
+                                                        const { ok, hint } = isUnlocked(item, { wins, level: progression.level });
+                                                        const selected = draftAvatarId === item.id;
+                                                        return (
+                                                            <button
+                                                                key={item.id}
+                                                                disabled={!ok}
+                                                                onClick={() => setDraftAvatarId(item.id)}
+                                                                title={ok ? item.label : `${item.label} — ${hint}`}
+                                                                aria-label={item.label}
+                                                                className={`relative aspect-square rounded-xl overflow-hidden border transition-all flex items-center justify-center ${selected ? 'border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)] scale-105' : ok ? 'border-white/10 hover:border-white/30' : 'border-white/5 opacity-40 cursor-not-allowed'}`}
+                                                            >
+                                                                {item.kind === 'image' && item.src ? (
+                                                                    <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <span className={`w-full h-full bg-gradient-to-tr ${item.bg} flex items-center justify-center text-white font-black text-sm`}>
+                                                                        {(draftName?.[0] || finalName?.[0] || 'U').toUpperCase()}
+                                                                    </span>
+                                                                )}
+                                                                {!ok && (
+                                                                    <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[7px] font-black text-amber-300 text-center py-0.5 leading-none">
+                                                                        {hint}
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Display name</div>
+                                    <input
+                                        value={draftName}
+                                        onChange={(e) => setDraftName(e.target.value)}
+                                        maxLength={NAME_RULES.max}
+                                        placeholder={finalName}
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-500/60 transition-colors"
+                                    />
+                                    <div className="text-[9px] font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>
+                                    {saveError && (
+                                        <div className="text-[11px] font-bold text-red-400 mt-1">{saveError}</div>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setEditing(false)}
+                                        disabled={saving}
+                                        className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={saveIdentity}
+                                        disabled={saving || !draftName.trim()}
+                                        className="flex-1 py-2.5 rounded-xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.35)] transition-all active:scale-95 disabled:opacity-40"
+                                    >
+                                        {saving ? 'Saving…' : 'Save'}
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    )}
 
                     {/* Level progress bar */}
                     <section>

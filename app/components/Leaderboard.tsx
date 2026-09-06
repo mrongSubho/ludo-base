@@ -68,7 +68,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
     // Format leaders from Context
     const leaders: LeaderboardEntry[] = rawLeaders.map(player => ({
         id: player.wallet_address,
-        name: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + player.wallet_address.slice(-6).toUpperCase(),
+        name: (player.username && !player.username.startsWith('0x')) ? player.username : "User " + player.wallet_address.slice(-4).toUpperCase(),
         avatar: player.avatar_url,
         wins: player.total_wins || 0,
         rxp: player.rxp || 1200,

@@ -180,7 +180,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     // Use Context for game friends
     const gameFriends = globalFriends.gameFriends.map((f: any) => ({
         ...f,
-        displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "Guest " + f.wallet_address.slice(-6).toUpperCase(),
+        displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "User " + f.wallet_address.slice(-4).toUpperCase(),
         status: f.status || 'Offline'
     }));
 
@@ -259,7 +259,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                 const formatted = data.map((item: any) => {
                     const isRequester = item.user_address.toLowerCase() === connectedAddress.toLowerCase();
                     const p = isRequester ? item.receiver : item.requester;
-                    const displayName = (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase();
+                    const displayName = (p.username && !p.username.startsWith('0x')) ? p.username : "User " + p.wallet_address.slice(-4).toUpperCase();
 
                     let currentStatus = p.status || 'Offline';
                     if (currentStatus === 'Online' && p.last_played_at) {
@@ -280,7 +280,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                 setOnchainFriends(() => {
                     const fromContext = globalFriends.onchainFriends.map((f: any) => ({
                         ...f,
-                        displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "Guest " + f.wallet_address.slice(-6).toUpperCase(),
+                        displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "User " + f.wallet_address.slice(-4).toUpperCase(),
                         status: f.status || 'Offline'
                     }));
 
@@ -327,7 +327,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                         incoming.push({
                             id: req.id,
                             wallet_address: p.wallet_address,
-                            name: (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase(),
+                            name: (p.username && !p.username.startsWith('0x')) ? p.username : "User " + p.wallet_address.slice(-4).toUpperCase(),
                             avatar: p.avatar_url || '1',
                             time: timeStr
                         });
@@ -338,7 +338,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                         outgoing.push({
                             id: req.id,
                             wallet_address: p.wallet_address,
-                            name: (p.username && !p.username.startsWith('0x')) ? p.username : "Guest " + p.wallet_address.slice(-6).toUpperCase(),
+                            name: (p.username && !p.username.startsWith('0x')) ? p.username : "User " + p.wallet_address.slice(-4).toUpperCase(),
                             avatar: p.avatar_url || '1',
                             time: timeStr
                         });
@@ -758,21 +758,16 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
                         {/* Tabs + Search */}
                         <div className="px-5 pt-3 relative z-10">
-                            <PanelTabs
-                                cols={3}
-                                value={activeMainTab}
-                                onPick={setActiveMainTab}
-                                options={[
-                                    { value: 'social', label: 'social' },
-                                    { value: 'global', label: 'global' },
-                                    {
-                                        value: 'requests', label: 'requests',
-                                        badge: pendingIncoming.length > 0
-                                            ? <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                            : undefined,
-                                    },
-                                ]}
-                            />
+                                <PanelTabs
+                                    cols={3}
+                                    value={activeMainTab}
+                                    onPick={setActiveMainTab}
+                                    options={[
+                                        { value: 'social', label: 'social' },
+                                        { value: 'global', label: 'global' },
+                                        { value: 'requests', label: 'requests' },
+                                    ]}
+                                />
                             <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl pl-2.5 pr-1.5 h-10 mt-2 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
                                 <SearchIcon />
                                 <input

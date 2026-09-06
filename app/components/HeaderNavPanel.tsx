@@ -21,6 +21,7 @@ interface HeaderNavPanelProps {
     tier: string;
     coins: number;
     unreadCount: number;
+    hasNotifications: boolean;
     onMessagesClick: () => void;
     onSettingsClick: () => void;
 }
@@ -32,6 +33,7 @@ export const HeaderNavPanel = ({
     tier,
     coins,
     unreadCount,
+    hasNotifications,
     onMessagesClick,
     onSettingsClick
 }: HeaderNavPanelProps) => {
@@ -94,7 +96,10 @@ export const HeaderNavPanel = ({
                         title="Messages"
                     >
                         <ChatIcon className="w-6 h-6" />
-                        {/* White Number Badge */}
+                        {/* Notifications dot (top-left) — requests + pokes live here */}
+                        {hasNotifications && (
+                            <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#131520] shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-pulse" />
+                        )}
                         {unreadCount > 0 && (
                             <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-white text-black text-[9px] font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
                                 {unreadCount > 99 ? '99+' : unreadCount}

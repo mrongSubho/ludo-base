@@ -399,7 +399,7 @@ export const TeamUpMatchPanel = ({
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-col">
-                                                                <span className="text-xs font-bold text-white uppercase tracking-tight">{(f.username && !f.username.startsWith('0x')) ? f.username : `Guest ${f.wallet_address.slice(-6).toUpperCase()}`}</span>
+                                                                <span className="text-xs font-bold text-white uppercase tracking-tight">{(f.username && !f.username.startsWith('0x')) ? f.username : `User ${f.wallet_address.slice(-4).toUpperCase()}`}</span>
                                                                 <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{f.status || 'OFFLINE'}</span>
                                                             </div>
                                                         </div>

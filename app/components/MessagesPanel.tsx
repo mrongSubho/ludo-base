@@ -7,6 +7,7 @@ import { useGameData, Conversation } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { supabase } from '@/lib/supabase';
+import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -94,19 +95,21 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     // Guests read threads free; sending needs a wallet (wall, not a failure).
     const { guard } = useGuestWall();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, isP2PActive } = useGameData();
+    const { messages, conversations, sendMessage, markChatAsRead, isP2PActive, deleteMessageLocal } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [notifTab, setNotifTab] = useState<'notifications' | 'messages'>('notifications');
 
-    // ── Notifications inbox (requests + pokes + celebrations) ───
-    interface InboxRequest { id: string; wallet_address: string; name: string; avatar: string | null; time: string; }
-    interface InboxPoke { id: string; sender_id: string; name: string; avatar: string | null; time: string; }
+    // ── Notifications inbox (shared hook — same counts as the header dot) ───
+    // Celebrations stay local (read-only, never badged).
     interface InboxCongrats { id: string; actor_id: string; name: string; avatar: string | null; time: string; }
-    const [requests, setRequests] = useState<InboxRequest[]>([]);
-    const [pokes, setPokes] = useState<InboxPoke[]>([]);
+    const {
+        requests, pokes, notifCount,
+        markSeenRequest, markSeenPoke,
+        acceptRequest, declineRequest, pokeBack: pokeBackAction,
+    } = useNotifications();
     const [congrats, setCongrats] = useState<InboxCongrats[]>([]);
     const [pokingId, setPokingId] = useState<string | null>(null);
 
@@ -120,116 +123,44 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         return `${Math.floor(hrs / 24)}d ago`;
     };
     const displayNameOf = (username: string | null | undefined, wallet: string) =>
-        (username && !username.startsWith('0x')) ? username : `User ${wallet.slice(0, 6).toUpperCase()}`;
-
-    const fetchNotifications = async () => {
-        if (!address) return;
-        const me = address.toLowerCase();
-        try {
-            const { data: reqData } = await supabase
-                .from('friendships')
-                .select('id,friend_address,created_at,requester:players!friendships_user_address_fkey(wallet_address,username,avatar_url)')
-                .eq('status', 'pending')
-                .eq('friend_address', me)
-                .order('created_at', { ascending: false })
-                .limit(20);
-            setRequests((reqData || []).flatMap((r: any) => {
-                const p = r.requester;
-                if (!p?.wallet_address) return [];
-                return [{
-                    id: r.id,
-                    wallet_address: p.wallet_address,
-                    name: displayNameOf(p.username, p.wallet_address),
-                    avatar: p.avatar_url || null,
-                    time: timeAgo(r.created_at),
-                }];
-            }));
-        } catch (err) {
-            console.error('Notifications requests error:', err);
-        }
-        try {
-            const res = await fetch(`/api/social/poke?wallet=${address}`);
-            if (res.ok) {
-                const data = await res.json();
-                setPokes((Array.isArray(data) ? data : []).slice(0, 20).map((p: any) => ({
-                    id: p.id,
-                    sender_id: p.sender_id,
-                    name: displayNameOf(p.players?.username, p.sender_id),
-                    avatar: p.players?.avatar_url || null,
-                    time: timeAgo(p.created_at),
-                })));
-            }
-        } catch (err) {
-            console.error('Notifications pokes error:', err);
-        }
-        try {
-            const { data: celData } = await (supabase as any)
-                .from('activities')
-                .select('id,actor_id,created_at,actor:players(username,avatar_url)')
-                .eq('type', 'congratulate')
-                .filter('metadata->>target_id', 'eq', me)
-                .order('created_at', { ascending: false })
-                .limit(10);
-            setCongrats((celData || []).map((c: any) => ({
-                id: c.id,
-                actor_id: c.actor_id,
-                name: displayNameOf(c.actor?.username, c.actor_id || ''),
-                avatar: c.actor?.avatar_url || null,
-                time: timeAgo(c.created_at),
-            })));
-        } catch {
-            /* celebrations are best-effort */
-        }
-    };
+        (username && !username.startsWith('0x')) ? username : `User ${wallet.slice(-4).toUpperCase()}`;
 
     useEffect(() => {
-        fetchNotifications();
         if (!address) return;
         const me = address.toLowerCase();
-        const notifChannel = supabase
-            .channel('messages-notif-sync')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, (payload: any) => {
-                const row = payload.new || payload.old;
-                if (!row) return;
-                const involved = [row.user_address, row.friend_address]
-                    .filter(Boolean)
-                    .some((a: string) => a.toLowerCase() === me);
-                if (involved) fetchNotifications();
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${me}` }, () => {
-                fetchNotifications();
-            })
-            .subscribe();
-        return () => {
-            supabase.removeChannel(notifChannel);
-        };
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data: celData } = await (supabase as any)
+                    .from('activities')
+                    .select('id,actor_id,created_at,actor:players(username,avatar_url)')
+                    .eq('type', 'congratulate')
+                    .filter('metadata->>target_id', 'eq', me)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                if (!cancelled) {
+                    setCongrats((celData || []).map((c: any) => ({
+                        id: c.id,
+                        actor_id: c.actor_id,
+                        name: displayNameOf(c.actor?.username, c.actor_id || ''),
+                        avatar: c.actor?.avatar_url || null,
+                        time: timeAgo(c.created_at),
+                    })));
+                }
+            } catch {
+                /* celebrations are best-effort */
+            }
+        })();
+        return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [address]);
 
-    const acceptRequest = async (id: string) => {
-        const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
-        if (!error) setRequests(prev => prev.filter(r => r.id !== id));
-    };
-    const declineRequest = async (id: string) => {
-        const { error } = await supabase.from('friendships').delete().eq('id', id);
-        if (!error) setRequests(prev => prev.filter(r => r.id !== id));
-    };
     const pokeBack = async (friendId: string) => {
-        if (!address || pokingId) return;
+        if (pokingId) return;
         setPokingId(friendId);
         try {
-            const res = await fetch('/api/social/poke', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sender: address.toLowerCase(), receiver: friendId.toLowerCase() })
-            });
-            if (res.ok) {
-                setPokes(prev => prev.filter(p => p.sender_id.toLowerCase() !== friendId.toLowerCase()));
-                window.dispatchEvent(new CustomEvent('mission-update'));
-            } else {
-                const err = await res.json().catch(() => ({}));
-                alert(err.error || 'Failed to poke back');
-            }
+            const ok = await pokeBackAction(friendId);
+            if (!ok) alert('Failed to poke back');
         } catch (err) {
             console.error('Poke back error:', err);
         } finally {
@@ -240,11 +171,10 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         setSelectedChatId(id);
         setNotifTab('messages');
     };
-    const notifCount = requests.length + pokes.length;
 
     const activeChat = conversations.find(c => c.id.toLowerCase() === selectedChatId?.toLowerCase()) || (selectedChatId ? {
         id: selectedChatId,
-        name: `User ${selectedChatId.substring(0, 6)}`,
+        name: `User ${selectedChatId.slice(-4).toUpperCase()}`,
         avatar: '1',
         lastMessage: '',
         time: 'Just now',
@@ -349,21 +279,73 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         await sendMessage(selectedChatId, textToSent);
     };
 
+    // Tap a failed bubble to retry: drop the dead local copy and send fresh.
+    const retrySend = async (msg: (typeof messages)[number]) => {
+        if (!guard('dm')) return;
+        if (cooldownTime > 0 || !selectedChatId) return;
+        await deleteMessageLocal(msg);
+        const newCooldown = 10;
+        setCooldownTime(newCooldown);
+        if (address) {
+            localStorage.setItem(`chat_cooldown_end_${address.toLowerCase()}`, (Date.now() + newCooldown * 1000).toString());
+        }
+        await sendMessage(msg.receiver_id, msg.content);
+    };
+
     const q = searchQuery.trim().toLowerCase();
     const visibleChats = q
         ? conversations.filter(c => c.name.toLowerCase().includes(q))
         : conversations;
     const unreadCount = conversations.filter(c => c.unread).length;
 
-    const threadMessages = activeChat ? messages.filter(m => {
-        const sender = m.sender_id.toLowerCase();
-        const receiver = m.receiver_id.toLowerCase();
-        const me = address?.toLowerCase();
-        const friend = selectedChatId!.toLowerCase();
+    // ── Session Inbox: read messages vanish across sessions ────────────
+    // Session start is mount time. On arrival we soft-delete (own side only)
+    // our read messages older than this session — unread survive until opened.
+    const sessionStartRef = useRef<string>(new Date().toISOString());
+    useEffect(() => {
+        if (!address) return;
+        const me = address.toLowerCase();
+        const cutoff = sessionStartRef.current;
+        (async () => {
+            try {
+                await supabase.from('messages').update({ deleted_by_sender: true })
+                    .eq('sender_id', me).eq('is_read', true).lt('created_at', cutoff);
+                await supabase.from('messages').update({ deleted_by_receiver: true })
+                    .eq('receiver_id', me).eq('is_read', true).lt('created_at', cutoff);
+            } catch {
+                /* best-effort; display rules below enforce the same view */
+            }
+        })();
+    }, [address]);
 
-        // Strict pairwise check: (me -> friend) OR (friend -> me)
-        return (sender === me && receiver === friend) || (sender === friend && receiver === me);
-    }) : [];
+    const isVisibleThisSession = (m: (typeof messages)[number]) => {
+        const me = (address || '').toLowerCase();
+        // Belt-and-suspenders with the boot filter: never show own-flagged rows.
+        if (m.sender_id.toLowerCase() === me && m.deleted_by_sender) return false;
+        if (m.receiver_id.toLowerCase() === me && m.deleted_by_receiver) return false;
+        // Session rule: this session's messages + anything still unread.
+        if (!m.is_read) return true;
+        return new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime();
+    };
+
+    const threadMessages = activeChat ? (() => {
+        const inThread = messages.filter(m => {
+            const sender = m.sender_id.toLowerCase();
+            const receiver = m.receiver_id.toLowerCase();
+            const me = address?.toLowerCase();
+            const friend = selectedChatId!.toLowerCase();
+
+            // Strict pairwise check: (me -> friend) OR (friend -> me)
+            if (!((sender === me && receiver === friend) || (sender === friend && receiver === me))) return false;
+            return isVisibleThisSession(m);
+        });
+        // Cap 20 with unread exempt: unread always survive, newest read fill up.
+        const unread = inThread.filter(m => !m.is_read);
+        const read = inThread.filter(m => m.is_read);
+        const kept = [...read.slice(-Math.max(0, 20 - unread.length)), ...unread];
+        return kept.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    })() : [];
 
     return (
         <>
@@ -495,7 +477,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 {requests.map((r) => (
                                                     <div key={r.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
                                                         <button
-                                                            onClick={() => onOpenProfile?.(r.wallet_address)}
+                                                            onClick={() => { markSeenRequest(r.id); onOpenProfile?.(r.wallet_address); }}
                                                             aria-label={`Open ${r.name} profile`}
                                                             className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
                                                         >
@@ -533,7 +515,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 {pokes.map((p) => (
                                                     <div key={p.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
                                                         <button
-                                                            onClick={() => onOpenProfile?.(p.sender_id)}
+                                                            onClick={() => { markSeenPoke(p.sender_id); onOpenProfile?.(p.sender_id); }}
                                                             aria-label={`Open ${p.name} profile`}
                                                             className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
                                                         >
@@ -552,7 +534,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                                 {pokingId === p.sender_id ? '…' : 'Poke back'}
                                                             </button>
                                                             <button
-                                                                onClick={() => openDM(p.sender_id)}
+                                                                onClick={() => { markSeenPoke(p.sender_id); openDM(p.sender_id); }}
                                                                 aria-label={`Message ${p.name}`}
                                                                 className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
                                                             >
@@ -697,14 +679,23 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                         <div
                                                             className={`max-w-[80%] flex flex-col ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
                                                         >
-                                                            <div className={`py-2.5 px-3.5 rounded-2xl text-[14px] leading-snug shadow-sm ${isMe
-                                                                ? (msg.send_status === 'failed' ? 'bg-red-600 text-white rounded-tr-md' : 'bg-cyan-700 text-white rounded-tr-md')
-                                                                : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'
-                                                                }`}>
-                                                                {msg.content}
-                                                            </div>
+                                                            {msg.send_status === 'failed' && isMe ? (
+                                                                <button
+                                                                    onClick={() => retrySend(msg)}
+                                                                    className={`w-fit min-w-12 max-w-full py-2.5 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] text-left shadow-sm bg-red-600 text-white rounded-tr-md hover:bg-red-500 active:scale-[0.98] transition-all`}
+                                                                >
+                                                                    {msg.content}
+                                                                </button>
+                                                            ) : (
+                                                                <div className={`w-fit min-w-12 max-w-full py-2.5 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] shadow-sm ${isMe
+                                                                    ? 'bg-cyan-700 text-white rounded-tr-md'
+                                                                    : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'
+                                                                    }`}>
+                                                                    {msg.content}
+                                                                </div>
+                                                            )}
                                                             {msg.send_status === 'failed' ? (
-                                                                <span className="text-[10px] text-red-400 mt-1 px-1 font-bold">Failed to send</span>
+                                                                <button onClick={() => isMe && retrySend(msg)} className="text-[10px] text-red-400 mt-1 px-1 font-bold hover:text-red-300 transition-colors">Failed to send · tap to retry</button>
                                                             ) : (
                                                                 <span className="text-[10px] text-white/30 mt-1 px-1">{msg.send_status === 'sending' ? 'Sending...' : timeString}</span>
                                                             )}
@@ -712,18 +703,6 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                     </div>
                                                 );
                                             })}
-                                        </div>
-                                    </div>
-
-                                    {/* Security Ticker */}
-                                    <div className="bg-black/40 border-y border-white/5 py-1 overflow-hidden flex whitespace-nowrap">
-                                        <div className="flex animate-marquee">
-                                            {[1, 2, 3].map((i) => (
-                                                <div key={i} className="flex items-center mx-4">
-                                                    <span className="bg-cyan-500 text-black text-[9px] font-black px-1.5 py-px rounded-sm mr-2">SECURITY</span>
-                                                    <span className="text-cyan-400/80 text-[10px] font-bold tracking-wider uppercase">Self destruct in 72h · Encrypted · No server logs</span>
-                                                </div>
-                                            ))}
                                         </div>
                                     </div>
 

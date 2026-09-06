@@ -120,7 +120,6 @@ export const ActivityFeed = () => {
     const [input, setInput] = useState('');
     const [cooldown, setCooldown] = useState(0);
     const [country, setCountry] = useState('XX');
-    const [chatLoading, setChatLoading] = useState(false);
     const chatScrollRef = useRef<HTMLDivElement>(null);
 
     const resolveHost = useCallback(async (playerId: string) => {
@@ -259,25 +258,12 @@ export const ActivityFeed = () => {
     }, []);
 
     // ── Chat state + history per scope + live INSERTs (vanish beyond 20) ──
+    // Session-only realtime: history GET retired — you see only shouts that
+    // arrive after you arrive; everything vanishes when you leave.
+    // Switching scope starts a fresh watch: prior scope's shouts don't carry.
     useEffect(() => {
-        if (btab !== 'chat') return;
-        let cancelled = false;
-        setChatLoading(true);
-        (async () => {
-            try {
-                const q = cscope === 'local' && country !== 'XX'
-                    ? `/api/live-chat?country=${country}&limit=20`
-                    : '/api/live-chat?limit=20';
-                const res = await fetch(q);
-                if (res.ok && !cancelled) setMsgs(await res.json());
-            } catch {
-                /* feed stays as-is */
-            } finally {
-                if (!cancelled) setChatLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [btab, cscope, country]);
+        setMsgs([]);
+    }, [cscope]);
 
     useEffect(() => {
         if (btab !== 'chat') return;
@@ -535,11 +521,7 @@ export const ActivityFeed = () => {
                                                 </div>
 
                                                 <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-2">
-                                                    {chatLoading && msgs.length === 0 ? (
-                                                        <div className="flex items-center justify-center py-16">
-                                                            <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                                                        </div>
-                                                    ) : msgs.length === 0 ? (
+                                                    {msgs.length === 0 ? (
                                                         <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                                                             <h3 className="text-white font-black text-sm mb-1">Dead air</h3>
                                                             <p className="text-white/40 text-xs max-w-[220px]">

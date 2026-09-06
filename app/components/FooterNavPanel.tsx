@@ -67,28 +67,6 @@ export const FooterNavPanel = ({
     onSelectChat,
     onOpenProfile
 }: FooterNavPanelProps) => {
-    const { address: connectedAddress } = useCurrentUser();
-    const { totalUnreadCount } = useGameData();
-    const [pendingCount, setPendingCount] = useState(0);
-
-    useEffect(() => {
-        if (!connectedAddress) return;
-
-        const fetchPendingCount = async () => {
-            const { count } = await supabase
-                .from('friendships')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'pending')
-                .ilike('friend_address', connectedAddress);
-
-            if (count !== null) setPendingCount(count);
-        };
-
-        fetchPendingCount();
-        const interval = setInterval(fetchPendingCount, 15000); // Poll every 15s to update badge
-        return () => clearInterval(interval);
-    }, [connectedAddress]);
-
     return (
         <>
             <nav className="footer-nav ludo-footer-scope relative overflow-hidden">
@@ -122,12 +100,6 @@ export const FooterNavPanel = ({
                             )}
 
                             <div className="relative inline-flex items-center justify-center">
-                                {/* Pending Friend Requests + Unread Messages Badge */}
-                                {tab.id === 'friends' && (pendingCount + totalUnreadCount) > 0 && (
-                                    <div className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold px-1 py-0 rounded-full border border-[#131520] z-20 shadow-md min-w-[16px] text-center">
-                                        {(pendingCount + totalUnreadCount) > 9 ? '9+' : (pendingCount + totalUnreadCount)}
-                                    </div>
-                                )}
                                 <Icon />
                             </div>
 

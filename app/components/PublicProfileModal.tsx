@@ -169,7 +169,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     const displayName = profile?.username && !profile.username.startsWith('0x')
         ? profile.username
-        : `User ${userAddress?.substring(0, 6).toUpperCase()}`;
+        : `User ${userAddress?.slice(-4).toUpperCase()}`;
 
     const displayAvatar = profile?.avatar_url || '1';
     const displayWins = profile?.total_wins || 0;

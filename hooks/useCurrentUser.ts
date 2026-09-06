@@ -49,7 +49,7 @@ export function useCurrentUser() {
                     const player = data[0];
                     setProfile({
                         ...player,
-                        displayName: (player.username && !player.username.startsWith('0x')) ? player.username : "Guest " + wagmiAddress.slice(-6).toUpperCase()
+                        displayName: (player.username && !player.username.startsWith('0x')) ? player.username : "User " + wagmiAddress.slice(-4).toUpperCase()
                     });
                 } else if (error) {
                     console.error('Profile fetch error:', error);
@@ -95,7 +95,7 @@ export function useCurrentUser() {
                             coins: payload.new.coins,
                             total_wins: payload.new.total_wins,
                             total_games: payload.new.total_games,
-                            displayName: (payload.new.username && !payload.new.username.startsWith('0x')) ? payload.new.username : "Guest " + wagmiAddress.slice(-6).toUpperCase()
+                            displayName: (payload.new.username && !payload.new.username.startsWith('0x')) ? payload.new.username : "User " + wagmiAddress.slice(-4).toUpperCase()
                         });
                     }
                 )
@@ -107,7 +107,13 @@ export function useCurrentUser() {
         }
     }, [wagmiAddress, isWalletConnected, isGuest, guestId]);
 
-    const displayName = (profile?.username && !profile.username.startsWith('0x')) ? profile.username : (address ? "Guest " + address.slice(-6).toUpperCase() : 'Guest');
+    const displayName = (profile?.username && !profile.username.startsWith('0x'))
+        ? profile.username
+        : isGuest && guestId
+            ? `Guest ${guestId.slice(-4).toUpperCase()}`
+            : wagmiAddress
+                ? `User ${wagmiAddress.slice(-4).toUpperCase()}`
+                : 'Guest';
 
     return { profile, address, isConnected, displayName, isGuest };
 }

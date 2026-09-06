@@ -170,6 +170,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         profilesMap,
         setMessages,
         setMyProfile,
+        setRawConversations,
         setupConnectionListeners
     });
 
@@ -201,7 +202,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
                 return {
                     id: otherId,
-                    name: (profile?.username && !profile.username.startsWith('0x')) ? profile.username : `User ${otherId.substring(0, 6)}`,
+                    name: (profile?.username && !profile.username.startsWith('0x')) ? profile.username : `User ${otherId.slice(-4).toUpperCase()}`,
                     avatar: profile?.avatar_url || '1',
                     lastMessage: decryptedLastMsg,
                     time: timeStr,

@@ -13,10 +13,10 @@ export const getDisplayNameHelper = (player: Player) => {
         return player.name;
     }
 
-    // If we have a wallet address, show Guest + last 6 uppercase characters
+    // If we have a wallet address, show User + last 4 uppercase characters
     if (player.walletAddress) {
         const addr = player.walletAddress;
-        return `Guest ${addr.slice(-6).toUpperCase()}`;
+        return `User ${addr.slice(-4).toUpperCase()}`;
     }
 
     return player.name || 'Guest';

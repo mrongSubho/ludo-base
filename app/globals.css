@@ -641,6 +641,9 @@ body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #
 /* Scoped spacing repair (profile only): panel-scoped re-assertions.
    Zero blast radius on the rest of the app. */
 .ludo-profile-scope .mb-1 { margin-bottom: 0.25rem; }
+.ludo-profile-scope .mb-0 { margin-bottom: 0; }
+.ludo-profile-scope .mb-1\.5 { margin-bottom: 0.375rem; }
+.ludo-profile-scope .mb-2 { margin-bottom: 0.5rem; }
 .ludo-profile-scope .mt-0\.5 { margin-top: 0.125rem; }
 .ludo-profile-scope .mt-1 { margin-top: 0.25rem; }
 .ludo-profile-scope .p-1 { padding: 0.25rem; }
@@ -656,10 +659,13 @@ body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #
 .ludo-profile-scope .px-0\.5 { padding-inline: 0.125rem; }
 .ludo-profile-scope .px-2 { padding-inline: 0.5rem; }
 .ludo-profile-scope .px-2\.5 { padding-inline: 0.625rem; }
+.ludo-profile-scope .px-3 { padding-inline: 0.75rem; }
 .ludo-profile-scope .px-5 { padding-inline: 1.25rem; }
 .ludo-profile-scope .py-0\.5 { padding-block: 0.125rem; }
 .ludo-profile-scope .py-1 { padding-block: 0.25rem; }
 .ludo-profile-scope .py-1\.5 { padding-block: 0.375rem; }
+.ludo-profile-scope .py-2 { padding-block: 0.5rem; }
+.ludo-profile-scope .py-2\.5 { padding-block: 0.625rem; }
 /* Scoped spacing repair (offline sheet only): panel-scoped re-assertions.
    Zero blast radius on the rest of the app. */
 .ludo-offline-scope .mb-1 { margin-bottom: 0.25rem; }
