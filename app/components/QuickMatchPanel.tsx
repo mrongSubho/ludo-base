@@ -421,7 +421,7 @@ export const QuickMatchPanel = ({
                         </div>
 
                         {/* Dynamic Matchmaking Content */}
-                        <div className="flex-1 overflow-hidden flex flex-col items-center justify-center relative px-5">
+                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col items-center justify-center relative px-5">
                             <TeamUpWrapper
                                 mode="quick"
                                 entryFee={wager}
