@@ -209,8 +209,9 @@ export default function GameLobby({
                         </div>
                     </div>
 
-                    {/* 3. ACTION DICE - Now perfectly spaced below the entry fee */}
-                    <div className="w-full flex justify-center pt-2 relative z-30">
+                    {/* 3. ACTION DICE - flex-1 so it rides lower, centered in
+                        the free space between entry fee and the card */}
+                    <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
                         <ActionDice 
                             onSelectQuickMatch={handleStartQuickMatch}
                             onSelectTeamUp={() => guard('teamup', () => setShowTeamUpOptions(true))}
