@@ -227,7 +227,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             <motion.div
                 animate={{ x: [-5, 5, -5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute left-6 md:left-24 top-1/2 -translate-y-1/2 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                className="absolute left-6 md:left-24 top-1/2 -translate-y-1/2 mt-2 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
                 onClick={() => stepMode(-1, 'y')}
             >
                 <ChevronLeft />
@@ -289,7 +289,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             <motion.div
                 animate={{ x: [5, -5, 5] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute right-6 md:right-24 top-1/2 -translate-y-1/2 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                className="absolute right-6 md:right-24 top-1/2 -translate-y-1/2 mt-2 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
                 onClick={() => stepMode(1, 'y')}
             >
                 <ChevronRight />

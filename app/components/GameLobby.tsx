@@ -105,14 +105,14 @@ export default function GameLobby({
     };
 
     return (
-        <div className="ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] flex flex-col items-center justify-start">
+        <div className="ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] h-full flex flex-col items-center justify-start">
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
             {/* 1. INITIAL SETUP PANEL */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
                     key="setup"
-                    className="w-full max-w-[420px] mx-auto flex flex-col gap-3"
+                    className="w-full max-w-[420px] mx-auto flex flex-col gap-3 h-full"
                 >
                     {/* 1. SELECTION GROUP */}
                     <div className="w-full space-y-3 flex flex-col">
@@ -220,7 +220,7 @@ export default function GameLobby({
 
                     {/* 4. LIVE BROADCAST card (MCP stream design). Chat + matches
                         open in its panel; arena streams live in the Arena tab. */}
-                    <div className="w-full mt-1">
+                    <div className="w-full mt-auto pt-3">
                         <LiveBroadcastCard onOpenProfile={onOpenProfile} />
                     </div>
 
