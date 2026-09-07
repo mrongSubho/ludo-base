@@ -222,6 +222,7 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 .ludo-lobby-scope .p-6 { padding: 1.5rem; }
 .ludo-lobby-scope .pb-8 { padding-bottom: 2rem; }
 .ludo-lobby-scope .pb-24 { padding-bottom: 6rem; }
+.ludo-lobby-scope .pb-32 { padding-bottom: 8rem; }
 .ludo-lobby-scope .pt-8 { padding-top: 2rem; }
 .ludo-lobby-scope .px-2 { padding-inline: 0.5rem; }
 .ludo-lobby-scope .px-3 { padding-inline: 0.75rem; }
@@ -881,7 +882,10 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
+  /* pan-y (not none): vertical touch scrolling must work or any content below
+     the fold is permanently unreachable on mobile. Draggable elements
+     (dice etc.) set their own touch-action via framer-motion. */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--ludo-bg);
   background: var(--ludo-bg-image);
@@ -1142,8 +1146,8 @@ body.theme-retro-futurism::before {
 .app-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
@@ -1151,8 +1155,9 @@ body.theme-retro-futurism::before {
   background: transparent !important;
   position: relative;
   overflow-x: clip;
-  /* clip (not hidden): no scroll container is created, so position: sticky
-     descendants keep working while horizontal overflow stays contained */
+  /* Fixed viewport height (not min-): with overflow-y:auto on .dashboard-shell
+     this makes the shell the real scroll container, so nothing below the fold
+     is ever cut off without a way to reach it. */
 }
 
 /* On actual mobile devices, go truly edge-to-edge */

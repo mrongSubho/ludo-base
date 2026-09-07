@@ -130,6 +130,51 @@ const GuestPill = ({ onConnect }: { onConnect: () => void }) => (
 );
 
 
+function LayoutDebugOverlay() {
+  const [lines, setLines] = useState<string[]>([]);
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    try {
+      setEnabled(window.location.search.includes('debug'));
+    } catch {
+      setEnabled(false);
+    }
+    if (!window.location.search.includes('debug')) return;
+    const tick = () => {
+      const tickers = Array.from(document.querySelectorAll('.ludo-ticker-scope'));
+      const footer = document.querySelector('.footer-nav') as HTMLElement | null;
+      const main = document.querySelector('main.dash-main') as HTMLElement | null;
+      const shell = document.querySelector('.dashboard-shell') as HTMLElement | null;
+      const fr = footer?.getBoundingClientRect();
+      const mcs = main ? window.getComputedStyle(main) : null;
+      const t1 = tickers[1] as HTMLElement | undefined;
+      const parent = t1?.parentElement;
+      const pcs = parent ? window.getComputedStyle(parent) : null;
+      const out = [
+        `vh=${window.innerHeight} shellScrollTop=${shell ? Math.round(shell.scrollTop) : 'n/a'} shellH=${shell ? Math.round(shell.getBoundingClientRect().height) : 'n/a'} shellScrollH=${shell ? shell.scrollHeight : 'n/a'}`,
+        `footer top=${fr ? Math.round(fr.top) : 'n/a'} h=${fr ? Math.round(fr.height) : 'n/a'}`,
+        `main cls=${main?.className} padBottom=${mcs?.paddingBottom}`,
+        `tickerParent tag=${parent?.tagName} cls=${(parent as HTMLElement)?.className} padBottom=${pcs?.paddingBottom} rectBot=${parent ? Math.round(parent.getBoundingClientRect().bottom) : 'n/a'}`,
+        ...tickers.slice(0, 3).map((el, i) => {
+          const r = (el as HTMLElement).getBoundingClientRect();
+          const cs = window.getComputedStyle(el as HTMLElement);
+          return `ticker${i} pos=${cs.position} bottom=${cs.bottom} rectTop=${Math.round(r.top)} rectBot=${Math.round(r.bottom)}`;
+        }),
+      ];
+      setLines(out);
+    };
+    const t = setInterval(tick, 500);
+    tick();
+    return () => clearInterval(t);
+  }, []);
+  if (!enabled) return null;
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', color: '#0f0', fontSize: 10, fontFamily: 'monospace', padding: 6, pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
+      {lines.join('\n')}
+    </div>
+  );
+}
+
 export default function Page() {
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
@@ -415,6 +460,7 @@ export default function Page() {
 
       <PresenceManager />
       <InviteNotification />
+      <LayoutDebugOverlay />
 
       <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]">
         {/* Subdued orbs to prevent washout while keeping depth */}
