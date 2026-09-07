@@ -113,6 +113,15 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
                                 Betting Live
                             </span>
                         )}
+                        {match.bet_window_status === 'resolving' && (
+                            <span
+                                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                style={{ background: '#f59e0b20', color: '#f59e0b', border: '1px solid #f59e0b40' }}
+                            >
+                                <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
+                                Settling
+                            </span>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-3 mt-1">
@@ -184,6 +193,13 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
                 total_bet_volume: row.matches?.total_bet_volume ?? 0,
                 streaming_enabled: row.matches?.streaming_enabled,
             }));
+            // Sportsbook order: betting-open first, then volume, then newest.
+            const rank: Record<string, number> = { open: 0, resolving: 1, closed: 2 };
+            mapped.sort((a, b) =>
+                (rank[a.bet_window_status] ?? 2) - (rank[b.bet_window_status] ?? 2) ||
+                (b.total_bet_volume ?? 0) - (a.total_bet_volume ?? 0) ||
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
             setLiveMatches(mapped);
         }
     }, []);
