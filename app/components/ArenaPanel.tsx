@@ -212,7 +212,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                     <div className="flex items-center justify-between mb-1 mt-1">
                                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                             {arenaTab === 'live' ? <LiveTile /> : <TrophyTile />}
-                                            {arenaTab === 'live' ? 'Live Arena' : 'Arena'}
+                                            {arenaTab === 'live' ? 'Live Arena' : 'Missions'}
                                         </h2>
                                     <button
                                         onClick={onClose}
