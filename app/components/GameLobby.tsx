@@ -7,7 +7,6 @@ import { TeamUpMatchPanel } from './TeamUpMatchPanel';
 import { OfflineMatchPanel } from './OfflineMatchPanel';
 import { QuickMatchPanel } from './QuickMatchPanel';
 import { useSoundEffects } from '../hooks/useSoundEffects';
-import { LiveArenaDirectory } from './LiveArenaDirectory';
 import { LuMinus, LuPlus } from 'react-icons/lu';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
@@ -21,8 +20,6 @@ interface GameLobbyProps {
     wager: number;
     setWager: (wager: number) => void;
     onStartGame: (isBotMatch?: boolean) => void;
-    onWatchMatch?: (roomCode: string) => void;
-    onOpenProfile?: (address: string) => void;
 }
 
 export default function GameLobby({
@@ -33,8 +30,6 @@ export default function GameLobby({
     wager,
     setWager,
     onStartGame,
-    onWatchMatch,
-    onOpenProfile,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -133,7 +128,7 @@ export default function GameLobby({
                                             playSelect();
                                             setGameMode(mode);
                                         }}
-                                        className={`relative w-36 py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
+                                        className={`relative w-40 py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
                                             ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
                                             : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
                                             }`}
@@ -204,7 +199,7 @@ export default function GameLobby({
                         </div>
                         <div className="flex gap-1.5 justify-center flex-wrap">
                             {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-1.5 py-px rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[8px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
+                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-3 py-px rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[8px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
                                     {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                 </button>
                             ))}
@@ -224,20 +219,8 @@ export default function GameLobby({
             )}
 
             {/* --- LIVE ARENA DIRECTORY (GambleFi) --- */}
-            {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
-                <div className="w-full flex flex-col gap-8 mt-3 pb-24">
-
-                    {/* ── LIVE ARENA (live streaming, MCP stream design) ── */}
-                    <div className="w-full flex flex-col gap-3">
-                        <div className="flex justify-center w-full">
-                            <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Live Arena</h3>
-                            </div>
-                        </div>
-                        <LiveArenaDirectory onWatchMatch={onWatchMatch} onOpenProfile={onOpenProfile} />
-                    </div>
-                </div>
-            )}
+            {/* ── LIVE ARENA now lives in the Arena panel's live tab.
+                Lobby stays lean: mode, match type, entry, dice. ── */}
 
             {/* --- OVERLAY PANELS --- */}
             {showTeamUpOptions && (

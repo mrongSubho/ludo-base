@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, PanelChildTabs, TabCount } from './PanelTabs';
-import { supabase } from '@/lib/supabase';
-import { LuTrophy, LuTimer, LuUsers, LuX, LuShieldCheck } from 'react-icons/lu';
+import { LiveArenaContent } from './LiveArenaDirectory';
+import { LuTrophy, LuX, LuShieldCheck } from 'react-icons/lu';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings/rankings/friends/messages: this panel always
@@ -16,7 +16,7 @@ import { LuTrophy, LuTimer, LuUsers, LuX, LuShieldCheck } from 'react-icons/lu';
 // `.ludo-arena-scope` is re-asserted in globals.css (the global unlayered
 // reset zeroes Tailwind spacing utilities).
 
-type ArenaTab = 'tournaments' | 'missions';
+type ArenaTab = 'live' | 'missions';
 type MissionTab = 'daily' | 'weekly';
 
 // Icon tile: cyan glow square shared with the other synced panels.
@@ -53,54 +53,15 @@ interface ArenaPanelProps {
     isOpen: boolean;
     onClose: () => void;
     onSwitchTab?: (tab: any) => void;
+    onWatchMatch?: (roomCode: string) => void;
+    onOpenProfile?: (address: string) => void;
 }
 
-export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelProps) {
+export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch, onOpenProfile }: ArenaPanelProps) {
     const { address } = useCurrentUser();
     // Guests can view missions, but claiming pays onchain — walled.
     const { guard } = useGuestWall();
-    const [arenaTab, setArenaTab] = useState<ArenaTab>('tournaments');
-
-    // ─── Tournaments state ───
-    const [tournaments, setTournaments] = useState<any[]>([]);
-    const [isLoadingTournaments, setIsLoadingTournaments] = useState(true);
-
-    const fetchTournaments = async () => {
-        setIsLoadingTournaments(true);
-        try {
-            const { data, error } = await (supabase as any)
-                .from('tournaments')
-                .select('*')
-                .order('start_at', { ascending: true });
-
-            if (error) throw error;
-            if (data) setTournaments(data);
-        } catch (err: any) {
-            console.error('Fetch tournaments error:', err.message || err);
-        } finally {
-            setIsLoadingTournaments(false);
-        }
-    };
-
-    useEffect(() => {
-        if (isOpen) {
-            fetchTournaments();
-        }
-    }, [isOpen]);
-
-    const handleJoin = async (tId: string) => {
-        if (!address) return;
-        try {
-            const { error } = await (supabase as any).rpc('join_tournament', {
-                p_tournament_id: tId,
-                p_player_id: address.toLowerCase()
-            });
-            if (error) alert(error.message);
-            else fetchTournaments();
-        } catch (err) {
-            console.error('Join error:', err);
-        }
-    };
+    const [arenaTab, setArenaTab] = useState<ArenaTab>('live');
 
     // ─── Missions state ───
     const [activeMissionTab, setActiveMissionTab] = useState<MissionTab>('daily');
@@ -249,10 +210,6 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                     </button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
-                                        <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
-                                            {tournaments.length} arena{tournaments.length === 1 ? '' : 's'}
-                                        </span>
-                                        <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                                         <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
                                             {dailyLeft + weeklyLeft} missions left
                                         </span>
@@ -265,71 +222,19 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab }: ArenaPanelP
                                         value={arenaTab}
                                         onPick={setArenaTab}
                                         options={[
-                                            { value: 'tournaments', label: 'tournaments' },
+                                            { value: 'live', label: 'live' },
                                             { value: 'missions', label: 'missions' },
                                         ]}
                                     />
                                 </div>
 
-                                {arenaTab === 'tournaments' ? (
-                                    /* List */
-                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative z-10">
-                                        <SectionLabel>
-                                            {tournaments.length} arena{tournaments.length === 1 ? '' : 's'}
-                                        </SectionLabel>
-                                        {isLoadingTournaments ? (
-                                            <div className="h-full flex flex-col items-center justify-center gap-4 py-16">
-                                                <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
-                                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Locating Arenas</span>
-                                            </div>
-                                        ) : tournaments.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                                                <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
-                                                    <LuShieldCheck className="w-7 h-7" />
-                                                </div>
-                                                <h3 className="text-white font-black text-sm mb-1">Construction Mode</h3>
-                                                <p className="text-white/40 text-xs max-w-[220px]">Automated brackets coming soon. Check back shortly!</p>
-                                            </div>
-                                        ) : tournaments.map((t, idx) => (
-                                            <motion.div
-                                                key={t.id}
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ delay: idx * 0.1 }}
-                                                className="group relative flex flex-col gap-4 p-5 rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] hover:border-white/25 transition-all overflow-hidden mb-2"
-                                            >
-                                                <div className="flex items-start justify-between">
-                                                    <div>
-                                                        <h4 className="text-lg font-black text-white italic truncate">{t.title}</h4>
-                                                        <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest mt-1">
-                                                            Entry: <span className="text-yellow-400">{t.entry_fee} COINS</span>
-                                                        </p>
-                                                    </div>
-                                                    <div className="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20">
-                                                        <LuUsers className="text-cyan-400 w-5 h-5" />
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-6 mt-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <LuTimer className="text-white/20 w-4 h-4" />
-                                                        <span className="text-[10px] text-white/60 font-black uppercase tracking-widest">Starts in 3h 20m</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <LuUsers className="text-white/20 w-4 h-4" />
-                                                        <span className="text-[10px] text-white/60 font-black uppercase tracking-widest">JOINED: {t.current_participants || 0}/{t.max_players}</span>
-                                                    </div>
-                                                </div>
-
-                                                <button
-                                                    onClick={() => handleJoin(t.id)}
-                                                    className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-lg border border-cyan-400/20 transition-all active:scale-95"
-                                                >
-                                                    Register Entry
-                                                </button>
-                                            </motion.div>
-                                        ))}
-                                    </div>
+                                {arenaTab === 'live' ? (
+                                    /* Live Broadcast: streams + chat + joinable searches */
+                                    <LiveArenaContent
+                                        onWatchMatch={onWatchMatch}
+                                        onOpenProfile={onOpenProfile}
+                                        onJoinSearch={onClose}
+                                    />
                                 ) : (
                                     /* Missions Content */
                                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10">

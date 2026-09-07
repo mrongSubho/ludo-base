@@ -465,8 +465,6 @@ export default function Page() {
                   wager={betAmount}
                   setWager={setBetAmount}
                   onStartGame={onStartGame}
-                  onWatchMatch={handleWatchMatch}
-                  onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                 />
               </main>
 
@@ -510,7 +508,7 @@ export default function Page() {
                   />
                 )}
                 {activeTab === 'arena' && (
-                  <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
+                  <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)} />
                 )}
                 {activeTab === 'marketplace' && (
                   <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />

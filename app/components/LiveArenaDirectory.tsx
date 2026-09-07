@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiTv, FiX, FiEye, FiTrendingUp, FiDollarSign, FiZap } from 'react-icons/fi';
+import { FiTv, FiEye, FiTrendingUp, FiDollarSign, FiZap } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
 import { PanelTabs } from './PanelTabs';
 import { LiveChatPanel, LiveMatchSearchesPanel } from './ActivityFeed';
@@ -170,13 +170,13 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
     );
 }
 
-interface LiveArenaDirectoryProps {
+interface LiveArenaContentProps {
     onWatchMatch?: (roomCode: string) => void;
     onOpenProfile?: (address: string) => void;
+    onJoinSearch?: () => void;
 }
 
-export const LiveArenaDirectory = ({ onWatchMatch, onOpenProfile }: LiveArenaDirectoryProps) => {
-    const [isOpen, setIsOpen] = useState(false);
+export const LiveArenaContent = ({ onWatchMatch, onOpenProfile, onJoinSearch }: LiveArenaContentProps) => {
     const [atab, setAtab] = useState<'arena' | 'chat' | 'searches'>('arena');
     const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
     const { address } = useAccount();
@@ -220,120 +220,22 @@ export const LiveArenaDirectory = ({ onWatchMatch, onOpenProfile }: LiveArenaDir
     }, [fetchMatches]);
 
     const handleWatch = useCallback((roomCode: string) => {
-        setIsOpen(false);
         onWatchMatch?.(roomCode);
     }, [onWatchMatch]);
 
     return (
-        <>
-            {/* ── Ticker Trigger Button (in-flow in column; sticks above footer on scroll) ── */}
-            <div className="ludo-ticker-scope w-full flex justify-center pointer-events-none sticky bottom-[84px] z-[60] px-4">
-                <div
-                    className="pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
-                    onClick={() => setIsOpen(true)}
-                >
-                    {/* Cyber grid bg */}
-                    <div className="ticker-deco absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[length:100%_4px] opacity-20 pointer-events-none" />
-                    <div className="ticker-deco absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="flex-1 min-h-0 flex flex-col relative z-10">
+            {/* ── Ticker + modal shell removed: this content now lives inline
+                in the Arena panel. ── */}
 
-                    <div className="flex items-center gap-3 relative z-10">
-                        <div className="w-10 h-10 rounded-xl border border-cyan-500/30 bg-cyan-950/50 flex items-center justify-center overflow-hidden shadow-[inset_0_0_15px_rgba(34,211,238,0.2)] relative">
-                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(34,211,238,0.2)_50%,transparent_100%)] w-[200%] animate-[scan_2s_linear_infinite]" />
-                            <FiTv className="w-4 h-4 text-cyan-300 relative z-10" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">MCP Stream Node</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                                <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none">
-                                    {liveMatches.length > 0 ? `${liveMatches.length} Links Active` : 'No Links Active'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Scrolling match ticker */}
-                    {liveMatches.length > 0 && (
-                        <div className="flex-1 max-w-[240px] flex overflow-hidden ml-6 relative z-10">
-                            {/* Fade edges */}
-                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/60 to-transparent z-20 pointer-events-none" />
-                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/60 to-transparent z-20 pointer-events-none" />
-                            
-                            <div className="animate-marquee whitespace-nowrap flex gap-8 items-center">
-                                {liveMatches.map((m, i) => (
-                                    <span key={i} className="text-[10px] font-black text-white/80 uppercase tracking-widest flex items-center gap-2">
-                                        <div className="w-1 h-1 bg-pink-500 animate-pulse rounded-full" />
-                                        {m.game_mode?.substring(0,3).toUpperCase()}
-                                        <span className="text-cyan-400">{(m.total_bet_volume ?? 0).toLocaleString()} VOL</span>
-                                        <span className="text-white/30 font-bold ml-1 flex items-center gap-1">
-                                            <FiEye className="w-2.5 h-2.5" />{m.spectator_count}
-                                        </span>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-3 relative z-10 ml-auto">
-                        <div className="h-6 w-[1px] bg-cyan-500/20" />
-                        <div className="flex flex-col items-end justify-center h-full">
-                            <span className="text-[8px] font-black text-cyan-500/50 uppercase tracking-[0.2em] leading-tight">System</span>
-                            <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest leading-tight">Access</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Full Panel ── */}
-            <AnimatePresence>
-                {isOpen && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 z-[100] bg-black/40"
-                            onClick={() => setIsOpen(false)}
-                        />
-
-                        <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                            <div className="w-full max-w-[500px] relative h-full">
-                                <motion.div
-                                    initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                                    exit={{ opacity: 0, y: 24, scale: 0.98 }}
-                                    transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-                                    className="ludo-livearena-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
-                                >
-                                    {/* Authentic Subdued Cosmic Orbs */}
-                                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-
-                                    <motion.div 
-                                        style={{ 
-                                            perspective: '1200px',
-                                            transformStyle: 'preserve-3d'
-                                        }}
-                                        className="relative h-full w-full flex flex-col"
-                                    >
-                                        <motion.div
-                                            style={{ 
-                                                rotateX: 1,
-                                                scale: 1.02,
-                                                transformOrigin: 'top'
-                                            }}
-                                            className="flex-1 flex flex-col"
-                                        >
+            {/* ── Full Panel (inline content below) ── */}
+            {/* ── Full Panel (inline content below) ── */}
                                             {/* Header */}
-                                            <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                                                <div className="w-12 h-1.5 bg-white/20 rounded-full" />
-                                            </div>
                                             <div className="px-5 pb-3 border-b border-white/10 flex items-center justify-between relative z-10">
                                                 <div className="flex items-center gap-2">
                                                     <LiveTile />
                                                     <div>
-                                                        <h2 className="text-xl font-bold text-white leading-tight">Live Arena</h2>
+                                                        <h2 className="text-xl font-bold text-white leading-tight">Live Broadcast</h2>
                                                         <div className="flex items-center gap-1.5 mt-0.5">
                                                             <span className="w-1 h-1 bg-cyan-400 animate-pulse rounded-full" />
                                                             <span className="text-[10px] font-black tracking-[0.2em] uppercase text-cyan-300">
@@ -342,13 +244,6 @@ export const LiveArenaDirectory = ({ onWatchMatch, onOpenProfile }: LiveArenaDir
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={() => setIsOpen(false)}
-                                                    aria-label="Close live arena"
-                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
-                                                >
-                                                    <FiX className="w-4 h-4" />
-                                                </button>
                                             </div>
 
                                             {/* Stats bar */}
@@ -416,22 +311,14 @@ export const LiveArenaDirectory = ({ onWatchMatch, onOpenProfile }: LiveArenaDir
                                                 <LiveChatPanel onOpenProfile={onOpenProfile} />
                                             </div>
                                             <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${atab === 'searches' ? 'flex' : 'hidden'}`}>
-                                                <LiveMatchSearchesPanel onJoin={() => setIsOpen(false)} />
+                                                <LiveMatchSearchesPanel onJoin={onJoinSearch} />
                                             </div>
-                                        </motion.div>
-                                    </motion.div>
 
                                     <div className="w-full px-5 py-3 bg-black/20 border-t border-white/10 text-center relative z-20 flex flex-col gap-1 items-center">
                                         <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
                                             Spectating is read-only • Wagers stay safe
                                         </span>
                                     </div>
-                                </motion.div>
-                            </div>
-                        </div>
-                    </>
-                )}
-            </AnimatePresence>
-        </>
+        </div>
     );
 };
