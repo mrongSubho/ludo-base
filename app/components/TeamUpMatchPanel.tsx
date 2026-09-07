@@ -8,6 +8,7 @@ import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { FiX } from 'react-icons/fi';
+import { PanelTabs } from './PanelTabs';
 
 interface TeamUpMatchPanelProps {
     onClose: () => void;
@@ -131,6 +132,16 @@ export const TeamUpMatchPanel = ({
     const [view, setView] = useState<'console' | 'roster' | 'join'>('console');
     const [roomCode, setRoomCode] = useState('');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const [ftab, setFtab] = useState<'social' | 'global'>('social');
+
+    // Online-only roster: free players first, engaged/playing second.
+    // Offline contacts never list — an invite nobody can accept is noise.
+    const rankOf = (f: any) => {
+        const s = (f.status || 'offline').toLowerCase();
+        if (s.includes('online')) return 0;
+        if (s.includes('match') || s.includes('play') || s.includes('busy') || s.includes('game')) return 1;
+        return 2;
+    };
 
     const { profile, address, displayName } = useCurrentUser();
     const { friends: friendsData, isBooting: isLoadingFriends } = useGameData();
@@ -158,10 +169,33 @@ export const TeamUpMatchPanel = ({
     const feeLabel = fee > 0 ? fee.toLocaleString() : 'Free';
 
     const copyText = async (text: string, key: string) => {
+        let ok = false;
         try {
-            await navigator.clipboard.writeText(text);
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                ok = true;
+            }
         } catch {
-            /* clipboard unavailable — still show feedback */
+            /* fall through to legacy path (in-app webviews) */
+        }
+        if (!ok) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+            } catch {
+                ok = false;
+            }
+        }
+        if (!ok) {
+            // Last resort: native prompt always allows manual copy.
+            window.prompt('Copy invite link:', text);
+            return;
         }
         setCopiedKey(key);
         setTimeout(() => setCopiedKey(cur => (cur === key ? null : cur)), 1500);
@@ -383,12 +417,27 @@ export const TeamUpMatchPanel = ({
                                             )}
                                         </button>
                                     )}
+                                    <div className="mb-2">
+                                        <PanelTabs
+                                            value={ftab}
+                                            onPick={setFtab}
+                                            options={[
+                                                { value: 'social', label: 'Social' },
+                                                { value: 'global', label: 'Global' },
+                                            ]}
+                                        />
+                                    </div>
                                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col gap-2 pb-2">
                                         {isLoadingFriends ? (
                                             <div className="h-full flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         ) : (
-                                            [...friendsData.gameFriends, ...friendsData.onchainFriends].length > 0 ? (
-                                                [...friendsData.gameFriends, ...friendsData.onchainFriends].map((f, i) => (
+                                            (() => {
+                                                const pool = ftab === 'social' ? friendsData.gameFriends : friendsData.onchainFriends;
+                                                const visible = pool
+                                                    .filter((f: any) => rankOf(f) < 2)
+                                                    .sort((a: any, b: any) => rankOf(a) - rankOf(b));
+                                                return visible.length > 0 ? (
+                                                    visible.map((f: any, i: number) => (
                                                     <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-cyan-500/30 transition-colors group">
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden border border-white/10">
@@ -400,17 +449,18 @@ export const TeamUpMatchPanel = ({
                                                             </div>
                                                             <div className="flex flex-col">
                                                                 <span className="text-xs font-bold text-white uppercase tracking-tight">{(f.username && !f.username.startsWith('0x')) ? f.username : `User ${f.wallet_address.slice(-4).toUpperCase()}`}</span>
-                                                                <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{f.status || 'OFFLINE'}</span>
+                                                                <span className={`text-[8px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
                                                             </div>
                                                         </div>
                                                         <button onClick={() => handleInvite(f)} className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/60 uppercase hover:bg-cyan-500 hover:text-slate-950 transition-all">Invite</button>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="h-full flex flex-col items-center justify-center opacity-30">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">No friends found</span>
-                                                </div>
-                                            )
+                                                    ))
+                                                ) : (
+                                                    <div className="h-full flex flex-col items-center justify-center opacity-30">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">No friends online</span>
+                                                    </div>
+                                                );
+                                            })()
                                         )}
                                     </div>
                                 </div>
@@ -461,7 +511,7 @@ export const TeamUpMatchPanel = ({
                                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
                                         Quick Match
                                     </span>
-                                    <span className="text-[9px] font-bold normal-case tracking-wide text-cyan-400/60">Auto-fill empty seats with random players</span>
+                                    <span className="text-[9px] font-bold normal-case tracking-wide text-cyan-400/60">Fills empty seats & posts your room to the live feed</span>
                                 </button>
                             )}
 
