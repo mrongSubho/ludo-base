@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiTv, FiX, FiEye, FiTrendingUp, FiDollarSign, FiZap } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
+import { PanelTabs } from './PanelTabs';
+import { LiveChatPanel, LiveMatchSearchesPanel } from './ActivityFeed';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import { useAccount } from 'wagmi';
 
@@ -170,10 +172,12 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
 
 interface LiveArenaDirectoryProps {
     onWatchMatch?: (roomCode: string) => void;
+    onOpenProfile?: (address: string) => void;
 }
 
-export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) => {
+export const LiveArenaDirectory = ({ onWatchMatch, onOpenProfile }: LiveArenaDirectoryProps) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [atab, setAtab] = useState<'arena' | 'chat' | 'searches'>('arena');
     const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
     const { address } = useAccount();
 
@@ -363,8 +367,21 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                                 </div>
                                             </div>
 
+                                            {/* Tabs: arena streams + live chat + joinable searches */}
+                                            <div className="px-5 pt-3 relative z-10">
+                                                <PanelTabs
+                                                    value={atab}
+                                                    onPick={setAtab}
+                                                    options={[
+                                                        { value: 'arena', label: 'Arena' },
+                                                        { value: 'chat', label: 'Chat' },
+                                                        { value: 'searches', label: 'Searches' },
+                                                    ]}
+                                                />
+                                            </div>
+
                                             {/* Match list */}
-                                            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">
+                                            <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10 ${atab === 'arena' ? '' : 'hidden'}`}>
                                                 <SectionLabel>
                                                     {liveMatches.length} stream{liveMatches.length === 1 ? '' : 's'}
                                                 </SectionLabel>
@@ -391,6 +408,15 @@ export const LiveArenaDirectory = ({ onWatchMatch }: LiveArenaDirectoryProps) =>
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
+                                            </div>
+
+                                            {/* Live chat + joinable searches (kept mounted so
+                                                session buffers survive tab switches) */}
+                                            <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${atab === 'chat' ? 'flex' : 'hidden'}`}>
+                                                <LiveChatPanel onOpenProfile={onOpenProfile} />
+                                            </div>
+                                            <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${atab === 'searches' ? 'flex' : 'hidden'}`}>
+                                                <LiveMatchSearchesPanel onJoin={() => setIsOpen(false)} />
                                             </div>
                                         </motion.div>
                                     </motion.div>
