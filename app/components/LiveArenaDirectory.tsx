@@ -4,8 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiTv, FiEye, FiTrendingUp, FiDollarSign, FiZap } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
-import { PanelTabs } from './PanelTabs';
-import { LiveChatPanel, LiveMatchSearchesPanel } from './ActivityFeed';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import { useAccount } from 'wagmi';
 
@@ -172,12 +170,10 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
 
 interface LiveArenaContentProps {
     onWatchMatch?: (roomCode: string) => void;
-    onOpenProfile?: (address: string) => void;
     onJoinSearch?: () => void;
 }
 
-export const LiveArenaContent = ({ onWatchMatch, onOpenProfile, onJoinSearch }: LiveArenaContentProps) => {
-    const [atab, setAtab] = useState<'arena' | 'chat' | 'searches'>('arena');
+export const LiveArenaContent = ({ onWatchMatch }: LiveArenaContentProps) => {
     const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
     const { address } = useAccount();
 
@@ -235,7 +231,7 @@ export const LiveArenaContent = ({ onWatchMatch, onOpenProfile, onJoinSearch }: 
                                                 <div className="flex items-center gap-2">
                                                     <LiveTile />
                                                     <div>
-                                                        <h2 className="text-xl font-bold text-white leading-tight">Live Broadcast</h2>
+                                                        <h2 className="text-xl font-bold text-white leading-tight">Live Arena</h2>
                                                         <div className="flex items-center gap-1.5 mt-0.5">
                                                             <span className="w-1 h-1 bg-cyan-400 animate-pulse rounded-full" />
                                                             <span className="text-[10px] font-black tracking-[0.2em] uppercase text-cyan-300">
@@ -262,21 +258,8 @@ export const LiveArenaContent = ({ onWatchMatch, onOpenProfile, onJoinSearch }: 
                                                 </div>
                                             </div>
 
-                                            {/* Tabs: arena streams + live chat + joinable searches */}
-                                            <div className="px-5 pt-3 relative z-10">
-                                                <PanelTabs
-                                                    value={atab}
-                                                    onPick={setAtab}
-                                                    options={[
-                                                        { value: 'arena', label: 'Arena' },
-                                                        { value: 'chat', label: 'Chat' },
-                                                        { value: 'searches', label: 'Searches' },
-                                                    ]}
-                                                />
-                                            </div>
-
                                             {/* Match list */}
-                                            <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10 ${atab === 'arena' ? '' : 'hidden'}`}>
+                                            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">
                                                 <SectionLabel>
                                                     {liveMatches.length} stream{liveMatches.length === 1 ? '' : 's'}
                                                 </SectionLabel>
@@ -303,15 +286,6 @@ export const LiveArenaContent = ({ onWatchMatch, onOpenProfile, onJoinSearch }: 
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
-                                            </div>
-
-                                            {/* Live chat + joinable searches (kept mounted so
-                                                session buffers survive tab switches) */}
-                                            <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${atab === 'chat' ? 'flex' : 'hidden'}`}>
-                                                <LiveChatPanel onOpenProfile={onOpenProfile} />
-                                            </div>
-                                            <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${atab === 'searches' ? 'flex' : 'hidden'}`}>
-                                                <LiveMatchSearchesPanel onJoin={onJoinSearch} />
                                             </div>
 
                                     <div className="w-full px-5 py-3 bg-black/20 border-t border-white/10 text-center relative z-20 flex flex-col gap-1 items-center">

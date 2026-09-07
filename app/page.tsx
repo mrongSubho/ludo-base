@@ -435,7 +435,7 @@ export default function Page() {
         </div>
       ) : (
         <GuestWallProvider>
-        <div className="app-shell dashboard-shell">
+        <div className="app-shell dashboard-shell no-scrollbar">
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
             <div className="dashboard-container relative">
@@ -465,6 +465,7 @@ export default function Page() {
                   wager={betAmount}
                   setWager={setBetAmount}
                   onStartGame={onStartGame}
+                  onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                 />
               </main>
 
@@ -508,7 +509,7 @@ export default function Page() {
                   />
                 )}
                 {activeTab === 'arena' && (
-                  <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)} />
+                  <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} />
                 )}
                 {activeTab === 'marketplace' && (
                   <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />

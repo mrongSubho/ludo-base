@@ -9,7 +9,8 @@ import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
-import { PanelChildTabs } from './PanelTabs';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PanelTabs, PanelChildTabs } from './PanelTabs';
 
 interface Activity {
     id: string;
@@ -485,5 +486,128 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                 </div>
             )}
         </div>
+    );
+};
+
+// ─── Live Broadcast card (MCP stream design): the single lobby live surface.
+// Ticker opens a panel with Chat + Live Matches tabs. ──────────────────────
+export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [btab, setBtab] = useState<'chat' | 'matches'>('chat');
+
+    return (
+        <>
+            <div className="w-full flex justify-center pointer-events-none">
+                <div
+                    className="pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
+                    onClick={() => setIsOpen(true)}
+                    role="button"
+                    aria-label="Open live broadcast"
+                >
+                    {/* Cyber grid bg */}
+                    <div className="ticker-deco absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[length:100%_4px] opacity-20 pointer-events-none" />
+                    <div className="ticker-deco absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-xl border border-cyan-500/30 bg-cyan-950/50 flex items-center justify-center overflow-hidden shadow-[inset_0_0_15px_rgba(34,211,238,0.2)] relative">
+                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(34,211,238,0.2)_50%,transparent_100%)] w-[200%] animate-[scan_2s_linear_infinite]" />
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300 relative z-10">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                                <circle cx="12" cy="12" r="3" />
+                            </svg>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">Live Broadcast</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
+                                <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none">
+                                    On air
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 relative z-10 ml-auto">
+                        <div className="h-6 w-[1px] bg-cyan-500/20" />
+                        <div className="flex flex-col items-end justify-center h-full">
+                            <span className="text-[8px] font-black text-cyan-500/50 uppercase tracking-[0.2em] leading-tight">System</span>
+                            <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest leading-tight">Access</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Full panel ── */}
+            <AnimatePresence>
+                {isOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[100] bg-black/40"
+                            onClick={() => setIsOpen(false)}
+                        />
+                        <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
+                            <div className="w-full max-w-[500px] relative h-full">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                                    transition={{ type: 'spring', damping: 24, stiffness: 300 }}
+                                    className="ludo-broadcast-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
+                                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
+                                >
+                                    {/* Authentic Subdued Cosmic Orbs */}
+                                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+
+                                    {/* Handle Bar */}
+                                    <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
+                                        <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                    </div>
+
+                                    {/* Header */}
+                                    <div className="px-5 pb-3 border-b border-white/10 relative z-10">
+                                        <div className="flex items-center justify-between mb-1 mt-1">
+                                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                                Live Broadcast
+                                            </h2>
+                                            <button
+                                                onClick={() => setIsOpen(false)}
+                                                aria-label="Close live broadcast"
+                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="flex-1 min-h-0 overflow-hidden relative z-10 flex flex-col">
+                                        <div className="px-5 pt-3">
+                                            <PanelTabs
+                                                value={btab}
+                                                onPick={setBtab}
+                                                options={[
+                                                    { value: 'chat', label: 'Live Chat' },
+                                                    { value: 'matches', label: 'Live Matches' },
+                                                ]}
+                                            />
+                                        </div>
+                                        <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${btab === 'chat' ? 'flex' : 'hidden'}`}>
+                                            <LiveChatPanel onOpenProfile={onOpenProfile} />
+                                        </div>
+                                        <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${btab === 'matches' ? 'flex' : 'hidden'}`}>
+                                            <LiveMatchSearchesPanel onJoin={() => setIsOpen(false)} />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </AnimatePresence>
+        </>
     );
 };

@@ -54,10 +54,9 @@ interface ArenaPanelProps {
     onClose: () => void;
     onSwitchTab?: (tab: any) => void;
     onWatchMatch?: (roomCode: string) => void;
-    onOpenProfile?: (address: string) => void;
 }
 
-export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch, onOpenProfile }: ArenaPanelProps) {
+export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch }: ArenaPanelProps) {
     const { address } = useCurrentUser();
     // Guests can view missions, but claiming pays onchain — walled.
     const { guard } = useGuestWall();
@@ -229,11 +228,10 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch,
                                 </div>
 
                                 {arenaTab === 'live' ? (
-                                    /* Live Broadcast: streams + chat + joinable searches */
+                                    /* Live Arena streams (chat + searches live in the lobby's
+                                        Live Broadcast card) */
                                     <LiveArenaContent
                                         onWatchMatch={onWatchMatch}
-                                        onOpenProfile={onOpenProfile}
-                                        onJoinSearch={onClose}
                                     />
                                 ) : (
                                     /* Missions Content */

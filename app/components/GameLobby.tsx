@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { ActionDice } from './ActionDice';
+import { LiveBroadcastCard } from './ActivityFeed';
 import { TeamUpMatchPanel } from './TeamUpMatchPanel';
 import { OfflineMatchPanel } from './OfflineMatchPanel';
 import { QuickMatchPanel } from './QuickMatchPanel';
@@ -20,6 +21,7 @@ interface GameLobbyProps {
     wager: number;
     setWager: (wager: number) => void;
     onStartGame: (isBotMatch?: boolean) => void;
+    onOpenProfile?: (address: string) => void;
 }
 
 export default function GameLobby({
@@ -30,6 +32,7 @@ export default function GameLobby({
     wager,
     setWager,
     onStartGame,
+    onOpenProfile,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -215,12 +218,14 @@ export default function GameLobby({
                         />
                     </div>
 
+                    {/* 4. LIVE BROADCAST card (MCP stream design). Chat + matches
+                        open in its panel; arena streams live in the Arena tab. */}
+                    <div className="w-full mt-1">
+                        <LiveBroadcastCard onOpenProfile={onOpenProfile} />
+                    </div>
+
                 </div>
             )}
-
-            {/* --- LIVE ARENA DIRECTORY (GambleFi) --- */}
-            {/* ── LIVE ARENA now lives in the Arena panel's live tab.
-                Lobby stays lean: mode, match type, entry, dice. ── */}
 
             {/* --- OVERLAY PANELS --- */}
             {showTeamUpOptions && (
