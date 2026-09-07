@@ -1150,7 +1150,9 @@ body.theme-retro-futurism::before {
   padding: 0;
   background: transparent !important;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: clip;
+  /* clip (not hidden): no scroll container is created, so position: sticky
+     descendants keep working while horizontal overflow stays contained */
 }
 
 /* On actual mobile devices, go truly edge-to-edge */
