@@ -42,6 +42,7 @@ export const OfflineMatchPanel = ({
     onClose,
     onStartOfflineGame
 }: OfflineMatchPanelProps) => {
+    const aiCount = (matchType === '1v1' ? 2 : 4) - 1;
     return (
         <>
             {/* Backdrop */}
@@ -84,11 +85,11 @@ export const OfflineMatchPanel = ({
                         </div>
                         <div className="flex items-center gap-2 px-0.5">
                             <span className="text-[11px] font-black text-white/70 tracking-wide uppercase">
-                                {gameMode}
+                                {gameMode} • {matchType}
                             </span>
                             <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                             <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">
-                                {matchType} • Bots / Local
+                                {aiCount} × AI
                             </span>
                         </div>
                     </div>
@@ -96,22 +97,14 @@ export const OfflineMatchPanel = ({
                     {/* Content Area */}
                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
                         <SectionLabel>Setup</SectionLabel>
-                        <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-4">
-                            <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
-                                <span>Selected Mode</span>
-                                <span className="text-cyan-400">{gameMode}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
-                                <span>Match Type</span>
-                                <span className="text-cyan-400">{matchType}</span>
-                            </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-3">
                             <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
                                 <span>Opponents</span>
-                                <span className="text-cyan-400">Bots / Local</span>
+                                <span className="text-cyan-400">{aiCount} × AI • Free</span>
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-4 text-center px-4 py-16">
+                        <div className="flex flex-col gap-4 text-center px-4 py-10">
                             <p className="text-white/60 text-sm font-bold leading-relaxed">
                                 Practice your strategy or play casually against AI opponents. Offline matches do not require a network connection or entry fee.
                             </p>
