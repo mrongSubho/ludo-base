@@ -333,8 +333,8 @@ export const ActivityFeed = ({ onOpenProfile }: { onOpenProfile?: (address: stri
 
     return (
         <div className="w-full flex flex-col items-center gap-3">
-            {/* ── Compact one-line bar (streaming-ticker language) ── */}
-            <div className="ludo-ticker-scope fixed bottom-[164px] left-1/2 -translate-x-1/2 w-full max-w-[320px] px-4 pointer-events-none z-[60]">
+            {/* ── Compact one-line bar (in-flow: stacks under the dice, never overlays) ── */}
+            <div className="ludo-ticker-scope w-full max-w-[420px] pointer-events-none">
                 <div
                     onClick={() => setIsOpen(true)}
                     className="pointer-events-auto h-12 w-full rounded-2xl flex items-center gap-3 px-4 relative overflow-hidden transition-all cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 active:scale-[0.98]"
