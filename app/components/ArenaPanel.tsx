@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, PanelChildTabs, TabCount } from './PanelTabs';
-import { LiveArenaContent } from './LiveArenaDirectory';
+import { LiveArenaContent, LiveTile } from './LiveArenaDirectory';
 import { LuTrophy, LuX, LuShieldCheck } from 'react-icons/lu';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -61,6 +61,19 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
     // Guests can view missions, but claiming pays onchain — walled.
     const { guard } = useGuestWall();
     const [arenaTab, setArenaTab] = useState<ArenaTab>('live');
+
+    // Live header stats, reported up by the live tab content.
+    const [liveStats, setLiveStats] = useState({ live: 0, watching: 0, vol: 0 });
+    const handleLiveStats = useCallback(
+        (live: number, watching: number, vol: number) => {
+            setLiveStats(prev =>
+                prev.live === live && prev.watching === watching && prev.vol === vol
+                    ? prev
+                    : { live, watching, vol }
+            );
+        },
+        []
+    );
 
     // ─── Missions state ───
     const [activeMissionTab, setActiveMissionTab] = useState<MissionTab>('daily');
@@ -193,12 +206,13 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                     <div className="w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
-                                {/* Header */}
+                                {/* Header — contextual: live stats on the live tab,
+                                    missions on the missions tab. No stacked dupes. */}
                                 <div className="px-5 pb-3 border-b border-white/10 relative z-10">
                                     <div className="flex items-center justify-between mb-1 mt-1">
                                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                            <TrophyTile />
-                                            Arena
+                                            {arenaTab === 'live' ? <LiveTile /> : <TrophyTile />}
+                                            {arenaTab === 'live' ? 'Live Arena' : 'Arena'}
                                         </h2>
                                     <button
                                         onClick={onClose}
@@ -209,9 +223,26 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                     </button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
-                                        <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
-                                            {dailyLeft + weeklyLeft} missions left
-                                        </span>
+                                        {arenaTab === 'live' ? (
+                                            <>
+                                                {liveStats.live > 0 && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
+                                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                                    {liveStats.live} live
+                                                </span>
+                                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
+                                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                                    {liveStats.watching.toLocaleString()} watching
+                                                </span>
+                                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
+                                                <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
+                                                    {liveStats.vol.toLocaleString()} vol
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
+                                                {dailyLeft + weeklyLeft} missions left
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -232,6 +263,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                         Live Broadcast card) */
                                     <LiveArenaContent
                                         onWatchMatch={onWatchMatch}
+                                        onStats={handleLiveStats}
                                     />
                                 ) : (
                                     /* Missions Content */
