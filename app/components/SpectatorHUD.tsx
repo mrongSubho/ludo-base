@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { FiX, FiMessageSquare, FiSend, FiTrendingUp, FiZap } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
@@ -88,6 +88,8 @@ export const SpectatorHUD = ({
     const [chatInput, setChatInput] = useState('');
     const [isBetting, setIsBetting] = useState(false);
     const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost' }[]>([]);
+    const profileRef = useRef(myProfile);
+    profileRef.current = myProfile;
     const [timeLeft, setTimeLeft] = useState(0);
     const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -139,13 +141,30 @@ export const SpectatorHUD = ({
                         setTimeout(() => {
                             setBetResults(prev => prev.filter(r => r.id !== resultId));
                         }, 4000);
+                        // Settlement feed: wins and losses land in chat as system lines.
+                        // (profileRef: myProfile identity churns on every coin
+                        // update, so the name is read via ref, not effect deps.)
+                        const name = profileRef.current?.username ?? address.slice(0, 6) + '…';
+                        const feed: ChatMessage = {
+                            id: crypto.randomUUID(),
+                            author: '',
+                            text: newBet.status === 'won'
+                                ? `${name} won ${(newBet.potential_payout ?? 0).toLocaleString()} on ${newBet.bet_value}`
+                                : `${name} missed on ${newBet.bet_value}`,
+                            createdAt: Date.now(),
+                            system: true,
+                        };
+                        setChatMessages(prev => [...prev.slice(-49), feed]);
+                        supabase.channel(`chat-${roomCode}`).send({
+                            type: 'broadcast', event: 'spectator-chat', payload: feed,
+                        });
                     }
                 }
             )
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [address, matchId]);
+    }, [address, matchId, roomCode]);
 
     const sendChat = useCallback(async () => {
         if (!chatInput.trim() || !address) return;

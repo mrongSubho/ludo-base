@@ -171,6 +171,40 @@ interface LiveArenaContentProps {
     onStats?: (live: number, watching: number, vol: number) => void;
 }
 
+// Sharpest today: top-3 predictors by daily settled profit. Quiet when empty.
+const PredictorsStrip = () => {
+    const [board, setBoard] = useState<{ rank: number; player_id: string; username: string; avatar_url: string | null; wins: number; profit: number }[]>([]);
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch('/api/predictors/board');
+                if (res.ok) setBoard((await res.json()).slice(0, 3));
+            } catch {
+                /* board is decorative */
+            }
+        })();
+    }, []);
+    if (board.length === 0) return null;
+    return (
+        <div className="px-5 pt-3 relative z-10">
+            <div className="flex items-center gap-2 rounded-2xl border border-pink-500/20 bg-pink-500/[0.06] px-3 py-2">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-pink-300 shrink-0">Sharpest</span>
+                <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
+                    {board.map(p => (
+                        <div key={p.player_id} className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[9px] font-black text-pink-300/70 tabular-nums">#{p.rank}</span>
+                            <span className="text-[10px] font-bold text-white/80 truncate max-w-[80px]">{p.username}</span>
+                            <span className={`text-[9px] font-black tabular-nums ${p.profit >= 0 ? 'text-emerald-400' : 'text-white/35'}`}>
+                                {p.profit >= 0 ? '+' : ''}{p.profit.toLocaleString()}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProps) => {
     const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
     const { address } = useAccount();
@@ -235,6 +269,7 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
         <div className="flex-1 min-h-0 flex flex-col relative z-10">
             {/* Inline in the Arena panel — the panel header owns title + stats,
                 so this renders just the match list. */}
+                                            <PredictorsStrip />
                                             {/* Match list */}
                                             <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10">
                                                 <AnimatePresence>

@@ -39,7 +39,7 @@ const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: 
 
 interface Mission {
     id: string;
-    type: 'play' | 'win' | 'streak' | 'social';
+    type: 'play' | 'win' | 'streak' | 'social' | 'predict';
     title: string;
     description: string;
     target: number;
@@ -164,9 +164,14 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                 bg: 'bg-orange-500/20'
             };
             case 'social': return {
-                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
                 color: 'text-cyan-400',
                 bg: 'bg-white/5'
+            };
+            case 'predict': return {
+                icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+                color: 'text-pink-400',
+                bg: 'bg-pink-500/20'
             };
         }
     };

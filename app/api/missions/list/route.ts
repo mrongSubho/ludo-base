@@ -6,7 +6,8 @@ const DAILY_MISSIONS = [
     { id: 'daily_play_3', type: 'play', title: 'Warm Up', description: 'Play 3 matches today.', target: 3, rewardType: 'coins', rewardAmount: 100 },
     { id: 'daily_win_1', type: 'win', title: 'Champion', description: 'Win at least one match today.', target: 1, rewardType: 'coins', rewardAmount: 100 },
     { id: 'daily_poke_back', type: 'social', title: 'Poke Back!', description: 'Poke back friends who poked you (Max 20/day).', target: 20, rewardType: 'coins', rewardAmount: 100 },
-    { id: 'daily_capture_2', type: 'play', title: 'Token Hunter', description: 'Capture 2 opponent tokens in any match.', target: 2, rewardType: 'coins', rewardAmount: 50 }
+    { id: 'daily_capture_2', type: 'play', title: 'Token Hunter', description: 'Capture 2 opponent tokens in any match.', target: 2, rewardType: 'coins', rewardAmount: 50 },
+    { id: 'daily_predict_1', type: 'predict', title: 'Sharp Eye', description: 'Win at least one spectator prediction today.', target: 1, rewardType: 'coins', rewardAmount: 100 }
 ];
 
 export async function GET(request: Request) {
