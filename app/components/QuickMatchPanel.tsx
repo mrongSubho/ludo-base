@@ -404,17 +404,17 @@ export const QuickMatchPanel = ({
                                 </div>
                             </div>
                             
-                            {/* Diagnostic Bar */}
-                            <div className="absolute -bottom-[2px] left-5 flex gap-3">
-                                <span className={`text-[6px] font-black uppercase tracking-tighter ${status === 'matched' ? 'text-green-400' : (isConnectingToEdge ? 'text-amber-400 animate-pulse' : 'text-cyan-400')}`}>
+                            {/* Diagnostic Bar — theme-proof chips (see globals.css) */}
+                            <div className="absolute -bottom-[2px] left-5 flex gap-1.5">
+                                <span className={`diag-chip ${status === 'matched' ? 'diag-status-ok' : (isConnectingToEdge ? 'diag-status-warn' : 'diag-status-info')}`}>
                                     {isConnectingToEdge ? 'WAKING SERVER...' : (matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK')} | {status}
                                 </span>
-                                <span className="text-[6px] font-black uppercase tracking-tighter text-white/20">
+                                <span className="diag-chip">
                                     ID: {normalizedAddress.slice(-4)}
                                 </span>
                                 {ticketId && (
-                                    <span className="text-[6px] font-black uppercase tracking-tighter text-white/10">
-                                        NET: {ticketId.slice(0, 8).toUpperCase()}
+                                    <span className="diag-chip">
+                                        Network ID {ticketId.slice(0, 8).toUpperCase()}
                                     </span>
                                 )}
                             </div>
