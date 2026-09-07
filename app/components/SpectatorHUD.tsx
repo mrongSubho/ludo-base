@@ -62,6 +62,7 @@ interface ChatMessage {
     author: string;
     text: string;
     createdAt: number;
+    system?: boolean;
 }
 
 interface SpectatorHUDProps {
@@ -200,6 +201,21 @@ export const SpectatorHUD = ({
                 alert("Failed to transmit bet to node.");
             } else {
                 setSelectedBetValue(betValue);
+                // Hype callout: every placed bet posts a system line so the
+                // room watches the money move in real time.
+                const name = myProfile?.username ?? address.slice(0, 6) + '…';
+                const odds = betType === 'dice_roll' ? 5.0 : 2.0;
+                const callout: ChatMessage = {
+                    id: crypto.randomUUID(),
+                    author: '',
+                    text: `${name} backed ${betValue} @ ${odds}× · ${betAmount.toLocaleString()}`,
+                    createdAt: Date.now(),
+                    system: true,
+                };
+                setChatMessages(prev => [...prev.slice(-49), callout]);
+                supabase.channel(`chat-${roomCode}`).send({
+                    type: 'broadcast', event: 'spectator-chat', payload: callout,
+                });
             }
         } catch (err) {
             updateMyProfileOptimistic({ coins: currentCoins });
@@ -409,7 +425,7 @@ export const SpectatorHUD = ({
                                 whileTap={{ scale: 0.95 }}
                                 disabled={isBetting || !!selectedBetValue}
                                 onClick={() => placeBet(String(val), 'dice_roll')}
-                                className="py-2 rounded-xl text-sm font-black border transition-all"
+                                className="py-2 min-h-[44px] rounded-xl text-sm font-black border transition-all flex flex-col items-center justify-center leading-none gap-0.5"
                                 style={{
                                     background: selectedBetValue === String(val) ? '#ec4899' : 'rgba(255,255,255,0.05)',
                                     borderColor: selectedBetValue === String(val) ? '#ec4899' : 'rgba(255,255,255,0.08)',
@@ -418,6 +434,7 @@ export const SpectatorHUD = ({
                                 }}
                             >
                                 {val}
+                                <span className="text-[8px] font-bold opacity-60">5×</span>
                             </motion.button>
                         ))}
                     </div>
@@ -433,7 +450,7 @@ export const SpectatorHUD = ({
                                 whileTap={{ scale: 0.98 }}
                                 disabled={isBetting || !!selectedBetValue}
                                 onClick={() => placeBet(color, 'winner')}
-                                className="py-2 rounded-xl text-xs font-black border transition-all capitalize"
+                                className="py-2 min-h-[44px] rounded-xl text-xs font-black border transition-all capitalize"
                                 style={{
                                     background: selectedBetValue === color
                                         ? COLOR_STYLES[color]?.bg ?? '#fff'
@@ -455,7 +472,7 @@ export const SpectatorHUD = ({
                             <button
                                 key={p}
                                 onClick={() => setBetAmount(p)}
-                                className="flex-1 py-1 rounded-lg text-[9px] font-black uppercase border transition-all"
+                                className="flex-1 py-1 min-h-[44px] rounded-lg text-[9px] font-black uppercase border transition-all"
                                 style={{
                                     background: betAmount === p ? '#ec489920' : 'rgba(255,255,255,0.03)',
                                     borderColor: betAmount === p ? '#ec4899' : 'rgba(255,255,255,0.06)',
@@ -497,6 +514,16 @@ export const SpectatorHUD = ({
                 <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 no-scrollbar">
                     <AnimatePresence initial={false}>
                         {chatMessages.map(msg => (
+                            msg.system ? (
+                                <motion.div
+                                    key={msg.id}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="text-center text-[10px] font-black uppercase tracking-widest text-pink-300/90 py-1"
+                                >
+                                    {msg.text}
+                                </motion.div>
+                            ) : (
                             <motion.div
                                 key={msg.id}
                                 initial={{ opacity: 0, x: -8, filter: 'blur(4px)' }}
@@ -508,6 +535,7 @@ export const SpectatorHUD = ({
                                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-0.5">{msg.author}</span>
                                 <span className="text-[11px] font-medium text-white/90 leading-tight drop-shadow-sm">{msg.text}</span>
                             </motion.div>
+                            )
                         ))}
                     </AnimatePresence>
                     {chatMessages.length === 0 && (
