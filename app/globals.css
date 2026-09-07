@@ -239,10 +239,6 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 
 /* ─── QuickMatch diagnostic chips: readable in both themes ─────────────── */
 .ludo-quick-scope .diag-chip {
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 2px 6px;
   font-size: 6px;
   font-weight: 900;
   text-transform: uppercase;
@@ -254,8 +250,6 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 .ludo-quick-scope .diag-status-warn { color: #fbbf24; animation: pulse 1s infinite; }
 .ludo-quick-scope .diag-status-ok { color: #4ade80; }
 body.theme-daybreak .ludo-quick-scope .diag-chip {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(23, 23, 23, 0.14);
   color: rgba(23, 23, 23, 0.62);
 }
 body.theme-daybreak .ludo-quick-scope .diag-status-info { color: #0e7490; }
