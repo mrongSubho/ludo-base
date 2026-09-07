@@ -8,6 +8,7 @@ import { ActiveBettingWindow } from '@/hooks/useSpectatorSync';
 import { BetType, SpectatorBet } from '@/lib/types';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
+import { getFollowed } from '@/lib/follow';
 
 // ─────────────────────────────────────────────────────────────
 // SpectatorHUD — Overlay for live match spectators
@@ -88,6 +89,9 @@ export const SpectatorHUD = ({
     const [chatInput, setChatInput] = useState('');
     const [isBetting, setIsBetting] = useState(false);
     const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost' }[]>([]);
+    const [myBet, setMyBet] = useState<{ id: string; odds: number; amount: number } | null>(null);
+    const [isCashingOut, setIsCashingOut] = useState(false);
+    const [followedBets, setFollowedBets] = useState<(SpectatorBet & { id: string })[]>([]);
     const profileRef = useRef(myProfile);
     profileRef.current = myProfile;
     const [timeLeft, setTimeLeft] = useState(0);
@@ -208,10 +212,10 @@ export const SpectatorHUD = ({
                 window_closed_at: new Date(activeBetWindow.expiresAt).toISOString(),
             };
 
-            const { error } = await supabase.from('spectator_bets').insert({
+            const { data: placed, error } = await supabase.from('spectator_bets').insert({
                 ...bet,
                 player_id: address.toLowerCase(),
-            });
+            }).select('id').single();
 
             if (error) {
                 console.error("Bet error:", error);
@@ -220,6 +224,7 @@ export const SpectatorHUD = ({
                 alert("Failed to transmit bet to node.");
             } else {
                 setSelectedBetValue(betValue);
+                if (placed?.id) setMyBet({ id: placed.id, odds: betType === 'dice_roll' ? 5.0 : 2.0, amount: betAmount });
                 // Hype callout: every placed bet posts a system line so the
                 // room watches the money move in real time.
                 const name = myProfile?.username ?? address.slice(0, 6) + '…';
@@ -242,6 +247,79 @@ export const SpectatorHUD = ({
             setIsBetting(false);
         }
     }, [address, activeBetWindow, betAmount, matchId, isBetting, myProfile, updateMyProfileOptimistic]);
+
+    // A new window voids any previous cash-out state.
+    useEffect(() => {
+        setMyBet(null);
+    }, [activeBetWindow?.expiresAt]);
+
+    // ── Cash out: 50% of potential payout while the window is still open ──
+    const handleCashOut = useCallback(async () => {
+        if (!address || !myBet || !windowOpen || isCashingOut) return;
+        setIsCashingOut(true);
+        try {
+            const { data, error } = await supabase.rpc('cash_out_bet', {
+                p_bet_id: myBet.id,
+                p_player_id: address.toLowerCase(),
+            });
+            if (error) throw error;
+            const credited = Array.isArray(data) ? data[0]?.credited ?? 0 : (data as any)?.credited ?? 0;
+            updateMyProfileOptimistic({ coins: (myProfile?.coins ?? 0) + Number(credited) });
+            const name = profileRef.current?.username ?? address.slice(0, 6) + '…';
+            const feed: ChatMessage = {
+                id: crypto.randomUUID(),
+                author: '',
+                text: `${name} cashed out +${Number(credited).toLocaleString()}`,
+                createdAt: Date.now(),
+                system: true,
+            };
+            setChatMessages(prev => [...prev.slice(-49), feed]);
+            supabase.channel(`chat-${roomCode}`).send({
+                type: 'broadcast', event: 'spectator-chat', payload: feed,
+            });
+            setMyBet(null);
+            setSelectedBetValue(null);
+        } catch (err) {
+            /* window locked or bet gone — leave state untouched */
+        } finally {
+            setIsCashingOut(false);
+        }
+    }, [address, myBet, windowOpen, isCashingOut, myProfile, roomCode, updateMyProfileOptimistic]);
+
+    // ── Following: followed predictors' open picks in this match ──────────
+    useEffect(() => {
+        if (!address) return;
+        const ids = getFollowed(address);
+        if (ids.length === 0) {
+            setFollowedBets([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            const { data } = await supabase
+                .from('spectator_bets')
+                .select('id, player_id, bet_type, bet_value, amount')
+                .eq('match_id', matchId)
+                .eq('status', 'pending')
+                .in('player_id', ids)
+                .order('created_at', { ascending: false })
+                .limit(10);
+            if (!cancelled && data) setFollowedBets(data as (SpectatorBet & { id: string })[]);
+        })();
+        const channel = supabase
+            .channel(`follow-bets-${matchId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spectator_bets', filter: `match_id=eq.${matchId}` }, (payload) => {
+                const row = payload.new as SpectatorBet & { id: string };
+                if (row.status === 'pending' && ids.includes((row.player_id || '').toLowerCase())) {
+                    setFollowedBets(prev => [row, ...prev.filter(b => b.player_id.toLowerCase() !== row.player_id.toLowerCase())].slice(0, 10));
+                }
+            })
+            .subscribe();
+        return () => {
+            cancelled = true;
+            supabase.removeChannel(channel);
+        };
+    }, [address, matchId]);
 
     const windowOpen = !!activeBetWindow && !activeBetWindow.windowClosedAt;
     const progressPct = activeBetWindow?.expiresAt
@@ -504,6 +582,17 @@ export const SpectatorHUD = ({
                     </div>
                 )}
 
+                {/* Cash out: half the potential payout, only while open */}
+                {windowOpen && myBet && (
+                    <button
+                        onClick={handleCashOut}
+                        disabled={isCashingOut}
+                        className="w-full py-2 min-h-[44px] rounded-xl text-[11px] font-black uppercase tracking-[0.15em] bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 active:scale-95 transition-all disabled:opacity-60"
+                    >
+                        {isCashingOut ? 'Cashing out…' : `Cash out +${Math.floor(myBet.amount * myBet.odds * 0.5).toLocaleString()}`}
+                    </button>
+                )}
+
                 {!windowOpen && (
                     <div className="flex flex-col items-center justify-center py-2 relative z-10">
                         <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent mb-2" />
@@ -514,6 +603,29 @@ export const SpectatorHUD = ({
                     </div>
                 )}
             </div>
+
+            {/* ── Following: one-tap mirror of followed predictors' open picks ── */}
+            {followedBets.length > 0 && (
+                <div className="px-4 py-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.04] flex flex-col gap-2">
+                    <span className="text-[9px] font-black text-yellow-300/80 uppercase tracking-[0.2em]">
+                        Following · tap to mirror
+                    </span>
+                    {followedBets.slice(0, 3).map(b => (
+                        <div key={b.id} className="flex items-center gap-2">
+                            <span className="flex-1 min-w-0 text-[10px] font-bold text-white/70 truncate">
+                                {b.bet_value} @ {b.bet_type === 'dice_roll' ? '5×' : '2×'}
+                            </span>
+                            <button
+                                onClick={() => placeBet(b.bet_value, b.bet_type as BetType)}
+                                disabled={isBetting || !!selectedBetValue || !windowOpen}
+                                className="shrink-0 px-3 min-h-[36px] rounded-lg text-[9px] font-black uppercase tracking-widest bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
+                            >
+                                Mirror
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* ── Global Network Chat ────────────────────────── */}
             <div

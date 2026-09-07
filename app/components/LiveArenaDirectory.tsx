@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiTv, FiEye, FiDollarSign } from 'react-icons/fi';
+import { FiTv, FiEye, FiDollarSign, FiStar } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
+import { getFollowed, toggleFollow } from '@/lib/follow';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import { useAccount } from 'wagmi';
 
@@ -172,8 +173,12 @@ interface LiveArenaContentProps {
 }
 
 // Sharpest today: top-3 predictors by daily settled profit. Quiet when empty.
+// Tap the star to follow — their open picks become one-tap mirrors while
+// you spectate.
 const PredictorsStrip = () => {
     const [board, setBoard] = useState<{ rank: number; player_id: string; username: string; avatar_url: string | null; wins: number; profit: number }[]>([]);
+    const { address } = useAccount();
+    const [followed, setFollowed] = useState<string[]>([]);
     useEffect(() => {
         (async () => {
             try {
@@ -183,7 +188,8 @@ const PredictorsStrip = () => {
                 /* board is decorative */
             }
         })();
-    }, []);
+        setFollowed(getFollowed(address));
+    }, [address]);
     if (board.length === 0) return null;
     return (
         <div className="px-5 pt-3 relative z-10">
@@ -197,6 +203,15 @@ const PredictorsStrip = () => {
                             <span className={`text-[9px] font-black tabular-nums ${p.profit >= 0 ? 'text-emerald-400' : 'text-white/35'}`}>
                                 {p.profit >= 0 ? '+' : ''}{p.profit.toLocaleString()}
                             </span>
+                            {address && (
+                                <button
+                                    onClick={() => setFollowed(toggleFollow(address, p.player_id))}
+                                    aria-label={followed.includes(p.player_id.toLowerCase()) ? `Unfollow ${p.username}` : `Follow ${p.username}`}
+                                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-all"
+                                >
+                                    <FiStar className={`w-3 h-3 ${followed.includes(p.player_id.toLowerCase()) ? 'text-yellow-400 fill-yellow-400' : 'text-white/30'}`} />
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
