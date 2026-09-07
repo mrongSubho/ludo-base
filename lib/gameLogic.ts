@@ -41,6 +41,7 @@ export const INITIAL_GAME_STATE: GameState = {
     participantPeers: {},
     isStarted: false,
     isBotMatch: false,
+    botDifficulty: 'pro',
     lastUpdate: Date.now(),
     playerCount: '4P',
 };

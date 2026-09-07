@@ -3,10 +3,12 @@ import { PlayerColor, PowerType } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
 import { Point, ColorCorner } from '@/lib/boardLayout';
-import { 
-    BOT_ROLL_DELAY_MIN, 
-    BOT_ROLL_DELAY_MAX, 
-    BOT_MOVE_DELAY 
+import {
+    BOT_ROLL_DELAY_MIN,
+    BOT_ROLL_DELAY_MAX,
+    BOT_MOVE_DELAY,
+    DIFFICULTY_PARAMS,
+    BotDifficulty
 } from '@/lib/constants';
 
 interface UseAIBrainProps {
@@ -86,9 +88,12 @@ export function useAIBrain({
 
         console.log('🤖 [AIBrain] Evaluation turn:', actionKey);
 
+        const difficulty: BotDifficulty = (localGameState.botDifficulty as BotDifficulty) || 'pro';
+        const clock = DIFFICULTY_PARAMS[difficulty];
+
         if (phase === 'rolling' && !isRolling && diceValue === null) {
-            const minDelay = BOT_ROLL_DELAY_MIN;
-            const maxDelay = BOT_ROLL_DELAY_MAX;
+            const minDelay = clock.rollDelay[0] ?? BOT_ROLL_DELAY_MIN;
+            const maxDelay = clock.rollDelay[1] ?? BOT_ROLL_DELAY_MAX;
             const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
             lastActionRef.current = actionKey;
 
@@ -96,7 +101,7 @@ export function useAIBrain({
             // Timer survives effect re-runs. Function ref is always fresh.
             rollTimerRef.current = setTimeout(() => {
                 rollTimerRef.current = null;
-                const shouldUsePower = getBestPowerUsage(localGameState, color, colorCorner, playerCount);
+                const shouldUsePower = getBestPowerUsage(localGameState, color, colorCorner, playerCount, difficulty);
                 if (shouldUsePower) {
                     handleUsePowerRef.current(color);
                 } else {
@@ -118,7 +123,8 @@ export function useAIBrain({
                     colorCorner,
                     playerCount,
                     localGameState.powerTiles,
-                    localGameState
+                    localGameState,
+                    difficulty
                 );
                 
                 if (bestMove !== null) {
@@ -129,7 +135,7 @@ export function useAIBrain({
                     // so the next effect run can try again or let the engine handle it.
                     lastActionRef.current = '';
                 }
-            }, BOT_MOVE_DELAY);
+            }, clock.moveDelay ?? BOT_MOVE_DELAY);
         }
 
         // 🔧 FIX 1: NO cleanup return. Timers are managed via refs and only

@@ -21,7 +21,7 @@ interface GameLobbyProps {
     setMatchType: (type: '1v1' | '2v2' | '4P') => void;
     wager: number;
     setWager: (wager: number) => void;
-    onStartGame: (isBotMatch?: boolean) => void;
+    onStartGame: (isBotMatch?: boolean, difficulty?: import('@/lib/types').BotDifficulty) => void;
     onOpenProfile?: (address: string) => void;
 }
 
@@ -263,9 +263,9 @@ export default function GameLobby({
                     gameMode={gameMode}
                     matchType={matchType}
                     onClose={() => setShowOfflineOptions(false)}
-                    onStartOfflineGame={() => {
+                    onStartOfflineGame={(difficulty) => {
                         setShowOfflineOptions(false);
-                        onStartGame(true);
+                        onStartGame(true, difficulty);
                     }}
                 />
             )}

@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import type { BotDifficulty } from '@/lib/types';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this sheet always renders on the shared
@@ -33,8 +34,14 @@ interface OfflineMatchPanelProps {
     gameMode: 'classic' | 'power';
     matchType: '1v1' | '2v2' | '4P';
     onClose: () => void;
-    onStartOfflineGame: () => void;
+    onStartOfflineGame: (difficulty: BotDifficulty) => void;
 }
+
+const DIFFICULTY_BLURB: Record<BotDifficulty, string> = {
+    rookie: 'Relaxed · learns with you',
+    pro: 'Sharp · the classic duel',
+    master: 'Ruthless · hunts captures',
+};
 
 export const OfflineMatchPanel = ({
     gameMode,
@@ -42,6 +49,7 @@ export const OfflineMatchPanel = ({
     onClose,
     onStartOfflineGame
 }: OfflineMatchPanelProps) => {
+    const [difficulty, setDifficulty] = useState<BotDifficulty>('pro');
     const aiCount = (matchType === '1v1' ? 2 : 4) - 1;
     return (
         <>
@@ -102,6 +110,23 @@ export const OfflineMatchPanel = ({
                                 <span>Opponents</span>
                                 <span className="text-cyan-400">{aiCount} × AI • Free</span>
                             </div>
+                            <div className="flex gap-1.5">
+                                {(['rookie', 'pro', 'master'] as const).map(d => (
+                                    <button
+                                        key={d}
+                                        onClick={() => setDifficulty(d)}
+                                        aria-pressed={difficulty === d}
+                                        className={`flex-1 py-2 min-h-[44px] rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] transition-all active:scale-95 ${difficulty === d
+                                            ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
+                                            : 'border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70'}`}
+                                    >
+                                        {d}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] font-bold text-white/35 text-center tracking-wide">
+                                {DIFFICULTY_BLURB[difficulty]}
+                            </p>
                         </div>
 
                         <div className="flex flex-col gap-4 text-center px-4 py-10">
@@ -114,8 +139,8 @@ export const OfflineMatchPanel = ({
                     {/* Footer Action */}
                     <div className="px-5 pt-3 pb-5 border-t border-white/10 relative z-10">
                         <button
-                            onClick={onStartOfflineGame}
-                            className="w-full py-3 bg-white text-black font-black uppercase tracking-[0.2em] rounded-2xl text-sm shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all active:scale-95"
+                            onClick={() => onStartOfflineGame(difficulty)}
+                            className="w-full py-3 min-h-[44px] bg-white text-black font-black uppercase tracking-[0.2em] rounded-2xl text-sm shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all active:scale-95"
                         >
                             Start Offline Match
                         </button>

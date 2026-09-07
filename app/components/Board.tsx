@@ -38,6 +38,7 @@ export default function Board({
     spectatorMode = false,
     externalGameState,
     wager = 0,
+    botDifficulty = 'pro',
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -50,6 +51,7 @@ export default function Board({
     spectatorMode?: boolean;
     externalGameState?: import('@/lib/types').GameState;
     wager?: number;
+    botDifficulty?: import('@/lib/types').BotDifficulty;
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
@@ -90,6 +92,7 @@ export default function Board({
         playerCount,
         gameMode,
         isBotMatch,
+        botDifficulty,
         colorCorner,
         pathCells,
         setBoardConfig,

@@ -155,6 +155,7 @@ export default function Page() {
   const [playerCount, setPlayerCount] = useState<'1v1' | '2v2' | '4P'>('1v1');
   const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);
+  const [botDifficulty, setBotDifficulty] = useState<import('@/lib/types').BotDifficulty>('pro');
   const [boardSeed, setBoardSeed] = useState<{ players: Player[]; colorCorner: any; isBotMatch: boolean } | null>(null);
 
   const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
@@ -407,8 +408,9 @@ export default function Page() {
     setAppState('dashboard');
   };
 
-  const onStartGame = useCallback((isBot?: boolean) => {
+  const onStartGame = useCallback((isBot?: boolean, difficulty: import('@/lib/types').BotDifficulty = 'pro') => {
     setIsBotMatch(!!isBot);
+    setBotDifficulty(difficulty);
     handlePlayNow(!!isBot);
   }, [handlePlayNow]);
 
@@ -641,6 +643,7 @@ export default function Page() {
                     initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
                     initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
                     wager={betAmount}
+                    botDifficulty={botDifficulty}
                   />
                 )}
               </main>

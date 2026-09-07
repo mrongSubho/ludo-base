@@ -40,5 +40,29 @@ export const AI_SCORES = {
 export const BOT_ROLL_DELAY_MIN = 150;
 export const BOT_ROLL_DELAY_MAX = 1900;
 export const BOT_MOVE_DELAY = 900;
+
+// --- AI Difficulty Tiers (see ENGINE_LOGIC.md §5.2) ---
+// Rookie plays noisy and ignores power play, pro is the baseline brain,
+// master plays clean with sharper capture/power weights and fast clocks.
+export type BotDifficulty = 'rookie' | 'pro' | 'master';
+
+export const DIFFICULTY_PARAMS: Record<BotDifficulty, {
+    /** uniform score noise as a fraction of the raw score */
+    noise: number;
+    /** multiplier on power-tile attraction (0 = ignores power tiles) */
+    powerHunt: number;
+    /** multiplier on capture weight */
+    capture: number;
+    /** use powers at all (rookie sits on them) */
+    usesPowers: boolean;
+    /** roll delay window [min, max] ms */
+    rollDelay: [number, number];
+    /** move delay ms */
+    moveDelay: number;
+}> = {
+    rookie:  { noise: 0.4, powerHunt: 0,   capture: 0.7, usesPowers: false, rollDelay: [600, 2200],  moveDelay: 1400 },
+    pro:     { noise: 0,   powerHunt: 1,   capture: 1,   usesPowers: true,  rollDelay: [150, 1900],  moveDelay: 900 },
+    master:  { noise: 0,   powerHunt: 1.3, capture: 1.5, usesPowers: true,  rollDelay: [150, 700],   moveDelay: 500 },
+};
 export const GUEST_SYNC_DELAY = 800; // ms to wait for host init
 export const JOINER_SYNC_DELAY = 1500; // ms wait for Host PeerJS ID

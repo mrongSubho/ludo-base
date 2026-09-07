@@ -1,23 +1,21 @@
 import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor } from './gameLogic';
 import { Point, ColorCorner, getBoardCoordinate, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
-import { 
-    BOARD_FINISH_INDEX, 
-    HOME_LANE_START_INDEX, 
-    BASE_INDEX, 
+import {
+    BOARD_FINISH_INDEX,
+    HOME_LANE_START_INDEX,
+    BASE_INDEX,
     AI_SCORES,
-    DICE_MAX
+    DICE_MAX,
+    BotDifficulty,
+    DIFFICULTY_PARAMS
 } from './constants';
 
 /**
  * AI Heuristics Engine
  * Evaluates the best possible move for a bot player based on a priority scoring system.
- * 
- * @param state The current GameState containing positions
- * @param playerId The color of the AI making the move
- * @param roll The current dice roll
- * @param playerPaths The mathematically generated paths for all players
- * @returns The index of the optimal token to move, or null if no valid moves exist
+ *
+ * Difficulty tiers live in constants.ts (see ENGINE_LOGIC.md §5.2).
  */
 export function getBestMove(
     positions: Record<PlayerColor, number[]>,
@@ -26,7 +24,8 @@ export function getBestMove(
     colorCorner: ColorCorner,
     playerCount: string = '4P',
     powerTiles: { r: number, c: number }[] = [],
-    state?: GameState
+    state?: GameState,
+    difficulty: BotDifficulty = 'pro'
 ): number | null {
     const teammate = getTeammateColor(playerId, playerCount as any);
     const selfFinished = positions[playerId].every(p => p === BOARD_FINISH_INDEX);
@@ -58,7 +57,8 @@ export function getBestMove(
             colorCorner,
             playerCount,
             powerTiles,
-            state
+            state,
+            difficulty
         );
 
         if (score > maxScore) {
@@ -78,7 +78,8 @@ export function calculateMoveScore(
     colorCorner: ColorCorner,
     playerCount: string,
     powerTiles: { r: number, c: number }[],
-    state?: GameState
+    state?: GameState,
+    difficulty: BotDifficulty = 'pro'
 ): number {
     const currentPos = positions[actingColor][tokenIdx];
     const nextPos = currentPos === BASE_INDEX ? 0 : currentPos + roll;
@@ -99,12 +100,12 @@ export function calculateMoveScore(
         score += AI_SCORES.EXIT_BASE;
     }
 
-    // Power Tile Hunting (+120)
+    // Power Tile Hunting (+120 × difficulty weight; rookie ignores)
     const targetPoint = getBoardCoordinate(nextPos, actingColor, colorCorner);
     if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
         const isOnPowerTile = powerTiles.some(pt => pt.r === targetPoint.r && pt.c === targetPoint.c);
         if (isOnPowerTile) {
-            score += AI_SCORES.POWER_TILE_HUNT;
+            score += AI_SCORES.POWER_TILE_HUNT * DIFFICULTY_PARAMS[difficulty].powerHunt;
         }
     }
 
@@ -132,14 +133,20 @@ export function calculateMoveScore(
             score += 30; // Truce state - relatively safe
         }
 
-        // Check for Captures (+100 per token)
+        // Check for Captures (+100 per token × difficulty weight)
         const dummyState = state || { positions, activeShields: [], activeTraps: [] } as any;
         const captures = checkMultiCapture(actingColor, nextPos, dummyState, colorCorner, playerCount);
-        score += captures.length * AI_SCORES.CAPTURE_TOKEN;
+        score += captures.length * AI_SCORES.CAPTURE_TOKEN * DIFFICULTY_PARAMS[difficulty].capture;
     }
 
     // Distance to finish (Higher is better, small incremental points)
     score += nextPos * AI_SCORES.PROGRESSION_MULTIPLIER;
+
+    // Rookie noise: misjudges positions by up to ±40%.
+    const noise = DIFFICULTY_PARAMS[difficulty].noise;
+    if (noise > 0 && score !== 0) {
+        score *= 1 + (Math.random() * 2 - 1) * noise;
+    }
 
     return score;
 }
@@ -148,8 +155,11 @@ export function getBestPowerUsage(
     state: GameState,
     color: PlayerColor,
     colorCorner: ColorCorner,
-    playerCount: string
+    playerCount: string,
+    difficulty: BotDifficulty = 'pro'
 ): boolean {
+    // Rookie sits on powers, never spending them.
+    if (!DIFFICULTY_PARAMS[difficulty].usesPowers) return false;
     const power = state.playerPowers[color];
     if (!power) return false;
 

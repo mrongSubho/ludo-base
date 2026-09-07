@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
-import { PlayerColor, PowerType } from '@/lib/types';
+import { PlayerColor, PowerType, BotDifficulty } from '@/lib/types';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
@@ -40,6 +40,7 @@ interface UseGameEngineProps {
     playerCount: '1v1' | '4P' | '2v2';
     gameMode: 'classic' | 'power' | 'snakes';
     isBotMatch: boolean;
+    botDifficulty?: BotDifficulty;
     colorCorner: ColorCorner;
     pathCells: PathCell[];
     setBoardConfig: React.Dispatch<React.SetStateAction<{
@@ -54,6 +55,7 @@ export function useGameEngine({
     playerCount,
     gameMode,
     isBotMatch,
+    botDifficulty = 'pro',
     colorCorner,
     pathCells,
     setBoardConfig,
@@ -90,6 +92,7 @@ export function useGameEngine({
 
     const [localGameState, setLocalGameState] = useState({
         ...INITIAL_GAME_STATE,
+        botDifficulty,
         currentPlayer: initialPlayers[0]?.color as PlayerColor || 'green',
         powerTiles: (gameMode === 'power' ? pathCells
             .filter(c => c.cls === 'board-cell')
@@ -337,6 +340,7 @@ export function useGameEngine({
         });
         setLocalGameState({
             ...INITIAL_GAME_STATE,
+            botDifficulty,
             currentPlayer: newPlayers[0].color,
             powerTiles: (gameMode === 'power' ? pathCells
                 .filter(c => c.cls === 'board-cell')
@@ -346,7 +350,7 @@ export function useGameEngine({
             isStarted: true,
             lastUpdate: Date.now()
         });
-    }, [playerCount, gameMode, pathCells, isBotMatch, setBoardConfig, initialPlayers]);
+    }, [playerCount, gameMode, pathCells, isBotMatch, botDifficulty, setBoardConfig, initialPlayers]);
 
     useEffect(() => {
         if (localGameState.winner) return;

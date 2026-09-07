@@ -1,5 +1,7 @@
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
+import type { BotDifficulty } from './constants';
+export type { BotDifficulty };
 
 export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'CMD_REQUEST_TRUST';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
@@ -57,6 +59,7 @@ export interface GameState {
     participantPeers: Record<string, string>; // walletAddress -> peerId
     isStarted: boolean;
     isBotMatch: boolean;
+    botDifficulty: BotDifficulty;
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';
     matchId?: string;

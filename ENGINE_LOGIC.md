@@ -101,6 +101,10 @@ Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
 6.  **Exit Base (+40):** Bringing tokens out of the base.
 7.  **Enter Home Lane (+25):** Prioritizing entries to the protected home stretch.
 8.  **Progression (+1x):** Small reward for each step moved towards the finish.
+- **Difficulty tiers (`DIFFICULTY_PARAMS` in `lib/constants.ts`, stored per match as `GameState.botDifficulty`, default `pro` = legacy behavior):**
+    - **Rookie:** ±40% score noise, ignores power tiles (`powerHunt 0`, never spends powers), capture ×0.7, slow clocks (roll 600–2200ms, move 1400ms).
+    - **Pro:** clean baseline weights, standard clocks (roll 150–1900ms, move 900ms).
+    - **Master:** no noise, power ×1.3, capture ×1.5, fast clocks (roll 150–700ms, move 500ms).
 - **Timing:** `lib/constants.ts` — `BOT_ROLL_DELAY_MIN 150ms`, `BOT_ROLL_DELAY_MAX 1900ms` (randomized within 2s), `BOT_MOVE_DELAY 900ms`. Combined with dice tumble 1.2s + move anim 1.3s, a full bot turn is ~4–6s (was ~7–11s).
 
 ### 5.3 Authority Logic (`isAuthority`)
