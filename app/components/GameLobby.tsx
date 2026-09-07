@@ -112,7 +112,7 @@ export default function GameLobby({
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
                     key="setup"
-                    className="w-full max-w-[420px] mx-auto flex flex-col gap-3 h-full"
+                    className="w-full max-w-[420px] mx-auto flex flex-col gap-3 h-full setup-tier"
                 >
                     {/* 1. SELECTION GROUP */}
                     <div className="w-full space-y-3 flex flex-col">
@@ -185,11 +185,11 @@ export default function GameLobby({
                     </div>
 
                     {/* 2. ENTRY FEE PANEL */}
-                    <div className="p-2 pb-2 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                        <div className="inline-block px-5 py-1 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-1.5">
+                    <div className="fee-tier p-1.5 pb-2 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                        <div className="inline-block px-5 py-0.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-1">
                             <span className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                         </div>
-                        <div className="flex items-center justify-between w-full px-2 mb-1.5">
+                        <div className="flex items-center justify-between w-full px-2 mb-1">
                             <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
                                 <LuMinus className="w-5 h-5 stroke-[3px]" />
                             </button>

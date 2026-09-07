@@ -499,7 +499,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
         <>
             <div className="ludo-ticker-scope w-full flex justify-center pointer-events-none">
                 <div
-                    className="pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
+                    className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
                     onClick={() => setIsOpen(true)}
                     role="button"
                     aria-label="Open live broadcast"
