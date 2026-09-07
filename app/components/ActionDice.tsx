@@ -224,17 +224,24 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
             </div>
 
-            <motion.div
-                animate={{ x: [-5, 5, -5] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute left-6 md:left-24 top-1/2 -translate-y-1/2 mt-2 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
-                onClick={() => stepMode(-1, 'y')}
-            >
-                <ChevronLeft />
-            </motion.div>
-
             <div className="relative w-28 h-28 mt-5 mb-3 cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center [@media(max-height:760px)]:w-24 [@media(max-height:760px)]:h-24 [@media(max-height:760px)]:mt-3 [@media(max-height:760px)]:mb-2 [@media(max-height:760px)]:[--tz:48px]">
-                
+                <motion.div
+                    animate={{ x: [-5, 5, -5] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                    className="absolute top-1/2 -translate-y-1/2 -left-12 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                    onClick={() => stepMode(-1, 'y')}
+                >
+                    <ChevronLeft />
+                </motion.div>
+                <motion.div
+                    animate={{ x: [5, -5, 5] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                    className="absolute top-1/2 -translate-y-1/2 -right-12 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                    onClick={() => stepMode(1, 'y')}
+                >
+                    <ChevronRight />
+                </motion.div>
+
                 {/* Victory Landing Aura */}
                 <motion.div 
                     className={`absolute w-28 h-28 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300 ${faces[activeIndex]?.dotColor || 'bg-cyan-400'}`}
@@ -286,14 +293,6 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 )}
             </div>
 
-            <motion.div
-                animate={{ x: [5, -5, 5] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute right-6 md:right-24 top-1/2 -translate-y-1/2 mt-2 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
-                onClick={() => stepMode(1, 'y')}
-            >
-                <ChevronRight />
-            </motion.div>
         </div>
     );
 };

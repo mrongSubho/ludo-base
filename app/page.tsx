@@ -438,7 +438,7 @@ export default function Page() {
         <div className="app-shell dashboard-shell no-scrollbar">
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
-            <div className="dashboard-container relative">
+            <div className="dashboard-container relative h-full">
               {/* Cosmic Orbs (Rendered behind content) */}
 
 
@@ -455,7 +455,7 @@ export default function Page() {
                     onSettingsClick={() => toggle('settings')}
                 />
 
-              <main className="dash-main pb-safe-footer px-safe">
+              <main className="dash-main pb-safe-footer px-safe h-full">
 
                 <GameLobby
                   gameMode={selectedMode as any}
