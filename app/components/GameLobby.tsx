@@ -8,8 +8,7 @@ import { OfflineMatchPanel } from './OfflineMatchPanel';
 import { QuickMatchPanel } from './QuickMatchPanel';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { LiveArenaDirectory } from './LiveArenaDirectory';
-import { ActivityFeed } from './ActivityFeed';
-import { LuMinus, LuPlus, LuTrophy, LuTimer, LuUsers } from 'react-icons/lu';
+import { LuMinus, LuPlus } from 'react-icons/lu';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useGuestWall } from '@/hooks/GuestWallContext';
@@ -61,54 +60,6 @@ export default function GameLobby({
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P' } | null>(null);
     const [searchId, setSearchId] = useState(0);
-    const [tournaments, setTournaments] = useState<any[]>([]);
-
-    // Fetch Upcoming Tournaments
-    useEffect(() => {
-        const fetchTournaments = async () => {
-            const { data } = await (supabase.from('tournaments') as any)
-                .select('*')
-                .eq('status', 'upcoming')
-                .order('start_at', { ascending: true })
-                .limit(3);
-            if (data) setTournaments(data);
-        };
-        fetchTournaments();
-
-        const channel = (supabase.channel('tournaments_sync') as any)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => fetchTournaments())
-            .subscribe();
-        
-        return () => { supabase.removeChannel(channel); };
-    }, []);
-
-    const handleJoinTournament = useCallback(async (tournamentId: string, entryFee: number) => {
-        if (!address) return;
-        
-        const { data, error } = await (supabase.rpc as any)('join_tournament', {
-            p_tournament_id: tournamentId,
-            p_player_id: address
-        });
-
-        if (error) {
-            console.error('Failed to join tournament:', error);
-            alert('Failed to join: ' + error.message);
-            return;
-        }
-
-        const res = data as any;
-        if (res.success) {
-            alert('Enrolled Successfully!');
-            // Log activity
-            (supabase.from('activities') as any).insert({
-                actor_id: address,
-                type: 'join_tournament',
-                metadata: { tournament_id: tournamentId }
-            }).then();
-        } else {
-            alert(res.error || 'Failed to join tournament');
-        }
-    }, [address]);
 
     // Handle Joining from Live Feed
     useEffect(() => {
@@ -182,7 +133,7 @@ export default function GameLobby({
                                             playSelect();
                                             setGameMode(mode);
                                         }}
-                                        className={`relative w-[150px] py-1.5 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
+                                        className={`relative w-[140px] py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
                                             ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
                                             : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
                                             }`}
@@ -193,9 +144,9 @@ export default function GameLobby({
                                             </span>
                                         )}
                                         <div className="relative z-10 text-center">
-                                            <span className={`block text-xl font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
-                                            <div className={`mt-1 inline-block px-2 py-0.5 rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                <span className={`text-[9px] font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
+                                            <span className={`block text-lg font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
+                                            <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
+                                                <span className={`text-[8px] font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
                                             </div>
                                         </div>
                                     </button>
@@ -236,24 +187,24 @@ export default function GameLobby({
                     </div>
 
                     {/* 2. ENTRY FEE PANEL */}
-                    <div className="p-3 pb-4 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-3">
+                    <div className="p-3 pb-3 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-2">
                             <span className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
                         </div>
-                        <div className="flex items-center justify-between w-full px-2 mb-3">
-                            <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-10 h-10 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                        <div className="flex items-center justify-between w-full px-2 mb-2">
+                            <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-9 h-9 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
                                 <LuMinus className="w-5 h-5 stroke-[3px]" />
                             </button>
                             <div className="flex-1 flex flex-col items-center justify-center relative">
-                                <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-3xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-2xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                             </div>
-                            <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} className="w-10 h-10 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                            <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} className="w-9 h-9 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
                                 <LuPlus className="w-5 h-5 stroke-[3px]" />
                             </button>
                         </div>
                         <div className="flex gap-1.5 justify-center flex-wrap">
                             {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-2.5 py-1 rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[10px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
+                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-2 py-0.5 rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[9px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
                                     {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
                                 </button>
                             ))}
@@ -275,57 +226,16 @@ export default function GameLobby({
             {/* --- LIVE ARENA DIRECTORY (GambleFi) --- */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div className="w-full flex flex-col gap-8 mt-3 pb-24">
-                    
-                    {/* Upcoming Tournaments Section */}
-                    {tournaments.length > 0 && (
-                        <div className="w-full space-y-6">
-                            <div className="flex items-center justify-between px-2">
-                                <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                                    <LuTrophy className="text-yellow-500 w-4 h-4" />
-                                    Tournament Arena
-                                </h3>
-                                <button className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest hover:text-cyan-300 transition-colors">
-                                    View All
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {tournaments.map((t) => (
-                                    <div key={t.id} className="glass-panel p-5 rounded-[24px] border border-white/10 hover:border-cyan-500/30 transition-all group relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-3">
-                                            <div className="bg-yellow-500/20 text-yellow-400 text-[9px] font-black px-2 py-1 rounded-full border border-yellow-500/30 flex items-center gap-1 shadow-sm">
-                                                <LuTrophy className="w-2.5 h-2.5" />
-                                                ${t.prize_pool}
-                                            </div>
-                                        </div>
-                                        <div className="space-y-3 relative z-10">
-                                            <h4 className="text-white font-bold text-lg leading-tight group-hover:text-cyan-400 transition-colors">{t.title}</h4>
-                                            <div className="flex items-center gap-4 text-white/40 text-[10px] font-bold uppercase tracking-widest">
-                                                <div className="flex items-center gap-1.5">
-                                                    <LuTimer className="w-3.5 h-3.5 text-cyan-400" />
-                                                    {new Date(t.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <LuUsers className="w-3.5 h-3.5 text-cyan-400" />
-                                                    {t.min_players}+ Players
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={() => handleJoinTournament(t.id, t.entry_fee)}
-                                                className="w-full py-3 bg-[rgba(255,255,255,0.05)] hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase tracking-[0.1em] transition-all border border-white/10 hover:border-cyan-400 shadow-sm mt-2"
-                                            >
-                                                Register Entry: ${t.entry_fee}
-                                            </button>
-                                        </div>
-                                        {/* Subtle background glow */}
-                                        <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
-                                    </div>
-                                ))}
+
+                    {/* ── LIVE ARENA (live streaming, MCP stream design) ── */}
+                    <div className="w-full flex flex-col gap-3">
+                        <div className="flex justify-center w-full">
+                            <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
+                                <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Live Arena</h3>
                             </div>
                         </div>
-                    )}
-
-                    <ActivityFeed onOpenProfile={onOpenProfile} />
-                    <LiveArenaDirectory onWatchMatch={onWatchMatch} />
+                        <LiveArenaDirectory onWatchMatch={onWatchMatch} />
+                    </div>
                 </div>
             )}
 

@@ -333,23 +333,8 @@ export const ActivityFeed = ({ onOpenProfile }: { onOpenProfile?: (address: stri
 
     return (
         <div className="contents">
-            {/* ── Compact one-line bar (in-flow under dice; sticks above footer on scroll) ── */}
-            <div className="ludo-ticker-scope w-full max-w-[420px] mx-auto pointer-events-none sticky bottom-[152px] z-[60]">
-                <div
-                    onClick={() => setIsOpen(true)}
-                    className="pointer-events-auto h-12 w-full rounded-2xl flex items-center gap-3 px-4 relative overflow-hidden transition-all cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 active:scale-[0.98]"
-                >
-                    <BroadcastTile />
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <span className="text-[11px] font-black text-white/80 uppercase tracking-[0.2em] leading-none">
-                            Live Broadcast
-                        </span>
-                        <span className="text-[10px] font-bold text-cyan-500/70 tracking-wide mt-0.5 truncate">
-                            {totalWaiting > 0 ? `${totalWaiting} match${totalWaiting === 1 ? '' : 'es'} live` : 'No matches live'}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            {/* Ticker bar removed: Live Arena (MCP stream design) is now the
+                single live section. The full broadcasting page below stays. */}
 
             {/* ── Full broadcasting page ── */}
             <AnimatePresence>
