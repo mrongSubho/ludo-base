@@ -1,29 +1,32 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import Board from './components/Board';
-import SnakesBoard from './components/SnakesBoard';
+import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
-import { SettingsPanel } from './components/SettingsPanel';
 import { InviteNotification } from './components/InviteNotification';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
-import UserProfilePanel from './components/UserProfilePanel';
-import FriendsPanel from './components/FriendsPanel';
-import Leaderboard from './components/Leaderboard';
-import RankingsPanel from './components/RankingsPanel';
-import ArenaPanel from './components/ArenaPanel';
-import MarketplacePanel from './components/MarketplacePanel';
-import MessagesPanel from './components/MessagesPanel';
-import PublicProfileModal from './components/PublicProfileModal';
-import { LiveArenaDirectory } from './components/LiveArenaDirectory';
-import { SpectatorHUD } from './components/SpectatorHUD';
+
+// ─── Phase 3 loading diet: heavy/below-fold surfaces split into lazy chunks.
+// First paint ships lobby + chrome only; board and panels load on demand. ──
+const Board = dynamic(() => import('./components/Board'));
+const SnakesBoard = dynamic(() => import('./components/SnakesBoard'));
+const SettingsPanel = dynamic(() => import('./components/SettingsPanel').then(m => m.SettingsPanel));
+const UserProfilePanel = dynamic(() => import('./components/UserProfilePanel'));
+const FriendsPanel = dynamic(() => import('./components/FriendsPanel'));
+const Leaderboard = dynamic(() => import('./components/Leaderboard'));
+const RankingsPanel = dynamic(() => import('./components/RankingsPanel'));
+const ArenaPanel = dynamic(() => import('./components/ArenaPanel'));
+const MarketplacePanel = dynamic(() => import('./components/MarketplacePanel'));
+const MessagesPanel = dynamic(() => import('./components/MessagesPanel'));
+const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal'));
+const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
+const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 import { useAccount, useDisconnect } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
-import { HostMigrationPanel } from './components/HostMigrationPanel';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';

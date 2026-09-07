@@ -12,7 +12,7 @@ interface LudoWalletModalProps {
 
 const WALLET_ICONS: Record<string, React.ReactNode> = {
     metamask: (
-        <img src="/metamask.svg" alt="MetaMask" style={{ width: '24px', height: '24px' }} />
+        <img loading="lazy" decoding="async" src="/metamask.svg" alt="MetaMask" style={{ width: '24px', height: '24px' }} />
     ),
     coinbase: (
         <svg viewBox="0 0 48 48" style={{ width: '24px', height: '24px', borderRadius: '6px' }}>
@@ -23,7 +23,7 @@ const WALLET_ICONS: Record<string, React.ReactNode> = {
     ),
     phantom: (
         <div style={{ width: '24px', height: '24px', backgroundColor: '#AB9FF2', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/phantom.svg" alt="Phantom" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
+            <img loading="lazy" decoding="async" src="/phantom.svg" alt="Phantom" style={{ width: '16px', height: '16px', objectFit: 'contain' }} />
         </div>
     ),
     base: (

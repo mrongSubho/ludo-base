@@ -758,7 +758,7 @@ export const QuickMatchPanel = ({
                                                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2">
                                                     <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800">
                                                         {profile?.avatar_url ? (
-                                                            <img src={profile.avatar_url} alt="You" className="w-full h-full object-cover" />
+                                                            <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" />
                                                         ) : (
                                                             <div className="w-full h-full bg-gradient-to-br from-cyan-500/40 to-blue-600/40 flex items-center justify-center text-3xl font-black text-white/20">
                                                                 {finalName?.[0] || 'U'}
@@ -795,7 +795,7 @@ export const QuickMatchPanel = ({
                                                         {isLoadingRival ? (
                                                             <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
                                                         ) : opponentProfile?.avatar_url ? (
-                                                            <img src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" />
+                                                            <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" />
                                                         ) : (
                                                             <div className="w-full h-full bg-gradient-to-br from-purple-500/40 to-pink-600/40 flex items-center justify-center">
                                                                 <svg

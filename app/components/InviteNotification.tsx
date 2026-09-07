@@ -87,7 +87,7 @@ export const InviteNotification = () => {
                                 <div className="absolute inset-0 bg-cyan-500/20 rounded-full animate-pulse" />
                                 <div className="w-full h-full rounded-full border-2 border-cyan-400/50 overflow-hidden bg-slate-800">
                                     {hostProfile?.avatar_url ? (
-                                        <img src={hostProfile.avatar_url} alt="host" className="w-full h-full object-cover" />
+                                        <img loading="lazy" decoding="async" src={hostProfile.avatar_url} alt="host" className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-xl font-black text-cyan-400">
                                             {hostProfile?.username?.[0] || 'H'}

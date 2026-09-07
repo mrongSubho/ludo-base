@@ -279,7 +279,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Set', value: 'Full Chess', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
             chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
-            previewColor: 'bg-white/5', previewIcon: <img src="/tokens/king.png" alt="Chess" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+            previewColor: 'bg-white/5', previewIcon: <img loading="lazy" decoding="async" src="/tokens/king.png" alt="Chess" style={{ width: 44, height: 44, objectFit: 'contain' }} />
         },
         {
             id: 'tokens-orb', type: 'tokens', kind: 'tokens', equipValue: 'orb',
@@ -626,7 +626,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         }
         if (item.type === 'tokens' && item.id === 'tokens-orb') return <OrbPreview size={px} />;
         if (item.type === 'tokens') {
-            return <img src="/tokens/king.png" alt={item.name} style={{ width: px, height: px, objectFit: 'contain' }} />;
+            return <img loading="lazy" decoding="async" src="/tokens/king.png" alt={item.name} style={{ width: px, height: px, objectFit: 'contain' }} />;
         }
         if (item.type === 'themes') return <ThemeSwatch light={item.equipValue === 'light'} size={px} />;
         if (item.kind === 'item') return <ItemRelic px={px} tint={item.previewColor} />;
