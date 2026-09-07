@@ -414,7 +414,7 @@ export const QuickMatchPanel = ({
                                 </span>
                                 {ticketId && (
                                     <span className="text-[6px] font-black uppercase tracking-tighter text-white/10">
-                                        TKT: {ticketId.slice(0, 4)}
+                                        NET: {ticketId.slice(0, 8).toUpperCase()}
                                     </span>
                                 )}
                             </div>
@@ -547,21 +547,13 @@ export const QuickMatchPanel = ({
                                                         ))}
                                                     </div>
                                                     <span className={`text-[11px] uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
-                                                        {status === 'error' ? 'FAULT DETECTED' : 
-                                                         status === 'timeout' ? 'LINK TIMEOUT' : 
-                                                         status === 'expanding' ? 'REACH EXPANDED' : 
+                                                        {status === 'error' ? 'FAULT DETECTED' :
+                                                         status === 'timeout' ? 'LINK TIMEOUT' :
+                                                         showExpansionOptions ? 'EXPANDING SEARCH' :
+                                                         status === 'expanding' ? 'REACH EXPANDED' :
                                                          status === 'idle' ? 'PREPARING SIGNAL' :
                                                          'SCANNING LUDO ARENA'}
                                                     </span>
-                                                </div>
-                                                
-                                                <div className="mt-3 flex flex-col items-center">
-                                                    <span className="text-white/40 text-[9px] uppercase font-black tracking-[0.15em] mb-1">
-                                                        Network ID
-                                                    </span>
-                                                    <div className="px-3 py-1 rounded bg-black/40 border border-white/5 font-mono text-[9px] text-cyan-500/80 tracking-widest">
-                                                        {ticketId?.slice(0, 8).toUpperCase() || 'INITIALIZING...'}
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -664,7 +656,7 @@ export const QuickMatchPanel = ({
                                             onClick={handleRetry}
                                             className="w-full py-3 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all active:scale-95"
                                         >
-                                            Retry Search
+                                            Retry {matchType} · {wager === 0 ? 'Free' : wager >= 1000 ? `${wager / 1000}k` : `${wager}`}
                                         </button>
                                         
                                         <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 flex flex-col gap-3">
