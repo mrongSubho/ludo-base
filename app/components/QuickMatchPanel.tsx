@@ -422,6 +422,19 @@ export const QuickMatchPanel = ({
 
                         {/* Dynamic Matchmaking Content */}
                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col items-center justify-center relative px-5">
+                            {/* Tip Section — in-flow above the radar (was absolute,
+                                collided with the Network ID block) */}
+                            <div className="w-full pt-2 pb-1 shrink-0">
+                                <div
+                                    key={tipIndex}
+                                    className="flex flex-col items-center gap-1"
+                                >
+                                    <span className="text-[9px] uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
+                                    <p className="text-xs font-medium text-white/50 text-center max-w-[280px] leading-relaxed">
+                                        {PRO_TIPS[tipIndex]}
+                                    </p>
+                                </div>
+                            </div>
                             <TeamUpWrapper
                                 mode="quick"
                                 entryFee={wager}
@@ -567,7 +580,7 @@ export const QuickMatchPanel = ({
                                             extendSearch(20);
                                         }}
                                         onMouseLeave={() => setIsInteractingWithOptimizer(false)}
-                                        className="absolute bottom-32 inset-x-4 z-[150] backdrop-blur-2xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 pointer-events-auto"
+                                        className="absolute bottom-24 inset-x-4 z-[150] backdrop-blur-2xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-col gap-2 pointer-events-auto"
                                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))' }}
                                     >
                                         <div className="flex justify-between items-center">
@@ -577,7 +590,7 @@ export const QuickMatchPanel = ({
                                             </div>
                                             <button 
                                                 onClick={() => setShowExpansionOptions(false)} 
-                                                className="w-5 h-5 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/20 hover:text-white transition-all"
+                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/20 hover:text-white transition-all"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                             </button>
@@ -676,36 +689,24 @@ export const QuickMatchPanel = ({
                                 </div>
                             )}
 
-                            {/* Tip Section */}
-                            <div className="absolute bottom-8 left-0 right-0 px-5">
-                                <div
-                                    key={tipIndex}
-                                    className="flex flex-col items-center gap-2"
-                                >
-                                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
-                                    <p className="text-sm font-medium text-white/50 text-center max-w-[280px] leading-relaxed">
-                                        {PRO_TIPS[tipIndex]}
-                                    </p>
-                                </div>
-                            </div>
+                            {/* Tip Section lives above the radar now (in-flow) */}
                         </div>
 
                         {/* Single Control Action */}
                         <div className="mt-auto px-5 pb-5 pt-3 border-t border-white/10 bg-black/20 backdrop-blur-sm relative z-10">
-                            <button
-                                onClick={handleBackToLobby}
-                                className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 group"
-                            >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/40 group-hover:text-white transition-colors"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                Cancel Search
-                            </button>
-
-                            <div className="text-center mt-2">
+                            <div className="w-full flex gap-2">
+                                <button
+                                    onClick={handleBackToLobby}
+                                    className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 group"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/40 group-hover:text-white transition-colors"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    Cancel
+                                </button>
                                 <button
                                     onClick={handleForceBotMatch}
-                                    className="text-[10px] uppercase font-black tracking-widest text-white/20 hover:text-cyan-400/60 transition-colors"
+                                    className="flex-1 py-3 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-sm font-black uppercase tracking-[0.2em] hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 transition-all active:scale-95"
                                 >
-                                    Play vs Bots Instead
+                                    Play with AI
                                 </button>
                             </div>
                         </div>

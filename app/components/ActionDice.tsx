@@ -29,7 +29,7 @@ type ModeId = typeof MODE_ORDER[number];
 const MODE_BLURB: Record<ModeId, string> = {
     quick: 'Online matchmaking · entry fee applies',
     team: 'Private lobby · invite friends',
-    offline: 'Practice vs bots · free',
+    offline: 'Practice vs AI · free',
 };
 
 // Fixed face layout: each mode owns two opposite faces, so wherever the
