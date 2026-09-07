@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from './Providers';
 import { cookies } from 'next/headers';
@@ -32,6 +32,12 @@ export const metadata: Metadata = {
     'fc:frame:image:aspect_ratio': '1:1',
     'base:app_id': '699c46f96a71d5dab092bfb0',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default async function RootLayout({

@@ -452,7 +452,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         <button
                                             onClick={() => setSelectedChatId(null)}
                                             aria-label="Back to chats"
-                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all shrink-0"
+                                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white hover:bg-white/10 transition-all shrink-0"
                                         >
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="15 18 9 12 15 6"></polyline></svg>
                                         </button>
@@ -487,7 +487,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                 <button
                                     onClick={onClose}
                                     aria-label="Close messages"
-                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
                                         <line x1="18" y1="6" x2="6" y2="18"></line>

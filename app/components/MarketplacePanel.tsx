@@ -737,7 +737,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </span>
                                             </div>
                                         </div>
-                                        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm" aria-label="Close marketplace">
+                                        <button onClick={onClose} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm" aria-label="Close marketplace">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                         </button>
                                     </div>
@@ -1199,7 +1199,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             {/* header */}
                                             <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">
                                                 <div className="flex items-center gap-3">
-                                                    <button onClick={handleCloseDetail} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all" aria-label="Back">
+                                                    <button onClick={handleCloseDetail} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all" aria-label="Back">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                                                     </button>
                                                     <h2 className="text-base font-black text-white tracking-tight">Inspect</h2>
@@ -1370,7 +1370,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                                                     <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">
                                                         <div className="flex items-center gap-3">
-                                                            <button onClick={() => setIsSelling(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all" aria-label="Back to inspect">
+                                                            <button onClick={() => setIsSelling(false)} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all" aria-label="Back to inspect">
                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                                                             </button>
                                                             <h3 className="text-base font-black text-white tracking-tight">List for Sale</h3>

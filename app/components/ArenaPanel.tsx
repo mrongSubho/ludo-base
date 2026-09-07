@@ -203,7 +203,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                     <button
                                         onClick={onClose}
                                         aria-label="Close arena"
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                        className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
                                     >
                                         <LuX className="w-4 h-4" />
                                     </button>

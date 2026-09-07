@@ -727,7 +727,7 @@ export const QuickMatchPanel = ({
                                 <button
                                     onClick={handleCancelAndClose}
                                     aria-label="Close match found"
-                                    className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white ring-1 ring-white/10 flex items-center justify-center transition-all z-[210] pointer-events-auto"
+                                    className="absolute top-8 right-8 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white ring-1 ring-white/10 flex items-center justify-center transition-all z-[210] pointer-events-auto"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>

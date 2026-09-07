@@ -477,7 +477,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                             <button
                                 onClick={onClose}
-                                className="w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                className="w-11 h-11 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>

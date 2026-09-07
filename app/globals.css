@@ -4253,6 +4253,8 @@ body.theme-retro-futurism .token-dot-placeholder {
   padding-bottom: 80px;
   /* Space for footer */
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  /* stop rubber-band chaining; shell owns its scroll */
 }
 
 .dash-header {

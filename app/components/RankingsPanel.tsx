@@ -214,7 +214,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                         <button
                                             onClick={onClose}
                                             aria-label="Close rankings"
-                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
                                         >
                                             <LuX className="w-4 h-4" />
                                         </button>
