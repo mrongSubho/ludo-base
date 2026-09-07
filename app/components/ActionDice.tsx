@@ -233,11 +233,11 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 <ChevronLeft />
             </motion.div>
 
-            <div className="relative w-32 h-32 mt-8 mb-4 cursor-grab active:cursor-grabbing [--tz:64px] flex items-center justify-center">
+            <div className="relative w-28 h-28 mt-5 mb-3 cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center [@media(max-height:760px)]:w-24 [@media(max-height:760px)]:h-24 [@media(max-height:760px)]:mt-3 [@media(max-height:760px)]:mb-2 [@media(max-height:760px)]:[--tz:48px]">
                 
                 {/* Victory Landing Aura */}
                 <motion.div 
-                    className={`absolute w-32 h-32 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300 ${faces[activeIndex]?.dotColor || 'bg-cyan-400'}`}
+                    className={`absolute w-28 h-28 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300 ${faces[activeIndex]?.dotColor || 'bg-cyan-400'}`}
                     animate={{
                         scale: isRolling ? 0.5 : 1.8,
                         opacity: isRolling ? 0 : 0.6,
