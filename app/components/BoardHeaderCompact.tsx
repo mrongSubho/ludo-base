@@ -23,6 +23,9 @@ interface BoardHeaderCompactProps {
     modeLabel: string;
     spectators?: number;
     streamNode?: React.ReactNode;
+    // Optional exit (spectating only): renders a leave button in the strip's
+    // left slot. Match play exits via Settings → Leave Match instead.
+    onExit?: () => void;
 }
 
 export const BoardHeaderCompact = ({
@@ -38,6 +41,7 @@ export const BoardHeaderCompact = ({
     modeLabel,
     spectators = 0,
     streamNode,
+    onExit,
 }: BoardHeaderCompactProps) => {
     return (
         <header className="board-compact-header ludo-header-scope px-0 pt-2 sticky top-0 z-[200]">
@@ -128,7 +132,21 @@ export const BoardHeaderCompact = ({
 
                 {/* ── Mode strip: pure status pill, one line, 7px, theme-proof ── */}
                 <div className="mode-strip-pill mx-0.5 flex items-center justify-between rounded-full border border-white/10 bg-white/5 pl-1.5 pr-1.5 py-[5px]">
-                    <span className="w-6 flex-none" />
+                    {onExit ? (
+                        <button
+                            onClick={onExit}
+                            title="Leave stream"
+                            aria-label="Leave stream"
+                            className="w-6 h-6 flex-none flex items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    ) : (
+                        <span className="w-6 flex-none" />
+                    )}
 
                     <span className="mode-strip-text text-[7px] font-black uppercase tracking-[0.3em] text-cyan-300 whitespace-nowrap overflow-hidden text-ellipsis px-2">
                         {modeLabel}

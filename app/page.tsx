@@ -559,25 +559,21 @@ export default function Page() {
           {/* ── Spectating State ── */}
           {appState === 'spectating' && spectatingRoomCode && (
             <>
-              {/* Spectator top bar */}
-              <div className="game-top-bar">
-                <div className="game-header-left">
-                  <button className="back-btn" onClick={handleLeaveSpectating}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-                      <line x1="19" y1="12" x2="5" y2="12"></line>
-                      <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                  </button>
-                  <div className="game-status-info">
-                    <span className="game-mode-title flex items-center gap-1.5">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-                      Live Match
-                    </span>
-                    <span className="game-status">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse mr-1" />
-                      {spectatorCount} watching · #{spectatingRoomCode}
-                    </span>
-                  </div>
+              {/* Compact in-flow spectator header: same shell as the board header */}
+              <BoardHeaderCompact
+                finalAvatar={profile?.avatar_url || null}
+                finalName={finalName}
+                level={level}
+                tier={tier}
+                coins={profile?.coins || 0}
+                unreadCount={totalUnreadCount}
+                hasNotifications={notifCount > 0}
+                onMessagesClick={() => toggle('messages')}
+                onSettingsClick={() => toggle('settings')}
+                modeLabel={`Live #${spectatingRoomCode}`}
+                spectators={spectatorCount}
+                onExit={handleLeaveSpectating}
+              />
                 </div>
               </div>
 
@@ -600,6 +596,22 @@ export default function Page() {
                   positions={spectatorGameState.positions}
                   onClose={handleLeaveSpectating}
                 />
+              )}
+
+              {/* ── Spectator overlays: DM + full settings work while watching ── */}
+              {activeTab === 'messages' && (
+                <MessagesPanel
+                  key="messages-spectate"
+                  onClose={() => {
+                      closeTab();
+                      setSelectedChatId(null);
+                  }}
+                  initialChatId={selectedChatId}
+                  onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                />
+              )}
+              {activeTab === 'settings' && (
+                <SettingsPanel key="settings-spectate" onClose={closeTab} />
               )}
             </>
           )}
