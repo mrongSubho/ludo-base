@@ -5227,3 +5227,11 @@ body.token-style-orb .blue-token::after {
   0%, 100% { opacity: 0.25; transform: scale(0.8); }
   50% { opacity: 1; transform: scale(1.15); }
 }
+
+.ludo-token.token-boosted {
+  animation: token-boost-trail 0.5s ease-in-out infinite;
+}
+@keyframes token-boost-trail {
+  0%, 100% { filter: brightness(1.15) drop-shadow(0 0 6px rgba(250, 204, 21, 0.8)); }
+  50% { filter: brightness(1.5) drop-shadow(0 0 16px rgba(250, 204, 21, 1)); }
+}

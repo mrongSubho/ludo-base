@@ -110,39 +110,6 @@ export default function Board({
     // Nuke/teleport arm targeting (gold rings on that color's tokens);
     // shield/boost fire immediately. One power per roll, enforced engine-side.
     const [targeting, setTargeting] = useState<{ type: PowerType } | null>(null);
-    const turnColor = localGameState.currentPlayer as PlayerColor;
-    const turnPlayer = players.find(p => p.color === turnColor);
-    const turnHuman = !!turnPlayer && !turnPlayer.isAi && !localGameState.afkStats?.[turnColor]?.isKicked;
-    const showInventory = !spectatorMode && turnHuman && canUsePowers;
-    const liveInventory: PowerItem[] = showInventory
-        ? ((localGameState.playerPowers?.[turnColor] || []).filter((p: PowerItem) => p.expiresAt > Date.now()))
-        : [];
-    const groupedInventory = (['nuke', 'shield', 'boost', 'teleport'] as PowerType[])
-        .map(t => {
-            const items = liveInventory.filter(p => p.type === t);
-            if (items.length === 0) return null;
-            return { type: t, count: items.length, soonest: Math.min(...items.map(p => p.expiresAt)) };
-        })
-        .filter((g): g is { type: PowerType; count: number; soonest: number } => g !== null);
-    const canSpend = showInventory && localGameState.gamePhase === 'rolling' && !localGameState.powerSpentThisTurn;
-    useEffect(() => {
-        setTargeting(null);
-    }, [localGameState.currentPlayer, localGameState.gamePhase]);
-    const spendPower = (type: PowerType) => {
-        if (!canSpend) return;
-        if (type === 'nuke' || type === 'teleport') {
-            setTargeting(cur => (cur?.type === type ? null : { type }));
-            return;
-        }
-        setTargeting(null);
-        handleUsePower(turnColor, type);
-    };
-    const spendTargeted = (color: PlayerColor, idx: number) => {
-        if (targeting && color === turnColor) {
-            handleUsePower(turnColor, targeting.type, idx);
-        }
-        setTargeting(null);
-    };
 
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useBoardLayout({
         players,
@@ -181,6 +148,43 @@ export default function Board({
     }[localGameState.currentPlayer] || 'var(--ludo-muted)';
 
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+
+    // ─── Power inventory: own eyes only (+ targeting) ────────────────────
+    // You see your inventory, never opponents'. (Teammate view is a future
+    // patch.) Spendable on your own rolling turn; one power per roll.
+    const turnColor = localGameState.currentPlayer as PlayerColor;
+    const ownColor = myPlayer?.color;
+    const isMyTurn = !!ownColor && turnColor === ownColor;
+    const showInventory = !spectatorMode && !!ownColor && canUsePowers;
+    const liveInventory: PowerItem[] = showInventory
+        ? ((localGameState.playerPowers?.[ownColor!] || []).filter((p: PowerItem) => p.expiresAt > Date.now()))
+        : [];
+    const groupedInventory = (['nuke', 'shield', 'boost', 'teleport'] as PowerType[])
+        .map(t => {
+            const items = liveInventory.filter(p => p.type === t);
+            if (items.length === 0) return null;
+            return { type: t, count: items.length, soonest: Math.min(...items.map(p => p.expiresAt)) };
+        })
+        .filter((g): g is { type: PowerType; count: number; soonest: number } => g !== null);
+    const canSpend = showInventory && isMyTurn && localGameState.gamePhase === 'rolling' && !localGameState.powerSpentThisTurn;
+    useEffect(() => {
+        setTargeting(null);
+    }, [localGameState.currentPlayer, localGameState.gamePhase]);
+    const spendPower = (type: PowerType) => {
+        if (!canSpend || !ownColor) return;
+        if (type === 'nuke' || type === 'teleport') {
+            setTargeting(cur => (cur?.type === type ? null : { type }));
+            return;
+        }
+        setTargeting(null);
+        handleUsePower(ownColor, type);
+    };
+    const spendTargeted = (color: PlayerColor, idx: number) => {
+        if (targeting && ownColor && color === ownColor) {
+            handleUsePower(ownColor, targeting.type, idx);
+        }
+        setTargeting(null);
+    };
 
     return (
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
@@ -261,7 +265,7 @@ export default function Board({
                     playerCount={playerCount}
                     handleTokenClick={handleTokenClick}
                     counterRotationDeg={counterRotationDeg}
-                    targetingColor={targeting ? turnColor : null}
+                    targetingColor={targeting ? ownColor ?? null : null}
                     onTargetToken={spendTargeted}
                 />
             </BoardGrid>

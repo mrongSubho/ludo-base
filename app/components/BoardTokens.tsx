@@ -89,6 +89,7 @@ interface TokenProps {
     skipRotation?: boolean;
     shielded?: boolean;
     targetable?: boolean;
+    boosted?: boolean;
 }
 
 export function Token({
@@ -104,6 +105,7 @@ export function Token({
     skipRotation = false,
     shielded = false,
     targetable = false,
+    boosted = false,
 }: TokenProps) {
     const prevRef = useRef<{ rank: ChessRank; pos: number } | null>(null);
     const [showPromoFX, setShowPromoFX] = React.useState(false);
@@ -130,7 +132,7 @@ export function Token({
                 rotate: skipRotation ? 0 : counterRotationDeg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}
-            className={`ludo-token ${color}-token ${isBlockade ? 'token-blockade' : ''} ${shouldDim ? 'token-dimmed' : ''} ${shielded ? 'token-shielded' : ''} ${targetable ? 'token-targetable' : ''}`}
+            className={`ludo-token ${color}-token ${isBlockade ? 'token-blockade' : ''} ${shouldDim ? 'token-dimmed' : ''} ${shielded ? 'token-shielded' : ''} ${targetable ? 'token-targetable' : ''} ${boosted ? 'token-boosted' : ''}`}
             onClick={onClick}
             // "Premium" Hover: Higher scale + lift + subtle bloom
             whileHover={isDraggable ? {
@@ -390,6 +392,7 @@ interface TokenPieceProps {
     colorCorner: ColorCorner;
     shielded?: boolean;
     targetable?: boolean;
+    boosted?: boolean;
     onClick: () => void;
 }
 
@@ -408,6 +411,7 @@ export function TokenPiece({
     colorCorner,
     shielded = false,
     targetable = false,
+    boosted = false,
     onClick
 }: TokenPieceProps) {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
@@ -660,6 +664,7 @@ export function TokenPiece({
                         skipRotation
                         shielded={shielded}
                         targetable={targetable}
+                        boosted={boosted}
                     />
                 </div>
             </motion.div>
@@ -824,6 +829,7 @@ export function BoardTokens({
                     && calculateNextPosition(pos, diceVal, color as PlayerColor, colorCorner) !== pos;
                 const shielded = (localGameState.activeShields || []).some((s: any) => s.color === color && s.tokenIdx === index);
                 const targetable = !!targetingColor && color === targetingColor && pos >= 0 && pos < 52;
+                const boosted = localGameState.boostTrail === color;
 
                 return (
                     <TokenPiece
@@ -842,6 +848,7 @@ export function BoardTokens({
                         colorCorner={colorCorner}
                         shielded={shielded}
                         targetable={targetable}
+                        boosted={boosted}
                         onClick={() => targetable && onTargetToken ? onTargetToken(color, index) : handleTokenClick(color, index)}
                     />
                 );

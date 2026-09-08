@@ -141,8 +141,14 @@ export function useGameActions({
             lastUpdate: Date.now()
         };
 
-        // Boost consumed by this move.
-        if (boosted) (finalState as any).activeBoost = null;
+        // Boost consumed by this move — leave a motion trail on the mover.
+        if (boosted) {
+            (finalState as any).activeBoost = null;
+            (finalState as any).boostTrail = color;
+            setTimeout(() => {
+                setLocalGameState((latest: any) => latest.boostTrail === color ? { ...latest, boostTrail: null, lastUpdate: Date.now() } : latest);
+            }, 1600);
+        }
         // Shields last until the owner's next move completes.
         (finalState as any).activeShields = (currentState.activeShields || []).filter(
             (s: any) => s.color !== currentState.currentPlayer

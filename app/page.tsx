@@ -10,8 +10,18 @@ import { FooterNavPanel } from './components/FooterNavPanel';
 
 // ─── Phase 3 loading diet: heavy/below-fold surfaces split into lazy chunks.
 // First paint ships lobby + chrome only; board and panels load on demand. ──
-const Board = dynamic(() => import('./components/Board'));
-const SnakesBoard = dynamic(() => import('./components/SnakesBoard'));
+const BoardLoader = () => (
+    <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16">
+        <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
+        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Entering arena</span>
+    </div>
+);
+const Board = dynamic(() => import('./components/Board'), {
+    loading: () => <BoardLoader />,
+});
+const SnakesBoard = dynamic(() => import('./components/SnakesBoard'), {
+    loading: () => <BoardLoader />,
+});
 const SettingsPanel = dynamic(() => import('./components/SettingsPanel').then(m => m.SettingsPanel));
 const UserProfilePanel = dynamic(() => import('./components/UserProfilePanel'));
 const FriendsPanel = dynamic(() => import('./components/FriendsPanel'));

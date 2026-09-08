@@ -59,6 +59,7 @@ export interface GameState {
     playerPowers: Record<PlayerColor, PowerItem[]>;
     powerSpentThisTurn: boolean;
     nukeFlash: { r: number; c: number }[];
+    boostTrail: PlayerColor | null;
     activeTraps: { r: number, c: number, owner: PlayerColor }[];
     activeShields: { color: PlayerColor, tokenIdx: number }[];
     consecutiveSixes: number;
