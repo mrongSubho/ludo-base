@@ -186,7 +186,7 @@ const NavRow = ({ icon, tint, label, hint, last = false }: {
     </button>
 );
 
-export function SettingsPanel({ onClose }: { onClose: () => void }) {
+export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; onLeaveMatch?: () => void }) {
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
 
@@ -315,6 +315,20 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                                     build {process.env.NEXT_PUBLIC_GIT_HASH || 'dev'}
                                 </p>
                             </section>
+
+                            {/* Leave match (in-game only) */}
+                            {onLeaveMatch && (
+                                <button
+                                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20 active:scale-[0.99] transition-all text-amber-300 text-xs font-black uppercase tracking-[0.18em]"
+                                    onClick={() => {
+                                        onClose();
+                                        onLeaveMatch();
+                                    }}
+                                >
+                                    <LogOutIcon />
+                                    <span>Leave Match</span>
+                                </button>
+                            )}
 
                             {/* Sign out */}
                             <button

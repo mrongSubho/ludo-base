@@ -627,7 +627,6 @@ export default function Page() {
                 hasNotifications={notifCount > 0}
                 onMessagesClick={() => toggle('messages')}
                 onSettingsClick={() => toggle('settings')}
-                onBack={() => setShowQuitWarning(true)}
                 modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} ${playerCount} ${betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
                 streamNode={<StreamToggle matchId={gameState?.matchId} isHost={isHost} small />}
@@ -648,6 +647,23 @@ export default function Page() {
                   />
                 )}
               </main>
+
+              {/* ── In-game overlays: DM + settings work mid-match; settings
+                    carries the Leave Match exit (header strip stays pure status) ── */}
+              {activeTab === 'messages' && (
+                <MessagesPanel
+                  key="messages-game"
+                  onClose={() => {
+                      closeTab();
+                      setSelectedChatId(null);
+                  }}
+                  initialChatId={selectedChatId}
+                  onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                />
+              )}
+              {activeTab === 'settings' && (
+                <SettingsPanel key="settings-game" onClose={closeTab} onLeaveMatch={() => setShowQuitWarning(true)} />
+              )}
 
               {/* ── Quit Match Warning Overlay ── */}
               {showQuitWarning && (

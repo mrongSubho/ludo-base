@@ -20,7 +20,6 @@ interface BoardHeaderCompactProps {
     hasNotifications: boolean;
     onMessagesClick: () => void;
     onSettingsClick: () => void;
-    onBack: () => void;
     modeLabel: string;
     spectators?: number;
     streamNode?: React.ReactNode;
@@ -36,7 +35,6 @@ export const BoardHeaderCompact = ({
     hasNotifications,
     onMessagesClick,
     onSettingsClick,
-    onBack,
     modeLabel,
     spectators = 0,
     streamNode,
@@ -128,19 +126,9 @@ export const BoardHeaderCompact = ({
                     </div>
                 </div>
 
-                {/* ── Mode strip: inner pill, one line, 7px, theme-proof ── */}
-                <div className="mode-strip-pill mx-0.5 flex items-center justify-between rounded-full border border-white/10 bg-white/5 pl-1 pr-1.5 py-[3px]">
-                    <button
-                        onClick={onBack}
-                        title="Leave match"
-                        aria-label="Leave match"
-                        className="w-6 h-6 flex-none flex items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10 transition-all active:scale-90"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                            <line x1="19" y1="12" x2="5" y2="12"></line>
-                            <polyline points="12 19 5 12 12 5"></polyline>
-                        </svg>
-                    </button>
+                {/* ── Mode strip: pure status pill, one line, 7px, theme-proof ── */}
+                <div className="mode-strip-pill mx-0.5 flex items-center justify-between rounded-full border border-white/10 bg-white/5 pl-1.5 pr-1.5 py-[5px]">
+                    <span className="w-6 flex-none" />
 
                     <span className="mode-strip-text text-[7px] font-black uppercase tracking-[0.3em] text-cyan-300 whitespace-nowrap overflow-hidden text-ellipsis px-2">
                         {modeLabel}
