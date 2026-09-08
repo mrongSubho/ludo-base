@@ -4672,7 +4672,8 @@ body.theme-retro-futurism .token-dot-placeholder {
 
 /* Push board down when top bar is present */
 .board-main.has-top-back {
-  padding-top: 80px;
+  /* Compact in-flow board header sits above; only a hair of gap is needed. */
+  padding-top: 6px;
 }
 
 /* ── POWER MODE MECHANICS ── */

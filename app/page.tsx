@@ -6,6 +6,7 @@ import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { InviteNotification } from './components/InviteNotification';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
+import { BoardHeaderCompact } from './components/BoardHeaderCompact';
 import { FooterNavPanel } from './components/FooterNavPanel';
 
 // ─── Phase 3 loading diet: heavy/below-fold surfaces split into lazy chunks.
@@ -95,7 +96,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useNotifications } from '@/hooks/useNotifications';
 
-const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }) => {   const [isStreaming, setIsStreaming] = useState(false);
+const StreamToggle = ({ matchId, isHost, small }: { matchId?: string, isHost: boolean, small?: boolean }) => {   const [isStreaming, setIsStreaming] = useState(false);
    const [isPending, setIsPending] = useState(false);
 
    if (!isHost || !matchId) return null;
@@ -118,7 +119,7 @@ const StreamToggle = ({ matchId, isHost }: { matchId?: string, isHost: boolean }
       <button 
          onClick={toggleStream} 
          disabled={isPending}
-         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest transition-all ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+         className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-[8px]' : 'px-3 py-1.5 text-[10px]'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <div className={`w-1.5 h-1.5 rounded-full ${isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
         {isStreaming ? 'LIVE GAMBLEFI' : 'STREAM MATCH'}
@@ -614,40 +615,23 @@ export default function Page() {
           {/* ── Game State ── */}
           {appState === 'game' && (
             <>
-              <div className="game-top-bar">
-                <div className="game-header-left">
-                  <button className="back-btn" onClick={() => setShowQuitWarning(true)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
-                      <line x1="19" y1="12" x2="5" y2="12"></line>
-                      <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                  </button>
-                  <div className="game-status-info">
-                    <span className="game-mode-title flex items-center gap-1.5">
-                      {selectedMode === 'power' ? (
-                        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '14px', height: '14px', color: '#facc15' }}><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '14px', height: '14px' }}><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></svg>
-                      )}
-                      {playerCount === '2v2' ? 'Team Mode' : `${selectedMode} Mode`}
-                    </span>
-                    <span className="game-status">{playerCount === '2v2' ? '2v2' : `${playerCount} Players`}</span>
-                  </div>
-                </div>
-
-                <div className="game-header-right flex items-center gap-2">
-                  {liveSpectators > 0 && (
-                    <div
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.25)]"
-                      title="Spectators watching this match"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
-                      {liveSpectators} watching
-                    </div>
-                  )}
-                  <StreamToggle matchId={gameState?.matchId} isHost={isHost} />
-                </div>
-              </div>
+              {/* Compact in-flow board header: main 3-pill design + tiny mode strip.
+                  Never absolute, so it can never overlap board elements. */}
+              <BoardHeaderCompact
+                finalAvatar={profile?.avatar_url || null}
+                finalName={finalName}
+                level={level}
+                tier={tier}
+                coins={profile?.coins || 0}
+                unreadCount={totalUnreadCount}
+                hasNotifications={notifCount > 0}
+                onMessagesClick={() => toggle('messages')}
+                onSettingsClick={() => toggle('settings')}
+                onBack={() => setShowQuitWarning(true)}
+                modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} ${playerCount} ${betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
+                spectators={liveSpectators}
+                streamNode={<StreamToggle matchId={gameState?.matchId} isHost={isHost} small />}
+              />
               <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
                 {selectedMode === 'snakes' ? (
                   <SnakesBoard playerCount={playerCount as any} onOpenProfile={(addr) => setSelectedProfileAddress(addr)} />
