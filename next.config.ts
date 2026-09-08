@@ -9,9 +9,19 @@ const getGitHash = () => {
   }
 };
 
+// Monotonic per-commit build number → PATCH in lib/version.ts (v0.1.N-beta).
+const getBuildNumber = () => {
+  try {
+    return execSync('git rev-list --count HEAD').toString().trim();
+  } catch (e) {
+    return '';
+  }
+};
+
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_GIT_HASH: getGitHash(),
+    NEXT_PUBLIC_BUILD_NUMBER: getBuildNumber(),
   },
   turbopack: {},
   webpack: (config) => {

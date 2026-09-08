@@ -7,6 +7,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { supabase } from '@/lib/supabase';
 import { exitGuest } from '@/lib/guest';
+import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -343,7 +344,7 @@ function AboutView() {
                     your Web3 identity.
                 </p>
                 <p className="text-[10px] text-white/25 font-mono">
-                    build {process.env.NEXT_PUBLIC_GIT_HASH || 'dev'}
+                    {APP_VERSION} · build {APP_BUILD_HASH}
                 </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
@@ -361,9 +362,14 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
     const { isGuest } = useCurrentUser();
+    // In-game (Leave Match is offered) the panel is scoped: Preferences,
+    // Appearance, Leave Match only. No Support/About, and no Sign Out —
+    // signing out mid-match is forbidden; leave the match first.
+    const inGame = !!onLeaveMatch;
     // Sub-views keep Help / Feedback / About inside the panel (no navigation
     // loss mid-match). Terms & Privacy open as real pages in a new tab.
     const [view, setView] = useState<'main' | 'help' | 'feedback' | 'about'>('main');
+    const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
     const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
 
     return (
@@ -421,10 +427,12 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">Tuned per wallet</span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="px-2 py-0.5 rounded-full bg-black/40 border border-white/10 text-[11px] font-black text-white/70 font-mono">
-                                    v1.0.0
-                                </span>
+                                {inGame && (
+                                    <>
+                                        <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
+                                        <span className="text-[11px] font-black text-white/50 tracking-wide uppercase">In match</span>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -487,6 +495,10 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 </p>
                             </section>
 
+                            {/* Support + About: lobby only — hidden mid-match */}
+                            {!inGame && (
+                            <>
+
                             {/* Support */}
                             <section>
                                 <SectionLabel>Support</SectionLabel>
@@ -507,10 +519,10 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mt-3">
                                     Ludo Base · Onchain Arena
                                 </p>
-                                <p className="text-center text-[10px] text-white/25 font-mono mt-0.5">
-                                    build {process.env.NEXT_PUBLIC_GIT_HASH || 'dev'}
-                                </p>
                             </section>
+
+                            </>
+                            )}
 
                             {/* Leave match (in-game only) */}
                             {onLeaveMatch && (
@@ -526,7 +538,8 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 </button>
                             )}
 
-                            {/* Sign out */}
+                            {/* Sign out: lobby only — mid-match exits go via Leave Match */}
+                            {!inGame && (
                             <button
                                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 active:scale-[0.99] transition-all text-red-400 text-xs font-black uppercase tracking-[0.18em]"
                                 onClick={() => {
@@ -540,6 +553,17 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 <LogOutIcon />
                                 <span>{isGuest ? 'Sign In' : 'Sign Out'}</span>
                             </button>
+                            )}
+
+                            {/* Version footer: always last, lobby + in-match */}
+                            <div className="flex flex-col items-center gap-0.5 pt-1 pb-1">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                                    Ludo Base · Onchain Arena
+                                </p>
+                                <p className="text-[10px] text-white/25 font-mono">
+                                    {APP_VERSION} · build {APP_BUILD_HASH}
+                                </p>
+                            </div>
                             </>
                             ) : view === 'help' ? (
                                 <HelpView />
