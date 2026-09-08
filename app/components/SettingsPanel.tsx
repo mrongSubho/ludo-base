@@ -1,10 +1,11 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useDisconnect } from 'wagmi';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { supabase } from '@/lib/supabase';
 import { exitGuest } from '@/lib/guest';
 import { PanelTabs } from './PanelTabs';
 
@@ -173,10 +174,10 @@ const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
     </div>
 );
 
-const NavRow = ({ icon, tint, label, hint, last = false }: {
-    icon: React.ReactNode; tint: string; label: string; hint?: string; last?: boolean;
+const NavRow = ({ icon, tint, label, hint, last = false, onClick }: {
+    icon: React.ReactNode; tint: string; label: string; hint?: string; last?: boolean; onClick?: () => void;
 }) => (
-    <button className={`w-full flex items-center gap-3 p-3.5 hover:bg-white/5 active:bg-white/10 transition-colors text-left ${last ? '' : 'border-b border-white/5'}`}>
+    <button onClick={onClick} className={`w-full flex items-center gap-3 p-3.5 hover:bg-white/5 active:bg-white/10 transition-colors text-left ${last ? '' : 'border-b border-white/5'}`}>
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
             {icon}
         </div>
@@ -188,10 +189,182 @@ const NavRow = ({ icon, tint, label, hint, last = false }: {
     </button>
 );
 
+// ─── Help Center (in-panel FAQ) ─────────────────────────────────────────────
+const HELP_FAQ: { q: string; a: string }[] = [
+    {
+        q: 'How are dice rolled?',
+        a: 'Every roll uses a provably-fair commit-reveal scheme: the result is locked in before you see it, so neither player nor host can rig a roll.',
+    },
+    {
+        q: 'How do entry fees & payouts work?',
+        a: 'Free tables cost nothing and pay nothing. Staked tables collect Coins up front and pay the winner automatically when the match settles.',
+    },
+    {
+        q: 'What are Power mode tiles?',
+        a: 'Five sealed tiles hide on the track. Land on one to collect a power (Nuke, Shield, Boost, Teleport) — one power per roll, each with its own expiry timer.',
+    },
+    {
+        q: 'What if someone disconnects?',
+        a: 'The match migrates to a new host automatically. Idle players are marked AFK and auto-play so the table never stalls.',
+    },
+    {
+        q: 'What is a Guest pass?',
+        a: 'A wallet-free trial stored on this device: practice vs AI, no account. Connect a wallet (Profile panel) to keep coins, wins, and rank.',
+    },
+];
+
+function HelpView() {
+    const [open, setOpen] = useState<number | null>(0);
+    return (
+        <section>
+            <SectionLabel>Help Center</SectionLabel>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                {HELP_FAQ.map((item, i) => {
+                    const isOpen = open === i;
+                    return (
+                        <div key={item.q}>
+                            <button
+                                onClick={() => setOpen(isOpen ? null : i)}
+                                aria-expanded={isOpen}
+                                className="w-full flex items-center justify-between gap-3 p-3.5 text-left hover:bg-white/5 active:bg-white/10 transition-colors"
+                            >
+                                <span className="text-[13px] font-bold text-white">{item.q}</span>
+                                <span className={`text-cyan-300 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                                    <ChevronIcon />
+                                </span>
+                            </button>
+                            {isOpen && (
+                                <p className="px-3.5 pb-3.5 text-[12px] font-medium leading-relaxed text-white/60">
+                                    {item.a}
+                                </p>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </section>
+    );
+}
+
+// ─── Feedback (Supabase-backed form) ────────────────────────────────────────
+const FEEDBACK_TOPICS = ['Bug report', 'Idea', 'Payout issue', 'Other'] as const;
+
+function FeedbackView() {
+    const { address } = useCurrentUser();
+    const [topic, setTopic] = useState<string>(FEEDBACK_TOPICS[0]);
+    const [message, setMessage] = useState('');
+    const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+    const send = async () => {
+        const clean = message.trim();
+        if (!clean || status === 'sending') return;
+        setStatus('sending');
+        try {
+            const { error } = await supabase
+                .from('feedback')
+                .insert({ topic, message: clean.slice(0, 2000), address: address ?? null });
+            if (error) throw error;
+            setStatus('sent');
+            setMessage('');
+        } catch {
+            setStatus('error');
+        }
+    };
+
+    return (
+        <section className="flex flex-col gap-3">
+            <SectionLabel>Feedback</SectionLabel>
+            {status === 'sent' ? (
+                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
+                    <p className="text-sm font-black text-emerald-300 uppercase tracking-widest">Received</p>
+                    <p className="mt-1 text-[12px] font-medium text-white/60">
+                        Thanks — the crew reads every note. Send another any time.
+                    </p>
+                    <button
+                        onClick={() => setStatus('idle')}
+                        className="mt-3 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all"
+                    >
+                        Write another
+                    </button>
+                </div>
+            ) : (
+                <>
+                    <div className="flex flex-wrap gap-1.5">
+                        {FEEDBACK_TOPICS.map(t => (
+                            <button
+                                key={t}
+                                onClick={() => setTopic(t)}
+                                aria-pressed={topic === t}
+                                className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all active:scale-95 ${topic === t ? 'bg-cyan-400/15 border-cyan-300/60 text-cyan-200' : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white'}`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                    <textarea
+                        value={message}
+                        onChange={e => setMessage(e.target.value)}
+                        rows={5}
+                        maxLength={2000}
+                        placeholder="Tell us what to fix next…"
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-[13px] font-medium text-white placeholder:text-white/25 outline-none focus:border-cyan-300/60 resize-none"
+                    />
+                    {status === 'error' && (
+                        <p className="text-[11px] font-bold text-red-400 px-1">
+                            Couldn&apos;t send — check your connection and try again.
+                        </p>
+                    )}
+                    <button
+                        onClick={send}
+                        disabled={!message.trim() || status === 'sending'}
+                        className="w-full py-3.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.18em] hover:bg-white/90 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {status === 'sending' ? 'Sending…' : 'Send feedback'}
+                    </button>
+                </>
+            )}
+        </section>
+    );
+}
+
+// ─── About Ludo Base ────────────────────────────────────────────────────────
+function AboutView() {
+    const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
+    return (
+        <section className="flex flex-col gap-3">
+            <SectionLabel>About Ludo Base</SectionLabel>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 flex flex-col gap-2">
+                <p className="text-sm font-black text-white uppercase tracking-wide">
+                    Ludo Base · Onchain Arena
+                </p>
+                <p className="text-[12px] font-medium leading-relaxed text-white/60">
+                    Classic Ludo, rebuilt for the onchain era: provably-fair dice, Power-mode
+                    tiles, live spectators, and instant payouts — playable as a guest or with
+                    your Web3 identity.
+                </p>
+                <p className="text-[10px] text-white/25 font-mono">
+                    build {process.env.NEXT_PUBLIC_GIT_HASH || 'dev'}
+                </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
+                <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
+            </div>
+            <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                Base · OnchainKit · Supabase
+            </p>
+        </section>
+    );
+}
+
 export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; onLeaveMatch?: () => void }) {
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
     const { isGuest } = useCurrentUser();
+    // Sub-views keep Help / Feedback / About inside the panel (no navigation
+    // loss mid-match). Terms & Privacy open as real pages in a new tab.
+    const [view, setView] = useState<'main' | 'help' | 'feedback' | 'about'>('main');
+    const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
 
     return (
         <>
@@ -216,10 +389,28 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                         {/* Header */}
                         <div className="px-5 pb-3 border-b border-white/10 relative z-10">
                             <div className="flex items-center justify-between mb-1 mt-1">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <GearTile />
-                                    Settings
-                                </h2>
+                                <div className="flex items-center gap-2">
+                                    {view !== 'main' && (
+                                        <button
+                                            onClick={() => setView('main')}
+                                            aria-label="Back to settings"
+                                            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                        </button>
+                                    )}
+                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                        {view === 'main' && (
+                                            <>
+                                                <GearTile />
+                                                Settings
+                                            </>
+                                        )}
+                                        {view === 'help' && 'Help Center'}
+                                        {view === 'feedback' && 'Feedback'}
+                                        {view === 'about' && 'About'}
+                                    </h2>
+                                </div>
                                 <button
                                     onClick={onClose}
                                     aria-label="Close settings"
@@ -239,6 +430,8 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
 
                         {/* Scrollable Content */}
                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
+                            {view === 'main' ? (
+                            <>
 
                             {/* Preferences */}
                             <section>
@@ -298,8 +491,8 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                             <section>
                                 <SectionLabel>Support</SectionLabel>
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <NavRow icon={<HelpIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Help Center" hint="Rules, fairness, payouts" />
-                                    <NavRow icon={<MessageIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Feedback" hint="Tell us what to fix next" />
+                                    <NavRow icon={<HelpIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Help Center" hint="Rules, fairness, payouts" onClick={() => setView('help')} />
+                                    <NavRow icon={<MessageIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Feedback" hint="Tell us what to fix next" last onClick={() => setView('feedback')} />
                                 </div>
                             </section>
 
@@ -307,9 +500,9 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                             <section>
                                 <SectionLabel>About</SectionLabel>
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <NavRow icon={<InfoIcon />} tint="bg-cyan-500/15 text-cyan-300" label="About Ludo Base" />
-                                    <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" />
-                                    <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" />
+                                    <NavRow icon={<InfoIcon />} tint="bg-cyan-500/15 text-cyan-300" label="About Ludo Base" onClick={() => setView('about')} />
+                                    <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
+                                    <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
                                 </div>
                                 <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mt-3">
                                     Ludo Base · Onchain Arena
@@ -347,6 +540,14 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 <LogOutIcon />
                                 <span>{isGuest ? 'Sign In' : 'Sign Out'}</span>
                             </button>
+                            </>
+                            ) : view === 'help' ? (
+                                <HelpView />
+                            ) : view === 'feedback' ? (
+                                <FeedbackView />
+                            ) : (
+                                <AboutView />
+                            )}
                         </div>
                     </div>
                 </div>
