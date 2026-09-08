@@ -43,6 +43,8 @@ import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
 import { GuestWallProvider } from '@/hooks/GuestWallContext';
 import { enterGuest } from '@/lib/guest';
+import { hasOnboarded } from '@/lib/onboarding';
+import { OnboardingPanel } from './components/OnboardingPanel';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import confetti from 'canvas-confetti';
@@ -152,6 +154,8 @@ export default function Page() {
   const [isBotMatch, setIsBotMatch] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<import('@/lib/types').BotDifficulty>('pro');
   const [boardSeed, setBoardSeed] = useState<{ players: Player[]; colorCorner: any; isBotMatch: boolean } | null>(null);
+  // First-run setup (per device): theme + tokens before the lobby.
+  const [onboarded, setOnboarded] = useState<boolean>(() => hasOnboarded());
 
   const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
   const { level, tier } = progression;
@@ -270,6 +274,11 @@ export default function Page() {
 
   const closeTab = () => setActiveTab(null);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
+
+  // First-run setup: re-check whenever identity flips (fresh connect / guest).
+  useEffect(() => {
+    if (isConnected) setOnboarded(hasOnboarded());
+  }, [isConnected]);
 
    const handlePlayNow = async (isBotOverride?: boolean) => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
@@ -433,6 +442,8 @@ export default function Page() {
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
           <WalletConnectCard onGuest={() => enterGuest()} />
         </div>
+      ) : !onboarded ? (
+        <OnboardingPanel onDone={() => setOnboarded(true)} />
       ) : (
         <GuestWallProvider>
         <div className="app-shell dashboard-shell no-scrollbar">

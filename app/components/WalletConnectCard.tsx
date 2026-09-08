@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
 import LudoWalletModal from './LudoWalletModal';
+import { hasAcceptedTos, acceptTos } from '@/lib/onboarding';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same vocabulary as the synced panels: white-ink + white-opacity surfaces +
@@ -27,10 +28,22 @@ interface WalletConnectCardProps {
 export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectCardProps) {
     const [mounted, setMounted] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // ToS + Privacy consent: remembered per device; both entrances stay
+    // locked until the box is checked.
+    const [agreed, setAgreed] = useState(false);
 
     useEffect(() => {
         setMounted(true);
+        setAgreed(hasAcceptedTos());
     }, []);
+
+    const toggleAgreed = () => {
+        setAgreed(prev => {
+            const next = !prev;
+            if (next) acceptTos();
+            return next;
+        });
+    };
 
     return (
         <div
@@ -73,9 +86,39 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
                         {/* Custom Glow behind button */}
                         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-cyan-600 blur-xl opacity-20 group-hover/btn:opacity-40 transition-opacity pointer-events-none" />
 
+                        {/* ToS + Privacy consent */}
                         <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="w-full bg-white text-black text-lg font-black uppercase tracking-[0.2em] rounded-2xl py-5 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] border-0 flex items-center justify-center h-auto cursor-pointer active:scale-95 whitespace-nowrap"
+                            onClick={toggleAgreed}
+                            aria-pressed={agreed}
+                            className="mb-3 flex items-start gap-2.5 text-left active:scale-[0.99] transition-transform"
+                        >
+                            <span
+                                className={`mt-0.5 w-5 h-5 flex-none rounded-md border flex items-center justify-center transition-all ${agreed ? 'bg-cyan-400 border-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.5)]' : 'bg-white/5 border-white/25'}`}
+                                aria-hidden
+                            >
+                                {agreed && (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#06202a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                )}
+                            </span>
+                            <span className="text-[10px] font-bold text-white/55 leading-relaxed">
+                                I agree to the{' '}
+                                <a href="/terms" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200">
+                                    Terms of Service
+                                </a>
+                                {' '}and{' '}
+                                <a href="/privacy" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200">
+                                    Privacy Policy
+                                </a>
+                                .
+                            </span>
+                        </button>
+
+                        <button
+                            onClick={() => agreed && setIsModalOpen(true)}
+                            aria-disabled={!agreed}
+                            className={`w-full bg-white text-black text-lg font-black uppercase tracking-[0.2em] rounded-2xl py-5 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] border-0 flex items-center justify-center h-auto active:scale-95 whitespace-nowrap ${agreed ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
                         >
                             Sign in to start
                         </button>
@@ -83,8 +126,9 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
                         {onGuest && (
                             <div className="mt-3 flex flex-col items-center gap-1.5">
                                 <button
-                                    onClick={onGuest}
-                                    className="px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-95 whitespace-nowrap"
+                                    onClick={() => agreed && onGuest()}
+                                    aria-disabled={!agreed}
+                                    className={`px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white active:scale-95 whitespace-nowrap ${agreed ? '' : 'opacity-40 cursor-not-allowed'}`}
                                 >
                                     Continue as Guest
                                 </button>
