@@ -598,3 +598,28 @@ opportunistically (newest 300 kept, no cron).
 - `players` — RLS opened (read/insert/update) so pre-registration upserts
   (`{ wallet_address }` only) land; required by the `messages` FKs.
 
+---
+
+## Phase 7: User Feedback Inbox (applied 2026-09-08)
+
+> Migration file: `migrations/20260910_feedback.sql` (idempotent — safe to re-run).
+> Powers Settings → Feedback. Submits carry the sender's wallet-or-guest id.
+
+### 7.1 New table
+
+#### `feedback`
+```sql
+CREATE TABLE public.feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic TEXT NOT NULL DEFAULT 'Other',
+    message TEXT NOT NULL CHECK (char_length(message) BETWEEN 1 AND 2000),
+    address TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**RLS:** `ENABLE ROW LEVEL SECURITY` + `feedback_insert_any` allows `INSERT`
+to `anon, authenticated` with `WITH CHECK (true)` — anyone (wallet or guest)
+may submit. No client `SELECT`/`UPDATE`/`DELETE` policies: reads stay
+service-role only.
+
