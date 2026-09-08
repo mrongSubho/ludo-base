@@ -369,6 +369,9 @@ body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
 body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0e7490; }
 body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { background-color: rgba(23, 23, 23, 0.06); }
+/* Board compact header: mode-strip inner pill + text stay legible on light glass */
+body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
+body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
 body.theme-daybreak .ludo-header-scope :is(.hover\:text-white:hover) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.bg-white\/20) { background-color: rgba(23, 23, 23, 0.15); }
 body.theme-daybreak .ludo-header-scope [class*="bg-white text-black"] { background-color: #171717; color: #ffffff; }
