@@ -623,7 +623,14 @@ export default function Page() {
                     </svg>
                   </button>
                   <div className="game-status-info">
-                    <span className="game-mode-title">{playerCount === '2v2' ? 'Team Mode' : `${selectedMode} Mode`}</span>
+                    <span className="game-mode-title flex items-center gap-1.5">
+                      {selectedMode === 'power' ? (
+                        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '14px', height: '14px', color: '#facc15' }}><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: '14px', height: '14px' }}><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></svg>
+                      )}
+                      {playerCount === '2v2' ? 'Team Mode' : `${selectedMode} Mode`}
+                    </span>
                     <span className="game-status">{playerCount === '2v2' ? '2v2' : `${playerCount} Players`}</span>
                   </div>
                 </div>

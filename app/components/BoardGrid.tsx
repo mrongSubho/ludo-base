@@ -91,11 +91,14 @@ export function BoardGrid({
     }
 
     return (
-        <div className="board-grid" style={{
+        <div className="board-grid"             style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(15, 1fr)',
             gridTemplateRows: 'repeat(15, 1fr)',
-            width: '100%',
+            // Cap to viewport height so header rows + footer never clip:
+            // the smaller of full width or the available vertical space wins.
+            width: 'min(100%, calc(100dvh - 250px))',
+            margin: '0 auto',
             aspectRatio: '1 / 1',
             gap: '1px',
             background: 'var(--ludo-bg, #000000)',
@@ -139,7 +142,7 @@ export function BoardGrid({
                         {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
                         {mysteryPower && (
                             <span className="mystery-power" aria-hidden>
-                                ?
+                                <i>?</i>
                             </span>
                         )}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
