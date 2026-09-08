@@ -574,8 +574,6 @@ export default function Page() {
                 spectators={spectatorCount}
                 onExit={handleLeaveSpectating}
               />
-                </div>
-              </div>
 
               <main className="board-main has-top-back" style={{ paddingRight: spectatorGameState ? '296px' : undefined }}>
                 <Board
