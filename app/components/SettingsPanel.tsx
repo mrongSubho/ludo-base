@@ -4,6 +4,8 @@ import React from 'react';
 import { useDisconnect } from 'wagmi';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { exitGuest } from '@/lib/guest';
 import { PanelTabs } from './PanelTabs';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -189,6 +191,7 @@ const NavRow = ({ icon, tint, label, hint, last = false }: {
 export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; onLeaveMatch?: () => void }) {
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
+    const { isGuest } = useCurrentUser();
 
     return (
         <>
@@ -334,12 +337,15 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                             <button
                                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 active:scale-[0.99] transition-all text-red-400 text-xs font-black uppercase tracking-[0.18em]"
                                 onClick={() => {
-                                    disconnect();
+                                    // Guests hold no wallet: dropping the guest flag
+                                    // flips isConnected false → sign-in wall.
+                                    if (isGuest) exitGuest();
+                                    else disconnect();
                                     onClose();
                                 }}
                             >
                                 <LogOutIcon />
-                                <span>Sign Out</span>
+                                <span>{isGuest ? 'Sign In' : 'Sign Out'}</span>
                             </button>
                         </div>
                     </div>
