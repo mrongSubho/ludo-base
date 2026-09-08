@@ -1,29 +1,43 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { completeOnboarding } from '@/lib/onboarding';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // First-run setup shown once per device before the lobby: pick a theme
 // (+ token style). Selections apply live so the user sees the arena change.
+// Fresh devices (no stored choice) start on Daybreak + Orbs; stored prefs
+// are always respected.
 
 export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
     const { preferences, updatePreference } = usePreferences();
     const theme = preferences.theme === 'light' ? 'light' : 'retro';
     const tokenStyle = preferences.tokenStyle === 'orb' ? 'orb' : 'pawn';
+    const defaulted = useRef(false);
+
+    useEffect(() => {
+        if (defaulted.current) return;
+        defaulted.current = true;
+        try {
+            if (localStorage.getItem('ludo-theme') === null) {
+                updatePreference('ludo-theme', 'light');
+            }
+            if (localStorage.getItem('token-style') === null) {
+                updatePreference('token-style', 'orb');
+            }
+        } catch {
+            /* storage unavailable — hook fallbacks stand */
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const finish = () => {
         completeOnboarding();
         onDone();
     };
 
-    const card = (active: boolean) =>
-        `flex-1 rounded-2xl border p-3 flex flex-col items-center gap-2 transition-all active:scale-[0.98] ${
-            active
-                ? 'border-cyan-300/80 bg-cyan-400/10 shadow-[0_0_18px_rgba(34,211,238,0.25)]'
-                : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
-        }`;
+    const card = (active: boolean) => `onboard-pick${active ? ' onboard-pick-active' : ''}`;
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4 bg-black/70 backdrop-blur-md">
@@ -77,7 +91,7 @@ export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
                     </span>
                     <div className="flex gap-2">
                         <button onClick={() => updatePreference('token-style', 'pawn')} aria-pressed={tokenStyle === 'pawn'} className={card(tokenStyle === 'pawn')}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-white">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="onboard-pick-glyph w-7 h-7 text-white">
                                 <path d="M12 2a3 3 0 0 0-3 3c0 1.2.7 2.2 1.7 2.7L10 9H8a2 2 0 0 0-2 2v1h12v-1a2 2 0 0 0-2-2h-2l-.7-1.3c1-.5 1.7-1.5 1.7-2.7a3 3 0 0 0-3-3z" />
                                 <path d="M6 15h12l-1.5 6h-9L6 15z" />
                             </svg>

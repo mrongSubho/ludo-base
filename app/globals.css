@@ -375,6 +375,42 @@ body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { backgro
 /* Board compact header: mode-strip inner pill + text stay legible on light glass */
 body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
 body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
+/* Onboarding picks: full theme-proof card treatment (dark base + daybreak) */
+.onboard-pick {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+.onboard-pick:hover { background: rgba(255, 255, 255, 0.08); }
+.onboard-pick:active { transform: scale(0.98); }
+.onboard-pick-active {
+  border-color: rgba(103, 232, 249, 0.8);
+  background: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+}
+body.theme-daybreak .ludo-onboard-scope :is(.text-white) { color: #171717; }
+body.theme-daybreak .ludo-onboard-scope :is(.text-white\/50) { color: color-mix(in srgb, #171717 65%, transparent); }
+body.theme-daybreak .ludo-onboard-scope :is(.text-white\/40) { color: color-mix(in srgb, #171717 55%, transparent); }
+body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
+body.theme-daybreak .ludo-onboard-scope :is(.border-white\/10) { border-color: rgba(23, 23, 23, 0.14); }
+body.theme-daybreak .ludo-onboard-scope .onboard-pick {
+  border-color: rgba(23, 23, 23, 0.12);
+  background: #ffffff;
+  box-shadow: 0 14px 28px -14px rgba(23, 23, 23, 0.25);
+}
+body.theme-daybreak .ludo-onboard-scope .onboard-pick:hover { background: #f1f5f9; }
+body.theme-daybreak .ludo-onboard-scope .onboard-pick-active {
+  border-color: #0e7490;
+  background: rgba(14, 116, 144, 0.1);
+  box-shadow: 0 0 18px rgba(14, 116, 144, 0.25);
+}
 body.theme-daybreak .ludo-header-scope :is(.hover\:text-white:hover) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.bg-white\/20) { background-color: rgba(23, 23, 23, 0.15); }
 body.theme-daybreak .ludo-header-scope [class*="bg-white text-black"] { background-color: #171717; color: #ffffff; }
