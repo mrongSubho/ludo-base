@@ -106,6 +106,7 @@ export function BoardGrid({
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
                 const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                const mysteryPower = !trap && (localGameState?.powerTiles || []).some((pt: any) => pt.r === row && pt.c === col);
                 const nukeHit = (localGameState?.nukeFlash || []).some((f: any) => f.r === row && f.c === col);
                 
                 let bg = 'var(--ludo-path-bg)';
@@ -136,6 +137,11 @@ export function BoardGrid({
                     >
                         {nukeHit && <span className="nuke-flash" aria-hidden />}
                         {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
+                        {mysteryPower && (
+                            <span className="mystery-power" aria-hidden>
+                                ?
+                            </span>
+                        )}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
                         {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
                             const slot = CORNER_SLOTS[corner];
