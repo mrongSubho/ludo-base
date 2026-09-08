@@ -471,6 +471,10 @@ export default function Page() {
                     onSettingsClick={() => toggle('settings')}
                 />
 
+              {/* Mobile guest clearance: the fixed guest pill sits at top:72px —
+                  this in-flow spacer keeps the lobby heading from sliding under it */}
+              {isGuest && <div className="h-[36px] sm:hidden flex-none" aria-hidden />}
+
               <main className="dash-main pb-safe-footer px-safe h-full">
 
                 <GameLobby

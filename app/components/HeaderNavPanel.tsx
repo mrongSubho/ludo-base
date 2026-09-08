@@ -38,24 +38,24 @@ export const HeaderNavPanel = ({
     onSettingsClick
 }: HeaderNavPanelProps) => {
     return (
-        <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-4 gap-1.5 sticky top-0 z-[200]">
+        <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[200]">
             {/* [x] Header Redesign (3 Pills) */}
             {/* [x] Header Refinement (Compact Symmetrical Spaced Pills) */}
             {/* [x] Verify changes (Fixed widths and "free space" gaps) */}
             {/* Pill 1: Left - Coin Balance */}
-            <div className="w-[110px] flex-none h-[44px] flex items-center justify-start bg-transparent border border-cyan-500/50 rounded-r-full rounded-l-none shadow-[0_4px_20px_rgba(0,0,0,0.4)] shimmer-effect relative overflow-hidden">
-                <div className="flex items-center gap-2 z-10 px-3 w-full justify-start">
+            <div className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-start bg-transparent border border-cyan-500/50 rounded-r-full rounded-l-none shadow-[0_4px_20px_rgba(0,0,0,0.4)] shimmer-effect relative overflow-hidden">
+                <div className="flex items-center gap-2 z-10 px-2 sm:px-3 w-full justify-start">
                     <div className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.7)] flex-shrink-0">
                         <TokenIcon />
                     </div>
-                    <span className="text-sm font-black text-white tracking-tight truncate max-w-[80px]">
+                    <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate max-w-[52px] sm:max-w-[80px]">
                         {coins.toLocaleString()}
                     </span>
                 </div>
             </div>
 
             {/* Pill 2: Center - User Profile */}
-            <div className="w-[150px] flex-none h-[44px] flex items-center justify-center bg-transparent border border-cyan-500/50 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.45)] shimmer-effect relative overflow-hidden">
+            <div className="w-[128px] sm:w-[150px] flex-none h-[40px] sm:h-[44px] flex items-center justify-center bg-transparent border border-cyan-500/50 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.45)] shimmer-effect relative overflow-hidden">
                 <div className="flex items-center gap-2.5 w-full justify-center z-10 px-1">
                     <div className="relative flex-shrink-0">
                         <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1a1c29] shadow-[0_0_15px_rgba(34,211,238,0.4)]">
@@ -76,8 +76,8 @@ export const HeaderNavPanel = ({
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-start min-w-0 pr-1 max-w-[80px]">
-                        <span className="text-[10px] font-black text-white italic tracking-tighter uppercase truncate w-full">
+                    <div className="flex flex-col items-start min-w-0 pr-1 max-w-[62px] sm:max-w-[80px]">
+                        <span className="text-[9px] sm:text-[10px] font-black text-white italic tracking-tighter uppercase truncate w-full">
                             {finalName}
                         </span>
                         <span className="text-[8px] font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
@@ -88,14 +88,14 @@ export const HeaderNavPanel = ({
             </div>
 
             {/* Pill 3: Right - Actions */}
-            <div className="w-[110px] flex-none h-[44px] flex items-center justify-end bg-transparent border border-cyan-500/50 rounded-l-full rounded-r-none shadow-[0_4px_20px_rgba(0,0,0,0.9)] shimmer-effect relative overflow-hidden">
+            <div className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-end bg-transparent border border-cyan-500/50 rounded-l-full rounded-r-none shadow-[0_4px_20px_rgba(0,0,0,0.9)] shimmer-effect relative overflow-hidden">
                 <div className="flex items-center gap-1 z-10 w-full justify-end px-2">
                     <button
-                        className={`w-9 h-9 flex items-center justify-center rounded-full text-white/95 hover:text-white hover:bg-white/10 transition-all relative ${unreadCount > 0 ? 'ping-glow' : ''}`}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-white/95 hover:text-white hover:bg-white/10 transition-all relative ${unreadCount > 0 ? 'ping-glow' : ''}`}
                         onClick={onMessagesClick}
                         title="Messages"
                     >
-                        <ChatIcon className="w-6 h-6" />
+                        <ChatIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                         {/* Notifications dot (top-left) — requests + pokes live here */}
                         {hasNotifications && (
                             <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#131520] shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-pulse" />
@@ -110,11 +110,11 @@ export const HeaderNavPanel = ({
                     <div className="w-px h-5 bg-white/20 mx-1"></div>
 
                     <button
-                        className="w-9 h-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all"
+                        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all"
                         onClick={onSettingsClick}
                         title="Settings"
                     >
-                        <SlidersIcon className="w-5 h-5" />
+                        <SlidersIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                 </div>
             </div>

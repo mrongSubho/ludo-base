@@ -1845,8 +1845,9 @@ body.theme-retro-futurism::before {
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 200 !important;
-  /* Updated translucent background (25%) - Forced */
-  background: rgba(0, 0, 0, 0.25) !important;
+  /* Translucent dark glass — opaque enough that scrolled content
+     (broadcast cards, tickers) can't bleed through the tab labels */
+  background: rgba(0, 0, 0, 0.72) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   /* Subtle top border */
@@ -1908,6 +1909,29 @@ body.theme-retro-futurism::before {
   /* Default to white (subtle) - forced override */
   color: rgba(255, 255, 255, 0.7) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Narrow phones: 5 tabs share ~360px — tighten so labels never collide */
+@media (max-width: 430px) {
+  .footer-nav {
+    padding: 8px 4px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .nav-item {
+    padding: 6px 2px;
+    gap: 2px;
+  }
+  .nav-item .nav-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .nav-item .nav-label {
+    font-size: 9px;
+  }
 }
 
 .nav-item.active .nav-label {
