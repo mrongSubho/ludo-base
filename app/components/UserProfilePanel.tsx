@@ -7,6 +7,7 @@ import { getProgression, getRankProgress } from '@/lib/progression';
 import { supabase } from '@/lib/supabase';
 import { RANGES, FormChart, rangeCutoff } from './FormChart';
 import { getShowcased } from '@/lib/showcase';
+import { exitGuest } from '@/lib/guest';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import {
     AVATARS, AvatarDef, encodeAvatar, isDirectImage, isUnlocked,
@@ -294,6 +295,26 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
                         </span>
                     </div>
                 </div>
+
+                {/* Guest pass → connect banner (guest-only; replaces the old
+                    floating overlay pill — lives where account things belong) */}
+                {isGuest && (
+                    <div className="guest-connect-banner mx-5 mt-3 relative z-10 flex items-center gap-2.5 pl-3 pr-1.5 py-1.5 rounded-2xl border border-amber-500/30 bg-amber-500/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-none" />
+                        <span className="guest-connect-text flex-1 min-w-0 text-[10px] font-bold text-amber-200/90 leading-tight">
+                            Guest pass — connect a wallet to keep coins, wins &amp; rank.
+                        </span>
+                        <button
+                            onClick={() => {
+                                onClose();
+                                exitGuest();
+                            }}
+                            className="flex-none px-2.5 py-1 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
+                        >
+                            Connect
+                        </button>
+                    </div>
+                )}
 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">

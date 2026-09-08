@@ -42,7 +42,7 @@ import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION 
 import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
 import { GuestWallProvider } from '@/hooks/GuestWallContext';
-import { enterGuest, exitGuest } from '@/lib/guest';
+import { enterGuest } from '@/lib/guest';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import confetti from 'canvas-confetti';
@@ -128,22 +128,6 @@ const StreamToggle = ({ matchId, isHost, small }: { matchId?: string, isHost: bo
 }
 
 
-// Floating trial-status pill, anchored to the app column (overlay only —
-// header itself is untouched). Right edge tracks the column, not viewport.
-const GuestPill = ({ onConnect }: { onConnect: () => void }) => (
-  <div className="ludo-guestpill-scope guest-pill-anchor flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-full border border-amber-500/30 bg-black/60 backdrop-blur-xl shadow-lg">
-    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-    <span className="text-[9px] font-black text-amber-300 uppercase tracking-[0.2em]">Guest Pass</span>
-    <button
-      onClick={onConnect}
-      className="px-2.5 py-1 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
-    >
-      Connect
-    </button>
-  </div>
-);
-
-
 export default function Page() {
   const [appState, setAppState] = useState<AppState>('dashboard');
   const [activeTab, setActiveTab] = useState<Tab>(null);
@@ -152,7 +136,7 @@ export default function Page() {
   const [showSplash, setShowSplash] = useState(true);
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
-  const { profile, address, isConnected, displayName: finalName, isGuest } = useCurrentUser();
+  const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   // DM unread badge reads the same GameData store the panel writes, so it
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
@@ -471,10 +455,6 @@ export default function Page() {
                     onSettingsClick={() => toggle('settings')}
                 />
 
-              {/* Mobile guest clearance: the fixed guest pill sits at top:72px —
-                  this in-flow spacer keeps the lobby heading from sliding under it */}
-              {isGuest && <div className="h-[36px] sm:hidden flex-none" aria-hidden />}
-
               <main className="dash-main pb-safe-footer px-safe h-full">
 
                 <GameLobby
@@ -549,9 +529,6 @@ export default function Page() {
                   <SettingsPanel key="settings" onClose={closeTab} />
                 )}
               </>
-
-              {/* Guest trial-status pill (overlay — header untouched) */}
-              {isGuest && <GuestPill onConnect={() => exitGuest()} />}
 
               {/* Global Public Profile Popup */}
               <PublicProfileModal

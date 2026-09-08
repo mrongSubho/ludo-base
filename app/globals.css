@@ -315,6 +315,9 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-white\/60, .text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10, .text-white\/5) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.hover\:text-white:hover, .hover\:text-white\/70:hover, .hover\:text-white\/60:hover) { color: #171717; }
+/* Guest connect banner (profile panel): amber wash legible on both themes */
+body.theme-daybreak .ludo-profile-scope .guest-connect-banner { background-color: rgba(180, 83, 9, 0.08); border-color: rgba(180, 83, 9, 0.35); }
+body.theme-daybreak .ludo-profile-scope .guest-connect-text { color: #92400e; }
 /* Daybreak surfaces: cards go solid white with a soft shadow, recessed
    fills go light slate, hover fills go slate-100. */
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.bg-white\/\[0\.04\], .bg-white\/\[0\.07\], .bg-white\/5, .bg-white\/10) { background-color: #ffffff; box-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(23, 23, 23, 0.04); }
@@ -895,19 +898,6 @@ body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #
 .ludo-wall-scope .py-1\.5 { padding-block: 0.375rem; }
 .ludo-wall-scope .py-2 { padding-block: 0.5rem; }
 .ludo-wall-scope .py-3 { padding-block: 0.75rem; }
-/* Scoped spacing repair (guest pill only): scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.guest-pill-anchor {
-  position: fixed;
-  top: 72px;
-  right: max(8px, calc(50vw - 242px));
-  z-index: 95;
-}
-.ludo-guestpill-scope .pl-2\.5 { padding-left: 0.625rem; }
-.ludo-guestpill-scope .pr-1\.5 { padding-right: 0.375rem; }
-.ludo-guestpill-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-guestpill-scope .py-1 { padding-block: 0.25rem; }
-.ludo-guestpill-scope .py-1\.5 { padding-block: 0.375rem; }
 
 html,
 body {
