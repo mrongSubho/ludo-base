@@ -95,9 +95,9 @@ export function BoardGrid({
             display: 'grid',
             gridTemplateColumns: 'repeat(15, 1fr)',
             gridTemplateRows: 'repeat(15, 1fr)',
-            // Cap to viewport height so header rows + footer never clip:
-            // the smaller of full width or the available vertical space wins.
-            width: 'min(100%, calc(100dvh - 250px))',
+            // Cap to viewport height so rows + footer never clip:
+            // reserve covers 2 player rows + dice (~170) + main padding/footer (~160).
+            width: 'min(100%, calc(100dvh - 330px))',
             margin: '0 auto',
             aspectRatio: '1 / 1',
             gap: '1px',
@@ -141,8 +141,14 @@ export function BoardGrid({
                         {nukeHit && <span className="nuke-flash" aria-hidden />}
                         {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
                         {mysteryPower && (
-                            <span className="mystery-power" aria-hidden>
-                                <i>?</i>
+                            <span className="mystery-upright" style={{ transform: `rotate(${counterRotationDeg || 0}deg)` }} aria-hidden>
+                                <span className="mystery-power">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <circle cx="12" cy="12" r="8.6" stroke="#67e8f9" strokeWidth="1.6" strokeDasharray="3 2.4" opacity="0.9" />
+                                        <path d="M12 6.5 L17.5 12 L12 17.5 L6.5 12 Z" fill="rgba(103,232,249,0.18)" stroke="#a5f3fc" strokeWidth="1.6" strokeLinejoin="round" />
+                                        <circle cx="12" cy="12" r="1.8" fill="#a5f3fc" />
+                                    </svg>
+                                </span>
                             </span>
                         )}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}

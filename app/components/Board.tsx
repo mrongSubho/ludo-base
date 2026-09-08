@@ -187,7 +187,7 @@ export default function Board({
     };
 
     return (
-        <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-[100dvh]">
+        <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-full">
             <PlayerRow
                 corners={['TL', 'TR']}
                 uiSlots={uiSlots}
