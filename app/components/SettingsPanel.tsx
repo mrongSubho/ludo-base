@@ -370,7 +370,6 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
     // loss mid-match). Terms & Privacy open as real pages in a new tab.
     const [view, setView] = useState<'main' | 'help' | 'feedback' | 'about'>('main');
     const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
-    const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
 
     return (
         <>
