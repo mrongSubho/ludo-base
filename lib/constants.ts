@@ -14,7 +14,22 @@ export const BASE_INDEX = -1;
 export const DEFAULT_TURN_TIMER_SECS = 15;
 export const IDLE_WARNING_TIMER_SECS = 10;
 export const MAX_CONSECUTIVE_SIXES = 3;
-export const POWER_TILES_COUNT = 4;
+export const POWER_TILES_COUNT = 5;
+
+// --- Power economy: rarity weights must sum to 1, expiry in ms ---
+export const POWER_RARITY: { type: 'boost' | 'shield' | 'teleport' | 'nuke'; w: number }[] = [
+    { type: 'boost', w: 0.4 },
+    { type: 'shield', w: 0.25 },
+    { type: 'teleport', w: 0.2 },
+    { type: 'nuke', w: 0.15 },
+];
+export const POWER_EXPIRY_MS: Record<'boost' | 'shield' | 'teleport' | 'nuke', number> = {
+    nuke: 3 * 60 * 1000,
+    shield: 4 * 60 * 1000,
+    boost: 5 * 60 * 1000,
+    teleport: 5 * 60 * 1000,
+};
+export const NUKE_RADIUS = 3;
 export const MAX_AFK_STRIKES = 3;
 export const AFK_CANCEL_REASON = 'USER_ACTIVITY';
 

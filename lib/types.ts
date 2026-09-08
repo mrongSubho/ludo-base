@@ -1,7 +1,13 @@
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
-export type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
+export type PowerType = 'shield' | 'boost' | 'nuke' | 'teleport';
 import type { BotDifficulty } from './constants';
 export type { BotDifficulty };
+// One held power item. expiresAt (ms epoch) refreshes on re-pickup of the
+// same type; expiry sweeps run on every game transition.
+export interface PowerItem {
+    type: PowerType;
+    expiresAt: number;
+}
 
 export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'CMD_REQUEST_TRUST';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
@@ -49,8 +55,10 @@ export interface GameState {
     captureMessage: string | null;
     timeLeft: number;
     strikes: Record<PlayerColor, number>;
-    powerTiles: { r: number, c: number }[];
-    playerPowers: Record<PlayerColor, PowerType | null>;
+    powerTiles: { r: number, c: number, type: PowerType }[];
+    playerPowers: Record<PlayerColor, PowerItem[]>;
+    powerSpentThisTurn: boolean;
+    nukeFlash: { r: number; c: number }[];
     activeTraps: { r: number, c: number, owner: PlayerColor }[];
     activeShields: { color: PlayerColor, tokenIdx: number }[];
     consecutiveSixes: number;

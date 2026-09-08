@@ -1,14 +1,17 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { PlayerColor, PowerType } from '@/lib/types';
-import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore } from '@/lib/gameLogic';
+import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
+import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType } from '@/lib/gameLogic';
+import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
 import { Point, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS, getBoardCoordinate } from '@/lib/boardLayout';
-import { 
-    BOARD_FINISH_INDEX, 
-    BASE_INDEX, 
-    DICE_MAX, 
-    DICE_ROLL_SIX, 
-    HOME_LANE_START_INDEX 
+import {
+    BOARD_FINISH_INDEX,
+    BASE_INDEX,
+    DICE_MAX,
+    DICE_ROLL_SIX,
+    HOME_LANE_START_INDEX,
+    POWER_EXPIRY_MS,
+    POWER_TILES_COUNT
 } from '@/lib/constants';
 
 interface UseGameActionsProps {
@@ -28,6 +31,11 @@ interface UseGameActionsProps {
         playMove: () => void;
         playCapture: () => void;
         playWin: () => void;
+        playNuke: () => void;
+        playShield: () => void;
+        playBoost: () => void;
+        playTeleport: () => void;
+        playPickup: () => void;
     };
     triggerWinConfetti: () => void;
     recordWin: (color: PlayerColor) => Promise<void>;
@@ -97,11 +105,16 @@ export function useGameActions({
         const currentState = stateRef.current;
         if (currentState.gamePhase !== 'moving' && !isRemote) return;
 
+        // Boosted move: +6 steps, consumed on use (host computes; guests
+        // replay the broadcast steps without re-adding).
+        const boosted = !isRemote && (currentState as any).activeBoost === currentState.currentPlayer;
+        const effSteps = boosted ? steps + DICE_MAX : steps;
+
         const { newState, captured } = processMove(
             currentState,
             color,
             tokenIndex,
-            steps,
+            effSteps,
             playerCount,
             colorCorner,
             currentState.currentPlayer,
@@ -119,7 +132,7 @@ export function useGameActions({
         const finalState = {
             ...currentState,
             ...newState,
-            diceValue: isBonusTurn ? null : newState.diceValue, 
+            diceValue: isBonusTurn ? null : newState.diceValue,
             captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
             strikes: { ...currentState.strikes, [color]: 0 },
             consecutiveSixes: (newState.currentPlayer !== color) ? 0 : currentState.consecutiveSixes,
@@ -127,6 +140,54 @@ export function useGameActions({
             timeLeft: 15, // Reset timer during animation
             lastUpdate: Date.now()
         };
+
+        // Boost consumed by this move.
+        if (boosted) (finalState as any).activeBoost = null;
+        // Shields last until the owner's next move completes.
+        (finalState as any).activeShields = (currentState.activeShields || []).filter(
+            (s: any) => s.color !== currentState.currentPlayer
+        );
+
+        // ── Power pickup: landing exactly on a hidden tile reveals + grants.
+        // Same-type clocks refresh; a replacement tile spawns elsewhere.
+        const landedPos = newState.positions[color][tokenIndex];
+        if (typeof landedPos === 'number' && landedPos >= 0 && landedPos < HOME_LANE_START_INDEX) {
+            const landPt = getBoardCoordinate(landedPos, color, colorCorner);
+            if (landPt) {
+                const tileIdx = (currentState.powerTiles || []).findIndex((t: any) => t.r === landPt.r && t.c === landPt.c);
+                if (tileIdx >= 0) {
+                    const tile = currentState.powerTiles[tileIdx];
+                    const now = Date.now();
+                    const liveInv: PowerItem[] = ((currentState.playerPowers || {})[color] || []).filter((p: PowerItem) => p.expiresAt > now);
+                    const full = POWER_EXPIRY_MS[tile.type as keyof typeof POWER_EXPIRY_MS] ?? POWER_EXPIRY_MS.boost;
+                    const granted: PowerItem[] = liveInv.map(p => p.type === tile.type ? { ...p, expiresAt: now + full } : p);
+                    granted.push({ type: tile.type, expiresAt: now + full });
+                    (finalState as any).playerPowers = { ...(currentState.playerPowers || {}), [color]: granted };
+                    // Respawn to keep the board seeded.
+                    const taken = new Set((currentState.powerTiles || []).map((t: any) => `${t.r},${t.c}`));
+                    taken.delete(`${tile.r},${tile.c}`);
+                    const palette: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
+                    let spawnedKey: string | null = null;
+                    for (let tries = 0; tries < 24 && !spawnedKey; tries++) {
+                        const rc = palette[Math.floor(Math.random() * palette.length)];
+                        const rp = Math.floor(Math.random() * 52);
+                        const pt = getBoardCoordinate(rp, rc, colorCorner);
+                        if (pt && !taken.has(`${pt.r},${pt.c}`)) {
+                            spawnedKey = `${pt.r},${pt.c}`;
+                        }
+                    }
+                    const remaining = (currentState.powerTiles || []).filter((_: any, i: number) => i !== tileIdx);
+                    if (spawnedKey) {
+                        const [sr, sc] = spawnedKey.split(',').map(Number);
+                        remaining.push({ r: sr, c: sc, type: rollPowerType() });
+                    }
+                    (finalState as any).powerTiles = remaining;
+                    const foundMsg = `${tile.type.toUpperCase()} discovered!`;
+                    (finalState as any).captureMessage = captured ? `${(finalState as any).captureMessage} ${foundMsg}` : foundMsg;
+                    audio.playPickup();
+                }
+            }
+        }
 
         if (isHost && !isRemote) {
             if (newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {
@@ -139,8 +200,8 @@ export function useGameActions({
 
         if (isHost && isLobbyConnected && !isRemote) {
             // We broadcast LIVE state immediately to show the target position
-            broadcastAction('MOVE_TOKEN', { 
-                payload: { color, tokenIndex, steps, targetPosition: newState.positions[color][tokenIndex] }
+            broadcastAction('MOVE_TOKEN', {
+                payload: { color, tokenIndex, steps: effSteps, targetPosition: newState.positions[color][tokenIndex] }
             }, finalState);
         }
 
@@ -253,12 +314,14 @@ export function useGameActions({
             broadcastAction('ROLL_DICE', { isRolling: false, diceValue: rollValue });
         }
 
-        setLocalGameState((prev: any) => ({ 
-            ...prev, 
-            isRolling: false, 
+        setLocalGameState((prev: any) => ({
+            ...prev,
+            isRolling: false,
             diceValue: rollValue,
             lastUpdate: Date.now(),
-            timeLeft: 15 // Reset timer during animation
+            timeLeft: 15, // Reset timer during animation
+            // A fresh roll opens a fresh power budget: one power per roll.
+            powerSpentThisTurn: false
         }));
         
         // Brief pause for visual impact of the landing face
@@ -383,96 +446,141 @@ export function useGameActions({
 
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address]);
 
-    const handleUsePower = useCallback((color: PlayerColor) => {
-        setLocalGameState((prev: any) => {
-            if (prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return prev;
-            const power = prev.playerPowers[color as PlayerColor];
-            if (!power) return prev;
+    const handleUsePower = useCallback((color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
+        const prev: any = stateRef.current;
+        if (!prev || prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return;
+        if (prev.powerSpentThisTurn) return;
+        const now = Date.now();
+        const myColor = color as PlayerColor;
+        // Sweep expired + read live inventory.
+        const liveInv: PowerItem[] = (prev.playerPowers[myColor] || []).filter((p: PowerItem) => p.expiresAt > now);
+        const pick: PowerType | undefined = type ?? (['nuke', 'shield', 'boost', 'teleport'] as PowerType[]).find(t => liveInv.some(p => p.type === t));
+        if (!pick || !liveInv.some(p => p.type === pick)) return;
 
-            let nextState = { ...prev };
-            const myColor = color as PlayerColor;
+        const consume = (inv: PowerItem[], t: PowerType) => {
+            const i = inv.findIndex(p => p.type === t);
+            if (i >= 0) inv.splice(i, 1);
+            return inv;
+        };
+        let nextState = { ...prev };
+        let sound: 'nuke' | 'shield' | 'boost' | 'teleport' | null = null;
+        let flash: { r: number, c: number }[] | null = null;
 
-            if (power === 'shield') {
-                const tokensOnBoard = prev.positions[myColor]
-                    .map((pos: number, idx: number) => (pos >= 0 && pos < HOME_LANE_START_INDEX) ? idx : -1)
-                    .filter((idx: number) => idx !== -1);
-                
-                const newShields = [...prev.activeShields];
-                tokensOnBoard.forEach((idx: number) => {
-                    if (!newShields.some(s => s.color === myColor && s.tokenIdx === idx)) {
-                        newShields.push({ color: myColor, tokenIdx: idx });
+        if (pick === 'shield') {
+            const tokensOnBoard = prev.positions[myColor]
+                .map((pos: number, idx: number) => (pos >= 0 && pos < HOME_LANE_START_INDEX) ? idx : -1)
+                .filter((idx: number) => idx !== -1);
+
+            const newShields = [...prev.activeShields];
+            tokensOnBoard.forEach((idx: number) => {
+                if (!newShields.some((s: any) => s.color === myColor && s.tokenIdx === idx)) {
+                    newShields.push({ color: myColor, tokenIdx: idx });
+                }
+            });
+            nextState.activeShields = newShields;
+            nextState.captureMessage = `Shield up! Safe until your next move.`;
+            sound = 'shield';
+        }
+        else if (pick === 'nuke') {
+            let idx = tokenIdx;
+            if (idx === undefined) {
+                // Auto-pick densest cluster (AI path).
+                let best = -1;
+                let bestCount = 0;
+                prev.positions[myColor].forEach((myPos: number, i: number) => {
+                    if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
+                    const { victims } = countNukeVictims(prev, myColor, i, colorCorner, playerCount);
+                    if (victims.length > bestCount) {
+                        bestCount = victims.length;
+                        best = i;
                     }
                 });
-                nextState.activeShields = newShields;
-            } 
-            else if (power === 'bomb') {
-                let target: { color: PlayerColor, idx: number } | null = null;
-                let minDistance = 7;
-
-                prev.positions[myColor].forEach((myPos: number) => {
-                    if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
-                    const myPt = getBoardCoordinate(myPos, myColor, colorCorner);
-                    if (!myPt) return;
-
-                    (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
-                        if (oppColor === myColor) return;
-                        if (playerCount === '2v2' && oppColor === getTeammateColor(myColor, playerCount)) return;
-
-                        prev.positions[oppColor].forEach((oppPos: number, oppIdx: number) => {
-                            if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
-                            const oppPt = getBoardCoordinate(oppPos, oppColor, colorCorner);
-                            if (!oppPt) return;
-                            
-                            for (let s = 1; s <= DICE_MAX; s++) {
-                                const checkPos = myPos + s;
-                                if (checkPos >= HOME_LANE_START_INDEX) break;
-                                const checkPt = getBoardCoordinate(checkPos, myColor, colorCorner);
-                                if (!checkPt) continue;
-                                
-                                if (checkPt.r === oppPt.r && checkPt.c === oppPt.c) {
-                                    if (s < minDistance) {
-                                        minDistance = s;
-                                        target = { color: oppColor, idx: oppIdx };
-                                    }
-                                }
-                            }
-                        });
-                    });
+                if (best >= 0) idx = best;
+            }
+            if (idx === undefined) {
+                nextState.captureMessage = `Nuke armed — tap one of your tokens to target.`;
+                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
+                return;
+            }
+            const { victims, cells } = countNukeVictims(prev, myColor, idx, colorCorner, playerCount);
+            if (victims.length === 0) {
+                nextState.captureMessage = `No targets in blast range — nuke kept.`;
+                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
+                return;
+            }
+            const newPositions = { ...prev.positions };
+            victims.forEach(v => {
+                newPositions[v.color] = [...newPositions[v.color]];
+                newPositions[v.color][v.idx] = BASE_INDEX;
+            });
+            nextState.positions = newPositions;
+            nextState.nukeFlash = cells;
+            nextState.captureMessage = `NUKE! ${victims.length} token${victims.length === 1 ? '' : 's'} vaporized!`;
+            sound = 'nuke';
+            flash = cells;
+        }
+        else if (pick === 'boost') {
+            nextState.activeBoost = myColor;
+            nextState.captureMessage = `BOOST! Next move +${DICE_MAX} steps.`;
+            sound = 'boost';
+        }
+        else if (pick === 'teleport') {
+            let idx = tokenIdx;
+            if (idx === undefined) {
+                // Foremost on-board token.
+                let bestPos = -1;
+                prev.positions[myColor].forEach((p: number, i: number) => {
+                    if (p >= 0 && p < BOARD_FINISH_INDEX && p > bestPos) {
+                        bestPos = p;
+                        idx = i;
+                    }
                 });
+            }
+            if (idx === undefined) {
+                nextState.captureMessage = `Teleport armed — tap one of your tokens.`;
+                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
+                return;
+            }
+            const from = prev.positions[myColor][idx];
+            let dest = -1;
+            if (from >= 49 && from <= 56) {
+                dest = BOARD_FINISH_INDEX;
+            } else if (from >= 0 && from < HOME_LANE_START_INDEX) {
+                dest = nearestStarAhead(from, myColor, colorCorner);
+            }
+            if (dest < 0) {
+                nextState.captureMessage = `Nowhere to blink — teleport kept.`;
+                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
+                return;
+            }
+            const newPos = { ...prev.positions };
+            newPos[myColor] = [...newPos[myColor]];
+            newPos[myColor][idx] = dest;
+            nextState.positions = newPos;
+            nextState.captureMessage = dest === BOARD_FINISH_INDEX ? `TELEPORT! Straight home!` : `TELEPORT! Blinked to safety.`;
+            sound = 'teleport';
+        }
 
-                if (target) {
-                    const t = target as { color: PlayerColor, idx: number };
-                    const newPositions = { ...prev.positions };
-                    newPositions[t.color] = [...newPositions[t.color]];
-                    newPositions[t.color][t.idx] = BASE_INDEX;
-                    nextState.positions = newPositions;
-                    nextState.captureMessage = `BOMB! ${t.color} token removed!`;
-                    audio.playCapture();
-                }
-            }
-            else if (power === 'boost') {
-                nextState.activeBoost = myColor;
-                nextState.captureMessage = `BOOST! Next move +${DICE_MAX} steps.`;
-            }
-            else if (power === 'warp') {
-                const firstTokenIdx = prev.positions[myColor].findIndex((p: number) => p >= 0 && p < HOME_LANE_START_INDEX - 10);
-                if (firstTokenIdx !== -1) {
-                    const newPos = { ...prev.positions };
-                    newPos[myColor] = [...newPos[myColor]];
-                    const targetPos = Math.min(newPos[myColor][firstTokenIdx] + 10, HOME_LANE_START_INDEX - 1);
-                    newPos[myColor][firstTokenIdx] = targetPos;
-                    nextState.positions = newPos;
-                    nextState.captureMessage = "WARP! Forward 10 squares.";
-                    audio.playMove();
-                }
-            }
+        // Spend: consume one item, lock the turn's power budget.
+        nextState.playerPowers = {
+            ...prev.playerPowers,
+            [myColor]: consume([...liveInv], pick)
+        };
+        nextState.powerSpentThisTurn = true;
+        nextState.lastUpdate = Date.now();
+        setLocalGameState(nextState);
 
-            return {
-                ...nextState,
-                playerPowers: { ...prev.playerPowers, [myColor]: null },
-                lastUpdate: Date.now()
-            };
-        });
+        if (sound === 'nuke') audio.playNuke();
+        else if (sound === 'shield') audio.playShield();
+        else if (sound === 'boost') audio.playBoost();
+        else if (sound === 'teleport') audio.playTeleport();
+
+        // Clear the blast flash after the drama lands.
+        if (flash) {
+            setTimeout(() => {
+                setLocalGameState((latest: any) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
+            }, 1400);
+        }
     }, [playerCount, colorCorner, audio, setLocalGameState]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {

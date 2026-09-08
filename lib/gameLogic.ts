@@ -1,13 +1,16 @@
 import { GameState, PlayerColor, LobbySlot, LobbyState } from './types';
 import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS, CORNER_SLOTS, getBoardCoordinate } from './boardLayout';
-import { 
-    BOARD_FINISH_INDEX, 
-    TOTAL_PATH_CELLS, 
-    DEFAULT_TURN_TIMER_SECS, 
+import {
+    BOARD_FINISH_INDEX,
+    TOTAL_PATH_CELLS,
+    DEFAULT_TURN_TIMER_SECS,
     DICE_ROLL_SIX,
     BASE_INDEX,
-    MAX_CONSECUTIVE_SIXES
+    MAX_CONSECUTIVE_SIXES,
+    POWER_RARITY,
+    NUKE_RADIUS
 } from './constants';
+import type { PowerType } from './types';
 
 export const INITIAL_GAME_STATE: GameState = {
     positions: { 
@@ -27,7 +30,9 @@ export const INITIAL_GAME_STATE: GameState = {
     timeLeft: DEFAULT_TURN_TIMER_SECS,
     strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
     powerTiles: [],
-    playerPowers: { green: null, red: null, yellow: null, blue: null },
+    playerPowers: { green: [], red: [], yellow: [], blue: [] },
+    powerSpentThisTurn: false,
+    nukeFlash: [],
     activeTraps: [],
     activeShields: [],
     consecutiveSixes: 0,
@@ -45,6 +50,43 @@ export const INITIAL_GAME_STATE: GameState = {
     lastUpdate: Date.now(),
     playerCount: '4P',
 };
+
+// ─── Power economy helpers ─────────────────────────────────────────────
+// Weighted rarity roll for hidden tile types.
+export function rollPowerType(rand: number = Math.random()): PowerType {
+    let acc = 0;
+    for (const p of POWER_RARITY) {
+        acc += p.w;
+        if (rand < acc) return p.type;
+    }
+    return 'boost';
+}
+
+// Track indices (0–51) of the star squares for a given color/corner.
+export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
+    const out: number[] = [];
+    for (let pos = 0; pos < 52; pos++) {
+        const pt = getBoardCoordinate(pos, color, cc);
+        if (pt && GLOBAL_SAFE_POINTS.some(s => s.r === pt.r && s.c === pt.c)) out.push(pos);
+    }
+    return out;
+}
+
+// Nearest star strictly ahead (circular); -1 if the color has none.
+export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorner): number {
+    const stars = getStarIndices(color, cc);
+    if (stars.length === 0) return -1;
+    let best = -1;
+    let bestDist = Infinity;
+    for (const s of stars) {
+        const dist = (s - pos + 52) % 52;
+        if (dist > 0 && dist < bestDist) {
+            bestDist = dist;
+            best = s;
+        }
+    }
+    return best;
+}
 
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
     if (playerCount !== '2v2') return null;

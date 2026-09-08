@@ -6,10 +6,11 @@ import { PlayerColor, PowerType, BotDifficulty } from '@/lib/types';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
-import { 
-    INITIAL_GAME_STATE, 
-    getTeammateColor, 
-    getNextPlayer as getNextPlayerCore 
+import {
+    INITIAL_GAME_STATE,
+    getTeammateColor,
+    getNextPlayer as getNextPlayerCore,
+    rollPowerType
 } from '@/lib/gameLogic';
 import { 
     BOARD_FINISH_INDEX, 
@@ -62,7 +63,7 @@ export function useGameEngine({
     wager = 0,
 }: UseGameEngineProps) {
     const [lxpGain, setLxpGain] = useState<number | null>(null);
-    const { playMove, playCapture, playWin, playTurn } = useAudio();
+    const { playMove, playCapture, playWin, playTurn, playNuke, playShield, playBoost, playTeleport, playPickup } = useAudio();
     // Effective identity (wallet or guest id) — guests must resolve as the
     // human seat, never as bots.
     const { address, isGuest } = useCurrentUser();
@@ -98,7 +99,7 @@ export function useGameEngine({
             .filter(c => c.cls === 'board-cell')
             .sort(() => Math.random() - 0.5)
             .slice(0, POWER_TILES_COUNT)
-            .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
+            .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []) as { r: number, c: number, type: import('@/lib/types').PowerType }[],
         lastUpdate: Date.now()
     });
 
@@ -203,7 +204,7 @@ export function useGameEngine({
         playerCount,
         colorCorner,
         activeColorsArr,
-        audio: useMemo(() => ({ playMove, playCapture, playWin }), [playMove, playCapture, playWin]),
+        audio: useMemo(() => ({ playMove, playCapture, playWin, playNuke, playShield, playBoost, playTeleport, playPickup }), [playMove, playCapture, playWin, playNuke, playShield, playBoost, playTeleport, playPickup]),
         triggerWinConfetti,
         recordWin,
         autoMoveTimeoutRef,
@@ -346,7 +347,7 @@ export function useGameEngine({
                 .filter(c => c.cls === 'board-cell')
                 .sort(() => Math.random() - 0.5)
                 .slice(0, POWER_TILES_COUNT)
-                .map(c => ({ r: c.row, c: c.col })) : []) as { r: number, c: number }[],
+                .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []) as { r: number, c: number, type: import('@/lib/types').PowerType }[],
             isStarted: true,
             lastUpdate: Date.now()
         });
@@ -387,6 +388,7 @@ export function useGameEngine({
         cancelAfk,
         toggleAutoPlay,
         resetGame,
-        getNextPlayer
+        getNextPlayer,
+        isAuthority
     };
 }

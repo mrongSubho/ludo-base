@@ -17,7 +17,7 @@ interface UseAIBrainProps {
     isHost: boolean;
     handleRoll: (value?: number) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
-    handleUsePower: (color: PlayerColor) => void;
+    handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
     colorCorner: ColorCorner;
     playerCount: '1v1' | '4P' | '2v2';
     isLobbyConnected: boolean;
@@ -101,9 +101,9 @@ export function useAIBrain({
             // Timer survives effect re-runs. Function ref is always fresh.
             rollTimerRef.current = setTimeout(() => {
                 rollTimerRef.current = null;
-                const shouldUsePower = getBestPowerUsage(localGameState, color, colorCorner, playerCount, difficulty);
-                if (shouldUsePower) {
-                    handleUsePowerRef.current(color);
+                const powerPick = getBestPowerUsage(localGameState, color, colorCorner, playerCount, difficulty);
+                if (powerPick) {
+                    handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
                 } else {
                     handleRollRef.current();
                 }

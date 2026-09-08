@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
-import { PlayerColor } from '@/lib/types';
+import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
     assignCorners2v2, assignCornersFFA,
@@ -101,6 +101,48 @@ export default function Board({
 
     const localGameState = (spectatorMode && externalGameState) ? externalGameState : engine.gameState;
     const { handleRoll, handleTokenClick, handleUsePower, resetGame, cancelAfk, lxpGain } = engine;
+    // Powers execute host-side (guests replay broadcast state); only the
+    // authority seat gets the inventory to avoid local-only desync spends.
+    const canUsePowers = (engine as any).isAuthority !== false;
+
+    // ─── Power inventory + targeting ─────────────────────────────────────
+    // Bottom-centered badge bar for the human turn player's live powers.
+    // Nuke/teleport arm targeting (gold rings on that color's tokens);
+    // shield/boost fire immediately. One power per roll, enforced engine-side.
+    const [targeting, setTargeting] = useState<{ type: PowerType } | null>(null);
+    const turnColor = localGameState.currentPlayer as PlayerColor;
+    const turnPlayer = players.find(p => p.color === turnColor);
+    const turnHuman = !!turnPlayer && !turnPlayer.isAi && !localGameState.afkStats?.[turnColor]?.isKicked;
+    const showInventory = !spectatorMode && turnHuman && canUsePowers;
+    const liveInventory: PowerItem[] = showInventory
+        ? ((localGameState.playerPowers?.[turnColor] || []).filter((p: PowerItem) => p.expiresAt > Date.now()))
+        : [];
+    const groupedInventory = (['nuke', 'shield', 'boost', 'teleport'] as PowerType[])
+        .map(t => {
+            const items = liveInventory.filter(p => p.type === t);
+            if (items.length === 0) return null;
+            return { type: t, count: items.length, soonest: Math.min(...items.map(p => p.expiresAt)) };
+        })
+        .filter((g): g is { type: PowerType; count: number; soonest: number } => g !== null);
+    const canSpend = showInventory && localGameState.gamePhase === 'rolling' && !localGameState.powerSpentThisTurn;
+    useEffect(() => {
+        setTargeting(null);
+    }, [localGameState.currentPlayer, localGameState.gamePhase]);
+    const spendPower = (type: PowerType) => {
+        if (!canSpend) return;
+        if (type === 'nuke' || type === 'teleport') {
+            setTargeting(cur => (cur?.type === type ? null : { type }));
+            return;
+        }
+        setTargeting(null);
+        handleUsePower(turnColor, type);
+    };
+    const spendTargeted = (color: PlayerColor, idx: number) => {
+        if (targeting && color === turnColor) {
+            handleUsePower(turnColor, targeting.type, idx);
+        }
+        setTargeting(null);
+    };
 
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useBoardLayout({
         players,
@@ -148,7 +190,6 @@ export default function Board({
                 players={players}
                 localGameState={localGameState}
                 handleRoll={handleRoll}
-                handleUsePower={handleUsePower}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
             />
@@ -220,8 +261,44 @@ export default function Board({
                     playerCount={playerCount}
                     handleTokenClick={handleTokenClick}
                     counterRotationDeg={counterRotationDeg}
+                    targetingColor={targeting ? turnColor : null}
+                    onTargetToken={spendTargeted}
                 />
             </BoardGrid>
+
+            {/* ── Power inventory: bottom-centered tiny badges ── */}
+            {groupedInventory.length > 0 && (
+                <div className="fixed bottom-[88px] left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/10 shadow-xl">
+                    {targeting && (
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-300 animate-pulse">
+                            Tap a token
+                        </span>
+                    )}
+                    {groupedInventory.map(g => {
+                        const secsLeft = Math.max(0, Math.round((g.soonest - Date.now()) / 1000));
+                        const expiring = secsLeft < 30;
+                        const mm = Math.floor(secsLeft / 60);
+                        const ss = String(secsLeft % 60).padStart(2, '0');
+                        return (
+                            <button
+                                key={g.type}
+                                onClick={() => spendPower(g.type)}
+                                disabled={!canSpend}
+                                aria-label={`Use ${g.type} power, ${g.count} held, expires in ${mm}:${ss}`}
+                                className={`relative w-9 h-9 rounded-full flex items-center justify-center border transition-all active:scale-90 disabled:opacity-60 ${targeting?.type === g.type ? 'border-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.7)]' : 'border-white/15 bg-white/5 hover:bg-white/10'} ${expiring ? 'animate-pulse border-amber-400/70' : ''}`}
+                            >
+                                <PowerGlyph type={g.type} />
+                                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-cyan-500 text-black text-[9px] font-black flex items-center justify-center">
+                                    {g.count}
+                                </span>
+                                <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-mono tabular-nums ${expiring ? 'text-amber-300' : 'text-white/40'}`}>
+                                    {mm}:{ss}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {lxpGain !== null && (
                 <motion.div
@@ -251,7 +328,6 @@ export default function Board({
                 players={players}
                 localGameState={localGameState}
                 handleRoll={handleRoll}
-                handleUsePower={handleUsePower}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
             />
@@ -271,4 +347,26 @@ export default function Board({
 // Helper for the timer translation
 function useBoardLayoutRotation(smoothProgress: any) {
     return useTransform(smoothProgress, [0, 1], [270, -90]);
+}
+
+// Tiny power glyphs (no emoji): shield / boost bolt / nuke rings / teleport swirl.
+function PowerGlyph({ type }: { type: PowerType }) {
+    if (type === 'shield') {
+        return (
+            <svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5l8-3z" /></svg>
+        );
+    }
+    if (type === 'boost') {
+        return (
+            <svg viewBox="0 0 24 24" fill="#facc15" className="w-4 h-4"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+        );
+    }
+    if (type === 'nuke') {
+        return (
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" className="w-4 h-4"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.5" fill="#f87171" /></svg>
+        );
+    }
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 12a8 8 0 0 1 14-5l2 2" /><path d="M20 4v5h-5" /><path d="M20 12a8 8 0 0 1-14 5l-2-2" /><path d="M4 20v-5h5" /></svg>
+    );
 }

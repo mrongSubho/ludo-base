@@ -7,6 +7,7 @@ import {
     BASE_INDEX,
     AI_SCORES,
     DICE_MAX,
+    NUKE_RADIUS,
     BotDifficulty,
     DIFFICULTY_PARAMS
 } from './constants';
@@ -157,45 +158,81 @@ export function getBestPowerUsage(
     colorCorner: ColorCorner,
     playerCount: string,
     difficulty: BotDifficulty = 'pro'
-): boolean {
+): { type: PowerType; tokenIdx?: number } | null {
     // Rookie sits on powers, never spending them.
-    if (!DIFFICULTY_PARAMS[difficulty].usesPowers) return false;
-    const power = state.playerPowers[color];
-    if (!power) return false;
+    if (!DIFFICULTY_PARAMS[difficulty].usesPowers) return null;
+    const held = (t: PowerType) => (state.playerPowers[color] || []).some(p => p.type === t);
+    if (!held('nuke') && !held('shield') && !held('boost') && !held('teleport')) return null;
 
-    if (power === 'bomb') {
-        return checkBombTarget(state, color, colorCorner, playerCount);
-    } else if (power === 'shield') {
-        return checkShieldNeed(state, color, colorCorner, playerCount);
-    } else if (power === 'boost' || power === 'warp') {
-        return true; // Always use boost/warp if available (simple AI strategy)
+    // Nuke: densest cluster wins.
+    if (held('nuke')) {
+        const best = bestNukeTarget(state, color, colorCorner, playerCount);
+        if (best) return { type: 'nuke', tokenIdx: best.tokenIdx };
+    }
+    if (held('shield') && checkShieldNeed(state, color, colorCorner, playerCount)) {
+        return { type: 'shield' };
+    }
+    if (held('boost')) {
+        return { type: 'boost' };
+    }
+    if (held('teleport')) {
+        return { type: 'teleport' };
     }
 
-    return false;
+    return null;
 }
 
-function checkBombTarget(state: GameState, color: PlayerColor, colorCorner: ColorCorner, playerCount: string): boolean {
-    let targetFound = false;
-    state.positions[color].forEach((myPos: number) => {
-        if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
-        (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
-            if (oppColor === color) return;
-            if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
-            state.positions[oppColor].forEach((oppPos: number) => {
-                if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
-                const myPt = getBoardCoordinate(myPos, color, colorCorner);
-                const oppPt = getBoardCoordinate(oppPos, oppColor, colorCorner);
-                if (!myPt || !oppPt) return;
-                for (let s = 1; s <= DICE_MAX; s++) {
-                    const checkPos = myPos + s;
-                    if (checkPos >= HOME_LANE_START_INDEX) break;
-                    const checkPt = getBoardCoordinate(checkPos, color, colorCorner);
-                    if (checkPt && checkPt.r === oppPt.r && checkPt.c === oppPt.c) targetFound = true;
-                }
-            });
+// Victims within ±NUKE_RADIUS of an own token (unshielded, off safe stars).
+export function countNukeVictims(
+    state: GameState, color: PlayerColor, tokenIdx: number,
+    colorCorner: ColorCorner, playerCount: string
+): { victims: { color: PlayerColor, idx: number }[], cells: { r: number, c: number }[] } {
+    const victims: { color: PlayerColor, idx: number }[] = [];
+    const cellKeys = new Set<string>();
+    const cells: { r: number, c: number }[] = [];
+    const myPos = state.positions[color][tokenIdx];
+    if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return { victims, cells };
+    const pushCell = (r: number, c: number) => {
+        const k = `${r},${c}`;
+        if (!cellKeys.has(k)) {
+            cellKeys.add(k);
+            cells.push({ r, c });
+        }
+    };
+    const myPt = getBoardCoordinate(myPos, color, colorCorner);
+    if (myPt) pushCell(myPt.r, myPt.c);
+    (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+        if (oppColor === color) return;
+        if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
+        state.positions[oppColor].forEach((oppPos: number, oppIdx: number) => {
+            if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
+            if (Math.abs(oppPos - myPos) > NUKE_RADIUS) return;
+            const oppPt = getBoardCoordinate(oppPos, oppColor, colorCorner);
+            if (!oppPt) return;
+            // Shields and safe stars hold against the blast.
+            if (state.activeShields.some(s => s.color === oppColor && s.tokenIdx === oppIdx)) return;
+            if (GLOBAL_SAFE_POINTS.some(p => p.r === oppPt.r && p.c === oppPt.c)) return;
+            victims.push({ color: oppColor, idx: oppIdx });
+            pushCell(oppPt.r, oppPt.c);
         });
     });
-    return targetFound;
+    return { victims, cells };
+}
+
+function bestNukeTarget(
+    state: GameState, color: PlayerColor, colorCorner: ColorCorner, playerCount: string
+): { tokenIdx: number } | null {
+    let best: { tokenIdx: number } | null = null;
+    let bestCount = 0;
+    state.positions[color].forEach((myPos: number, idx: number) => {
+        if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
+        const { victims } = countNukeVictims(state, color, idx, colorCorner, playerCount);
+        if (victims.length > bestCount) {
+            bestCount = victims.length;
+            best = { tokenIdx: idx };
+        }
+    });
+    return best;
 }
 
 function checkShieldNeed(state: GameState, color: PlayerColor, colorCorner: ColorCorner, playerCount: string): boolean {

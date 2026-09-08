@@ -59,10 +59,18 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Home Lane:** Tokens enter the protected home lane at `HOME_LANE_START_INDEX` (52).
 
 ### 3.4 2v2 Teammate Assist
-- Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
+Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
 - **Victory:** A team wins only when all 8 tokens (4 per player) have reached the Finish square.
 
-### 3.5 Valid-move highlighting (UI, not engine)
+### 3.5 Power System v3 (hidden tiles → timed inventory → targeted spend)
+- **Tiles:** exactly 5 (`POWER_TILES_COUNT`), main track only, never home tiles. Each carries a hidden type (rarity: Boost .4 / Shield .25 / Teleport .2 / Nuke .15). Tiles render NOTHING pre-pickup; landing exactly on one reveals (flash + discovery message), grants to inventory, and spawns a replacement elsewhere.
+- **Inventory:** per-color arrays of `{type, expiresAt}` — counts with clocks (Nuke 3:00, Shield 4:00, Boost/Teleport 5:00). Re-pickup of a held type refreshes its clocks. Expiry sweeps run on every game transition; expired items vanish silently. Bottom-centered badge bar (counts + mm:ss, amber pulse <30s), rendered only when non-empty.
+- **Mechanics:** Shield = all on-board tokens until your next move completes (cleared on move resolution). Nuke = every opponent token within ±3 of the SELECTED token goes home; shields + safe stars hold. Boost = next move +6 (consumed in `moveToken`, host-computed so guests replay exact steps). Teleport = foremost token to nearest forward star (circular); 49–56 → straight to 57.
+- **Spend rules:** tap badge → Shield/Boost fire immediately; Nuke/Teleport arm targeting (gold rings on that color's tokens, tap token to fire, tap elsewhere/badge to cancel). One power per roll (`powerSpentThisTurn`, cleared on each new roll). No-target spends keep the power + explain why. Powers execute host-side; guests replay via broadcast state.
+- **AI:** Rookie never spends; Pro spends on condition; Master targets Nuke at the densest cluster. All tiers "sense" hidden tiles via the hunt weight.
+- **Effects/sounds:** Nuke = blast-cell red blink (`nukeFlash`, 1.4s) + siren→boom + heavy haptic + kill-feed line. Shield = cyan token rings until consumed. Boost/Teleport/Pickup = sweep/blip/chime. Legacy emoji power badge removed.
+
+### 3.6 Valid-move highlighting (UI, not engine)
 - A token is legal iff `calculateNextPosition(pos, dice, color, cc) !== pos`. `BoardTokens.tsx` + `BoardHome.tsx` evaluate this per-token on every `moving` phase and mark legal tokens (double pulsing ring + bounce arrow, bright filter) vs illegal (dimmed to ~38% opacity, desaturated). A dashed ring at `getBoardCoordinate(nextPos)` previews the landing cell (including home-exit to `startIdx` on `6`). Turn with no legal moves passes instantly — see §5.1.
 - **Three Sixes:** Rolling three consecutive `6`s skips the third roll and passes the turn.
 - **Bonus Turn:** Received for rolling a `6`, capturing an opponent, or reaching the finish tile.

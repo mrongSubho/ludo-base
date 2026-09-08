@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import LudoDice from './LudoDice';
 import { Player } from '@/hooks/useGameEngine';
-import { PowerType, PlayerColor } from '@/lib/types';
+import { PlayerColor } from '@/lib/types';
 import { Corner } from '@/lib/boardLayout';
 import { getTierInfo } from '@/lib/progression';
 
@@ -32,17 +32,13 @@ const AWAIT_RING_COLORS: Record<string, string> = {
 interface PlayerCardProps {
     player: Player;
     isActive: boolean;
-    power: PowerType | null;
     awaitingMove?: boolean;
-    onPowerClick?: () => void;
 }
 
 export function PlayerCard({
     player,
     isActive,
-    power,
     awaitingMove,
-    onPowerClick,
 }: PlayerCardProps) {
     const [levelUp, setLevelUp] = useState(false);
     const prevLevelRef = useRef(player.level);
@@ -56,8 +52,6 @@ export function PlayerCard({
         }
         prevLevelRef.current = player.level;
     }, [player.level]);
-
-    const powerEmojis: Record<PowerType, string> = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
         <div className={`player-card player-card-corner ${player.position}`}>
@@ -73,7 +67,6 @@ export function PlayerCard({
                 <div
                     className={`avatar-circle ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''}`}
                     title={getDisplayNameHelper(player)}
-                    onClick={onPowerClick}
                 >
                     {player.avatar && (player.avatar.startsWith('http') || player.avatar.startsWith('/')) ? (
                         <img
@@ -90,11 +83,6 @@ export function PlayerCard({
                           </span>
                         )
                     )}
-                    {power && (
-                        <div className="absolute -bottom-1 -right-1 bg-black/50 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center text-xs border border-white/20">
-                            {powerEmojis[power]}
-                        </div>
-                    )}
                 </div>
                 <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
                     <span className="text-[8px] font-black">{player.level}</span>
@@ -110,7 +98,6 @@ interface PlayerRowProps {
     players: Player[];
     localGameState: any;
     handleRoll: (val?: number) => void;
-    handleUsePower: (color: PlayerColor) => void;
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
 }
@@ -121,7 +108,6 @@ export function PlayerRow({
     players,
     localGameState,
     handleRoll,
-    handleUsePower,
     spectatorMode,
     myPlayerColor
 }: PlayerRowProps) {
@@ -146,9 +132,7 @@ export function PlayerRow({
                         <PlayerCard
                             player={p}
                             isActive={isMyTurn}
-                            power={localGameState.playerPowers[p.color]}
                             awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
-                            onPowerClick={() => !spectatorMode && handleUsePower(p.color)}
                         />
                         {isMyTurn && !spectatorMode && (
                             <LudoDice

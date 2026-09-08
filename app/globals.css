@@ -5202,3 +5202,28 @@ body.token-style-orb .blue-token::after {
   border-radius: 50%;
   border: 1.5px solid;
 }
+
+/* ─── Power system: shield/target rings + nuke blast flash ─────────────── */
+.ludo-token.token-shielded {
+  box-shadow: 0 0 0 2px rgba(103, 232, 249, 0.9), 0 0 14px rgba(103, 232, 249, 0.7);
+}
+.ludo-token.token-targetable {
+  animation: token-target-pulse 0.8s ease-in-out infinite;
+}
+@keyframes token-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(252, 211, 77, 0.7), 0 0 8px rgba(252, 211, 77, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(252, 211, 77, 1), 0 0 18px rgba(252, 211, 77, 0.9); }
+}
+.nuke-flash {
+  position: absolute;
+  inset: 6%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.9), rgba(239, 68, 68, 0) 70%);
+  animation: nuke-blink 0.35s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+@keyframes nuke-blink {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}

@@ -16,6 +16,8 @@ interface BoardTokensProps {
     playerCount: '1v1' | '4P' | '2v2';
     handleTokenClick: (color: PlayerColor, tokenIndex: number) => void;
     counterRotationDeg?: number;
+    targetingColor?: PlayerColor | null;
+    onTargetToken?: (color: PlayerColor, tokenIndex: number) => void;
 }
 
 function alphaHex(hex: string, a: number): string {
@@ -85,6 +87,8 @@ interface TokenProps {
     rank?: ChessRank;
     pos?: number;
     skipRotation?: boolean;
+    shielded?: boolean;
+    targetable?: boolean;
 }
 
 export function Token({
@@ -98,6 +102,8 @@ export function Token({
     rank = 'Pawn',
     pos = -1,
     skipRotation = false,
+    shielded = false,
+    targetable = false,
 }: TokenProps) {
     const prevRef = useRef<{ rank: ChessRank; pos: number } | null>(null);
     const [showPromoFX, setShowPromoFX] = React.useState(false);
@@ -124,7 +130,7 @@ export function Token({
                 rotate: skipRotation ? 0 : counterRotationDeg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}
-            className={`ludo-token ${color}-token ${isBlockade ? 'token-blockade' : ''} ${shouldDim ? 'token-dimmed' : ''}`}
+            className={`ludo-token ${color}-token ${isBlockade ? 'token-blockade' : ''} ${shouldDim ? 'token-dimmed' : ''} ${shielded ? 'token-shielded' : ''} ${targetable ? 'token-targetable' : ''}`}
             onClick={onClick}
             // "Premium" Hover: Higher scale + lift + subtle bloom
             whileHover={isDraggable ? {
@@ -382,6 +388,8 @@ interface TokenPieceProps {
     isColorTurn: boolean;
     counterRotationDeg: number;
     colorCorner: ColorCorner;
+    shielded?: boolean;
+    targetable?: boolean;
     onClick: () => void;
 }
 
@@ -398,6 +406,8 @@ export function TokenPiece({
     isColorTurn,
     counterRotationDeg,
     colorCorner,
+    shielded = false,
+    targetable = false,
     onClick
 }: TokenPieceProps) {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
@@ -648,6 +658,8 @@ export function TokenPiece({
                         onClick={onClick}
                         pos={pos}
                         skipRotation
+                        shielded={shielded}
+                        targetable={targetable}
                     />
                 </div>
             </motion.div>
@@ -677,7 +689,9 @@ export function BoardTokens({
     address,
     playerCount,
     handleTokenClick,
-    counterRotationDeg = 0
+    counterRotationDeg = 0,
+    targetingColor = null,
+    onTargetToken
 }: BoardTokensProps) {
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
     const myColor = myPlayer?.color;
@@ -808,6 +822,8 @@ export function BoardTokens({
                 const diceVal: number | null = localGameState.diceValue ?? null;
                 const isValidMove = isDraggable && diceVal !== null
                     && calculateNextPosition(pos, diceVal, color as PlayerColor, colorCorner) !== pos;
+                const shielded = (localGameState.activeShields || []).some((s: any) => s.color === color && s.tokenIdx === index);
+                const targetable = !!targetingColor && color === targetingColor && pos >= 0 && pos < 52;
 
                 return (
                     <TokenPiece
@@ -824,7 +840,9 @@ export function BoardTokens({
                         isColorTurn={localGameState.currentPlayer === color}
                         counterRotationDeg={counterRotationDeg}
                         colorCorner={colorCorner}
-                        onClick={() => handleTokenClick(color, index)}
+                        shielded={shielded}
+                        targetable={targetable}
+                        onClick={() => targetable && onTargetToken ? onTargetToken(color, index) : handleTokenClick(color, index)}
                     />
                 );
             })}

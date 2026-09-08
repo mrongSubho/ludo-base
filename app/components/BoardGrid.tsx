@@ -105,8 +105,8 @@ export function BoardGrid({
             {/* ── Path Squares ── */}
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
-                const isPower = localGameState?.powerTiles?.some((pt: any) => pt.r === row && pt.c === col);
                 const trap = localGameState?.activeTraps?.find((t: any) => t.r === row && t.c === col);
+                const nukeHit = (localGameState?.nukeFlash || []).some((f: any) => f.r === row && f.c === col);
                 
                 let bg = 'var(--ludo-path-bg)';
                 if (cellInfo.type === 'home-lane' && cellInfo.color) {
@@ -123,9 +123,9 @@ export function BoardGrid({
                 return (
                     <div
                         key={`${row}-${col}`}
-                        className={`${cls} ${isPower ? 'power-cell' : ''}`}
-                        style={{ 
-                            gridRow: row, 
+                        className={`${cls}`}
+                        style={{
+                            gridRow: row,
                             gridColumn: col,
                             backgroundColor: bg,
                             display: 'flex',
@@ -134,8 +134,8 @@ export function BoardGrid({
                             position: 'relative'
                         }}
                     >
+                        {nukeHit && <span className="nuke-flash" aria-hidden />}
                         {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
-                        {isPower && !trap && <span className="power-icon" style={{ fontSize: 16 }}>⚡</span>}
                         {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
                         {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
                             const slot = CORNER_SLOTS[corner];
