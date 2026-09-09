@@ -160,8 +160,16 @@ export const useDataActions = ({
             return { ...c, unread_count_a: 0, unread_count_b: 0 };
         }));
 
-        supabase.rpc('mark_conversation_read', { me: lowerAddr, friend: friendLower });
-        supabase.from('messages').update({ is_read: true }).ilike('sender_id', senderId).ilike('receiver_id', lowerAddr).eq('is_read', false);
+        // Durable: the RPC marks messages read AND recomputes both
+        // conversation counters (the insert trigger only increments —
+        // without this, every reboot resurrects the badge).
+        try {
+            const { error } = await supabase.rpc('mark_conversation_read', { me: lowerAddr, friend: friendLower });
+            if (error) throw error;
+        } catch (e) {
+            console.warn('mark_conversation_read RPC failed, falling back to direct update', e);
+            supabase.from('messages').update({ is_read: true }).ilike('sender_id', senderId).ilike('receiver_id', lowerAddr).eq('is_read', false);
+        }
     }, [address, setMessages, setRawConversations]);
 
     const deleteMessageLocal = useCallback(async (msg: MessageData) => {

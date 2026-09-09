@@ -95,7 +95,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     // Guests read threads free; sending needs a wallet (wall, not a failure).
     const { guard } = useGuestWall();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, isP2PActive, deleteMessageLocal } = useGameData();
+    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
@@ -253,10 +253,12 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         lastAddressRef.current = address;
     }, [address]);
 
-    // Mark as read when opening a chat
+    // Mark as read when opening a chat: durable DB mark + session-seen
+    // (feeds the vanish ledger so read threads stay gone next session).
     useEffect(() => {
         if (selectedChatId && activeChat?.unread) {
             markAsRead(selectedChatId);
+            markThreadSeen(selectedChatId);
         }
     }, [selectedChatId, activeChat?.unread]);
 

@@ -623,3 +623,29 @@ to `anon, authenticated` with `WITH CHECK (true)` — anyone (wallet or guest)
 may submit. No client `SELECT`/`UPDATE`/`DELETE` policies: reads stay
 service-role only.
 
+---
+
+## Phase 8: Read-Repair RPC (applied 2026-09-09)
+
+> Migration file: `migrations/20260911_mark_conversation_read.sql`
+> (`create or replace` — idempotent, safe to re-run).
+
+### 8.1 Why
+
+Opening a thread zeroed `conversations.unread_count_*` only in local state.
+The insert trigger (`update_conversation_summary`) only ever increments, so
+every reboot resurrected the header badge for long-read threads.
+
+### 8.2 `mark_conversation_read(me, friend)`
+
+`SECURITY DEFINER` (bypasses RLS — anon clients call it directly):
+
+1. Marks the friend's messages to `me` read (`is_read = true`).
+2. **Recomputes** both counters from remaining unread per direction —
+   never blind-zeroes, so a message arriving mid-call stays counted.
+3. Uses the trigger's canonical pair ordering (`least`/`greatest`), so the
+   `WHERE user_a/u2` row always matches.
+
+Client (`useDataActions.markChatAsRead`) awaits it with a direct-update
+fallback; opening each thread once repairs legacy inflated counts.
+
