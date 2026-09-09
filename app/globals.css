@@ -2083,6 +2083,22 @@ body.theme-retro-futurism::before {
     padding: 0 6px;
   }
 }
+/* Short viewports: compact the lobby so mode + fee + dice + broadcast
+   all fit above the fixed footer with zero scroll. The 600px min-height
+   lock is what shoved the broadcast card under the footer. Dice shrink
+   keeps 3D exact (--tz stays half the cube). */
+@media (max-height: 780px) {
+  .ludo-lobby-scope {
+    min-height: 0;
+  }
+  .lobby-dice-cube {
+    width: 96px;
+    height: 96px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    --tz: 48px;
+  }
+}
 
 /* ─── Player Rows & Wrappers ─── */
 .player-row {

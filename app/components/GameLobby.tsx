@@ -106,14 +106,14 @@ export default function GameLobby({
     };
 
     return (
-        <div className="ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-4 py-8 min-h-[600px] h-full flex flex-col items-center justify-start">
+        <div className="ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-8 min-h-[600px] h-full flex flex-col items-center justify-start">
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
             {/* 1. INITIAL SETUP PANEL */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
                     key="setup"
-                    className="w-full max-w-[420px] mx-auto flex flex-col gap-3 h-full setup-tier"
+                    className="w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 h-full setup-tier"
                 >
                     {/* 1. SELECTION GROUP */}
                     <div className="w-full space-y-3 flex flex-col">

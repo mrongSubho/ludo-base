@@ -224,7 +224,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 <span className="text-white/50 text-[10px] uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
             </div>
 
-            <div className="relative w-28 h-28 mt-8 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
+            <div className="lobby-dice-cube relative w-28 h-28 mt-8 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
                 <motion.div
                     animate={{ x: [-5, 5, -5] }}
                     transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
