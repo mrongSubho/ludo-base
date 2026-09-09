@@ -53,7 +53,7 @@ export interface TeamUpContextType {
     broadcastLobbyAction: (type: LobbyActionType, payload?: any) => void;
     swapPlayers: (fromIdx: number, toIdx: number) => void;
     kickPlayer: (slotIdx: number) => void;
-    sendInvite: (friendId: string, friendName?: string) => void;
+    sendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
     acceptInvite: () => void;
     rejectInvite: () => void;
     startQuickMatch: () => void;

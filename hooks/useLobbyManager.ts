@@ -82,7 +82,7 @@ export function useLobbyManager({
         broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
     }, [isHost, lobbyState, broadcastToAll, connectionsRef]);
 
-    const sendInvite = useCallback((friendId: string, friendName?: string) => {
+    const sendInvite = useCallback((friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => {
         if (!lobbyState || !myAddress) {
             console.warn('⚠️ [Lobby] sendInvite dropped: no active lobby (host a room first).');
             return;
@@ -91,7 +91,19 @@ export function useLobbyManager({
 
         setLobbyState(prev => {
             if (!prev) return prev;
-            const emptyIdx = prev.slots.findIndex(s => s.status === 'empty');
+            // Role-targeted seat (2v2): partner → teammate slot, rival →
+            // first empty opponent slot. Omitted role preserves the classic
+            // teammate-first behavior. A taken kind fails closed (no seat).
+            let emptyIdx = prev.slots.findIndex(s => s.status === 'empty');
+            if (prev.matchType === '2v2' && role) {
+                const want = role === 'teammate' ? 'teammate' : 'opponent';
+                const atRole = prev.slots.findIndex(s => s.status === 'empty' && s.role === want);
+                if (atRole === -1) {
+                    console.warn(`⚠️ [Lobby] sendInvite dropped: no empty ${want} seat.`);
+                    return prev;
+                }
+                emptyIdx = atRole;
+            }
             if (emptyIdx === -1) return prev;
             const newSlots = prev.slots.map((s, i) => {
                 if (i === emptyIdx) {

@@ -35,6 +35,9 @@ interface LiveSearch {
     wager: number;
     createdAt: number;
     started: boolean;
+    // Party ticket room code (room_code IS NOT NULL on the ticket).
+    // Null = solo pool waiter. Present = joinable party, direct link.
+    roomCode: string | null;
 }
 
 // Opponents still needed per match type.
@@ -315,6 +318,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                     wager: Number(row.wager) || 0,
                     createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
                     started: false,
+                    roomCode: row.room_code ?? null,
                 };
                 setSearches(prev => [...prev, entry].slice(-10));
             })
@@ -380,6 +384,15 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     };
 
     const joinSearch = (s: LiveSearch) => {
+        // Party ticket (room code present): direct join link — deterministic,
+        // straight into the host's room. No matchmaking lottery.
+        if (s.roomCode) {
+            window.dispatchEvent(new CustomEvent('join_party', {
+                detail: { roomCode: s.roomCode }
+            }));
+            onJoin?.();
+            return;
+        }
         // Same handshake the pool ticker used: GameLobby tunes its settings
         // and opens QuickMatch search. Guest wall applies there.
         window.dispatchEvent(new CustomEvent('join_pool', {
@@ -421,7 +434,14 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col">
-                                <span className="text-[13px] font-black text-white truncate">{s.hostName}</span>
+                                <span className="text-[13px] font-black text-white truncate">
+                                    {s.hostName}
+                                    {s.roomCode && (
+                                        <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-400/15 border border-amber-400/40 text-[8px] font-black uppercase tracking-[0.15em] text-amber-300 align-middle">
+                                            Party
+                                        </span>
+                                    )}
+                                </span>
                                 <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                     {s.matchType} · {s.gameMode} · {seatsFor(s)} · {s.wager === 0 ? 'Free' : `${s.wager.toLocaleString()}`}
                                 </span>
@@ -435,7 +455,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                                     onClick={() => joinSearch(s)}
                                     className="shrink-0 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
                                 >
-                                    Join
+                                    {s.roomCode ? 'Join Party' : 'Join'}
                                 </button>
                             )}
                         </div>

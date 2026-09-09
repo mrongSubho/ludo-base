@@ -21,7 +21,7 @@ interface TeamUpMatchPanelProps {
     onStartMatch: () => void;
     onSwapPlayers: (indexA: number, indexB: number) => void;
     onKickPlayer: (slotIndex: number) => void;
-    onSendInvite: (friendId: string, friendName?: string) => void;
+    onSendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
     onQuickMatch: () => void;
     hunting?: boolean;
     onCancelHunt?: () => void;
@@ -172,6 +172,9 @@ export const TeamUpMatchPanel = ({
     const [roomCode, setRoomCode] = useState('');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const [ftab, setFtab] = useState<'social' | 'global'>('social');
+    // 2v2 invite targeting: partner (teammate seat) vs rival (opponent seat).
+    // Skips abstract Team A/B — the seat IS the team.
+    const [inviteRole, setInviteRole] = useState<'partner' | 'rival'>('partner');
 
     // Online-only roster: free players first, engaged/playing second.
     // Offline contacts never list — an invite nobody can accept is noise.
@@ -251,9 +254,24 @@ export const TeamUpMatchPanel = ({
         if (!roomCodeValue) onHost();
     };
 
+    // 2v2 invite targeting: which kinds still have an open seat, and the
+    // effective selection (taken kind falls through to the open one).
+    const inviteKindOpen = (r: 'partner' | 'rival') =>
+        lobbyState?.slots.some(s => s.status === 'empty' && s.role === (r === 'partner' ? 'teammate' : 'opponent')) ?? false;
+    const effInviteRole: 'partner' | 'rival' = matchType !== '2v2'
+        ? 'rival'
+        : inviteRole === 'partner'
+            ? (inviteKindOpen('partner') ? 'partner' : 'rival')
+            : (inviteKindOpen('rival') ? 'rival' : 'partner');
+
     const handleInvite = (friend: any) => {
         playSelect();
-        onSendInvite(friend.wallet_address, friend.username);
+        // A taken kind falls through to the open one (a full room disables
+        // Invite upstream, so undefined here is unreachable in practice).
+        const role = matchType === '2v2'
+            ? (effInviteRole === 'partner' ? 'teammate' : 'opponent')
+            : undefined;
+        onSendInvite(friend.wallet_address, friend.username, role as 'teammate' | 'opponent' | undefined);
         setView('console');
     };
 
@@ -400,6 +418,11 @@ export const TeamUpMatchPanel = ({
                                                         </span>
                                                         <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-white/30 flex items-center gap-1.5">
                                                             {slot?.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: COLOR_DOT[slot.color] || '#fff' }} />}
+                                                            {matchType === '2v2' && slot?.role && slot.role !== 'host' && (
+                                                                <span className={`px-1.5 py-px rounded-md border text-[8px] font-black uppercase tracking-[0.15em] ${slot.role === 'teammate' ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300' : 'bg-white/5 border-white/15 text-white/40'}`}>
+                                                                    {slot.role === 'teammate' ? 'Partner' : 'Rival'}
+                                                                </span>
+                                                            )}
                                                             {slot?.status === 'invited' ? 'Invite Sent…' : filled ? `Player ${seatNo} • Joined` : `Player ${seatNo}`}
                                                         </span>
                                                     </div>
@@ -475,6 +498,35 @@ export const TeamUpMatchPanel = ({
                                             ]}
                                         />
                                     </div>
+                                    {/* 2v2 only: invite as Partner (teammate seat)
+                                        or Rival (opponent seat). Taken kinds
+                                        disable; selection falls through. */}
+                                    {matchType === '2v2' && (
+                                        <div className="mb-2 flex items-center gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
+                                            <span className="pl-2 pr-1 text-[9px] font-black uppercase tracking-[0.2em] text-white/35 shrink-0">
+                                                Invite as
+                                            </span>
+                                            {(['partner', 'rival'] as const).map(r => {
+                                                const open = inviteKindOpen(r);
+                                                const selected = effInviteRole === r;
+                                                return (
+                                                    <button
+                                                        key={r}
+                                                        disabled={!open}
+                                                        onClick={() => { playSelect(); setInviteRole(r); }}
+                                                        aria-pressed={selected}
+                                                        className={`flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${selected
+                                                            ? (r === 'partner'
+                                                                ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-200'
+                                                                : 'bg-white/10 border border-white/25 text-white')
+                                                            : 'bg-transparent border border-transparent text-white/40 hover:text-white'}`}
+                                                    >
+                                                        {r === 'partner' ? 'Partner' : 'Rival'}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col gap-2 pb-2">
                                         {isLoadingFriends ? (
                                             <div className="h-full flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>

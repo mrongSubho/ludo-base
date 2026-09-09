@@ -105,8 +105,21 @@ export default function GameLobby({
             }
         };
         window.addEventListener('join_pool', handleJoinPool);
-        return () => window.removeEventListener('join_pool', handleJoinPool);
-    }, [setWager, setGameMode, setMatchType]);
+        // Direct party link from the broadcast feed: room code present means
+        // a hosted party with open seats — join it straight, no queue.
+        const handleJoinParty = (e: Event) => {
+            const code = (e as CustomEvent)?.detail?.roomCode;
+            if (typeof code === 'string' && code.trim().length >= 3) {
+                console.log('📡 [Lobby] Joining party from feed:', code);
+                guard('online-play', () => joinGame(code.trim().toUpperCase()));
+            }
+        };
+        window.addEventListener('join_party', handleJoinParty);
+        return () => {
+            window.removeEventListener('join_pool', handleJoinPool);
+            window.removeEventListener('join_party', handleJoinParty);
+        };
+    }, [setWager, setGameMode, setMatchType, guard, joinGame]);
 
     const handleStartQuickMatch = () => {
         guard('online-play', () => {
