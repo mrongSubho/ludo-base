@@ -23,6 +23,8 @@ interface TeamUpMatchPanelProps {
     onKickPlayer: (slotIndex: number) => void;
     onSendInvite: (friendId: string, friendName?: string) => void;
     onQuickMatch: () => void;
+    hunting?: boolean;
+    onCancelHunt?: () => void;
     matchType?: '1v1' | '2v2' | '4P';
     gameMode?: 'classic' | 'power';
     entryFee?: number;
@@ -113,6 +115,41 @@ const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: 
     </div>
 );
 
+// Mini hunt radar: compact hybrid-search view embedded in the TeamUp page.
+// The search engine itself mounts hidden in GameLobby; this is pure status.
+const HuntView = ({ empty, total, isHost, onCancel }: {
+    empty: number; total: number; isHost: boolean; onCancel: () => void;
+}) => (
+    <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 p-5 mx-5 rounded-2xl bg-cyan-500/[0.06] border border-cyan-500/25 backdrop-blur-lg overflow-hidden animate-in fade-in duration-200">
+        <div className="relative w-20 h-20">
+            <DashedRadarRing color="#22d3ee" />
+            <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-300 animate-ping" />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-300" />
+            </div>
+        </div>
+        <p className="text-sm font-black text-white uppercase tracking-[0.2em]">
+            Hunting {empty} player{empty === 1 ? '' : 's'}…
+        </p>
+        <p className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.25em]">
+            {total - empty}/{total} seated · room live
+        </p>
+        <p className="text-[9px] font-bold text-white/35 tracking-wide">
+            Strangers join straight into this room
+        </p>
+        {isHost && (
+            <button
+                onClick={onCancel}
+                className="mt-1 px-5 py-2 rounded-full bg-white/5 border border-white/15 text-white/60 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white active:scale-95 transition-all"
+            >
+                Cancel hunt
+            </button>
+        )}
+    </div>
+);
+
 export const TeamUpMatchPanel = ({
     onClose,
     onJoin,
@@ -124,6 +161,8 @@ export const TeamUpMatchPanel = ({
     onStartMatch,
     onSendInvite,
     onQuickMatch,
+    hunting = false,
+    onCancelHunt,
     matchType = '4P',
     gameMode = 'classic',
     entryFee = 0,
@@ -289,6 +328,15 @@ export const TeamUpMatchPanel = ({
 
                         {/* Core Context View */}
                         <div className="flex-1 w-full flex flex-col overflow-hidden relative z-10 min-h-0">
+                            {hunting ? (
+                                <HuntView
+                                    empty={lobbyState?.slots.filter(s => s.status === 'empty').length ?? 0}
+                                    total={lobbyState?.slots.length ?? 0}
+                                    isHost={isHost}
+                                    onCancel={() => { playClick(); onCancelHunt?.(); setView('roster'); }}
+                                />
+                            ) : (
+                            <>
                             {view === 'console' && (
                                 <div className="flex-1 min-h-0 flex flex-col gap-2 animate-in fade-in duration-200 px-5 pt-2 pb-2">
                                     <SectionLabel>
@@ -492,6 +540,8 @@ export const TeamUpMatchPanel = ({
                                     </div>
                                 </div>
                             )}
+                            </>
+                            )}
                         </div>
 
                         {/* Footer */}
@@ -502,7 +552,7 @@ export const TeamUpMatchPanel = ({
                                 <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Entry Fee: <span className="text-amber-400">{feeLabel}</span></span>
                             </div>
 
-                            {isHost && lobbyState && !isReady && (
+                            {isHost && lobbyState && !isReady && !hunting && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }}
                                     className="w-full py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 transition-all hover:bg-cyan-500/20 active:scale-95 flex flex-col items-center justify-center gap-0.5"
@@ -512,6 +562,16 @@ export const TeamUpMatchPanel = ({
                                         Quick Match
                                     </span>
                                     <span className="text-[9px] font-bold normal-case tracking-wide text-cyan-400/60">Fills empty seats & posts your room to the live feed</span>
+                                </button>
+                            )}
+
+                            {hunting && isHost && (
+                                <button
+                                    onClick={() => { playClick(); onCancelHunt?.(); setView('roster'); }}
+                                    className="w-full py-3 rounded-2xl bg-white/[0.06] border border-white/15 text-white/70 transition-all hover:bg-white/10 hover:text-white active:scale-95 flex flex-col items-center justify-center gap-0.5"
+                                >
+                                    <span className="font-black tracking-[0.2em] text-xs uppercase">Cancel hunt</span>
+                                    <span className="text-[9px] font-bold normal-case tracking-wide text-white/35">Back to invites</span>
                                 </button>
                             )}
 

@@ -58,6 +58,10 @@ export default function GameLobby({
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P' } | null>(null);
+    // Embedded hunt: the hybrid radar lives INSIDE the TeamUp page (mini
+    // view) instead of yanking the host out to the solo radar. The search
+    // engine (QuickMatchPanel) mounts hidden; TeamUp shows HuntView.
+    const [embeddedHunt, setEmbeddedHunt] = useState(false);
 
     // Overflow-driven compaction: if the setup column actually overflows its
     // box (any device, any chrome), drop into compact mode. Behavior, not
@@ -114,21 +118,29 @@ export default function GameLobby({
     const handleCancelQuickMatch = useCallback(() => {
         setIsQuickMatchActive(false);
         setHybridParams(null);
+        setEmbeddedHunt(false);
     }, []);
 
     // Fill Remaining with Quick Match: host advertises the room, the hybrid
     // search pairs public-pool guests straight into it (they joinGame the
-    // room code and get seated). Closes TeamUp; seats fill live behind this.
+    // room code and get seated). TeamUp STAYS OPEN with a mini hunt view;
+    // seats fill live behind it. Cancel returns to the invite roster.
     const handleFillWithQuickMatch = () => {
         if (!lobbyState || !isHost) return;
         const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
         if (empty === 0) return;
         playSelect();
         setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType });
-        setShowTeamUpOptions(false);
         setSearchId(prev => prev + 1);
-        setIsQuickMatchActive(true);
+        setEmbeddedHunt(true);
     };
+
+    // Hunt complete: all seats filled → stop the engine, back to roster.
+    useEffect(() => {
+        if (!embeddedHunt || !lobbyState) return;
+        const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
+        if (empty === 0) handleCancelQuickMatch();
+    }, [embeddedHunt, lobbyState, handleCancelQuickMatch]);
 
     return (
         <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-8 min-h-[600px] h-full flex flex-col items-center justify-start${lobbyCompact ? ' lobby-compact' : ''}`}>
@@ -277,6 +289,8 @@ export default function GameLobby({
                     onKickPlayer={kickPlayer}
                     onSendInvite={sendInvite}
                     onQuickMatch={handleFillWithQuickMatch}
+                    hunting={embeddedHunt}
+                    onCancelHunt={handleCancelQuickMatch}
                     matchType={matchType}
                     gameMode={gameMode}
                     entryFee={wager}
@@ -296,18 +310,38 @@ export default function GameLobby({
                 />
             )}
 
-            {(isQuickMatchActive || lobbyState?.status === 'quickmatch' || hybridParams) && (
+            {/* Solo radar (own overlay) */}
+            {(isQuickMatchActive || lobbyState?.status === 'quickmatch') && (
                 <QuickMatchPanel
                     key={`quickmatch-${searchId}`}
                     gameMode={gameMode}
-                    matchType={hybridParams?.matchType ?? matchType}
+                    matchType={matchType}
                     wager={wager}
                     onStartGame={onStartGame}
                     onCancel={handleCancelQuickMatch}
-                    isHybrid={!!hybridParams || lobbyState?.status === 'quickmatch'}
-                    roomCode={hybridParams?.roomCode ?? roomId}
-                    slotsNeeded={hybridParams?.slotsNeeded ?? lobbyState?.slots.filter(s => s.status === 'empty').length}
+                    isHybrid={lobbyState?.status === 'quickmatch'}
+                    roomCode={roomId}
+                    slotsNeeded={lobbyState?.slots.filter(s => s.status === 'empty').length}
                 />
+            )}
+
+            {/* Embedded hunt engine: hidden mount owns the hybrid search
+                lifecycle (mount = hunt, unmount = cancelSearch); the visible
+                mini radar lives inside the TeamUp page. */}
+            {embeddedHunt && hybridParams && (
+                <div className="hidden" aria-hidden>
+                    <QuickMatchPanel
+                        key={`quickmatch-${searchId}`}
+                        gameMode={gameMode}
+                        matchType={hybridParams.matchType}
+                        wager={wager}
+                        onStartGame={onStartGame}
+                        onCancel={handleCancelQuickMatch}
+                        isHybrid
+                        roomCode={hybridParams.roomCode}
+                        slotsNeeded={hybridParams.slotsNeeded}
+                    />
+                </div>
             )}
         </div>
     );
