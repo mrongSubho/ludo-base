@@ -649,3 +649,39 @@ every reboot resurrected the header badge for long-read threads.
 Client (`useDataActions.markChatAsRead`) awaits it with a direct-update
 fallback; opening each thread once repairs legacy inflated counts.
 
+---
+
+## Phase 9: Server-Side Retention (applied 2026-09-09)
+
+> Migration file: `migrations/20260912_message_retention.sql`
+> (`create or replace` — idempotent, safe to re-run).
+> Schedule it: enable **pg_cron** (Dashboard > Database > Extensions), then
+> `SELECT cron.schedule('dm-retention-daily', '0 3 * * *',
+> $$SELECT public.cleanup_stale_data()$$);`
+> Run `SELECT public.cleanup_stale_data();` once for immediate effect.
+
+### 9.1 Retention inventory (whole backend)
+
+| Data | Rule | Enforced by |
+|------|------|-------------|
+| DM `messages` — **read** | deleted after **24h** | `cleanup_stale_data()` (this phase) |
+| DM `messages` — unread | absolute backstop **7 days** (unread otherwise survives forever) | same |
+| `conversations` counters | reconciled from remaining rows after every purge (badges can't inflate from deleted mail) | same |
+| `matchmaking_queue` tickets | expire **30s** (`expires_at`), swept inline by the join RPC | `hybrid_matchmaking` RPC |
+| `matchmaking_queue` dead rows | cancelled + `searching` older than **1h** | `cleanup_matchmaking_queue()` (pg_cron, commented schedule in `migrations/20260904_matchmaking_phase1.sql`) |
+| `game_invites` | no server TTL (status machine only) | — |
+| `live_chat` | newest **300** rows kept, pruned opportunistically on every POST | `app/api/live-chat/route.ts` |
+| `live_matches` / `spectator_bets` | no TTL (settled bets stay as audit trail) | — |
+| `players.status` | idle → `Offline` after **1–2 min** (`last_seen_at`) | `cleanup_stale_data()` (+ `update_offline_status()` variant) |
+
+### 9.2 Notes
+
+- This phase **replaces** the old Phase-2 `cleanup_stale_data()` message rule
+  (`DELETE … < 72 hours` regardless of read state), which violated
+  "unread always survives". Same function name, coherent semantics.
+- Purge touches only conversations with deleted rows (`_purged_pairs` temp
+  table) — no full-table counter rewrite.
+- Nothing above runs itself: every row requires either an inline trigger
+  (matchmaking join, live-chat POST) or a pg_cron schedule. If pg_cron was
+  never enabled, no periodic cleanup has ever run.
+
