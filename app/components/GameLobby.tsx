@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { ActionDice } from './ActionDice';
 import { LiveBroadcastCard } from './ActivityFeed';
@@ -58,6 +58,31 @@ export default function GameLobby({
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P' } | null>(null);
+
+    // Overflow-driven compaction: if the setup column actually overflows its
+    // box (any device, any chrome), drop into compact mode. Behavior, not
+    // breakpoints — toggling can't oscillate because the observed box is
+    // parent-constrained, so class flips don't resize it.
+    const setupRef = useRef<HTMLDivElement | null>(null);
+    const [lobbyCompact, setLobbyCompact] = useState(false);
+    useEffect(() => {
+        const el = setupRef.current;
+        if (!el) return;
+        const check = () => setLobbyCompact(el.scrollHeight > el.clientHeight + 2);
+        check();
+        const t = setTimeout(check, 600);
+        window.addEventListener('resize', check);
+        let ro: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(check);
+            ro.observe(el);
+        }
+        return () => {
+            clearTimeout(t);
+            window.removeEventListener('resize', check);
+            ro?.disconnect();
+        };
+    }, []);
     const [searchId, setSearchId] = useState(0);
 
     // Handle Joining from Live Feed
@@ -106,13 +131,14 @@ export default function GameLobby({
     };
 
     return (
-        <div className="ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-8 min-h-[600px] h-full flex flex-col items-center justify-start">
+        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-8 min-h-[600px] h-full flex flex-col items-center justify-start${lobbyCompact ? ' lobby-compact' : ''}`}>
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
             {/* 1. INITIAL SETUP PANEL */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
                     key="setup"
+                    ref={setupRef}
                     className="w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 h-full setup-tier"
                 >
                     {/* 1. SELECTION GROUP */}

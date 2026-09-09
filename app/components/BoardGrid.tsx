@@ -14,6 +14,9 @@ interface BoardGridProps {
     sweepProgress?: any; // MotionValue<number> (0 to 1)
     pointRotation?: any; // MotionValue<number>
     counterRotationDeg?: number;
+    // Measured square size (px) from the board-area box. When absent (first
+    // paint), falls back to viewport-relative sizing.
+    squarePx?: number;
 }
 
 const ZONE_HEX: Record<string, string> = {
@@ -62,7 +65,8 @@ export function BoardGrid({
     activeColor: propActiveColor,
     sweepProgress,
     pointRotation,
-    counterRotationDeg
+    counterRotationDeg,
+    squarePx
 }: BoardGridProps) {
     const activeColor = localGameState?.currentPlayer || propActiveColor;
     
@@ -95,11 +99,9 @@ export function BoardGrid({
             display: 'grid',
             gridTemplateColumns: 'repeat(15, 1fr)',
             gridTemplateRows: 'repeat(15, 1fr)',
-            // Cap to viewport height so rows + footer never clip:
-            // reserve covers 2 player rows + dice (~170) + main padding/footer (~160).
-            // The 100vw cap is the phone guard: even if an ancestor overflows,
-            // the grid itself can never exceed the viewport width.
-            width: 'min(100%, calc(100vh - 330px), calc(100dvh - 330px), calc(100vw - 16px))',
+            // Measured size wins (exact container fit); viewport-relative
+            // sizing is the first-paint fallback.
+            width: squarePx ? `${squarePx}px` : 'min(100%, calc(100vh - 330px), calc(100dvh - 330px), calc(100vw - 16px))',
             margin: '0 auto',
             aspectRatio: '1 / 1',
             gap: '1px',

@@ -11,6 +11,7 @@ import {
 } from '@/lib/boardLayout';
 import { useGameEngine, Player } from '@/hooks/useGameEngine';
 import { useTeamUp } from '@/hooks/useTeamUp';
+import { useElementSize } from '@/hooks/useElementSize';
 
 // Modular Components
 import { HomeBlock } from './BoardHome';
@@ -152,6 +153,12 @@ export default function Board({
     // ─── Power inventory: own eyes only (+ targeting) ────────────────────
     // You see your inventory, never opponents'. (Teammate view is a future
     // patch.) Spendable on your own rolling turn; one power per roll.
+    // Measured board sizing: the grid fills the real board-area box —
+    // no viewport arithmetic, correct on every screen by construction.
+    const [areaRef, areaSize] = useElementSize<HTMLDivElement>();
+    const boardSquarePx = areaSize.w > 0 && areaSize.h > 0
+        ? Math.max(160, Math.floor(Math.min(areaSize.w, areaSize.h)))
+        : undefined;
     const turnColor = localGameState.currentPlayer as PlayerColor;
     const ownColor = myPlayer?.color;
     const isMyTurn = !!ownColor && turnColor === ownColor;
@@ -199,7 +206,8 @@ export default function Board({
             />
 
             <motion.div 
-                className="board-area" 
+                className="board-area"
+                ref={areaRef} 
                 animate={isShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
                 transition={{ duration: 0.4 }}
                 style={{ position: 'relative', width: '100%', cursor: 'pointer' }}
@@ -218,6 +226,7 @@ export default function Board({
                     }}
                 >
                     <BoardGrid
+                        squarePx={boardSquarePx}
                         pathCells={pathCells}
                         colorCorner={colorCorner}
                         localGameState={localGameState}

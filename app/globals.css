@@ -2070,34 +2070,18 @@ body.theme-retro-futurism::before {
   overflow-x: clip;
 }
 
-/* Short viewports: tighten chrome so board + avatars + dice stay centered */
-@media (max-height: 780px) {
-  .board-outer {
-    gap: 6px;
-  }
-  .board-outer .avatar-circle {
-    width: 36px;
-    height: 36px;
-  }
-  .board-outer .player-row {
-    padding: 0 6px;
-  }
-}
-/* Short viewports: compact the lobby so mode + fee + dice + broadcast
-   all fit above the fixed footer with zero scroll. The 600px min-height
-   lock is what shoved the broadcast card under the footer. Dice shrink
+/* Overflow-driven lobby compaction: applied if and only if the column
+   actually overflows — on any device, no height breakpoints. Dice shrink
    keeps 3D exact (--tz stays half the cube). */
-@media (max-height: 780px) {
-  .ludo-lobby-scope {
-    min-height: 0;
-  }
-  .lobby-dice-cube {
-    width: 96px;
-    height: 96px;
-    margin-top: 8px;
-    margin-bottom: 8px;
-    --tz: 48px;
-  }
+.ludo-lobby-scope.lobby-compact {
+  min-height: 0;
+}
+.lobby-compact .lobby-dice-cube {
+  width: 96px;
+  height: 96px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  --tz: 48px;
 }
 
 /* ─── Player Rows & Wrappers ─── */
@@ -2108,7 +2092,9 @@ body.theme-retro-futurism::before {
   width: 100%;
   padding: 0 10px;
   flex-shrink: 0;
-  min-height: 0;
+  /* Fixed box: rows never change height when the dice appears/disappears,
+     so the measured board-area (and grid) stays rock stable mid-match. */
+  min-height: 64px;
 }
 
 .player-wrapper {
