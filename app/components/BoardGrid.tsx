@@ -97,7 +97,9 @@ export function BoardGrid({
             gridTemplateRows: 'repeat(15, 1fr)',
             // Cap to viewport height so rows + footer never clip:
             // reserve covers 2 player rows + dice (~170) + main padding/footer (~160).
-            width: 'min(100%, calc(100dvh - 330px))',
+            // The 100vw cap is the phone guard: even if an ancestor overflows,
+            // the grid itself can never exceed the viewport width.
+            width: 'min(100%, calc(100vh - 330px), calc(100dvh - 330px), calc(100vw - 16px))',
             margin: '0 auto',
             aspectRatio: '1 / 1',
             gap: '1px',

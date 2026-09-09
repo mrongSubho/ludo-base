@@ -2049,9 +2049,10 @@ body.theme-retro-futurism::before {
   justify-content: center;
   width: 100%;
   height: 100%;
-  max-width: 100%;
+  max-width: 100vw;
   min-height: 0;
   max-height: 100%;
+  overflow-x: clip;
   /* Removing 100vw to respect device widths */
   gap: 10px;
   margin: 0;
@@ -2065,6 +2066,8 @@ body.theme-retro-futurism::before {
   display: flex;
   justify-content: center;
   width: 100%;
+  max-width: 100vw;
+  overflow-x: clip;
 }
 
 /* Short viewports: tighten chrome so board + avatars + dice stay centered */
