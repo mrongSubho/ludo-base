@@ -1098,6 +1098,16 @@ body.theme-retro-futurism::before {
   animation-duration: 30s;
   animation-delay: -5s;
 }
+/* Board states (game/spectating): calm the backdrop orbs so the table reads
+   on one clean tone — the daybreak peach orb was pooling a pink zone behind
+   the lower board. Lobby keeps the full glow. Drift (transform-only) is
+   untouched, so this opacity trim is stable. */
+.orbs-calm .cosmic-orb-2 {
+  opacity: 0.05;
+}
+.orbs-calm .cosmic-orb-3 {
+  opacity: 0.04;
+}
 
 .cosmic-orb-3 {
   width: 350px;
@@ -2033,10 +2043,9 @@ body.theme-retro-futurism::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  /* Reduced to maximize board width */
-  padding-bottom: calc(8px + 72px);
-  /* Space for taller footer */
+  padding: 8px 2px 8px;
+  /* No footer exists in game/spectating states, so no footer reserve —
+     the old 72px phantom padding just pooled dead space below the board. */
   overflow: hidden;
 }
 

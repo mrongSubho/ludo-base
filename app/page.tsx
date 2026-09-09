@@ -425,7 +425,7 @@ export default function Page() {
       <PresenceManager />
       <InviteNotification />
 
-      <div className="fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]">
+      <div className={`fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]${appState !== 'dashboard' ? ' orbs-calm' : ''}`}>
         {/* Subdued orbs to prevent washout while keeping depth */}
         <div className="cosmic-orb cosmic-orb-1 opacity-20 scale-100" />
         <div className="cosmic-orb cosmic-orb-2 opacity-15 scale-75" />
