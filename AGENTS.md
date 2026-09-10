@@ -33,10 +33,10 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 
 1. **2v2 teams are one source of truth:** `TEAM_PAIRINGS` in `lib/constants.ts` — **Green+Yellow vs Red+Blue**. Seating (`assignCorners2v2`), `getTeammateColor`, `getTeam`, assist, capture, and win checks must all use it. Never fork a second pairing.
 2. **Move legality uses engine math:** always `calculateNextPosition` / `getLegalTokenIndices`. Never `pos + roll` (breaks gate crossing into home stretch 52–57).
-3. **Networked rolls (humans, bots, AFK):** Edge Function `roll-dice` only — **no client `Math.random` fallback**. Offline/local-bot may use local RNG. Failure aborts the roll.
+3. **Networked rolls (humans, bots, AFK):** Edge Function `roll-dice` only — **no client `Math.random` fallback**. Offline/local-bot may use local RNG. Failure aborts the roll. Results persist in `match_rolls` (unique `action_id` → no retry-until-six); host broadcasts `rollId`.
 4. **`/api/match/record`:** requires wallet signature over `buildMatchRecordMessage`; signer must be a listed participant; no coin pot payout (progression only); replay blocked if match already has a winner.
 5. **`resolve-bet`:** host wallet-signs `buildBetResolveMessage`; Edge verifies signature + `live_matches.host_address`. Do not accept free-form `result` from the network.
-6. **Power tile types** stay on the authority; strip `type` before any wire send (`sanitizeGameStateForWire` in `TeamUpContext`).
+6. **Power tile types** stay on the authority; strip `type` via `lib/wireSanitize.ts` (`sanitizeGameStateForWire`).
 7. **DMs:** ECDH P-256 sealed boxes (`lib/encryption.ts`). Pubkeys on `players.ecdh_pubkey`. Legacy wallet-hash is decrypt-only. Recipient without a pubkey → send fails closed (no plaintext downgrade).
 8. **Messages RLS:** UPDATE is column-locked by trigger (`messages_restrict_columns`) — sender/receiver/content immutable.
 

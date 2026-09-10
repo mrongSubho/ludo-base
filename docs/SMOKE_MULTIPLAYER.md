@@ -63,7 +63,9 @@ Env: `npm run dev` → `http://localhost:3000`. Confirm `.env.local` has Supabas
 
 | # | Step | Pass |
 |---|------|------|
-| E1 | Networked human roll: Network tab → `roll-dice` 200 with `result` 1–6 | |
+| E1 | Networked human roll: Network tab → `roll-dice` 200 with `result` 1–6 and `rollId` | |
+| E1b | Replay same `actionId` → same face (`replay: true`) | |
+| E1c | Dashboard: `match_rolls` row for the match | |
 | E2 | Block PeerJS (devtools offline for peer host is hard) **or** kill peer briefly — guest still rolls via Supabase `GAME_INTENT` | |
 | E3 | Host log: intent applied once (`processedIntentIds`) — no double move | |
 | E4 | Bot turn in networked match: also hits `roll-dice` (no local-only face) | |
