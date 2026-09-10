@@ -738,21 +738,9 @@ function useBroadcastData(): BroadcastData {
         })();
     }, []);
 
-    // Chat: recent backfill (so other-device shouts exist on open) +
-    // realtime, UPDATEs merge room rewrites. Cap 40.
+    // Chat: arrivals-only (session purity — history dies with the app).
+    // UPDATEs merge room rewrites. Cap 40.
     useEffect(() => {
-        (async () => {
-            try {
-                const { data, error } = await (supabase.from('live_chat') as any)
-                    .select('id, sender_id, username, avatar_url, content, country, created_at, room_code, room_open')
-                    .order('created_at', { ascending: false })
-                    .limit(20);
-                if (error) throw error;
-                setChats([...(data || [])].reverse());
-            } catch {
-                /* pre-migration or offline — realtime still fills */
-            }
-        })();
         const channel = supabase
             .channel('unified-chat')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
@@ -805,9 +793,9 @@ function useBroadcastData(): BroadcastData {
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
                 const r = toRoom(payload.new);
                 if (!r) return;
-                setRooms(prev => r.open
-                    ? [r, ...prev.filter(x => x.roomCode !== r.roomCode)].slice(0, 20)
-                    : prev.filter(x => x.roomCode !== r.roomCode));
+                // Closed rooms stay visible dimmed (session history) —
+                // only the backfill is open-only.
+                setRooms(prev => [r, ...prev.filter(x => x.roomCode !== r.roomCode)].slice(0, 20));
             })
             .subscribe();
         return () => {
@@ -982,15 +970,18 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
         const out: FeedItem[] = [];
         const meLower = me;
         for (const m of chats) {
+            // Room announces live in the rooms lane (single card per room,
+            // session-bounded) — never mirrored as chatter, so rewrites and
+            // re-announces can never flood the timeline with clones.
+            if ((m as ChatMsg).room_code) continue;
             const mineMsg = (m.sender_id || '').toLowerCase() === meLower;
-            if (matchesOnly && !m.room_code) continue;
+            if (matchesOnly) continue;
             // Own shouts always pass Local — you're local to yourself,
             // regardless of what country the edge stamped (VPNs, routing).
             if (localOnly && !mineMsg && (m.country || 'XX') !== country) continue;
             out.push({ key: `c-${m.id}`, ts: m.created_at ? new Date(m.created_at).getTime() : 0, kind: 'chat', msg: m });
         }
         for (const r of rooms) {
-            if (!r.open) continue;
             if (localOnly && (r.country || 'XX') !== country) continue;
             out.push({ key: `r-${r.key}`, ts: r.createdAt, kind: 'room', room: r });
         }
@@ -1060,6 +1051,31 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                         {items.map((it) => {
                             if (it.kind === 'room' && it.room) {
                                 const r = it.room;
+                                if (!r.open) {
+                                    return (
+                                        <div
+                                            key={it.key}
+                                            className="flex items-center gap-3 p-3 rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-md opacity-60"
+                                        >
+                                            <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
+                                                {r.avatar ? (
+                                                    <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                                ) : (
+                                                    <span className="text-white/50 font-black text-sm pointer-events-none">{r.hostName[0]?.toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col">
+                                                <span className="text-[13px] font-black text-white truncate">{r.hostName}</span>
+                                                <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                                    {r.content}
+                                                </span>
+                                            </div>
+                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.15em] text-white/40 pointer-events-none">
+                                                Over
+                                            </span>
+                                        </div>
+                                    );
+                                }
                                 return (
                                     <button
                                         key={it.key}
@@ -1088,6 +1104,41 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                             }
                             if (it.kind === 'search' && it.search) {
                                 const s = it.search;
+                                // Party ticket (hunt): same invite-card design as
+                                // announced rooms — one visual language for every
+                                // direct join, wherever it was posted.
+                                if (s.roomCode && !s.started) {
+                                    return (
+                                        <button
+                                            key={it.key}
+                                            onClick={() => joinSearch(s)}
+                                            title={`Join ${s.hostName}'s party`}
+                                            className="room-join-row flex items-center gap-3 p-3 rounded-2xl border border-cyan-500/40 bg-cyan-500/10 backdrop-blur-md transition-all text-left w-full hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] cursor-pointer"
+                                        >
+                                            <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
+                                                {s.avatar ? (
+                                                    <img loading="lazy" decoding="async" src={s.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                                ) : (
+                                                    <span className="text-white/50 font-black text-sm pointer-events-none">{s.hostName[0]?.toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col">
+                                                <span className="text-[13px] font-black text-white truncate">
+                                                    {s.hostName}
+                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-400/15 border border-amber-400/40 text-[8px] font-black uppercase tracking-[0.15em] text-amber-300 align-middle">
+                                                        Party
+                                                    </span>
+                                                </span>
+                                                <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                                    {s.matchType} · {s.gameMode} · {s.wager === 0 ? 'Free' : `${s.wager.toLocaleString()}`} · join
+                                                </span>
+                                            </div>
+                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[9px] font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
+                                                Join
+                                            </span>
+                                        </button>
+                                    );
+                                }
                                 return (
                                     <div
                                         key={it.key}

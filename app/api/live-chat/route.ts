@@ -104,6 +104,7 @@ export async function POST(request: Request) {
         // Service role: anon clients hold no UPDATE policy by design.
         if (roomCode) {
             const roomRow = { sender_id: wallet, username, avatar_url: profile?.avatar_url || null, content, country, room_code: roomCode, room_open: roomOpen };
+            const missingCols = (e: any) => e?.code === '42703' || String(e?.message || '').includes('room_code');
             try {
                 const { data: existing } = await serviceClient
                     .from('live_chat')
@@ -131,23 +132,36 @@ export async function POST(request: Request) {
                 if (plantErr) throw plantErr;
                 return NextResponse.json(planted);
             } catch (e: any) {
-                const msg = String(e?.message || '');
-                // No UPDATE grant (role key missing) or pre-migration table:
-                // degrade to a static card rather than failing the announce.
-                try {
-                    const withCols = !(e?.code === '42703' || msg.includes('room_code'));
-                    const payload: any = withCols ? roomRow : { sender_id: wallet, username, avatar_url: profile?.avatar_url || null, content, country };
-                    const cols = withCols ? FULL_COLS : 'id, sender_id, username, avatar_url, content, country, created_at';
-                    const { data: fallback, error: fbErr } = await supabase
-                        .from('live_chat')
-                        .insert(payload)
-                        .select(cols)
-                        .single();
-                    if (fbErr) throw fbErr;
-                    return NextResponse.json(fallback);
-                } catch {
-                    throw e;
+                // Pre-migration table: degraded static card (one per announce).
+                if (missingCols(e)) {
+                    try {
+                        const { data: legacy, error: legErr } = await supabase
+                            .from('live_chat')
+                            .insert({ sender_id: wallet, username, avatar_url: profile?.avatar_url || null, content, country })
+                            .select('id, sender_id, username, avatar_url, content, country, created_at')
+                            .single();
+                        if (legErr) throw legErr;
+                        return NextResponse.json(legacy);
+                    } catch {
+                        throw e;
+                    }
                 }
+                // Update denied (no service key) or any other failure: return
+                // the live row untouched. NEVER insert a duplicate — one bad
+                // announce must not flood the feed with stale clones.
+                try {
+                    const { data: current } = await supabase
+                        .from('live_chat')
+                        .select('id, sender_id, username, avatar_url, content, country, created_at')
+                        .eq('sender_id', wallet)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    if (current) return NextResponse.json(current);
+                } catch {
+                    /* fall through to 500 */
+                }
+                throw e;
             }
         }
 
