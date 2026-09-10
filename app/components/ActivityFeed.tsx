@@ -665,37 +665,26 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     );
 };
 
-// ─── Unified broadcast feed: ONE timeline, toggle-pill filters ────────────
-// Chat shouts + open rooms + pool searches + arena activity merged
-// newest-first. Two independent pills (friends-panel pattern): Local scopes
-// chat and rooms by country; Matches hides plain chatter. Pool tickets carry
-// no country — global pool by nature, always pass.
-interface FeedItem {
-    key: string;
-    ts: number;
-    kind: 'chat' | 'room' | 'search' | 'activity';
-    msg?: ChatMsg;
-    room?: LiveRoom;
-    search?: LiveSearch;
-    activity?: Activity;
+// ─── Broadcast data: owned ABOVE the panel lifecycle ───────────────────────
+// The card (always mounted in the lobby) owns subscriptions + arrays, so
+// closing the broadcast panel no longer wipes history. App close unmounts
+// the card → everything vanishes: session semantics, panel-proof.
+interface BroadcastData {
+    chats: ChatMsg[];
+    rooms: LiveRoom[];
+    searches: LiveSearch[];
+    activities: Activity[];
+    country: string;
 }
 
-export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?: (address: string) => void; onJoin?: () => void }) => {
+function useBroadcastData(): BroadcastData {
     const { address } = useAccount();
-    const { address: identityAddress } = useCurrentUser();
-    const { guard } = useGuestWall();
     const me = (address || '').toLowerCase();
-
-    const [matchesOnly, setMatchesOnly] = useState(false);
-    const [localOnly, setLocalOnly] = useState(false);
     const [country, setCountry] = useState('XX');
     const [chats, setChats] = useState<ChatMsg[]>([]);
     const [rooms, setRooms] = useState<LiveRoom[]>([]);
     const [searches, setSearches] = useState<LiveSearch[]>([]);
     const [activities, setActivities] = useState<Activity[]>([]);
-    const [input, setInput] = useState('');
-    const [cooldown, setCooldown] = useState(0);
-    const feedScrollRef = useRef<HTMLDivElement>(null);
     const hostCache = useRef<Map<string, { name: string; avatar: string | null }>>(new Map());
     const sessionStart = useRef(Date.now());
 
@@ -749,13 +738,26 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
         })();
     }, []);
 
-    // Chat: session feed (arrivals only), UPDATEs merge room rewrites.
+    // Chat: recent backfill (so other-device shouts exist on open) +
+    // realtime, UPDATEs merge room rewrites. Cap 40.
     useEffect(() => {
+        (async () => {
+            try {
+                const { data, error } = await (supabase.from('live_chat') as any)
+                    .select('id, sender_id, username, avatar_url, content, country, created_at, room_code, room_open')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+                setChats([...(data || [])].reverse());
+            } catch {
+                /* pre-migration or offline — realtime still fills */
+            }
+        })();
         const channel = supabase
             .channel('unified-chat')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
                 const m = payload.new as ChatMsg;
-                setChats(prev => [...prev, m].slice(-40));
+                setChats(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m].slice(-40)));
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
                 const m = payload.new as ChatMsg;
@@ -790,7 +792,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
                 }
                 setRooms([...seen.values()]);
             } catch {
-                /* pre-migration — rooms section stays empty */
+                /* pre-migration DB or offline — searches still work */
             }
         })();
         const channel = supabase
@@ -891,6 +893,31 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
             supabase.removeChannel(channel);
         };
     }, []);
+
+    return { chats, rooms, searches, activities, country };
+}
+interface FeedItem {
+    key: string;
+    ts: number;
+    kind: 'chat' | 'room' | 'search' | 'activity';
+    msg?: ChatMsg;
+    room?: LiveRoom;
+    search?: LiveSearch;
+    activity?: Activity;
+}
+
+export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenProfile?: (address: string) => void; onJoin?: () => void; data: BroadcastData }) => {
+    const { address } = useAccount();
+    const { address: identityAddress } = useCurrentUser();
+    const { guard } = useGuestWall();
+    const me = (address || '').toLowerCase();
+    const { chats, rooms, searches, activities, country } = data;
+
+    const [matchesOnly, setMatchesOnly] = useState(false);
+    const [localOnly, setLocalOnly] = useState(false);
+    const [input, setInput] = useState('');
+    const [cooldown, setCooldown] = useState(0);
+    const feedScrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (cooldown > 0) {
@@ -1257,6 +1284,9 @@ function useJoinableCount() {
 export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     const joinable = useJoinableCount();
+    // Feed data lives here (always mounted) so closing the panel never
+    // wipes history; the overlay only borrows it for display.
+    const feedData = useBroadcastData();
     // Latest open room: the ON AIR slot shows the freshest announce
     // (Classic · 2v2 · Free · 3/4 · join), tap-to-join, ticking live.
     // Session-bounded like the rooms tab — pre-session history stays out.
@@ -1432,7 +1462,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
 
                                     {/* Content: one timeline (filters replace tabs) */}
                                     <div className="flex-1 min-h-0 overflow-hidden relative z-10 flex flex-col">
-                                        <UnifiedBroadcastFeed onOpenProfile={onOpenProfile} onJoin={() => setIsOpen(false)} />
+                                        <UnifiedBroadcastFeed onOpenProfile={onOpenProfile} onJoin={() => setIsOpen(false)} data={feedData} />
                                     </div>
                                 </motion.div>
                             </div>
