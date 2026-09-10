@@ -712,6 +712,66 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
     const [isOpen, setIsOpen] = useState(false);
     const [btab, setBtab] = useState<'chat' | 'matches'>('chat');
     const joinable = useJoinableCount();
+    // Latest open room: the ON AIR slot shows the freshest announce
+    // (Classic · 2v2 · Free · 3/4 · join), tap-to-join, ticking live.
+    // Session-bounded like the rooms tab — pre-session history stays out.
+    const [latestRoom, setLatestRoom] = useState<{ roomCode: string; content: string } | null>(null);
+    const latestRef = useRef<{ roomCode: string; content: string } | null>(null);
+    const setRoom = (r: { roomCode: string; content: string } | null) => {
+        latestRef.current = r;
+        setLatestRoom(r);
+    };
+    const roomSessionStart = useRef(Date.now());
+    useEffect(() => {
+        const pick = (row: any) => {
+            if (!row?.room_code || row.room_open === false) return null;
+            if (!row.created_at || new Date(row.created_at).getTime() < roomSessionStart.current) return null;
+            return { roomCode: row.room_code as string, content: (row.content as string) || '' };
+        };
+        const fetchLatest = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('live_chat')
+                    .select('room_code, content, room_open, created_at')
+                    .not('room_code', 'is', null)
+                    .eq('room_open', true)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                if (error) throw error;
+                for (const row of data || []) {
+                    const r = pick(row);
+                    if (r) { setRoom(r); return; }
+                }
+                setRoom(null);
+            } catch { /* pre-migration — ON AIR fallback stands */ }
+        };
+        fetchLatest();
+        const ch = supabase
+            .channel('live-latest-room')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
+                const r = pick(payload.new);
+                if (r) setRoom(r);
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
+                const row: any = payload.new;
+                if (!row?.room_code) return;
+                if (row.room_open === false) {
+                    // Headliner closed → fall back to next freshest.
+                    if (latestRef.current?.roomCode === row.room_code) {
+                        setRoom(null);
+                        fetchLatest();
+                    }
+                    return;
+                }
+                const r = pick(row);
+                if (r) setRoom(r);
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(ch);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <>
@@ -734,18 +794,36 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
                                 <circle cx="12" cy="12" r="3" />
                             </svg>
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-[9px] font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">Live Broadcast</span>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setBtab('matches'); setIsOpen(true); }}
-                                title="Open live matches"
-                                className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
-                            >
-                                <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                                <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none underline underline-offset-2 decoration-cyan-500/50">
-                                    On air
-                                </span>
-                            </button>
+                            {latestRoom ? (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.dispatchEvent(new CustomEvent('join_party', {
+                                            detail: { roomCode: latestRoom.roomCode }
+                                        }));
+                                    }}
+                                    title={`Join ${latestRoom.roomCode}`}
+                                    className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left min-w-0"
+                                >
+                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse shrink-0" />
+                                    <span className="text-[11px] font-black text-cyan-300 uppercase tracking-wider leading-none truncate underline underline-offset-2 decoration-cyan-500/50">
+                                        {latestRoom.content}
+                                    </span>
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setBtab('matches'); setIsOpen(true); }}
+                                    title="Open live matches"
+                                    className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
+                                >
+                                    <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
+                                    <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none underline underline-offset-2 decoration-cyan-500/50">
+                                        On air
+                                    </span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
