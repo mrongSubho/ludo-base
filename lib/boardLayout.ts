@@ -106,28 +106,27 @@ const DIAGONAL_AXES: [readonly [Corner, Corner], readonly [Corner, Corner]][] = 
 ];
 
 /**
- * 2v2 mode: Strict team pairings — Green+Blue vs Red+Yellow.
- * Teammates always land on diagonally opposite corners.
+ * 2v2 mode: teammates are Green+Yellow vs Red+Blue (see TEAM_PAIRINGS).
+ * Partners always land on diagonally opposite corners.
  * Which diagonal axis each team gets is randomized per match.
  */
 export function assignCorners2v2(): ColorCorner {
-    // Fixed team pairings per spec
-    const teamGB: [PlayerColor, PlayerColor] = ['green', 'blue'];
-    const teamRY: [PlayerColor, PlayerColor] = ['red', 'yellow'];
+    const teamGY: [PlayerColor, PlayerColor] = ['green', 'yellow'];
+    const teamRB: [PlayerColor, PlayerColor] = ['red', 'blue'];
 
     // Pick a random diagonal axis
     const axis = DIAGONAL_AXES[Math.floor(Math.random() * 2)];
     // Randomly assign which team gets which diagonal axis
-    const [axisGB, axisRY] = Math.random() < 0.5 ? [axis[0], axis[1]] : [axis[1], axis[0]];
+    const [axisGY, axisRB] = Math.random() < 0.5 ? [axis[0], axis[1]] : [axis[1], axis[0]];
 
     // Within each axis, randomly assign which teammate gets which corner
     const cc: Partial<ColorCorner> = {};
-    const [gb0, gb1] = Math.random() < 0.5 ? axisGB : [axisGB[1], axisGB[0]];
-    cc[teamGB[0]] = gb0;
-    cc[teamGB[1]] = gb1;
-    const [ry0, ry1] = Math.random() < 0.5 ? axisRY : [axisRY[1], axisRY[0]];
-    cc[teamRY[0]] = ry0;
-    cc[teamRY[1]] = ry1;
+    const [gy0, gy1] = Math.random() < 0.5 ? axisGY : [axisGY[1], axisGY[0]];
+    cc[teamGY[0]] = gy0;
+    cc[teamGY[1]] = gy1;
+    const [rb0, rb1] = Math.random() < 0.5 ? axisRB : [axisRB[1], axisRB[0]];
+    cc[teamRB[0]] = rb0;
+    cc[teamRB[1]] = rb1;
 
     return cc as ColorCorner;
 }
@@ -367,7 +366,7 @@ export function shufflePlayers(
 
              return {
                  ...template,
-                  level: calculateLevel(template.lxp || 0).level,
+                  level: calculateLevel((template as { lxp?: number }).lxp || 0).level,
                  color,
                  position: CORNER_TO_POSITION[corner],
                  isAi: template.isAi

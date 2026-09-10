@@ -111,7 +111,7 @@ export const QuickMatchPanel = ({
                 return;
             }
             if (isMatchHost) {
-                hostGame(foundRoomCode);
+                hostGame(foundRoomCode, validationToken);
                 initQuickLobby(foundRoomCode, matchType as '1v1' | '2v2' | '4P', gameMode as 'classic' | 'power', wager);
             } else {
                 joinGame(foundRoomCode, validationToken);

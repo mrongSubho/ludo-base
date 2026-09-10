@@ -49,6 +49,7 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Seating Axis:** Players are assigned to corners: `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, or `Top-Left (TL)`.
 - **Turns:** Anti-clockwise rotation.
 - **Diagonal Partnership (2v2):** Partners always sit diagonally opposite (`BL+TR` or `BR+TL`).
+- **Team pairings (single source of truth — `TEAM_PAIRINGS` in `lib/constants.ts`):** **Green+Yellow** vs **Red+Blue**. Seating (`assignCorners2v2`), capture truce, teammate assist, AI targeting, and win checks all read this table. Never fork a second pairing.
 
 ### 3.3 Movement & Capture (Force Mechanics)
 - **Home Exit:** Requires a `DICE_MAX` (6) to move from base (`BASE_INDEX: -1`) to start tile (0).
@@ -57,10 +58,12 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Capture Rule:** To capture an opponent, your team's Force on that square must be >= their Force.
 - **Safe Zones:** 8 "Star" squares provide immunity to capture regardless of Force.
 - **Home Lane:** Tokens enter the protected home lane at `HOME_LANE_START_INDEX` (52).
+- **Legality:** Always use `calculateNextPosition` / `getLegalTokenIndices` — never `pos + roll` (that breaks gate crossing into 52–57).
 
 ### 3.4 2v2 Teammate Assist
 Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
 - **Victory:** A team wins only when all 8 tokens (4 per player) have reached the Finish square.
+- **Teams:** Green+Yellow (team 1) vs Red+Blue (team 2).
 
 ### 3.5 Power System v3 (hidden tiles → timed inventory → targeted spend)
 - **Tiles:** exactly 5 (`POWER_TILES_COUNT`), main track only, never home tiles. Each carries a hidden type (rarity: Boost .4 / Shield .25 / Teleport .2 / Nuke .15). Tiles render NOTHING pre-pickup; landing exactly on one reveals (flash + discovery message), grants to inventory, and spawns a replacement elsewhere.
@@ -160,17 +163,22 @@ AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently o
 
 ## 7. Technical Guardrails [Quality of Service]
 
-### 7.1 Provably Fair Dice (Edge Function)
-To prevent front-end cheating and to replace the overly-complex hash commitment scheme, all dice rolls are executed via a Supabase Edge Function (`/functions/v1/roll-dice`):
+### 7.1 Dice (Edge Function — networked human rolls)
+Networked human rolls call the Supabase Edge Function (`/functions/v1/roll-dice`) for a CSPRNG 1–6 result:
 1. Client broadcasts a `REQUEST_ROLL` intent (`isRolling`, UI spins).
-2. Client queries the `roll-dice` Edge Function, returning a cryptographically secure 1-6 result.
-3. Client broadcasts `ROLL_RESULT` with the fetched value.
-4. **Anti-Drop Security:** If a player receives a bad Edge Function roll and drops the payload instead of broadcasting it, the engine's built-in 15s turn timer (`useGameTimer.ts`) will eventually expire, hitting the user with an AFK strike and forcing an auto-move.
+2. Client queries the `roll-dice` Edge Function.
+3. On success, the host broadcasts `ROLL_DICE` with the fetched value.
+4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks) — a host must not be able to force a face via `Math.random()`. Offline / bot / AFK auto-play may use local RNG.
+5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move.
+6. **Honesty note:** The host still applies the value and is the multiplayer authority. This reduces casual cheating; it is not a full server-authoritative roll. Ranked/wager settlement requires signed outcomes (§8.2 / `/api/match/record`).
 
-### 7.2 End-to-End Encryption
-Gameplay intents and lobby chats are encrypted using `AES-GCM` 256-bit keys derived from the shared secrets of the participants' wallet addresses.
+### 7.2 Chat encryption (current limitation)
+Lobby/DM ciphertext uses AES-GCM with a key derived from `SHA-256(sorted wallets + hardcoded salt)`. Wallet addresses are public, so this is **obfuscation, not E2EE**. Do not market as end-to-end encrypted until real ECDH key exchange ships. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).
 
-### 7.3 Player Progression
+### 7.3 Match recording (signed)
+`/api/match/record` requires a wallet signature over a canonical payload (`lib/matchProof.ts`). The signer must be a listed participant. Coin pots are **not** paid from this route (progression only). Replay is blocked when `matchId` already has a winner.
+
+### 7.4 Player Progression
 - **Level:** `floor(sqrt(lxp / 100)) + 1`.
 - **Rank Tiers:** Bronze (0) -> Silver (301) -> Gold (901) -> Platinum (1801) -> Diamond (3001) -> Arena Master (5001+).
 
@@ -196,6 +204,8 @@ This approach costs zero additional bandwidth per spectator and scales horizonta
 The host broadcasts a `BET_WINDOW_OPEN` event **before** initiating the dice commit. After 3 seconds, the host broadcasts `BET_WINDOW_CLOSED` with an ISO timestamp. **DICE_COMMIT is only sent after BET_WINDOW_CLOSED.** 
 
 **Security V2:** The `settle_match_bets` RPC on Supabase performs a server-side check ensuring `NOW() > window_closed_at`. This prevents front-running even if the client-side Edge Function trigger is spoofed.
+
+**Security V3 (signed settlement):** `resolve-bet` no longer accepts a free-form `result` from the network. The host wallet-signs `buildBetResolveMessage(...)` (`lib/matchProof.ts`). The Edge Function recovers the signer, requires `live_matches.host_address` to match, and only then calls `settle_match_bets`. Host address is written on `hostGame` / `START_GAME` (migration `20260914_live_matches_host_address.sql`).
 
 ### 8.3 New Database Tables
 | Table | Purpose |

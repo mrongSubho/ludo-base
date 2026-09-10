@@ -1,5 +1,5 @@
 import { PlayerColor, PowerType, GameState } from '@/lib/types';
-import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor } from './gameLogic';
+import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor, calculateNextPosition, getLegalTokenIndices } from './gameLogic';
 import { Point, ColorCorner, getBoardCoordinate, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 import {
     BOARD_FINISH_INDEX,
@@ -33,16 +33,8 @@ export function getBestMove(
     const actingColor = (playerCount === '2v2' && selfFinished && teammate) ? teammate : playerId;
     const actingColorTyped = actingColor as PlayerColor;
 
-    const options: number[] = [];
-
-    positions[actingColorTyped].forEach((pos: number, idx: number) => {
-        // Check if move is valid
-        if (pos === BASE_INDEX) {
-            if (roll === DICE_MAX) options.push(idx);
-        } else if (pos + roll <= BOARD_FINISH_INDEX) {
-            options.push(idx);
-        }
-    });
+    // Engine-accurate legality (gate crossing, base exit, overshoot)
+    const options = getLegalTokenIndices(positions, actingColorTyped, roll, colorCorner);
 
     if (options.length === 0) return null; // No valid moves
 
@@ -83,7 +75,7 @@ export function calculateMoveScore(
     difficulty: BotDifficulty = 'pro'
 ): number {
     const currentPos = positions[actingColor][tokenIdx];
-    const nextPos = currentPos === BASE_INDEX ? 0 : currentPos + roll;
+    const nextPos = calculateNextPosition(currentPos, roll, actingColor, colorCorner);
     let score = 0;
 
     // Reach Finish Zone (+150) - The ultimate objective
@@ -103,7 +95,7 @@ export function calculateMoveScore(
 
     // Power Tile Hunting (+120 × difficulty weight; rookie ignores)
     const targetPoint = getBoardCoordinate(nextPos, actingColor, colorCorner);
-    if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
+    if (nextPos >= 0 && nextPos < HOME_LANE_START_INDEX && targetPoint) {
         const isOnPowerTile = powerTiles.some(pt => pt.r === targetPoint.r && pt.c === targetPoint.c);
         if (isOnPowerTile) {
             score += AI_SCORES.POWER_TILE_HUNT * DIFFICULTY_PARAMS[difficulty].powerHunt;

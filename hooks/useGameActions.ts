@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
-import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType } from '@/lib/gameLogic';
+import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType, getLegalTokenIndices } from '@/lib/gameLogic';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
 import { Point, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS, getBoardCoordinate } from '@/lib/boardLayout';
@@ -282,9 +282,13 @@ export function useGameActions({
         let rollValue: number = value || 0;
         const tumblePromise = new Promise(r => setTimeout(r, 1200));
 
-        // 2. Generate and Set Result (Zero-Trust via Edge Function)
+        // 2. Generate and Set Result
+        // Networked human rolls: Edge RNG only — never silently fall back to
+        // client Math.random (a hostile host could force any face that way).
+        // Offline/bot/AFK may use local CSPRNG-equivalent.
         if (!value) {
-            if (!isCurrentlyBot && address) {
+            const networkedHuman = isLobbyConnected && !isCurrentlyBot && !!address;
+            if (networkedHuman) {
                 try {
                     const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`, {
                         method: 'POST',
@@ -294,19 +298,23 @@ export function useGameActions({
                         },
                         body: JSON.stringify({ matchId: localGameState.matchId || 'local', walletAddress: address, actionId: Date.now() })
                     });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        rollValue = data.result;
-                    } else {
-                        throw new Error('Edge RNG failed');
+
+                    if (!response.ok) throw new Error('Edge RNG failed');
+                    const data = await response.json();
+                    const parsed = Number(data?.result);
+                    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 6) {
+                        throw new Error('Edge RNG returned invalid face');
                     }
+                    rollValue = parsed;
                 } catch (err) {
-                    console.error("Zero-Trust RNG failed, falling back to local RNG", err);
-                    rollValue = Math.floor(Math.random() * 6) + 1;
+                    console.error('❌ [Engine] Edge RNG failed — aborting networked roll (no client fallback)', err);
+                    await tumblePromise;
+                    setLocalGameState((prev: any) => ({ ...prev, isRolling: false, diceValue: null }));
+                    rollingRef.current = false;
+                    return;
                 }
             } else {
-                // Bots / AFK Auto-Play
+                // Bots / AFK Auto-Play / offline human
                 rollValue = Math.floor(Math.random() * 6) + 1;
             }
         }
@@ -351,7 +359,7 @@ export function useGameActions({
         let pLastValidTokenIndex = -1;
         let pFinalStateForBroadcast: any = null;
 
-        const { isThreeSixes } = handleThreeSixes(currentState.consecutiveSixes, rollValue);
+        const { isThreeSixes, nextSixes } = handleThreeSixes(currentState.consecutiveSixes, rollValue);
 
         if (isThreeSixes) {
             pNextPlayer = getNextPlayer(color, currentState.positions);
@@ -362,16 +370,10 @@ export function useGameActions({
                 return pFinalStateForBroadcast;
             });
         } else {
-            let validMovesCount = 0;
-            let lastValidTokenIndex = -1;
-            
-            currentState.positions[targetColor].forEach((pos: number, idx: number) => {
-                const nextPos = pos === BASE_INDEX ? (rollValue === DICE_ROLL_SIX ? 0 : BASE_INDEX) : pos + rollValue;
-                if (nextPos <= BOARD_FINISH_INDEX && nextPos !== BASE_INDEX) {
-                    validMovesCount++;
-                    lastValidTokenIndex = idx;
-                }
-            });
+            // Engine-accurate legality (gate crossing, base exit, overshoot)
+            const legalIdxs = getLegalTokenIndices(currentState.positions, targetColor, rollValue, colorCorner);
+            const validMovesCount = legalIdxs.length;
+            const lastValidTokenIndex = legalIdxs[legalIdxs.length - 1] ?? -1;
 
             if (validMovesCount === 0) {
                 console.log(`🎲 [Engine] No valid moves for ${color}. Switching turn.`);
@@ -379,7 +381,7 @@ export function useGameActions({
                 pDelayedAction = 'turnSwitch';
                 // 🔧 FIX 2: Functional updater
                 setLocalGameState((prev: any) => {
-                    pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling' };
+                    pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling', consecutiveSixes: nextSixes };
                     return pFinalStateForBroadcast;
                 });
             } else {
@@ -396,7 +398,7 @@ export function useGameActions({
                     pDelayedAction = 'autoMove';
                     // 🔧 FIX 2: Functional updater
                     setLocalGameState((prev: any) => {
-                        pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'moving' };
+                        pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'moving', consecutiveSixes: nextSixes };
                         return pFinalStateForBroadcast;
                     });
                 } else {
@@ -404,12 +406,12 @@ export function useGameActions({
                     rollingRef.current = false;
                     // 🔧 FIX 2: Functional updater
                     setLocalGameState((prev: any) => {
-                        pFinalStateForBroadcast = { 
-                            ...prev, 
+                        pFinalStateForBroadcast = {
+                            ...prev,
                             isRolling: false,
                             diceValue: rollValue,
-                            gamePhase: 'moving' as const, 
-                            consecutiveSixes: (rollValue === 6) ? prev.consecutiveSixes + 1 : 0,
+                            gamePhase: 'moving' as const,
+                            consecutiveSixes: nextSixes,
                             lastUpdate: Date.now(),
                             timeLeft: 15
                         };

@@ -8,7 +8,9 @@ import {
     BASE_INDEX,
     MAX_CONSECUTIVE_SIXES,
     POWER_RARITY,
-    NUKE_RADIUS
+    NUKE_RADIUS,
+    TEAM_PAIRINGS,
+    TEAM_ID
 } from './constants';
 import type { PowerType } from './types';
 
@@ -91,13 +93,7 @@ export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorne
 
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
     if (playerCount !== '2v2') return null;
-    const teams: Record<PlayerColor, PlayerColor> = {
-        green: 'yellow',
-        yellow: 'green',
-        red: 'blue',
-        blue: 'red'
-    };
-    return teams[color];
+    return TEAM_PAIRINGS[color];
 }
 
 export function getNextPlayer(
@@ -151,8 +147,7 @@ export function getNextPlayer(
 
 export function getTeam(color: PlayerColor, playerCount: string = '4P'): number {
     if (playerCount === '2v2') {
-        if (color === 'green' || color === 'yellow') return 1;
-        return 2;
+        return TEAM_ID[color];
     }
     // In 4P FFA or 1v1, everyone is on their own team
     const map: Record<PlayerColor, number> = { green: 1, red: 2, yellow: 3, blue: 4 };
@@ -340,23 +335,32 @@ export function resolveCapturesInPositions(
     return { captured: true, newPositions };
 }
 
-export function checkWinStatus(positions: Record<PlayerColor, number[]>, playerCount: string, currentWinner: string | null): { winner: string | null, status: 'waiting' | 'playing' | 'finished', newlyWonColor: PlayerColor | null } {
-    const allFinished = (c: PlayerColor) => positions[c].every(p => p === BOARD_FINISH_INDEX);
-    const teamWon = (t: number) => {
-        if (t === 1) return allFinished('green') && allFinished('yellow');
-        return allFinished('red') && allFinished('blue');
-    };
+/** @deprecated Win detection lives inline in processMove. Do not reintroduce. */
+export function checkWinStatus(
+    _positions: Record<PlayerColor, number[]>,
+    _playerCount: string,
+    currentWinner: string | null
+): { winner: string | null; status: 'waiting' | 'playing' | 'finished'; newlyWonColor: PlayerColor | null } {
+    return { winner: currentWinner, status: currentWinner ? 'finished' : 'playing', newlyWonColor: null };
+}
 
-    let winner = currentWinner;
-    let status: 'waiting' | 'playing' | 'finished' = winner ? 'finished' : 'playing';
-    let newlyWonColor: PlayerColor | null = null;
-
-    // Check if the current player just finished all tokens
-    // Note: this function doesn't know WHO just moved, so we check all but typically one just changed.
-    // For simpler logic, we could pass tokenColor.
-    
-    // In Ludo Base, we strictly return the first winner found if not already set.
-    return { winner, status, newlyWonColor }; 
+/**
+ * Legal token indices for a color given a dice roll.
+ * Uses calculateNextPosition so gate-crossing / base-exit / overshoot match the engine.
+ */
+export function getLegalTokenIndices(
+    positions: Record<PlayerColor, number[]>,
+    color: PlayerColor,
+    roll: number,
+    cc: ColorCorner
+): number[] {
+    const legal: number[] = [];
+    positions[color].forEach((pos, idx) => {
+        if (pos === BOARD_FINISH_INDEX) return;
+        const next = calculateNextPosition(pos, roll, color, cc);
+        if (next !== pos) legal.push(idx);
+    });
+    return legal;
 }
 
 export function processMove(

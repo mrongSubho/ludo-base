@@ -10,6 +10,23 @@ export const TOTAL_PATH_CELLS = 52;
 export const START_TILE_INDEX = 0;
 export const BASE_INDEX = -1;
 
+// --- 2v2 Teams (single source of truth) ---
+// Lobby order is [host, teammate, opponent, opponent] → Green hosts with Yellow.
+// Seating (boardLayout), capture truce, assist, and win checks must all use this.
+export const TEAM_PAIRINGS = {
+    green: 'yellow',
+    yellow: 'green',
+    red: 'blue',
+    blue: 'red',
+} as const;
+
+export const TEAM_ID = {
+    green: 1,
+    yellow: 1,
+    red: 2,
+    blue: 2,
+} as const;
+
 // --- Game Rules ---
 export const DEFAULT_TURN_TIMER_SECS = 15;
 export const IDLE_WARNING_TIMER_SECS = 10;

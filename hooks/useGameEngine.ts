@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useSignMessage } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty } from '@/lib/types';
@@ -67,6 +68,7 @@ export function useGameEngine({
     // Effective identity (wallet or guest id) — guests must resolve as the
     // human seat, never as bots.
     const { address, isGuest } = useCurrentUser();
+    const { signMessageAsync } = useSignMessage();
     const hasRecordedWin = useRef<boolean>(false);
     const autoMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -158,17 +160,24 @@ export function useGameEngine({
             // Skip unattributable edge cases (no human involved) and guest
             // trials (guest ids have no onchain row — recording would junk
             // the match history).
-            if (humans.length === 0 || isGuest) return;
+            if (humans.length === 0 || isGuest || !address) return;
 
-            await recordMatchResult(
-                player.walletAddress || null,
-                roomId || 'local',
-                gameMode,
-                humans,
-                localGameState.matchId
-            );
+            // API requires a wallet signature from a listed participant.
+            // When a bot won, the local human still signs as an attesting player.
+            try {
+                await recordMatchResult(
+                    player.walletAddress || null,
+                    roomId || 'local',
+                    gameMode,
+                    humans,
+                    localGameState.matchId,
+                    (msg) => signMessageAsync({ message: msg })
+                );
+            } catch (err) {
+                console.error('❌ [Engine] Match record signing failed', err);
+            }
         }
-    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch]);
+    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch, signMessageAsync]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;

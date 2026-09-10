@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { supabase } from '@/lib/supabase';
-import { useAccount } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
 import { useProvablyFairDice } from '@/hooks/useProvablyFairDice';
 import { useGamePresence } from '@/hooks/useGamePresence';
+import { buildBetResolveMessage } from '@/lib/matchProof';
 import {
     GameState,
     PlayerColor,
@@ -44,7 +45,7 @@ export interface TeamUpContextType {
     gameState: GameState;
     lobbyState: LobbyState | null;
     pendingInvite: InvitePayload | null;
-    hostGame: (roomId?: string) => void;
+    hostGame: (roomId?: string, expectedValidationToken?: string) => void;
     joinGame: (roomId: string, token?: string, desiredSeat?: number) => void;
     initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
     hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => string;
@@ -82,8 +83,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [activeBetWindow, setActiveBetWindow] = useState<ActiveBettingWindow | null>(null);
 
     const { address: myAddress } = useAccount();
+    const { signMessageAsync } = useSignMessage();
     const { myProfile } = useGameData();
     const [lastIntent, setLastIntent] = useState<any | null>(null);
+    // Matchmaking validation token the host will require from guests (if set).
+    const expectedValidationTokenRef = useRef<string | null>(null);
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -201,8 +205,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const actionData = {
             type,
             ...payload,
-            stateOverride: fullState,
-            gameState: fullState || (type === 'SYNC_STATE' ? gameStateRef.current : { ...gameStateRef.current, lastAction: { type, payload } })
+            stateOverride: fullState ? sanitizeGameStateForWire(fullState) : undefined,
+            gameState: fullState
+                ? sanitizeGameStateForWire(fullState)
+                : type === 'SYNC_STATE'
+                    ? sanitizeGameStateForWire(gameStateRef.current)
+                    : sanitizeGameStateForWire({ ...gameStateRef.current, lastAction: { type, payload } })
         };
 
         // For Compute Host, broadcastToAll will only reach the P2P host (if still connected)
@@ -275,17 +283,41 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         connection: connections.values().next().value || null,
         broadcastAction: (type: any, payload: any) => broadcastAction(type, payload),
         broadcastToAll,
-        resolveBet: (matchId: string, result: string, betType: string) => {
-            if (!isHost && !isComputeHost) return;
-            console.log('🎰 [Authority] Triggering Bet Resolution:', { matchId, result, betType });
-            fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-bet`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}` 
-                },
-                body: JSON.stringify({ matchId, result, betType })
-            }).then(r => r.json()).then(console.log).catch(console.error);
+        resolveBet: async (matchId: string, result: string, betType: string) => {
+            if (!isHost || !myAddress) return;
+            console.log('🎰 [Host] Triggering signed bet resolution:', { matchId, result, betType });
+            try {
+                const issuedAt = new Date().toISOString();
+                const message = buildBetResolveMessage({
+                    matchId,
+                    result: String(result),
+                    betType,
+                    hostAddress: myAddress,
+                    issuedAt,
+                });
+                const signature = await signMessageAsync({ message });
+                const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-bet`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+                    },
+                    body: JSON.stringify({
+                        matchId,
+                        result: String(result),
+                        betType,
+                        hostAddress: myAddress,
+                        message,
+                        signature,
+                        issuedAt,
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) console.error('🎰 [Host] resolve-bet rejected', data);
+                else console.log('🎰 [Host] resolve-bet ok', data);
+            } catch (err) {
+                console.error('🎰 [Host] resolve-bet failed', err);
+            }
         }
     });
 
@@ -327,15 +359,20 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 lastUpdate: Date.now()
             }));
 
-            // ☁️ Host: Register live match details
-            if (isHost && data.matchId) {
-                supabase.from('live_matches')
-                    .update({ 
-                        spectator_count: 0,
-                        bet_window_status: 'closed'
-                    })
-                    .eq('match_id', data.matchId)
-                    .then();
+            // ☁️ Host: Register live match details + bind host for signed settlement
+            if (isHost) {
+                const matchId = data.matchId || gameStateRef.current.matchId;
+                if (matchId) {
+                    supabase.from('live_matches')
+                        .update({
+                            match_id: matchId,
+                            host_address: myAddress?.toLowerCase() || null,
+                            spectator_count: 0,
+                            bet_window_status: 'closed'
+                        })
+                        .eq('room_code', currentRoomCode || roomId)
+                        .then();
+                }
             }
         } else if (type === 'ROLL_DICE') {
             setGameState((prev: GameState) => ({
@@ -370,7 +407,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
         }
-    }, [processedActionIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost]);
+    }, [processedActionIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost, myAddress, currentRoomCode, roomId]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -394,6 +431,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const handleGuestData = useCallback((data: any, conn: DataConnection) => {
         if (data.type === 'SYNC_PROFILE') {
+            // Require the matchmaking validation token when the host has one.
+            // Invite lobbies without a token keep open-join (documented gap).
+            if (isHost && expectedValidationTokenRef.current) {
+                const presented = typeof data.validationToken === 'string' ? data.validationToken : '';
+                if (presented !== expectedValidationTokenRef.current) {
+                    console.warn('🚫 [Host] Rejected join — invalid validation token', { peer: conn.peer });
+                    try { conn.close(); } catch { /* already closed */ }
+                    return;
+                }
+            }
             setParticipants(prev => ({
                 ...prev,
                 [data.address]: {
@@ -450,25 +497,27 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
     }, [processGameAction, setParticipants, isHost, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
 
-    const hostGame = useCallback((forcedRoomId?: string) => {
+    const hostGame = useCallback((forcedRoomId?: string, expectedValidationToken?: string) => {
         destroyPeer();
         setIsHost(true);
+        expectedValidationTokenRef.current = expectedValidationToken || null;
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
         const peer = new Peer(code);
         peerRef.current = peer;
-        
+
         peer.on('open', (id) => {
             console.log('📡 [Host] Peer opened with ID:', id);
             setIsLobbyConnected(true);
         });
 
-        // ☁️ Register preliminary match node
+        // ☁️ Register preliminary match node (bind host for signed bet settlement)
         // match_id will be updated once START_GAME is called
         supabase.from('live_matches')
-            .upsert({ 
+            .upsert({
                 room_code: code,
+                host_address: myAddress?.toLowerCase() || null,
                 bet_window_status: 'closed',
                 created_at: new Date().toISOString()
             } as any, { onConflict: 'room_code' })
@@ -487,7 +536,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     connectionsRef.current = next;
                     return next;
                 });
-                conn.send({ type: 'SYNC_STATE', gameState: gameStateRef.current });
+                conn.send({ type: 'SYNC_STATE', gameState: sanitizeGameStateForWire(gameStateRef.current) });
                 if (lobbyStateRef.current) conn.send({ type: 'LOBBY_SYNC', lobbyState: lobbyStateRef.current });
             });
             conn.on('data', (d) => handleGuestData(d, conn));
@@ -613,6 +662,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 export { TeamUpProvider };
+
+/**
+ * Strip hidden power-tile types before any network send.
+ * Guests/spectators must only see coordinates; types stay on the authority.
+ */
+function sanitizeGameStateForWire<T extends { powerTiles?: { r: number; c: number; type?: unknown }[] }>(state: T): T {
+    if (!state?.powerTiles?.length) return state;
+    return {
+        ...state,
+        powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })),
+    };
+}
 
 export const useTeamUpContext = () => {
     const context = useContext(TeamUpContext);
