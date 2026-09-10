@@ -42,3 +42,6 @@ next-env.d.ts
 
 # editor extensions
 *.vsix
+
+# supabase CLI local temp
+supabase/.temp/

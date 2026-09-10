@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useMemo,
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
-import { encryptMessage, decryptMessage, deriveSharedKey, decryptAnyMessage, parseMessagePayload, isSealedBox, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
+import { decryptAnyMessage, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 
 // --- TYPES ---
 

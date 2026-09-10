@@ -87,13 +87,12 @@ export function useAFKManager({
                 handleRoll(forcedRoll);
             } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const diceValue = localGameState.diceValue;
-                const options = colorCorner
-                    ? getLegalTokenIndices(localGameState.positions, color, diceValue, colorCorner)
-                    : localGameState.positions[color].reduce<number[]>((acc, pos, idx) => {
-                        if (pos === -1 && diceValue === 6) acc.push(idx);
-                        else if (pos !== -1 && pos + diceValue <= 57) acc.push(idx);
-                        return acc;
-                    }, []);
+                // Engine-accurate legality only — never naive pos+roll
+                if (!colorCorner) {
+                    console.warn('[AFK] colorCorner missing — skipping forced move');
+                    return;
+                }
+                const options = getLegalTokenIndices(localGameState.positions, color, diceValue, colorCorner);
 
                 if (options.length === 0) {
                     setLocalGameState((s) => {

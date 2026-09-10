@@ -412,11 +412,12 @@ export function processMove(
         [tokenColor]: [...state.positions[tokenColor]].map((p, i) => i === tokenIndex ? nextPos : p)
     });
 
-    // 3. Check Win Status
+    // 3. Check Win Status — team membership from TEAM_PAIRINGS/TEAM_ID only
     const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
     const teamWon = (t: number) => {
-        if (t === 1) return allFinished('green') && allFinished('yellow');
-        return allFinished('red') && allFinished('blue');
+        const members = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
+            .filter(c => TEAM_ID[c] === t);
+        return members.length > 0 && members.every(c => allFinished(c));
     };
 
     let winner = state.winner;

@@ -97,6 +97,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
     const peerRef = useRef<Peer | null>(null);
+    // Dedup guest intents delivered on both PeerJS and Supabase.
+    const processedIntentIds = useRef<Set<string>>(new Set());
     // Requested seat from an invite link (?seat=N). Consumed by the next
     // SYNC_PROFILE send, then cleared — retries reuse it until first send.
     const desiredSeatRef = useRef<number | undefined>(undefined);
@@ -333,6 +335,17 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         console.log('🕹️ Processing action:', type, data);
 
+        // 📬 Guest intent via Supabase (dual-path with PeerJS GAME_ACTION)
+        if (type === 'GAME_INTENT' && isHost) {
+            const action = data.action;
+            const intentId = action?.intentId || actionId;
+            if (intentId && processedIntentIds.current.has(intentId)) return;
+            if (intentId) processedIntentIds.current.add(intentId);
+            console.log('📬 [Host] Intent via Supabase:', action?.type);
+            setLastIntent(action);
+            return;
+        }
+
         // 🏟️ Lobby sync (guest applies host state; host ignores echoes)
         if (type === 'LOBBY_SYNC' && (data as any).lobbyState && !isHost) {
             console.log('🏟️ [Guest] Applying lobby sync');
@@ -411,7 +424,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
         }
-    }, [processedActionIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost, myAddress, currentRoomCode, roomId]);
+    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost, myAddress, currentRoomCode, roomId]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -493,7 +506,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             processGameAction(data);
         } else if (data.type === 'GAME_ACTION') {
             if (isHost) {
-                console.log('📬 [Host] Received Intent:', data.action);
+                const intentId = data.action?.intentId as string | undefined;
+                if (intentId && processedIntentIds.current.has(intentId)) return;
+                if (intentId) processedIntentIds.current.add(intentId);
+                console.log('📬 [Host] Received Intent (PeerJS):', data.action);
                 setLastIntent(data.action);
             }
         } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
@@ -685,13 +701,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }, [myAddress, hostGame, joinGame, initQuickLobby]);
     const updateGameState = useCallback((s: any) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
+    /**
+     * Guest → host intent. Dual-path: PeerJS when open, always also via
+     * Supabase broadcast so NAT/firewall drops on PeerJS don't mute the guest.
+     * Both paths share `intentId` so the host applies each intent once.
+     */
     const sendIntent = useCallback((type: string, payload: any) => {
         if (!isLobbyConnected || isHost || isComputeHost) return;
+        const intentId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const action = { type, payload, sender: myAddress, intentId };
+
         const conn = Array.from(connections.values())[0];
         if (conn && conn.open) {
-            conn.send({ type: 'GAME_ACTION', action: { type, payload, sender: myAddress } });
+            conn.send({ type: 'GAME_ACTION', action });
         }
-    }, [isLobbyConnected, isHost, connections, myAddress]);
+        // Cloud path — primary when PeerJS is blocked
+        relayViaSupabase('game-action', { type: 'GAME_INTENT', action }, lobbyStateRef);
+    }, [isLobbyConnected, isHost, isComputeHost, connections, myAddress, relayViaSupabase, lobbyStateRef]);
 
     const clearIntent = useCallback(() => setLastIntent(null), []);
 
