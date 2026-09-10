@@ -263,6 +263,17 @@ export const TeamUpMatchPanel = ({
     // Identity first: everything below (effects, deps, handlers) may read it.
     // (A use-before-declare here is a mount-time TDZ crash — see 5b964f1.)
     const { address } = useCurrentUser();
+    // Data mapping FIRST: effects and dep arrays below read these during
+    // render — anything declared after first use is a mount-time TDZ crash.
+    const hostSlot = lobbyState?.slots[0];
+    const roomCodeValue = lobbyState?.roomCode || currentRoomId || '';
+    const totalSeats = lobbyState?.slots.length ?? (matchType === '1v1' ? 2 : 4);
+    const joinedCount = lobbyState
+        ? lobbyState.slots.filter(s => s.status === 'joined').length
+        : 1;
+    const isSelfHost = hostSlot?.playerId
+        ? !!address && hostSlot.playerId.toLowerCase() === address.toLowerCase()
+        : true;
     const [view, setView] = useState<'console' | 'join'>('console');
     const [roomCode, setRoomCode] = useState('');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -400,17 +411,7 @@ export const TeamUpMatchPanel = ({
     const { friends: friendsData, isBooting: isLoadingFriends } = useGameData();
     const isReady = lobbyState ? canStartMatch(lobbyState) : false;
 
-    // Data Mapping
-    const hostSlot = lobbyState?.slots[0];
-    const roomCodeValue = lobbyState?.roomCode || currentRoomId || '';
-    const totalSeats = lobbyState?.slots.length ?? (matchType === '1v1' ? 2 : 4);
-    const joinedCount = lobbyState
-        ? lobbyState.slots.filter(s => s.status === 'joined').length
-        : 1;
-
-    const isSelfHost = hostSlot?.playerId
-        ? !!address && hostSlot.playerId.toLowerCase() === address.toLowerCase()
-        : true;
+    // Data Mapping lives top-of-component (see above).
 
     const modeLabel = (lobbyState?.gameMode ?? gameMode) === 'power' ? 'Power' : 'Classic';
     const fee = lobbyState?.entryFee ?? entryFee;

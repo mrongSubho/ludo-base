@@ -329,6 +329,11 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     // Open party rooms (announced via Live chat): backfilled so late
     // arrivals see them, then kept live. Whole row joins — same handshake.
     const [rooms, setRooms] = useState<LiveRoom[]>([]);
+    // Session-scoped discovery: rooms announced before this session stay
+    // invisible; closing the app cleans the slate (nothing persists client-
+    // side, and started rows are filtered server-side by room_open).
+    const sessionStart = useRef(Date.now());
+    useEffect(() => {
     useEffect(() => {
         const toRoom = (row: any): LiveRoom | null => {
             if (!row?.room_code) return null;
@@ -355,7 +360,9 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                 const seen = new Map<string, LiveRoom>();
                 for (const row of data || []) {
                     const r = toRoom(row);
-                    if (r && !seen.has(r.roomCode)) seen.set(r.roomCode, r);
+                    // Session bound: pre-session history stays cleaned.
+                    // (Upserts bump created_at, so live rooms re-surface.)
+                    if (r && !seen.has(r.roomCode) && r.createdAt >= sessionStart.current) seen.set(r.roomCode, r);
                 }
                 setRooms([...seen.values()]);
             } catch {
