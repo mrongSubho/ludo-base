@@ -558,7 +558,9 @@ export const TeamUpMatchPanel = ({
                                     onClick={() => setInvitePopup(null)}
                                     aria-hidden
                                 />
-                                <div className="relative mx-3 mb-3 rounded-3xl border border-white/15 bg-[#101623]/95 backdrop-blur-xl p-4 flex flex-col gap-2.5 max-h-[78%] shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
+                                <div className="relative mx-3 mb-3 rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl p-4 flex flex-col gap-2.5 max-h-[78%] shadow-2xl animate-in slide-in-from-bottom-4 duration-200"
+                                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))' }}
+                                >
                                     <div className="flex items-center justify-between">
                                         <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
                                             Invite {invitePopup.role === 'teammate' ? 'Partner' : 'Rival'}
