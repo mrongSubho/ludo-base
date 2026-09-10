@@ -170,7 +170,8 @@ All **networked** rolls (humans, host-orchestrated bots, AFK auto-play) call the
 3. On success, the host broadcasts `ROLL_DICE` with the fetched value.
 4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks). Offline / local-bot matches may use local RNG.
 5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move (Edge again when networked).
-6. **Honesty note:** The host still applies the value and is the multiplayer authority. This reduces casual cheating; it is not a full server-authoritative roll. Ranked/wager settlement requires signed outcomes (§8.2 / `/api/match/record`).
+6. **Server receipts (`match_rolls`):** Edge persists every networked face (`match_id`, unique `action_id`, `result`). Same `actionId` always replays the same face — no retry-until-six. Host broadcasts `rollId` with `ROLL_DICE` for spectators/audit. Table is RLS read-only for clients.
+7. **Honesty note:** The host still applies board state after the face. This closes RNG forgery and roll-retry; it is not full server-owned movement. Ranked ladders still need server-side move validation.
 
 ### 7.2 Chat encryption
 DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair in localStorage and publishes the public JWK on `players.ecdh_pubkey`. Senders generate an ephemeral pair, derive AES-GCM via the peer's static pubkey, and store `{v:1, epk, iv, content}`. Recipients open with their static private key. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).

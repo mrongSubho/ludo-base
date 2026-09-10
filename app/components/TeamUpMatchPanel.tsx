@@ -296,6 +296,9 @@ export const TeamUpMatchPanel = ({
     // (A use-before-declare here is a mount-time TDZ crash — see 5b964f1.)
     const { address } = useCurrentUser();
     const { roomSecret } = useTeamUpContext();
+    // Public announce only when there is no room secret (hybrid/open join).
+    // Private invite lobbies must not publish joinable room codes.
+    const canAnnounceRoom = !roomSecret;
     // Data mapping FIRST: effects and dep arrays below read these during
     // render — anything declared after first use is a mount-time TDZ crash.
     const hostSlot = lobbyState?.slots[0];
@@ -351,6 +354,10 @@ export const TeamUpMatchPanel = ({
         `${matchType} · ${modeLabel} · ${feeLabel} · ${joined}/${total} · join`;
     const announceRoom = async () => {
         if (announced || !roomCodeValue || !address) return;
+        if (!canAnnounceRoom) {
+            console.warn('🚫 Private room — use invite link (with secret), not live-chat announce');
+            return;
+        }
         const joined = lobbyState?.slots.filter(s => s.status === 'joined').length ?? 0;
         const total = lobbyState?.slots.length ?? 0;
         if (total > 0 && joined >= total) return;
@@ -861,7 +868,8 @@ export const TeamUpMatchPanel = ({
                                     {(lobbyState?.slots.some(s => s.status === 'empty')) && (
                                         <button
                                             onClick={announceRoom}
-                                            disabled={announced}
+                                            disabled={announced || !canAnnounceRoom}
+                                            title={canAnnounceRoom ? 'Announce in live chat' : 'Private room — share the invite link instead'}
                                             className={`announce-btn py-2.5 rounded-2xl border transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5 ${announced ? 'announce-live bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
                                         >
                                     <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">

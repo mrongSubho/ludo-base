@@ -100,6 +100,8 @@ export interface GameState {
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';
     matchId?: string;
+    /** Edge `match_rolls.id` for the last networked face (audit / settlement). */
+    lastRollId?: string | null;
     lastAction?: { type: GameActionType; payload: unknown };
     initialBoardConfig?: {
         players: BoardPlayer[];

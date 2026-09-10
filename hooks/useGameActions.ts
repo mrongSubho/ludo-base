@@ -284,18 +284,24 @@ export function useGameActions({
         // 2. Generate and Set Result
         // Networked seats (humans AND host-orchestrated bots/AFK): Edge RNG only.
         // Offline matches may use local RNG.
+        let rollReceiptId: string | null = null;
         if (!value) {
             const networkedSeat = isLobbyConnected;
             if (networkedSeat) {
                 try {
                     const roller = address || `${color}-bot`;
+                    const actionId = crypto.randomUUID();
                     const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
                         },
-                        body: JSON.stringify({ matchId: localGameState.matchId || 'local', walletAddress: roller, actionId: Date.now() })
+                        body: JSON.stringify({
+                            matchId: localGameState.matchId || 'local',
+                            walletAddress: roller,
+                            actionId,
+                        })
                     });
 
                     if (!response.ok) throw new Error('Edge RNG failed');
@@ -305,6 +311,7 @@ export function useGameActions({
                         throw new Error('Edge RNG returned invalid face');
                     }
                     rollValue = parsed;
+                    rollReceiptId = data?.rollId ?? null;
                 } catch (err) {
                     console.error('❌ [Engine] Edge RNG failed — aborting networked roll (no client fallback)', err);
                     await tumblePromise;
@@ -321,10 +328,9 @@ export function useGameActions({
         // Wait for the tumble animation to finish
         await tumblePromise;
 
-        
-        // 🚨 Broadcast result to Guests
+        // 🚨 Broadcast result to Guests (rollId is the server receipt from match_rolls)
         if (isHost && isLobbyConnected && !isRemote) {
-            broadcastAction('ROLL_DICE', { isRolling: false, diceValue: rollValue });
+            broadcastAction('ROLL_DICE', { isRolling: false, diceValue: rollValue, rollId: rollReceiptId });
         }
 
         setLocalGameState((prev) => ({

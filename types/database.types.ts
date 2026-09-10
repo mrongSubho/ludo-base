@@ -640,6 +640,33 @@ export type Database = {
         }
         Relationships: []
       }
+      match_rolls: {
+        Row: {
+          id: string
+          match_id: string
+          wallet_address: string
+          action_id: string | null
+          result: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          wallet_address: string
+          action_id?: string | null
+          result: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          wallet_address?: string
+          action_id?: string | null
+          result?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

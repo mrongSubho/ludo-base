@@ -787,4 +787,5 @@ Send path (`useDataActions.sendMessage`): publish own pubkey → fetch peer `ecd
 | `/api/match/record` | Wallet-signed match history / progression only (no coin mint) |
 | `messages_restrict_columns` trigger | Immutable sender/receiver/content on UPDATE |
 | `players.ecdh_pubkey` | Static ECDH JWK for sealed-box DMs |
+| `match_rolls` | Server dice receipts; unique `(match_id, action_id)` blocks roll-retry |
 

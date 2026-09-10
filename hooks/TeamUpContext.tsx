@@ -9,7 +9,9 @@ import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
 import { useProvablyFairDice } from '@/hooks/useProvablyFairDice';
 import { useGamePresence } from '@/hooks/useGamePresence';
-import { buildBetResolveMessage } from '@/lib/matchProof';
+import { useBettingController } from '@/hooks/useBettingController';
+import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
+import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 import {
     GameState,
     PlayerColor,
@@ -19,13 +21,9 @@ import {
     InvitePayload,
     LobbyActionType,
     BetType,
-    BetWindowPayload,
-    BetWindowClosedPayload,
 } from '@/lib/types';
 import { ActiveBettingWindow } from './useSpectatorSync';
 import {
-    handleThreeSixes,
-    getNextPlayer,
     createLobbySlots,
     assignJoinerToSlot,
     generateRoomCode,
@@ -88,7 +86,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [isHost, setIsHost] = useState(false);
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
     const [validationToken, setValidationToken] = useState<string | undefined>(undefined);
-    const [activeBetWindow, setActiveBetWindow] = useState<ActiveBettingWindow | null>(null);
 
     const { address: myAddress } = useAccount();
     const { signMessageAsync } = useSignMessage();
@@ -240,51 +237,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         relayViaSupabase('lobby-action', actionData, lobbyStateRef as any);
     }, [isHost, broadcastToAll, relayViaSupabase, lobbyStateRef]);
 
-    // 4. Betting Window Controller
-    const startBettingWindow = useCallback(async (betType: BetType): Promise<string> => {
-        if (!isHost) return new Date().toISOString();
-        
-        const windowId = crypto.randomUUID();
-        const expiresAt = Date.now() + 3000;
-        
-        const openPayload: BetWindowPayload = { windowId, betType, expiresAt, matchId: gameState.matchId };
-        broadcastAction('BET_WINDOW_OPEN', openPayload);
-        setActiveBetWindow({ windowId, betType, expiresAt, windowClosedAt: null });
-
-        // ☁️ Sync to live_matches
-        if (gameState.matchId) {
-            supabase.from('live_matches')
-                .update({ 
-                    bet_window_status: 'open', 
-                    current_bet_type: betType,
-                    window_opened_at: new Date().toISOString() 
-                })
-                .eq('match_id', gameState.matchId)
-                .then();
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        const windowClosedAt = new Date().toISOString();
-        const closePayload: BetWindowClosedPayload = { windowId, windowClosedAt };
-        broadcastAction('BET_WINDOW_CLOSED', closePayload);
-        setActiveBetWindow(prev => prev?.windowId === windowId ? { ...prev, windowClosedAt } : prev);
-        
-        // ☁️ Sync to live_matches
-        if (gameState.matchId) {
-            supabase.from('live_matches')
-                .update({ 
-                    bet_window_status: 'closed', 
-                    window_closed_at: windowClosedAt 
-                })
-                .eq('match_id', gameState.matchId)
-                .then();
-        }
-
-        return windowClosedAt;
-    }, [isHost, gameState.matchId, broadcastAction]);
+    // 4. Betting Window Controller (extracted)
+    const { activeBetWindow, startBettingWindow } = useBettingController({
+        isHost,
+        matchId: gameState.matchId,
+        broadcastAction: broadcastAction as (type: GameActionType, payload?: unknown, fullState?: GameState) => void,
+    });
 
     // 5. Provably Fair Dice
+    // 5. Provably Fair Dice + signed bet resolution
+    const resolveBet = useSignedResolveBet({
+        isHost,
+        myAddress,
+        signMessageAsync: (args) => signMessageAsync(args),
+    });
+
     const {
         initiateDiceRoll,
         handleCommitReceived,
@@ -297,42 +264,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         connection: connections.values().next().value || null,
         broadcastAction: (type: any, payload: any) => broadcastAction(type, payload),
         broadcastToAll,
-        resolveBet: async (matchId: string, result: string, betType: string) => {
-            if (!isHost || !myAddress) return;
-            console.log('🎰 [Host] Triggering signed bet resolution:', { matchId, result, betType });
-            try {
-                const issuedAt = new Date().toISOString();
-                const message = buildBetResolveMessage({
-                    matchId,
-                    result: String(result),
-                    betType,
-                    hostAddress: myAddress,
-                    issuedAt,
-                });
-                const signature = await signMessageAsync({ account: myAddress as `0x${string}`, message });
-                const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-bet`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-                    },
-                    body: JSON.stringify({
-                        matchId,
-                        result: String(result),
-                        betType,
-                        hostAddress: myAddress,
-                        message,
-                        signature,
-                        issuedAt,
-                    })
-                });
-                const data = await res.json();
-                if (!res.ok) console.error('🎰 [Host] resolve-bet rejected', data);
-                else console.log('🎰 [Host] resolve-bet ok', data);
-            } catch (err) {
-                console.error('🎰 [Host] resolve-bet failed', err);
-            }
-        }
+        resolveBet,
     });
 
     // 6. Game Engine Action Processor
@@ -643,6 +575,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     /** Public-pool fill: matchmaking already paired guests — do not require room secret. */
     const allowOpenJoins = useCallback(() => {
         expectedValidationTokenRef.current = null;
+        setRoomSecret(null);
     }, []);
 
     const leaveGame = useCallback(() => {
@@ -764,18 +697,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 export { TeamUpProvider };
-
-/**
- * Strip hidden power-tile types before any network send.
- * Guests/spectators must only see coordinates; types stay on the authority.
- */
-function sanitizeGameStateForWire<T extends { powerTiles?: { r: number; c: number; type?: unknown }[] }>(state: T): T {
-    if (!state?.powerTiles?.length) return state;
-    return {
-        ...state,
-        powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })),
-    };
-}
 
 export const useTeamUpContext = () => {
     const context = useContext(TeamUpContext);
