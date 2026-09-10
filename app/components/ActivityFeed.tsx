@@ -4,7 +4,7 @@
 // - LiveChatPanel: session-only global/local shoutbox
 // - LiveMatchSearchesPanel: joinable matchmaking pool + recent arena activity
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -52,6 +52,7 @@ interface LiveRoom {
     avatar: string | null;
     createdAt: number;
     open: boolean;
+    country?: string;
 }
 
 type CScope = 'global' | 'local';
@@ -344,13 +345,14 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                 avatar: row.avatar_url ?? null,
                 createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
                 open: row.room_open !== false,
+                country: row.country || 'XX',
             };
         };
         (async () => {
             try {
                 const { data, error } = await supabase
                     .from('live_chat')
-                    .select('room_code, content, username, avatar_url, sender_id, room_open, created_at')
+                    .select('room_code, content, username, avatar_url, sender_id, room_open, country, created_at')
                     .not('room_code', 'is', null)
                     .eq('room_open', true)
                     .order('created_at', { ascending: false })
@@ -663,8 +665,533 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     );
 };
 
-// ─── Live Broadcast card (MCP stream design): the single lobby live surface.
-// Ticker opens a panel with Chat + Live Matches tabs. ──────────────────────
+// ─── Unified broadcast feed: ONE timeline, filters instead of tabs ─────────
+// Chat shouts + open rooms + pool searches + arena activity merged
+// newest-first. Filters: All | Matches segmented + Local toggle (country-
+// scoped chat and rooms; pool tickets are global by nature and always pass).
+type FeedContent = 'all' | 'matches';
+interface FeedItem {
+    key: string;
+    ts: number;
+    kind: 'chat' | 'room' | 'search' | 'activity';
+    msg?: ChatMsg;
+    room?: LiveRoom;
+    search?: LiveSearch;
+    activity?: Activity;
+}
+
+export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?: (address: string) => void; onJoin?: () => void }) => {
+    const { address } = useAccount();
+    const { address: identityAddress } = useCurrentUser();
+    const { guard } = useGuestWall();
+    const me = (address || '').toLowerCase();
+
+    const [content, setContent] = useState<FeedContent>('all');
+    const [localOnly, setLocalOnly] = useState(false);
+    const [country, setCountry] = useState('XX');
+    const [chats, setChats] = useState<ChatMsg[]>([]);
+    const [rooms, setRooms] = useState<LiveRoom[]>([]);
+    const [searches, setSearches] = useState<LiveSearch[]>([]);
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [input, setInput] = useState('');
+    const [cooldown, setCooldown] = useState(0);
+    const hostCache = useRef<Map<string, { name: string; avatar: string | null }>>(new Map());
+    const sessionStart = useRef(Date.now());
+
+    const resolveHost = useCallback(async (playerId: string) => {
+        const key = playerId.toLowerCase();
+        const cached = hostCache.current.get(key);
+        if (cached) return cached;
+        try {
+            const { data } = await supabase
+                .from('players')
+                .select('username, avatar_url')
+                .ilike('wallet_address', playerId)
+                .single();
+            const name = (data?.username && !data.username.startsWith('0x'))
+                ? data.username
+                : `User ${playerId.slice(0, 6).toUpperCase()}`;
+            const entry = { name, avatar: data?.avatar_url || null };
+            hostCache.current.set(key, entry);
+            return entry;
+        } catch {
+            const entry = { name: `User ${playerId.slice(0, 6).toUpperCase()}`, avatar: null };
+            hostCache.current.set(key, entry);
+            return entry;
+        }
+    }, []);
+
+    const toRoom = useCallback((row: any): LiveRoom | null => {
+        if (!row?.room_code) return null;
+        return {
+            key: `${row.room_code}`,
+            roomCode: row.room_code,
+            content: row.content || '',
+            hostName: row.username || 'Host',
+            avatar: row.avatar_url ?? null,
+            createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+            open: row.room_open !== false,
+            country: row.country || 'XX',
+        };
+    }, []);
+
+    // Country for the Local filter.
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch('/api/geo');
+                const data = await res.json();
+                if (data.country) setCountry(data.country);
+            } catch {
+                /* unknown — global only */
+            }
+        })();
+    }, []);
+
+    // Chat: session feed (arrivals only), UPDATEs merge room rewrites.
+    useEffect(() => {
+        const channel = supabase
+            .channel('unified-chat')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
+                const m = payload.new as ChatMsg;
+                setChats(prev => [...prev, m].slice(-40));
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
+                const m = payload.new as ChatMsg;
+                setChats(prev => {
+                    if (!prev.some(x => x.id === m.id)) return prev;
+                    return prev.map(x => (x.id === m.id ? { ...x, ...m } : x));
+                });
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    // Rooms: session-bounded backfill + live merge.
+    useEffect(() => {
+        (async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('live_chat')
+                    .select('room_code, content, username, avatar_url, sender_id, room_open, country, created_at')
+                    .not('room_code', 'is', null)
+                    .eq('room_open', true)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+                const seen = new Map<string, LiveRoom>();
+                const since = sessionStart.current;
+                for (const row of data || []) {
+                    const r = toRoom(row);
+                    if (r && !seen.has(r.roomCode) && r.createdAt >= since) seen.set(r.roomCode, r);
+                }
+                setRooms([...seen.values()]);
+            } catch {
+                /* pre-migration — rooms section stays empty */
+            }
+        })();
+        const channel = supabase
+            .channel('unified-rooms')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
+                const r = toRoom(payload.new);
+                if (!r) return;
+                setRooms(prev => [r, ...prev.filter(x => x.roomCode !== r.roomCode)].slice(0, 20));
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
+                const r = toRoom(payload.new);
+                if (!r) return;
+                setRooms(prev => r.open
+                    ? [r, ...prev.filter(x => x.roomCode !== r.roomCode)].slice(0, 20)
+                    : prev.filter(x => x.roomCode !== r.roomCode));
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [toRoom]);
+
+    // Searches: session feed, capped at 10.
+    useEffect(() => {
+        const channel = supabase
+            .channel('unified-searches')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matchmaking_queue' }, async (payload) => {
+                const row: any = payload.new;
+                if (!row || row.status !== 'searching') return;
+                if ((row.player_id || '').toLowerCase() === me) return;
+                if ((row.player_id || '').toLowerCase().startsWith('guest_')) return;
+                const host = await resolveHost(row.player_id);
+                const entry: LiveSearch = {
+                    key: `${row.player_id}-${row.created_at || Date.now()}`,
+                    playerId: row.player_id,
+                    hostName: host.name,
+                    avatar: host.avatar,
+                    gameMode: row.game_mode || 'classic',
+                    matchType: row.match_type || '4P',
+                    wager: Number(row.wager) || 0,
+                    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+                    started: false,
+                    roomCode: row.room_code ?? null,
+                };
+                setSearches(prev => [...prev, entry].slice(-10));
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matchmaking_queue' }, (payload) => {
+                const row: any = payload.new;
+                if (!row || row.status === 'searching') return;
+                setSearches(prev => prev.map(s =>
+                    s.playerId.toLowerCase() === (row.player_id || '').toLowerCase() && !s.started
+                        ? { ...s, started: true }
+                        : s
+                ));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'matchmaking_queue' }, (payload) => {
+                const row: any = payload.old;
+                if (!row?.player_id) return;
+                setSearches(prev => prev.filter(s => s.playerId.toLowerCase() !== (row.player_id || '').toLowerCase()));
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Arena activity: recent backfill + live prepend, capped at 6.
+    useEffect(() => {
+        (async () => {
+            try {
+                const { data } = await (supabase.from('activities') as any)
+                    .select('*, actor:players(username, avatar_url)')
+                    .order('created_at', { ascending: false })
+                    .limit(6);
+                if (data) setActivities(data as any);
+            } catch {
+                /* activities unavailable */
+            }
+        })();
+        const channel = supabase
+            .channel('unified_activities')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activities' }, async (payload) => {
+                try {
+                    const { data } = await supabase
+                        .from('players')
+                        .select('username, avatar_url')
+                        .eq('wallet_address', payload.new.actor_id)
+                        .single();
+                    const newActivity = { ...payload.new, actor: data } as Activity;
+                    setActivities(prev => [newActivity, ...prev].slice(0, 6));
+                } catch {
+                    /* skip actor-less activity */
+                }
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (cooldown > 0) {
+            const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+            return () => clearTimeout(t);
+        }
+    }, [cooldown]);
+
+    const sendChat = async () => {
+        const text = input.trim().slice(0, 140);
+        if (!text || cooldown > 0) return;
+        if (!guard('dm')) return;
+        const wallet = (identityAddress || '').toLowerCase();
+        if (!wallet) return;
+        setInput('');
+        setCooldown(10);
+        try {
+            const res = await fetch('/api/live-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet, content: text })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                if (res.status === 429 && err.waitLeft) setCooldown(err.waitLeft);
+            }
+        } catch {
+            /* realtime will fill the gap on retry */
+        }
+    };
+
+    const joinRoom = (roomCode: string) => {
+        window.dispatchEvent(new CustomEvent('join_party', {
+            detail: { roomCode }
+        }));
+        onJoin?.();
+    };
+
+    const joinSearch = (s: LiveSearch) => {
+        if (s.roomCode) {
+            joinRoom(s.roomCode);
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('join_pool', {
+            detail: { entryFee: s.wager, mode: s.gameMode, matchType: s.matchType }
+        }));
+        onJoin?.();
+    };
+
+    const activityText = (activity: Activity) => {
+        switch (activity.type) {
+            case 'join_tournament': return `joined the ${activity.metadata.tournament_title || 'Arena'} tournament`;
+            case 'win': return `won ${activity.metadata.amount} coins in #${activity.metadata.room_code}`;
+            case 'level_up': return `reached Level ${activity.metadata.level}!`;
+            case 'big_bet': return `placed a ${activity.metadata.amount} bet on #${activity.metadata.room_code}`;
+            case 'trophy': return `earned the "${activity.metadata.trophy_name}" trophy!`;
+            default: return 'is active in the Arena';
+        }
+    };
+
+    const items = useMemo(() => {
+        const out: FeedItem[] = [];
+        for (const m of chats) {
+            if (content === 'matches' && !m.room_code) continue;
+            if (localOnly && (m.country || 'XX') !== country) continue;
+            out.push({ key: `c-${m.id}`, ts: m.created_at ? new Date(m.created_at).getTime() : 0, kind: 'chat', msg: m });
+        }
+        for (const r of rooms) {
+            if (content === 'matches' && !r.open) continue;
+            if (localOnly && (r.country || 'XX') !== country) continue;
+            out.push({ key: `r-${r.key}`, ts: r.createdAt, kind: 'room', room: r });
+        }
+        for (const s of searches) {
+            // Pool tickets carry no country — global pool by nature.
+            out.push({ key: `s-${s.key}`, ts: s.createdAt, kind: 'search', search: s });
+        }
+        if (content === 'matches') {
+            for (const a of activities) {
+                out.push({ key: `a-${a.id}`, ts: a.created_at ? new Date(a.created_at).getTime() : 0, kind: 'activity', activity: a });
+            }
+        }
+        out.sort((x, y) => y.ts - x.ts);
+        return out;
+    }, [chats, rooms, searches, activities, content, localOnly, country]);
+
+    const emptyHint = content === 'matches'
+        ? (localOnly ? 'No live matches nearby right now.' : 'Quiet airwaves — rooms and searches land here live.')
+        : (localOnly ? `No shouts from ${country} yet — be the first.` : 'No shouts yet — be the first.');
+
+    return (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {/* Filters: content segmented + Local toggle (replaces tab trees) */}
+            <div className="px-5 pt-3 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    <PanelTabs
+                        value={content}
+                        onPick={setContent}
+                        options={[
+                            { value: 'all', label: 'All' },
+                            { value: 'matches', label: 'Matches' },
+                        ]}
+                    />
+                </div>
+                <button
+                    onClick={() => setLocalOnly(v => !v)}
+                    aria-pressed={localOnly}
+                    title={localOnly ? 'Show global feed' : 'Show only nearby'}
+                    className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 ${localOnly ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200' : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white'}`}
+                >
+                    <span className={`w-1.5 h-1.5 rounded-full ${localOnly ? 'bg-cyan-300 animate-pulse' : 'bg-white/25'}`} />
+                    Local{country !== 'XX' ? ` · ${country}` : ''}
+                </button>
+            </div>
+
+            {/* One timeline, newest first */}
+            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2">
+                {items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                            <ModeGlyph mode="classic" />
+                        </div>
+                        <h3 className="text-white font-black text-sm mb-1">Quiet airwaves</h3>
+                        <p className="text-white/40 text-xs max-w-[220px]">{emptyHint}</p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-2 pb-2">
+                        {items.map((it) => {
+                            if (it.kind === 'room' && it.room) {
+                                const r = it.room;
+                                return (
+                                    <button
+                                        key={it.key}
+                                        onClick={() => joinRoom(r.roomCode)}
+                                        title={`Join ${r.hostName}'s room`}
+                                        className="room-join-row flex items-center gap-3 p-3 rounded-2xl border border-cyan-500/40 bg-cyan-500/10 backdrop-blur-md transition-all text-left w-full hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] cursor-pointer"
+                                    >
+                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
+                                            {r.avatar ? (
+                                                <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                            ) : (
+                                                <span className="text-white/50 font-black text-sm pointer-events-none">{r.hostName[0]?.toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 flex flex-col">
+                                            <span className="text-[13px] font-black text-white truncate">{r.hostName}</span>
+                                            <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                                {r.content}
+                                            </span>
+                                        </div>
+                                        <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[9px] font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
+                                            Join
+                                        </span>
+                                    </button>
+                                );
+                            }
+                            if (it.kind === 'search' && it.search) {
+                                const s = it.search;
+                                return (
+                                    <div
+                                        key={it.key}
+                                        className={`flex items-center gap-3 p-3 rounded-2xl border backdrop-blur-md transition-colors ${s.started ? 'bg-white/[0.02] border-white/5 opacity-70' : 'bg-white/[0.04] border-white/10 hover:border-cyan-500/30'}`}
+                                    >
+                                        <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
+                                            {s.avatar ? (
+                                                <img loading="lazy" decoding="async" src={s.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                            ) : (
+                                                <span className="text-white/50 font-black text-sm pointer-events-none">{s.hostName[0]?.toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 flex flex-col">
+                                            <span className="text-[13px] font-black text-white truncate">{s.hostName}</span>
+                                            <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                                {s.matchType} · {s.gameMode} · {s.wager === 0 ? 'Free' : `${s.wager.toLocaleString()}`}
+                                            </span>
+                                        </div>
+                                        {s.started ? (
+                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.15em] text-white/40">
+                                                Started
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={() => joinSearch(s)}
+                                                className="shrink-0 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
+                                            >
+                                                {s.roomCode ? 'Join Party' : 'Join'}
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            }
+                            if (it.kind === 'activity' && it.activity) {
+                                const activity = it.activity;
+                                return (
+                                    <div
+                                        key={it.key}
+                                        className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md"
+                                    >
+                                        <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden bg-white/10 shrink-0">
+                                            <img
+                                                src={activity.actor?.avatar_url || `https://avatar.vercel.sh/${activity.actor_id}`}
+                                                alt="avatar"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[13px] text-white/90 truncate font-semibold">
+                                                <span className="text-cyan-400 font-black">
+                                                    {activity.actor?.username || activity.actor_id.slice(0, 6)}
+                                                </span>
+                                                {' '}{activityText(activity)}
+                                            </span>
+                                            <span className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+                                                {new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            const m = it.msg!;
+                            const mine = m.sender_id.toLowerCase() === me;
+                            const mIsRoom = !!m.room_code;
+                            const mRoomOpen = m.room_open !== false;
+                            const joinable = mIsRoom && mRoomOpen && !mine;
+                            return (
+                                <div key={it.key} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
+                                    <button
+                                        onClick={() => !mine && onOpenProfile?.(m.sender_id)}
+                                        aria-label={mine ? 'Your avatar' : `Open ${m.username || 'user'} profile`}
+                                        disabled={mine}
+                                        className="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-cyan-400/60 transition-all"
+                                    >
+                                        {m.avatar_url ? (
+                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                        ) : (
+                                            <span className="text-white/50 font-black text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
+                                        )}
+                                    </button>
+                                    <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
+                                        <span className="text-[10px] font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
+                                            {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                        {joinable ? (
+                                            <button
+                                                onClick={() => m.room_code && joinRoom(m.room_code)}
+                                                title={m.room_code ? `Join room ${m.room_code}` : undefined}
+                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
+                                            >
+                                                <span className="text-white/90">{m.content || '…'}</span>
+                                                <span className="block mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">
+                                                    Tap to join →
+                                                </span>
+                                            </button>
+                                        ) : (
+                                            <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${mIsRoom && !mRoomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
+                                                {m.content || '…'}
+                                                {mIsRoom && !mRoomOpen && (
+                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] font-black uppercase tracking-[0.15em] text-white/50 align-middle">
+                                                        Over
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Input (always live — sending is orthogonal to filters) */}
+            <div className="px-5 pt-2 pb-3">
+                <div className="flex gap-1.5 relative">
+                    <input
+                        type="text"
+                        value={input}
+                        maxLength={140}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                        disabled={cooldown > 0}
+                        placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
+                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
+                    />
+                    <div className={`absolute right-[52px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                        {input.length}/140
+                    </div>
+                    <button
+                        onClick={sendChat}
+                        disabled={!input.trim() || cooldown > 0}
+                        aria-label="Send shout"
+                        className="chat-send w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-cyan-700 text-white disabled:opacity-60 transition-all hover:bg-cyan-600 active:scale-95 relative overflow-hidden shadow-lg"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                            <path d="M22 2 11 13" />
+                            <path d="M22 2 15 22 11 13 2 9 22 2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 // Joinable count: searching tickets + open announced rooms (debounced).
 function useJoinableCount() {
     const [count, setCount] = useState(0);
@@ -710,7 +1237,6 @@ function useJoinableCount() {
 }
 export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [btab, setBtab] = useState<'chat' | 'matches'>('chat');
     const joinable = useJoinableCount();
     // Latest open room: the ON AIR slot shows the freshest announce
     // (Classic · 2v2 · Free · 3/4 · join), tap-to-join, ticking live.
@@ -885,24 +1411,9 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
                                         </div>
                                     </div>
 
-                                    {/* Content */}
+                                    {/* Content: one timeline (filters replace tabs) */}
                                     <div className="flex-1 min-h-0 overflow-hidden relative z-10 flex flex-col">
-                                        <div className="px-5 pt-3">
-                                            <PanelTabs
-                                                value={btab}
-                                                onPick={setBtab}
-                                                options={[
-                                                    { value: 'chat', label: 'Live Chat' },
-                                                    { value: 'matches', label: 'Live Matches' },
-                                                ]}
-                                            />
-                                        </div>
-                                        <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${btab === 'chat' ? 'flex' : 'hidden'}`}>
-                                            <LiveChatPanel onOpenProfile={onOpenProfile} onJoin={() => setIsOpen(false)} />
-                                        </div>
-                                        <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${btab === 'matches' ? 'flex' : 'hidden'}`}>
-                                            <LiveMatchSearchesPanel onJoin={() => setIsOpen(false)} />
-                                        </div>
+                                        <UnifiedBroadcastFeed onOpenProfile={onOpenProfile} onJoin={() => setIsOpen(false)} />
                                     </div>
                                 </motion.div>
                             </div>
