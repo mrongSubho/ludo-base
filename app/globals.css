@@ -397,6 +397,23 @@ body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-cyan-300) { c
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white) { color: #171717 !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/40) { color: rgba(23, 23, 23, 0.6) !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/50) { color: rgba(23, 23, 23, 0.6) !important; }
+/* Broadcast panel onboarding: same text contract as the shared scopes.
+   (Explicit guards first: dark bubbles keep white ink.) */
+body.theme-daybreak .ludo-broadcast-scope div.chat-own.text-white { color: #ffffff; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-white) { color: #171717; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/90, .text-white\/80, .text-white\/75, .text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/60, .text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10, .text-white\/5) { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-green-300, .text-green-400) { color: #15803d; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-red-400) { color: #b91c1c; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-amber-300) { color: #b45309; }
+body.theme-daybreak .ludo-broadcast-scope :is(.bg-white\/\[0\.04\], .bg-white\/\[0\.07\], .bg-white\/5, .bg-white\/10, .bg-white\/\[0\.02\]):not(.room-join-row) { background-color: #ffffff; box-shadow: 0 14px 28px -14px rgba(23, 23, 23, 0.22); }
+body.theme-daybreak .ludo-broadcast-scope :is(.border-white\/10, .border-white\/5) { border-color: rgba(23, 23, 23, 0.12); }
+body.theme-daybreak .ludo-broadcast-scope :is(.placeholder\:text-white\/20)::placeholder { color: rgba(23, 23, 23, 0.35); }
+/* Messages input placeholder (typed text already remaps via shared lists) */
+body.theme-daybreak .ludo-messages-scope :is(.placeholder\:text-white\/20)::placeholder,
+body.theme-daybreak .ludo-messages-scope :is(.placeholder\:text-white\/25)::placeholder { color: rgba(23, 23, 23, 0.35); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-amber-300) { color: #b45309; }
 /* Error surfaces: full daybreak remap (no dark-only cards anywhere) */
 body.theme-daybreak .panel-error-card {

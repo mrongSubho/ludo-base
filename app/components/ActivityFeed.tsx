@@ -984,7 +984,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
             {/* Filters: two independent toggle pills (friends-panel pattern).
                 No tabs, no segmented control — Local scopes, Matches hides
                 plain chatter. Both off = the full firehose. */}
-            <div className="px-5 pt-3 flex items-center gap-1.5">
+            <div className="px-5 pt-3 flex items-center justify-end gap-1.5">
                 <button
                     onClick={() => setLocalOnly(v => !v)}
                     aria-pressed={localOnly}
@@ -1181,12 +1181,17 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
                         onClick={sendChat}
                         disabled={!input.trim() || cooldown > 0}
                         aria-label="Send shout"
-                        className="chat-send w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-cyan-700 text-white disabled:opacity-60 transition-all hover:bg-cyan-600 active:scale-95 relative overflow-hidden shadow-lg"
+                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-cyan-700 text-white disabled:opacity-50 disabled:bg-white/10 transition-all hover:bg-cyan-600 relative overflow-hidden"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                            <path d="M22 2 11 13" />
-                            <path d="M22 2 15 22 11 13 2 9 22 2z" />
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                         </svg>
+                        {cooldown > 0 && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-xs font-bold text-white backdrop-blur-sm">
+                                {cooldown}s
+                            </div>
+                        )}
                     </button>
                 </div>
             </div>
