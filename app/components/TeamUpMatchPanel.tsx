@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { supabase } from '@/lib/supabase';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
 import { useSoundEffects } from '../hooks/useSoundEffects';
@@ -267,6 +268,40 @@ export const TeamUpMatchPanel = ({
     // at THAT seat — no separate roster page, no role tabs. The disc IS the
     // targeting (partner seat vs rival seat), in every match type.
     const [invitePopup, setInvitePopup] = useState<{ role: 'teammate' | 'opponent'; seat: number } | null>(null);
+    // Global strangers: live online players (presence heartbeat, 30s cadence).
+    // Fetched fresh on every popup open — the Farcaster intersection the old
+    // roster used is empty for most users, which read as a broken list.
+    const [globalOnline, setGlobalOnline] = useState<any[]>([]);
+    const [loadingOnline, setLoadingOnline] = useState(false);
+    useEffect(() => {
+        if (!invitePopup) return;
+        let cancelled = false;
+        const fetchOnline = async () => {
+            setLoadingOnline(true);
+            try {
+                const me = address?.toLowerCase();
+                let q = supabase
+                    .from('players')
+                    .select('wallet_address, username, avatar_url, status, last_seen_at')
+                    .eq('status', 'Online')
+                    .order('last_seen_at', { ascending: false })
+                    .limit(25);
+                if (me) q = q.neq('wallet_address', me);
+                const { data, error } = await q;
+                if (error) throw error;
+                // Freshness guard: heartbeat missed twice (>2min) = ghost.
+                const cutoff = Date.now() - 2 * 60 * 1000;
+                const live = (data || []).filter(p => p.last_seen_at && new Date(p.last_seen_at).getTime() >= cutoff);
+                if (!cancelled) setGlobalOnline(live);
+            } catch {
+                if (!cancelled) setGlobalOnline([]);
+            } finally {
+                if (!cancelled) setLoadingOnline(false);
+            }
+        };
+        fetchOnline();
+        return () => { cancelled = true; };
+    }, [invitePopup, address]);
     const openInvitePopup = (slot: LobbySlot) => {
         playSelect();
         ensureRoom();
@@ -557,15 +592,17 @@ export const TeamUpMatchPanel = ({
                                         onPick={setFtab}
                                         options={[
                                             { value: 'social', label: `Social (${(friendsData.gameFriends || []).filter((f: any) => rankOf(f) < 2).length})` },
-                                            { value: 'global', label: `Global (${(friendsData.onchainFriends || []).filter((f: any) => rankOf(f) < 2).length})` },
+                                            { value: 'global', label: `Global (${globalOnline.length})` },
                                         ]}
                                     />
                                     <div className="flex-1 min-h-[140px] overflow-y-auto no-scrollbar flex flex-col gap-2 pb-1">
-                                        {isLoadingFriends ? (
+                                        {(ftab === 'global' ? loadingOnline : isLoadingFriends) ? (
                                             <div className="py-8 flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         ) : (
                                             (() => {
-                                                const pool = ftab === 'social' ? friendsData.gameFriends : friendsData.onchainFriends;
+                                                // Social = recent opponents, online-only. Global = live
+                                                // online strangers (presence heartbeat), always fresh.
+                                                const pool = ftab === 'social' ? friendsData.gameFriends : globalOnline;
                                                 const visible = pool
                                                     .filter((f: any) => rankOf(f) < 2)
                                                     .sort((a: any, b: any) => rankOf(a) - rankOf(b));
@@ -596,8 +633,8 @@ export const TeamUpMatchPanel = ({
                                                     ))
                                                 ) : (
                                                     <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-center">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">No friends online</span>
-                                                        <span className="text-[9px] font-bold text-white/30 max-w-[240px]">Offline contacts stay hidden — free players first, in-match second. Share the seat link above instead.</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">{ftab === 'global' ? 'No players online' : 'No friends online'}</span>
+                                                        <span className="text-[9px] font-bold text-white/30 max-w-[240px]">Only live players list here — free first, in-match second. Share the seat link above instead.</span>
                                                     </div>
                                                 );
                                             })()
