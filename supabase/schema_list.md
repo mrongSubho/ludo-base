@@ -712,3 +712,79 @@ fallback; opening each thread once repairs legacy inflated counts.
 - Broadcast card: ON AIR deep-links to the matches tab; right block shows
   the live joinable count (searching tickets + distinct open rooms).
 
+---
+
+## Phase 11: Signed settlement + messages column lock (applied 2026-09-11)
+
+> Migration files:
+> - `supabase/migrations/20260914_live_matches_host_address.sql`
+> - `supabase/migrations/20260914_messages_rls_lockdown.sql`
+>
+> Edge Function **must** be redeployed after this phase:
+> `supabase functions deploy resolve-bet --project-ref <ref>`
+
+### 11.1 `live_matches.host_address`
+
+```sql
+ALTER TABLE public.live_matches
+  ADD COLUMN IF NOT EXISTS host_address TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_live_matches_host
+  ON public.live_matches(host_address)
+  WHERE host_address IS NOT NULL;
+```
+
+**Who writes it:** client host on `hostGame()` upsert and again on `START_GAME` (lowercased wallet).  
+**Who reads it:** `supabase/functions/resolve-bet` — recovers the signer from a `buildBetResolveMessage` payload and requires `host_address` match (fail closed if null). Window timing (`NOW() > window_closed_at`) is still enforced inside `settle_match_bets`.
+
+### 11.2 Messages UPDATE lockdown
+
+Replaces the open `USING (true)` update policy surface:
+
+- Policy `messages flag updates only` — UPDATE still allowed for read-receipt / delete flags, but content/sender/receiver must stay well-formed.
+- Trigger `trg_messages_restrict_columns` (`BEFORE UPDATE`) raises if `sender_id`, `receiver_id`, or `content` change.
+
+**Known limitation (no Supabase Auth):** policies cannot bind UPDATE to the wallet caller. The trigger is the real immutability guard. Full wallet-bound RLS needs auth.
+
+---
+
+## Phase 12: ECDH public keys for DMs (applied 2026-09-11)
+
+> Migration file: `supabase/migrations/20260915_players_ecdh_pubkey.sql`
+
+### 12.1 Column
+
+```sql
+ALTER TABLE public.players
+  ADD COLUMN IF NOT EXISTS ecdh_pubkey JSONB;
+```
+
+JWK of the identity's static **ECDH P-256** public key. Private key stays in browser `localStorage` (`ludo-ecdh-v1:<wallet>`).
+
+### 12.2 Wire format (`messages.content` JSON)
+
+| Kind | Shape | Opened with |
+|------|--------|-------------|
+| Sealed box (current) | `{ v: 1, epk, iv, content }` | Recipient static private + sender ephemeral `epk` → AES-GCM |
+| Legacy (decrypt-only) | `{ iv, content }` | `SHA-256(sorted wallets + salt)` AES key |
+
+Send path (`useDataActions.sendMessage`): publish own pubkey → fetch peer `ecdh_pubkey` → `encryptForPeer`. **If peer has no pubkey, send fails closed** (no plaintext fallback). Boot (`GameDataContext`) publishes the local pubkey on first load so friends can seal DMs.
+
+### 12.3 Client helpers
+
+`lib/encryption.ts`: `getOrCreateIdentityKey`, `exportPublicKeyJwk`, `encryptForPeer`, `decryptSealedBox`, `decryptAnyMessage` (sealed → legacy).
+
+---
+
+## Quick reference: security-sensitive objects
+
+| Object | Purpose |
+|--------|---------|
+| `live_matches.host_address` | Bind signed bet settlement to host wallet |
+| `settle_match_bets(match_id, result, bet_type)` | Atomic spectator payout; requires `window_closed_at` in the past |
+| `resolve-bet` edge fn | Verifies host signature + host_address, then calls RPC |
+| `roll-dice` edge fn | CSPRNG 1–6 for networked human rolls (no client fallback in app) |
+| `/api/match/record` | Wallet-signed match history / progression only (no coin mint) |
+| `messages_restrict_columns` trigger | Immutable sender/receiver/content on UPDATE |
+| `players.ecdh_pubkey` | Static ECDH JWK for sealed-box DMs |
+
