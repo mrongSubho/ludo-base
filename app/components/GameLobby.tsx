@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { ActionDice } from './ActionDice';
+import { PanelErrorBoundary } from './PanelErrorBoundary';
 import { LiveBroadcastCard } from './ActivityFeed';
 import dynamic from 'next/dynamic';
 const TeamUpMatchPanel = dynamic(() => import('./TeamUpMatchPanel').then(m => m.TeamUpMatchPanel));
@@ -282,6 +283,13 @@ export default function GameLobby({
 
             {/* --- OVERLAY PANELS --- */}
             {showTeamUpOptions && (
+                <PanelErrorBoundary
+                    name="teamup"
+                    onClose={() => {
+                        leaveGame();
+                        setShowTeamUpOptions(false);
+                    }}
+                >
                 <TeamUpMatchPanel
                     key="teamup"
                     onClose={() => {
@@ -308,6 +316,7 @@ export default function GameLobby({
                     gameMode={gameMode}
                     entryFee={wager}
                 />
+                </PanelErrorBoundary>
             )}
 
             {showOfflineOptions && (
