@@ -599,7 +599,7 @@ export const TeamUpMatchPanel = ({
                                             { value: 'global', label: `Global (${globalOnline.length})` },
                                         ]}
                                     />
-                                    <div className="flex-1 min-h-[140px] overflow-y-auto no-scrollbar flex flex-col gap-2 pb-1">
+                                    <div className="flex-1 min-h-[140px] overflow-y-auto overscroll-contain no-scrollbar flex flex-col gap-2 pb-1">
                                         {(ftab === 'global' ? loadingOnline : isLoadingFriends) ? (
                                             <div className="py-8 flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         ) : (
