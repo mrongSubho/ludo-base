@@ -375,6 +375,29 @@ body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { backgro
 /* Board compact header: mode-strip inner pill + text stay legible on light glass */
 body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
 body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
+/* TeamUp announce button: amber/emerald washes legible on both themes */
+body.theme-daybreak .ludo-teamup-scope .announce-btn {
+  border-color: rgba(180, 83, 9, 0.4) !important;
+  background-color: rgba(180, 83, 9, 0.08) !important;
+  color: #92400e !important;
+}
+body.theme-daybreak .ludo-teamup-scope .announce-btn.announce-live {
+  border-color: rgba(4, 120, 87, 0.4) !important;
+  background-color: rgba(4, 120, 87, 0.08) !important;
+  color: #047857 !important;
+}
+/* Broadcast room rows: joinable card legible on both themes */
+body.theme-daybreak .ludo-broadcast-scope .room-join-row {
+  background-color: rgba(14, 116, 144, 0.08) !important;
+  border-color: rgba(14, 116, 144, 0.35) !important;
+  color: #171717 !important;
+}
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/90) { color: #171717 !important; }
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-cyan-300) { color: #0e7490 !important; }
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white) { color: #171717 !important; }
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/40) { color: rgba(23, 23, 23, 0.6) !important; }
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/50) { color: rgba(23, 23, 23, 0.6) !important; }
+body.theme-daybreak .ludo-lobby-scope :is(.text-amber-300) { color: #b45309; }
 /* Error surfaces: full daybreak remap (no dark-only cards anywhere) */
 body.theme-daybreak .panel-error-card {
   background: rgba(255, 255, 255, 0.94) !important;

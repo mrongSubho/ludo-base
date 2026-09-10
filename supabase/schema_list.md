@@ -685,3 +685,30 @@ fallback; opening each thread once repairs legacy inflated counts.
   (matchmaking join, live-chat POST) or a pg_cron schedule. If pg_cron was
   never enabled, no periodic cleanup has ever run.
 
+---
+
+## Phase 10: Live Room Announcements (applied 2026-09-09)
+
+> Migration file: `migrations/20260913_live_room_announce.sql`
+> (idempotent — safe to re-run). No RLS change: anon still has no UPDATE
+> policy; the `/api/live-chat` route upserts with the service role.
+
+### 10.1 Altered table
+
+- `live_chat` — added `room_code TEXT NULL` + `room_open BOOLEAN NOT NULL
+  DEFAULT TRUE`, index `(room_code, created_at DESC)`. One row per announced
+  room (upserted by sender+room): seat fills rewrite `content`
+  (`Classic · 2v2 · Free · 3/4 · join`, no code shown), start/leave flips
+  `room_open` instead of deleting. The 300-row opportunistic prune still
+  bounds growth. Guests (`guest_` ids) may announce; identity falls back
+  to `Guest XXXX`.
+
+### 10.2 Consumers (all realtime)
+
+- Live chat: whole-row tap joins open rooms; started rows dim with an
+  Over chip. UPDATEs merge in place (INSERT-only before).
+- Live Matches tab: Open-rooms section — backfilled (latest open row per
+  room) + INSERT/UPDATE subscription; whole-row join.
+- Broadcast card: ON AIR deep-links to the matches tab; right block shows
+  the live joinable count (searching tickets + distinct open rooms).
+

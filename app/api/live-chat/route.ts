@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 const LIMIT = 20;
 const SLOW_MODE_S = 10;
 const PRUNE_KEEP = 300;
+
+// Service role for room upserts (anon holds no UPDATE policy by design).
+// Falls back to anon when unconfigured — upserts then degrade to inserts.
+const serviceClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // GET /api/live-chat?country=US&limit=20 — newest-first, returned oldest-first.
 export async function GET(request: Request) {
@@ -14,12 +22,23 @@ export async function GET(request: Request) {
     try {
         let query = supabase
             .from('live_chat')
-            .select('id, sender_id, username, avatar_url, content, country, created_at')
+            .select('id, sender_id, username, avatar_url, content, country, created_at, room_code, room_open')
             .order('created_at', { ascending: false })
             .limit(limit);
         if (country) query = query.eq('country', country);
-
-        const { data, error } = await query;
+        let { data, error } = await query;
+        if (error && (error.code === '42703' || String(error.message || '').includes('room_code'))) {
+            // Pre-migration DB: legacy columns only.
+            let legacy = supabase
+                .from('live_chat')
+                .select('id, sender_id, username, avatar_url, content, country, created_at')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            if (country) legacy = legacy.eq('country', country);
+            const retry = await legacy;
+            data = retry.data;
+            error = retry.error;
+        }
         if (error) throw error;
         return NextResponse.json([...(data || [])].reverse());
     } catch (err) {
@@ -28,31 +47,40 @@ export async function GET(request: Request) {
     }
 }
 
-// POST /api/live-chat { wallet, content } — 10s slow-mode, server-stamped country.
+// POST /api/live-chat { wallet, content, roomCode?, roomOpen? }
+// Fresh shouts: 10s slow-mode. Room announces (roomCode present): upserted
+// into ONE row per room (seat fills rewrite it, start/close flips room_open
+// instead of deleting) and bypass slow-mode — the client throttles to 10s.
+// Guests (guest_ ids) may announce; identity falls back to Guest XXXX.
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const wallet = (body.wallet || '').toLowerCase();
         const content = (body.content || '').slice(0, 140).trim();
+        const roomCode = typeof body.roomCode === 'string' && /^[A-Z0-9]{6}$/i.test(body.roomCode.trim())
+            ? body.roomCode.trim().toUpperCase()
+            : null;
+        const roomOpen = body.roomOpen !== false;
 
-        if (!wallet || !wallet.startsWith('0x')) {
-            return NextResponse.json({ error: 'Wallet required' }, { status: 401 });
-        }
-        if (!content) {
-            return NextResponse.json({ error: 'Empty message' }, { status: 400 });
+        const isWallet = wallet.startsWith('0x');
+        const isGuestId = wallet.startsWith('guest_');
+        if ((!isWallet && !isGuestId) || !content) {
+            return NextResponse.json({ error: !content ? 'Empty message' : 'Wallet required' }, { status: !content ? 400 : 401 });
         }
 
-        // Slow-mode: one message per wallet per 10s.
-        const { data: last } = await supabase
-            .from('live_chat')
-            .select('created_at')
-            .eq('sender_id', wallet)
-            .order('created_at', { ascending: false })
-            .limit(1);
-        const lastAt = last?.[0]?.created_at ? new Date(last[0].created_at).getTime() : 0;
-        const waitLeft = Math.ceil((SLOW_MODE_S * 1000 - (Date.now() - lastAt)) / 1000);
-        if (waitLeft > 0) {
-            return NextResponse.json({ error: `Slow mode — wait ${waitLeft}s`, waitLeft }, { status: 429 });
+        // Slow-mode applies to fresh shouts only — room state syncs bypass it.
+        if (!roomCode) {
+            const { data: last } = await supabase
+                .from('live_chat')
+                .select('created_at')
+                .eq('sender_id', wallet)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            const lastAt = last?.[0]?.created_at ? new Date(last[0].created_at).getTime() : 0;
+            const waitLeft = Math.ceil((SLOW_MODE_S * 1000 - (Date.now() - lastAt)) / 1000);
+            if (waitLeft > 0) {
+                return NextResponse.json({ error: `Slow mode — wait ${waitLeft}s`, waitLeft }, { status: 429 });
+            }
         }
 
         // Identity snapshot (trust the DB, not the client).
@@ -63,10 +91,65 @@ export async function POST(request: Request) {
             .single();
         const username = (profile?.username && !profile.username.startsWith('0x'))
             ? profile.username
-            : `User ${wallet.slice(0, 6).toUpperCase()}`;
+            : isGuestId
+                ? `Guest ${wallet.slice(-4).toUpperCase()}`
+                : `User ${wallet.slice(0, 6).toUpperCase()}`;
 
         // Country from the edge (Vercel). 'XX' = unknown (local dev included).
         const country = (request.headers.get('x-vercel-ip-country') || 'XX').toUpperCase().slice(0, 2);
+
+        const FULL_COLS = 'id, sender_id, username, avatar_url, content, country, created_at, room_code, room_open';
+
+        // Room announce: refresh the sender's row for this room (or plant it).
+        // Service role: anon clients hold no UPDATE policy by design.
+        if (roomCode) {
+            const roomRow = { sender_id: wallet, username, avatar_url: profile?.avatar_url || null, content, country, room_code: roomCode, room_open: roomOpen };
+            try {
+                const { data: existing } = await serviceClient
+                    .from('live_chat')
+                    .select('id')
+                    .eq('sender_id', wallet)
+                    .eq('room_code', roomCode)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (existing?.id) {
+                    const { data: updated, error: updErr } = await serviceClient
+                        .from('live_chat')
+                        .update({ content, room_open: roomOpen, created_at: new Date().toISOString() })
+                        .eq('id', existing.id)
+                        .select(FULL_COLS)
+                        .single();
+                    if (updErr) throw updErr;
+                    return NextResponse.json(updated);
+                }
+                const { data: planted, error: plantErr } = await serviceClient
+                    .from('live_chat')
+                    .insert(roomRow)
+                    .select(FULL_COLS)
+                    .single();
+                if (plantErr) throw plantErr;
+                return NextResponse.json(planted);
+            } catch (e: any) {
+                const msg = String(e?.message || '');
+                // No UPDATE grant (role key missing) or pre-migration table:
+                // degrade to a static card rather than failing the announce.
+                try {
+                    const withCols = !(e?.code === '42703' || msg.includes('room_code'));
+                    const payload: any = withCols ? roomRow : { sender_id: wallet, username, avatar_url: profile?.avatar_url || null, content, country };
+                    const cols = withCols ? FULL_COLS : 'id, sender_id, username, avatar_url, content, country, created_at';
+                    const { data: fallback, error: fbErr } = await supabase
+                        .from('live_chat')
+                        .insert(payload)
+                        .select(cols)
+                        .single();
+                    if (fbErr) throw fbErr;
+                    return NextResponse.json(fallback);
+                } catch {
+                    throw e;
+                }
+            }
+        }
 
         const { data: inserted, error } = await supabase
             .from('live_chat')

@@ -90,6 +90,44 @@ export default function GameLobby({
     }, []);
     const [searchId, setSearchId] = useState(0);
 
+    // Party join feedback: every join tap (feed, chat, link) funnels here.
+    // Seated within 12s → the room opens. Otherwise the room is full,
+    // started, or gone — say so instead of stranding the joiner.
+    const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
+    const [joinError, setJoinError] = useState<string | null>(null);
+    const lobbyRef = useRef(lobbyState);
+    lobbyRef.current = lobbyState;
+    const startPartyJoin = useCallback((code: string, seat?: number) => {
+        guard('online-play', () => {
+            setJoinError(null);
+            setPendingJoin({ code, since: Date.now() });
+            joinGame(code, undefined, seat);
+            setTimeout(() => {
+                const L = lobbyRef.current;
+                const me = address?.toLowerCase();
+                const seated = !!L && L.roomCode?.toUpperCase() === code &&
+                    (L.slots || []).some(s => s.status === 'joined' && s.playerId?.toLowerCase() === me);
+                setPendingJoin(cur => {
+                    if (!cur || cur.code !== code) return cur;
+                    if (seated) setShowTeamUpOptions(true);
+                    else setJoinError('Match has started or closed — or the room is full.');
+                    return null;
+                });
+            }, 12000);
+        });
+    }, [guard, joinGame, address]);
+
+    // Fast path: the instant our seat lands, open the room (no 12s wait).
+    useEffect(() => {
+        if (!pendingJoin || !lobbyState) return;
+        const me = address?.toLowerCase();
+        if (lobbyState.roomCode?.toUpperCase() === pendingJoin.code &&
+            (lobbyState.slots || []).some(s => s.status === 'joined' && s.playerId?.toLowerCase() === me)) {
+            setPendingJoin(null);
+            setShowTeamUpOptions(true);
+        }
+    }, [pendingJoin, lobbyState, address]);
+
     // Incoming invite links (?room=CODE&seat=N): room-only links fill any
     // open seat — ONE link serves the whole party, no per-seat spam.
     // Seat links request that exact seat (honored when still empty).
@@ -103,7 +141,7 @@ export default function GameLobby({
             const seat = seatRaw !== null && /^\d+$/.test(seatRaw) ? parseInt(seatRaw, 10) : undefined;
             // Consume: never re-join on re-render.
             window.history.replaceState(null, '', window.location.pathname);
-            guard('online-play', () => joinGame(code.trim().toUpperCase(), undefined, seat));
+            startPartyJoin(code.trim().toUpperCase(), seat);
         } catch { /* no link — normal entry */ }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -132,7 +170,7 @@ export default function GameLobby({
             if (typeof code === 'string' && code.trim().length >= 3) {
                 console.log('📡 [Lobby] Joining party from feed:', code);
                 const seat = typeof detail?.seat === 'number' ? detail.seat : undefined;
-                guard('online-play', () => joinGame(code.trim().toUpperCase(), undefined, seat));
+                startPartyJoin(code.trim().toUpperCase(), seat);
             }
         };
         window.addEventListener('join_party', handleJoinParty);
@@ -302,6 +340,32 @@ export default function GameLobby({
             )}
 
             {/* --- OVERLAY PANELS --- */}
+            {/* Join feedback popup: full/started/closed rooms say so plainly */}
+            {joinError && (
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center px-6 bg-black/60 backdrop-blur-sm"
+                    onClick={() => setJoinError(null)}
+                >
+                    <div
+                        className="w-full max-w-[340px] rounded-[24px] border border-white/10 px-6 py-6 flex flex-col items-center gap-2.5 text-center shadow-2xl"
+                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                            Room unavailable
+                        </p>
+                        <p className="text-[13px] font-bold text-white/80 leading-relaxed">
+                            {joinError}
+                        </p>
+                        <button
+                            onClick={() => setJoinError(null)}
+                            className="mt-1 w-full py-3 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"
+                        >
+                            Got it
+                        </button>
+                    </div>
+                </div>
+            )}
             {showTeamUpOptions && (
                 <PanelErrorBoundary
                     name="teamup"

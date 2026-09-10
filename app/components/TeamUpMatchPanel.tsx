@@ -272,25 +272,64 @@ export const TeamUpMatchPanel = ({
     // targeting (partner seat vs rival seat), in every match type.
     const [invitePopup, setInvitePopup] = useState<{ role: 'teammate' | 'opponent'; seat: number } | null>(null);
     // Live-chat announce: one tap posts the room as a joinable card —
-    // no copy-paste-post chore. 60s cooldown; chat self-prunes (300 rows).
+    // no copy-paste-post chore. ONE row per room (upserted): seat fills
+    // rewrite its content so counts stay live; start/close flips it to
+    // Started/Closed instead of deleting, so history survives.
     const [announcedAt, setAnnouncedAt] = useState(0);
     const announced = announcedAt > 0;
-    const announceRoom = async () => {
-        if (announced || !roomCodeValue || !address) return;
-        const empty = lobbyState?.slots.filter(s => s.status === 'empty').length ?? 0;
-        if (empty === 0) return;
-        playSelect();
-        const content = `[ROOM:${roomCodeValue}] ${matchType} · ${modeLabel} · ${feeLabel} · ${empty} open`;
+    const announcedRef = useRef(false);
+    const lastPostAt = useRef(0);
+    const lastCount = useRef(-1);
+    const postAnnounce = async (content: string, open: boolean) => {
+        if (!roomCodeValue || !address) return false;
         try {
             const res = await fetch('/api/live-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, content }),
+                body: JSON.stringify({ wallet: address, content, roomCode: roomCodeValue, roomOpen: open }),
             });
-            if (!res.ok) return;
-            setAnnouncedAt(Date.now());
-            setTimeout(() => setAnnouncedAt(0), 60000);
-        } catch { /* offline/slow-mode — button stays live */ }
+            return res.ok;
+        } catch { return false; }
+    };
+    const announceContent = (joined: number, total: number) =>
+        `${matchType} · ${modeLabel} · ${feeLabel} · ${joined}/${total} · join`;
+    const announceRoom = async () => {
+        if (announced || !roomCodeValue || !address) return;
+        const joined = lobbyState?.slots.filter(s => s.status === 'joined').length ?? 0;
+        const total = lobbyState?.slots.length ?? 0;
+        if (total > 0 && joined >= total) return;
+        playSelect();
+        const ok = await postAnnounce(announceContent(joined, total), true);
+        if (!ok) return;
+        announcedRef.current = true;
+        lastCount.current = joined;
+        lastPostAt.current = Date.now();
+        setAnnouncedAt(Date.now());
+        setTimeout(() => setAnnouncedAt(0), 10000);
+    };
+    // Seat fills rewrite the row (10s min gap — matches the re-announce ask).
+    useEffect(() => {
+        if (!announcedRef.current || !roomCodeValue || !address) return;
+        const joined = lobbyState?.slots.filter(s => s.status === 'joined').length ?? 0;
+        const total = lobbyState?.slots.length ?? 0;
+        if (joined === lastCount.current) return;
+        if (Date.now() - lastPostAt.current < 10000) return;
+        lastCount.current = joined;
+        lastPostAt.current = Date.now();
+        postAnnounce(announceContent(joined, total), true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lobbyState, roomCodeValue, address]);
+    // Start/leave marks the row Started/Closed (never deleted). Host-only:
+    // a guest closing the panel doesn't kill the room.
+    const markClosed = (label: 'Started' | 'Closed') => {
+        if (!announcedRef.current) return;
+        announcedRef.current = false;
+        setAnnouncedAt(0);
+        postAnnounce(`${matchType} · ${modeLabel} · ${feeLabel} · ${label}`, false);
+    };
+    const handleClose = () => {
+        if (isHost && roomCodeValue) markClosed('Closed');
+        onClose();
     };
     // Global strangers: live online players (presence heartbeat, 30s cadence).
     // Fetched fresh on every popup open — the Farcaster intersection the old
@@ -442,7 +481,7 @@ export const TeamUpMatchPanel = ({
             {/* Blurring Overlay */}
             <div
                 className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
-                onClick={onClose}
+                onClick={handleClose}
             />
 
             {/* Main Panel Container */}
@@ -469,7 +508,7 @@ export const TeamUpMatchPanel = ({
                                     Team Up
                                 </h2>
                                 <button
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     aria-label="Close team up"
                                     className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
                                 >
@@ -716,7 +755,7 @@ export const TeamUpMatchPanel = ({
                                 <button
                                     onClick={announceRoom}
                                     disabled={announced}
-                                    className={`w-full py-2.5 rounded-2xl border transition-all active:scale-95 flex items-center justify-center gap-2 ${announced ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
+                                    className={`announce-btn w-full py-2.5 rounded-2xl border transition-all active:scale-95 flex items-center justify-center gap-2 ${announced ? 'announce-live bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l18-7-7 18-2.5-7.5L3 11z" /></svg>
                                     <span className="font-black tracking-[0.2em] text-xs uppercase">
@@ -748,14 +787,15 @@ export const TeamUpMatchPanel = ({
                                 </button>
                             )}
 
-                            <button
-                                onClick={() => {
-                                    if (isHost && isReady) {
-                                        playDiceLand();
-                                        if (typeof window !== 'undefined' && navigator.vibrate) navigator.vibrate([40, 60, 40]);
-                                        onStartMatch();
-                                    }
-                                }}
+                                <button
+                                    onClick={() => {
+                                        if (isHost && isReady) {
+                                            playDiceLand();
+                                            if (typeof window !== 'undefined' && navigator.vibrate) navigator.vibrate([40, 60, 40]);
+                                            markClosed('Started');
+                                            onStartMatch();
+                                        }
+                                    }}
                                 disabled={!isHost || !isReady}
                                 className={`w-full py-3 rounded-2xl font-black tracking-[0.2em] text-sm uppercase transition-all duration-300 relative overflow-hidden border active:scale-95
                                     ${isHost && isReady

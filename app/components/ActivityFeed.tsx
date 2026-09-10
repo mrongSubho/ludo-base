@@ -43,6 +43,17 @@ interface LiveSearch {
 // Opponents still needed per match type.
 const SEATS_NEEDED: Record<string, number> = { '1v1': 1, '2v2': 3, '4P': 3 };
 
+// Open party rooms announced from Live chat (backfilled + realtime).
+interface LiveRoom {
+    key: string;
+    roomCode: string;
+    content: string;
+    hostName: string;
+    avatar: string | null;
+    createdAt: number;
+    open: boolean;
+}
+
 type CScope = 'global' | 'local';
 
 // ─── Live Chat: global shoutbox, last 20 per scope ──────────────────────────
@@ -54,6 +65,8 @@ interface ChatMsg {
     content: string;
     country: string;
     created_at: string;
+    room_code?: string | null;
+    room_open?: boolean | null;
 }
 
 const ModeGlyph = ({ mode }: { mode: string }) => (
@@ -121,6 +134,18 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         next.local = [...prev.local, m].slice(-20);
                     }
                     return next;
+                });
+            })
+            // Room announces rewrite their row (seat fills, start/close):
+            // merge in place so counts stay live without reposts.
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
+                const m = payload.new as ChatMsg;
+                setMsgs(prev => {
+                    const merge = (list: ChatMsg[]) => {
+                        if (!list.some(x => x.id === m.id)) return list;
+                        return list.map(x => (x.id === m.id ? { ...x, ...m } : x));
+                    };
+                    return { ...prev, global: merge(prev.global), local: merge(prev.local) };
                 });
             })
             .subscribe();
@@ -200,11 +225,19 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                     <div className="flex flex-col gap-2 pb-2">
                         {visibleMsgs.map((m) => {
                             const mine = m.sender_id.toLowerCase() === me;
-                            // Room announce card: [ROOM:XXXXXX] token renders a
-                            // direct Join chip (same handshake as feed rows).
-                            const roomMatch = !mine && typeof m.content === 'string'
-                                ? m.content.match(/\[ROOM:([A-Z0-9]{6})\]/)
-                                : null;
+                            // Room announce: the WHOLE row is the link (no code
+                            // shown, no separate button). Open rooms tap to join;
+                            // started/closed rows read dimmed with a status chip.
+                            const isRoom = !!m.room_code;
+                            const roomOpen = m.room_open !== false;
+                            const joinable = isRoom && roomOpen && !mine;
+                            const joinRoom = () => {
+                                if (!m.room_code) return;
+                                window.dispatchEvent(new CustomEvent('join_party', {
+                                    detail: { roomCode: m.room_code }
+                                }));
+                                onJoin?.();
+                            };
                             return (
                                 <div key={m.id} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
                                     <button
@@ -223,21 +256,26 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                                         <span className="text-[10px] font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
                                             {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
-                                        <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
-                                            {m.content || '…'}
-                                        </div>
-                                        {roomMatch && (
+                                        {joinable ? (
                                             <button
-                                                onClick={() => {
-                                                    window.dispatchEvent(new CustomEvent('join_party', {
-                                                        detail: { roomCode: roomMatch[1] }
-                                                    }));
-                                                    onJoin?.();
-                                                }}
-                                                className="mt-1.5 self-start px-3.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
+                                                onClick={joinRoom}
+                                                title={`Join room ${m.room_code}`}
+                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
                                             >
-                                                Join {roomMatch[1]}
+                                                <span className="text-white/90">{m.content || '…'}</span>
+                                                <span className="block mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">
+                                                    Tap to join →
+                                                </span>
                                             </button>
+                                        ) : (
+                                            <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${isRoom && !roomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
+                                                {m.content || '…'}
+                                                {isRoom && !roomOpen && (
+                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] font-black uppercase tracking-[0.15em] text-white/50 align-middle">
+                                                        Over
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -288,6 +326,61 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
 export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     const [activities, setActivities] = useState<Activity[]>([]);
     const [searches, setSearches] = useState<LiveSearch[]>([]);
+    // Open party rooms (announced via Live chat): backfilled so late
+    // arrivals see them, then kept live. Whole row joins — same handshake.
+    const [rooms, setRooms] = useState<LiveRoom[]>([]);
+    useEffect(() => {
+        const toRoom = (row: any): LiveRoom | null => {
+            if (!row?.room_code) return null;
+            return {
+                key: `${row.room_code}`,
+                roomCode: row.room_code,
+                content: row.content || '',
+                hostName: row.username || 'Host',
+                avatar: row.avatar_url ?? null,
+                createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+                open: row.room_open !== false,
+            };
+        };
+        (async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('live_chat')
+                    .select('room_code, content, username, avatar_url, sender_id, room_open, created_at')
+                    .not('room_code', 'is', null)
+                    .eq('room_open', true)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+                const seen = new Map<string, LiveRoom>();
+                for (const row of data || []) {
+                    const r = toRoom(row);
+                    if (r && !seen.has(r.roomCode)) seen.set(r.roomCode, r);
+                }
+                setRooms([...seen.values()]);
+            } catch {
+                /* pre-migration DB or offline — searches still work */
+            }
+        })();
+        const channel = supabase
+            .channel('live-broadcast-rooms')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat' }, (payload) => {
+                const r = toRoom(payload.new);
+                if (!r) return;
+                setRooms(prev => [r, ...prev.filter(x => x.roomCode !== r.roomCode)].slice(0, 20));
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat' }, (payload) => {
+                const r = toRoom(payload.new);
+                if (!r) return;
+                setRooms(prev => r.open
+                    ? [r, ...prev.filter(x => x.roomCode !== r.roomCode)].slice(0, 20)
+                    : prev.filter(x => x.roomCode !== r.roomCode));
+            })
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
     const { address } = useAccount();
     const me = (address || '').toLowerCase();
     const hostCache = useRef<Map<string, { name: string; avatar: string | null }>>(new Map());
@@ -436,6 +529,43 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
 
     return (
         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2">
+            {rooms.length > 0 && (
+                <>
+                    <SectionLabel>Open rooms · {rooms.length}</SectionLabel>
+                    <div className="flex flex-col gap-2 pb-2">
+                        {rooms.map((r) => (
+                            <button
+                                key={r.key}
+                                onClick={() => {
+                                    window.dispatchEvent(new CustomEvent('join_party', {
+                                        detail: { roomCode: r.roomCode }
+                                    }));
+                                    onJoin?.();
+                                }}
+                                title={`Join ${r.hostName}'s room`}
+                                className="room-join-row flex items-center gap-3 p-3 rounded-2xl border border-cyan-500/40 bg-cyan-500/10 backdrop-blur-md transition-all text-left w-full hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] cursor-pointer"
+                            >
+                                <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
+                                    {r.avatar ? (
+                                        <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                    ) : (
+                                        <span className="text-white/50 font-black text-sm pointer-events-none">{r.hostName[0]?.toUpperCase()}</span>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0 flex flex-col">
+                                    <span className="text-[13px] font-black text-white truncate">{r.hostName}</span>
+                                    <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                        {r.content}
+                                    </span>
+                                </div>
+                                <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[9px] font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
+                                    Join
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
             <SectionLabel>Live now{totalWaiting > 0 ? ` · ${totalWaiting} waiting` : ''}</SectionLabel>
             {searches.length > 0 ? (
                 <div className="flex flex-col gap-2 pb-2">
@@ -529,9 +659,53 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
 
 // ─── Live Broadcast card (MCP stream design): the single lobby live surface.
 // Ticker opens a panel with Chat + Live Matches tabs. ──────────────────────
+// Joinable count: searching tickets + open announced rooms (debounced).
+function useJoinableCount() {
+    const [count, setCount] = useState(0);
+    useEffect(() => {
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const recompute = async () => {
+            let tickets = 0;
+            let rooms = 0;
+            try {
+                const q = await supabase.from('matchmaking_queue')
+                    .select('player_id', { count: 'exact', head: true })
+                    .eq('status', 'searching');
+                tickets = q.count || 0;
+            } catch { /* keep last */ }
+            try {
+                const r = await supabase.from('live_chat')
+                    .select('room_code')
+                    .not('room_code', 'is', null)
+                    .eq('room_open', true)
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+                rooms = new Set((r.data || []).map(x => x.room_code)).size;
+            } catch { /* pre-migration — tickets only */ }
+            if (!cancelled) setCount(tickets + rooms);
+        };
+        const debounced = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(recompute, 2500);
+        };
+        recompute();
+        const ch = supabase.channel('live-count')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'matchmaking_queue' }, debounced)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_chat' }, debounced)
+            .subscribe();
+        return () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+            supabase.removeChannel(ch);
+        };
+    }, []);
+    return count;
+}
 export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [btab, setBtab] = useState<'chat' | 'matches'>('chat');
+    const joinable = useJoinableCount();
 
     return (
         <>
@@ -556,20 +730,26 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[9px] font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">Live Broadcast</span>
-                            <div className="flex items-center gap-2 mt-0.5">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setBtab('matches'); setIsOpen(true); }}
+                                title="Open live matches"
+                                className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
+                            >
                                 <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                                <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none">
+                                <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none underline underline-offset-2 decoration-cyan-500/50">
                                     On air
                                 </span>
-                            </div>
+                            </button>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3 relative z-10 ml-auto">
                         <div className="h-6 w-[1px] bg-cyan-500/20" />
-                        <div className="flex flex-col items-end justify-center h-full">
-                            <span className="text-[8px] font-black text-cyan-500/50 uppercase tracking-[0.2em] leading-tight">System</span>
-                            <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest leading-tight">Access</span>
+                        <div className="flex flex-col items-end justify-center h-full" title="Rooms and searches you can join right now">
+                            <span className="text-[14px] font-black text-cyan-300 tabular-nums leading-tight drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+                                {joinable}
+                            </span>
+                            <span className="text-[8px] font-black text-cyan-500/50 uppercase tracking-[0.2em] leading-tight">Joinable</span>
                         </div>
                     </div>
                 </div>
