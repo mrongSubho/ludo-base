@@ -10,7 +10,7 @@ import { useAccount } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PanelTabs, PanelChildTabs } from './PanelTabs';
+import { PanelChildTabs } from './PanelTabs';
 
 interface Activity {
     id: string;
@@ -665,11 +665,11 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     );
 };
 
-// ─── Unified broadcast feed: ONE timeline, filters instead of tabs ─────────
+// ─── Unified broadcast feed: ONE timeline, toggle-pill filters ────────────
 // Chat shouts + open rooms + pool searches + arena activity merged
-// newest-first. Filters: All | Matches segmented + Local toggle (country-
-// scoped chat and rooms; pool tickets are global by nature and always pass).
-type FeedContent = 'all' | 'matches';
+// newest-first. Two independent pills (friends-panel pattern): Local scopes
+// chat and rooms by country; Matches hides plain chatter. Pool tickets carry
+// no country — global pool by nature, always pass.
 interface FeedItem {
     key: string;
     ts: number;
@@ -686,7 +686,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
     const { guard } = useGuestWall();
     const me = (address || '').toLowerCase();
 
-    const [content, setContent] = useState<FeedContent>('all');
+    const [matchesOnly, setMatchesOnly] = useState(false);
     const [localOnly, setLocalOnly] = useState(false);
     const [country, setCountry] = useState('XX');
     const [chats, setChats] = useState<ChatMsg[]>([]);
@@ -953,12 +953,12 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
     const items = useMemo(() => {
         const out: FeedItem[] = [];
         for (const m of chats) {
-            if (content === 'matches' && !m.room_code) continue;
+            if (matchesOnly && !m.room_code) continue;
             if (localOnly && (m.country || 'XX') !== country) continue;
             out.push({ key: `c-${m.id}`, ts: m.created_at ? new Date(m.created_at).getTime() : 0, kind: 'chat', msg: m });
         }
         for (const r of rooms) {
-            if (content === 'matches' && !r.open) continue;
+            if (!r.open) continue;
             if (localOnly && (r.country || 'XX') !== country) continue;
             out.push({ key: `r-${r.key}`, ts: r.createdAt, kind: 'room', room: r });
         }
@@ -966,41 +966,42 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
             // Pool tickets carry no country — global pool by nature.
             out.push({ key: `s-${s.key}`, ts: s.createdAt, kind: 'search', search: s });
         }
-        if (content === 'matches') {
+        if (matchesOnly) {
             for (const a of activities) {
                 out.push({ key: `a-${a.id}`, ts: a.created_at ? new Date(a.created_at).getTime() : 0, kind: 'activity', activity: a });
             }
         }
         out.sort((x, y) => y.ts - x.ts);
         return out;
-    }, [chats, rooms, searches, activities, content, localOnly, country]);
+    }, [chats, rooms, searches, activities, matchesOnly, localOnly, country]);
 
-    const emptyHint = content === 'matches'
+    const emptyHint = matchesOnly
         ? (localOnly ? 'No live matches nearby right now.' : 'Quiet airwaves — rooms and searches land here live.')
         : (localOnly ? `No shouts from ${country} yet — be the first.` : 'No shouts yet — be the first.');
 
     return (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            {/* Filters: content segmented + Local toggle (replaces tab trees) */}
-            <div className="px-5 pt-3 flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                    <PanelTabs
-                        value={content}
-                        onPick={setContent}
-                        options={[
-                            { value: 'all', label: 'All' },
-                            { value: 'matches', label: 'Matches' },
-                        ]}
-                    />
-                </div>
+            {/* Filters: two independent toggle pills (friends-panel pattern).
+                No tabs, no segmented control — Local scopes, Matches hides
+                plain chatter. Both off = the full firehose. */}
+            <div className="px-5 pt-3 flex items-center gap-1.5">
                 <button
                     onClick={() => setLocalOnly(v => !v)}
                     aria-pressed={localOnly}
                     title={localOnly ? 'Show global feed' : 'Show only nearby'}
-                    className={`flex-none flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 ${localOnly ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-200' : 'bg-white/[0.04] border-white/10 text-white/40 hover:text-white'}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${localOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
                 >
-                    <span className={`w-1.5 h-1.5 rounded-full ${localOnly ? 'bg-cyan-300 animate-pulse' : 'bg-white/25'}`} />
+                    <span className={`w-1 h-1 rounded-full ${localOnly ? 'bg-green-400 animate-pulse' : 'bg-white/30'}`} />
                     Local{country !== 'XX' ? ` · ${country}` : ''}
+                </button>
+                <button
+                    onClick={() => setMatchesOnly(v => !v)}
+                    aria-pressed={matchesOnly}
+                    title={matchesOnly ? 'Show everything' : 'Show only matches'}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${matchesOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                >
+                    <span className={`w-1 h-1 rounded-full ${matchesOnly ? 'bg-cyan-300 animate-pulse' : 'bg-white/30'}`} />
+                    Matches
                 </button>
             </div>
 
