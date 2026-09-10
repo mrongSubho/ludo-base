@@ -150,6 +150,98 @@ const HuntView = ({ empty, total, isHost, onCancel }: {
     </div>
 );
 
+// Faceoff split (1v1 + 2v2): your team vs rivals, glass discs per seat.
+// Our take on the classic A/B-team faceoff — terminal glass, cyan vs ember,
+// diagonal divider. Empty disc tap opens the roster pre-targeted at that side.
+const PersonPlusIcon = ({ className }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+    </svg>
+);
+
+const TeamDisc = ({ slot, tint, you, onInvite }: {
+    slot: LobbySlot | null | undefined;
+    tint: 'cyan' | 'ember';
+    you?: boolean;
+    onInvite?: () => void;
+}) => {
+    const filled = !!slot && slot.status === 'joined';
+    const invited = !!slot && slot.status === 'invited';
+    const ring = filled
+        ? (tint === 'cyan' ? 'border-cyan-400/70 shadow-[0_0_18px_rgba(34,211,238,0.35)]' : 'border-rose-400/60 shadow-[0_0_18px_rgba(251,113,133,0.3)]')
+        : invited
+            ? 'border-dashed border-white/25 bg-white/[0.03]'
+            : 'border-dashed border-white/20 bg-white/[0.03] hover:border-cyan-300/70 active:scale-90 cursor-pointer';
+    return (
+        <button
+            disabled={filled || (!onInvite && !filled)}
+            onClick={filled ? undefined : onInvite}
+            className="flex flex-col items-center gap-1 min-w-0"
+        >
+            <span className={`relative w-16 h-16 rounded-full overflow-hidden flex items-center justify-center border-2 transition-all ${ring} bg-slate-800`}>
+                {filled && slot?.playerAvatar ? (
+                    <img src={slot.playerAvatar} alt={slot.playerName || 'player'} className="w-full h-full object-cover" />
+                ) : filled ? (
+                    <span className="text-xl font-black text-white/40 uppercase">{slot?.playerName?.[0] || 'P'}</span>
+                ) : invited ? (
+                    <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-300 px-1 text-center leading-tight">Sent…</span>
+                ) : (
+                    <PersonPlusIcon className="w-6 h-6 text-white/30" />
+                )}
+                {you && (
+                    <span className="absolute bottom-0 inset-x-0 py-px bg-cyan-500/90 text-[7px] font-black uppercase tracking-[0.2em] text-slate-950">
+                        You
+                    </span>
+                )}
+            </span>
+            <span className="text-[10px] font-black text-white uppercase tracking-wider truncate max-w-[72px]">
+                {filled ? slot?.playerName : invited ? 'Invited' : 'Invite'}
+            </span>
+            <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.15em] text-white/35">
+                {slot?.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: COLOR_DOT[slot.color] || '#fff' }} />}
+                {slot?.role === 'teammate' ? 'Partner' : slot?.role === 'opponent' ? 'Rival' : slot?.role === 'host' ? 'Host' : 'Open'}
+            </span>
+        </button>
+    );
+};
+
+const TeamSplitView = ({ slots, isSelfHost, onInviteSide }: {
+    slots: LobbySlot[];
+    isSelfHost: boolean;
+    onInviteSide: (role: 'partner' | 'rival') => void;
+}) => {
+    const mine = slots.filter(s => s.role === 'host' || s.role === 'teammate');
+    const theirs = slots.filter(s => s.role === 'opponent');
+    const half = (title: string, tone: 'cyan' | 'ember', list: LobbySlot[], inviteRole: 'partner' | 'rival') => (
+        <div className={`flex-1 min-w-0 rounded-2xl border backdrop-blur-lg px-2 py-3 flex flex-col items-center gap-2.5 ${tone === 'cyan' ? 'bg-cyan-500/[0.07] border-cyan-500/25' : 'bg-rose-500/[0.06] border-rose-500/25'}`}>
+            <span className={`text-[9px] font-black uppercase tracking-[0.25em] ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
+                {title}
+            </span>
+            <div className="flex items-start justify-center gap-3 flex-wrap">
+                {list.map(s => (
+                    <TeamDisc
+                        key={s.slotIndex}
+                        slot={s}
+                        tint={tone}
+                        you={isSelfHost && s.role === 'host'}
+                        onInvite={s.status === 'empty' ? () => onInviteSide(inviteRole) : undefined}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+    return (
+        <div className="flex-1 min-h-0 flex items-stretch gap-0 animate-in fade-in duration-200">
+            {half('Your team', 'cyan', mine, 'partner')}
+            {/* Angled divider */}
+            <div className="w-px self-stretch mx-1.5 bg-gradient-to-b from-transparent via-white/25 to-transparent -skew-x-12 shrink-0" aria-hidden />
+            {half('Rivals', 'ember', theirs, 'rival')}
+        </div>
+    );
+};
+
 export const TeamUpMatchPanel = ({
     onClose,
     onJoin,
@@ -360,6 +452,8 @@ export const TeamUpMatchPanel = ({
                                     <SectionLabel>
                                         {joinedCount} of {totalSeats} players
                                     </SectionLabel>
+                                    {matchType === '4P' ? (
+                                    <>
                                     {/* Host Card */}
                                     <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-amber-500/30 backdrop-blur-lg relative shrink-0">
                                         <div className="absolute top-3 right-4">
@@ -451,6 +545,23 @@ export const TeamUpMatchPanel = ({
                                             );
                                         })}
                                     </div>
+                                    </>
+                                    ) : (
+                                    <TeamSplitView
+                                        slots={lobbyState?.slots ?? [
+                                            { slotIndex: 0, role: 'host', color: 'green', status: 'joined' } as LobbySlot,
+                                            ...(matchType === '1v1'
+                                                ? [{ slotIndex: 1, role: 'opponent', color: 'yellow', status: 'empty' } as LobbySlot]
+                                                : [
+                                                    { slotIndex: 1, role: 'teammate', color: 'yellow', status: 'empty' } as LobbySlot,
+                                                    { slotIndex: 2, role: 'opponent', color: 'red', status: 'empty' } as LobbySlot,
+                                                    { slotIndex: 3, role: 'opponent', color: 'blue', status: 'empty' } as LobbySlot,
+                                                ]),
+                                        ]}
+                                        isSelfHost={!!isSelfHost}
+                                        onInviteSide={(role) => { playSelect(); ensureRoom(); setInviteRole(role); setView('roster'); }}
+                                    />
+                                    )}
 
                                     {/* Join with Code */}
                                     <button
