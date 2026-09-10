@@ -75,7 +75,7 @@ const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: 
     </div>
 );
 
-export const LiveChatPanel = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
+export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (address: string) => void; onJoin?: () => void }) => {
     const { address } = useAccount();
     const { address: identityAddress } = useCurrentUser();
     const { guard } = useGuestWall();
@@ -200,6 +200,11 @@ export const LiveChatPanel = ({ onOpenProfile }: { onOpenProfile?: (address: str
                     <div className="flex flex-col gap-2 pb-2">
                         {visibleMsgs.map((m) => {
                             const mine = m.sender_id.toLowerCase() === me;
+                            // Room announce card: [ROOM:XXXXXX] token renders a
+                            // direct Join chip (same handshake as feed rows).
+                            const roomMatch = !mine && typeof m.content === 'string'
+                                ? m.content.match(/\[ROOM:([A-Z0-9]{6})\]/)
+                                : null;
                             return (
                                 <div key={m.id} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
                                     <button
@@ -221,6 +226,19 @@ export const LiveChatPanel = ({ onOpenProfile }: { onOpenProfile?: (address: str
                                         <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
                                             {m.content || '…'}
                                         </div>
+                                        {roomMatch && (
+                                            <button
+                                                onClick={() => {
+                                                    window.dispatchEvent(new CustomEvent('join_party', {
+                                                        detail: { roomCode: roomMatch[1] }
+                                                    }));
+                                                    onJoin?.();
+                                                }}
+                                                className="mt-1.5 self-start px-3.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
+                                            >
+                                                Join {roomMatch[1]}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -616,7 +634,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
                                             />
                                         </div>
                                         <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${btab === 'chat' ? 'flex' : 'hidden'}`}>
-                                            <LiveChatPanel onOpenProfile={onOpenProfile} />
+                                            <LiveChatPanel onOpenProfile={onOpenProfile} onJoin={() => setIsOpen(false)} />
                                         </div>
                                         <div className={`flex-1 min-h-0 relative z-10 flex-col overflow-hidden ${btab === 'matches' ? 'flex' : 'hidden'}`}>
                                             <LiveMatchSearchesPanel onJoin={() => setIsOpen(false)} />

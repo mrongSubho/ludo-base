@@ -271,6 +271,27 @@ export const TeamUpMatchPanel = ({
     // at THAT seat — no separate roster page, no role tabs. The disc IS the
     // targeting (partner seat vs rival seat), in every match type.
     const [invitePopup, setInvitePopup] = useState<{ role: 'teammate' | 'opponent'; seat: number } | null>(null);
+    // Live-chat announce: one tap posts the room as a joinable card —
+    // no copy-paste-post chore. 60s cooldown; chat self-prunes (300 rows).
+    const [announcedAt, setAnnouncedAt] = useState(0);
+    const announced = announcedAt > 0;
+    const announceRoom = async () => {
+        if (announced || !roomCodeValue || !address) return;
+        const empty = lobbyState?.slots.filter(s => s.status === 'empty').length ?? 0;
+        if (empty === 0) return;
+        playSelect();
+        const content = `[ROOM:${roomCodeValue}] ${matchType} · ${modeLabel} · ${feeLabel} · ${empty} open`;
+        try {
+            const res = await fetch('/api/live-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wallet: address, content }),
+            });
+            if (!res.ok) return;
+            setAnnouncedAt(Date.now());
+            setTimeout(() => setAnnouncedAt(0), 60000);
+        } catch { /* offline/slow-mode — button stays live */ }
+    };
     // Global strangers: live online players (presence heartbeat, 30s cadence).
     // Fetched fresh on every popup open — the Farcaster intersection the old
     // roster used is empty for most users, which read as a broken list.
@@ -690,6 +711,19 @@ export const TeamUpMatchPanel = ({
                                 <div className="w-1 h-3 bg-white/10 rounded-full" />
                                 <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Entry Fee: <span className="text-amber-400">{feeLabel}</span></span>
                             </div>
+
+                            {isHost && roomCodeValue && (lobbyState?.slots.some(s => s.status === 'empty')) && (
+                                <button
+                                    onClick={announceRoom}
+                                    disabled={announced}
+                                    className={`w-full py-2.5 rounded-2xl border transition-all active:scale-95 flex items-center justify-center gap-2 ${announced ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l18-7-7 18-2.5-7.5L3 11z" /></svg>
+                                    <span className="font-black tracking-[0.2em] text-xs uppercase">
+                                        {announced ? 'Live in chat' : 'Announce in Live chat'}
+                                    </span>
+                                </button>
+                            )}
 
                             {isHost && lobbyState && !isReady && !hunting && (
                                 <button
