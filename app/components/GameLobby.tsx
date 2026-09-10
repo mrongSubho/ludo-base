@@ -62,7 +62,19 @@ export default function GameLobby({
     // Embedded hunt: the hybrid radar lives INSIDE the TeamUp page (mini
     // view) instead of yanking the host out to the solo radar. The search
     // engine (QuickMatchPanel) mounts hidden; TeamUp shows HuntView.
+    // 40s cap: no fill → timeout message → auto-return to invites.
+    const HUNT_TIMEOUT_S = 40;
     const [embeddedHunt, setEmbeddedHunt] = useState(false);
+    const [huntExpired, setHuntExpired] = useState(false);
+    const huntingRef = useRef(false);
+    huntingRef.current = embeddedHunt;
+    const huntTimers = useRef<{ stop?: ReturnType<typeof setTimeout>; back?: ReturnType<typeof setTimeout> }>({});
+    const clearHuntTimers = useCallback(() => {
+        if (huntTimers.current.stop) clearTimeout(huntTimers.current.stop);
+        if (huntTimers.current.back) clearTimeout(huntTimers.current.back);
+        huntTimers.current = {};
+    }, []);
+    useEffect(() => () => clearHuntTimers(), [clearHuntTimers]);
 
     // Overflow-driven compaction: if the setup column actually overflows its
     // box (any device, any chrome), drop into compact mode. Behavior, not
@@ -198,10 +210,12 @@ export default function GameLobby({
     };
 
     const handleCancelQuickMatch = useCallback(() => {
+        clearHuntTimers();
         setIsQuickMatchActive(false);
         setHybridParams(null);
         setEmbeddedHunt(false);
-    }, []);
+        setHuntExpired(false);
+    }, [clearHuntTimers]);
 
     // Fill Remaining with Quick Match: host advertises the room, the hybrid
     // search pairs public-pool guests straight into it (they joinGame the
@@ -214,7 +228,15 @@ export default function GameLobby({
         playSelect();
         setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType });
         setSearchId(prev => prev + 1);
+        setHuntExpired(false);
         setEmbeddedHunt(true);
+        // 40s cap: still hunting → timeout message, then auto-return.
+        clearHuntTimers();
+        huntTimers.current.stop = setTimeout(() => {
+            if (!huntingRef.current) return;
+            setHuntExpired(true);
+            huntTimers.current.back = setTimeout(() => handleCancelQuickMatch(), 3500);
+        }, HUNT_TIMEOUT_S * 1000);
     };
 
     // Hunt complete: all seats filled → stop the engine, back to roster.
@@ -405,6 +427,8 @@ export default function GameLobby({
                     onSendInvite={sendInvite}
                     onQuickMatch={handleFillWithQuickMatch}
                     hunting={embeddedHunt}
+                    huntExpired={huntExpired}
+                    huntTimeoutS={HUNT_TIMEOUT_S}
                     onCancelHunt={handleCancelQuickMatch}
                     matchType={matchType}
                     gameMode={gameMode}

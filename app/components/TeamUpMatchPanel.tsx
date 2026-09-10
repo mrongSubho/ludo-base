@@ -25,6 +25,8 @@ interface TeamUpMatchPanelProps {
     onSendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
     onQuickMatch: () => void;
     hunting?: boolean;
+    huntExpired?: boolean;
+    huntTimeoutS?: number;
     onCancelHunt?: () => void;
     matchType?: '1v1' | '2v2' | '4P';
     gameMode?: 'classic' | 'power';
@@ -112,10 +114,36 @@ const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: 
 
 // Mini hunt radar: compact hybrid-search view embedded in the TeamUp page.
 // The search engine itself mounts hidden in GameLobby; this is pure status.
-const HuntView = ({ empty, total, isHost, onCancel }: {
+const HuntView = ({ empty, total, isHost, onCancel, expired, timeoutS }: {
     empty: number; total: number; isHost: boolean; onCancel: () => void;
-}) => (
+    expired?: boolean; timeoutS?: number;
+}) => {
+    // Display countdown (the stop itself is owned by the lobby).
+    const span = timeoutS ?? 40;
+    const [secsLeft, setSecsLeft] = useState(span);
+    useEffect(() => {
+        if (expired) return;
+        if (secsLeft <= 0) return;
+        const t = setTimeout(() => setSecsLeft(s => Math.max(0, s - 1)), 1000);
+        return () => clearTimeout(t);
+    }, [secsLeft, expired]);
+    if (expired) {
+        return (
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 p-5 mx-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-lg overflow-hidden animate-in fade-in duration-200">
+                <span className="text-sm font-black text-white/70 uppercase tracking-[0.2em]">
+                    No players found
+                </span>
+                <span className="text-[10px] font-bold text-white/35 tracking-wide">
+                    The pool stayed empty — back to invites…
+                </span>
+            </div>
+        );
+    }
+    return (
     <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 p-5 mx-5 rounded-2xl bg-cyan-500/[0.06] border border-cyan-500/25 backdrop-blur-lg overflow-hidden animate-in fade-in duration-200">
+        <span className="px-2 py-0.5 rounded-full bg-black/30 border border-white/10 text-[10px] font-black tabular-nums text-white/70 tracking-[0.2em]">
+            0:{String(secsLeft).padStart(2, '0')}
+        </span>
         <div className="relative w-20 h-20">
             <DashedRadarRing color="#22d3ee" />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -143,7 +171,8 @@ const HuntView = ({ empty, total, isHost, onCancel }: {
             </button>
         )}
     </div>
-);
+    );
+};
 
 // Faceoff split (1v1 + 2v2): your team vs rivals, glass discs per seat.
 // Our take on the classic A/B-team faceoff — terminal glass, cyan vs ember,
@@ -254,6 +283,8 @@ export const TeamUpMatchPanel = ({
     onSendInvite,
     onQuickMatch,
     hunting = false,
+    huntExpired = false,
+    huntTimeoutS = 40,
     onCancelHunt,
     matchType = '4P',
     gameMode = 'classic',
@@ -286,8 +317,14 @@ export const TeamUpMatchPanel = ({
     // no copy-paste-post chore. ONE row per room (upserted): seat fills
     // rewrite its content so counts stay live; start/close flips it to
     // Started/Closed instead of deleting, so history survives.
-    const [announcedAt, setAnnouncedAt] = useState(0);
-    const announced = announcedAt > 0;
+    // 10s re-announce countdown (ticks for display, clears the lock at 0).
+    const [announceCd, setAnnounceCd] = useState(0);
+    const announced = announceCd > 0;
+    useEffect(() => {
+        if (announceCd <= 0) return;
+        const t = setTimeout(() => setAnnounceCd(c => Math.max(0, c - 1)), 1000);
+        return () => clearTimeout(t);
+    }, [announceCd]);
     const announcedRef = useRef(false);
     const lastPostAt = useRef(0);
     const lastCount = useRef(-1);
@@ -321,8 +358,7 @@ export const TeamUpMatchPanel = ({
         announcedRef.current = true;
         lastCount.current = joined;
         lastPostAt.current = Date.now();
-        setAnnouncedAt(Date.now());
-        setTimeout(() => setAnnouncedAt(0), 10000);
+        setAnnounceCd(10);
     };
     // Seat fills rewrite the row (10s min gap — matches the re-announce ask).
     useEffect(() => {
@@ -372,7 +408,7 @@ export const TeamUpMatchPanel = ({
     const markClosed = (label: 'Started' | 'Closed') => {
         if (!announcedRef.current) return;
         announcedRef.current = false;
-        setAnnouncedAt(0);
+        setAnnounceCd(0);
         postAnnounce(`${matchType} · ${modeLabel} · ${feeLabel} · ${label}`, false);
     };
     const handleClose = () => {
@@ -505,14 +541,34 @@ export const TeamUpMatchPanel = ({
             .filter(s => s.status === 'invited' && s.playerId)
             .map(s => s.playerId!.toLowerCase())
     );
+    // Just-pinged friends: address → timestamp. Rows count down 10s.
+    const [recentInvites, setRecentInvites] = useState<Record<string, number>>({});
 
     const handleInvite = (friend: any) => {
         playSelect();
         // Seat-targeted: the engine only honors roles in 2v2 and fails
         // closed on taken kinds — the popup only opens on empty seats.
         onSendInvite(friend.wallet_address, friend.username, invitePopup?.role);
+        setRecentInvites(prev => ({ ...prev, [(friend.wallet_address || '').toLowerCase()]: Date.now() }));
         setInvitePopup(null);
     };
+    // Per-friend re-invite cooldown (10s): the row counts down, then frees.
+    const [, setInviteTick] = useState(0);
+    useEffect(() => {
+        if (Object.keys(recentInvites).length === 0) return;
+        const t = setInterval(() => {
+            const now = Date.now();
+            setRecentInvites(prev => {
+                const next: Record<string, number> = {};
+                for (const [k, v] of Object.entries(prev)) {
+                    if (now - v < 10000) next[k] = v;
+                }
+                return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+            });
+            setInviteTick(x => x + 1);
+        }, 1000);
+        return () => clearInterval(t);
+    }, [recentInvites]);
 
     return (
         <>
@@ -590,6 +646,8 @@ export const TeamUpMatchPanel = ({
                                     empty={lobbyState?.slots.filter(s => s.status === 'empty').length ?? 0}
                                     total={lobbyState?.slots.length ?? 0}
                                     isHost={isHost}
+                                    expired={huntExpired}
+                                    timeoutS={huntTimeoutS}
                                     onCancel={() => { playClick(); onCancelHunt?.(); setInvitePopup(null); setView('console'); }}
                                 />
                             ) : (
@@ -748,13 +806,22 @@ export const TeamUpMatchPanel = ({
                                                                 <span className={`text-[8px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            disabled={invitedIds.has((f.wallet_address || '').toLowerCase())}
-                                                            onClick={() => handleInvite(f)}
-                                                            className={`shrink-0 ml-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${invitedIds.has((f.wallet_address || '').toLowerCase()) ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 cursor-default' : 'bg-white/5 border border-white/10 text-white/60 hover:bg-cyan-500 hover:text-slate-950'}`}
-                                                        >
-                                                            {invitedIds.has((f.wallet_address || '').toLowerCase()) ? 'Invited' : 'Invite'}
-                                                        </button>
+                                                        {(() => {
+                                                            const key = (f.wallet_address || '').toLowerCase();
+                                                            const recentTs = recentInvites[key];
+                                                            const cooling = recentTs !== undefined && Date.now() - recentTs < 10000;
+                                                            const left = cooling ? Math.max(1, Math.ceil(10 - (Date.now() - (recentTs as number)) / 1000)) : 0;
+                                                            const already = invitedIds.has(key);
+                                                            return (
+                                                                <button
+                                                                    disabled={cooling || already}
+                                                                    onClick={() => handleInvite(f)}
+                                                                    className={`shrink-0 ml-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all tabular-nums ${cooling ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300 cursor-default' : already ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 cursor-default' : 'bg-white/5 border border-white/10 text-white/60 hover:bg-cyan-500 hover:text-slate-950'}`}
+                                                                >
+                                                                    {cooling ? `${left}s` : already ? 'Invited' : 'Invite'}
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </div>
                                                     ))
                                                 ) : (
@@ -794,11 +861,22 @@ export const TeamUpMatchPanel = ({
                                             disabled={announced}
                                             className={`announce-btn py-2.5 rounded-2xl border transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5 ${announced ? 'announce-live bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
                                         >
-                                            <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">
+                                    <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">
+                                        {announced ? (
+                                            <>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                                Announced
+                                            </>
+                                        ) : (
+                                            <>
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M3 11l18-7-7 18-2.5-7.5L3 11z" /></svg>
-                                                {announced ? 'Live' : 'Announce'}
-                                            </span>
-                                            <span className="text-[8px] font-bold tracking-wide text-white/35">Live chat</span>
+                                                Announce
+                                            </>
+                                        )}
+                                    </span>
+                                    <span className="text-[8px] font-bold tracking-wide text-white/35">
+                                        {announced ? `next in ${announceCd}s` : 'in Live chat'}
+                                    </span>
                                         </button>
                                     )}
                                     {lobbyState && (
@@ -810,7 +888,7 @@ export const TeamUpMatchPanel = ({
                                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
                                                 Hunt
                                             </span>
-                                            <span className="text-[8px] font-bold tracking-wide text-cyan-400/60">Auto fill</span>
+                                            <span className="text-[8px] font-bold tracking-wide text-cyan-400/60">Autofill with online players</span>
                                         </button>
                                     )}
                                 </div>

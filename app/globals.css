@@ -375,6 +375,9 @@ body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { backgro
 /* Board compact header: mode-strip inner pill + text stay legible on light glass */
 body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
 body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
+/* Invite notification accents (not covered by the shared cyan-in-cyan rule) */
+body.theme-daybreak .ludo-invite-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-invite-scope :is(.text-amber-400) { color: #b45309; }
 /* TeamUp announce button: amber/emerald washes legible on both themes */
 body.theme-daybreak .ludo-teamup-scope .announce-btn {
   border-color: rgba(180, 83, 9, 0.4) !important;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
@@ -17,6 +17,16 @@ export const InviteNotification = () => {
     const { playSelect } = useSoundEffects();
     const [invite, setInvite] = useState<any>(null);
     const [hostProfile, setHostProfile] = useState<{ username: string; avatar_url: string } | null>(null);
+    // 10s to interact, then it vanishes. Visible countdown included.
+    const [secsLeft, setSecsLeft] = useState(10);
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+    const clearTimers = () => {
+        if (hideTimer.current) clearTimeout(hideTimer.current);
+        if (tickTimer.current) clearInterval(tickTimer.current);
+        hideTimer.current = null;
+        tickTimer.current = null;
+    };
 
     useEffect(() => {
         if (!address) return;
@@ -50,22 +60,34 @@ export const InviteNotification = () => {
                     setInvite(newInvite);
                     playSelect();
 
-                    // Auto-hide after 15 seconds
-                    setTimeout(() => setInvite(null), 15000);
+                    // Fresh 10s window per invite (clears any previous one).
+                    clearTimers();
+                    setSecsLeft(10);
+                    tickTimer.current = setInterval(() => {
+                        setSecsLeft(s => Math.max(0, s - 1));
+                    }, 1000);
+                    hideTimer.current = setTimeout(() => setInvite(null), 10000);
                 }
             )
             .subscribe();
 
         return () => {
+            clearTimers();
             supabase.removeChannel(channel);
         };
     }, [address, playSelect]);
 
     const handleAccept = () => {
         if (invite) {
+            clearTimers();
             joinGame(invite.room_code);
             setInvite(null);
         }
+    };
+
+    const handleIgnore = () => {
+        clearTimers();
+        setInvite(null);
     };
 
     return (
@@ -80,6 +102,13 @@ export const InviteNotification = () => {
                     >
                         {/* Glowing Background Pulse */}
                         <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />
+                        {/* 10s vanish progress */}
+                        <div className="absolute top-0 left-5 right-5 h-0.5 rounded-full bg-white/10 overflow-hidden pointer-events-none">
+                            <div
+                                className="h-full bg-cyan-400/80 transition-[width] duration-1000 ease-linear"
+                                style={{ width: `${secsLeft * 10}%` }}
+                            />
+                        </div>
 
                         <div className="flex items-center gap-3 relative z-10">
                             {/* Host Avatar Pod */}
@@ -100,6 +129,9 @@ export const InviteNotification = () => {
                                 <span className="flex items-center gap-1.5 text-[10px] font-black text-cyan-300 tracking-[0.2em] uppercase mb-1">
                                     <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
                                     Incoming Signal
+                                    <span className="ml-auto px-1.5 py-0.5 rounded-md bg-white/10 text-[9px] tabular-nums text-white/60">
+                                        {secsLeft}s
+                                    </span>
                                 </span>
                                 <h4 className="text-white font-bold text-base leading-tight truncate">
                                     {hostProfile?.username || 'WARRIOR'} <span className="text-white/40 font-medium">invites you</span>
@@ -119,7 +151,7 @@ export const InviteNotification = () => {
                                 Accept Entry
                             </button>
                             <button
-                                onClick={() => setInvite(null)}
+                                onClick={handleIgnore}
                                 className="px-5 py-3 bg-white/5 border border-white/10 text-white/60 text-sm font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-white/10 hover:text-white transition-all active:scale-95"
                             >
                                 Ignore
