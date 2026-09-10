@@ -91,15 +91,18 @@ export default function GameLobby({
     const [searchId, setSearchId] = useState(0);
 
     // Party join feedback: every join tap (feed, chat, link) funnels here.
-    // Seated within 12s → the room opens. Otherwise the room is full,
-    // started, or gone — say so instead of stranding the joiner.
+    // 20s window (mobile data + free signaling is slow); the message is
+    // staged — transport up but unseated means full/started, never-contacted
+    // means the host is gone. A late seat still opens the room.
     const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
     const [joinError, setJoinError] = useState<string | null>(null);
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
+    const joinedCodeRef = useRef<string | null>(null);
     const startPartyJoin = useCallback((code: string, seat?: number) => {
         guard('online-play', () => {
             setJoinError(null);
+            joinedCodeRef.current = code;
             setPendingJoin({ code, since: Date.now() });
             joinGame(code, undefined, seat);
             setTimeout(() => {
@@ -110,23 +113,30 @@ export default function GameLobby({
                 setPendingJoin(cur => {
                     if (!cur || cur.code !== code) return cur;
                     if (seated) setShowTeamUpOptions(true);
-                    else setJoinError('Match has started or closed — or the room is full.');
+                    else if (isLobbyConnected) setJoinError('Match has started or closed — or the room is full.');
+                    else setJoinError("Couldn't reach the host — they may be offline or the room is closed.");
                     return null;
                 });
-            }, 12000);
+            }, 20000);
         });
-    }, [guard, joinGame, address]);
+    }, [guard, joinGame, address, isLobbyConnected]);
 
-    // Fast path: the instant our seat lands, open the room (no 12s wait).
+    // Fast path: the instant our seat lands, open the room (no 20s wait).
+    // Keyed on the joined code, not the pending flag — a seat landing just
+    // after the timeout still opens instead of stranding us on an error.
     useEffect(() => {
-        if (!pendingJoin || !lobbyState) return;
+        if (!lobbyState) return;
+        const code = joinedCodeRef.current;
+        if (!code) return;
         const me = address?.toLowerCase();
-        if (lobbyState.roomCode?.toUpperCase() === pendingJoin.code &&
+        if (lobbyState.roomCode?.toUpperCase() === code &&
             (lobbyState.slots || []).some(s => s.status === 'joined' && s.playerId?.toLowerCase() === me)) {
+            joinedCodeRef.current = null;
             setPendingJoin(null);
+            setJoinError(null);
             setShowTeamUpOptions(true);
         }
-    }, [pendingJoin, lobbyState, address]);
+    }, [lobbyState, address]);
 
     // Incoming invite links (?room=CODE&seat=N): room-only links fill any
     // open seat — ONE link serves the whole party, no per-seat spam.

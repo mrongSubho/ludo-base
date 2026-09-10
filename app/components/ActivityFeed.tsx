@@ -1299,19 +1299,31 @@ function useJoinableCount() {
             let tickets = 0;
             let rooms = 0;
             try {
+                // Live tickets only — expired rows linger until the next join
+                // sweep, so unfiltered counts lie.
                 const q = await supabase.from('matchmaking_queue')
                     .select('player_id', { count: 'exact', head: true })
-                    .eq('status', 'searching');
+                    .eq('status', 'searching')
+                    .gt('expires_at', new Date().toISOString());
                 tickets = q.count || 0;
             } catch { /* keep last */ }
             try {
                 const r = await supabase.from('live_chat')
-                    .select('room_code')
+                    .select('room_code, content')
                     .not('room_code', 'is', null)
                     .eq('room_open', true)
                     .order('created_at', { ascending: false })
                     .limit(100);
-                rooms = new Set((r.data || []).map(x => x.room_code)).size;
+                // A room counts only while its own card shows an open seat
+                // ("3/4 · join"). Full, stale, or foreign-format rows don't.
+                const open = new Set<string>();
+                for (const row of r.data || []) {
+                    const m = typeof row.content === 'string' && row.content.match(/(\d+)\s*\/\s*(\d+)/);
+                    if (m && parseInt(m[2], 10) - parseInt(m[1], 10) > 0 && row.room_code) {
+                        open.add(row.room_code);
+                    }
+                }
+                rooms = open.size;
             } catch { /* pre-migration — tickets only */ }
             if (!cancelled) setCount(tickets + rooms);
         };

@@ -512,7 +512,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 desiredSeatRef.current = undefined;
             });
             conn.on('data', (d) => handleGuestData(d, conn));
-            conn.on('error', () => { if (att < 5) setTimeout(() => connect(p, att + 1), 1000); });
+            // Bounded retries: each attempt carries slow ICE on mobile data,
+            // so 3 tries then stop — the lobby layer reports unreachable.
+            conn.on('error', () => { if (att < 3) setTimeout(() => connect(p, att + 1), 1500); });
         };
         peer.on('open', () => connect(peer, 1));
     }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData]);
