@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "npx --yes tsx --test scripts/engine.test.ts"
+    "test": "npx --yes tsx --test scripts/engine.test.ts",
+    "sync:engine": "node scripts/sync-edge-engine.mjs",
+    "check:engine": "node scripts/check-edge-engine.mjs"
   },
   "dependencies": {
     "@coinbase/onchainkit": "^1.1.2",

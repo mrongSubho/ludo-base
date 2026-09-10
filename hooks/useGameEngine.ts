@@ -24,6 +24,7 @@ import { useGameActions } from './useGameActions';
 import { useGameTimer } from './useGameTimer';
 import { useAFKManager } from './useAFKManager';
 import { useAIBrain } from './useAIBrain';
+import { useMoveAuth } from './useMoveAuth';
 
 export interface Player {
     name: string;
@@ -196,6 +197,10 @@ export function useGameEngine({
         }, 250);
     }, []);
 
+    const serverSeqRef = useRef(0);
+    const lastRollIdRef = useRef<string | null>(null);
+    const moveAuth = useMoveAuth({ myAddress: address, signMessageAsync });
+
     const {
         moveToken,
         handleRoll,
@@ -217,7 +222,10 @@ export function useGameEngine({
         triggerWinConfetti,
         recordWin,
         autoMoveTimeoutRef,
-        startBettingWindow
+        startBettingWindow,
+        moveAuth,
+        serverSeqRef,
+        lastRollIdRef,
     });
 
     useGameTimer({ localGameState, setLocalGameState });

@@ -39,6 +39,29 @@ interface UseGameActionsProps {
     triggerWinConfetti: () => void;
     recordWin: (color: PlayerColor) => Promise<void>;
     autoMoveTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
+    /** v2 server-authoritative moves (networked). Offline keeps local processMove. */
+    moveAuth?: {
+        submitMove: (p: {
+            matchId: string;
+            color: PlayerColor;
+            tokenIndex: number;
+            rollId: string;
+            expectedSeq: number;
+            source?: 'player' | 'host-assist';
+            actorOverride?: string;
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; captured?: boolean; bonusRoll?: boolean; error?: string }>;
+        passTurn: (p: {
+            matchId: string;
+            rollId: string;
+            expectedSeq: number;
+            source?: 'player' | 'host-assist';
+            reason?: string;
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
+    };
+    /** Latest server seq (match_states). */
+    serverSeqRef: React.MutableRefObject<number>;
+    /** Last Edge roll receipt id for the current turn. */
+    lastRollIdRef: React.MutableRefObject<string | null>;
 }
 
 
@@ -58,7 +81,10 @@ export function useGameActions({
     triggerWinConfetti,
     recordWin,
     autoMoveTimeoutRef,
-    startBettingWindow
+    startBettingWindow,
+    moveAuth,
+    serverSeqRef,
+    lastRollIdRef,
 }: UseGameActionsProps) {
 
 
@@ -89,7 +115,77 @@ export function useGameActions({
         );
     }, [activeColorsArr, playerCount, colorCorner]);
 
-    const moveToken = useCallback((color: PlayerColor, tokenIndex: number, steps: number, isRemote = false) => {
+    const moveToken = useCallback(async (color: PlayerColor, tokenIndex: number, steps: number, isRemote = false) => {
+        const currentState0 = stateRef.current;
+        const matchId = currentState0.matchId;
+        const useServer = isLobbyConnected && !!moveAuth && !!matchId && matchId !== 'local';
+
+        // ── v2: Edge-validated move (networked) ──────────────────────────
+        if (useServer && !isRemote) {
+            const rollId = lastRollIdRef.current;
+            if (!rollId) {
+                console.error('🏃 [MoveAuth] No rollId — cannot submit move');
+                return;
+            }
+            const seat = initialPlayers.find(p => p.color === color);
+            const isBotSeat = seat?.isAi || currentState0.afkStats?.[color]?.isKicked;
+            const source = (!isBotSeat && address && seat?.walletAddress?.toLowerCase() === address.toLowerCase())
+                ? 'player'
+                : (isHost ? 'host-assist' : 'player');
+
+            if (autoMoveTimeoutRef.current) {
+                clearTimeout(autoMoveTimeoutRef.current);
+                autoMoveTimeoutRef.current = null;
+            }
+
+            const result = await moveAuth.submitMove({
+                matchId,
+                color,
+                tokenIndex,
+                rollId,
+                expectedSeq: serverSeqRef.current,
+                source: source as 'player' | 'host-assist',
+            });
+
+            if (!result.ok || !result.state) {
+                console.error('🏃 [MoveAuth] rejected:', result.error);
+                // Resync if server returned seq
+                if (typeof result.seq === 'number' && result.state) {
+                    serverSeqRef.current = result.seq;
+                    setLocalGameState(prev => ({ ...prev, ...result.state!, lastUpdate: Date.now() }));
+                }
+                return;
+            }
+
+            serverSeqRef.current = result.seq ?? serverSeqRef.current;
+            lastRollIdRef.current = null;
+
+            const nextState: GameState = {
+                ...currentState0,
+                ...result.state,
+                captureMessage: result.captured ? `Captured! Bonus roll for ${color}!` : currentState0.captureMessage,
+                gamePhase: 'landing',
+                timeLeft: 15,
+                lastUpdate: Date.now(),
+            };
+            setLocalGameState(nextState);
+            if (result.captured) audio.playCapture();
+            audio.playMove();
+            if (result.state.winner) {
+                audio.playWin();
+                triggerWinConfetti();
+                recordWin(color);
+            }
+            // Brief landing buffer then leave phase (server already advanced turn)
+            setTimeout(() => {
+                setLocalGameState(latest => latest.gamePhase === 'landing'
+                    ? { ...latest, gamePhase: 'rolling', lastUpdate: Date.now() }
+                    : latest);
+            }, 800);
+            return;
+        }
+
+        // Guest without server path: intent to host (legacy)
         if (isLobbyConnected && !isHost && !isRemote) {
             console.log('🏃 [Guest] Sending REQUEST_MOVE intent');
             sendIntent('REQUEST_MOVE', { color, tokenIndex, diceValue: steps });
@@ -240,7 +336,7 @@ export function useGameActions({
                 });
             }, 800);
         }
-    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin]);
+    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers]);
 
     const handleRoll = useCallback(async (value?: number, isRemote = false) => {
         // 🔧 FIX 3: Read from stateRef instead of stale closure for guard check
@@ -312,6 +408,7 @@ export function useGameActions({
                     }
                     rollValue = parsed;
                     rollReceiptId = data?.rollId ?? null;
+                    lastRollIdRef.current = rollReceiptId;
                 } catch (err) {
                     console.error('❌ [Engine] Edge RNG failed — aborting networked roll (no client fallback)', err);
                     await tumblePromise;

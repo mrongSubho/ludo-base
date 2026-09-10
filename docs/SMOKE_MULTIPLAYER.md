@@ -74,6 +74,20 @@ Env: `npm run dev` → `http://localhost:3000`. Confirm `.env.local` has Supabas
 
 ---
 
+## EM. Server-validated moves (v2)
+
+| # | Step | Pass |
+|---|------|------|
+| EM1 | START_GAME → `match_states` row (seq 0) | |
+| EM2 | Player move → wallet sign → `move-auth` 200, seq++ | |
+| EM3 | `match_moves` audit row | |
+| EM4 | Replay same `rollId` → rejected | |
+| EM5 | Stale `expectedSeq` → 409 | |
+| EM6 | Guest submit without host local rules | |
+| EM7 | Host disconnect → other player still moves via Edge | |
+
+---
+
 ## F. Settlement (if streaming/betting enabled)
 
 | # | Step | Pass |

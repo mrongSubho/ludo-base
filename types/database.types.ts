@@ -648,6 +648,8 @@ export type Database = {
           action_id: string | null
           result: number
           created_at: string
+          status: string
+          consumed_seq: number | null
         }
         Insert: {
           id?: string
@@ -656,6 +658,8 @@ export type Database = {
           action_id?: string | null
           result: number
           created_at?: string
+          status?: string
+          consumed_seq?: number | null
         }
         Update: {
           id?: string
@@ -663,6 +667,89 @@ export type Database = {
           wallet_address?: string
           action_id?: string | null
           result?: number
+          created_at?: string
+          status?: string
+          consumed_seq?: number | null
+        }
+        Relationships: []
+      }
+      match_states: {
+        Row: {
+          match_id: string
+          room_code: string | null
+          host_address: string | null
+          seq: number
+          state: Json
+          color_corner: Json
+          player_seats: Json
+          updated_at: string
+        }
+        Insert: {
+          match_id: string
+          room_code?: string | null
+          host_address?: string | null
+          seq?: number
+          state: Json
+          color_corner: Json
+          player_seats: Json
+          updated_at?: string
+        }
+        Update: {
+          match_id?: string
+          room_code?: string | null
+          host_address?: string | null
+          seq?: number
+          state?: Json
+          color_corner?: Json
+          player_seats?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      match_moves: {
+        Row: {
+          id: string
+          match_id: string
+          seq: number
+          actor: string
+          color: string
+          token_index: number
+          dice: number
+          roll_id: string | null
+          from_pos: number | null
+          to_pos: number | null
+          captured: boolean | null
+          bonus_roll: boolean | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          seq: number
+          actor: string
+          color: string
+          token_index: number
+          dice: number
+          roll_id?: string | null
+          from_pos?: number | null
+          to_pos?: number | null
+          captured?: boolean | null
+          bonus_roll?: boolean | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          seq?: number
+          actor?: string
+          color?: string
+          token_index?: number
+          dice?: number
+          roll_id?: string | null
+          from_pos?: number | null
+          to_pos?: number | null
+          captured?: boolean | null
+          bonus_roll?: boolean | null
           created_at?: string
         }
         Relationships: []

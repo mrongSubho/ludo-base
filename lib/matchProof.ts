@@ -5,6 +5,9 @@
 
 export const MATCH_RECORD_PREFIX = 'Ludo Base match record';
 export const BET_RESOLVE_PREFIX = 'Ludo Base bet resolve';
+export const MOVE_PREFIX = 'Ludo Base move';
+export const PASS_PREFIX = 'Ludo Base pass';
+export const SEED_PREFIX = 'Ludo Base seed';
 
 /** Max age for a signed privileged request. */
 export const PROOF_MAX_AGE_MS = 10 * 60 * 1000;
@@ -53,4 +56,59 @@ export function isFreshIssuedAt(issuedAt: string, nowMs: number = Date.now()): b
     if (!Number.isFinite(t)) return false;
     const age = nowMs - t;
     return age >= -60_000 && age <= PROOF_MAX_AGE_MS;
+}
+
+export function buildMoveMessage(params: {
+    matchId: string;
+    actor: string;
+    color: string;
+    tokenIndex: number;
+    rollId: string;
+    expectedSeq: number;
+    issuedAt: string;
+}): string {
+    return [
+        MOVE_PREFIX,
+        `match: ${params.matchId}`,
+        `actor: ${params.actor.toLowerCase()}`,
+        `color: ${params.color}`,
+        `token: ${params.tokenIndex}`,
+        `roll: ${params.rollId}`,
+        `seq: ${params.expectedSeq}`,
+        `issued: ${params.issuedAt}`,
+    ].join('\n');
+}
+
+export function buildPassMessage(params: {
+    matchId: string;
+    actor: string;
+    rollId: string;
+    expectedSeq: number;
+    issuedAt: string;
+}): string {
+    return [
+        PASS_PREFIX,
+        `match: ${params.matchId}`,
+        `actor: ${params.actor.toLowerCase()}`,
+        `roll: ${params.rollId}`,
+        `seq: ${params.expectedSeq}`,
+        `issued: ${params.issuedAt}`,
+    ].join('\n');
+}
+
+export function buildSeedMessage(params: {
+    matchId: string;
+    hostAddress: string;
+    roomCode: string;
+    expectedSeq: number;
+    issuedAt: string;
+}): string {
+    return [
+        SEED_PREFIX,
+        `match: ${params.matchId}`,
+        `host: ${params.hostAddress.toLowerCase()}`,
+        `room: ${params.roomCode}`,
+        `seq: ${params.expectedSeq}`,
+        `issued: ${params.issuedAt}`,
+    ].join('\n');
 }

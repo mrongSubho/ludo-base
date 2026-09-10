@@ -171,7 +171,20 @@ All **networked** rolls (humans, host-orchestrated bots, AFK auto-play) call the
 4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks). Offline / local-bot matches may use local RNG.
 5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move (Edge again when networked).
 6. **Server receipts (`match_rolls`):** Edge persists every networked face (`match_id`, unique `action_id`, `result`). Same `actionId` always replays the same face — no retry-until-six. Host broadcasts `rollId` with `ROLL_DICE` for spectators/audit. Table is RLS read-only for clients.
-7. **Honesty note:** The host still applies board state after the face. This closes RNG forgery and roll-retry; it is not full server-owned movement. Ranked ladders still need server-side move validation.
+7. **Server receipts (`match_rolls`):** Edge persists every networked face (`match_id`, unique `action_id`, `result`). Same `actionId` always replays the same face — no retry-until-six. Host broadcasts `rollId` with `ROLL_DICE` for spectators/audit. Table is RLS read-only for clients.
+
+### 7.1b Server-validated moves (v2)
+
+Networked matches seed `match_states` on `START_GAME`. Moves go through the `move-auth` Edge Function:
+
+1. Wallet-signed `submit-move` (player seat) or host-signed `host-assist` (bot/AFK only).
+2. Edge binds `rollId` from `match_rolls` (one roll → one move).
+3. Edge runs pure `lib/engine` (`processMove` / `getLegalTokenIndices`).
+4. Optimistic `seq++` on `match_states`; `match_moves` audit; broadcast `ENGINE_STATE`.
+5. `match_states.seq` is display authority (host is animator/relay, not rules).
+6. No legal move → signed `pass-turn`. Powers stay host-local until Phase 3; **classic** is the server-trusted mode.
+
+Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`npm run check:engine`).
 
 ### 7.2 Chat encryption
 DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair in localStorage and publishes the public JWK on `players.ecdh_pubkey`. Senders generate an ephemeral pair, derive AES-GCM via the peer's static pubkey, and store `{v:1, epk, iv, content}`. Recipients open with their static private key. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).

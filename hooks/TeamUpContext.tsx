@@ -11,7 +11,9 @@ import { useProvablyFairDice } from '@/hooks/useProvablyFairDice';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useBettingController } from '@/hooks/useBettingController';
 import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
+import { useMoveAuth } from '@/hooks/useMoveAuth';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
+import { INITIAL_GAME_STATE as ENGINE_INIT } from '@/lib/gameLogic';
 import {
     GameState,
     PlayerColor,
@@ -90,6 +92,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { address: myAddress } = useAccount();
     const { signMessageAsync } = useSignMessage();
     const { myProfile } = useGameData();
+    const moveAuth = useMoveAuth({ myAddress, signMessageAsync });
     const [lastIntent, setLastIntent] = useState<any | null>(null);
     // Matchmaking validation token the host will require from guests (if set).
     const expectedValidationTokenRef = useRef<string | null>(null);
@@ -184,7 +187,37 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 playerCount: payload.playerCount || prev.playerCount,
                 initialBoardConfig: payload.initialBoardConfig
             }));
-            
+
+            // Seed server-authoritative match_states (v2 move validation)
+            const matchId = payload.matchId || gameStateRef.current.matchId;
+            if (matchId && myAddress && payload.initialBoardConfig) {
+                const seats: Record<string, { kind: 'human' | 'bot' | 'afk'; wallet?: string }> = {};
+                (payload.initialBoardConfig.players as { color: string; isAi?: boolean; walletAddress?: string }[] || [])
+                    .forEach(p => {
+                        seats[p.color] = p.isAi
+                            ? { kind: 'bot' }
+                            : { kind: 'human', wallet: p.walletAddress };
+                    });
+                const initialState = {
+                    ...ENGINE_INIT,
+                    matchId,
+                    playerCount: payload.playerCount || '4P',
+                    currentPlayer: payload.initialBoardConfig.players?.[0]?.color || 'green',
+                    isStarted: true,
+                    status: 'playing' as const,
+                };
+                moveAuth.seedMatch({
+                    matchId: String(matchId),
+                    roomCode: currentRoomCode || roomId || '',
+                    colorCorner: payload.initialBoardConfig.colorCorner,
+                    playerSeats: seats,
+                    initialState,
+                }).then(r => {
+                    if (!r.ok) console.error('🌱 [MoveAuth] seed failed', (r as { data?: unknown; error?: string }).data || (r as { error?: string }).error);
+                    else console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
+                }).catch(err => console.error('🌱 [MoveAuth] seed error', err));
+            }
+
             setLobbyState((prev: LobbyState | null) => {
                 if (!prev) return prev;
                 const newLobby = { ...prev, status: 'playing' as const };
