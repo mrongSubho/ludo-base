@@ -291,6 +291,12 @@ export const TeamUpMatchPanel = ({
     const announcedRef = useRef(false);
     const lastPostAt = useRef(0);
     const lastCount = useRef(-1);
+    // Fresh seat counts for the heartbeat interval (avoids stale closure).
+    const lobbyCountsRef = useRef({ joined: 0, total: 0 });
+    lobbyCountsRef.current = {
+        joined: lobbyState?.slots.filter(s => s.status === 'joined').length ?? 0,
+        total: lobbyState?.slots.length ?? 0,
+    };
     const postAnnounce = async (content: string, open: boolean) => {
         if (!roomCodeValue || !address) return false;
         try {
@@ -330,6 +336,37 @@ export const TeamUpMatchPanel = ({
         postAnnounce(announceContent(joined, total), true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lobbyState, roomCodeValue, address]);
+    // Liveness heartbeat: while this room is announced+open, refresh the
+    // row every 60s. Discovery surfaces trust recency (5min cutoff), so a
+    // host that vanishes without closing fades instead of haunting the feed.
+    useEffect(() => {
+        if (!roomCodeValue || !address) return;
+        const t = setInterval(() => {
+            if (!announcedRef.current) return;
+            const { joined, total } = lobbyCountsRef.current;
+            postAnnounce(announceContent(joined, total), true);
+            lastPostAt.current = Date.now();
+        }, 60000);
+        return () => clearInterval(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roomCodeValue, address]);
+    // App-kill backstop: beacon a close so the row doesn't ghost.
+    useEffect(() => {
+        const onUnload = () => {
+            if (!announcedRef.current || !roomCodeValue || !address) return;
+            try {
+                navigator.sendBeacon?.('/api/live-chat', JSON.stringify({
+                    wallet: address,
+                    roomCode: roomCodeValue,
+                    roomOpen: false,
+                    content: `${matchType} · ${modeLabel} · ${feeLabel} · Closed`,
+                }));
+            } catch { /* last breath — best effort */ }
+        };
+        window.addEventListener('beforeunload', onUnload);
+        return () => window.removeEventListener('beforeunload', onUnload);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roomCodeValue, address]);
     // Start/leave marks the row Started/Closed (never deleted). Host-only:
     // a guest closing the panel doesn't kill the room.
     const markClosed = (label: 'Started' | 'Closed') => {

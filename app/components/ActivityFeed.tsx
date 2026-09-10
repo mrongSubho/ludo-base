@@ -53,6 +53,7 @@ interface LiveRoom {
     createdAt: number;
     open: boolean;
     country?: string;
+    senderId?: string;
 }
 
 type CScope = 'global' | 'local';
@@ -355,6 +356,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                     .select('room_code, content, username, avatar_url, sender_id, room_open, country, created_at')
                     .not('room_code', 'is', null)
                     .eq('room_open', true)
+                    .gt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
                     .order('created_at', { ascending: false })
                     .limit(20);
                 if (error) throw error;
@@ -722,6 +724,7 @@ function useBroadcastData(): BroadcastData {
             createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
             open: row.room_open !== false,
             country: row.country || 'XX',
+            senderId: (row.sender_id || '').toLowerCase() || undefined,
         };
     }, []);
 
@@ -769,6 +772,7 @@ function useBroadcastData(): BroadcastData {
                     .select('room_code, content, username, avatar_url, sender_id, room_open, country, created_at')
                     .not('room_code', 'is', null)
                     .eq('room_open', true)
+                    .gt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
                     .order('created_at', { ascending: false })
                     .limit(20);
                 if (error) throw error;
@@ -982,6 +986,8 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
             out.push({ key: `c-${m.id}`, ts: m.created_at ? new Date(m.created_at).getTime() : 0, kind: 'chat', msg: m });
         }
         for (const r of rooms) {
+            // Never discover yourself; freshness handled at fetch time.
+            if (r.senderId && r.senderId === meLower) continue;
             if (localOnly && (r.country || 'XX') !== country) continue;
             out.push({ key: `r-${r.key}`, ts: r.createdAt, kind: 'room', room: r });
         }
@@ -1292,32 +1298,41 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
 // Joinable count: searching tickets + open announced rooms (debounced).
 function useJoinableCount() {
     const [count, setCount] = useState(0);
+    const { address } = useAccount();
+    const me = (address || '').toLowerCase();
     useEffect(() => {
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | null = null;
         const recompute = async () => {
+            // Heartbeats keep live rows under a minute old — anything older
+            // is a ghost whose host vanished without closing.
+            const freshSince = new Date(Date.now() - 10 * 60 * 1000).toISOString();
             let tickets = 0;
             let rooms = 0;
             try {
                 // Live tickets only — expired rows linger until the next join
-                // sweep, so unfiltered counts lie.
-                const q = await supabase.from('matchmaking_queue')
+                // sweep, so unfiltered counts lie. Never count yourself.
+                let q = supabase.from('matchmaking_queue')
                     .select('player_id', { count: 'exact', head: true })
                     .eq('status', 'searching')
                     .gt('expires_at', new Date().toISOString());
-                tickets = q.count || 0;
+                if (me) q = q.neq('player_id', me);
+                const res = await q;
+                tickets = res.count || 0;
             } catch { /* keep last */ }
             try {
                 const r = await supabase.from('live_chat')
-                    .select('room_code, content')
+                    .select('room_code, content, sender_id')
                     .not('room_code', 'is', null)
                     .eq('room_open', true)
+                    .gt('created_at', freshSince)
                     .order('created_at', { ascending: false })
                     .limit(100);
                 // A room counts only while its own card shows an open seat
-                // ("3/4 · join"). Full, stale, or foreign-format rows don't.
+                // ("3/4 · join"). Full, stale, foreign-format — or mine — don't.
                 const open = new Set<string>();
                 for (const row of r.data || []) {
+                    if (me && (row.sender_id || '').toLowerCase() === me) continue;
                     const m = typeof row.content === 'string' && row.content.match(/(\d+)\s*\/\s*(\d+)/);
                     if (m && parseInt(m[2], 10) - parseInt(m[1], 10) > 0 && row.room_code) {
                         open.add(row.room_code);
@@ -1354,6 +1369,8 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
     // (Classic · 2v2 · Free · 3/4 · join), tap-to-join, ticking live.
     // Session-bounded like the rooms tab — pre-session history stays out.
     const [latestRoom, setLatestRoom] = useState<{ roomCode: string; content: string } | null>(null);
+    const { address: cardAddr } = useAccount();
+    const cardMe = (cardAddr || '').toLowerCase();
     const latestRef = useRef<{ roomCode: string; content: string } | null>(null);
     const setRoom = (r: { roomCode: string; content: string } | null) => {
         latestRef.current = r;
@@ -1363,6 +1380,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
     useEffect(() => {
         const pick = (row: any) => {
             if (!row?.room_code || row.room_open === false) return null;
+            if ((row.sender_id || '').toLowerCase() === cardMe) return null;
             if (!row.created_at || new Date(row.created_at).getTime() < roomSessionStart.current) return null;
             return { roomCode: row.room_code as string, content: (row.content as string) || '' };
         };
@@ -1373,6 +1391,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
                     .select('room_code, content, room_open, created_at')
                     .not('room_code', 'is', null)
                     .eq('room_open', true)
+                    .gt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
                     .order('created_at', { ascending: false })
                     .limit(5);
                 if (error) throw error;
