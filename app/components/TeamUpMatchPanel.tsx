@@ -260,6 +260,9 @@ export const TeamUpMatchPanel = ({
     entryFee = 0,
 }: TeamUpMatchPanelProps) => {
     const { playSelect, playClick, playDiceLand } = useSoundEffects();
+    // Identity first: everything below (effects, deps, handlers) may read it.
+    // (A use-before-declare here is a mount-time TDZ crash — see 5b964f1.)
+    const { address } = useCurrentUser();
     const [view, setView] = useState<'console' | 'join'>('console');
     const [roomCode, setRoomCode] = useState('');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -318,7 +321,6 @@ export const TeamUpMatchPanel = ({
         return 2;
     };
 
-    const { address } = useCurrentUser();
     const { friends: friendsData, isBooting: isLoadingFriends } = useGameData();
     const isReady = lobbyState ? canStartMatch(lobbyState) : false;
 
