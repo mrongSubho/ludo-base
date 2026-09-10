@@ -81,10 +81,10 @@ export function useAFKManager({
         // This prevents Guests from spamming intents while 'timeLeft' is 0.
         if (isHost && !isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
             if (localGameState.gamePhase === 'rolling') {
-                const forcedRoll = Math.floor(Math.random() * 6) + 1;
-                // Reset timeLeft immediately before async call to prevent loop
+                // No pre-rolled face: handleRoll uses Edge RNG in networked
+                // matches and local RNG only offline (see useGameActions).
                 setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
-                handleRoll(forcedRoll);
+                handleRoll();
             } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const diceValue = localGameState.diceValue;
                 // Engine-accurate legality only — never naive pos+roll

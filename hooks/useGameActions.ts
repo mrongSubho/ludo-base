@@ -282,20 +282,20 @@ export function useGameActions({
         const tumblePromise = new Promise(r => setTimeout(r, 1200));
 
         // 2. Generate and Set Result
-        // Networked human rolls: Edge RNG only — never silently fall back to
-        // client Math.random (a hostile host could force any face that way).
-        // Offline/bot/AFK may use local CSPRNG-equivalent.
+        // Networked seats (humans AND host-orchestrated bots/AFK): Edge RNG only.
+        // Offline matches may use local RNG.
         if (!value) {
-            const networkedHuman = isLobbyConnected && !isCurrentlyBot && !!address;
-            if (networkedHuman) {
+            const networkedSeat = isLobbyConnected;
+            if (networkedSeat) {
                 try {
+                    const roller = address || `${color}-bot`;
                     const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
                         },
-                        body: JSON.stringify({ matchId: localGameState.matchId || 'local', walletAddress: address, actionId: Date.now() })
+                        body: JSON.stringify({ matchId: localGameState.matchId || 'local', walletAddress: roller, actionId: Date.now() })
                     });
 
                     if (!response.ok) throw new Error('Edge RNG failed');
@@ -313,7 +313,7 @@ export function useGameActions({
                     return;
                 }
             } else {
-                // Bots / AFK Auto-Play / offline human
+                // Offline human / local bot
                 rollValue = Math.floor(Math.random() * 6) + 1;
             }
         }

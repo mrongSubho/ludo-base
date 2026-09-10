@@ -99,10 +99,15 @@ export const useDataActions = ({
             await publishMyEcdhPubkey(lowerAddr);
             let peerJwk = await fetchPeerEcdhPubkey(targetId);
             if (!peerJwk) {
-                // Recipient may never have opened chat — publish a throwaway
-                // keypair for them is NOT possible (we don't hold their private
-                // key). Fail closed with a clear status rather than plaintext.
-                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
+                // One short poll — recipient may be mid-boot publishing their key.
+                await new Promise(r => setTimeout(r, 1200));
+                peerJwk = await fetchPeerEcdhPubkey(targetId);
+            }
+            if (!peerJwk) {
+                // Fail closed (no plaintext). Message stays retryable.
+                setMessages(prev => prev.map(m => m.id === tempId
+                    ? { ...m, send_status: 'failed', content: content }
+                    : m));
                 console.warn('Recipient has no ECDH pubkey yet — cannot seal DM', targetId);
                 return;
             }

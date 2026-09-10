@@ -47,7 +47,8 @@ export default function GameLobby({
         sendInvite,
         swapPlayers,
         kickPlayer,
-        leaveGame
+        leaveGame,
+        allowOpenJoins
     } = useTeamUpContext();
     const { address } = useAccount();
     // Guests can only enter offline/bot matches — online entry shows the wall.
@@ -111,12 +112,12 @@ export default function GameLobby({
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
-    const startPartyJoin = useCallback((code: string, seat?: number) => {
+    const startPartyJoin = useCallback((code: string, seat?: number, secret?: string | null) => {
         guard('online-play', () => {
             setJoinError(null);
             joinedCodeRef.current = code;
             setPendingJoin({ code, since: Date.now() });
-            joinGame(code, undefined, seat);
+            joinGame(code, secret ?? undefined, seat);
             setTimeout(() => {
                 const L = lobbyRef.current;
                 const me = address?.toLowerCase();
@@ -161,9 +162,10 @@ export default function GameLobby({
             if (!code || code.trim().length < 3) return;
             const seatRaw = params.get('seat');
             const seat = seatRaw !== null && /^\d+$/.test(seatRaw) ? parseInt(seatRaw, 10) : undefined;
+            const secret = params.get('s');
             // Consume: never re-join on re-render.
             window.history.replaceState(null, '', window.location.pathname);
-            startPartyJoin(code.trim().toUpperCase(), seat);
+            startPartyJoin(code.trim().toUpperCase(), seat, secret);
         } catch { /* no link — normal entry */ }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -226,6 +228,8 @@ export default function GameLobby({
         const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
         if (empty === 0) return;
         playSelect();
+        // Matchmaking-paired guests present ticket tokens, not the room secret.
+        allowOpenJoins();
         setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType });
         setSearchId(prev => prev + 1);
         setHuntExpired(false);

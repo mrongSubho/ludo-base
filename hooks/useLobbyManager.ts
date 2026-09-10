@@ -31,6 +31,8 @@ interface UseLobbyManagerProps {
     peerRef: React.MutableRefObject<Peer | null>;
     connectionsRef: React.MutableRefObject<any>;
     broadcastToAll: (data: any) => void;
+    /** Host join secret stamped onto game_invites so accept can join. */
+    getRoomSecret?: () => string | null;
 }
 
 export function useLobbyManager({
@@ -44,7 +46,8 @@ export function useLobbyManager({
     setGameState,
     peerRef,
     connectionsRef,
-    broadcastToAll
+    broadcastToAll,
+    getRoomSecret
 }: UseLobbyManagerProps) {
     const [lobbyState, setLobbyState] = useState<LobbyState | null>(null);
     const lobbyStateRef = useRef<LobbyState | null>(null);
@@ -123,7 +126,8 @@ export function useLobbyManager({
             guest_address: lowerFriendId,
             match_type: lobbyState.matchType,
             entry_fee: lobbyState.entryFee,
-            status: 'pending'
+            status: 'pending',
+            validation_token: getRoomSecret?.() ?? null
         };
 
         supabase
@@ -132,7 +136,7 @@ export function useLobbyManager({
             .then(({ error }) => {
                 if (error) console.error('🚨 Error sending invite:', error);
             });
-    }, [lobbyState, broadcastToAll, myAddress]);
+    }, [lobbyState, broadcastToAll, myAddress, getRoomSecret]);
 
     return {
         lobbyState,

@@ -163,13 +163,13 @@ AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently o
 
 ## 7. Technical Guardrails [Quality of Service]
 
-### 7.1 Dice (Edge Function — networked human rolls)
-Networked human rolls call the Supabase Edge Function (`/functions/v1/roll-dice`) for a CSPRNG 1–6 result:
+### 7.1 Dice (Edge Function — networked seats)
+All **networked** rolls (humans, host-orchestrated bots, AFK auto-play) call the Supabase Edge Function (`/functions/v1/roll-dice`) for a CSPRNG 1–6 result:
 1. Client broadcasts a `REQUEST_ROLL` intent (`isRolling`, UI spins).
 2. Client queries the `roll-dice` Edge Function.
 3. On success, the host broadcasts `ROLL_DICE` with the fetched value.
-4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks) — a host must not be able to force a face via `Math.random()`. Offline / bot / AFK auto-play may use local RNG.
-5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move.
+4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks). Offline / local-bot matches may use local RNG.
+5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move (Edge again when networked).
 6. **Honesty note:** The host still applies the value and is the multiplayer authority. This reduces casual cheating; it is not a full server-authoritative roll. Ranked/wager settlement requires signed outcomes (§8.2 / `/api/match/record`).
 
 ### 7.2 Chat encryption

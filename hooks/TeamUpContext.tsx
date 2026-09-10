@@ -69,6 +69,10 @@ export interface TeamUpContextType {
     clearIntent: () => void;
     leaveGame: () => void;
     validationToken?: string;
+    /** Host join secret for invite links (`?s=`). Null when not hosting. */
+    roomSecret: string | null;
+    /** Hybrid public fill: guests arrive via matchmaking tokens — drop the room-secret gate. */
+    allowOpenJoins: () => void;
     activeBetWindow: ActiveBettingWindow | null;
     startBettingWindow: (betType: BetType) => Promise<string>;
 }
@@ -92,6 +96,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [lastIntent, setLastIntent] = useState<any | null>(null);
     // Matchmaking validation token the host will require from guests (if set).
     const expectedValidationTokenRef = useRef<string | null>(null);
+    // Host-only join secret for invite lobbies (not on the matchmaking path).
+    // Embedded in invite links as `s=` and passed to joinGame as the token.
+    const [roomSecret, setRoomSecret] = useState<string | null>(null);
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -142,7 +149,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setGameState,
         peerRef,
         connectionsRef,
-        broadcastToAll
+        broadcastToAll,
+        getRoomSecret: () => expectedValidationTokenRef.current
     });
 
     // 2. Supabase Relay (define relayViaSupabase early)
@@ -520,7 +528,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const hostGame = useCallback((forcedRoomId?: string, expectedValidationToken?: string) => {
         destroyPeer();
         setIsHost(true);
-        expectedValidationTokenRef.current = expectedValidationToken || null;
+        // Prefer the matchmaking token; otherwise mint a room secret so
+        // invite links are not open-join if the code leaks via live-chat.
+        const joinSecret = expectedValidationToken || crypto.randomUUID();
+        expectedValidationTokenRef.current = joinSecret;
+        setRoomSecret(joinSecret);
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
@@ -628,6 +640,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         return code;
     }, [hostGame, initQuickLobby]);
 
+    /** Public-pool fill: matchmaking already paired guests — do not require room secret. */
+    const allowOpenJoins = useCallback(() => {
+        expectedValidationTokenRef.current = null;
+    }, []);
+
     const leaveGame = useCallback(() => {
         destroyPeer();
         setIsHost(false);
@@ -637,6 +654,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setGameState(INITIAL_GAME_STATE);
         setLobbyState(null);
         setParticipants({});
+        expectedValidationTokenRef.current = null;
+        setRoomSecret(null);
+        setValidationToken(undefined);
 
         if (myAddress) {
             supabase.from('players')
@@ -726,11 +746,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
+        roomSecret, allowOpenJoins,
         activeBetWindow, startBettingWindow
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
+        roomSecret, allowOpenJoins,
         activeBetWindow, startBettingWindow
     ]);
 

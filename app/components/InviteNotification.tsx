@@ -80,7 +80,7 @@ export const InviteNotification = () => {
     const handleAccept = () => {
         if (invite) {
             clearTimers();
-            joinGame(invite.room_code);
+            joinGame(invite.room_code, invite.validation_token || undefined);
             setInvite(null);
         }
     };

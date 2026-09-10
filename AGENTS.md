@@ -32,7 +32,7 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 
 1. **2v2 teams are one source of truth:** `TEAM_PAIRINGS` in `lib/constants.ts` — **Green+Yellow vs Red+Blue**. Seating (`assignCorners2v2`), `getTeammateColor`, `getTeam`, assist, capture, and win checks must all use it. Never fork a second pairing.
 2. **Move legality uses engine math:** always `calculateNextPosition` / `getLegalTokenIndices`. Never `pos + roll` (breaks gate crossing into home stretch 52–57).
-3. **Networked human rolls:** Edge Function `roll-dice` only — **no client `Math.random` fallback**. Offline/bot/AFK may use local RNG. Failure aborts the roll.
+3. **Networked rolls (humans, bots, AFK):** Edge Function `roll-dice` only — **no client `Math.random` fallback**. Offline/local-bot may use local RNG. Failure aborts the roll.
 4. **`/api/match/record`:** requires wallet signature over `buildMatchRecordMessage`; signer must be a listed participant; no coin pot payout (progression only); replay blocked if match already has a winner.
 5. **`resolve-bet`:** host wallet-signs `buildBetResolveMessage`; Edge verifies signature + `live_matches.host_address`. Do not accept free-form `result` from the network.
 6. **Power tile types** stay on the authority; strip `type` before any wire send (`sanitizeGameStateForWire` in `TeamUpContext`).
@@ -50,7 +50,7 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 - Offline/bot: `page.tsx:handlePlayNow` seeds `boardSeed`; `Board.tsx` prefers it. Bots: `DIFFICULTY_PARAMS` clocks in `constants.ts`.
 - Multiplayer: Supabase Realtime broadcast (`game-room-<roomCode>`) primary; PeerJS for handshake/`SYNC_PROFILE`. `actionId` + `processedActionIds` dedup. Host/compute-host is authority; guests send intents.
 - **Guest intents are dual-path:** `sendIntent` sends PeerJS `GAME_ACTION` **and** Supabase `GAME_INTENT` with a shared `intentId`. Host dedups via `processedIntentIds` so NAT-blocked PeerJS does not mute guests.
-- Host `validation_token`: when set (matchmaking), guests must present it on `SYNC_PROFILE` or the host closes the connection. Invite lobbies without a token remain open-join (known gap).
+- Host join gate: matchmaking hosts require the ticket `validation_token`. Invite lobbies mint a **room secret** on `hostGame` (`?s=` in links, `game_invites.validation_token`). Hybrid public fill calls `allowOpenJoins()` so matchmaking-paired guests are not blocked.
 - Betting window live path: `TeamUpContext.startBettingWindow` only (`useBettingWindow` module was removed).
 - `startQuickMatch` in `TeamUpContext` hits `/api/matchmaking/join` and hosts/joins on match.
 - Style/UI: terminal-glass, cyan `#00E5FF`, uppercase CTAs; Settings hosts Theme + Token switchers with inline SVG (no emoji).

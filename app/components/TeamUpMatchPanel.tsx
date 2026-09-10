@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { supabase } from '@/lib/supabase';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
@@ -294,6 +295,7 @@ export const TeamUpMatchPanel = ({
     // Identity first: everything below (effects, deps, handlers) may read it.
     // (A use-before-declare here is a mount-time TDZ crash — see 5b964f1.)
     const { address } = useCurrentUser();
+    const { roomSecret } = useTeamUpContext();
     // Data mapping FIRST: effects and dep arrays below read these during
     // render — anything declared after first use is a mount-time TDZ crash.
     const hostSlot = lobbyState?.slots[0];
@@ -525,7 +527,8 @@ export const TeamUpMatchPanel = ({
 
     const inviteLinkFor = (seat?: number) => {
         if (typeof window === 'undefined' || !roomCodeValue) return '';
-        return `${window.location.origin}${window.location.pathname}?room=${roomCodeValue}${seat !== undefined ? `&seat=${seat}` : ''}`;
+        const s = roomSecret ? `&s=${encodeURIComponent(roomSecret)}` : '';
+        return `${window.location.origin}${window.location.pathname}?room=${roomCodeValue}${s}${seat !== undefined ? `&seat=${seat}` : ''}`;
     };
 
     // First tap on an empty seat hosts the room (wires up the dead onHost),
