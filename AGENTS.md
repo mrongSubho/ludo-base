@@ -49,7 +49,8 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 - Valid-move highlight: `calculateNextPosition(pos, dice, color, cc) !== pos` in `BoardTokens` / `BoardHome`.
 - Offline/bot: `page.tsx:handlePlayNow` seeds `boardSeed`; `Board.tsx` prefers it. Bots: `DIFFICULTY_PARAMS` clocks in `constants.ts`.
 - Multiplayer: Supabase Realtime broadcast (`game-room-<roomCode>`) primary; PeerJS for handshake/`SYNC_PROFILE`. `actionId` + `processedActionIds` dedup. Host/compute-host is authority; guests send intents.
+- **Guest intents are dual-path:** `sendIntent` sends PeerJS `GAME_ACTION` **and** Supabase `GAME_INTENT` with a shared `intentId`. Host dedups via `processedIntentIds` so NAT-blocked PeerJS does not mute guests.
 - Host `validation_token`: when set (matchmaking), guests must present it on `SYNC_PROFILE` or the host closes the connection. Invite lobbies without a token remain open-join (known gap).
-- Betting window live path: `TeamUpContext.startBettingWindow` only. `hooks/useBettingWindow.ts` is deprecated — do not call from the roll pipeline.
+- Betting window live path: `TeamUpContext.startBettingWindow` only (`useBettingWindow` module was removed).
 - `startQuickMatch` in `TeamUpContext` hits `/api/matchmaking/join` and hosts/joins on match.
 - Style/UI: terminal-glass, cyan `#00E5FF`, uppercase CTAs; Settings hosts Theme + Token switchers with inline SVG (no emoji).
