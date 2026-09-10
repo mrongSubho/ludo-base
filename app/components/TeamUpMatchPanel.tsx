@@ -347,6 +347,14 @@ export const TeamUpMatchPanel = ({
         if (!roomCodeValue) onHost();
     };
 
+    // Seats holding a sent invite — rows reflect it back instead of
+    // offering a duplicate ping.
+    const invitedIds = new Set(
+        (lobbyState?.slots ?? [])
+            .filter(s => s.status === 'invited' && s.playerId)
+            .map(s => s.playerId!.toLowerCase())
+    );
+
     const handleInvite = (friend: any) => {
         playSelect();
         // Seat-targeted: the engine only honors roles in 2v2 and fails
@@ -548,11 +556,11 @@ export const TeamUpMatchPanel = ({
                                         value={ftab}
                                         onPick={setFtab}
                                         options={[
-                                            { value: 'social', label: 'Social' },
-                                            { value: 'global', label: 'Global' },
+                                            { value: 'social', label: `Social (${(friendsData.gameFriends || []).filter((f: any) => rankOf(f) < 2).length})` },
+                                            { value: 'global', label: `Global (${(friendsData.onchainFriends || []).filter((f: any) => rankOf(f) < 2).length})` },
                                         ]}
                                     />
-                                    <div className="min-h-0 overflow-y-auto no-scrollbar flex flex-col gap-2 pb-1">
+                                    <div className="flex-1 min-h-[140px] overflow-y-auto no-scrollbar flex flex-col gap-2 pb-1">
                                         {isLoadingFriends ? (
                                             <div className="py-8 flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         ) : (
@@ -577,12 +585,19 @@ export const TeamUpMatchPanel = ({
                                                                 <span className={`text-[8px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => handleInvite(f)} className="shrink-0 ml-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/60 uppercase hover:bg-cyan-500 hover:text-slate-950 transition-all">Invite</button>
+                                                        <button
+                                                            disabled={invitedIds.has((f.wallet_address || '').toLowerCase())}
+                                                            onClick={() => handleInvite(f)}
+                                                            className={`shrink-0 ml-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${invitedIds.has((f.wallet_address || '').toLowerCase()) ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 cursor-default' : 'bg-white/5 border border-white/10 text-white/60 hover:bg-cyan-500 hover:text-slate-950'}`}
+                                                        >
+                                                            {invitedIds.has((f.wallet_address || '').toLowerCase()) ? 'Invited' : 'Invite'}
+                                                        </button>
                                                     </div>
                                                     ))
                                                 ) : (
-                                                    <div className="py-8 flex flex-col items-center justify-center opacity-30">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">No friends online</span>
+                                                    <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-center">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">No friends online</span>
+                                                        <span className="text-[9px] font-bold text-white/30 max-w-[240px]">Offline contacts stay hidden — free players first, in-match second. Share the seat link above instead.</span>
                                                     </div>
                                                 );
                                             })()
