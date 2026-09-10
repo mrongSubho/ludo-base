@@ -781,38 +781,39 @@ export const TeamUpMatchPanel = ({
                             </div>
                         )}
 
-                        {/* Footer */}
+                        {/* Footer: one fill row (Announce | Hunt) + Start.
+                            Mode/fee live once in the header — never repeated.
+                            No room, no footer actions (discs host on demand). */}
+                        {roomCodeValue && (
                         <div className="w-full mt-1 flex flex-col gap-2 px-5 pb-5 pt-3 border-t border-white/10 relative z-10 shrink-0">
-                            <div className="bg-black/40 border border-white/10 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
-                                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Mode: <span className="text-white">{modeLabel}</span></span>
-                                <div className="w-1 h-3 bg-white/10 rounded-full" />
-                                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Entry Fee: <span className="text-amber-400">{feeLabel}</span></span>
-                            </div>
-
-                            {isHost && roomCodeValue && (lobbyState?.slots.some(s => s.status === 'empty')) && (
-                                <button
-                                    onClick={announceRoom}
-                                    disabled={announced}
-                                    className={`announce-btn w-full py-2.5 rounded-2xl border transition-all active:scale-95 flex items-center justify-center gap-2 ${announced ? 'announce-live bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 11l18-7-7 18-2.5-7.5L3 11z" /></svg>
-                                    <span className="font-black tracking-[0.2em] text-xs uppercase">
-                                        {announced ? 'Live in chat' : 'Announce in Live chat'}
-                                    </span>
-                                </button>
-                            )}
-
-                            {isHost && lobbyState && !isReady && !hunting && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }}
-                                    className="w-full py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 transition-all hover:bg-cyan-500/20 active:scale-95 flex flex-col items-center justify-center gap-0.5"
-                                >
-                                    <span className="flex items-center gap-2 font-black tracking-[0.2em] text-xs uppercase">
-                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
-                                        Quick Match
-                                    </span>
-                                    <span className="text-[9px] font-bold normal-case tracking-wide text-cyan-400/60">Fills empty seats & posts your room to the live feed</span>
-                                </button>
+                            {isHost && !isReady && !hunting && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(lobbyState?.slots.some(s => s.status === 'empty')) && (
+                                        <button
+                                            onClick={announceRoom}
+                                            disabled={announced}
+                                            className={`announce-btn py-2.5 rounded-2xl border transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5 ${announced ? 'announce-live bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
+                                        >
+                                            <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M3 11l18-7-7 18-2.5-7.5L3 11z" /></svg>
+                                                {announced ? 'Live' : 'Announce'}
+                                            </span>
+                                            <span className="text-[8px] font-bold tracking-wide text-white/35">Live chat</span>
+                                        </button>
+                                    )}
+                                    {lobbyState && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }}
+                                            className="py-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 transition-all hover:bg-cyan-500/20 active:scale-95 flex flex-col items-center justify-center gap-0.5"
+                                        >
+                                            <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">
+                                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+                                                Hunt
+                                            </span>
+                                            <span className="text-[8px] font-bold tracking-wide text-cyan-400/60">Auto fill</span>
+                                        </button>
+                                    )}
+                                </div>
                             )}
 
                             {hunting && isHost && (
@@ -845,6 +846,7 @@ export const TeamUpMatchPanel = ({
                                 {!isHost ? 'Waiting for Host…' : isReady ? 'Start Game' : 'Waiting for Players…'}
                             </button>
                         </div>
+                        )}
                     </div>
                 </div>
             </div>

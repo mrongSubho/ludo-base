@@ -386,6 +386,7 @@ body.theme-daybreak .ludo-teamup-scope .announce-btn.announce-live {
   background-color: rgba(4, 120, 87, 0.08) !important;
   color: #047857 !important;
 }
+body.theme-daybreak .ludo-teamup-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
 /* Broadcast room rows: joinable card legible on both themes */
 body.theme-daybreak .ludo-broadcast-scope .room-join-row {
   background-color: rgba(14, 116, 144, 0.08) !important;
