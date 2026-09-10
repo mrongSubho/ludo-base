@@ -31,12 +31,6 @@ interface TeamUpMatchPanelProps {
 }
 
 // --- ICONS ---
-const PlusIcon = ({ className }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-);
-
 const LinkIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -207,14 +201,19 @@ const TeamDisc = ({ slot, tint, you, onInvite }: {
     );
 };
 
-const TeamSplitView = ({ slots, isSelfHost, onInviteSide }: {
+const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot }: {
     slots: LobbySlot[];
+    mode: '1v1' | '2v2' | '4P';
     isSelfHost: boolean;
-    onInviteSide: (role: 'partner' | 'rival') => void;
+    // Empty-disc tap: open the invite popup pre-targeted at THAT seat.
+    onInviteSlot: (slot: LobbySlot) => void;
 }) => {
     const mine = slots.filter(s => s.role === 'host' || s.role === 'teammate');
     const theirs = slots.filter(s => s.role === 'opponent');
-    const half = (title: string, tone: 'cyan' | 'ember', list: LobbySlot[], inviteRole: 'partner' | 'rival') => (
+    // 1v1 is a duel, not a team match: You vs Rival.
+    const mineTitle = mode === '2v2' ? 'Your team' : 'You';
+    const theirsTitle = mode === '1v1' ? 'Rival' : 'Rivals';
+    const half = (title: string, tone: 'cyan' | 'ember', list: LobbySlot[]) => (
         <div className={`flex-1 min-w-0 rounded-2xl border backdrop-blur-lg px-2 py-3 flex flex-col items-center gap-2.5 ${tone === 'cyan' ? 'bg-cyan-500/[0.07] border-cyan-500/25' : 'bg-rose-500/[0.06] border-rose-500/25'}`}>
             <span className={`text-[9px] font-black uppercase tracking-[0.25em] ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
                 {title}
@@ -226,7 +225,7 @@ const TeamSplitView = ({ slots, isSelfHost, onInviteSide }: {
                         slot={s}
                         tint={tone}
                         you={isSelfHost && s.role === 'host'}
-                        onInvite={s.status === 'empty' ? () => onInviteSide(inviteRole) : undefined}
+                        onInvite={s.status === 'empty' ? () => onInviteSlot(s) : undefined}
                     />
                 ))}
             </div>
@@ -234,10 +233,10 @@ const TeamSplitView = ({ slots, isSelfHost, onInviteSide }: {
     );
     return (
         <div className="flex-1 min-h-0 flex items-stretch gap-0 animate-in fade-in duration-200">
-            {half('Your team', 'cyan', mine, 'partner')}
+            {half(mineTitle, 'cyan', mine)}
             {/* Angled divider */}
             <div className="w-px self-stretch mx-1.5 bg-gradient-to-b from-transparent via-white/25 to-transparent -skew-x-12 shrink-0" aria-hidden />
-            {half('Rivals', 'ember', theirs, 'rival')}
+            {half(theirsTitle, 'ember', theirs)}
         </div>
     );
 };
@@ -260,13 +259,20 @@ export const TeamUpMatchPanel = ({
     entryFee = 0,
 }: TeamUpMatchPanelProps) => {
     const { playSelect, playClick, playDiceLand } = useSoundEffects();
-    const [view, setView] = useState<'console' | 'roster' | 'join'>('console');
+    const [view, setView] = useState<'console' | 'join'>('console');
     const [roomCode, setRoomCode] = useState('');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const [ftab, setFtab] = useState<'social' | 'global'>('social');
-    // 2v2 invite targeting: partner (teammate seat) vs rival (opponent seat).
-    // Skips abstract Team A/B — the seat IS the team.
-    const [inviteRole, setInviteRole] = useState<'partner' | 'rival'>('partner');
+    // Invite popup: tapping an empty seat disc opens this sheet pre-targeted
+    // at THAT seat — no separate roster page, no role tabs. The disc IS the
+    // targeting (partner seat vs rival seat), in every match type.
+    const [invitePopup, setInvitePopup] = useState<{ role: 'teammate' | 'opponent'; seat: number } | null>(null);
+    const openInvitePopup = (slot: LobbySlot) => {
+        playSelect();
+        ensureRoom();
+        if (slot.role !== 'teammate' && slot.role !== 'opponent') return;
+        setInvitePopup({ role: slot.role, seat: slot.slotIndex });
+    };
 
     // Online-only roster: free players first, engaged/playing second.
     // Offline contacts never list — an invite nobody can accept is noise.
@@ -277,7 +283,7 @@ export const TeamUpMatchPanel = ({
         return 2;
     };
 
-    const { profile, address, displayName } = useCurrentUser();
+    const { address } = useCurrentUser();
     const { friends: friendsData, isBooting: isLoadingFriends } = useGameData();
     const isReady = lobbyState ? canStartMatch(lobbyState) : false;
 
@@ -285,15 +291,10 @@ export const TeamUpMatchPanel = ({
     const hostSlot = lobbyState?.slots[0];
     const roomCodeValue = lobbyState?.roomCode || currentRoomId || '';
     const totalSeats = lobbyState?.slots.length ?? (matchType === '1v1' ? 2 : 4);
-    const guestSlots: (LobbySlot | null)[] = lobbyState
-        ? lobbyState.slots.filter(s => s.role !== 'host')
-        : Array.from({ length: matchType === '1v1' ? 1 : 3 }, () => null);
     const joinedCount = lobbyState
         ? lobbyState.slots.filter(s => s.status === 'joined').length
         : 1;
 
-    const hostName = hostSlot?.playerName || displayName || 'You';
-    const hostAvatar = hostSlot?.playerAvatar || profile?.avatar_url || null;
     const isSelfHost = hostSlot?.playerId
         ? !!address && hostSlot.playerId.toLowerCase() === address.toLowerCase()
         : true;
@@ -346,25 +347,12 @@ export const TeamUpMatchPanel = ({
         if (!roomCodeValue) onHost();
     };
 
-    // 2v2 invite targeting: which kinds still have an open seat, and the
-    // effective selection (taken kind falls through to the open one).
-    const inviteKindOpen = (r: 'partner' | 'rival') =>
-        lobbyState?.slots.some(s => s.status === 'empty' && s.role === (r === 'partner' ? 'teammate' : 'opponent')) ?? false;
-    const effInviteRole: 'partner' | 'rival' = matchType !== '2v2'
-        ? 'rival'
-        : inviteRole === 'partner'
-            ? (inviteKindOpen('partner') ? 'partner' : 'rival')
-            : (inviteKindOpen('rival') ? 'rival' : 'partner');
-
     const handleInvite = (friend: any) => {
         playSelect();
-        // A taken kind falls through to the open one (a full room disables
-        // Invite upstream, so undefined here is unreachable in practice).
-        const role = matchType === '2v2'
-            ? (effInviteRole === 'partner' ? 'teammate' : 'opponent')
-            : undefined;
-        onSendInvite(friend.wallet_address, friend.username, role as 'teammate' | 'opponent' | undefined);
-        setView('console');
+        // Seat-targeted: the engine only honors roles in 2v2 and fails
+        // closed on taken kinds — the popup only opens on empty seats.
+        onSendInvite(friend.wallet_address, friend.username, invitePopup?.role);
+        setInvitePopup(null);
     };
 
     return (
@@ -443,7 +431,7 @@ export const TeamUpMatchPanel = ({
                                     empty={lobbyState?.slots.filter(s => s.status === 'empty').length ?? 0}
                                     total={lobbyState?.slots.length ?? 0}
                                     isHost={isHost}
-                                    onCancel={() => { playClick(); onCancelHunt?.(); setView('roster'); }}
+                                    onCancel={() => { playClick(); onCancelHunt?.(); setInvitePopup(null); setView('console'); }}
                                 />
                             ) : (
                             <>
@@ -452,116 +440,27 @@ export const TeamUpMatchPanel = ({
                                     <SectionLabel>
                                         {joinedCount} of {totalSeats} players
                                     </SectionLabel>
-                                    {matchType === '4P' ? (
-                                    <>
-                                    {/* Host Card */}
-                                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-amber-500/30 backdrop-blur-lg relative shrink-0">
-                                        <div className="absolute top-3 right-4">
-                                            <span className="text-[9px] text-amber-500 font-black tracking-[0.2em] uppercase">Host</span>
-                                        </div>
-                                        <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-                                            <DashedRadarRing color="#f59e0b" />
-                                            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-500/50 bg-slate-800 relative z-10">
-                                                {hostAvatar ? (
-                                                    <img src={hostAvatar} alt="host" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-2xl font-black text-white/30 uppercase">
-                                                        {hostName?.[0] || 'H'}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-base font-bold text-white truncate uppercase tracking-tight">
-                                                {hostName}
-                                            </span>
-                                            {isSelfHost && (
-                                                <span className="text-[9px] font-black text-cyan-400 tracking-[0.2em] uppercase mt-0.5">You</span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Guest Seats */}
-                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col gap-2 pb-2">
-                                        {guestSlots.map((slot, i) => {
-                                            const filled = !!slot && slot.status === 'joined';
-                                            const seatNo = slot ? slot.slotIndex + 1 : i + 2;
-                                            const seatKey = `seat-${i}`;
-                                            return (
-                                                <div
-                                                    key={seatKey}
-                                                    className={`flex items-center gap-3 p-3 rounded-2xl backdrop-blur-lg transition-all ${filled
-                                                        ? 'bg-white/[0.04] border border-cyan-500/30'
-                                                        : 'bg-white/[0.02] border border-dashed border-white/15'
-                                                        }`}
-                                                >
-                                                    <div className={`w-12 h-12 rounded-full overflow-hidden shrink-0 flex items-center justify-center ${filled ? 'border-2 border-white/20 bg-slate-800' : 'border border-white/10 bg-white/5'}`}>
-                                                        {filled && slot?.playerAvatar ? (
-                                                            <img src={slot.playerAvatar} alt="player" className="w-full h-full object-cover" />
-                                                        ) : filled ? (
-                                                            <span className="text-lg font-black text-white/30 uppercase">
-                                                                {slot?.playerName?.[0] || 'P'}
-                                                            </span>
-                                                        ) : (
-                                                            <PlusIcon className="w-5 h-5 text-white/20" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 flex flex-col">
-                                                        <span className={`text-sm font-bold truncate uppercase tracking-tight ${filled ? 'text-white' : 'text-white/40'}`}>
-                                                            {filled ? slot?.playerName : `Open Seat`}
-                                                        </span>
-                                                        <span className="text-[9px] font-bold tracking-[0.2em] uppercase text-white/30 flex items-center gap-1.5">
-                                                            {slot?.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: COLOR_DOT[slot.color] || '#fff' }} />}
-                                                            {matchType === '2v2' && slot?.role && slot.role !== 'host' && (
-                                                                <span className={`px-1.5 py-px rounded-md border text-[8px] font-black uppercase tracking-[0.15em] ${slot.role === 'teammate' ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300' : 'bg-white/5 border-white/15 text-white/40'}`}>
-                                                                    {slot.role === 'teammate' ? 'Partner' : 'Rival'}
-                                                                </span>
-                                                            )}
-                                                            {slot?.status === 'invited' ? 'Invite Sent…' : filled ? `Player ${seatNo} • Joined` : `Player ${seatNo}`}
-                                                        </span>
-                                                    </div>
-                                                    {!filled && (
-                                                        <div className="flex items-center gap-1.5 shrink-0">
-                                                            <button
-                                                                onClick={() => { playSelect(); ensureRoom(); setView('roster'); }}
-                                                                className="px-3.5 py-2 bg-cyan-500/15 border border-cyan-500/30 rounded-xl text-[10px] font-black text-cyan-300 uppercase tracking-wider hover:bg-cyan-500 hover:text-slate-950 transition-all"
-                                                            >
-                                                                Invite
-                                                            </button>
-                                                            <button
-                                                                onClick={() => { playSelect(); ensureRoom(); if (roomCodeValue) copyText(inviteLinkFor(slot?.slotIndex ?? i + 1), seatKey); }}
-                                                                title={roomCodeValue ? 'Copy invite link for this seat' : 'Host a room first'}
-                                                                className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/50 hover:text-cyan-300 hover:border-cyan-500/40 transition-all"
-                                                            >
-                                                                {copiedKey === seatKey ? (
-                                                                    <CheckIcon className="w-4 h-4 text-emerald-400" />
-                                                                ) : (
-                                                                    <LinkIcon className="w-4 h-4" />
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    </>
-                                    ) : (
                                     <TeamSplitView
+                                        mode={matchType}
                                         slots={lobbyState?.slots ?? [
                                             { slotIndex: 0, role: 'host', color: 'green', status: 'joined' } as LobbySlot,
                                             ...(matchType === '1v1'
                                                 ? [{ slotIndex: 1, role: 'opponent', color: 'yellow', status: 'empty' } as LobbySlot]
-                                                : [
-                                                    { slotIndex: 1, role: 'teammate', color: 'yellow', status: 'empty' } as LobbySlot,
-                                                    { slotIndex: 2, role: 'opponent', color: 'red', status: 'empty' } as LobbySlot,
-                                                    { slotIndex: 3, role: 'opponent', color: 'blue', status: 'empty' } as LobbySlot,
-                                                ]),
+                                                : matchType === '2v2'
+                                                    ? [
+                                                        { slotIndex: 1, role: 'teammate', color: 'yellow', status: 'empty' } as LobbySlot,
+                                                        { slotIndex: 2, role: 'opponent', color: 'red', status: 'empty' } as LobbySlot,
+                                                        { slotIndex: 3, role: 'opponent', color: 'blue', status: 'empty' } as LobbySlot,
+                                                    ]
+                                                    : [
+                                                        { slotIndex: 1, role: 'opponent', color: 'red', status: 'empty' } as LobbySlot,
+                                                        { slotIndex: 2, role: 'opponent', color: 'yellow', status: 'empty' } as LobbySlot,
+                                                        { slotIndex: 3, role: 'opponent', color: 'blue', status: 'empty' } as LobbySlot,
+                                                    ]),
                                         ]}
                                         isSelfHost={!!isSelfHost}
-                                        onInviteSide={(role) => { playSelect(); ensureRoom(); setInviteRole(role); setView('roster'); }}
+                                        onInviteSlot={(slot) => openInvitePopup(slot)}
                                     />
-                                    )}
 
                                     {/* Join with Code */}
                                     <button
@@ -572,108 +471,6 @@ export const TeamUpMatchPanel = ({
                                         Join with Code
                                     </button>
 
-                                </div>
-                            )}
-
-                            {view === 'roster' && (
-                                <div className="flex-1 min-h-0 flex flex-col p-5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-lg overflow-hidden animate-in slide-in-from-right-4 duration-200 mx-5">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] font-black text-cyan-300 tracking-[0.2em] uppercase">Invite Friends</span>
-                                        <button onClick={() => { playClick(); setView('console'); }} className="text-[9px] text-white/40 hover:text-white uppercase font-black flex items-center gap-2">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-3 h-3"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
-                                            Back
-                                        </button>
-                                    </div>
-                                    {roomCodeValue && (
-                                        <button
-                                            onClick={() => copyText(inviteLinkFor(), 'roster-link')}
-                                            className="mb-1 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-all"
-                                        >
-                                            <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest truncate">
-                                                {inviteLinkFor()}
-                                            </span>
-                                            {copiedKey === 'roster-link' ? (
-                                                <CheckIcon className="w-4 h-4 text-emerald-400 shrink-0 ml-2" />
-                                            ) : (
-                                                <LinkIcon className="w-4 h-4 text-cyan-300 shrink-0 ml-2" />
-                                            )}
-                                        </button>
-                                    )}
-                                    <div className="mb-2">
-                                        <PanelTabs
-                                            value={ftab}
-                                            onPick={setFtab}
-                                            options={[
-                                                { value: 'social', label: 'Social' },
-                                                { value: 'global', label: 'Global' },
-                                            ]}
-                                        />
-                                    </div>
-                                    {/* 2v2 only: invite as Partner (teammate seat)
-                                        or Rival (opponent seat). Taken kinds
-                                        disable; selection falls through. */}
-                                    {matchType === '2v2' && (
-                                        <div className="mb-2 flex items-center gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
-                                            <span className="pl-2 pr-1 text-[9px] font-black uppercase tracking-[0.2em] text-white/35 shrink-0">
-                                                Invite as
-                                            </span>
-                                            {(['partner', 'rival'] as const).map(r => {
-                                                const open = inviteKindOpen(r);
-                                                const selected = effInviteRole === r;
-                                                return (
-                                                    <button
-                                                        key={r}
-                                                        disabled={!open}
-                                                        onClick={() => { playSelect(); setInviteRole(r); }}
-                                                        aria-pressed={selected}
-                                                        className={`flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed ${selected
-                                                            ? (r === 'partner'
-                                                                ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-200'
-                                                                : 'bg-white/10 border border-white/25 text-white')
-                                                            : 'bg-transparent border border-transparent text-white/40 hover:text-white'}`}
-                                                    >
-                                                        {r === 'partner' ? 'Partner' : 'Rival'}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col gap-2 pb-2">
-                                        {isLoadingFriends ? (
-                                            <div className="h-full flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
-                                        ) : (
-                                            (() => {
-                                                const pool = ftab === 'social' ? friendsData.gameFriends : friendsData.onchainFriends;
-                                                const visible = pool
-                                                    .filter((f: any) => rankOf(f) < 2)
-                                                    .sort((a: any, b: any) => rankOf(a) - rankOf(b));
-                                                return visible.length > 0 ? (
-                                                    visible.map((f: any, i: number) => (
-                                                    <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-cyan-500/30 transition-colors group">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden border border-white/10">
-                                                                {f.avatar_url ? (
-                                                                    <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black">{(f.username?.[0] || '?').toUpperCase()}</div>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-bold text-white uppercase tracking-tight">{(f.username && !f.username.startsWith('0x')) ? f.username : `User ${f.wallet_address.slice(-4).toUpperCase()}`}</span>
-                                                                <span className={`text-[8px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => handleInvite(f)} className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/60 uppercase hover:bg-cyan-500 hover:text-slate-950 transition-all">Invite</button>
-                                                    </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="h-full flex flex-col items-center justify-center opacity-30">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">No friends online</span>
-                                                    </div>
-                                                );
-                                            })()
-                                        )}
-                                    </div>
                                 </div>
                             )}
 
@@ -707,6 +504,94 @@ export const TeamUpMatchPanel = ({
                             )}
                         </div>
 
+                        {/* Invite popup: bottom sheet pre-targeted at the tapped
+                            seat. Friends + link tabs only — no separate page. */}
+                        {invitePopup && (
+                            <div className="absolute inset-0 z-30 flex flex-col justify-end">
+                                <div
+                                    className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+                                    onClick={() => setInvitePopup(null)}
+                                    aria-hidden
+                                />
+                                <div className="relative mx-3 mb-3 rounded-3xl border border-white/15 bg-[#101623]/95 backdrop-blur-xl p-4 flex flex-col gap-2.5 max-h-[78%] shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
+                                            Invite {invitePopup.role === 'teammate' ? 'Partner' : 'Rival'}
+                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[9px] text-white/50">
+                                                Seat {invitePopup.seat + 1}
+                                            </span>
+                                        </span>
+                                        <button
+                                            onClick={() => setInvitePopup(null)}
+                                            aria-label="Close invite sheet"
+                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    </div>
+                                    {roomCodeValue && (
+                                        <button
+                                            onClick={() => copyText(inviteLinkFor(invitePopup.seat), 'popup-link')}
+                                            className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-all"
+                                        >
+                                            <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest truncate">
+                                                {inviteLinkFor(invitePopup.seat)}
+                                            </span>
+                                            {copiedKey === 'popup-link' ? (
+                                                <CheckIcon className="w-4 h-4 text-emerald-400 shrink-0 ml-2" />
+                                            ) : (
+                                                <LinkIcon className="w-4 h-4 text-cyan-300 shrink-0 ml-2" />
+                                            )}
+                                        </button>
+                                    )}
+                                    <PanelTabs
+                                        value={ftab}
+                                        onPick={setFtab}
+                                        options={[
+                                            { value: 'social', label: 'Social' },
+                                            { value: 'global', label: 'Global' },
+                                        ]}
+                                    />
+                                    <div className="min-h-0 overflow-y-auto no-scrollbar flex flex-col gap-2 pb-1">
+                                        {isLoadingFriends ? (
+                                            <div className="py-8 flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
+                                        ) : (
+                                            (() => {
+                                                const pool = ftab === 'social' ? friendsData.gameFriends : friendsData.onchainFriends;
+                                                const visible = pool
+                                                    .filter((f: any) => rankOf(f) < 2)
+                                                    .sort((a: any, b: any) => rankOf(a) - rankOf(b));
+                                                return visible.length > 0 ? (
+                                                    visible.map((f: any, i: number) => (
+                                                    <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-cyan-500/30 transition-colors group">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                                                                {f.avatar_url ? (
+                                                                    <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-white/20 font-black">{(f.username?.[0] || '?').toUpperCase()}</div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-xs font-bold text-white uppercase tracking-tight truncate">{(f.username && !f.username.startsWith('0x')) ? f.username : `User ${f.wallet_address.slice(-4).toUpperCase()}`}</span>
+                                                                <span className={`text-[8px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleInvite(f)} className="shrink-0 ml-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-white/60 uppercase hover:bg-cyan-500 hover:text-slate-950 transition-all">Invite</button>
+                                                    </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="py-8 flex flex-col items-center justify-center opacity-30">
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-center px-4">No friends online</span>
+                                                    </div>
+                                                );
+                                            })()
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Footer */}
                         <div className="w-full mt-1 flex flex-col gap-2 px-5 pb-5 pt-3 border-t border-white/10 relative z-10 shrink-0">
                             <div className="bg-black/40 border border-white/10 px-2.5 py-1.5 rounded-xl flex items-center justify-between">
@@ -730,7 +615,7 @@ export const TeamUpMatchPanel = ({
 
                             {hunting && isHost && (
                                 <button
-                                    onClick={() => { playClick(); onCancelHunt?.(); setView('roster'); }}
+                                    onClick={() => { playClick(); onCancelHunt?.(); setInvitePopup(null); setView('console'); }}
                                     className="w-full py-3 rounded-2xl bg-white/[0.06] border border-white/15 text-white/70 transition-all hover:bg-white/10 hover:text-white active:scale-95 flex flex-col items-center justify-center gap-0.5"
                                 >
                                     <span className="font-black tracking-[0.2em] text-xs uppercase">Cancel hunt</span>
