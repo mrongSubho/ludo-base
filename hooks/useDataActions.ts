@@ -3,7 +3,7 @@
 import { useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { UserProfile, MessageData } from './GameDataContext';
-import { encryptMessage, deriveSharedKey } from '@/lib/encryption';
+import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 import { DataConnection, Peer } from 'peerjs';
 
 interface ActionProps {
@@ -15,6 +15,29 @@ interface ActionProps {
     setMyProfile: React.Dispatch<React.SetStateAction<UserProfile | null>>;
     setRawConversations: React.Dispatch<React.SetStateAction<any[]>>;
     setupConnectionListeners: (conn: DataConnection) => void;
+}
+
+/** Ensure our static ECDH pubkey is on the players row. */
+async function publishMyEcdhPubkey(walletAddress: string): Promise<void> {
+    try {
+        await getOrCreateIdentityKey(walletAddress);
+        const jwk = await exportPublicKeyJwk(walletAddress);
+        await supabase.from('players')
+            .upsert({ wallet_address: walletAddress.toLowerCase(), ecdh_pubkey: jwk }, { onConflict: 'wallet_address' });
+    } catch (err) {
+        console.warn('Failed to publish ECDH pubkey', err);
+    }
+}
+
+/** Fetch recipient static ECDH pubkey (cache in profilesMap not required). */
+async function fetchPeerEcdhPubkey(peerId: string): Promise<JsonWebKey | null> {
+    const { data } = await supabase
+        .from('players')
+        .select('ecdh_pubkey')
+        .ilike('wallet_address', peerId)
+        .maybeSingle();
+    const pk = data?.ecdh_pubkey as JsonWebKey | null | undefined;
+    return pk && typeof pk === 'object' && (pk as JsonWebKey).kty ? (pk as JsonWebKey) : null;
 }
 
 export const useDataActions = ({
@@ -73,11 +96,20 @@ export const useDataActions = ({
         setMessages(prev => [...prev, optimisticMsg]);
 
         try {
-            const key = await deriveSharedKey(lowerAddr, targetId);
-            const encrypted = await encryptMessage(content, key);
+            await publishMyEcdhPubkey(lowerAddr);
+            let peerJwk = await fetchPeerEcdhPubkey(targetId);
+            if (!peerJwk) {
+                // Recipient may never have opened chat — publish a throwaway
+                // keypair for them is NOT possible (we don't hold their private
+                // key). Fail closed with a clear status rather than plaintext.
+                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
+                console.warn('Recipient has no ECDH pubkey yet — cannot seal DM', targetId);
+                return;
+            }
+
+            const encrypted = await encryptForPeer(lowerAddr, peerJwk, content);
 
             // Ensure both ends exist or the messages FK rejects the insert.
-            // Minimal rows only — profiles fill in via ProfileSyncer.
             try {
                 await supabase.from('players').upsert([
                     { wallet_address: lowerAddr },
@@ -121,9 +153,9 @@ export const useDataActions = ({
                 setMessages(prev => prev.map(m => {
                     if (m.id === tempId) {
                         const merged = { ...(data || optimisticMsg) };
-                        return { 
+                        return {
                             ...merged,
-                            content: content, 
+                            content: content,
                             send_status: 'sent' as const,
                             deleted_by_sender: !!merged.deleted_by_sender,
                             deleted_by_receiver: !!merged.deleted_by_receiver
@@ -134,6 +166,7 @@ export const useDataActions = ({
             }
 
         } catch (err) {
+            console.error('sendMessage failed', err);
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
         }
     }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners]);
@@ -150,8 +183,6 @@ export const useDataActions = ({
             return m;
         }));
 
-        // Optimistic: zero this thread's unread counts so every badge
-        // (header, footer, panel) cleans the instant a thread opens.
         setRawConversations(prev => prev.map(c => {
             const a = (c.user_a || '').toLowerCase();
             const b = (c.user_b || '').toLowerCase();
@@ -160,9 +191,6 @@ export const useDataActions = ({
             return { ...c, unread_count_a: 0, unread_count_b: 0 };
         }));
 
-        // Durable: the RPC marks messages read AND recomputes both
-        // conversation counters (the insert trigger only increments —
-        // without this, every reboot resurrects the badge).
         try {
             const { error } = await supabase.rpc('mark_conversation_read', { me: lowerAddr, friend: friendLower });
             if (error) throw error;

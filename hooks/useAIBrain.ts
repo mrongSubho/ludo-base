@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { PlayerColor, PowerType } from '@/lib/types';
+import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
-import { Point, ColorCorner } from '@/lib/boardLayout';
+import { ColorCorner } from '@/lib/boardLayout';
 import {
     BOT_ROLL_DELAY_MIN,
     BOT_ROLL_DELAY_MAX,
@@ -12,7 +12,7 @@ import {
 } from '@/lib/constants';
 
 interface UseAIBrainProps {
-    localGameState: any;
+    localGameState: GameState;
     initialPlayers: Player[];
     isHost: boolean;
     handleRoll: (value?: number) => Promise<void>;

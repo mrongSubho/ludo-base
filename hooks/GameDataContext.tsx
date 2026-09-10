@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useMemo,
 import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
-import { encryptMessage, decryptMessage, deriveSharedKey } from '@/lib/encryption';
+import { encryptMessage, decryptMessage, deriveSharedKey, decryptAnyMessage, parseMessagePayload, isSealedBox, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 
 // --- TYPES ---
 
@@ -253,16 +253,35 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const decryptStoredContent = useCallback(async (content: string, otherId: string) => {
         if (!address) return content;
         try {
-            if (content.startsWith('{"iv":')) {
-                const encryptedData = JSON.parse(content);
-                const key = await deriveSharedKey(address.toLowerCase(), otherId.toLowerCase());
-                return await decryptMessage(encryptedData, key);
+            // Sealed box (v1 ECDH) or legacy wallet-hash body
+            if (content.startsWith('{')) {
+                return await decryptAnyMessage(address.toLowerCase(), content, otherId.toLowerCase());
             }
             return content;
         } catch (e) {
             console.warn("Decryption failed for message content", e);
             return "[Encrypted Message]";
         }
+    }, [address]);
+
+    // Publish static ECDH pubkey once we have an identity so friends can seal DMs to us.
+    useEffect(() => {
+        if (!address) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                await getOrCreateIdentityKey(address.toLowerCase());
+                const jwk = await exportPublicKeyJwk(address.toLowerCase());
+                if (cancelled) return;
+                await supabase.from('players').upsert(
+                    { wallet_address: address.toLowerCase(), ecdh_pubkey: jwk },
+                    { onConflict: 'wallet_address' }
+                );
+            } catch (err) {
+                console.warn('ECDH pubkey publish failed', err);
+            }
+        })();
+        return () => { cancelled = true; };
     }, [address]);
 
     // Initial Core Payload (Boot Sequence)

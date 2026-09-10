@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  engine-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Engine unit tests
+        run: npm test
+
+  typecheck-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Typecheck core engine + hooks
+        # Full project tsc is noisy (legacy Deno edge + pre-existing UI anys).
+        # Gate the pure engine and game hooks we actively maintain.
+        run: |
+          npx tsc -p tsconfig.json --noEmit --pretty false 2>&1 | tee tsc-out.txt || true
+          GATED='lib/(gameLogic|constants|boardLayout|aiEngine|matchProof|matchRecorder|encryption|types)|hooks/use(GameActions|GameTimer|AFKManager|AIBrain)|scripts/engine'
+          if grep -E "^(${GATED})" tsc-out.txt | grep -q 'error TS'; then
+            echo "Type errors in gated files:"
+            grep -E "^(${GATED})" tsc-out.txt
+            exit 1
+          fi
+          echo "Gated files clean"

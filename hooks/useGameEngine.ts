@@ -3,7 +3,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSignMessage } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
-import { PlayerColor, PowerType, BotDifficulty } from '@/lib/types';
+import { PlayerColor, PowerType, BotDifficulty, GameState } from '@/lib/types';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
@@ -93,15 +93,15 @@ export function useGameEngine({
     // In offline matches, the local player always has authority.
     const isAuthority = isLobbyConnected ? (isHost || (isComputeHost as any)) : true;
 
-    const [localGameState, setLocalGameState] = useState({
+    const [localGameState, setLocalGameState] = useState<GameState>({
         ...INITIAL_GAME_STATE,
         botDifficulty,
-        currentPlayer: initialPlayers[0]?.color as PlayerColor || 'green',
+        currentPlayer: (initialPlayers[0]?.color as PlayerColor) || 'green',
         powerTiles: (gameMode === 'power' ? pathCells
             .filter(c => c.cls === 'board-cell')
             .sort(() => Math.random() - 0.5)
             .slice(0, POWER_TILES_COUNT)
-            .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []) as { r: number, c: number, type: import('@/lib/types').PowerType }[],
+            .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []),
         lastUpdate: Date.now()
     });
 
@@ -171,7 +171,7 @@ export function useGameEngine({
                     gameMode,
                     humans,
                     localGameState.matchId,
-                    (msg) => signMessageAsync({ message: msg })
+                    (msg) => signMessageAsync({ account: address as `0x${string}`, message: msg })
                 );
             } catch (err) {
                 console.error('❌ [Engine] Match record signing failed', err);
@@ -208,8 +208,8 @@ export function useGameEngine({
         address,
         isHost: isAuthority,
         isLobbyConnected,
-        broadcastAction: broadcastAction as any,
-        sendIntent: sendIntent as any,
+        broadcastAction: broadcastAction as (type: string, payload?: unknown, fullState?: typeof localGameState) => void,
+        sendIntent: sendIntent as (type: string, payload?: unknown) => void,
         playerCount,
         colorCorner,
         activeColorsArr,
@@ -229,8 +229,9 @@ export function useGameEngine({
         handleRoll,
         moveToken,
         getNextPlayer,
-        broadcastAction: broadcastAction as any,
-        isHost: isAuthority
+        broadcastAction: broadcastAction as (type: string, payload?: unknown, stateOverride?: typeof localGameState) => void,
+        isHost: isAuthority,
+        colorCorner
     });
 
     useAIBrain({

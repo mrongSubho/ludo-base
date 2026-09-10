@@ -34,6 +34,7 @@ export const INITIAL_GAME_STATE: GameState = {
     powerTiles: [],
     playerPowers: { green: [], red: [], yellow: [], blue: [] },
     powerSpentThisTurn: false,
+    activeBoost: null,
     nukeFlash: [],
     boostTrail: null,
     activeTraps: [],

@@ -172,8 +172,10 @@ Networked human rolls call the Supabase Edge Function (`/functions/v1/roll-dice`
 5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move.
 6. **Honesty note:** The host still applies the value and is the multiplayer authority. This reduces casual cheating; it is not a full server-authoritative roll. Ranked/wager settlement requires signed outcomes (§8.2 / `/api/match/record`).
 
-### 7.2 Chat encryption (current limitation)
-Lobby/DM ciphertext uses AES-GCM with a key derived from `SHA-256(sorted wallets + hardcoded salt)`. Wallet addresses are public, so this is **obfuscation, not E2EE**. Do not market as end-to-end encrypted until real ECDH key exchange ships. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).
+### 7.2 Chat encryption
+DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair in localStorage and publishes the public JWK on `players.ecdh_pubkey`. Senders generate an ephemeral pair, derive AES-GCM via the peer's static pubkey, and store `{v:1, epk, iv, content}`. Recipients open with their static private key. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).
+
+Note: if a recipient has never published `ecdh_pubkey`, new sends fail closed (no plaintext downgrade).
 
 ### 7.3 Match recording (signed)
 `/api/match/record` requires a wallet signature over a canonical payload (`lib/matchProof.ts`). The signer must be a listed participant. Coin pots are **not** paid from this route (progression only). Replay is blocked when `matchId` already has a winner.

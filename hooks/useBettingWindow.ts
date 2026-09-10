@@ -5,18 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { BetType, BetWindowClosedPayload, BetWindowPayload } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════
-// useBettingWindow — Host-side Betting Window Manager
+// useBettingWindow — DEPRECATED standalone host betting-window manager.
 //
-// HOW IT WORKS:
-//   1. Host calls `openBettingWindow(betType)` just before initiating a
-//      dice commit. This broadcasts BET_WINDOW_OPEN to the channel.
-//   2. After WINDOW_DURATION_MS, it auto-broadcasts BET_WINDOW_CLOSED.
-//   3. The callback `onWindowClosed(windowClosedAt)` is invoked so the
-//      host can then proceed with the dice reveal protocol.
-//
-// FRONT-RUNNING PREVENTION:
-//   BET_WINDOW_CLOSED is sent BEFORE the ROLL_DICE/DICE_REVEAL broadcast.
-//   Edge Function validates: bet.created_at < bet.window_closed_at.
+// The live path is TeamUpContext.startBettingWindow (broadcast + live_matches
+// sync + resolve-bet signature). Do not call this from the roll pipeline.
 // ═══════════════════════════════════════════════════════════════════════
 
 const WINDOW_DURATION_MS = 3000; // 3-second betting window

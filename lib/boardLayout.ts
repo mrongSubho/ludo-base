@@ -1,4 +1,4 @@
-import { PlayerColor } from './types';
+import { PlayerColor, Corner, ColorCorner } from './types';
 import { calculateLevel } from './progression';
 
 export type Point = { r: number; c: number };
@@ -11,8 +11,7 @@ export interface PathCell {
     cls: string;
 }
 
-export type Corner = 'BL' | 'TR' | 'BR' | 'TL';
-export type ColorCorner = Record<PlayerColor, Corner>;
+export type { Corner, ColorCorner };
 
 // ─── Path Constants ──────────────────────────────────────────────────────────
 

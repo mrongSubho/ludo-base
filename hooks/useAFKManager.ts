@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
-import { PlayerColor } from '@/lib/types';
+import { PlayerColor, GameState, GameStateSetter } from '@/lib/types';
 import { Player } from './useGameEngine';
+import { getLegalTokenIndices } from '@/lib/gameLogic';
+import { ColorCorner } from '@/lib/boardLayout';
 
 interface UseAFKManagerProps {
-    localGameState: any;
-    setLocalGameState: React.Dispatch<React.SetStateAction<any>>;
+    localGameState: GameState;
+    setLocalGameState: GameStateSetter;
     initialPlayers: Player[];
     handleRoll: (value?: number) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
-    broadcastAction?: (type: string, payload: any, stateOverride?: any) => void;
+    broadcastAction?: (type: string, payload?: unknown, stateOverride?: GameState) => void;
     isHost?: boolean;
+    colorCorner?: ColorCorner;
 }
 
 export function useAFKManager({
@@ -21,7 +24,8 @@ export function useAFKManager({
     moveToken,
     getNextPlayer,
     broadcastAction,
-    isHost
+    isHost,
+    colorCorner
 }: UseAFKManagerProps) {
     useEffect(() => {
         if (localGameState.winner || localGameState.idleWarning) return;
@@ -34,7 +38,7 @@ export function useAFKManager({
 
         // Striking logic only applies to active humans when timeLeft hits 0
         if (!isCurrentlyBot && localGameState.timeLeft <= 0) {
-            setLocalGameState((prev: any) => {
+            setLocalGameState((prev) => {
                 const stats = prev.afkStats[color];
                 let nextStats = { ...stats };
                 let nextWarning = null;
@@ -72,27 +76,29 @@ export function useAFKManager({
         const isOriginalBot = currentPlayerInfo?.isAi;
         const isKicked = localGameState.afkStats[color].isKicked;
         const isCurrentlyBot = isOriginalBot || isKicked;
-        
+
         // ONLY the Host (or Computer Host) triggers forced AFK actions for ANY player.
         // This prevents Guests from spamming intents while 'timeLeft' is 0.
         if (isHost && !isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
             if (localGameState.gamePhase === 'rolling') {
                 const forcedRoll = Math.floor(Math.random() * 6) + 1;
                 // Reset timeLeft immediately before async call to prevent loop
-                setLocalGameState((s: any) => ({ ...s, timeLeft: 15 }));
+                setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
                 handleRoll(forcedRoll);
             } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const diceValue = localGameState.diceValue;
-                const options: number[] = [];
-                localGameState.positions[color].forEach((pos: number, idx: number) => {
-                    if (pos === -1 && diceValue === 6) options.push(idx);
-                    else if (pos !== -1 && pos + diceValue <= 57) options.push(idx);
-                });
+                const options = colorCorner
+                    ? getLegalTokenIndices(localGameState.positions, color, diceValue, colorCorner)
+                    : localGameState.positions[color].reduce<number[]>((acc, pos, idx) => {
+                        if (pos === -1 && diceValue === 6) acc.push(idx);
+                        else if (pos !== -1 && pos + diceValue <= 57) acc.push(idx);
+                        return acc;
+                    }, []);
 
                 if (options.length === 0) {
-                    setLocalGameState((s: any) => {
+                    setLocalGameState((s) => {
                         const nextPlayer = getNextPlayer(s.currentPlayer);
-                        const switchState = {
+                        const switchState: GameState = {
                             ...s,
                             gamePhase: 'rolling',
                             currentPlayer: nextPlayer,
@@ -108,10 +114,10 @@ export function useAFKManager({
                 } else {
                     const randomIdx = options[Math.floor(Math.random() * options.length)];
                     // Reset timeLeft immediately to prevent loop
-                    setLocalGameState((s: any) => ({ ...s, timeLeft: 15 }));
+                    setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
                     moveToken(color, randomIdx, diceValue);
                 }
             }
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState]);
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, isHost, broadcastAction, colorCorner]);
 }

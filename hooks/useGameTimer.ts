@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { PlayerColor } from '@/lib/types';
+import { GameState, GameStateSetter } from '@/lib/types';
 
 interface UseGameTimerProps {
-    localGameState: any;
-    setLocalGameState: React.Dispatch<React.SetStateAction<any>>;
+    localGameState: GameState;
+    setLocalGameState: GameStateSetter;
 }
 
 export function useGameTimer({
@@ -14,7 +14,7 @@ export function useGameTimer({
         if (localGameState.winner) return;
 
         const interval = setInterval(() => {
-            setLocalGameState((prev: any) => {
+            setLocalGameState((prev) => {
                 // If the Idle Warning prompt is active, tick its countdown instead
                 if (prev.idleWarning) {
                     if (prev.idleWarning.timeLeft <= 0) {
@@ -37,8 +37,8 @@ export function useGameTimer({
 
                 // Normal Turn Timer
                 // Tick the timer as long as we aren't actively rolling the dice and the game isn't finished.
-                const isInteractive = prev.gamePhase !== 'finished' && !prev.isRolling && !prev.winner;
-                
+                const isInteractive = !prev.isRolling && !prev.winner;
+
                 if (!isInteractive || prev.timeLeft <= 0) return prev;
                 return { ...prev, timeLeft: prev.timeLeft - 1 };
             });

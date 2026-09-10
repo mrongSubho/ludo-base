@@ -1,9 +1,9 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
+import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType } from '@/lib/types';
 import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType, getLegalTokenIndices } from '@/lib/gameLogic';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
-import { Point, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS, getBoardCoordinate } from '@/lib/boardLayout';
+import { ColorCorner, getBoardCoordinate } from '@/lib/boardLayout';
 import {
     BOARD_FINISH_INDEX,
     BASE_INDEX,
@@ -11,19 +11,18 @@ import {
     DICE_ROLL_SIX,
     HOME_LANE_START_INDEX,
     POWER_EXPIRY_MS,
-    POWER_TILES_COUNT
 } from '@/lib/constants';
 
 interface UseGameActionsProps {
-    localGameState: any;
-    setLocalGameState: React.Dispatch<React.SetStateAction<any>>;
+    localGameState: GameState;
+    setLocalGameState: GameStateSetter;
     initialPlayers: Player[];
     address: string | undefined;
     isHost: boolean;
     isLobbyConnected: boolean;
-    broadcastAction: (type: string, payload?: any, fullState?: any) => void;
-    sendIntent: (type: string, payload?: any) => void;
-    startBettingWindow: (betType: any) => Promise<string>;
+    broadcastAction: (type: GameActionType | string, payload?: unknown, fullState?: GameState) => void;
+    sendIntent: (type: string, payload?: unknown) => void;
+    startBettingWindow: (betType: BetType) => Promise<string>;
     playerCount: '1v1' | '4P' | '2v2';
     colorCorner: ColorCorner;
     activeColorsArr: PlayerColor[];
@@ -71,7 +70,7 @@ export function useGameActions({
         stateRef.current = localGameState;
     }, [localGameState]);
 
-    const getNextPlayer = useCallback((current: PlayerColor, currentPositions: any): PlayerColor => {
+    const getNextPlayer = useCallback((current: PlayerColor, currentPositions: GameState['positions']): PlayerColor => {
         const activeForTurns = activeColorsArr.filter(color => {
             const hasTokens = currentPositions[color].some((p: number) => p !== BOARD_FINISH_INDEX);
             if (playerCount === '2v2') {
@@ -107,7 +106,7 @@ export function useGameActions({
 
         // Boosted move: +6 steps, consumed on use (host computes; guests
         // replay the broadcast steps without re-adding).
-        const boosted = !isRemote && (currentState as any).activeBoost === currentState.currentPlayer;
+        const boosted = !isRemote && currentState.activeBoost === currentState.currentPlayer;
         const effSteps = boosted ? steps + DICE_MAX : steps;
 
         const { newState, captured } = processMove(
@@ -143,15 +142,15 @@ export function useGameActions({
 
         // Boost consumed by this move — leave a motion trail on the mover.
         if (boosted) {
-            (finalState as any).activeBoost = null;
-            (finalState as any).boostTrail = color;
+            finalState.activeBoost = null;
+            finalState.boostTrail = color;
             setTimeout(() => {
-                setLocalGameState((latest: any) => latest.boostTrail === color ? { ...latest, boostTrail: null, lastUpdate: Date.now() } : latest);
+                setLocalGameState((latest) => latest.boostTrail === color ? { ...latest, boostTrail: null, lastUpdate: Date.now() } : latest);
             }, 1600);
         }
         // Shields last until the owner's next move completes.
-        (finalState as any).activeShields = (currentState.activeShields || []).filter(
-            (s: any) => s.color !== currentState.currentPlayer
+        finalState.activeShields = (currentState.activeShields || []).filter(
+            (s) => s.color !== currentState.currentPlayer
         );
 
         // ── Power pickup: landing exactly on a hidden tile reveals + grants.
@@ -160,17 +159,17 @@ export function useGameActions({
         if (typeof landedPos === 'number' && landedPos >= 0 && landedPos < HOME_LANE_START_INDEX) {
             const landPt = getBoardCoordinate(landedPos, color, colorCorner);
             if (landPt) {
-                const tileIdx = (currentState.powerTiles || []).findIndex((t: any) => t.r === landPt.r && t.c === landPt.c);
+                const tileIdx = (currentState.powerTiles || []).findIndex((t) => t.r === landPt.r && t.c === landPt.c);
                 if (tileIdx >= 0) {
-                    const tile = currentState.powerTiles[tileIdx];
+                    const tile = currentState.powerTiles[tileIdx] as { r: number; c: number; type: PowerType };
                     const now = Date.now();
                     const liveInv: PowerItem[] = ((currentState.playerPowers || {})[color] || []).filter((p: PowerItem) => p.expiresAt > now);
                     const full = POWER_EXPIRY_MS[tile.type as keyof typeof POWER_EXPIRY_MS] ?? POWER_EXPIRY_MS.boost;
                     const granted: PowerItem[] = liveInv.map(p => p.type === tile.type ? { ...p, expiresAt: now + full } : p);
                     granted.push({ type: tile.type, expiresAt: now + full });
-                    (finalState as any).playerPowers = { ...(currentState.playerPowers || {}), [color]: granted };
+                    finalState.playerPowers = { ...(currentState.playerPowers || {}), [color]: granted };
                     // Respawn to keep the board seeded.
-                    const taken = new Set((currentState.powerTiles || []).map((t: any) => `${t.r},${t.c}`));
+                    const taken = new Set((currentState.powerTiles || []).map((t) => `${t.r},${t.c}`));
                     taken.delete(`${tile.r},${tile.c}`);
                     const palette: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
                     let spawnedKey: string | null = null;
@@ -182,14 +181,14 @@ export function useGameActions({
                             spawnedKey = `${pt.r},${pt.c}`;
                         }
                     }
-                    const remaining = (currentState.powerTiles || []).filter((_: any, i: number) => i !== tileIdx);
+                    const remaining = (currentState.powerTiles || []).filter((_, i) => i !== tileIdx);
                     if (spawnedKey) {
                         const [sr, sc] = spawnedKey.split(',').map(Number);
                         remaining.push({ r: sr, c: sc, type: rollPowerType() });
                     }
-                    (finalState as any).powerTiles = remaining;
+                    finalState.powerTiles = remaining;
                     const foundMsg = `${tile.type.toUpperCase()} discovered!`;
-                    (finalState as any).captureMessage = captured ? `${(finalState as any).captureMessage} ${foundMsg}` : foundMsg;
+                    finalState.captureMessage = captured ? `${finalState.captureMessage ?? ''} ${foundMsg}`.trim() : foundMsg;
                     audio.playPickup();
                 }
             }
@@ -227,11 +226,11 @@ export function useGameActions({
                 // reset, and a stuck guard deadlocks every future roll
                 // (AFK auto-play then loops on strikes forever).
                 rollingRef.current = false;
-                setLocalGameState((latest: any) => {
-                    const switchState = { 
-                        ...latest, 
-                        currentPlayer: pNextPlayer, 
-                        diceValue: null, 
+                setLocalGameState((latest) => {
+                    const switchState: GameState = {
+                        ...latest,
+                        currentPlayer: pNextPlayer ?? latest.currentPlayer,
+                        diceValue: null,
                         gamePhase: 'rolling', // Now it's officially the next turn
                         lastUpdate: Date.now(),
                         timeLeft: 15 // Reset for next turn
@@ -239,7 +238,7 @@ export function useGameActions({
                     if (isLobbyConnected) broadcastAction('TURN_SWITCH', { nextPlayer: pNextPlayer }, switchState);
                     return switchState;
                 });
-            }, 800) as any;
+            }, 800);
         }
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin]);
 
@@ -277,7 +276,7 @@ export function useGameActions({
         if (isHost && isLobbyConnected && !isRemote) {
             broadcastAction('ROLL_DICE', { isRolling: true, diceValue: null });
         }
-        setLocalGameState((prev: any) => ({ ...prev, isRolling: true, diceValue: null, timeLeft: 15 }));
+        setLocalGameState((prev) => ({ ...prev, isRolling: true, diceValue: null, timeLeft: 15 }));
         
         let rollValue: number = value || 0;
         const tumblePromise = new Promise(r => setTimeout(r, 1200));
@@ -309,7 +308,7 @@ export function useGameActions({
                 } catch (err) {
                     console.error('❌ [Engine] Edge RNG failed — aborting networked roll (no client fallback)', err);
                     await tumblePromise;
-                    setLocalGameState((prev: any) => ({ ...prev, isRolling: false, diceValue: null }));
+                    setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
                     rollingRef.current = false;
                     return;
                 }
@@ -328,7 +327,7 @@ export function useGameActions({
             broadcastAction('ROLL_DICE', { isRolling: false, diceValue: rollValue });
         }
 
-        setLocalGameState((prev: any) => ({
+        setLocalGameState((prev) => ({
             ...prev,
             isRolling: false,
             diceValue: rollValue,
@@ -357,7 +356,7 @@ export function useGameActions({
         let pNextPlayer: PlayerColor | null = null;
         let pTargetColor: PlayerColor = targetColor;
         let pLastValidTokenIndex = -1;
-        let pFinalStateForBroadcast: any = null;
+        let pFinalStateForBroadcast: GameState | null = null;
 
         const { isThreeSixes, nextSixes } = handleThreeSixes(currentState.consecutiveSixes, rollValue);
 
@@ -365,7 +364,7 @@ export function useGameActions({
             pNextPlayer = getNextPlayer(color, currentState.positions);
             pDelayedAction = 'turnSwitch';
             // 🔧 FIX 2: Use functional updater to avoid clobbering concurrent state
-            setLocalGameState((prev: any) => {
+            setLocalGameState((prev) => {
                 pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling', consecutiveSixes: 0 };
                 return pFinalStateForBroadcast;
             });
@@ -380,7 +379,7 @@ export function useGameActions({
                 pNextPlayer = getNextPlayer(color, currentState.positions);
                 pDelayedAction = 'turnSwitch';
                 // 🔧 FIX 2: Functional updater
-                setLocalGameState((prev: any) => {
+                setLocalGameState((prev) => {
                     pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling', consecutiveSixes: nextSixes };
                     return pFinalStateForBroadcast;
                 });
@@ -397,7 +396,7 @@ export function useGameActions({
                     pLastValidTokenIndex = lastValidTokenIndex;
                     pDelayedAction = 'autoMove';
                     // 🔧 FIX 2: Functional updater
-                    setLocalGameState((prev: any) => {
+                    setLocalGameState((prev) => {
                         pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'moving', consecutiveSixes: nextSixes };
                         return pFinalStateForBroadcast;
                     });
@@ -405,7 +404,7 @@ export function useGameActions({
                     // Normal Flow: Just change phase and wait for user/bot interaction
                     rollingRef.current = false;
                     // 🔧 FIX 2: Functional updater
-                    setLocalGameState((prev: any) => {
+                    setLocalGameState((prev) => {
                         pFinalStateForBroadcast = {
                             ...prev,
                             isRolling: false,
@@ -428,12 +427,12 @@ export function useGameActions({
 
         if (pDelayedAction === 'turnSwitch') {
             // Instant pass: no dead time when nobody can move
-            setLocalGameState((latest: any) => {
-                const switchState = { 
-                    ...latest, 
-                    currentPlayer: pNextPlayer, 
-                    diceValue: null, 
-                    gamePhase: 'rolling', 
+            setLocalGameState((latest) => {
+                const switchState: GameState = {
+                    ...latest,
+                    currentPlayer: pNextPlayer ?? latest.currentPlayer,
+                    diceValue: null,
+                    gamePhase: 'rolling',
                     consecutiveSixes: 0,
                     timeLeft: 15,
                     lastUpdate: Date.now()
@@ -449,13 +448,13 @@ export function useGameActions({
                 moveToken(pTargetColor, pLastValidTokenIndex, rollValue);
                 rollingRef.current = false;
                 autoMoveTimeoutRef.current = null;
-            }, 1500) as any;
+            }, 1500);
         }
 
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address]);
 
     const handleUsePower = useCallback((color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
-        const prev: any = stateRef.current;
+        const prev = stateRef.current;
         if (!prev || prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return;
         if (prev.powerSpentThisTurn) return;
         const now = Date.now();
@@ -481,7 +480,7 @@ export function useGameActions({
 
             const newShields = [...prev.activeShields];
             tokensOnBoard.forEach((idx: number) => {
-                if (!newShields.some((s: any) => s.color === myColor && s.tokenIdx === idx)) {
+                if (!newShields.some((s) => s.color === myColor && s.tokenIdx === idx)) {
                     newShields.push({ color: myColor, tokenIdx: idx });
                 }
             });
@@ -586,7 +585,7 @@ export function useGameActions({
         // Clear the blast flash after the drama lands.
         if (flash) {
             setTimeout(() => {
-                setLocalGameState((latest: any) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
+                setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
     }, [playerCount, colorCorner, audio, setLocalGameState]);

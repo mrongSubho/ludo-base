@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
 import { UserProfile, MessageData } from './GameDataContext';
-import { deriveSharedKey, decryptMessage } from '@/lib/encryption';
+import { decryptAnyMessage } from '@/lib/encryption';
 
 interface PeerChatProps {
     address: string | undefined;
@@ -26,9 +26,14 @@ export const usePeerChat = ({ address, setMessages, setMyProfile }: PeerChatProp
             console.log("📩 [P2P] Received data:", data);
             if (data.type === 'encrypted-message' && address) {
                 try {
-                    const key = await deriveSharedKey(address, conn.peer);
-                    const plainText = await decryptMessage(data.payload, key);
-                    
+                    const senderWallet: string = (data.metadata?.sender_id || '').toLowerCase();
+                    if (!senderWallet) throw new Error('missing sender_id');
+                    const plainText = await decryptAnyMessage(
+                        address.toLowerCase(),
+                        typeof data.payload === 'string' ? data.payload : JSON.stringify(data.payload),
+                        senderWallet
+                    );
+
                     const newMsg: MessageData = {
                         ...data.metadata,
                         content: plainText,

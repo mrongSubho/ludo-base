@@ -1,5 +1,8 @@
 export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 export type PowerType = 'shield' | 'boost' | 'nuke' | 'teleport';
+export type Corner = 'BL' | 'BR' | 'TR' | 'TL';
+export type ColorCorner = Record<PlayerColor, Corner>;
+import type { Dispatch, SetStateAction } from 'react';
 import type { BotDifficulty } from './constants';
 export type { BotDifficulty };
 // One held power item. expiresAt (ms epoch) refreshes on re-pickup of the
@@ -9,7 +12,7 @@ export interface PowerItem {
     expiresAt: number;
 }
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'CMD_REQUEST_TRUST';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
 
 // ─── Spectator & Betting Types ───
@@ -37,14 +40,36 @@ export interface SpectatorBet {
     window_closed_at: string;    // snapshot from BET_WINDOW_CLOSED event
 }
 
+/** Wire form of a power tile — type is authority-only until pickup. */
+export interface PowerTilePublic {
+    r: number;
+    c: number;
+}
+export interface PowerTile extends PowerTilePublic {
+    type: PowerType;
+}
+
+export interface AfkPlayerStats {
+    isAutoPlaying: boolean;
+    consecutiveTurns: number;
+    totalTriggers: number;
+    isKicked: boolean;
+}
+
+export interface BoardPlayer {
+    name: string;
+    level: number;
+    lxp?: number;
+    rxp?: number;
+    avatar: string;
+    color: PlayerColor;
+    position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    isAi?: boolean;
+    walletAddress?: string;
+}
 
 export interface GameState {
-    positions: {
-        green: number[];
-        red: number[];
-        yellow: number[];
-        blue: number[];
-    };
+    positions: Record<PlayerColor, number[]>;
     currentPlayer: PlayerColor;
     diceValue: number | null;
     isRolling: boolean;
@@ -55,15 +80,18 @@ export interface GameState {
     captureMessage: string | null;
     timeLeft: number;
     strikes: Record<PlayerColor, number>;
-    powerTiles: { r: number, c: number, type: PowerType }[];
+    /** Authority keeps `type`; wire/sanitized copies may omit it. */
+    powerTiles: (PowerTile | PowerTilePublic)[];
     playerPowers: Record<PlayerColor, PowerItem[]>;
     powerSpentThisTurn: boolean;
+    /** Active boost owner — next move by this color gets +DICE_MAX. */
+    activeBoost: PlayerColor | null;
     nukeFlash: { r: number; c: number }[];
     boostTrail: PlayerColor | null;
     activeTraps: { r: number, c: number, owner: PlayerColor }[];
     activeShields: { color: PlayerColor, tokenIdx: number }[];
     consecutiveSixes: number;
-    afkStats: Record<PlayerColor, { isAutoPlaying: boolean; consecutiveTurns: number; totalTriggers: number; isKicked: boolean }>;
+    afkStats: Record<PlayerColor, AfkPlayerStats>;
     idleWarning: { player: PlayerColor; timeLeft: number } | null;
     participantPeers: Record<string, string>; // walletAddress -> peerId
     isStarted: boolean;
@@ -72,17 +100,19 @@ export interface GameState {
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';
     matchId?: string;
-    lastAction?: { type: GameActionType; payload: any };
+    lastAction?: { type: GameActionType; payload: unknown };
     initialBoardConfig?: {
-        players: any[];
-        colorCorner: any;
+        players: BoardPlayer[];
+        colorCorner: ColorCorner;
     };
 }
 
+export type GameStateSetter = Dispatch<SetStateAction<GameState>>;
+
 export interface StartGamePayload {
     initialBoardConfig: {
-        players: any[]; // Add more specific type if possible
-        colorCorner: any; // Add more specific type if possible
+        players: BoardPlayer[];
+        colorCorner: ColorCorner;
     };
     playerCount: '1v1' | '2v2' | '4P';
     isBotMatch: boolean;

@@ -57,7 +57,11 @@ export interface TeamUpContextType {
     sendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
     acceptInvite: () => void;
     rejectInvite: () => void;
-    startQuickMatch: () => void;
+    startQuickMatch: (opts?: {
+        gameMode?: 'classic' | 'power';
+        matchType?: '1v1' | '2v2' | '4P';
+        wager?: number;
+    }) => Promise<void>;
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
     participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor; lxp?: number; rxp?: number }>;
@@ -295,7 +299,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     hostAddress: myAddress,
                     issuedAt,
                 });
-                const signature = await signMessageAsync({ message });
+                const signature = await signMessageAsync({ account: myAddress as `0x${string}`, message });
                 const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-bet`, {
                     method: 'POST',
                     headers: {
@@ -628,7 +632,57 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const acceptInvite = useCallback(() => { if (pendingInvite) { joinGame(pendingInvite.roomCode); setPendingInvite(null); } }, [pendingInvite, joinGame, setPendingInvite]);
     const rejectInvite = useCallback(() => setPendingInvite(null), [setPendingInvite]);
-    const startQuickMatch = useCallback(() => { /* Quick match logic would go here */ }, []);
+    /**
+     * Public-pool quick match (non-hybrid). Hosts a room when we win the
+     * pair race as host, otherwise joins the returned room as guest.
+     * Hybrid party fill stays in QuickMatchPanel via useMatchmaking.
+     */
+    const startQuickMatch = useCallback(async (opts?: {
+        gameMode?: 'classic' | 'power';
+        matchType?: '1v1' | '2v2' | '4P';
+        wager?: number;
+    }) => {
+        if (!myAddress) {
+            console.warn('startQuickMatch requires a wallet');
+            return;
+        }
+        const gameMode = opts?.gameMode ?? 'classic';
+        const matchType = opts?.matchType ?? '1v1';
+        const wager = opts?.wager ?? 0;
+        try {
+            const res = await fetch('/api/matchmaking/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playerId: myAddress.toLowerCase(),
+                    gameMode,
+                    matchType,
+                    wager,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                console.error('startQuickMatch join failed', data);
+                return;
+            }
+            if (data.status === 'matched' && data.room_code) {
+                const token = data.validation_token as string | undefined;
+                const weAreHost = data.host_id
+                    ? String(data.host_id).toLowerCase() === myAddress.toLowerCase()
+                    : false;
+                if (weAreHost) {
+                    hostGame(data.room_code, token);
+                    initQuickLobby(data.room_code, matchType, gameMode, wager);
+                } else {
+                    joinGame(data.room_code, token);
+                }
+            } else {
+                console.log('startQuickMatch queued', data);
+            }
+        } catch (err) {
+            console.error('startQuickMatch failed', err);
+        }
+    }, [myAddress, hostGame, joinGame, initQuickLobby]);
     const updateGameState = useCallback((s: any) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
     const sendIntent = useCallback((type: string, payload: any) => {
