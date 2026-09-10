@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -276,34 +276,50 @@ export const TeamUpMatchPanel = ({
     // roster used is empty for most users, which read as a broken list.
     const [globalOnline, setGlobalOnline] = useState<any[]>([]);
     const [loadingOnline, setLoadingOnline] = useState(false);
+    // Paged volume: 25 per page, append on demand. Rendered rows stay in the
+    // low hundreds at most — no virtualization lib needed inside a popup;
+    // paging the source is the future-proof half, capping the DOM is free.
+    const PAGE_SIZE = 25;
+    const [onlinePage, setOnlinePage] = useState(0);
+    const [onlineHasMore, setOnlineHasMore] = useState(false);
+    const fetchOnlinePage = async (page: number, append: boolean) => {
+        setLoadingOnline(true);
+        try {
+            const me = address?.toLowerCase();
+            let q = supabase
+                .from('players')
+                .select('wallet_address, username, avatar_url, status, last_seen_at')
+                .eq('status', 'Online')
+                .order('last_seen_at', { ascending: false })
+                .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+            if (me) q = q.neq('wallet_address', me);
+            const { data, error } = await q;
+            if (error) throw error;
+            // Freshness guard: heartbeat missed twice (>2min) = ghost.
+            const cutoff = Date.now() - 2 * 60 * 1000;
+            const live = (data || []).filter(p => p.last_seen_at && new Date(p.last_seen_at).getTime() >= cutoff);
+            if (!cancelledRef.current) {
+                setGlobalOnline(prev => append ? [...prev, ...live] : live);
+                setOnlinePage(page);
+                setOnlineHasMore((data || []).length === PAGE_SIZE);
+            }
+        } catch {
+            if (!cancelledRef.current && !append) setGlobalOnline([]);
+        } finally {
+            if (!cancelledRef.current) setLoadingOnline(false);
+        }
+    };
+    const cancelledRef = useRef(false);
     useEffect(() => {
         if (!invitePopup) return;
-        let cancelled = false;
-        const fetchOnline = async () => {
-            setLoadingOnline(true);
-            try {
-                const me = address?.toLowerCase();
-                let q = supabase
-                    .from('players')
-                    .select('wallet_address, username, avatar_url, status, last_seen_at')
-                    .eq('status', 'Online')
-                    .order('last_seen_at', { ascending: false })
-                    .limit(25);
-                if (me) q = q.neq('wallet_address', me);
-                const { data, error } = await q;
-                if (error) throw error;
-                // Freshness guard: heartbeat missed twice (>2min) = ghost.
-                const cutoff = Date.now() - 2 * 60 * 1000;
-                const live = (data || []).filter(p => p.last_seen_at && new Date(p.last_seen_at).getTime() >= cutoff);
-                if (!cancelled) setGlobalOnline(live);
-            } catch {
-                if (!cancelled) setGlobalOnline([]);
-            } finally {
-                if (!cancelled) setLoadingOnline(false);
-            }
-        };
-        fetchOnline();
-        return () => { cancelled = true; };
+        cancelledRef.current = false;
+        // Fresh open (or tab switch back): reset to page 0.
+        setGlobalOnline([]);
+        setOnlinePage(0);
+        setOnlineHasMore(false);
+        fetchOnlinePage(0, false);
+        return () => { cancelledRef.current = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [invitePopup, address]);
     const openInvitePopup = (slot: LobbySlot) => {
         playSelect();
@@ -591,16 +607,24 @@ export const TeamUpMatchPanel = ({
                                             )}
                                         </button>
                                     )}
+                                    {roomCodeValue && (
+                                        <button
+                                            onClick={() => copyText(inviteLinkFor(), 'popup-room-link')}
+                                            className="-mt-1 text-[9px] font-bold text-white/35 hover:text-cyan-300 tracking-wide transition-colors"
+                                        >
+                                            {copiedKey === 'popup-room-link' ? 'Room link copied!' : 'Copy room link instead — fills any open seat'}
+                                        </button>
+                                    )}
                                     <PanelTabs
                                         value={ftab}
                                         onPick={setFtab}
                                         options={[
                                             { value: 'social', label: `Social (${(friendsData.gameFriends || []).filter((f: any) => rankOf(f) < 2).length})` },
-                                            { value: 'global', label: `Global (${globalOnline.length})` },
+                                            { value: 'global', label: `Global (${globalOnline.length}${onlineHasMore ? '+' : ''})` },
                                         ]}
                                     />
                                     <div className="flex-1 min-h-[140px] overflow-y-auto overscroll-contain no-scrollbar flex flex-col gap-2 pb-1">
-                                        {(ftab === 'global' ? loadingOnline : isLoadingFriends) ? (
+                                        {(ftab === 'global' ? (loadingOnline && globalOnline.length === 0) : isLoadingFriends) ? (
                                             <div className="py-8 flex items-center justify-center opacity-30"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         ) : (
                                             (() => {
@@ -642,6 +666,17 @@ export const TeamUpMatchPanel = ({
                                                     </div>
                                                 );
                                             })()
+                                        )}
+                                        {ftab === 'global' && loadingOnline && globalOnline.length > 0 && (
+                                            <div className="py-3 flex items-center justify-center opacity-40"><div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
+                                        )}
+                                        {ftab === 'global' && onlineHasMore && !loadingOnline && (
+                                            <button
+                                                onClick={() => fetchOnlinePage(onlinePage + 1, true)}
+                                                className="mt-1 w-full py-2.5 rounded-2xl bg-white/[0.04] border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-[0.18em] hover:bg-white/10 hover:text-white active:scale-[0.99] transition-all"
+                                            >
+                                                Show more online players
+                                            </button>
                                         )}
                                     </div>
                                 </div>

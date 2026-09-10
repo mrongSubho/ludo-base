@@ -45,7 +45,7 @@ export interface TeamUpContextType {
     lobbyState: LobbyState | null;
     pendingInvite: InvitePayload | null;
     hostGame: (roomId?: string) => void;
-    joinGame: (roomId: string, token?: string) => void;
+    joinGame: (roomId: string, token?: string, desiredSeat?: number) => void;
     initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
     hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => string;
     sendIntent: (type: string, payload: any) => void;
@@ -89,6 +89,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
     const peerRef = useRef<Peer | null>(null);
+    // Requested seat from an invite link (?seat=N). Consumed by the next
+    // SYNC_PROFILE send, then cleared — retries reuse it until first send.
+    const desiredSeatRef = useRef<number | undefined>(undefined);
 
     const destroyPeer = useCallback(() => {
         if (peerRef.current) {
@@ -409,7 +412,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     const addr = data.address.toLowerCase();
                     const invitedIdx = cur.slots.findIndex(s => s.playerId?.toLowerCase() === addr && s.status !== 'joined');
                     let next: LobbySlot[] | null = null;
-                    if (invitedIdx !== -1) {
+                    // Honored seat request (invite-link ?seat=N): an exactly
+                    // empty seat wins over first-empty. Invited seats are
+                    // never 'empty', so reservations can't be stolen this way;
+                    // a taken/missing seat falls through to normal assignment.
+                    const want = Number.isInteger(data.desiredSeat) ? (data.desiredSeat as number) : -1;
+                    if (want >= 0 && want < cur.slots.length && cur.slots[want]?.status === 'empty') {
+                        next = cur.slots.map((s, i) => i === want
+                            ? { ...s, status: 'joined' as const, playerId: data.address, playerName: data.username || `Player ${want + 1}`, playerAvatar: data.avatar_url, peerId: conn.peer }
+                            : { ...s });
+                    } else if (invitedIdx !== -1) {
                         next = cur.slots.map((s, i) => i === invitedIdx
                             ? { ...s, status: 'joined' as const, playerName: data.username || s.playerName, playerAvatar: data.avatar_url || s.playerAvatar, peerId: conn.peer }
                             : { ...s });
@@ -482,11 +494,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         });
     }, [destroyPeer, setIsHost, setValidationToken, myAddress, setLobbyState, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData]);
 
-    const joinGame = useCallback((targetRoomId: string, token?: string) => {
+    const joinGame = useCallback((targetRoomId: string, token?: string, desiredSeat?: number) => {
         destroyPeer();
         setIsHost(false);
         setValidationToken(token);
         setCurrentRoomCode(targetRoomId);
+        desiredSeatRef.current = Number.isInteger(desiredSeat) ? desiredSeat : undefined;
         const peer = new Peer();
         peerRef.current = peer;
 
@@ -495,7 +508,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             conn.on('open', () => {
                 setConnections(new Map([[conn.peer, conn]]));
                 setIsLobbyConnected(true);
-                if (myAddress) conn.send({ type: 'SYNC_PROFILE', address: myAddress, username: myProfile?.username, avatar_url: myProfile?.avatar_url, validationToken: token });
+                if (myAddress) conn.send({ type: 'SYNC_PROFILE', address: myAddress, username: myProfile?.username, avatar_url: myProfile?.avatar_url, validationToken: token, desiredSeat: desiredSeatRef.current ?? undefined });
+                desiredSeatRef.current = undefined;
             });
             conn.on('data', (d) => handleGuestData(d, conn));
             conn.on('error', () => { if (att < 5) setTimeout(() => connect(p, att + 1), 1000); });

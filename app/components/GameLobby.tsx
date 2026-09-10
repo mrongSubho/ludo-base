@@ -90,6 +90,24 @@ export default function GameLobby({
     }, []);
     const [searchId, setSearchId] = useState(0);
 
+    // Incoming invite links (?room=CODE&seat=N): room-only links fill any
+    // open seat — ONE link serves the whole party, no per-seat spam.
+    // Seat links request that exact seat (honored when still empty).
+    // Runs once on lobby mount (post-connect, post-onboarding by construction).
+    useEffect(() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('room');
+            if (!code || code.trim().length < 3) return;
+            const seatRaw = params.get('seat');
+            const seat = seatRaw !== null && /^\d+$/.test(seatRaw) ? parseInt(seatRaw, 10) : undefined;
+            // Consume: never re-join on re-render.
+            window.history.replaceState(null, '', window.location.pathname);
+            guard('online-play', () => joinGame(code.trim().toUpperCase(), undefined, seat));
+        } catch { /* no link — normal entry */ }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Handle Joining from Live Feed
     useEffect(() => {
         const handleJoinPool = (e: any) => {
@@ -109,10 +127,12 @@ export default function GameLobby({
         // Direct party link from the broadcast feed: room code present means
         // a hosted party with open seats — join it straight, no queue.
         const handleJoinParty = (e: Event) => {
-            const code = (e as CustomEvent)?.detail?.roomCode;
+            const detail = (e as CustomEvent)?.detail;
+            const code = detail?.roomCode;
             if (typeof code === 'string' && code.trim().length >= 3) {
                 console.log('📡 [Lobby] Joining party from feed:', code);
-                guard('online-play', () => joinGame(code.trim().toUpperCase()));
+                const seat = typeof detail?.seat === 'number' ? detail.seat : undefined;
+                guard('online-play', () => joinGame(code.trim().toUpperCase(), undefined, seat));
             }
         };
         window.addEventListener('join_party', handleJoinParty);
