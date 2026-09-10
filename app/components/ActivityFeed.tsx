@@ -334,7 +334,6 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
     // side, and started rows are filtered server-side by room_open).
     const sessionStart = useRef(Date.now());
     useEffect(() => {
-    useEffect(() => {
         const toRoom = (row: any): LiveRoom | null => {
             if (!row?.room_code) return null;
             return {
