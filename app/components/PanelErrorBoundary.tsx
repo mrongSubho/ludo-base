@@ -14,21 +14,23 @@ interface Props {
 
 interface State {
     error: Error | null;
+    stack: string | null;
 }
 
 export class PanelErrorBoundary extends React.Component<Props, State> {
-    state: State = { error: null };
+    state: State = { error: null, stack: null };
 
     static getDerivedStateFromError(error: Error): State {
-        return { error };
+        return { error, stack: null };
     }
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
         // eslint-disable-next-line no-console
         console.error(`[ludo-panel-error:${this.props.name}]`, error.message, info.componentStack);
+        this.setState({ stack: info.componentStack || null });
     }
 
-    private retry = () => this.setState({ error: null });
+    private retry = () => this.setState({ error: null, stack: null });
 
     render() {
         const { error } = this.state;
@@ -45,6 +47,11 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
                         <p className="text-[11px] font-mono text-white/50 break-words max-w-full">
                             {error.message || 'Unknown error'}
                         </p>
+                        {this.state.stack && (
+                            <pre className="w-full max-h-28 overflow-auto text-left text-[9px] font-mono text-white/35 bg-black/40 rounded-xl p-2 whitespace-pre-wrap break-words">
+                                {this.state.stack}
+                            </pre>
+                        )}
                         <div className="flex gap-2 w-full mt-1">
                             <button
                                 onClick={this.retry}
