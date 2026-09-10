@@ -21,6 +21,7 @@ const DOT_POSITIONS = {
 
 export default function Dice({ onRoll, currentValue, isRolling: externalIsRolling, disabled }: DiceProps) {
     const isRolling = externalIsRolling;
+    const [displayedValue, setDisplayedValue] = useState<number>(currentValue && currentValue > 0 ? currentValue : 1);
 
     // Sync with external value when not rolling
     useEffect(() => {

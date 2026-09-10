@@ -8,8 +8,8 @@ export interface MessageData {
     content: string;
     is_read: boolean;
     created_at: string;
-    deleted_by_sender: boolean;
-    deleted_by_receiver: boolean;
+    deleted_by_sender: boolean | null;
+    deleted_by_receiver: boolean | null;
     send_status?: 'sending' | 'failed' | 'sent';
 }
 
@@ -77,7 +77,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                 console.log("DEBUG: Messages result:", msgData?.length || 0, "rows");
                 if (msgData) {
                     const visible = msgData.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
-                    setMessages(visible);
+                    setMessages(visible as MessageData[]);
                 }
             }
             setIsLoading(false);
@@ -315,7 +315,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
         } else if (data) {
             // Replace temporary message with successful database record
-            setMessages(prev => prev.map(m => m.id === tempId ? { ...data, send_status: 'sent' } : m));
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...data, send_status: 'sent' } as MessageData : m));
         }
     };
 

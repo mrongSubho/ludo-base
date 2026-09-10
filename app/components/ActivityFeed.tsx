@@ -465,7 +465,8 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
 
     useEffect(() => {
         const fetchInitial = async () => {
-            const { data } = await (supabase.from('activities') as any)
+            const { data } = await supabase
+                .from('activities')
                 .select('*, actor:players(username, avatar_url)')
                 .order('created_at', { ascending: false })
                 .limit(6);
@@ -856,7 +857,8 @@ function useBroadcastData(): BroadcastData {
     useEffect(() => {
         (async () => {
             try {
-                const { data } = await (supabase.from('activities') as any)
+                const { data } = await supabase
+                    .from('activities')
                     .select('*, actor:players(username, avatar_url)')
                     .order('created_at', { ascending: false })
                     .limit(6);
@@ -910,6 +912,13 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     const [input, setInput] = useState('');
     const [cooldown, setCooldown] = useState(0);
     const feedScrollRef = useRef<HTMLDivElement>(null);
+
+    // Broadcast card "On air" CTA opens this feed in matches-only mode.
+    useEffect(() => {
+        const onOpenMatches = () => setMatchesOnly(true);
+        window.addEventListener('open_live_matches', onOpenMatches);
+        return () => window.removeEventListener('open_live_matches', onOpenMatches);
+    }, []);
 
     useEffect(() => {
         if (cooldown > 0) {
@@ -1471,7 +1480,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
                                 </button>
                             ) : (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); setBtab('matches'); setIsOpen(true); }}
+                                    onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('open_live_matches')); setIsOpen(true); }}
                                     title="Open live matches"
                                     className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
                                 >

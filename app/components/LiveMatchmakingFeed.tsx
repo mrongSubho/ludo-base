@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiUsers, FiCheck, FiX } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
-import { useGameData } from '@/hooks/GameDataContext';
 
 interface PooledSearch {
     player_id: string;
@@ -17,34 +16,34 @@ interface PooledSearch {
 export const LiveMatchmakingFeed = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [pooledSearches, setPooledSearches] = useState<PooledSearch[]>([]);
-    const { user } = useGameData();
 
     // Fetch initial state
     useEffect(() => {
         const fetchRecentSearches = async () => {
             const { data, error } = await supabase
-                .from('matchmaking_pool')
-                .select('*')
+                .from('matchmaking_queue')
+                .select('player_id, game_mode, wager, status, created_at')
+                .eq('status', 'searching')
                 .order('created_at', { ascending: false })
                 .limit(10);
-            
-            if (data) setPooledSearches(data);
+
+            if (data) setPooledSearches(data as PooledSearch[]);
         };
 
         fetchRecentSearches();
 
-        // Real-time subscription to the pool
+        // Real-time subscription to the live queue
         const channel = supabase
-            .channel('public:matchmaking_pool')
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'matchmaking_pool' 
+            .channel('public:matchmaking_queue')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'matchmaking_queue'
             }, (payload) => {
                 if (payload.eventType === 'INSERT') {
                     setPooledSearches(prev => [payload.new as PooledSearch, ...prev].slice(0, 10));
                 } else if (payload.eventType === 'UPDATE') {
-                    setPooledSearches(prev => prev.map(s => 
+                    setPooledSearches(prev => prev.map(s =>
                         s.player_id === (payload.new as PooledSearch).player_id ? (payload.new as PooledSearch) : s
                     ));
                 }

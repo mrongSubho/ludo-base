@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
 import { decryptAnyMessage, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
+import type { Json } from '@/types/database.types';
 
 // --- TYPES ---
 
@@ -19,6 +20,8 @@ export interface UserProfile {
     rxp?: number | null;
     rank_tier?: string | null;
     coins?: number | null;
+    peer_id?: string | null;
+    ecdh_pubkey?: Json | null;
 }
 
 export interface LeaderboardEntry extends UserProfile {
@@ -42,8 +45,8 @@ export interface MessageData {
     content: string;
     is_read: boolean;
     created_at: string;
-    deleted_by_sender: boolean;
-    deleted_by_receiver: boolean;
+    deleted_by_sender: boolean | null;
+    deleted_by_receiver: boolean | null;
     send_status?: 'sending' | 'failed' | 'sent';
 }
 
@@ -274,7 +277,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                 const jwk = await exportPublicKeyJwk(address.toLowerCase());
                 if (cancelled) return;
                 await supabase.from('players').upsert(
-                    { wallet_address: address.toLowerCase(), ecdh_pubkey: jwk },
+                    { wallet_address: address.toLowerCase(), ecdh_pubkey: jwk as unknown as Json },
                     { onConflict: 'wallet_address' }
                 );
             } catch (err) {

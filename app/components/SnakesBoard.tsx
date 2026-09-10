@@ -239,7 +239,7 @@ export default function SnakesBoard({
                 // Build absolute path array for step-by-step animation
                 const path: number[] = [];
                 let p = currentPos;
-                for (let i = 1; i <= value; i++) {
+                for (let i = 1; i <= rollValue; i++) {
                     if (p < 100) p++;
                     else p--;
                     path.push(p);

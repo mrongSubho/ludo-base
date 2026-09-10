@@ -59,6 +59,7 @@ export default function TokenMoveTestPage() {
                             offset={{ x: 0, y: 0 }}
                             isDraggable={false}
                             isColorTurn={true}
+                            isValidMove={false}
                             counterRotationDeg={0}
                             colorCorner={CC}
                             onClick={() => {}}

@@ -36,7 +36,7 @@ export async function GET(request: Request) {
                 .limit(limit);
             if (country) legacy = legacy.eq('country', country);
             const retry = await legacy;
-            data = retry.data;
+            data = retry.data as typeof data;
             error = retry.error;
         }
         if (error) throw error;

@@ -5,11 +5,12 @@ Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wag
 ## Commands
 
 - `npm run dev` — dev server (Turbopack) at `http://localhost:3000`. This is the only reliable dev command.
-- `npm run build` && `npm start` — production. `next.config.ts` sets `typescript.ignoreBuildErrors: true`, so **build passes even with type errors** — it is NOT a correctness gate.
+- `npm run build` && `npm start` — production. TypeScript errors **fail the build** (`ignoreBuildErrors: false`).
 - `npm run lint` — **BROKEN**. `next lint` was removed in Next 16; it errors with "no such directory: .../lint". Do not rely on lint.
 - `npm test` — engine unit tests via `npx tsx --test scripts/engine.test.ts` (2v2 teams, gate-crossing legality, three sixes, capture). Run this after any `lib/gameLogic` / `lib/boardLayout` / `lib/constants` change.
-- `npx tsc -p tsconfig.json --noEmit` — full project has many pre-existing errors (UI `any`s, Deno edge functions, wagmi/viem d.ts). **CI gates only core files** (see below). Treat full `tsc` as advisory.
-- **CI** (`.github/workflows/ci.yml`): `engine-tests` (npm test) + `typecheck-core` (fails if gated files have `error TS`). Gated: `lib/{gameLogic,constants,boardLayout,aiEngine,matchProof,matchRecorder,encryption,types}`, `hooks/use{GameActions,GameTimer,AFKManager,AIBrain}`, `scripts/engine.test.ts`. Keep these clean.
+- `npx tsc -p tsconfig.json --noEmit` — **must be 0 errors**. Deno edge functions excluded (`supabase/functions` in tsconfig). Do not reintroduce broad `any` on the game surface without a burn-down.
+- **CI** (`.github/workflows/ci.yml`): `engine-tests` + `typecheck-core`. Keep gated files clean.
+- Smoke tests: `docs/SMOKE_MULTIPLAYER.md` (invite secret, hybrid fill, matchmaking, Edge RNG, dual-path intents, ECDH DMs).
 
 ## Environment
 

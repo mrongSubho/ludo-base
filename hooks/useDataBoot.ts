@@ -48,7 +48,7 @@ export const useDataBoot = (address: string | undefined) => {
 
             // Process Leaderboard
             if (leaderboardRes.data) {
-                const formattedLeaders = leaderboardRes.data.map(p => {
+                const formattedLeaders = leaderboardRes.data.map((p: { lxp?: number | null; rxp?: number | null; rank_tier?: string | null; wallet_address: string; username?: string | null; avatar_url?: string | null; total_wins?: number | null; last_played_at?: string | null; status?: string | null; coins?: number | null }) => {
                     const prog = getProgression(p.lxp || 0, p.rxp || 1200);
                     return {
                         ...p,
@@ -61,7 +61,7 @@ export const useDataBoot = (address: string | undefined) => {
                 localStorage.setItem(`cache_leaderboard`, JSON.stringify(formattedLeaders));
 
                 const pMap: Record<string, UserProfile> = {};
-                formattedLeaders.forEach(l => pMap[l.wallet_address] = l);
+                formattedLeaders.forEach((l: LeaderboardEntry) => pMap[l.wallet_address] = l);
                 if (profileRes.data) pMap[lowerAddr] = profileRes.data;
                 setProfilesMap(prev => ({ ...prev, ...pMap }));
             }

@@ -48,7 +48,13 @@ export function useCurrentUser() {
                 if (data && data.length > 0) {
                     const player = data[0];
                     setProfile({
-                        ...player,
+                        username: player.username,
+                        avatar_url: player.avatar_url,
+                        lxp: player.lxp ?? undefined,
+                        rxp: player.rxp ?? undefined,
+                        coins: player.coins ?? undefined,
+                        total_wins: player.total_wins,
+                        total_games: player.total_games,
                         displayName: (player.username && !player.username.startsWith('0x')) ? player.username : "User " + wagmiAddress.slice(-4).toUpperCase()
                     });
                 } else if (error) {

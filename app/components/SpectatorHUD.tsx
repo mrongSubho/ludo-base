@@ -253,23 +253,27 @@ export const SpectatorHUD = ({
         setMyBet(null);
     }, [activeBetWindow?.expiresAt]);
 
+    const windowOpen = !!activeBetWindow && !activeBetWindow.windowClosedAt;
+
     // ── Cash out: 50% of potential payout while the window is still open ──
     const handleCashOut = useCallback(async () => {
         if (!address || !myBet || !windowOpen || isCashingOut) return;
         setIsCashingOut(true);
         try {
-            const { data, error } = await supabase.rpc('cash_out_bet', {
+            const { data, error } = await supabase.rpc('cash_out_bet' as never, {
                 p_bet_id: myBet.id,
                 p_player_id: address.toLowerCase(),
-            });
+            } as never);
             if (error) throw error;
-            const credited = Array.isArray(data) ? data[0]?.credited ?? 0 : (data as any)?.credited ?? 0;
-            updateMyProfileOptimistic({ coins: (myProfile?.coins ?? 0) + Number(credited) });
+            const credited = Array.isArray(data)
+                ? Number((data[0] as { credited?: number } | undefined)?.credited ?? 0)
+                : Number((data as { credited?: number } | null)?.credited ?? 0);
+            updateMyProfileOptimistic({ coins: (myProfile?.coins ?? 0) + credited });
             const name = profileRef.current?.username ?? address.slice(0, 6) + '…';
             const feed: ChatMessage = {
                 id: crypto.randomUUID(),
                 author: '',
-                text: `${name} cashed out +${Number(credited).toLocaleString()}`,
+                text: `${name} cashed out +${credited.toLocaleString()}`,
                 createdAt: Date.now(),
                 system: true,
             };
@@ -295,6 +299,7 @@ export const SpectatorHUD = ({
             return;
         }
         let cancelled = false;
+        type FollowBetRow = { id: string; player_id: string; bet_type: string; bet_value: string; amount: number; status?: string };
         (async () => {
             const { data } = await supabase
                 .from('spectator_bets')
@@ -304,14 +309,14 @@ export const SpectatorHUD = ({
                 .in('player_id', ids)
                 .order('created_at', { ascending: false })
                 .limit(10);
-            if (!cancelled && data) setFollowedBets(data as (SpectatorBet & { id: string })[]);
+            if (!cancelled && data) setFollowedBets(data as unknown as (SpectatorBet & { id: string; player_id: string; status?: string })[]);
         })();
         const channel = supabase
             .channel(`follow-bets-${matchId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spectator_bets', filter: `match_id=eq.${matchId}` }, (payload) => {
-                const row = payload.new as SpectatorBet & { id: string };
+                const row = payload.new as FollowBetRow & { status?: string };
                 if (row.status === 'pending' && ids.includes((row.player_id || '').toLowerCase())) {
-                    setFollowedBets(prev => [row, ...prev.filter(b => b.player_id.toLowerCase() !== row.player_id.toLowerCase())].slice(0, 10));
+                    setFollowedBets(prev => [row as SpectatorBet & { id: string; player_id: string }, ...prev.filter(b => (b as { player_id?: string }).player_id?.toLowerCase() !== row.player_id.toLowerCase())].slice(0, 10));
                 }
             })
             .subscribe();
@@ -321,7 +326,6 @@ export const SpectatorHUD = ({
         };
     }, [address, matchId]);
 
-    const windowOpen = !!activeBetWindow && !activeBetWindow.windowClosedAt;
     const progressPct = activeBetWindow?.expiresAt
         ? Math.min(100, (timeLeft / 3000) * 100)
         : 0;

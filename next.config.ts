@@ -38,10 +38,9 @@ const nextConfig: NextConfig = {
     return config;
   },
 
-  // Next 16 might still want these here if using --webpack, 
-  // but if the warning persists, you can remove the eslint block entirely.
+  // Full-project `tsc` is clean (see CI). Keep the gate on.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 
   async headers() {

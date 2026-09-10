@@ -19,7 +19,7 @@ jobs:
       - name: Engine unit tests
         run: npm test
 
-  typecheck-core:
+  typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,15 +29,7 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Typecheck core engine + hooks
-        # Full project tsc is noisy (legacy Deno edge + pre-existing UI anys).
-        # Gate the pure engine and game hooks we actively maintain.
-        run: |
-          npx tsc -p tsconfig.json --noEmit --pretty false 2>&1 | tee tsc-out.txt || true
-          GATED='lib/(gameLogic|constants|boardLayout|aiEngine|matchProof|matchRecorder|encryption|types)|hooks/use(GameActions|GameTimer|AFKManager|AIBrain)|scripts/engine'
-          if grep -E "^(${GATED})" tsc-out.txt | grep -q 'error TS'; then
-            echo "Type errors in gated files:"
-            grep -E "^(${GATED})" tsc-out.txt
-            exit 1
-          fi
-          echo "Gated files clean"
+      - name: Full project typecheck
+        # Deno edge functions are excluded in tsconfig.json.
+        # Fail on any TS error — ignoreBuildErrors is off in next.config.ts.
+        run: npx tsc -p tsconfig.json --noEmit --pretty false

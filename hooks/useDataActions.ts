@@ -23,7 +23,7 @@ async function publishMyEcdhPubkey(walletAddress: string): Promise<void> {
         await getOrCreateIdentityKey(walletAddress);
         const jwk = await exportPublicKeyJwk(walletAddress);
         await supabase.from('players')
-            .upsert({ wallet_address: walletAddress.toLowerCase(), ecdh_pubkey: jwk }, { onConflict: 'wallet_address' });
+            .upsert({ wallet_address: walletAddress.toLowerCase(), ecdh_pubkey: jwk as unknown as import('@/types/database.types').Json }, { onConflict: 'wallet_address' });
     } catch (err) {
         console.warn('Failed to publish ECDH pubkey', err);
     }
@@ -36,7 +36,7 @@ async function fetchPeerEcdhPubkey(peerId: string): Promise<JsonWebKey | null> {
         .select('ecdh_pubkey')
         .ilike('wallet_address', peerId)
         .maybeSingle();
-    const pk = data?.ecdh_pubkey as JsonWebKey | null | undefined;
+    const pk = data?.ecdh_pubkey as unknown as JsonWebKey | null | undefined;
     return pk && typeof pk === 'object' && (pk as JsonWebKey).kty ? (pk as JsonWebKey) : null;
 }
 

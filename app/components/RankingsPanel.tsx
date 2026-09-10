@@ -46,10 +46,11 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
         if (!isOpen) return;
         (async () => {
             try {
-                const { data } = await (supabase.from('tournaments') as any)
+                const { data } = await supabase
+                    .from('tournaments')
                     .select('prize_pool')
                     .eq('status', 'upcoming');
-                const sum = (data || []).reduce((s: number, t: any) => s + (Number(t.prize_pool) || 0), 0);
+                const sum = (data || []).reduce((s: number, t: { prize_pool?: number | null }) => s + (Number(t.prize_pool) || 0), 0);
                 setPrizepool(sum > 0 ? sum : null);
             } catch {
                 setPrizepool(null);
