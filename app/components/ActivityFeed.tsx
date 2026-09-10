@@ -695,6 +695,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
     const [activities, setActivities] = useState<Activity[]>([]);
     const [input, setInput] = useState('');
     const [cooldown, setCooldown] = useState(0);
+    const feedScrollRef = useRef<HTMLDivElement>(null);
     const hostCache = useRef<Map<string, { name: string; avatar: string | null }>>(new Map());
     const sessionStart = useRef(Date.now());
 
@@ -952,9 +953,13 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
 
     const items = useMemo(() => {
         const out: FeedItem[] = [];
+        const meLower = me;
         for (const m of chats) {
+            const mineMsg = (m.sender_id || '').toLowerCase() === meLower;
             if (matchesOnly && !m.room_code) continue;
-            if (localOnly && (m.country || 'XX') !== country) continue;
+            // Own shouts always pass Local — you're local to yourself,
+            // regardless of what country the edge stamped (VPNs, routing).
+            if (localOnly && !mineMsg && (m.country || 'XX') !== country) continue;
             out.push({ key: `c-${m.id}`, ts: m.created_at ? new Date(m.created_at).getTime() : 0, kind: 'chat', msg: m });
         }
         for (const r of rooms) {
@@ -971,9 +976,17 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
                 out.push({ key: `a-${a.id}`, ts: a.created_at ? new Date(a.created_at).getTime() : 0, kind: 'activity', activity: a });
             }
         }
-        out.sort((x, y) => y.ts - x.ts);
+        // Chronological, oldest first — regular messaging order, latest lands
+        // at the bottom above the input.
+        out.sort((x, y) => x.ts - y.ts);
         return out;
-    }, [chats, rooms, searches, activities, matchesOnly, localOnly, country]);
+    }, [chats, rooms, searches, activities, matchesOnly, localOnly, country, me]);
+
+    // Stick to the latest message like any messenger.
+    useEffect(() => {
+        const el = feedScrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, [items.length]);
 
     const emptyHint = matchesOnly
         ? (localOnly ? 'No live matches nearby right now.' : 'Quiet airwaves — rooms and searches land here live.')
@@ -1005,8 +1018,8 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin }: { onOpenProfile?
                 </button>
             </div>
 
-            {/* One timeline, newest first */}
-            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2">
+            {/* One timeline, chronological — latest lands at the bottom */}
+            <div ref={feedScrollRef} className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2">
                 {items.length === 0 ? (
                     <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                         <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
