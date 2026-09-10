@@ -38,17 +38,17 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
         return (
             <div className="fixed inset-0 z-[130] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
-                    <div className="pointer-events-auto absolute top-[64px] left-[8px] right-[8px] border border-red-500/30 rounded-[28px] p-5 flex flex-col items-center gap-2.5 text-center shadow-2xl"
+                    <div className="panel-error-card pointer-events-auto absolute top-[64px] left-[8px] right-[8px] border border-red-500/30 rounded-[28px] p-5 flex flex-col items-center gap-2.5 text-center shadow-2xl"
                         style={{ background: 'rgba(20,8,10,0.96)', backdropFilter: 'blur(32px)' }}
                     >
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">
                             {this.props.name} crashed
                         </p>
-                        <p className="text-[11px] font-mono text-white/50 break-words max-w-full">
+                        <p className="text-[12px] font-bold text-white break-words max-w-full">
                             {error.message || 'Unknown error'}
                         </p>
                         {this.state.stack && (
-                            <pre className="w-full max-h-28 overflow-auto text-left text-[9px] font-mono text-white/35 bg-black/40 rounded-xl p-2 whitespace-pre-wrap break-words">
+                            <pre className="panel-error-stack w-full max-h-28 overflow-auto text-left text-[10px] font-mono text-white/75 bg-black/60 border border-white/10 rounded-xl p-2 whitespace-pre-wrap break-words">
                                 {this.state.stack}
                             </pre>
                         )}

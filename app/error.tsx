@@ -20,14 +20,14 @@ export default function Error({
 
     return (
         <main className="min-h-[100dvh] flex items-center justify-center px-4 py-10 bg-black">
-            <div className="w-full max-w-[420px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 shadow-2xl flex flex-col items-center gap-3 text-center">
+            <div className="panel-error-card w-full max-w-[420px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 shadow-2xl flex flex-col items-center gap-3 text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">
                     Something broke
                 </p>
                 <h1 className="text-lg font-black text-white uppercase tracking-tight">
                     The arena hit a snag
                 </h1>
-                <p className="text-[11px] font-mono text-white/40 break-words max-w-full">
+                <p className="text-[12px] font-bold text-white/80 break-words max-w-full">
                     {error.message || 'Unknown client error'}
                     {error.digest ? ` · ${error.digest}` : ''}
                 </p>

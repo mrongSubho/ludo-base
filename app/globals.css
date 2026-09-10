@@ -375,6 +375,19 @@ body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { backgro
 /* Board compact header: mode-strip inner pill + text stay legible on light glass */
 body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
 body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
+/* Error surfaces: full daybreak remap (no dark-only cards anywhere) */
+body.theme-daybreak .panel-error-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  box-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.25) !important;
+}
+body.theme-daybreak .panel-error-card :is(.text-white) { color: #171717; }
+body.theme-daybreak .panel-error-card :is(.text-red-400) { color: #b91c1c; }
+body.theme-daybreak .panel-error-card .panel-error-stack {
+  background: rgba(23, 23, 23, 0.06) !important;
+  border-color: rgba(23, 23, 23, 0.12) !important;
+  color: rgba(23, 23, 23, 0.75) !important;
+}
 /* Onboarding picks: full theme-proof card treatment (dark base + daybreak) */
 .onboard-pick {
   flex: 1;
