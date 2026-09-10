@@ -209,8 +209,8 @@ const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot }: {
     // Empty-disc tap: open the invite popup pre-targeted at THAT seat.
     onInviteSlot: (slot: LobbySlot) => void;
 }) => {
-    const mine = slots.filter(s => s.role === 'host' || s.role === 'teammate');
-    const theirs = slots.filter(s => s.role === 'opponent');
+    const mine = Array.isArray(slots) ? slots.filter(s => s && (s.role === 'host' || s.role === 'teammate')) : [];
+    const theirs = Array.isArray(slots) ? slots.filter(s => s && s.role === 'opponent') : [];
     // 1v1 is a duel, not a team match: You vs Rival.
     const mineTitle = mode === '2v2' ? 'Your team' : 'You';
     const theirsTitle = mode === '1v1' ? 'Rival' : 'Rivals';
