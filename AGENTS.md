@@ -51,6 +51,7 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 - Offline/bot: `page.tsx:handlePlayNow` seeds `boardSeed`; `Board.tsx` prefers it. Bots: `DIFFICULTY_PARAMS` clocks in `constants.ts`.
 - Multiplayer: Supabase Realtime broadcast (`game-room-<roomCode>`) primary; PeerJS for handshake/`SYNC_PROFILE`. `actionId` + `processedActionIds` dedup. Host/compute-host is authority; guests send intents.
 - **Guest intents are dual-path:** `sendIntent` sends PeerJS `GAME_ACTION` **and** Supabase `GAME_INTENT` with a shared `intentId`. Host dedups via `processedIntentIds` so NAT-blocked PeerJS does not mute guests.
+- **Lobby seating is dual-path:** guests send Supabase `JOIN_REQUEST` (retried) **and** PeerJS `SYNC_PROFILE`. Host `seatGuestPlayer` accepts either (same room-secret gate).
 - Host join gate: matchmaking hosts require the ticket `validation_token`. Invite lobbies mint a **room secret** on `hostGame` (`?s=` in links, `game_invites.validation_token`). Hybrid public fill calls `allowOpenJoins()` so matchmaking-paired guests are not blocked.
 - Betting window live path: `TeamUpContext.startBettingWindow` only (`useBettingWindow` module was removed).
 - `startQuickMatch` in `TeamUpContext` hits `/api/matchmaking/join` and hosts/joins on match.

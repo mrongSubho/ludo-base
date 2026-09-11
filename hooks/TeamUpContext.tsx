@@ -14,6 +14,7 @@ import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
 import { useMoveAuth } from '@/hooks/useMoveAuth';
 import { useMatchStates } from '@/hooks/useMatchStates';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
+import { createPeerInstance } from '@/lib/peerFactory';
 import { INITIAL_GAME_STATE as ENGINE_INIT } from '@/lib/gameLogic';
 import {
     GameState,
@@ -145,6 +146,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         connectionsRef.current.forEach(c => c.close());
         connectionsRef.current.clear();
         setConnections(new Map());
+        // Never leave ONLINE latched after teardown — hostGame/joinGame
+        // only set this true again on a live PeerJS bind.
+        setIsLobbyConnected(false);
     }, []);
 
     const broadcastToAll = useCallback((data: any) => {
@@ -338,6 +342,66 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         resolveBet,
     });
 
+    // Seat a joiner (host authority). Shared by PeerJS SYNC_PROFILE and
+    // Supabase JOIN_REQUEST so NAT/Brave guests can seat without P2P.
+    const seatGuestPlayer = useCallback((payload: {
+        address: string;
+        username?: string;
+        avatar_url?: string;
+        desiredSeat?: number;
+        validationToken?: string;
+        peerId?: string;
+    }) => {
+        if (!isHost || !payload.address) return false;
+        if (expectedValidationTokenRef.current) {
+            const presented = typeof payload.validationToken === 'string' ? payload.validationToken : '';
+            if (presented !== expectedValidationTokenRef.current) {
+                console.warn('🚫 [Host] Rejected join — invalid validation token', payload.address);
+                return false;
+            }
+        }
+        setParticipants(prev => ({
+            ...prev,
+            [payload.address]: {
+                address: payload.address,
+                username: payload.username,
+                avatar_url: payload.avatar_url,
+                color: prev[payload.address]?.color
+            }
+        }));
+        const cur = lobbyStateRef.current;
+        if (!cur) return false;
+        const addr = payload.address.toLowerCase();
+        if (cur.slots.some(s => s.playerId?.toLowerCase() === addr && s.status === 'joined')) {
+            return true;
+        }
+        const invitedIdx = cur.slots.findIndex(s => s.playerId?.toLowerCase() === addr && s.status !== 'joined');
+        const peerId = payload.peerId || `supabase:${addr}`;
+        let next: LobbySlot[] | null = null;
+        const want = Number.isInteger(payload.desiredSeat) ? (payload.desiredSeat as number) : -1;
+        if (want >= 0 && want < cur.slots.length && cur.slots[want]?.status === 'empty') {
+            next = cur.slots.map((s, i) => i === want
+                ? { ...s, status: 'joined' as const, playerId: payload.address, playerName: payload.username || `Player ${want + 1}`, playerAvatar: payload.avatar_url, peerId }
+                : { ...s });
+        } else if (invitedIdx !== -1) {
+            next = cur.slots.map((s, i) => i === invitedIdx
+                ? { ...s, status: 'joined' as const, playerName: payload.username || s.playerName, playerAvatar: payload.avatar_url || s.playerAvatar, peerId }
+                : { ...s });
+        } else {
+            next = assignJoinerToSlot(cur.slots, cur.matchType, payload.address, payload.username || 'Player', payload.avatar_url || '', peerId);
+        }
+        if (!next) {
+            console.warn('🚫 [Host] seatGuestPlayer: room full or already seated', payload.address);
+            return false;
+        }
+        const lobby = { ...cur, slots: next };
+        setLobbyState(lobby);
+        lobbyStateRef.current = lobby;
+        broadcastLobbyAction('LOBBY_SYNC', { lobbyState: lobby });
+        console.log('✅ [Host] Seated guest via', payload.peerId ? 'PeerJS' : 'Supabase', payload.address);
+        return true;
+    }, [isHost, setParticipants, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
+
     // 6. Game Engine Action Processor
     const processGameAction = useCallback((data: any) => {
         const { type, actionId, stateOverride } = data;
@@ -357,10 +421,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             return;
         }
 
+        // 🪑 Guest seat request via Supabase (works without PeerJS)
+        if (type === 'JOIN_REQUEST' && isHost) {
+            seatGuestPlayer({
+                address: data.address || data.playerId,
+                username: data.username,
+                avatar_url: data.avatar_url,
+                desiredSeat: data.desiredSeat,
+                validationToken: data.validationToken,
+            });
+            return;
+        }
+
         // 🏟️ Lobby sync (guest applies host state; host ignores echoes)
         if (type === 'LOBBY_SYNC' && (data as any).lobbyState && !isHost) {
             console.log('🏟️ [Guest] Applying lobby sync');
             setLobbyState((data as any).lobbyState);
+            setIsLobbyConnected(true);
             return;
         }
 
@@ -442,7 +519,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
         }
-    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost, myAddress, currentRoomCode, roomId, applyServerState]);
+    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -466,58 +543,14 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const handleGuestData = useCallback((data: any, conn: DataConnection) => {
         if (data.type === 'SYNC_PROFILE') {
-            // Require the matchmaking validation token when the host has one.
-            // Invite lobbies without a token keep open-join (documented gap).
-            if (isHost && expectedValidationTokenRef.current) {
-                const presented = typeof data.validationToken === 'string' ? data.validationToken : '';
-                if (presented !== expectedValidationTokenRef.current) {
-                    console.warn('🚫 [Host] Rejected join — invalid validation token', { peer: conn.peer });
-                    try { conn.close(); } catch { /* already closed */ }
-                    return;
-                }
-            }
-            setParticipants(prev => ({
-                ...prev,
-                [data.address]: {
-                    address: data.address,
-                    username: data.username,
-                    avatar_url: data.avatar_url,
-                    color: prev[data.address]?.color
-                }
-            }));
-            // Seat the joiner (host authority). Runs for host only; guests ignore.
-            // Invitees already hold their seat as 'invited' — upgrade them to
-            // 'joined' instead of bouncing off the already-seated guard.
-            if (isHost && data.address) {
-                const cur = lobbyStateRef.current;
-                if (cur) {
-                    const addr = data.address.toLowerCase();
-                    const invitedIdx = cur.slots.findIndex(s => s.playerId?.toLowerCase() === addr && s.status !== 'joined');
-                    let next: LobbySlot[] | null = null;
-                    // Honored seat request (invite-link ?seat=N): an exactly
-                    // empty seat wins over first-empty. Invited seats are
-                    // never 'empty', so reservations can't be stolen this way;
-                    // a taken/missing seat falls through to normal assignment.
-                    const want = Number.isInteger(data.desiredSeat) ? (data.desiredSeat as number) : -1;
-                    if (want >= 0 && want < cur.slots.length && cur.slots[want]?.status === 'empty') {
-                        next = cur.slots.map((s, i) => i === want
-                            ? { ...s, status: 'joined' as const, playerId: data.address, playerName: data.username || `Player ${want + 1}`, playerAvatar: data.avatar_url, peerId: conn.peer }
-                            : { ...s });
-                    } else if (invitedIdx !== -1) {
-                        next = cur.slots.map((s, i) => i === invitedIdx
-                            ? { ...s, status: 'joined' as const, playerName: data.username || s.playerName, playerAvatar: data.avatar_url || s.playerAvatar, peerId: conn.peer }
-                            : { ...s });
-                    } else {
-                        next = assignJoinerToSlot(cur.slots, cur.matchType, data.address, data.username, data.avatar_url, conn.peer);
-                    }
-                    if (next) {
-                        const lobby = { ...cur, slots: next };
-                        setLobbyState(lobby);
-                        lobbyStateRef.current = lobby;
-                        broadcastLobbyAction('LOBBY_SYNC', { lobbyState: lobby });
-                    }
-                }
-            }
+            seatGuestPlayer({
+                address: data.address,
+                username: data.username,
+                avatar_url: data.avatar_url,
+                desiredSeat: data.desiredSeat,
+                validationToken: data.validationToken,
+                peerId: conn.peer,
+            });
         } else if (data.type === 'LOBBY_SYNC' && data.lobbyState && !isHost) {
             setLobbyState(data.lobbyState);
         } else if (data.type === 'START_GAME') {
@@ -533,7 +566,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
             processGameAction(data);
         }
-    }, [processGameAction, setParticipants, isHost, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
+    }, [processGameAction, seatGuestPlayer, isHost, setLobbyState]);
 
     const hostGame = useCallback((forcedRoomId?: string, expectedValidationToken?: string) => {
         destroyPeer();
@@ -546,16 +579,52 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
-        const peer = new Peer(code);
-        peerRef.current = peer;
+        setIsLobbyConnected(false);
 
-        peer.on('open', (id) => {
-            console.log('📡 [Host] Peer opened with ID:', id);
-            setIsLobbyConnected(true);
-        });
+        void (async () => {
+            const peer = await createPeerInstance(code);
+            peerRef.current = peer as unknown as Peer;
+
+            peer.on('open', (id: unknown) => {
+                console.log('📡 [Host] Peer opened with ID:', id);
+                setIsLobbyConnected(true);
+            });
+
+            peer.on('disconnected', () => {
+                console.warn('📡 [Host] Peer disconnected — reconnecting');
+                if (!peer.destroyed) {
+                    try { peer.reconnect(); } catch (e) { console.error(e); }
+                }
+            });
+
+            peer.on('error', (err: unknown) => {
+                const e = err as { type?: string; message?: string };
+                console.error('📡 [Host] Peer error:', e?.type, e?.message);
+                setIsLobbyConnected(false);
+            });
+
+            peer.on('connection', (conn: unknown) => {
+                const c = conn as {
+                    on: (ev: string, cb: (d?: unknown) => void) => void;
+                    send: (d: unknown) => void;
+                    peer: string;
+                    close: () => void;
+                };
+                c.on('open', () => {
+                    setConnections(prev => {
+                        const next = new Map(prev);
+                        next.set(c.peer, c as unknown as DataConnection);
+                        connectionsRef.current = next;
+                        return next;
+                    });
+                    c.send({ type: 'SYNC_STATE', gameState: sanitizeGameStateForWire(gameStateRef.current) });
+                    if (lobbyStateRef.current) c.send({ type: 'LOBBY_SYNC', lobbyState: lobbyStateRef.current });
+                });
+                c.on('data', (d) => handleGuestData(d as Parameters<typeof handleGuestData>[0], c as unknown as DataConnection));
+            });
+        })();
 
         // ☁️ Register preliminary match node (bind host for signed bet settlement)
-        // match_id will be updated once START_GAME is called
         supabase.from('live_matches')
             .upsert({
                 room_code: code,
@@ -566,24 +635,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             .select()
             .then(res => {
                 if (res.data?.[0]) {
-                    // We don't have the real match ID yet, but we'll update it later
+                    // match_id updated on START_GAME
                 }
             });
-
-        peer.on('connection', (conn) => {
-            conn.on('open', () => {
-                setConnections(prev => {
-                    const next = new Map(prev);
-                    next.set(conn.peer, conn);
-                    connectionsRef.current = next;
-                    return next;
-                });
-                conn.send({ type: 'SYNC_STATE', gameState: sanitizeGameStateForWire(gameStateRef.current) });
-                if (lobbyStateRef.current) conn.send({ type: 'LOBBY_SYNC', lobbyState: lobbyStateRef.current });
-            });
-            conn.on('data', (d) => handleGuestData(d, conn));
-        });
-    }, [destroyPeer, setIsHost, setValidationToken, myAddress, setLobbyState, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData]);
+    }, [destroyPeer, setIsHost, myAddress, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData]);
 
     const joinGame = useCallback((targetRoomId: string, token?: string, desiredSeat?: number) => {
         destroyPeer();
@@ -591,24 +646,70 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setValidationToken(token);
         setCurrentRoomCode(targetRoomId);
         desiredSeatRef.current = Number.isInteger(desiredSeat) ? desiredSeat : undefined;
-        const peer = new Peer();
-        peerRef.current = peer;
 
-        const connect = (p: Peer, att: number) => {
-            const conn = p.connect(targetRoomId);
-            conn.on('open', () => {
-                setConnections(new Map([[conn.peer, conn]]));
-                setIsLobbyConnected(true);
-                if (myAddress) conn.send({ type: 'SYNC_PROFILE', address: myAddress, username: myProfile?.username, avatar_url: myProfile?.avatar_url, validationToken: token, desiredSeat: desiredSeatRef.current ?? undefined });
-                desiredSeatRef.current = undefined;
+        // Dual-path seat: Supabase JOIN_REQUEST (works when PeerJS is blocked).
+        // Retry a few times so the host channel subscription can come up.
+        if (myAddress) {
+            const joinPayload = {
+                type: 'JOIN_REQUEST',
+                address: myAddress,
+                username: myProfile?.username,
+                avatar_url: myProfile?.avatar_url,
+                desiredSeat: desiredSeatRef.current,
+                validationToken: token,
+            };
+            let attempts = 0;
+            const sendJoin = () => {
+                attempts += 1;
+                relayViaSupabase('lobby-action', joinPayload, lobbyStateRef as any);
+                if (attempts < 5) setTimeout(sendJoin, 1500);
+            };
+            sendJoin();
+            // Treat lobby as connected once we can talk to the channel
+            setIsLobbyConnected(true);
+        }
+
+        void (async () => {
+            const peer = await createPeerInstance();
+            peerRef.current = peer as unknown as Peer;
+
+            const connect = (att: number) => {
+                const conn = peer.connect(targetRoomId, { reliable: true });
+                conn.on('open', () => {
+                    setConnections(new Map([[conn.peer, conn as unknown as DataConnection]]));
+                    setIsLobbyConnected(true);
+                    if (myAddress) conn.send({
+                        type: 'SYNC_PROFILE',
+                        address: myAddress,
+                        username: myProfile?.username,
+                        avatar_url: myProfile?.avatar_url,
+                        validationToken: token,
+                        desiredSeat: desiredSeatRef.current ?? undefined,
+                    });
+                    desiredSeatRef.current = undefined;
+                });
+                conn.on('data', (d) => handleGuestData(d as Parameters<typeof handleGuestData>[0], conn as unknown as DataConnection));
+                conn.on('close', () => {
+                    console.warn('🚪 [Guest] Connection closed by host');
+                    setIsLobbyConnected(false);
+                });
+                conn.on('error', () => {
+                    if (att < 5) setTimeout(() => connect(att + 1), 1500 * att);
+                });
+            };
+
+            peer.on('open', () => connect(1));
+            peer.on('error', (err: unknown) => {
+                const e = err as { type?: string; message?: string };
+                console.error('🚪 [Guest] Peer error:', e?.type, e?.message);
             });
-            conn.on('data', (d) => handleGuestData(d, conn));
-            // Bounded retries: each attempt carries slow ICE on mobile data,
-            // so 3 tries then stop — the lobby layer reports unreachable.
-            conn.on('error', () => { if (att < 3) setTimeout(() => connect(p, att + 1), 1500); });
-        };
-        peer.on('open', () => connect(peer, 1));
-    }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData]);
+            peer.on('disconnected', () => {
+                if (!peer.destroyed) {
+                    try { peer.reconnect(); } catch { /* ignore */ }
+                }
+            });
+        })();
+    }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef]);
 
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
