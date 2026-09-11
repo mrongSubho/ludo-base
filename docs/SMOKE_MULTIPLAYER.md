@@ -89,6 +89,8 @@ Env: `npm run dev` → `http://localhost:3000`. Confirm `.env.local` has Supabas
 | EM9 | Boost then move → Edge dice+6; boost cleared | |
 | EM10 | Shield/nuke/teleport via `submit-power` → seq++ | |
 | EM11 | Nuke no target → armed; with target → victims home | |
+| EM12 | Guest ignores stale/forged host ENGINE_STATE (lower seq) | |
+| EM13 | `match_states` realtime updates guest board | |
 
 ---
 

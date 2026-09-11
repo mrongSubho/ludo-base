@@ -37,15 +37,14 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq }: UseM
         };
 
         // Initial pull
-        supabase
+        void supabase
             .from('match_states')
             .select('seq, state')
             .eq('match_id', matchId)
             .maybeSingle()
             .then(({ data }) => {
                 if (data) applyRow(data as { seq?: number; state?: unknown });
-            })
-            .catch(() => { /* optional */ });
+            }, () => { /* optional */ });
 
         const channel = supabase
             .channel(`match-states-${matchId}`)

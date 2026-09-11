@@ -183,6 +183,7 @@ Networked matches seed `match_states` on `START_GAME`. Moves go through the `mov
 4. Optimistic `seq++` on `match_states`; `match_moves` audit; broadcast `ENGINE_STATE`.
 5. `match_states.seq` is display authority (host is animator/relay, not rules).
 6. No legal move → signed `pass-turn`. **Powers (P3):** `submit-move` applies Boost (+6) and pickup; signed `submit-power` handles shield/boost/nuke/teleport (`seq++`). Power mode is server-trusted.
+7. **P4 display authority:** clients subscribe to `match_states` (realtime). Host `ENGINE_STATE` is a **hint only** — applied iff `payload.seq` is strictly ahead of the known server seq.
 
 Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`npm run check:engine`).
 
