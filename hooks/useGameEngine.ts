@@ -396,6 +396,7 @@ export function useGameEngine({
                 ...prev,
                 ...networkGameState,
                 isStarted: prev.isStarted || networkGameState.isStarted,
+                matchId: networkGameState.matchId || prev.matchId,
                 // Preserve local-only UI fields
                 powerTiles: networkGameState.powerTiles?.length
                     ? networkGameState.powerTiles
@@ -404,6 +405,15 @@ export function useGameEngine({
             if (networkGameState.lastAction?.type === 'MOVE_TOKEN') playMove();
         }
     }, [isHost, isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove]);
+
+    // Host: pull matchId from TeamUpContext (seeded on START_GAME) so Edge
+    // rolls/moves are not stuck on match_id='local'.
+    useEffect(() => {
+        const ctxMatchId = networkGameState?.matchId;
+        if (ctxMatchId && localGameState.matchId !== ctxMatchId) {
+            setLocalGameState(prev => ({ ...prev, matchId: ctxMatchId, lastUpdate: Date.now() }));
+        }
+    }, [networkGameState?.matchId, localGameState.matchId]);
 
     return {
         gameState: localGameState,

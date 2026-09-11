@@ -212,16 +212,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 body: JSON.stringify({ isPreWarm: true })
             }).catch(err => console.error('Failed to pre-warm roll-dice function', err));
 
+            // Always persist matchId on the host game state. /api/match/start
+            // may fail; without an id every roll/move falls back to 'local'
+            // and never hits move-auth.
+            const matchId = String(payload.matchId || gameStateRef.current.matchId || crypto.randomUUID());
+
             setGameState((prev: GameState) => ({
                 ...prev,
                 isStarted: true,
+                matchId,
                 playerCount: payload.playerCount || prev.playerCount,
                 initialBoardConfig: payload.initialBoardConfig
             }));
 
             // Seed server-authoritative match_states (v2 move validation)
-            const matchId = payload.matchId || gameStateRef.current.matchId;
-            if (matchId && myAddress && payload.initialBoardConfig) {
+            if (myAddress && payload.initialBoardConfig) {
                 const seats: Record<string, { kind: 'human' | 'bot' | 'afk'; wallet?: string }> = {};
                 (payload.initialBoardConfig.players as { color: string; isAi?: boolean; walletAddress?: string }[] || [])
                     .forEach(p => {
@@ -245,7 +250,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     consecutiveSixes: 0,
                 };
                 moveAuth.seedMatch({
-                    matchId: String(matchId),
+                    matchId,
                     roomCode: currentRoomCode || roomId || '',
                     colorCorner: payload.initialBoardConfig.colorCorner,
                     playerSeats: seats,
@@ -288,9 +293,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             });
         }
 
+        // Always include matchId so guests + host share one Edge match.
         const actionData = {
             type,
             ...payload,
+            matchId: payload?.matchId || gameStateRef.current.matchId,
             stateOverride: fullState ? sanitizeGameStateForWire(fullState) : undefined,
             gameState: fullState
                 ? sanitizeGameStateForWire(fullState)
