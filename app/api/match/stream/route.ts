@@ -7,7 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Host go-live / stop-live.
- * live_matches is keyed by room_code (not match_id).
+ * Live DB primary key is match_id (room_code is required text, not unique).
  * Stream on  → upsert live row + matches.streaming_enabled
  * Stream off → delete live row + streaming_enabled false
  */
@@ -35,17 +35,19 @@ export async function POST(request: Request) {
         }
 
         if (enabled) {
-            // Upsert on room_code PK. Keep bet window closed until gambling UI opens it.
+            // Live DB PK is match_id (not room_code). Upsert on match_id.
+            // Keep bet window closed until gambling UI opens it.
             const { error: liveError } = await supabase
                 .from('live_matches')
                 .upsert({
-                    room_code: String(roomCode),
                     match_id: matchId,
+                    room_code: String(roomCode),
                     host_address: hostAddress ? String(hostAddress).toLowerCase() : null,
                     bet_window_status: 'closed',
                     spectator_count: 0,
                     created_at: new Date().toISOString(),
-                }, { onConflict: 'room_code' });
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'match_id' });
 
             if (liveError) {
                 console.error('❌ [API] live_matches upsert:', liveError);
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
             const { error: liveError } = await supabase
                 .from('live_matches')
                 .delete()
-                .eq('room_code', String(roomCode));
+                .eq('match_id', matchId);
             if (liveError) {
                 console.error('❌ [API] live_matches delete:', liveError);
                 // Non-fatal: match is already unstreamed
