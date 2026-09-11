@@ -57,6 +57,14 @@ interface UseGameActionsProps {
             source?: 'player' | 'host-assist';
             reason?: string;
         }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
+        submitPower: (p: {
+            matchId: string;
+            color: PlayerColor;
+            power: PowerType;
+            tokenIndex?: number | null;
+            expectedSeq: number;
+            source?: 'player' | 'host-assist';
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; message?: string; armed?: string; kept?: boolean }>;
     };
     /** Latest server seq (match_states). */
     serverSeqRef: React.MutableRefObject<number>;
@@ -556,10 +564,75 @@ export function useGameActions({
 
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address]);
 
-    const handleUsePower = useCallback((color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
+    const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
         const prev = stateRef.current;
         if (!prev || prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return;
         if (prev.powerSpentThisTurn) return;
+        const matchId = prev.matchId;
+        const useServer = isLobbyConnected && !!moveAuth?.submitPower && !!matchId && matchId !== 'local';
+
+        // ── v2: Edge-validated power ─────────────────────────────────────
+        if (useServer) {
+            const now = Date.now();
+            const live = (prev.playerPowers?.[color] || []).filter(p => p.expiresAt > now);
+            const pick: PowerType | undefined = type
+                ?? (['nuke', 'shield', 'boost', 'teleport'] as PowerType[]).find(t => live.some(p => p.type === t));
+            if (!pick) return;
+
+            // Local arming UX: nuke/teleport without target → show rings (no Edge call)
+            if ((pick === 'nuke' || pick === 'teleport') && tokenIdx === undefined) {
+                setLocalGameState(s => ({
+                    ...s,
+                    captureMessage: pick === 'nuke'
+                        ? 'Nuke armed — tap one of your tokens to target.'
+                        : 'Teleport armed — tap one of your tokens.',
+                }));
+                return;
+            }
+
+            const seat = initialPlayers.find(p => p.color === color);
+            const isBotSeat = seat?.isAi || prev.afkStats?.[color]?.isKicked;
+            const source = (!isBotSeat && address && seat?.walletAddress?.toLowerCase() === address.toLowerCase())
+                ? 'player'
+                : (isHost ? 'host-assist' : 'player');
+
+            const result = await moveAuth.submitPower({
+                matchId,
+                color,
+                power: pick,
+                tokenIndex: tokenIdx ?? null,
+                expectedSeq: serverSeqRef.current,
+                source: source as 'player' | 'host-assist',
+            });
+
+            if (result.kept || result.armed) {
+                setLocalGameState(s => ({ ...s, captureMessage: result.error || 'Power kept.' }));
+                return;
+            }
+            if (!result.ok || !result.state) {
+                console.error('⚡ [MoveAuth] power rejected:', result.error);
+                if (typeof result.seq === 'number' && result.state) {
+                    serverSeqRef.current = result.seq;
+                    setLocalGameState(s => ({ ...s, ...result.state!, lastUpdate: Date.now() }));
+                }
+                return;
+            }
+
+            serverSeqRef.current = result.seq ?? serverSeqRef.current;
+            setLocalGameState(s => ({
+                ...s,
+                ...result.state,
+                captureMessage: result.message || s.captureMessage,
+                lastUpdate: Date.now(),
+            }));
+            if (pick === 'nuke') audio.playNuke();
+            else if (pick === 'shield') audio.playShield();
+            else if (pick === 'boost') audio.playBoost();
+            else if (pick === 'teleport') audio.playTeleport();
+            return;
+        }
+
+        // ── Offline / legacy local path ──────────────────────────────────
         const now = Date.now();
         const myColor = color as PlayerColor;
         // Sweep expired + read live inventory.
@@ -691,7 +764,7 @@ export function useGameActions({
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;

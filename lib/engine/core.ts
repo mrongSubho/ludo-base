@@ -104,7 +104,7 @@ export interface EngineGameState {
     matchId?: string;
     /** Authority-only power types — never broadcast. */
     powerTiles?: { r: number; c: number; type?: PowerType }[];
-    playerPowers?: Record<PlayerColor, PowerItem[]>;
+    playerPowers?: Partial<Record<PlayerColor, PowerItem[]>>;
     [key: string]: unknown;
 }
 
@@ -396,4 +396,306 @@ export function activeColorsForTurns(state: EngineGameState): PlayerColor[] {
 export function stripPowerTypesForWire<T extends { powerTiles?: { r: number; c: number; type?: unknown }[] }>(state: T): T {
     if (!state?.powerTiles?.length) return state;
     return { ...state, powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })) };
+}
+
+// ─── Powers (P3) ────────────────────────────────────────────────────────────
+
+export const DICE_MAX = 6;
+export const NUKE_RADIUS = 3;
+export const POWER_EXPIRY_MS: Record<PowerType, number> = {
+    nuke: 3 * 60 * 1000,
+    shield: 4 * 60 * 1000,
+    boost: 5 * 60 * 1000,
+    teleport: 5 * 60 * 1000,
+};
+
+export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
+    const out: number[] = [];
+    for (let pos = 0; pos < 52; pos++) {
+        const pt = getBoardCoordinate(pos, color, cc);
+        if (pt && SAFE_POSITIONS.some(s => s.r === pt.r && s.c === pt.c)) out.push(pos);
+    }
+    return out;
+}
+
+export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorner): number {
+    const stars = getStarIndices(color, cc);
+    if (stars.length === 0) return -1;
+    let best = -1;
+    let bestDist = Infinity;
+    for (const s of stars) {
+        const dist = (s - pos + 52) % 52;
+        if (dist > 0 && dist < bestDist) {
+            bestDist = dist;
+            best = s;
+        }
+    }
+    return best;
+}
+
+export function countNukeVictims(
+    state: EngineGameState,
+    color: PlayerColor,
+    tokenIdx: number,
+    cc: ColorCorner,
+    playerCount: string
+): { victims: { color: PlayerColor; idx: number }[]; cells: Point[] } {
+    const victims: { color: PlayerColor; idx: number }[] = [];
+    const cellKeys = new Set<string>();
+    const cells: Point[] = [];
+    const myPos = state.positions[color][tokenIdx];
+    if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return { victims, cells };
+    const pushCell = (r: number, c: number) => {
+        const k = `${r},${c}`;
+        if (!cellKeys.has(k)) {
+            cellKeys.add(k);
+            cells.push({ r, c });
+        }
+    };
+    const myPt = getBoardCoordinate(myPos, color, cc);
+    if (myPt) pushCell(myPt.r, myPt.c);
+    (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
+        if (oppColor === color) return;
+        if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
+        state.positions[oppColor].forEach((oppPos, oppIdx) => {
+            if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
+            if (Math.abs(oppPos - myPos) > NUKE_RADIUS) return;
+            const oppPt = getBoardCoordinate(oppPos, oppColor, cc);
+            if (!oppPt) return;
+            if ((state.activeShields || []).some(s => s.color === oppColor && s.tokenIdx === oppIdx)) return;
+            if (SAFE_POSITIONS.some(p => p.r === oppPt.r && p.c === oppPt.c)) return;
+            victims.push({ color: oppColor, idx: oppIdx });
+            pushCell(oppPt.r, oppPt.c);
+        });
+    });
+    return { victims, cells };
+}
+
+/** Steps for this move including active Boost (+6). */
+export function effectiveMoveSteps(state: EngineGameState, color: PlayerColor, dice: number): number {
+    return state.activeBoost === color ? dice + DICE_MAX : dice;
+}
+
+/** Sweep expired powers and return live inventory for a color. */
+export function liveInventory(state: EngineGameState, color: PlayerColor, now: number): PowerItem[] {
+    return (state.playerPowers?.[color] || []).filter(p => p.expiresAt > now);
+}
+
+function consumeOne(inv: PowerItem[], t: PowerType): PowerItem[] {
+    const i = inv.findIndex(p => p.type === t);
+    if (i < 0) return inv;
+    const next = [...inv];
+    next.splice(i, 1);
+    return next;
+}
+
+export type PowerApplyResult =
+    | { ok: true; state: EngineGameState; message: string; nukeFlash?: Point[]; boosted?: boolean }
+    | { ok: false; error: string; armed?: 'nuke' | 'teleport'; kept?: boolean };
+
+/**
+ * Apply a held power (shield/boost/nuke/teleport) for `color`.
+ * Must be called on the authority while gamePhase is 'rolling' and powerSpentThisTurn is false.
+ * Nuke/teleport without tokenIdx → armed targeting (no state mutation).
+ */
+export function applyPower(
+    state: EngineGameState,
+    color: PlayerColor,
+    type: PowerType,
+    tokenIdx: number | undefined,
+    cc: ColorCorner,
+    playerCount: string,
+    now: number = Date.now()
+): PowerApplyResult {
+    if (state.winner) return { ok: false, error: 'Match finished' };
+    if (state.currentPlayer !== color) return { ok: false, error: 'Not your turn' };
+    if (state.gamePhase !== 'rolling') return { ok: false, error: 'Wrong phase' };
+    if (state.powerSpentThisTurn) return { ok: false, error: 'Power already spent this turn' };
+
+    const live = liveInventory(state, color, now);
+    if (!live.some(p => p.type === type)) return { ok: false, error: 'Power not held' };
+
+    const inv = [...live];
+    let next: EngineGameState = { ...state, playerPowers: { ...state.playerPowers } };
+    let message = '';
+
+    if (type === 'shield') {
+        const tokensOnBoard = state.positions[color]
+            .map((pos, idx) => (pos >= 0 && pos < HOME_LANE_START_INDEX ? idx : -1))
+            .filter(idx => idx !== -1);
+        const newShields = [...(state.activeShields || [])];
+        tokensOnBoard.forEach(idx => {
+            if (!newShields.some(s => s.color === color && s.tokenIdx === idx)) {
+                newShields.push({ color, tokenIdx: idx });
+            }
+        });
+        next.activeShields = newShields;
+        message = 'Shield up! Safe until your next move.';
+        next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'shield') };
+        next.powerSpentThisTurn = true;
+        next.lastUpdate = now;
+        return { ok: true, state: next, message };
+    }
+
+    if (type === 'boost') {
+        next.activeBoost = color;
+        message = `BOOST! Next move +${DICE_MAX} steps.`;
+        next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'boost') };
+        next.powerSpentThisTurn = true;
+        next.lastUpdate = now;
+        return { ok: true, state: next, message, boosted: true };
+    }
+
+    if (type === 'nuke') {
+        let idx = tokenIdx;
+        if (idx === undefined) {
+            return { ok: false, error: 'Nuke needs a target token', armed: 'nuke' };
+        }
+        if (idx < 0 || idx > 3) return { ok: false, error: 'Bad token index' };
+        const { victims, cells } = countNukeVictims(state, color, idx, cc, playerCount);
+        if (victims.length === 0) {
+            return { ok: false, error: 'No targets in blast range — nuke kept.', kept: true };
+        }
+        const newPositions = { ...state.positions };
+        victims.forEach(v => {
+            newPositions[v.color] = [...newPositions[v.color]];
+            newPositions[v.color][v.idx] = BASE_INDEX;
+        });
+        next.positions = newPositions;
+        (next as { nukeFlash?: Point[] }).nukeFlash = cells;
+        message = `NUKE! ${victims.length} token${victims.length === 1 ? '' : 's'} vaporized!`;
+        next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'nuke') };
+        next.powerSpentThisTurn = true;
+        next.lastUpdate = now;
+        return { ok: true, state: next, message, nukeFlash: cells };
+    }
+
+    // teleport
+    let idx = tokenIdx;
+    if (idx === undefined) {
+        return { ok: false, error: 'Teleport needs a target token', armed: 'teleport' };
+    }
+    if (idx < 0 || idx > 3) return { ok: false, error: 'Bad token index' };
+    const from = state.positions[color][idx];
+    let dest = -1;
+    if (from >= 49 && from <= 56) dest = BOARD_FINISH_INDEX;
+    else if (from >= 0 && from < HOME_LANE_START_INDEX) dest = nearestStarAhead(from, color, cc);
+    if (dest < 0) return { ok: false, error: 'Nowhere to blink — teleport kept.', kept: true };
+
+    const newPos = { ...state.positions };
+    newPos[color] = [...newPos[color]];
+    newPos[color][idx] = dest;
+    next.positions = newPos;
+    message = dest === BOARD_FINISH_INDEX ? 'TELEPORT! Straight home!' : 'TELEPORT! Blinked to safety.';
+    next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'teleport') };
+    next.powerSpentThisTurn = true;
+    next.lastUpdate = now;
+    return { ok: true, state: next, message };
+}
+
+/** After a successful move: grant pickup if landed exactly on a typed power tile. */
+export function applyPowerPickup(
+    state: EngineGameState,
+    color: PlayerColor,
+    landedPos: number,
+    cc: ColorCorner,
+    now: number = Date.now()
+): EngineGameState {
+    if (landedPos < 0 || landedPos >= HOME_LANE_START_INDEX) return state;
+    const tiles = state.powerTiles || [];
+    if (!tiles.length) return state;
+    const landPt = getBoardCoordinate(landedPos, color, cc);
+    if (!landPt) return state;
+    const tileIdx = tiles.findIndex(t => t.r === landPt.r && t.c === landPt.c);
+    if (tileIdx < 0) return state;
+    const tile = tiles[tileIdx];
+    if (!tile.type) return state;
+
+    const live = liveInventory(state, color, now);
+    const full = POWER_EXPIRY_MS[tile.type] ?? POWER_EXPIRY_MS.boost;
+    const granted: PowerItem[] = live.map(p =>
+        p.type === tile.type ? { ...p, expiresAt: now + full } : p
+    );
+    granted.push({ type: tile.type, expiresAt: now + full });
+
+    // Respawn replacement tile (typed) elsewhere
+    const taken = new Set(tiles.map(t => `${t.r},${t.c}`));
+    taken.delete(`${tile.r},${tile.c}`);
+    const remaining = tiles.filter((_, i) => i !== tileIdx);
+    // Deterministic-ish spawn: walk shared path from a hash of now+color
+    const palette: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
+    let spawned: { r: number; c: number; type: PowerType } | null = null;
+    for (let tries = 0; tries < 32 && !spawned; tries++) {
+        const seed = (now + tries * 17 + color.charCodeAt(0)) >>> 0;
+        const rc = palette[seed % 4];
+        const rp = seed % 52;
+        const pt = getBoardCoordinate(rp, rc, cc);
+        if (pt && !taken.has(`${pt.r},${pt.c}`)) {
+            // Weighted rarity
+            const roll = ((seed >>> 8) % 1000) / 1000;
+            let acc = 0;
+            let ptype: PowerType = 'boost';
+            for (const p of [
+                { type: 'boost' as PowerType, w: 0.4 },
+                { type: 'shield' as PowerType, w: 0.25 },
+                { type: 'teleport' as PowerType, w: 0.2 },
+                { type: 'nuke' as PowerType, w: 0.15 },
+            ]) {
+                acc += p.w;
+                if (roll < acc) { ptype = p.type; break; }
+            }
+            spawned = { r: pt.r, c: pt.c, type: ptype };
+        }
+    }
+    if (spawned) remaining.push(spawned);
+
+    return {
+        ...state,
+        playerPowers: { ...state.playerPowers, [color]: granted },
+        powerTiles: remaining,
+        captureMessage: `${String(tile.type).toUpperCase()} discovered!`,
+    };
+}
+
+/** Wire a full move including boost consumption + pickup (Edge path). */
+export function resolveNetworkedMove(params: {
+    state: EngineGameState;
+    color: PlayerColor;
+    tokenIndex: number;
+    dice: number;
+    cc: ColorCorner;
+    playerCount: string;
+    activeColors?: PlayerColor[];
+    now?: number;
+}): { ok: boolean; state?: EngineGameState; captured?: boolean; bonusRoll?: boolean; error?: string; fromPos?: number; toPos?: number } {
+    const { state, color, tokenIndex, dice, cc, playerCount, activeColors, now = Date.now() } = params;
+    const boosted = state.activeBoost === color;
+    const steps = effectiveMoveSteps(state, color, dice);
+    const legal = getLegalTokenIndices(state.positions, color, steps, cc);
+    if (!legal.includes(tokenIndex)) {
+        return { ok: false, error: 'Illegal token for this roll (with boost)' };
+    }
+    const fromPos = state.positions[color][tokenIndex];
+    const result = processMove(state, color, tokenIndex, steps, playerCount, cc, color, activeColors);
+    if (!result.applied) return { ok: false, error: 'Move rejected by engine' };
+
+    let next = result.newState;
+    if (boosted) {
+        next = { ...next, activeBoost: null, boostTrail: color };
+        (next as { boostTrail?: PlayerColor | null }).boostTrail = color;
+    }
+    // Bonus on raw six as well as processMove's captured/six-on-steps
+    const bonusRoll = result.bonusRoll || result.captured || dice === DICE_ROLL_SIX || !!next.winner;
+    const toPos = next.positions[color][tokenIndex];
+    next = applyPowerPickup(next, color, toPos, cc, now);
+    next = { ...next, powerSpentThisTurn: false, lastUpdate: now };
+
+    return {
+        ok: true,
+        state: next,
+        captured: result.captured,
+        bonusRoll,
+        fromPos,
+        toPos,
+    };
 }

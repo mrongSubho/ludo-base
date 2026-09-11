@@ -11,9 +11,12 @@ import {
   processMove,
   activeColorsForTurns,
   stripPowerTypesForWire,
+  resolveNetworkedMove,
+  applyPower,
   type ColorCorner,
   type EngineGameState,
   type PlayerColor,
+  type PowerType,
 } from '../_shared/engine.ts';
 
 const CORS = {
@@ -32,6 +35,7 @@ function json(body: unknown, status = 200) {
 const MOVE_PREFIX = 'Ludo Base move';
 const PASS_PREFIX = 'Ludo Base pass';
 const SEED_PREFIX = 'Ludo Base seed';
+const POWER_PREFIX = 'Ludo Base power';
 const MAX_AGE_MS = 10 * 60 * 1000;
 
 function isFresh(issuedAt: string): boolean {
@@ -71,6 +75,22 @@ function buildSeedMessage(p: { matchId: string; hostAddress: string; roomCode: s
     `match: ${p.matchId}`,
     `host: ${p.hostAddress.toLowerCase()}`,
     `room: ${p.roomCode}`,
+    `seq: ${p.expectedSeq}`,
+    `issued: ${p.issuedAt}`,
+  ].join('\n');
+}
+
+function buildPowerMessage(p: {
+  matchId: string; actor: string; color: string; power: string;
+  tokenIndex: number | null; expectedSeq: number; issuedAt: string;
+}) {
+  return [
+    POWER_PREFIX,
+    `match: ${p.matchId}`,
+    `actor: ${p.actor.toLowerCase()}`,
+    `color: ${p.color}`,
+    `power: ${p.power}`,
+    `token: ${p.tokenIndex === null ? 'none' : p.tokenIndex}`,
     `seq: ${p.expectedSeq}`,
     `issued: ${p.issuedAt}`,
   ].join('\n');
@@ -233,25 +253,28 @@ Deno.serve(async (req) => {
       if (roll.status !== 'open') return json({ error: 'Roll already consumed' }, 409);
 
       const dice = Number(roll.result);
-      const legal = getLegalTokenIndices(state.positions, color as PlayerColor, dice, cc);
+      const boosted = state.activeBoost === color;
+      const steps = boosted ? dice + 6 : dice;
+      const legal = getLegalTokenIndices(state.positions, color as PlayerColor, steps, cc);
       if (!legal.includes(Number(tokenIndex))) {
-        return json({ error: 'Illegal token for this roll', legal }, 400);
+        return json({ error: 'Illegal token for this roll', legal, boosted }, 400);
       }
 
-      const { newState, captured, bonusRoll, applied } = processMove(
+      const move = resolveNetworkedMove({
         state,
-        color as PlayerColor,
-        Number(tokenIndex),
+        color: color as PlayerColor,
+        tokenIndex: Number(tokenIndex),
         dice,
-        playerCount,
         cc,
-        color as PlayerColor,
-        activeColors(state)
-      );
-      if (!applied) return json({ error: 'Move rejected by engine' }, 400);
-
+        playerCount,
+        activeColors: activeColors(state),
+      });
+      if (!move.ok || !move.state) {
+        return json({ error: move.error || 'Move rejected by engine' }, 400);
+      }
+      const { captured, bonusRoll } = move;
       const nextSeq = seq + 1;
-      const toStore = { ...newState, lastUpdate: Date.now() };
+      const toStore = { ...move.state, lastUpdate: Date.now() };
 
       const { error: saveErr } = await supabase
         .from('match_states')
@@ -275,7 +298,7 @@ Deno.serve(async (req) => {
         consumed_seq: nextSeq,
       }).eq('id', rollId);
 
-      const fromPos = state.positions[color as PlayerColor][Number(tokenIndex)];
+      const fromPos = move.fromPos ?? state.positions[color as PlayerColor][Number(tokenIndex)];
       await supabase.from('match_moves').insert({
         match_id: String(matchId),
         seq: nextSeq,
@@ -285,7 +308,7 @@ Deno.serve(async (req) => {
         dice,
         roll_id: rollId,
         from_pos: fromPos,
-        to_pos: toStore.positions[color as PlayerColor][Number(tokenIndex)],
+        to_pos: move.toPos ?? toStore.positions[color as PlayerColor][Number(tokenIndex)],
         captured,
         bonus_roll: bonusRoll,
       });
@@ -432,6 +455,98 @@ Deno.serve(async (req) => {
       } catch { /* optional */ }
 
       return json({ success: true, seq: nextSeq, state: stripPowerTypesForWire(next) });
+    }
+
+    // ── POWER (shield / boost / nuke / teleport) ────────────────────────
+    if (action === 'power' || path.endsWith('submit-power')) {
+      const {
+        matchId, actor, color, power, tokenIndex, expectedSeq,
+        message, signature, issuedAt, source,
+      } = body;
+      if (!matchId || !actor || !color || !power || expectedSeq === undefined || !message || !signature || !issuedAt) {
+        return json({ error: 'Missing power payload' }, 400);
+      }
+      if (!isFresh(issuedAt)) return json({ error: 'Proof expired' }, 401);
+      const ti = tokenIndex === null || tokenIndex === undefined ? null : Number(tokenIndex);
+      const expectedMsg = buildPowerMessage({
+        matchId, actor, color, power: String(power), tokenIndex: ti, expectedSeq: Number(expectedSeq), issuedAt,
+      });
+      if (message !== expectedMsg) return json({ error: 'Message payload mismatch' }, 401);
+      const recovered = await recover(message, signature);
+      if (!recovered || recovered !== actor.toLowerCase()) {
+        return json({ error: 'Invalid signature' }, 401);
+      }
+
+      const row = await loadMatch(supabase, matchId);
+      if (!row) return json({ error: 'Match not found' }, 404);
+      const seq = Number(row.seq);
+      if (Number(expectedSeq) !== seq) return json({ error: 'Stale seq', seq }, 409);
+
+      const state = row.state as EngineGameState;
+      const cc = row.color_corner as ColorCorner;
+      const seats = row.player_seats as Seats;
+      const playerCount = (state.playerCount || '4P') as EngineGameState['playerCount'];
+
+      if (source === 'host-assist') {
+        if (recovered !== String(row.host_address || '').toLowerCase()) {
+          return json({ error: 'Only host may assist' }, 403);
+        }
+      } else {
+        const own = seatOwnsColor(seats, color, recovered);
+        if (!own.ok) return json({ error: 'Not your seat' }, 403);
+      }
+
+      const result = applyPower(
+        state,
+        color as PlayerColor,
+        power as PowerType,
+        ti ?? undefined,
+        cc,
+        playerCount
+      );
+      if (!result.ok) {
+        return json({
+          error: result.error,
+          armed: result.armed,
+          kept: result.kept,
+          seq,
+        }, result.kept ? 200 : 400);
+      }
+
+      const nextSeq = seq + 1;
+      const toStore = { ...result.state, lastUpdate: Date.now() };
+      const { error: saveErr } = await supabase
+        .from('match_states')
+        .update({ seq: nextSeq, state: toStore, updated_at: new Date().toISOString() })
+        .eq('match_id', matchId)
+        .eq('seq', seq);
+      if (saveErr) return json({ error: saveErr.message }, 500);
+
+      try {
+        const room = row.room_code;
+        if (room) {
+          await supabase.channel(`game-room-${room}`).send({
+            type: 'broadcast',
+            event: 'game-action',
+            payload: {
+              type: 'ENGINE_STATE',
+              actionId: `power-${matchId}-${nextSeq}`,
+              stateOverride: stripPowerTypesForWire(toStore),
+              gameState: stripPowerTypesForWire(toStore),
+              seq: nextSeq,
+              source: 'match_states',
+            },
+          });
+        }
+      } catch { /* optional */ }
+
+      return json({
+        success: true,
+        seq: nextSeq,
+        message: result.message,
+        nukeFlash: result.nukeFlash,
+        state: stripPowerTypesForWire(toStore),
+      });
     }
 
     // ── GET STATE ───────────────────────────────────────────────────────

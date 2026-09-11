@@ -4,10 +4,11 @@ import { useCallback } from 'react';
 import {
     buildMoveMessage,
     buildPassMessage,
+    buildPowerMessage,
     buildSeedMessage,
 } from '@/lib/matchProof';
 import { stripPowerTypesForWire } from '@/lib/engine';
-import type { GameState, ColorCorner, PlayerColor } from '@/lib/types';
+import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types';
 
 type SignFn = (args: { account: `0x${string}`; message: string }) => Promise<string>;
 
@@ -181,5 +182,64 @@ export function useMoveAuth(opts: {
         return callMoveAuth('get', { matchId });
     }, []);
 
-    return { seedMatch, submitMove, passTurn, getMatchState };
+    const submitPower = useCallback(async (params: {
+        matchId: string;
+        color: PlayerColor;
+        power: PowerType;
+        tokenIndex?: number | null;
+        expectedSeq: number;
+        source?: 'player' | 'host-assist';
+        actorOverride?: string;
+    }): Promise<MoveAuthResult & { message?: string; armed?: string; kept?: boolean }> => {
+        const source = params.source || 'player';
+        const actor = (params.actorOverride || myAddress || '').toLowerCase();
+        if (!actor) return { ok: false, error: 'no actor' };
+        const tokenIndex = params.tokenIndex === undefined ? null : params.tokenIndex;
+        const issuedAt = new Date().toISOString();
+        const message = buildPowerMessage({
+            matchId: params.matchId,
+            actor,
+            color: params.color,
+            power: params.power,
+            tokenIndex,
+            expectedSeq: params.expectedSeq,
+            issuedAt,
+        });
+        let signature: string;
+        try {
+            signature = await signMessageAsync({ account: actor as `0x${string}`, message });
+        } catch {
+            return { ok: false, error: 'sign rejected' };
+        }
+        const r = await callMoveAuth('power', {
+            matchId: params.matchId,
+            actor,
+            color: params.color,
+            power: params.power,
+            tokenIndex,
+            expectedSeq: params.expectedSeq,
+            source,
+            message,
+            signature,
+            issuedAt,
+        });
+        if (r.ok && r.data?.state) {
+            return {
+                ok: true,
+                seq: r.data.seq,
+                state: r.data.state as GameState,
+                message: r.data.message,
+            };
+        }
+        return {
+            ok: false,
+            error: r.data?.error || `HTTP ${r.status}`,
+            seq: r.data?.seq,
+            state: r.data?.state,
+            armed: r.data?.armed,
+            kept: r.data?.kept,
+        };
+    }, [myAddress, signMessageAsync]);
+
+    return { seedMatch, submitMove, passTurn, submitPower, getMatchState };
 }

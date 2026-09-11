@@ -205,6 +205,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     currentPlayer: payload.initialBoardConfig.players?.[0]?.color || 'green',
                     isStarted: true,
                     status: 'playing' as const,
+                    powerTiles: gameStateRef.current.powerTiles || [],
+                    playerPowers: gameStateRef.current.playerPowers || ENGINE_INIT.playerPowers,
+                    powerSpentThisTurn: false,
+                    activeBoost: null,
+                    activeShields: [],
+                    activeTraps: [],
+                    consecutiveSixes: 0,
                 };
                 moveAuth.seedMatch({
                     matchId: String(matchId),

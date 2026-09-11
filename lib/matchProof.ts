@@ -8,6 +8,7 @@ export const BET_RESOLVE_PREFIX = 'Ludo Base bet resolve';
 export const MOVE_PREFIX = 'Ludo Base move';
 export const PASS_PREFIX = 'Ludo Base pass';
 export const SEED_PREFIX = 'Ludo Base seed';
+export const POWER_PREFIX = 'Ludo Base power';
 
 /** Max age for a signed privileged request. */
 export const PROOF_MAX_AGE_MS = 10 * 60 * 1000;
@@ -108,6 +109,27 @@ export function buildSeedMessage(params: {
         `match: ${params.matchId}`,
         `host: ${params.hostAddress.toLowerCase()}`,
         `room: ${params.roomCode}`,
+        `seq: ${params.expectedSeq}`,
+        `issued: ${params.issuedAt}`,
+    ].join('\n');
+}
+
+export function buildPowerMessage(params: {
+    matchId: string;
+    actor: string;
+    color: string;
+    power: string;
+    tokenIndex: number | null;
+    expectedSeq: number;
+    issuedAt: string;
+}): string {
+    return [
+        POWER_PREFIX,
+        `match: ${params.matchId}`,
+        `actor: ${params.actor.toLowerCase()}`,
+        `color: ${params.color}`,
+        `power: ${params.power}`,
+        `token: ${params.tokenIndex === null ? 'none' : params.tokenIndex}`,
         `seq: ${params.expectedSeq}`,
         `issued: ${params.issuedAt}`,
     ].join('\n');
