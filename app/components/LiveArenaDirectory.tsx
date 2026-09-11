@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { getFollowed, toggleFollow } from '@/lib/follow';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import { useAccount } from 'wagmi';
+import { LiveArenaStage } from './LiveArenaStage';
 
 // ─────────────────────────────────────────────────────────────
 // LiveArenaDirectory — Browse & join live streaming matches
@@ -222,6 +223,7 @@ const PredictorsStrip = () => {
 
 export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProps) => {
     const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
+    const [view, setView] = useState<'stage' | 'list'>('stage');
     const { address } = useAccount();
 
     const fetchMatches = useCallback(async () => {
@@ -282,41 +284,62 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
 
     return (
         <div className="flex-1 min-h-0 flex flex-col relative z-10">
-            {/* Inline in the Arena panel — the panel header owns title + stats,
-                so this renders just the match list. */}
-                                            <PredictorsStrip />
-                                            {/* Match list */}
-                                            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10">
-                                                <AnimatePresence>
-                                                    {liveMatches.length > 0 ? (
-                                                        liveMatches.map(match => (
-                                                            <ArenaCard
-                                                                key={match.match_id}
-                                                                match={match}
-                                                                onWatch={handleWatch}
-                                                            />
-                                                        ))
-                                                    ) : (
-                                                        <motion.div
-                                                            initial={{ opacity: 0 }}
-                                                            animate={{ opacity: 1 }}
-                                                            className="flex flex-col items-center justify-center text-center py-16 px-6 gap-2"
-                                                        >
-                                                            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-1 text-white/25">
-                                                                <FiTv className="w-7 h-7" />
-                                                            </div>
-                                                            <p className="text-white font-black text-sm">No live matches</p>
-                                                            <p className="text-white/40 text-xs max-w-[220px]">Awaiting match initiation phase</p>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-
-                                    <div className="w-full px-5 py-3 bg-black/20 border-t border-white/10 text-center relative z-20 flex flex-col gap-1 items-center">
-                                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
-                                            Spectating is read-only • Wagers stay safe
-                                        </span>
+            {/* Inline in the Arena panel — the panel header owns title + stats. */}
+            <PredictorsStrip />
+            {view === 'stage' ? (
+                <LiveArenaStage
+                    matches={liveMatches}
+                    onWatch={handleWatch}
+                    onSwitchToList={() => setView('list')}
+                />
+            ) : (
+                <>
+                    {/* List view: full directory (toggle from stage) */}
+                    <div className="flex items-center justify-between px-5 pt-2 relative z-10">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                            Directory
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setView('stage')}
+                            className="min-h-[32px] px-3 rounded-full border border-cyan-400/40 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-300 hover:bg-cyan-500/10 transition-all"
+                        >
+                            Stage view
+                        </button>
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10">
+                        <AnimatePresence>
+                            {liveMatches.length > 0 ? (
+                                liveMatches.map(match => (
+                                    <ArenaCard
+                                        key={match.match_id}
+                                        match={match}
+                                        onWatch={handleWatch}
+                                    />
+                                ))
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex flex-col items-center justify-center text-center py-16 px-6 gap-2"
+                                >
+                                    <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-1 text-white/25">
+                                        <FiTv className="w-7 h-7" />
                                     </div>
+                                    <p className="text-white font-black text-sm">No live matches</p>
+                                    <p className="text-white/40 text-xs max-w-[220px]">Awaiting match initiation phase</p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    <div className="w-full px-5 py-3 bg-black/20 border-t border-white/10 text-center relative z-20 flex flex-col gap-1 items-center">
+                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
+                            Spectating is read-only • Wagers stay safe
+                        </span>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
