@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import { recoverMessageAddress } from 'https://esm.sh/viem@2.37.0';
+import { recoverMessageAddress, recoverTypedDataAddress } from 'https://esm.sh/viem@2.37.0';
 import {
   BASE_INDEX,
   BOARD_FINISH_INDEX,
@@ -37,6 +37,43 @@ const PASS_PREFIX = 'Ludo Base pass';
 const SEED_PREFIX = 'Ludo Base seed';
 const POWER_PREFIX = 'Ludo Base power';
 const MAX_AGE_MS = 10 * 60 * 1000;
+
+const SESSION_DOMAIN = {
+  name: 'Ludo Base',
+  version: '1',
+  chainId: 8453,
+  verifyingContract: '0x0000000000000000000000000000000000000000',
+} as const;
+const SESSION_TYPES = {
+  LudoMatchSession: [
+    { name: 'wallet', type: 'address' },
+    { name: 'matchId', type: 'string' },
+    { name: 'roomCode', type: 'string' },
+    { name: 'expiresAt', type: 'uint256' },
+    { name: 'nonce', type: 'string' },
+  ],
+} as const;
+
+async function verifyMatchSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  matchId: string,
+  expectedWallet: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: sess, error } = await supabase
+    .from('match_sessions')
+    .select('id, match_id, wallet_address, expires_at, revoked_at')
+    .eq('id', sessionId)
+    .maybeSingle();
+  if (error || !sess) return { ok: false, error: 'Session not found' };
+  if (sess.revoked_at) return { ok: false, error: 'Session revoked' };
+  if (new Date(sess.expires_at).getTime() < Date.now()) return { ok: false, error: 'Session expired' };
+  if (String(sess.match_id) !== String(matchId)) return { ok: false, error: 'Session match mismatch' };
+  if (String(sess.wallet_address).toLowerCase() !== expectedWallet.toLowerCase()) {
+    return { ok: false, error: 'Session wallet mismatch' };
+  }
+  return { ok: true };
+}
 
 function isFresh(issuedAt: string): boolean {
   const t = Date.parse(issuedAt);
@@ -129,6 +166,35 @@ async function loadMatch(supabase: SupabaseClient, matchId: string) {
   return data;
 }
 
+/** Authorize in-match action: session key OR one-off signed message. */
+async function authorizeActor(opts: {
+  supabase: SupabaseClient;
+  matchId: string;
+  actor: string;
+  sessionId?: string;
+  message?: string;
+  signature?: string;
+  issuedAt?: string;
+  expectedMessage?: string;
+}): Promise<{ ok: true; via: 'session' | 'signature' } | { ok: false; error: string }> {
+  const { supabase, matchId, actor, sessionId, message, signature, issuedAt, expectedMessage } = opts;
+  if (sessionId) {
+    const v = await verifyMatchSession(supabase, sessionId, matchId, actor);
+    if (!v.ok) return v;
+    return { ok: true, via: 'session' };
+  }
+  if (!message || !signature || !issuedAt || !expectedMessage) {
+    return { ok: false, error: 'Missing session or signature' };
+  }
+  if (!isFresh(issuedAt)) return { ok: false, error: 'Proof expired' };
+  if (message !== expectedMessage) return { ok: false, error: 'Message payload mismatch' };
+  const recovered = await recover(message, signature);
+  if (!recovered || recovered !== actor.toLowerCase()) {
+    return { ok: false, error: 'Invalid signature' };
+  }
+  return { ok: true, via: 'signature' };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -142,6 +208,74 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // ── SESSION: one EIP-712 grant per match (MetaMask / smart wallet) ──
+    if (action === 'session' || path.endsWith('create-session')) {
+      const { matchId, roomCode, wallet, expiresAt, nonce, signature } = body;
+      if (!matchId || !wallet || !expiresAt || !nonce || !signature) {
+        return json({ error: 'Missing session payload' }, 400);
+      }
+      if (Number(expiresAt) < Date.now()) return json({ error: 'expiresAt in the past' }, 400);
+      // Cap session length (max 2h) so a typo cannot grant forever.
+      if (Number(expiresAt) > Date.now() + 2 * 60 * 60 * 1000) {
+        return json({ error: 'expiresAt too far in the future' }, 400);
+      }
+
+      let recovered: string;
+      try {
+        recovered = (await recoverTypedDataAddress({
+          domain: SESSION_DOMAIN,
+          types: SESSION_TYPES,
+          primaryType: 'LudoMatchSession',
+          message: {
+            wallet: wallet as `0x${string}`,
+            matchId: String(matchId),
+            roomCode: String(roomCode || ''),
+            expiresAt: BigInt(expiresAt),
+            nonce: String(nonce),
+          },
+          signature: signature as `0x${string}`,
+        })).toLowerCase();
+      } catch {
+        return json({ error: 'Invalid typed-data signature' }, 401);
+      }
+      if (recovered !== String(wallet).toLowerCase()) {
+        return json({ error: 'Signer is not the session wallet' }, 401);
+      }
+
+      const row = await loadMatch(supabase, String(matchId));
+      if (!row) return json({ error: 'Match not found — seed first' }, 404);
+      const seats = row.player_seats as Seats;
+      const humanSeat = Object.entries(seats).some(([, s]) =>
+        s.kind === 'human' && (s.wallet || '').toLowerCase() === recovered
+      );
+      const isHostWallet = String(row.host_address || '').toLowerCase() === recovered;
+      if (!humanSeat && !isHostWallet) {
+        return json({ error: 'Wallet is not seated in this match' }, 403);
+      }
+
+      // Revoke prior active sessions for this wallet+match
+      await supabase
+        .from('match_sessions')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('match_id', String(matchId))
+        .eq('wallet_address', recovered)
+        .is('revoked_at', null);
+
+      const { data: created, error: insErr } = await supabase
+        .from('match_sessions')
+        .insert({
+          match_id: String(matchId),
+          wallet_address: recovered,
+          room_code: roomCode || row.room_code || null,
+          expires_at: new Date(Number(expiresAt)).toISOString(),
+        })
+        .select('id, expires_at')
+        .single();
+      if (insErr || !created) return json({ error: insErr?.message || 'Session insert failed' }, 500);
+
+      return json({ success: true, sessionId: created.id, expiresAt: created.expires_at, wallet: recovered });
+    }
 
     // ── SEED: host writes initial match_states ──────────────────────────
     if (action === 'seed' || path.endsWith('seed-match')) {
@@ -196,21 +330,28 @@ Deno.serve(async (req) => {
     if (action === 'move' || path.endsWith('submit-move')) {
       const {
         matchId, actor, color, tokenIndex, rollId, expectedSeq,
-        message, signature, issuedAt, source,
+        message, signature, issuedAt, source, sessionId,
       } = body;
-      if (!matchId || !actor || !color || tokenIndex === undefined || !rollId || expectedSeq === undefined || !message || !signature || !issuedAt) {
+      if (!matchId || !actor || !color || tokenIndex === undefined || !rollId || expectedSeq === undefined) {
         return json({ error: 'Missing move payload' }, 400);
       }
-      if (!isFresh(issuedAt)) return json({ error: 'Proof expired' }, 401);
 
+      const issued = issuedAt || new Date().toISOString();
       const expectedMsg = buildMoveMessage({
-        matchId, actor, color, tokenIndex: Number(tokenIndex), rollId, expectedSeq: Number(expectedSeq), issuedAt,
+        matchId, actor, color, tokenIndex: Number(tokenIndex), rollId, expectedSeq: Number(expectedSeq), issuedAt: issued,
       });
-      if (message !== expectedMsg) return json({ error: 'Message payload mismatch' }, 401);
-      const recovered = await recover(message, signature);
-      if (!recovered || recovered !== actor.toLowerCase()) {
-        return json({ error: 'Invalid signature' }, 401);
-      }
+      const auth = await authorizeActor({
+        supabase,
+        matchId: String(matchId),
+        actor: String(actor),
+        sessionId,
+        message,
+        signature,
+        issuedAt,
+        expectedMessage: expectedMsg,
+      });
+      if (!auth.ok) return json({ error: auth.error }, 401);
+      const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
       if (!row) return json({ error: 'Match not found' }, 404);
@@ -343,19 +484,20 @@ Deno.serve(async (req) => {
 
     // ── PASS TURN ───────────────────────────────────────────────────────
     if (action === 'pass' || path.endsWith('pass-turn')) {
-      const { matchId, actor, rollId, expectedSeq, message, signature, issuedAt, source, reason } = body;
-      if (!matchId || !actor || !rollId || expectedSeq === undefined || !message || !signature || !issuedAt) {
+      const { matchId, actor, rollId, expectedSeq, message, signature, issuedAt, source, reason, sessionId } = body;
+      if (!matchId || !actor || !rollId || expectedSeq === undefined) {
         return json({ error: 'Missing pass payload' }, 400);
       }
-      if (!isFresh(issuedAt)) return json({ error: 'Proof expired' }, 401);
+      const issuedP = issuedAt || new Date().toISOString();
       const expectedMsg = buildPassMessage({
-        matchId, actor, rollId, expectedSeq: Number(expectedSeq), issuedAt,
+        matchId, actor, rollId, expectedSeq: Number(expectedSeq), issuedAt: issuedP,
       });
-      if (message !== expectedMsg) return json({ error: 'Message payload mismatch' }, 401);
-      const recovered = await recover(message, signature);
-      if (!recovered || recovered !== actor.toLowerCase()) {
-        return json({ error: 'Invalid signature' }, 401);
-      }
+      const authP = await authorizeActor({
+        supabase, matchId: String(matchId), actor: String(actor), sessionId,
+        message, signature, issuedAt, expectedMessage: expectedMsg,
+      });
+      if (!authP.ok) return json({ error: authP.error }, 401);
+      const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
       if (!row) return json({ error: 'Match not found' }, 404);
@@ -461,21 +603,22 @@ Deno.serve(async (req) => {
     if (action === 'power' || path.endsWith('submit-power')) {
       const {
         matchId, actor, color, power, tokenIndex, expectedSeq,
-        message, signature, issuedAt, source,
+        message, signature, issuedAt, source, sessionId,
       } = body;
-      if (!matchId || !actor || !color || !power || expectedSeq === undefined || !message || !signature || !issuedAt) {
+      if (!matchId || !actor || !color || !power || expectedSeq === undefined) {
         return json({ error: 'Missing power payload' }, 400);
       }
-      if (!isFresh(issuedAt)) return json({ error: 'Proof expired' }, 401);
+      const issuedW = issuedAt || new Date().toISOString();
       const ti = tokenIndex === null || tokenIndex === undefined ? null : Number(tokenIndex);
       const expectedMsg = buildPowerMessage({
-        matchId, actor, color, power: String(power), tokenIndex: ti, expectedSeq: Number(expectedSeq), issuedAt,
+        matchId, actor, color, power: String(power), tokenIndex: ti, expectedSeq: Number(expectedSeq), issuedAt: issuedW,
       });
-      if (message !== expectedMsg) return json({ error: 'Message payload mismatch' }, 401);
-      const recovered = await recover(message, signature);
-      if (!recovered || recovered !== actor.toLowerCase()) {
-        return json({ error: 'Invalid signature' }, 401);
-      }
+      const authW = await authorizeActor({
+        supabase, matchId: String(matchId), actor: String(actor), sessionId,
+        message, signature, issuedAt, expectedMessage: expectedMsg,
+      });
+      if (!authW.ok) return json({ error: authW.error }, 401);
+      const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
       if (!row) return json({ error: 'Match not found' }, 404);

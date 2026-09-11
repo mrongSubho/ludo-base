@@ -184,8 +184,13 @@ Networked matches seed `match_states` on `START_GAME`. Moves go through the `mov
 5. `match_states.seq` is display authority (host is animator/relay, not rules).
 6. No legal move → signed `pass-turn`. **Powers (P3):** `submit-move` applies Boost (+6) and pickup; signed `submit-power` handles shield/boost/nuke/teleport (`seq++`). Power mode is server-trusted.
 7. **P4 display authority:** clients subscribe to `match_states` (realtime). Host `ENGINE_STATE` is a **hint only** — applied iff `payload.seq` is strictly ahead of the known server seq.
+8. **Match session (EIP-712):** after seed, client signs `LudoMatchSession { wallet, matchId, roomCode, expiresAt, nonce }` once. Edge stores `match_sessions`; later `submit-move` / `submit-power` / `pass-turn` send `sessionId` instead of a per-action signature. Smart wallets sign the same typed data once. Per-action signature remains fallback. Settlement (`/api/match/record`) always requires a wallet sign.
 
 Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`npm run check:engine`).
+
+### 7.1c SIWE app session (chat / profile / settings)
+
+`/api/siwe/verify` + `app_sessions` (7-day TTL). `useAppSession.ensureAppSession()` prompts one SIWE sign. **Never** authorizes match moves or payouts.
 
 ### 7.2 Chat encryption
 DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair in localStorage and publishes the public JWK on `players.ecdh_pubkey`. Senders generate an ephemeral pair, derive AES-GCM via the peer's static pubkey, and store `{v:1, epk, iv, content}`. Recipients open with their static private key. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).

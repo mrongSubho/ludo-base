@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useSignMessage } from 'wagmi';
+import { useSignMessage, useSignTypedData } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty, GameState } from '@/lib/types';
@@ -70,6 +70,7 @@ export function useGameEngine({
     // human seat, never as bots.
     const { address, isGuest } = useCurrentUser();
     const { signMessageAsync } = useSignMessage();
+    const { signTypedDataAsync } = useSignTypedData();
     const hasRecordedWin = useRef<boolean>(false);
     const autoMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -201,7 +202,7 @@ export function useGameEngine({
 
     const serverSeqRef = useRef(0);
     const lastRollIdRef = useRef<string | null>(null);
-    const moveAuth = useMoveAuth({ myAddress: address, signMessageAsync });
+    const moveAuth = useMoveAuth({ myAddress: address, signMessageAsync, signTypedDataAsync });
 
     const {
         moveToken,

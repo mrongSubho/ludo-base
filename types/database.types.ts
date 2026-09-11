@@ -754,6 +754,63 @@ export type Database = {
         }
         Relationships: []
       }
+      match_sessions: {
+        Row: {
+          id: string
+          match_id: string
+          wallet_address: string
+          room_code: string | null
+          expires_at: string
+          revoked_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          wallet_address: string
+          room_code?: string | null
+          expires_at: string
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          wallet_address?: string
+          room_code?: string | null
+          expires_at?: string
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      app_sessions: {
+        Row: {
+          id: string
+          wallet_address: string
+          nonce: string
+          expires_at: string
+          revoked_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          wallet_address: string
+          nonce: string
+          expires_at: string
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          wallet_address?: string
+          nonce?: string
+          expires_at?: string
+          revoked_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

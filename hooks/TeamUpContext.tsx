@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { supabase } from '@/lib/supabase';
-import { useAccount, useSignMessage } from 'wagmi';
+import { useAccount, useSignMessage, useSignTypedData } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
@@ -97,8 +97,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const { address: myAddress } = useAccount();
     const { signMessageAsync } = useSignMessage();
+    const { signTypedDataAsync } = useSignTypedData();
     const { myProfile } = useGameData();
-    const moveAuth = useMoveAuth({ myAddress, signMessageAsync });
+    const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync });
     const [lastIntent, setLastIntent] = useState<any | null>(null);
     // Matchmaking validation token the host will require from guests (if set).
     const expectedValidationTokenRef = useRef<string | null>(null);
@@ -255,12 +256,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     colorCorner: payload.initialBoardConfig.colorCorner,
                     playerSeats: seats,
                     initialState,
-                }).then(r => {
-                    if (!r.ok) console.error('🌱 [MoveAuth] seed failed', (r as { data?: unknown; error?: string }).data || (r as { error?: string }).error);
-                    else {
-                        console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
-                        serverSeqRef.current = 0;
-                        setServerSeq(0);
+                }).then(async (r) => {
+                    if (!r.ok) {
+                        console.error('🌱 [MoveAuth] seed failed', (r as { data?: unknown; error?: string }).data || (r as { error?: string }).error);
+                        return;
+                    }
+                    console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
+                    serverSeqRef.current = 0;
+                    setServerSeq(0);
+                    try {
+                        const sess = await moveAuth.createMatchSession({
+                            matchId,
+                            roomCode: currentRoomCode || roomId || '',
+                        });
+                        if (!sess.ok) console.error('🔑 [MoveAuth] session failed', sess.error);
+                        else console.log('🔑 [MoveAuth] session ready', sess.sessionId);
+                    } catch (err) {
+                        console.error('🔑 [MoveAuth] session error', err);
                     }
                 }).catch(err => console.error('🌱 [MoveAuth] seed error', err));
             }
@@ -698,7 +710,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     });
                     desiredSeatRef.current = undefined;
                 });
-                conn.on('data', (d) => handleGuestData(d as Parameters<typeof handleGuestData>[0], conn as unknown as DataConnection));
+                conn.on('data', (d: unknown) => handleGuestData(d as Parameters<typeof handleGuestData>[0], conn as unknown as DataConnection));
                 conn.on('close', () => {
                     console.warn('🚪 [Guest] Connection closed by host');
                     setIsLobbyConnected(false);
