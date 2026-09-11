@@ -118,6 +118,7 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
        const res = await fetch('/api/match/stream', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
+         signal: AbortSignal.timeout(15000),
          body: JSON.stringify({
            matchId,
            roomCode,
@@ -131,8 +132,11 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
        } else {
          setErr(data?.error || 'Stream toggle failed');
        }
-     } catch {
-       setErr('Network error');
+     } catch (e) {
+       const name = (e as { name?: string })?.name;
+       setErr(name === 'TimeoutError' || name === 'AbortError'
+         ? 'Timed out — Supabase slow or unreachable'
+         : 'Network error');
      } finally {
        setIsPending(false);
      }
@@ -144,13 +148,13 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
            onClick={toggleStream}
            disabled={isPending}
            aria-pressed={isStreaming}
-           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-[8px]' : 'px-3 py-1.5 text-[10px]'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-[8px]' : 'px-3 py-1.5 text-[10px]'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-70 cursor-wait' : ''}`}
         >
-           <div className={`w-1.5 h-1.5 rounded-full ${isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
-           {isStreaming ? 'LIVE' : 'Go live'}
+           <div className={`w-1.5 h-1.5 rounded-full ${isPending ? 'bg-cyan-400 animate-pulse' : isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
+           {isPending ? (isStreaming ? 'Stopping…' : 'Going live…') : isStreaming ? 'LIVE' : 'Go live'}
         </button>
         {err && (
-          <span className="text-[9px] font-bold text-amber-300 max-w-[140px] text-right leading-tight">{err}</span>
+          <span className="text-[9px] font-bold text-amber-300 max-w-[160px] text-right leading-tight">{err}</span>
         )}
       </div>
    );
