@@ -182,7 +182,7 @@ Networked matches seed `match_states` on `START_GAME`. Moves go through the `mov
 3. Edge runs pure `lib/engine` (`processMove` / `getLegalTokenIndices`).
 4. Optimistic `seq++` on `match_states`; `match_moves` audit; broadcast `ENGINE_STATE`.
 5. `match_states.seq` is display authority (host is animator/relay, not rules).
-6. No legal move → signed `pass-turn`. Powers stay host-local until Phase 3; **classic** is the server-trusted mode.
+6. No legal move → signed `pass-turn`. **Powers (P3):** `submit-move` applies Boost (+6) and pickup; signed `submit-power` handles shield/boost/nuke/teleport (`seq++`). Power mode is server-trusted.
 
 Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`npm run check:engine`).
 

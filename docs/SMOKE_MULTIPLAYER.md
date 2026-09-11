@@ -85,6 +85,10 @@ Env: `npm run dev` → `http://localhost:3000`. Confirm `.env.local` has Supabas
 | EM5 | Stale `expectedSeq` → 409 | |
 | EM6 | Guest submit without host local rules | |
 | EM7 | Host disconnect → other player still moves via Edge | |
+| EM8 | Power mode: seed typed tiles; pickup grants inventory | |
+| EM9 | Boost then move → Edge dice+6; boost cleared | |
+| EM10 | Shield/nuke/teleport via `submit-power` → seq++ | |
+| EM11 | Nuke no target → armed; with target → victims home | |
 
 ---
 
