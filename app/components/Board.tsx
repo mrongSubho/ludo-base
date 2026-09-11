@@ -279,6 +279,14 @@ export default function Board({
                 />
             </BoardGrid>
 
+            {/* Name pills sit on the board square (not board-area padding). */}
+            <NameOverlay
+                uiSlots={uiSlots}
+                players={players}
+                getDisplayName={getDisplayNameHelper}
+                counterRotationDeg={counterRotationDeg}
+            />
+
             {/* ── Power inventory: bottom-centered tiny badges ── */}
             {groupedInventory.length > 0 && (
                 <div className="fixed bottom-[88px] left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/10 shadow-xl">
@@ -329,7 +337,6 @@ export default function Board({
 
               </div>
 
-             <NameOverlay uiSlots={uiSlots} players={players} getDisplayName={getDisplayNameHelper} />
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
          </motion.div>
 

@@ -2200,7 +2200,6 @@ body.theme-retro-futurism::before {
   left: 50%;
   transform: translateX(-50%);
   width: 70%;
-  /* Slightly narrower for better containment */
   background: rgba(255, 255, 255, 0.2);
   color: white;
   padding: 4px 8px;
@@ -2217,6 +2216,8 @@ body.theme-retro-futurism::before {
   letter-spacing: 0.5px;
   text-transform: uppercase;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Nudge inside the home pad so pills don't sit on the path edge */
+  max-width: calc(100% / 3);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 

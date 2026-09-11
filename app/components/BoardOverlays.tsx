@@ -129,7 +129,7 @@ interface NameOverlayProps {
     getDisplayName: (player: Player) => string;
 }
 
-export function NameOverlay({ uiSlots, players, getDisplayName }: NameOverlayProps) {
+export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0 }: NameOverlayProps & { counterRotationDeg?: number }) {
     const renderLabel = (corner: 'TL' | 'TR' | 'BL' | 'BR', className: string, style: React.CSSProperties) => {
         const color = uiSlots[corner];
         const p = players.find(pl => pl.color === color);
@@ -142,7 +142,17 @@ export function NameOverlay({ uiSlots, players, getDisplayName }: NameOverlayPro
     };
 
     return (
-        <div className="board-name-overlay" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 15 }}>
+        <div
+            className="board-name-overlay"
+            style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                zIndex: 15,
+                // Lives inside the rotated board-wrapper — keep glyphs upright.
+                transform: counterRotationDeg ? `rotate(${counterRotationDeg}deg)` : undefined,
+            }}
+        >
             {renderLabel('TL', 'label-top-inside', { position: 'absolute', top: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' })}
             {renderLabel('TR', 'label-top-inside', { position: 'absolute', top: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' })}
             {renderLabel('BL', 'label-bottom-inside', { position: 'absolute', bottom: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' })}
