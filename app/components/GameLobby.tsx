@@ -14,6 +14,33 @@ import { LuMinus, LuPlus } from 'react-icons/lu';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+
+/** Preset entry fees (Coins). 0 = Free. */
+const FEE_PRESETS = [0, 1000, 10000, 100000, 1000000] as const;
+
+/**
+ * Suggested default fee from balance (user spec):
+ * ≥1k → 1k · ≥100k → 10k · ≥1M → 100k · ≥10M → 1M · else Free
+ */
+export function suggestedEntryFee(coins: number): number {
+    if (coins >= 10_000_000) return 1_000_000;
+    if (coins >= 1_000_000) return 100_000;
+    if (coins >= 100_000) return 10_000;
+    if (coins >= 1_000) return 1_000;
+    return 0;
+}
+
+export function formatEntryFee(val: number): string {
+    if (val === 0) return 'Free';
+    if (val >= 1_000_000) return `${val / 1_000_000} M`;
+    if (val >= 1_000) return `${val / 1_000} k`;
+    return String(val);
+}
+
+export function canAffordFee(coins: number, fee: number): boolean {
+    return fee === 0 || fee <= coins;
+}
 
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
@@ -51,6 +78,8 @@ export default function GameLobby({
         allowOpenJoins
     } = useTeamUpContext();
     const { address } = useAccount();
+    const { profile } = useCurrentUser();
+    const coins = profile?.coins ?? 0;
     // Guests can only enter offline/bot matches — online entry shows the wall.
     const { guard } = useGuestWall();
 
@@ -111,6 +140,22 @@ export default function GameLobby({
     const [joinError, setJoinError] = useState<string | null>(null);
     const [showFee, setShowFee] = useState(false);
     const lastJoinRef = useRef<{ code: string; seat?: number; secret?: string | null } | null>(null);
+    const feeInitRef = useRef(false);
+
+    // Smart default fee from balance; clamp if balance can't cover current stake.
+    useEffect(() => {
+        if (coins <= 0) return;
+        if (!feeInitRef.current) {
+            feeInitRef.current = true;
+            const suggested = suggestedEntryFee(coins);
+            if (wager === 0 || wager > coins) setWager(suggested);
+            return;
+        }
+        if (wager > 0 && wager > coins) {
+            setWager(suggestedEntryFee(coins));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [coins]);
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
@@ -343,8 +388,7 @@ export default function GameLobby({
                         </div>
                     </div>
 
-                    {/* 2. WAGER — collapsed by default (casual tables are Free).
-                        Expand only when staking; Free stays one tap. */}
+                    {/* 2. ENTRY FEE — collapsed by default. Presets gated by balance. */}
                     <div className="fee-tier rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                         <button
                             type="button"
@@ -353,31 +397,65 @@ export default function GameLobby({
                             className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-white/5 active:scale-[0.99] transition-all"
                         >
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
-                                Wager
+                                Entry Fee
                             </span>
                             <span className={`text-[11px] font-black tracking-wide ${wager > 0 ? 'text-cyan-300' : 'text-white/50'}`}>
-                                {wager === 0 ? 'Free' : wager >= 1000000 ? `${wager / 1000000} M` : wager >= 1000 ? `${wager / 1000} k` : wager}
+                                {formatEntryFee(wager)}
                             </span>
                         </button>
                         {showFee && (
                             <div className="w-full px-1.5 pb-2 flex flex-col items-center gap-1">
                                 <div className="flex items-center justify-between w-full px-2 mb-1">
-                                    <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} aria-label="Decrease wager" className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                                    <button
+                                        onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
+                                        aria-label="Decrease entry fee"
+                                        className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
+                                    >
                                         <LuMinus className="w-5 h-5 stroke-[3px]" />
                                     </button>
                                     <div className="flex-1 flex flex-col items-center justify-center relative">
-                                        <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                        <input
+                                            type="number"
+                                            value={wager}
+                                            onChange={(e) => {
+                                                const next = Math.max(0, parseInt(e.target.value) || 0);
+                                                setWager(Math.min(next, coins));
+                                            }}
+                                            className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <span className="text-[9px] font-bold text-white/35 uppercase tracking-wider mt-0.5">
+                                            Balance {formatEntryFee(coins)}
+                                        </span>
                                     </div>
-                                    <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} aria-label="Increase wager" className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                                    <button
+                                        onClick={() => { playCoin(); setWager(Math.min(coins, wager + (wager >= 1000 ? 1000 : 100))); }}
+                                        aria-label="Increase entry fee"
+                                        disabled={wager >= coins}
+                                        className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                    >
                                         <LuPlus className="w-5 h-5 stroke-[3px]" />
                                     </button>
                                 </div>
                                 <div className="flex gap-1.5 justify-center flex-wrap">
-                                    {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                        <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
-                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
-                                        </button>
-                                    ))}
+                                    {FEE_PRESETS.map(val => {
+                                        const affordable = canAffordFee(coins, val);
+                                        return (
+                                            <button
+                                                key={val}
+                                                disabled={!affordable}
+                                                title={affordable ? undefined : 'Not enough coins'}
+                                                onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
+                                                className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val
+                                                    ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+                                                    : affordable
+                                                        ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 hover:scale-105 active:scale-95 border-white/10 text-white/90'
+                                                        : 'bg-[rgba(0,0,0,0.2)] border-white/5 text-white/25 cursor-not-allowed'
+                                                }`}
+                                            >
+                                                {formatEntryFee(val)}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

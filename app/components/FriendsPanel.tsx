@@ -5,6 +5,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { ChatIcon } from './icons';
 import { useGameData } from '@/hooks/GameDataContext';
+import { EmptyState } from './EmptyState';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings/rankings: this panel always renders on the
@@ -495,13 +496,10 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const renderFriendList = (friends: Friend[]) => {
         if (friends.length === 0) {
             return (
-                <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                    <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    </div>
-                    <h3 className="text-white font-black text-sm mb-1">No friends here yet</h3>
-                    <p className="text-white/40 text-xs max-w-[220px]">Add players from Global and they will show up here.</p>
-                </div>
+                <EmptyState
+                    title="No friends here yet"
+                    body="Add players from Global and they will show up here."
+                />
             );
         }
 

@@ -9,6 +9,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
+import { EmptyState } from './EmptyState';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -682,17 +683,10 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             {visibleChats.length} chat{visibleChats.length === 1 ? '' : 's'}
                                         </SectionLabel>
                                         {visibleChats.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                                                <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
-                                                    <ChatIcon className="w-7 h-7" />
-                                                </div>
-                                                <h3 className="text-white font-black text-sm mb-1">
-                                                    {q ? 'No chats match' : 'No messages yet'}
-                                                </h3>
-                                                <p className="text-white/40 text-xs max-w-[220px]">
-                                                    {q ? 'Try a different search.' : 'Say hi from a friend profile to start a thread.'}
-                                                </p>
-                                            </div>
+                                            <EmptyState
+                                                title={q ? 'No chats match' : 'No messages yet'}
+                                                body={q ? 'Try a different search.' : 'Say hi from a friend profile to start a thread.'}
+                                            />
                                         ) : (
                                             <div className="flex flex-col gap-2 pb-2">
                                                 {visibleChats.map((chat) => (

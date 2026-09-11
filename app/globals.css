@@ -5532,3 +5532,11 @@ textarea:focus-visible {
     transform: none;
   }
 }
+
+/* ─── Daybreak: cyan text needs more weight on light glass ─── */
+body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) {
+  color: #0e7490;
+}
+body.theme-daybreak .fee-tier :is(.text-cyan-300) {
+  color: #0e7490;
+}
