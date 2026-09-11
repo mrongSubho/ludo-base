@@ -1,12 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { recoverMessageAddress } from 'viem';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+/** Lazy client — module eval at build time must not require secrets. */
+let _sb: SupabaseClient | null = null;
+function supabase(): SupabaseClient {
+    if (_sb) return _sb;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+        throw new Error('Supabase service key is not configured');
+    }
+    _sb = createClient(url, key);
+    return _sb;
+}
 
 /**
  * SIWE app session for chat / profile / settings.
@@ -50,13 +58,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Signer mismatch' }, { status: 401 });
         }
 
-        await supabase
+        const db = supabase();
+        await db
             .from('app_sessions')
             .update({ revoked_at: new Date().toISOString() })
             .eq('wallet_address', recovered)
             .is('revoked_at', null);
 
-        const { data: row, error } = await supabase
+        const { data: row, error } = await db
             .from('app_sessions')
             .insert({
                 wallet_address: recovered,
