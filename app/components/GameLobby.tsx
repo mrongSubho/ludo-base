@@ -109,6 +109,8 @@ export default function GameLobby({
     // means the host is gone. A late seat still opens the room.
     const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
     const [joinError, setJoinError] = useState<string | null>(null);
+    const [showFee, setShowFee] = useState(false);
+    const lastJoinRef = useRef<{ code: string; seat?: number; secret?: string | null } | null>(null);
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
@@ -127,6 +129,7 @@ export default function GameLobby({
         guard('online-play', () => {
             setJoinError(null);
             joinedCodeRef.current = code;
+            lastJoinRef.current = { code, seat, secret };
             setPendingJoin({ code, since: Date.now() });
             joinGame(code, secret ?? undefined, seat);
             window.setTimeout(() => {
@@ -138,7 +141,7 @@ export default function GameLobby({
                     return;
                 }
                 setPendingJoin(null);
-                setJoinError("Couldn't reach the host — they may be offline, or the room is full/started.");
+                setJoinError("Couldn’t reach the host. They may be offline, or the room is full or already started.");
             }, JOIN_TIMEOUT_MS);
         });
     }, [guard, joinGame, isSeatedIn]);
@@ -340,29 +343,44 @@ export default function GameLobby({
                         </div>
                     </div>
 
-                    {/* 2. ENTRY FEE PANEL */}
-                    <div className="fee-tier p-1.5 pb-2 rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                        <div className="inline-block px-5 py-0.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md mb-1">
-                            <span className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] drop-shadow-md">Entry Fee</span>
-                        </div>
-                        <div className="flex items-center justify-between w-full px-2 mb-1">
-                            <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
-                                <LuMinus className="w-5 h-5 stroke-[3px]" />
-                            </button>
-                            <div className="flex-1 flex flex-col items-center justify-center relative">
-                                <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    {/* 2. WAGER — collapsed by default (casual tables are Free).
+                        Expand only when staking; Free stays one tap. */}
+                    <div className="fee-tier rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                        <button
+                            type="button"
+                            onClick={() => { playSelect(); setShowFee(v => !v); }}
+                            aria-expanded={showFee}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-white/5 active:scale-[0.99] transition-all"
+                        >
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
+                                Wager
+                            </span>
+                            <span className={`text-[11px] font-black tracking-wide ${wager > 0 ? 'text-cyan-300' : 'text-white/50'}`}>
+                                {wager === 0 ? 'Free' : wager >= 1000000 ? `${wager / 1000000} M` : wager >= 1000 ? `${wager / 1000} k` : wager}
+                            </span>
+                        </button>
+                        {showFee && (
+                            <div className="w-full px-1.5 pb-2 flex flex-col items-center gap-1">
+                                <div className="flex items-center justify-between w-full px-2 mb-1">
+                                    <button onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }} aria-label="Decrease wager" className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                                        <LuMinus className="w-5 h-5 stroke-[3px]" />
+                                    </button>
+                                    <div className="flex-1 flex flex-col items-center justify-center relative">
+                                        <input type="number" value={wager} onChange={(e) => setWager(Math.max(0, parseInt(e.target.value) || 0))} className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                    </div>
+                                    <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} aria-label="Increase wager" className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
+                                        <LuPlus className="w-5 h-5 stroke-[3px]" />
+                                    </button>
+                                </div>
+                                <div className="flex gap-1.5 justify-center flex-wrap">
+                                    {[0, 1000, 10000, 100000, 1000000].map(val => (
+                                        <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
+                                            {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <button onClick={() => { playCoin(); setWager(wager + (wager >= 1000 ? 1000 : 100)); }} className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200">
-                                <LuPlus className="w-5 h-5 stroke-[3px]" />
-                            </button>
-                        </div>
-                        <div className="flex gap-1.5 justify-center flex-wrap">
-                            {[0, 1000, 10000, 100000, 1000000].map(val => (
-                                <button key={val} onClick={() => { playCoin(); setWager(val); }} className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 hover:scale-105 active:scale-95 backdrop-blur-md shadow-sm text-[10px] font-black ${wager === val ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]' : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/90'}`}>
-                                    {val === 0 ? 'Free' : val >= 1000000 ? `${val / 1000000} M` : val >= 1000 ? `${val / 1000} k` : val}
-                                </button>
-                            ))}
-                        </div>
+                        )}
                     </div>
 
                     {/* 3. ACTION DICE - flex-1 so it rides lower, centered in
@@ -375,9 +393,8 @@ export default function GameLobby({
                         />
                     </div>
 
-                    {/* 4. LIVE BROADCAST card (MCP stream design). Chat + matches
-                        open in its panel; arena streams live in the Arena tab. */}
-                    <div className="w-full mt-auto pt-3">
+                    {/* 4. LIVE BROADCAST — slim; full feed opens on tap */}
+                    <div className="w-full mt-auto pt-2">
                         <LiveBroadcastCard onOpenProfile={onOpenProfile} />
                     </div>
 
@@ -419,6 +436,21 @@ export default function GameLobby({
                         <p className="text-[13px] font-bold text-white/80 leading-relaxed">
                             {joinError}
                         </p>
+                        <p className="text-[11px] text-white/40 leading-relaxed">
+                            Use the full invite link (with the secret), or ask the host to copy it again.
+                        </p>
+                        {lastJoinRef.current && (
+                            <button
+                                onClick={() => {
+                                    const j = lastJoinRef.current;
+                                    setJoinError(null);
+                                    if (j) startPartyJoin(j.code, j.seat, j.secret);
+                                }}
+                                className="mt-1 w-full py-3 rounded-2xl bg-cyan-400 text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-cyan-300 active:scale-[0.99] transition-all"
+                            >
+                                Try again
+                            </button>
+                        )}
                         <button
                             onClick={() => setJoinError(null)}
                             className="mt-1 w-full py-3 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"

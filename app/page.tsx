@@ -629,7 +629,7 @@ export default function Page() {
                 hasNotifications={notifCount > 0}
                 onMessagesClick={() => toggle('messages')}
                 onSettingsClick={() => toggle('settings')}
-                modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} ${playerCount} ${betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
+                modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
                 streamNode={<StreamToggle matchId={gameState?.matchId} isHost={isHost} small />}
               />

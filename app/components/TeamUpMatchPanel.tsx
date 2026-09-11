@@ -639,14 +639,27 @@ export const TeamUpMatchPanel = ({
                                 <span className="text-[11px] font-black text-white/70 tracking-wide uppercase truncate">
                                     {modeLabel} • {feeLabel}
                                 </span>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); playSelect(); if (roomCodeValue) copyText(inviteLinkFor(), 'room'); }}
-                                    disabled={!roomCodeValue}
-                                    className="shrink-0 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-[10px] font-black tracking-[0.1em] text-white/60 uppercase hover:text-white transition-colors disabled:opacity-40"
-                                >
-                                    {copiedKey === 'room' ? 'Link Copied!' : `Room: ${roomCodeValue || '——'}`}
-                                </button>
+                                {roomCodeValue ? (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); playSelect(); copyText(inviteLinkFor(), 'room'); }}
+                                        className="shrink-0 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-[10px] font-black tracking-[0.1em] text-white/60 uppercase hover:text-white transition-colors"
+                                    >
+                                        {copiedKey === 'room' ? 'Link copied' : `Copy invite · ${roomCodeValue}`}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); playSelect(); onHost(); }}
+                                        className="shrink-0 min-h-[36px] px-3 rounded-xl bg-cyan-400 text-black text-[10px] font-black tracking-[0.12em] uppercase hover:bg-cyan-300 active:scale-95 transition-all"
+                                    >
+                                        Create room
+                                    </button>
+                                )}
                             </div>
+                            {roomCodeValue && (
+                                <p className="mt-1.5 text-[10px] text-white/35 leading-snug">
+                                    Invite link includes the room secret — share the link, not the code alone.
+                                </p>
+                            )}
                         </div>
 
                         {/* Core Context View */}

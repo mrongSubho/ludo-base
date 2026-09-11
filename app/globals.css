@@ -5489,3 +5489,46 @@ body.token-style-orb .blue-token::after {
   0%, 100% { transform: scale(0.92); opacity: 0.75; }
   50% { transform: scale(1.05); opacity: 1; }
 }
+
+/* ─── A11y: focus-visible + reduced motion (UI pass) ─── */
+
+/* Visible keyboard focus — never outline:none without a ring */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.85);
+  outline-offset: 2px;
+}
+
+.footer-nav button:focus-visible,
+.nav-item:focus-visible {
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .cosmic-orb,
+  .boot-dot,
+  .ludo-token-pulse,
+  .await-ring,
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
+
+  .ludo-token:hover {
+    transform: none;
+  }
+}
