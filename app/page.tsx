@@ -434,6 +434,18 @@ export default function Page() {
   };
 
   const handleBackToSubMenu = () => {
+    // Host leaving a live stream should drop the Live Arena row.
+    if (isHost && gameState?.matchId && lobbyState?.roomCode) {
+      void fetch('/api/match/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: gameState.matchId,
+          roomCode: lobbyState.roomCode,
+          enabled: false,
+        }),
+      }).catch(() => { /* best-effort */ });
+    }
     leaveGame();
     setBoardSeed(null);
     setAppState('dashboard');
