@@ -70,6 +70,8 @@ interface UseGameActionsProps {
     serverSeqRef: React.MutableRefObject<number>;
     /** Last Edge roll receipt id for the current turn. */
     lastRollIdRef: React.MutableRefObject<string | null>;
+    /** P4: push Edge results into TeamUpContext match_states cache. */
+    applyServerState?: (state: GameState, seq: number) => void;
 }
 
 
@@ -93,6 +95,7 @@ export function useGameActions({
     moveAuth,
     serverSeqRef,
     lastRollIdRef,
+    applyServerState,
 }: UseGameActionsProps) {
 
 
@@ -167,6 +170,9 @@ export function useGameActions({
 
             serverSeqRef.current = result.seq ?? serverSeqRef.current;
             lastRollIdRef.current = null;
+            if (result.state && typeof result.seq === 'number') {
+                applyServerState?.(result.state, result.seq);
+            }
 
             const nextState: GameState = {
                 ...currentState0,
@@ -344,7 +350,7 @@ export function useGameActions({
                 });
             }, 800);
         }
-    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers]);
+    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
 
     const handleRoll = useCallback(async (value?: number, isRemote = false) => {
         // 🔧 FIX 3: Read from stateRef instead of stale closure for guard check
@@ -619,6 +625,9 @@ export function useGameActions({
             }
 
             serverSeqRef.current = result.seq ?? serverSeqRef.current;
+            if (result.state && typeof result.seq === 'number') {
+                applyServerState?.(result.state, result.seq);
+            }
             setLocalGameState(s => ({
                 ...s,
                 ...result.state,
@@ -764,7 +773,7 @@ export function useGameActions({
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers, applyServerState]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;

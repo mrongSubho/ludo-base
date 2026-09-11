@@ -12,6 +12,7 @@ import { useGamePresence } from '@/hooks/useGamePresence';
 import { useBettingController } from '@/hooks/useBettingController';
 import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
 import { useMoveAuth } from '@/hooks/useMoveAuth';
+import { useMatchStates } from '@/hooks/useMatchStates';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 import { INITIAL_GAME_STATE as ENGINE_INIT } from '@/lib/gameLogic';
 import {
@@ -75,6 +76,10 @@ export interface TeamUpContextType {
     allowOpenJoins: () => void;
     activeBetWindow: ActiveBettingWindow | null;
     startBettingWindow: (betType: BetType) => Promise<string>;
+    /** P4: monotonic match_states.seq known to this client. */
+    serverSeq: number;
+    /** Apply a server-authoritative state (Edge / match_states). */
+    applyServerState: (state: GameState, seq: number) => void;
 }
 
 const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
@@ -99,6 +104,28 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // Host-only join secret for invite lobbies (not on the matchmaking path).
     // Embedded in invite links as `s=` and passed to joinGame as the token.
     const [roomSecret, setRoomSecret] = useState<string | null>(null);
+    /** P4: highest match_states.seq this client has applied. */
+    const serverSeqRef = useRef(0);
+    const [serverSeq, setServerSeq] = useState(0);
+
+    const applyServerState = useCallback((state: GameState, seq: number) => {
+        if (!Number.isFinite(seq) || seq <= serverSeqRef.current) return;
+        serverSeqRef.current = seq;
+        setServerSeq(seq);
+        setGameState(prev => ({
+            ...prev,
+            ...state,
+            lastUpdate: Date.now(),
+        }));
+    }, []);
+
+    // P4: clients render match_states (postgres realtime + initial pull)
+    useMatchStates({
+        matchId: gameState.matchId,
+        enabled: isLobbyConnected,
+        onServerState: applyServerState,
+        getSeq: () => serverSeqRef.current,
+    });
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -221,7 +248,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     initialState,
                 }).then(r => {
                     if (!r.ok) console.error('🌱 [MoveAuth] seed failed', (r as { data?: unknown; error?: string }).data || (r as { error?: string }).error);
-                    else console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
+                    else {
+                        console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
+                        serverSeqRef.current = 0;
+                        setServerSeq(0);
+                    }
                 }).catch(err => console.error('🌱 [MoveAuth] seed error', err));
             }
 
@@ -333,16 +364,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             return;
         }
 
-        // 🌟 Authoritative State Override (If provided by Host)
+        // 🌟 Host ENGINE_STATE: hint only when match_states is live (P4).
+        // Apply only if payload.seq is strictly ahead of the server seq we know.
         if (stateOverride && !isHost) {
-            console.log('🌟 [Guest] Applying State Override');
-            setGameState(prev => ({
-                ...stateOverride,
-                lastUpdate: Date.now(),
-                lastAction: { type, payload: data }
-            }));
-            // If it's a state override, we may still want to trigger type-specific side effects
-            // but we skip the manual state patches below.
+            const payloadSeq = typeof data.seq === 'number' ? data.seq : null;
+            const known = serverSeqRef.current;
+            if (payloadSeq !== null && payloadSeq > known) {
+                applyServerState(stateOverride as GameState, payloadSeq);
+            } else if (known === 0 && payloadSeq === null) {
+                // Pre-seed / offline-style lobby: fall back to host hint
+                setGameState(prev => ({
+                    ...stateOverride,
+                    lastUpdate: Date.now(),
+                    lastAction: { type, payload: data }
+                }));
+            } else {
+                console.log('🌟 [P4] Ignoring host override (server seq', known, '>= payload', payloadSeq, ')');
+            }
         }
 
         if (type === 'START_GAME') {
@@ -404,7 +442,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
         }
-    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost, myAddress, currentRoomCode, roomId]);
+    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, isHost, myAddress, currentRoomCode, roomId, applyServerState]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -630,6 +668,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         expectedValidationTokenRef.current = null;
         setRoomSecret(null);
         setValidationToken(undefined);
+        serverSeqRef.current = 0;
+        setServerSeq(0);
 
         if (myAddress) {
             supabase.from('players')
@@ -719,13 +759,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins,
+        roomSecret, allowOpenJoins, serverSeq, applyServerState,
         activeBetWindow, startBettingWindow
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins,
+        roomSecret, allowOpenJoins, serverSeq, applyServerState,
         activeBetWindow, startBettingWindow
     ]);
 

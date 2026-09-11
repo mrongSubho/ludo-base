@@ -86,7 +86,9 @@ export function useGameEngine({
         updateGameState,
         lastIntent,
         clearIntent,
-        startBettingWindow
+        startBettingWindow,
+        serverSeq,
+        applyServerState
     } = useTeamUpContext();
     
     // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
@@ -226,6 +228,7 @@ export function useGameEngine({
         moveAuth,
         serverSeqRef,
         lastRollIdRef,
+        applyServerState,
     });
 
     useGameTimer({ localGameState, setLocalGameState });
@@ -386,12 +389,17 @@ export function useGameEngine({
         }
     }, [isHost, isLobbyConnected, localGameState, updateGameState]);
 
+    // P4: guests copy TeamUpContext gameState (fed by match_states / gated hints)
     useEffect(() => {
         if (!isHost && isLobbyConnected && networkGameState && networkGameState.lastUpdate > localGameState.lastUpdate) {
             setLocalGameState(prev => ({
                 ...prev,
                 ...networkGameState,
-                isStarted: prev.isStarted || networkGameState.isStarted
+                isStarted: prev.isStarted || networkGameState.isStarted,
+                // Preserve local-only UI fields
+                powerTiles: networkGameState.powerTiles?.length
+                    ? networkGameState.powerTiles
+                    : prev.powerTiles,
             }));
             if (networkGameState.lastAction?.type === 'MOVE_TOKEN') playMove();
         }
