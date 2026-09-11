@@ -18,12 +18,27 @@ export function useSupabaseRelay({
     joinGame
 }: UseSupabaseRelayProps) {
     const processedActionIds = useRef<Set<string>>(new Set());
+    /** Immediate room target — React state lags one render; guests must send now. */
+    const roomCodeRef = useRef<string | null>(null);
+
+    // Keep ref in sync when state catches up (host path).
+    useEffect(() => {
+        if (currentRoomCode) roomCodeRef.current = currentRoomCode;
+        else if (lobbyState?.roomCode) roomCodeRef.current = lobbyState.roomCode;
+    }, [currentRoomCode, lobbyState?.roomCode]);
+
+    const setRelayRoom = useCallback((code: string | null) => {
+        roomCodeRef.current = code;
+    }, []);
 
     const relayViaSupabase = useCallback((type: string, data: any, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
-        const targetCode = currentRoomCode || lobbyStateRef.current?.roomCode;
-        if (!targetCode) return;
-        
-        const actionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const targetCode = roomCodeRef.current || currentRoomCode || lobbyStateRef.current?.roomCode;
+        if (!targetCode) {
+            console.warn('🛰️ Relay skipped — no room code yet', type);
+            return;
+        }
+
+        const actionId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
         const payload = {
             ...data,
             actionId,
@@ -47,7 +62,7 @@ export function useSupabaseRelay({
     useEffect(() => {
         const targetCode = currentRoomCode || lobbyState?.roomCode;
         if (!targetCode) return;
-        
+
         console.log(`📡 Subscribing to Supabase Game Channel: game-room-${targetCode}`);
         const channel = supabase
             .channel(`game-room-${targetCode}`)
@@ -71,6 +86,7 @@ export function useSupabaseRelay({
 
     return {
         relayViaSupabase,
+        setRelayRoom,
         processedActionIds
     };
 }

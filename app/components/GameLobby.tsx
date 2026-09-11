@@ -112,27 +112,36 @@ export default function GameLobby({
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
+    // Fail fast: Supabase JOIN_REQUEST seats in ~1s when the host is online.
+    // 8s covers one realtime round-trip + PeerJS retry without a 20s dead wait.
+    const JOIN_TIMEOUT_MS = 8000;
+
+    const isSeatedIn = useCallback((code: string) => {
+        const L = lobbyRef.current;
+        const me = address?.toLowerCase();
+        return !!L && L.roomCode?.toUpperCase() === code.toUpperCase() &&
+            (L.slots || []).some(s => s.status === 'joined' && s.playerId?.toLowerCase() === me);
+    }, [address]);
+
     const startPartyJoin = useCallback((code: string, seat?: number, secret?: string | null) => {
         guard('online-play', () => {
             setJoinError(null);
             joinedCodeRef.current = code;
             setPendingJoin({ code, since: Date.now() });
             joinGame(code, secret ?? undefined, seat);
-            setTimeout(() => {
-                const L = lobbyRef.current;
-                const me = address?.toLowerCase();
-                const seated = !!L && L.roomCode?.toUpperCase() === code &&
-                    (L.slots || []).some(s => s.status === 'joined' && s.playerId?.toLowerCase() === me);
-                setPendingJoin(cur => {
-                    if (!cur || cur.code !== code) return cur;
-                    if (seated) setShowTeamUpOptions(true);
-                    else if (isLobbyConnected) setJoinError('Match has started or closed — or the room is full.');
-                    else setJoinError("Couldn't reach the host — they may be offline or the room is closed.");
-                    return null;
-                });
-            }, 20000);
+            window.setTimeout(() => {
+                if (joinedCodeRef.current !== code) return; // already seated or superseded
+                if (isSeatedIn(code)) {
+                    joinedCodeRef.current = null;
+                    setPendingJoin(null);
+                    setShowTeamUpOptions(true);
+                    return;
+                }
+                setPendingJoin(null);
+                setJoinError("Couldn't reach the host — they may be offline, or the room is full/started.");
+            }, JOIN_TIMEOUT_MS);
         });
-    }, [guard, joinGame, address, isLobbyConnected]);
+    }, [guard, joinGame, isSeatedIn]);
 
     // Fast path: the instant our seat lands, open the room (no 20s wait).
     // Keyed on the joined code, not the pending flag — a seat landing just
@@ -376,6 +385,23 @@ export default function GameLobby({
             )}
 
             {/* --- OVERLAY PANELS --- */}
+            {pendingJoin && (
+                <div className="fixed inset-0 z-[190] flex items-center justify-center px-6 bg-black/55 backdrop-blur-sm">
+                    <div
+                        className="w-full max-w-[320px] rounded-[24px] border border-white/10 px-6 py-8 flex flex-col items-center gap-4 text-center shadow-2xl"
+                        style={{ background: 'var(--panel-bg, rgba(13,13,13,0.96))', backdropFilter: 'blur(32px)' }}
+                    >
+                        <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                            Joining room
+                        </p>
+                        <p className="text-2xl font-black text-white tracking-[0.25em]">{pendingJoin.code}</p>
+                        <p className="text-[11px] text-white/40 font-bold uppercase tracking-wider">
+                            Waiting for host…
+                        </p>
+                    </div>
+                </div>
+            )}
             {/* Join feedback popup: full/started/closed rooms say so plainly */}
             {joinError && (
                 <div

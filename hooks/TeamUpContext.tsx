@@ -185,7 +185,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     });
 
     // 2. Supabase Relay (define relayViaSupabase early)
-    const { relayViaSupabase, processedActionIds } = useSupabaseRelay({
+    const { relayViaSupabase, setRelayRoom, processedActionIds } = useSupabaseRelay({
         myAddress,
         lobbyState,
         currentRoomCode,
@@ -579,6 +579,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
+        setRelayRoom(code);
         setIsLobbyConnected(false);
 
         void (async () => {
@@ -638,13 +639,15 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     // match_id updated on START_GAME
                 }
             });
-    }, [destroyPeer, setIsHost, myAddress, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData]);
+    }, [destroyPeer, setIsHost, myAddress, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData, setRelayRoom]);
 
     const joinGame = useCallback((targetRoomId: string, token?: string, desiredSeat?: number) => {
         destroyPeer();
         setIsHost(false);
         setValidationToken(token);
         setCurrentRoomCode(targetRoomId);
+        // Sync ref immediately so JOIN_REQUEST hits the right channel this tick.
+        setRelayRoom(targetRoomId);
         desiredSeatRef.current = Number.isInteger(desiredSeat) ? desiredSeat : undefined;
 
         // Dual-path seat: Supabase JOIN_REQUEST (works when PeerJS is blocked).
@@ -709,7 +712,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 }
             });
         })();
-    }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef]);
+    }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef, setRelayRoom]);
 
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
