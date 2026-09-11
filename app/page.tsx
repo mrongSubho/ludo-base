@@ -98,34 +98,61 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useNotifications } from '@/hooks/useNotifications';
 
-const StreamToggle = ({ matchId, isHost, small }: { matchId?: string, isHost: boolean, small?: boolean }) => {   const [isStreaming, setIsStreaming] = useState(false);
+const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
+   matchId?: string;
+   roomCode?: string | null;
+   hostAddress?: string;
+   isHost: boolean;
+   small?: boolean;
+}) => {
+   const [isStreaming, setIsStreaming] = useState(false);
    const [isPending, setIsPending] = useState(false);
+   const [err, setErr] = useState<string | null>(null);
 
-   if (!isHost || !matchId) return null;
+   if (!isHost || !matchId || !roomCode) return null;
 
    const toggleStream = async () => {
      setIsPending(true);
+     setErr(null);
      try {
        const res = await fetch('/api/match/stream', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ matchId, enabled: !isStreaming })
+         body: JSON.stringify({
+           matchId,
+           roomCode,
+           hostAddress: hostAddress || undefined,
+           enabled: !isStreaming,
+         }),
        });
-       if(res.ok) setIsStreaming(!isStreaming);
+       const data = await res.json().catch(() => ({}));
+       if (res.ok) {
+         setIsStreaming(!isStreaming);
+       } else {
+         setErr(data?.error || 'Stream toggle failed');
+       }
+     } catch {
+       setErr('Network error');
      } finally {
        setIsPending(false);
      }
    };
 
    return (
-      <button 
-         onClick={toggleStream} 
-         disabled={isPending}
-         className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-[8px]' : 'px-3 py-1.5 text-[10px]'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        <div className={`w-1.5 h-1.5 rounded-full ${isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
-        {isStreaming ? 'LIVE GAMBLEFI' : 'STREAM MATCH'}
-      </button>
+      <div className="flex flex-col items-end gap-0.5">
+        <button
+           onClick={toggleStream}
+           disabled={isPending}
+           aria-pressed={isStreaming}
+           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-[8px]' : 'px-3 py-1.5 text-[10px]'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+           <div className={`w-1.5 h-1.5 rounded-full ${isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
+           {isStreaming ? 'LIVE' : 'Go live'}
+        </button>
+        {err && (
+          <span className="text-[9px] font-bold text-amber-300 max-w-[140px] text-right leading-tight">{err}</span>
+        )}
+      </div>
    );
 }
 
@@ -143,7 +170,7 @@ export default function Page() {
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame } = useTeamUp();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId } = useTeamUp();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -631,7 +658,13 @@ export default function Page() {
                 onSettingsClick={() => toggle('settings')}
                 modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
-                streamNode={<StreamToggle matchId={gameState?.matchId} isHost={isHost} small />}
+                streamNode={<StreamToggle
+                  matchId={gameState?.matchId}
+                  roomCode={lobbyState?.roomCode || roomId || null}
+                  hostAddress={address}
+                  isHost={isHost}
+                  small
+                />}
               />
               <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
                 {selectedMode === 'snakes' ? (

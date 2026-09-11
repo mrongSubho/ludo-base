@@ -234,6 +234,7 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
                 current_bet_type, created_at,
                 matches!inner (game_mode, total_bet_volume, streaming_enabled)
             `)
+            .eq('matches.streaming_enabled', true)
             .order('spectator_count', { ascending: false })
             .limit(20);
 
