@@ -1938,15 +1938,12 @@ body.theme-retro-futurism::before {
   padding: 10px 8px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 200 !important;
-  /* Translucent dark glass — opaque enough that scrolled content
-     (broadcast cards, tickers) can't bleed through the tab labels */
-  background: rgba(0, 0, 0, 0.72) !important;
+  /* Opaque enough that lobby content (broadcast card) never bleeds under labels */
+  background: rgba(10, 12, 18, 0.94) !important;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  /* Subtle top border */
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
-  z-index: 100;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.35);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
 }
@@ -3143,6 +3140,8 @@ body.theme-retro-futurism .home-pad {
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .footer-nav {
@@ -3155,26 +3154,43 @@ body.theme-retro-futurism .home-pad {
   }
 
   .board-main {
-    padding: 16px 0 !important;
-    /* Minimal padding for the whole main area */
-    width: 100vw !important;
+    padding: 8px 0 !important;
+    width: 100% !important;
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     align-items: center !important;
     overflow: hidden !important;
-    gap: 16px !important;
+    gap: 6px !important;
+    min-height: 0 !important;
+    flex: 1 1 auto !important;
   }
 
-  /* Force the board to be a perfect 100vw square */
+  /* Board square is measured from board-area (JS) — never force 100vw height,
+     which overflows short viewports and clips bottom player HUD. */
   .board-outer {
-    max-width: 100vw !important;
-    width: 100vw !important;
-    height: 100vw !important;
-    aspect-ratio: 1/1 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    flex: 1 1 auto !important;
+    aspect-ratio: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 2px !important;
+  }
+
+  .board-area {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    width: 100% !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
@@ -3187,14 +3203,12 @@ body.theme-retro-futurism .home-pad {
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    width: 100vw !important;
-    height: 100vw !important;
+    width: auto !important;
+    height: auto !important;
   }
 
   .board-grid {
     gap: 0px !important;
-    width: 100% !important;
-    height: 100% !important;
     border: none !important;
   }
 
@@ -3207,13 +3221,14 @@ body.theme-retro-futurism .home-pad {
     left: auto !important;
     right: auto !important;
     transform: none !important;
-    /* Cancel out scales breaking layouts temporarily */
   }
 
   .player-row {
-    width: 100vw !important;
-    padding: 0 16px !important;
+    width: 100% !important;
+    padding: 0 10px !important;
     justify-content: space-between !important;
+    min-height: 48px !important;
+    flex-shrink: 0 !important;
   }
 
   .player-card {
@@ -3225,18 +3240,18 @@ body.theme-retro-futurism .home-pad {
   }
 
   .player-avatar {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 15px !important;
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 13px !important;
   }
 
   .player-name {
-    font-size: 14px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
   }
 
   .player-level {
-    font-size: 10px !important;
+    font-size: 9px !important;
   }
 
   .footer-nav {
@@ -5141,6 +5156,38 @@ body.theme-retro-futurism .token-dot-placeholder {
 .pb-safe-footer {
   padding-bottom: 100px;
   /* Space for footer + buffer */
+}
+
+/* ─── Mobile: lobby must scroll clear of fixed footer ─── */
+@media (max-width: 500px) {
+  .dashboard-shell {
+    /* Body is overflow:hidden on mobile; the shell owns vertical scroll. */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .dashboard-container {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .dash-main.pb-safe-footer {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 12px !important;
+  }
+
+  .ludo-lobby-scope {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Keep broadcast card above footer even when column is short */
+  .broadcast-tier {
+    margin-bottom: 8px;
+  }
 }
 
 .px-safe {
