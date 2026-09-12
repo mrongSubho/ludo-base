@@ -966,10 +966,29 @@ body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #
    Zero blast radius on the rest of the app. */
 .ludo-invite-scope .mb-1 { margin-bottom: 0.25rem; }
 .ludo-invite-scope .mt-1 { margin-top: 0.25rem; }
+.ludo-invite-scope .mt-2 { margin-top: 0.5rem; }
 .ludo-invite-scope .mt-3 { margin-top: 0.75rem; }
 .ludo-invite-scope .p-5 { padding: 1.25rem; }
 .ludo-invite-scope .px-5 { padding-inline: 1.25rem; }
+.ludo-invite-scope .px-6 { padding-inline: 1.5rem; }
+.ludo-invite-scope .pt-4 { padding-top: 1rem; }
+.ludo-invite-scope .pt-5 { padding-top: 1.25rem; }
+.ludo-invite-scope .pb-5 { padding-bottom: 1.25rem; }
 .ludo-invite-scope .py-3 { padding-block: 0.75rem; }
+.ludo-invite-scope .py-7 { padding-block: 1.75rem; }
+.ludo-invite-scope .py-8 { padding-block: 2rem; }
+.ludo-invite-scope .gap-2 { gap: 0.5rem; }
+.ludo-invite-scope .gap-2\.5 { gap: 0.625rem; }
+.ludo-invite-scope .gap-3 { gap: 0.75rem; }
+/* Primary CTA: solid cyan stays legible on both themes */
+body.theme-daybreak .ludo-invite-scope .invite-accept-btn {
+  background-color: #0891b2;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(8, 145, 178, 0.25);
+}
+body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
+  background-color: #0e7490;
+}
 /* Scoped spacing repair (wallet entrance card only): scoped re-assertions.
    Zero blast radius on the rest of the app. (LudoWalletModal uses inline
    styles only, so it needs no scope.) */

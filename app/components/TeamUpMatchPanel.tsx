@@ -25,6 +25,8 @@ interface TeamUpMatchPanelProps {
     onKickPlayer: (slotIndex: number) => void;
     onSendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
     onQuickMatch: () => void;
+    /** Host-only: step entry fee down one preset. */
+    onLowerFee?: () => void;
     hunting?: boolean;
     huntExpired?: boolean;
     huntTimeoutS?: number;
@@ -186,7 +188,7 @@ const PersonPlusIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, selected, onSelect }: {
+const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, selected, onSelect, entryFee = 0, showLowBadge = false }: {
     slot: LobbySlot | null | undefined;
     tint: 'cyan' | 'ember';
     you?: boolean;
@@ -199,10 +201,19 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
     onDrop?: () => void;
     selected?: boolean;
     onSelect?: () => void;
+    /** Lobby entry fee — drives the low-balance badge */
+    entryFee?: number;
+    /** Host-only: show amber Low chip when playerCoins < entryFee */
+    showLowBadge?: boolean;
 }) => {
     const filled = !!slot && slot.status === 'joined';
     const invited = !!slot && slot.status === 'invited';
     const canKick = filled && !!onKick && !you && slot?.role !== 'host';
+    const lowBalance = showLowBadge
+        && filled
+        && entryFee > 0
+        && typeof slot?.playerCoins === 'number'
+        && slot.playerCoins < entryFee;
     const ring = selected
         ? 'border-amber-300 shadow-[0_0_20px_rgba(252,211,77,0.45)]'
         : filled
@@ -246,6 +257,14 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
                             You
                         </span>
                     )}
+                    {lowBalance && (
+                        <span
+                            className="absolute top-0 inset-x-0 py-px bg-amber-400/95 text-[7px] font-black uppercase tracking-[0.12em] text-slate-950 text-center"
+                            title={`${slot?.playerName || 'Player'} has ${(slot?.playerCoins ?? 0).toLocaleString()} · entry ${entryFee.toLocaleString()}`}
+                        >
+                            Low
+                        </span>
+                    )}
                 </span>
                 <span className="text-[10px] font-black text-white uppercase tracking-wider truncate max-w-[72px]">
                     {filled ? slot?.playerName : invited ? 'Invited' : 'Invite'}
@@ -270,7 +289,7 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
     );
 };
 
-const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot, onSwapPlayers, onKickPlayer }: {
+const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot, onSwapPlayers, onKickPlayer, entryFee = 0, showLowBadges = false }: {
     slots: LobbySlot[];
     mode: '1v1' | '2v2' | '4P';
     isSelfHost: boolean;
@@ -278,6 +297,8 @@ const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot, onSwapPlayers, o
     onInviteSlot: (slot: LobbySlot) => void;
     onSwapPlayers?: (a: number, b: number) => void;
     onKickPlayer?: (slotIndex: number) => void;
+    entryFee?: number;
+    showLowBadges?: boolean;
 }) => {
     const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
     const dragFromRef = useRef<number | null>(null);
@@ -334,6 +355,8 @@ const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot, onSwapPlayers, o
                         onDrop={isSelfHost && onSwapPlayers ? () => dropOn(s) : undefined}
                         selected={selectedSeat === s.slotIndex}
                         onSelect={() => handleSeatClick(s)}
+                        entryFee={entryFee}
+                        showLowBadge={showLowBadges}
                     />
                 ))}
             </div>
@@ -362,6 +385,7 @@ export const TeamUpMatchPanel = ({
     onSwapPlayers,
     onKickPlayer,
     onQuickMatch,
+    onLowerFee,
     hunting = false,
     huntExpired = false,
     huntTimeoutS = 40,
@@ -579,6 +603,31 @@ export const TeamUpMatchPanel = ({
     const fee = lobbyState?.entryFee ?? entryFee;
     const feeLabel = fee > 0 ? fee.toLocaleString() : 'Free';
 
+    // Guest: short overlay when the host steps the entry fee down.
+    const prevFeeRef = useRef<number | null>(null);
+    const [feeDropNotice, setFeeDropNotice] = useState<number | null>(null);
+    useEffect(() => {
+        if (!lobbyState || isHost) {
+            prevFeeRef.current = lobbyState?.entryFee ?? null;
+            return;
+        }
+        const next = lobbyState.entryFee;
+        const prev = prevFeeRef.current;
+        prevFeeRef.current = next;
+        if (prev !== null && next < prev) {
+            setFeeDropNotice(next);
+            const t = setTimeout(() => setFeeDropNotice(null), 4500);
+            return () => clearTimeout(t);
+        }
+    }, [lobbyState?.entryFee, isHost, lobbyState]);
+
+    const lowBalanceCount = (lobbyState?.slots ?? []).filter(
+        s => s.status === 'joined'
+            && fee > 0
+            && typeof s.playerCoins === 'number'
+            && s.playerCoins < fee
+    ).length;
+
     const copyText = async (text: string, key: string) => {
         // Debug / test hook: always expose the last copied invite payload.
         try { (window as unknown as { __ludoLastInvite?: string }).__ludoLastInvite = text; } catch { /* ignore */ }
@@ -681,6 +730,33 @@ export const TeamUpMatchPanel = ({
 
     return (
         <>
+            {/* Guest: host lowered the entry fee — short notice, then host can start */}
+            {feeDropNotice !== null && !isHost && (
+                <div className="fixed inset-0 z-[230] flex items-start justify-center px-4 pt-20 sm:items-center sm:pt-0 pointer-events-none">
+                    <div
+                        className="ludo-teamup-scope pointer-events-auto w-full max-w-[360px] rounded-[28px] border border-amber-400/40 px-6 py-6 text-center shadow-2xl"
+                        style={{
+                            background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
+                            backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))',
+                            backdropFilter: 'blur(32px)',
+                        }}
+                    >
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                            Entry fee updated
+                        </p>
+                        <p className="mt-2 text-lg font-black text-white">
+                            Host lowered entry to{' '}
+                            <span className="text-amber-300 tabular-nums">
+                                {feeDropNotice > 0 ? feeDropNotice.toLocaleString() : 'Free'}
+                            </span>
+                        </p>
+                        <p className="mt-1.5 text-[11px] text-white/45 font-bold uppercase tracking-wider">
+                            You’re still seated · waiting for host to start
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Blurring Overlay */}
             <div
                 className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
@@ -737,6 +813,15 @@ export const TeamUpMatchPanel = ({
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-[11px] font-black text-white/70 tracking-wide uppercase truncate">
                                     {modeLabel} • {feeLabel}
+                                    {isHost && fee > 0 && onLowerFee && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); playSelect(); onLowerFee(); }}
+                                            className="ml-2 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-black uppercase tracking-[0.12em] hover:bg-amber-500/25 transition-all"
+                                            title="Step entry fee down one preset"
+                                        >
+                                            Lower fee
+                                        </button>
+                                    )}
                                 </span>
                                 {roomCodeValue ? (
                                     <div className="flex flex-col items-end gap-1">
@@ -811,6 +896,8 @@ export const TeamUpMatchPanel = ({
                                         onInviteSlot={(slot) => openInvitePopup(slot)}
                                         onSwapPlayers={onSwapPlayers}
                                         onKickPlayer={onKickPlayer}
+                                        entryFee={fee}
+                                        showLowBadges={isHost}
                                     />
 
                                     {/* Join with Code */}
@@ -1082,6 +1169,12 @@ export const TeamUpMatchPanel = ({
                                     <span className="font-black tracking-[0.2em] text-xs uppercase">Cancel hunt</span>
                                     <span className="text-[9px] font-bold normal-case tracking-wide text-white/35">Back to invites</span>
                                 </button>
+                            )}
+
+                            {isHost && lowBalanceCount > 0 && (
+                                <p className="px-1 pb-1 text-[10px] font-bold text-amber-300 leading-snug">
+                                    {lowBalanceCount === 1 ? '1 player is' : `${lowBalanceCount} players are`} short on coins for this entry. Lower the fee or start anyway.
+                                </p>
                             )}
 
                                 <button

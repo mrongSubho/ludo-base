@@ -61,6 +61,7 @@ export async function POST(request: Request) {
             avatar_url: body.avatarUrl ? String(body.avatarUrl).slice(0, 512) : null,
             desired_seat: desiredSeat,
             validation_token: secret ? secret.trim().toLowerCase() : null,
+            coins: typeof body.coins === 'number' && Number.isFinite(body.coins) ? Math.max(0, Math.floor(body.coins)) : null,
         });
         if (insErr) {
             console.error('lobby_join_requests insert', insErr);
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
         const sb = db();
         const { data, error } = await sb
             .from('lobby_join_requests')
-            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, validation_token, created_at')
+            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, validation_token, coins, created_at')
             .eq('room_code', roomCode)
             .order('created_at', { ascending: true })
             .limit(20);

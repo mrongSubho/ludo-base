@@ -75,7 +75,8 @@ export default function GameLobby({
         swapPlayers,
         kickPlayer,
         leaveGame,
-        allowOpenJoins
+        allowOpenJoins,
+        lowerEntryFee,
     } = useTeamUpContext();
     const { address } = useAccount();
     const { profile } = useCurrentUser();
@@ -207,6 +208,24 @@ export default function GameLobby({
             setShowTeamUpOptions(true);
         }
     }, [lobbyState, address]);
+
+    // Invite-accept / REST-join seats without going through startPartyJoin.
+    // The moment we are joined in a forming room, open Team Up — never leave
+    // the guest on the bare setup screen. If the host already started, the
+    // page-level isStarted transition takes them straight to the board.
+    useEffect(() => {
+        if (!lobbyState || !address || isHost) return;
+        if (lobbyState.status !== 'forming') return;
+        const me = address.toLowerCase();
+        const seated = (lobbyState.slots || []).some(
+            s => s.status === 'joined' && s.playerId?.toLowerCase() === me
+        );
+        if (seated) {
+            setPendingJoin(null);
+            setJoinError(null);
+            setShowTeamUpOptions(true);
+        }
+    }, [lobbyState, address, isHost]);
 
     // Incoming invite links (?room=CODE&seat=N): room-only links fill any
     // open seat — ONE link serves the whole party, no per-seat spam.
@@ -567,6 +586,7 @@ export default function GameLobby({
                     onKickPlayer={kickPlayer}
                     onSendInvite={sendInvite}
                     onQuickMatch={handleFillWithQuickMatch}
+                    onLowerFee={lowerEntryFee}
                     hunting={embeddedHunt}
                     huntExpired={huntExpired}
                     huntTimeoutS={HUNT_TIMEOUT_S}

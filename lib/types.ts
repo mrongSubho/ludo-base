@@ -133,6 +133,8 @@ export interface LobbySlot {
     playerAvatar?: string;
     peerId?: string;             // PeerJS peer ID for this connection
     invitedAt?: number;          // Timestamp for expiration
+    /** Self-reported balance at join — host badges low-balance seats. */
+    playerCoins?: number | null;
 }
 
 export interface LobbyState {

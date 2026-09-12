@@ -75,6 +75,8 @@ export interface TeamUpContextType {
     roomSecret: string | null;
     /** Hybrid public fill: guests arrive via matchmaking tokens — drop the room-secret gate. */
     allowOpenJoins: () => void;
+    /** Host-only: step entry fee down one preset (never raises). Guests get LOBBY_SYNC. */
+    lowerEntryFee: () => void;
     activeBetWindow: ActiveBettingWindow | null;
     startBettingWindow: (betType: BetType) => Promise<string>;
     /** P4: monotonic match_states.seq known to this client. */
@@ -370,6 +372,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         desiredSeat?: number;
         validationToken?: string;
         peerId?: string;
+        coins?: number | null;
     }) => {
         if (!isHost || !payload.address) return false;
         if (expectedValidationTokenRef.current) {
@@ -382,6 +385,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return false;
             }
         }
+        const coins = typeof payload.coins === 'number' && Number.isFinite(payload.coins)
+            ? payload.coins
+            : null;
         setParticipants(prev => ({
             ...prev,
             [payload.address]: {
@@ -403,14 +409,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const want = Number.isInteger(payload.desiredSeat) ? (payload.desiredSeat as number) : -1;
         if (want >= 0 && want < cur.slots.length && cur.slots[want]?.status === 'empty') {
             next = cur.slots.map((s, i) => i === want
-                ? { ...s, status: 'joined' as const, playerId: payload.address, playerName: payload.username || `Player ${want + 1}`, playerAvatar: payload.avatar_url, peerId }
+                ? { ...s, status: 'joined' as const, playerId: payload.address, playerName: payload.username || `Player ${want + 1}`, playerAvatar: payload.avatar_url, peerId, playerCoins: coins }
                 : { ...s });
         } else if (invitedIdx !== -1) {
             next = cur.slots.map((s, i) => i === invitedIdx
-                ? { ...s, status: 'joined' as const, playerName: payload.username || s.playerName, playerAvatar: payload.avatar_url || s.playerAvatar, peerId }
+                ? { ...s, status: 'joined' as const, playerName: payload.username || s.playerName, playerAvatar: payload.avatar_url || s.playerAvatar, peerId, playerCoins: coins }
                 : { ...s });
         } else {
             next = assignJoinerToSlot(cur.slots, cur.matchType, payload.address, payload.username || 'Player', payload.avatar_url || '', peerId);
+            if (next) {
+                const seat = next.findIndex(s => s.playerId?.toLowerCase() === addr && s.status === 'joined');
+                if (seat !== -1) next[seat] = { ...next[seat], playerCoins: coins };
+            }
         }
         if (!next) {
             console.warn('🚫 [Host] seatGuestPlayer: room full or already seated', payload.address);
@@ -451,6 +461,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 avatar_url: data.avatar_url as string | undefined,
                 desiredSeat: data.desiredSeat as number | undefined,
                 validationToken: data.validationToken as string | undefined,
+                coins: typeof data.coins === 'number' ? data.coins as number : undefined,
             };
             const seated = seatGuestPlayer(payload);
             if (!seated) {
@@ -584,6 +595,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 desiredSeat: data.desiredSeat,
                 validationToken: data.validationToken,
                 peerId: conn.peer,
+                coins: typeof data.coins === 'number' ? data.coins : undefined,
             });
         } else if (data.type === 'LOBBY_SYNC' && data.lobbyState && !isHost) {
             setLobbyState(data.lobbyState);
@@ -686,6 +698,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 avatar_url: myProfile?.avatar_url,
                 desiredSeat: desiredSeatRef.current,
                 validationToken: token ? String(token).trim().toLowerCase() : undefined,
+                coins: typeof myProfile?.coins === 'number' ? myProfile.coins : undefined,
             };
             let attempts = 0;
             const sendJoin = () => {
@@ -707,6 +720,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     avatarUrl: myProfile?.avatar_url,
                     desiredSeat: desiredSeatRef.current,
                     secret: token,
+                    coins: typeof myProfile?.coins === 'number' ? myProfile.coins : undefined,
                 }),
                 signal: AbortSignal.timeout(12000),
             }).catch(() => { /* host may not have REST yet */ });
@@ -730,6 +744,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         avatar_url: myProfile?.avatar_url,
                         validationToken: token,
                         desiredSeat: desiredSeatRef.current ?? undefined,
+                        coins: typeof myProfile?.coins === 'number' ? myProfile.coins : undefined,
                     });
                     desiredSeatRef.current = undefined;
                 });
@@ -776,6 +791,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     avatar_url?: string | null;
                     desired_seat?: number | null;
                     validation_token?: string | null;
+                    coins?: number | null;
                 }> = data?.requests || [];
                 for (const req of requests) {
                     if (cancelled) return;
@@ -788,6 +804,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         avatar_url: req.avatar_url || undefined,
                         desiredSeat: Number.isInteger(req.desired_seat) ? (req.desired_seat as number) : undefined,
                         validationToken: req.validation_token || undefined,
+                        coins: typeof req.coins === 'number' ? req.coins : undefined,
                     });
                     if (seated && req.id) {
                         void fetch('/api/lobby/join', {
@@ -816,6 +833,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             playerName: myProfile?.username ?? undefined,
             playerAvatar: myProfile?.avatar_url ?? undefined,
             peerId: roomCode,
+            playerCoins: typeof myProfile?.coins === 'number' ? myProfile.coins : null,
         };
         const lobby: LobbyState = {
             roomCode,
@@ -849,6 +867,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         expectedValidationTokenRef.current = null;
         setRoomSecret(null);
     }, []);
+
+    /**
+     * Host-only: step the lobby entry fee DOWN to the next preset (or Free).
+     * Never raises. Guests see a short overlay via LOBBY_SYNC fee drop.
+     */
+    const lowerEntryFee = useCallback(() => {
+        if (!isHost) return;
+        const cur = lobbyStateRef.current;
+        if (!cur) return;
+        const presets = [1_000_000, 100_000, 10_000, 1_000, 0];
+        const next = presets.find(p => p < cur.entryFee);
+        if (next === undefined || next >= cur.entryFee) return;
+        const lobby = { ...cur, entryFee: next };
+        setLobbyState(lobby);
+        lobbyStateRef.current = lobby;
+        broadcastLobbyAction('LOBBY_SYNC', { lobbyState: lobby });
+    }, [isHost, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
 
     const leaveGame = useCallback(() => {
         destroyPeer();
@@ -953,13 +988,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, serverSeq, applyServerState,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState,
         activeBetWindow, startBettingWindow
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, serverSeq, applyServerState,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState,
         activeBetWindow, startBettingWindow
     ]);
 

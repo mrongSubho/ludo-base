@@ -38,12 +38,12 @@ export const useSoundEffects = () => {
         }
     }, [preferences.sfx]);
 
-    return {
-        playHover: () => playSound('/sounds/ui-hover.mp3', 0.2),
-        playClick: () => playSound('/sounds/ui-click.mp3', 0.5),
-        playSelect: () => playSound('/sounds/ui-select.mp3', 0.6),
-        playCoin: () => playSound('/sounds/coin-chink.mp3', 0.5),
-        playDiceRoll: () => playSound('/sounds/dice-roll.mp3', 0.8),
-        playDiceLand: () => playSound('/sounds/dice-land.mp3', 1.0),
-    };
+    const playHover = useCallback(() => playSound('/sounds/ui-hover.mp3', 0.2), [playSound]);
+    const playClick = useCallback(() => playSound('/sounds/ui-click.mp3', 0.5), [playSound]);
+    const playSelect = useCallback(() => playSound('/sounds/ui-select.mp3', 0.6), [playSound]);
+    const playCoin = useCallback(() => playSound('/sounds/coin-chink.mp3', 0.5), [playSound]);
+    const playDiceRoll = useCallback(() => playSound('/sounds/dice-roll.mp3', 0.8), [playSound]);
+    const playDiceLand = useCallback(() => playSound('/sounds/dice-land.mp3', 1.0), [playSound]);
+
+    return { playHover, playClick, playSelect, playCoin, playDiceRoll, playDiceLand };
 };
