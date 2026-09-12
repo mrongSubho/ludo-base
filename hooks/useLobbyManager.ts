@@ -94,18 +94,18 @@ export function useLobbyManager({
 
         setLobbyState(prev => {
             if (!prev) return prev;
-            // Role-targeted seat (2v2): partner → teammate slot, rival →
-            // first empty opponent slot. Omitted role preserves the classic
-            // teammate-first behavior. A taken kind fails closed (no seat).
-            let emptyIdx = prev.slots.findIndex(s => s.status === 'empty');
+            // Prefer: empty seat → same invited seat (re-ping) → any empty.
+            const isFree = (s: LobbySlot) => s.status === 'empty' || (s.status === 'invited' && s.playerId?.toLowerCase() === lowerFriendId);
+            let emptyIdx = -1;
             if (prev.matchType === '2v2' && role) {
                 const want = role === 'teammate' ? 'teammate' : 'opponent';
-                const atRole = prev.slots.findIndex(s => s.status === 'empty' && s.role === want);
-                if (atRole === -1) {
-                    console.warn(`⚠️ [Lobby] sendInvite dropped: no empty ${want} seat.`);
+                emptyIdx = prev.slots.findIndex(s => s.role === want && isFree(s));
+                if (emptyIdx === -1) {
+                    console.warn(`⚠️ [Lobby] sendInvite: no free ${want} seat.`);
                     return prev;
                 }
-                emptyIdx = atRole;
+            } else {
+                emptyIdx = prev.slots.findIndex(isFree);
             }
             if (emptyIdx === -1) return prev;
             const newSlots = prev.slots.map((s, i) => {
@@ -120,22 +120,22 @@ export function useLobbyManager({
             return newLobby;
         });
 
-        const inviteData = {
-            room_code: lobbyState.roomCode,
-            host_address: myAddress.toLowerCase(),
-            guest_address: lowerFriendId,
-            match_type: lobbyState.matchType,
-            entry_fee: lobbyState.entryFee,
-            status: 'pending',
-            validation_token: getRoomSecret?.() ?? null
-        };
-
-        supabase
-            .from('game_invites')
-            .insert(inviteData)
-            .then(({ error }) => {
-                if (error) console.error('🚨 Error sending invite:', error);
-            });
+        // Service-role API — anon RLS cannot insert game_invites (wallet-only app).
+        void fetch('/api/lobby/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomCode: lobbyState.roomCode,
+                hostAddress: myAddress,
+                guestAddress: lowerFriendId,
+                matchType: lobbyState.matchType,
+                entryFee: lobbyState.entryFee,
+                validationToken: getRoomSecret?.() ?? null,
+            }),
+        }).then(async (res) => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) console.error('🚨 Error sending invite:', data?.error || res.status);
+        }).catch((err) => console.error('🚨 Invite network error:', err));
     }, [lobbyState, broadcastToAll, myAddress, getRoomSecret]);
 
     return {

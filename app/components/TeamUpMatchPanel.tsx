@@ -633,34 +633,51 @@ export const TeamUpMatchPanel = ({
             .filter(s => s.status === 'invited' && s.playerId)
             .map(s => s.playerId!.toLowerCase())
     );
-    // Just-pinged friends: address → timestamp. Rows count down 10s.
-    const [recentInvites, setRecentInvites] = useState<Record<string, number>>({});
+    // Per-friend: up to 3 invites, 10s between. Keyed by wallet → {at, count}.
+    const [inviteBurst, setInviteBurst] = useState<Record<string, { at: number; count: number }>>({});
+    const INVITE_MAX = 3;
+    const INVITE_GAP_MS = 10_000;
 
     const handleInvite = (friend: any) => {
+        const key = (friend.wallet_address || '').toLowerCase();
+        const now = Date.now();
+        const rec = inviteBurst[key];
+        if (rec && rec.count >= INVITE_MAX) return;
+        if (rec && now - rec.at < INVITE_GAP_MS) return;
         playSelect();
-        // Seat-targeted: the engine only honors roles in 2v2 and fails
-        // closed on taken kinds — the popup only opens on empty seats.
         onSendInvite(friend.wallet_address, friend.username, invitePopup?.role);
-        setRecentInvites(prev => ({ ...prev, [(friend.wallet_address || '').toLowerCase()]: Date.now() }));
+        setInviteBurst(prev => {
+            const prevRec = prev[key];
+            return {
+                ...prev,
+                [key]: {
+                    at: now,
+                    count: (prevRec?.count ?? 0) + 1,
+                },
+            };
+        });
         setInvitePopup(null);
     };
-    // Per-friend re-invite cooldown (10s): the row counts down, then frees.
+    // UI tick so countdowns stay live.
     const [, setInviteTick] = useState(0);
     useEffect(() => {
-        if (Object.keys(recentInvites).length === 0) return;
-        const t = setInterval(() => {
-            const now = Date.now();
-            setRecentInvites(prev => {
-                const next: Record<string, number> = {};
-                for (const [k, v] of Object.entries(prev)) {
-                    if (now - v < 10000) next[k] = v;
-                }
-                return Object.keys(next).length === Object.keys(prev).length ? prev : next;
-            });
-            setInviteTick(x => x + 1);
-        }, 1000);
+        if (Object.keys(inviteBurst).length === 0) return;
+        const t = setInterval(() => setInviteTick(x => x + 1), 1000);
         return () => clearInterval(t);
-    }, [recentInvites]);
+    }, [inviteBurst]);
+
+    const inviteStateFor = (wallet?: string) => {
+        const key = (wallet || '').toLowerCase();
+        const rec = inviteBurst[key];
+        if (!rec) return { label: 'Invite', disabled: false, left: 0, used: 0 };
+        const elapsed = Date.now() - rec.at;
+        if (rec.count >= INVITE_MAX) return { label: 'Max invites', disabled: true, left: 0, used: rec.count };
+        if (elapsed < INVITE_GAP_MS) {
+            const left = Math.max(1, Math.ceil((INVITE_GAP_MS - elapsed) / 1000));
+            return { label: `${left}s`, disabled: true, left, used: rec.count };
+        }
+        return { label: rec.count > 0 ? `Invite again (${rec.count}/${INVITE_MAX})` : 'Invite', disabled: false, left: 0, used: rec.count };
+    };
 
     return (
         <>
@@ -969,18 +986,18 @@ export const TeamUpMatchPanel = ({
                                                             </div>
                                                         </div>
                                                         {(() => {
-                                                            const key = (f.wallet_address || '').toLowerCase();
-                                                            const recentTs = recentInvites[key];
-                                                            const cooling = recentTs !== undefined && Date.now() - recentTs < 10000;
-                                                            const left = cooling ? Math.max(1, Math.ceil(10 - (Date.now() - (recentTs as number)) / 1000)) : 0;
-                                                            const already = invitedIds.has(key);
+                                                            const inv = inviteStateFor(f.wallet_address);
                                                             return (
                                                                 <button
-                                                                    disabled={cooling || already}
+                                                                    disabled={inv.disabled}
                                                                     onClick={() => handleInvite(f)}
-                                                                    className={`shrink-0 ml-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all tabular-nums ${cooling ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300 cursor-default' : already ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 cursor-default' : 'bg-white/5 border border-white/10 text-white/60 hover:bg-cyan-500 hover:text-slate-950'}`}
+                                                                    className={`shrink-0 ml-2 min-w-[72px] px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all tabular-nums ${inv.disabled
+                                                                        ? inv.label === 'Max invites'
+                                                                            ? 'bg-rose-500/15 border border-rose-500/40 text-rose-300 cursor-default'
+                                                                            : 'bg-amber-500/15 border border-amber-500/40 text-amber-300 cursor-default'
+                                                                        : 'bg-white/5 border border-white/10 text-white/60 hover:bg-cyan-500 hover:text-slate-950'}`}
                                                                 >
-                                                                    {cooling ? `${left}s` : already ? 'Invited' : 'Invite'}
+                                                                    {inv.label}
                                                                 </button>
                                                             );
                                                         })()}

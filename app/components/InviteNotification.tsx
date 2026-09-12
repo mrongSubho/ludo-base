@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAccount } from 'wagmi';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 
@@ -12,7 +12,7 @@ import { useSoundEffects } from '../hooks/useSoundEffects';
 // reset zeroes Tailwind utilities).
 
 export const InviteNotification = () => {
-    const { address } = useAccount();
+    const { address } = useCurrentUser();
     const { joinGame } = useTeamUpContext();
     const { playSelect } = useSoundEffects();
     const [invite, setInvite] = useState<any>(null);
@@ -21,6 +21,7 @@ export const InviteNotification = () => {
     const [secsLeft, setSecsLeft] = useState(10);
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+    const lastInviteIdRef = useRef<string | null>(null);
     const clearTimers = () => {
         if (hideTimer.current) clearTimeout(hideTimer.current);
         if (tickTimer.current) clearInterval(tickTimer.current);
@@ -28,11 +29,51 @@ export const InviteNotification = () => {
         tickTimer.current = null;
     };
 
+    const showToast = useCallback(async (newInvite: { id?: string; host_address: string; room_code: string; validation_token?: string | null }) => {
+        if (newInvite.id && lastInviteIdRef.current === newInvite.id) return;
+        lastInviteIdRef.current = newInvite.id || null;
+        const { data: profile } = await supabase
+            .from('players')
+            .select('username, avatar_url')
+            .eq('wallet_address', String(newInvite.host_address).toLowerCase())
+            .single();
+        setHostProfile({
+            username: profile?.username || 'Host',
+            avatar_url: profile?.avatar_url || ''
+        });
+        setInvite(newInvite);
+        playSelect();
+        clearTimers();
+        setSecsLeft(10);
+        tickTimer.current = setInterval(() => {
+            setSecsLeft(s => Math.max(0, s - 1));
+        }, 1000);
+        hideTimer.current = setTimeout(() => setInvite(null), 10000);
+    }, [playSelect]);
+
     useEffect(() => {
         if (!address) return;
         const lowerAddr = address.toLowerCase();
 
-        // 1. Listen for NEW inserts into game_invites where guest_address matches
+        // Poll: wallet-only app has no Supabase Auth, so realtime on
+        // game_invites never delivers. Poll the service API instead.
+        const poll = async () => {
+            try {
+                const res = await fetch(`/api/lobby/invites?wallet=${encodeURIComponent(lowerAddr)}`, {
+                    signal: AbortSignal.timeout(8000),
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const first = data?.invites?.[0];
+                if (first && first.id !== lastInviteIdRef.current) {
+                    await showToast(first);
+                }
+            } catch { /* network / timeout */ }
+        };
+        void poll();
+        const iv = setInterval(poll, 4000);
+
+        // Best-effort realtime (works only if RLS/publication allows).
         const channel = supabase
             .channel('global-invites')
             .on(
@@ -44,38 +85,17 @@ export const InviteNotification = () => {
                     filter: `guest_address=eq.${lowerAddr}`
                 },
                 async (payload) => {
-                    const newInvite = payload.new;
-                    
-                    // 2. Fetch Host Profile
-                    const { data: profile } = await supabase
-                        .from('players')
-                        .select('username, avatar_url')
-                        .eq('wallet_address', newInvite.host_address.toLowerCase())
-                        .single();
-
-                    setHostProfile({
-                        username: profile?.username || 'Host',
-                        avatar_url: profile?.avatar_url || ''
-                    });
-                    setInvite(newInvite);
-                    playSelect();
-
-                    // Fresh 10s window per invite (clears any previous one).
-                    clearTimers();
-                    setSecsLeft(10);
-                    tickTimer.current = setInterval(() => {
-                        setSecsLeft(s => Math.max(0, s - 1));
-                    }, 1000);
-                    hideTimer.current = setTimeout(() => setInvite(null), 10000);
+                    await showToast(payload.new as { id?: string; host_address: string; room_code: string; validation_token?: string | null });
                 }
             )
             .subscribe();
 
         return () => {
             clearTimers();
+            clearInterval(iv);
             supabase.removeChannel(channel);
         };
-    }, [address, playSelect]);
+    }, [address, playSelect, showToast]);
 
     const handleAccept = () => {
         if (invite) {
