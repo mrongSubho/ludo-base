@@ -373,8 +373,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }) => {
         if (!isHost || !payload.address) return false;
         if (expectedValidationTokenRef.current) {
-            const presented = typeof payload.validationToken === 'string' ? payload.validationToken : '';
-            if (presented !== expectedValidationTokenRef.current) {
+            const presented = typeof payload.validationToken === 'string'
+                ? payload.validationToken.trim().toLowerCase()
+                : '';
+            const expected = expectedValidationTokenRef.current.trim().toLowerCase();
+            if (presented !== expected) {
                 console.warn('🚫 [Host] Rejected join — invalid validation token', payload.address);
                 return false;
             }
@@ -593,8 +596,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // Prefer the matchmaking token; otherwise mint a room secret so
         // invite links are not open-join if the code leaks via live-chat.
         const joinSecret = expectedValidationToken || crypto.randomUUID();
-        expectedValidationTokenRef.current = joinSecret;
-        setRoomSecret(joinSecret);
+        // Always store lowercase so copy/paste and ?s= links match.
+        expectedValidationTokenRef.current = joinSecret.toLowerCase();
+        setRoomSecret(joinSecret.toLowerCase());
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
@@ -678,13 +682,14 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 username: myProfile?.username,
                 avatar_url: myProfile?.avatar_url,
                 desiredSeat: desiredSeatRef.current,
-                validationToken: token,
+                validationToken: token ? String(token).trim().toLowerCase() : undefined,
             };
             let attempts = 0;
             const sendJoin = () => {
                 attempts += 1;
                 relayViaSupabase('lobby-action', joinPayload, lobbyStateRef as any);
-                if (attempts < 5) setTimeout(sendJoin, 1500);
+                // Host channel may come up after us — keep retrying through the 8s UI window.
+                if (attempts < 8) setTimeout(sendJoin, 1200);
             };
             sendJoin();
             // Treat lobby as connected once we can talk to the channel
