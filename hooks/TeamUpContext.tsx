@@ -445,13 +445,25 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         // 🪑 Guest seat request via Supabase (works without PeerJS)
         if (type === 'JOIN_REQUEST' && isHost) {
-            seatGuestPlayer({
-                address: data.address || data.playerId,
-                username: data.username,
-                avatar_url: data.avatar_url,
-                desiredSeat: data.desiredSeat,
-                validationToken: data.validationToken,
-            });
+            const payload = {
+                address: data.address || data.playerId as string,
+                username: data.username as string | undefined,
+                avatar_url: data.avatar_url as string | undefined,
+                desiredSeat: data.desiredSeat as number | undefined,
+                validationToken: data.validationToken as string | undefined,
+            };
+            const seated = seatGuestPlayer(payload);
+            if (!seated) {
+                // Lobby may not exist yet (host still minting room) — retry briefly.
+                let tries = 0;
+                const retry = () => {
+                    tries += 1;
+                    if (seatGuestPlayer(payload)) return;
+                    if (tries < 6) setTimeout(retry, 800);
+                    else console.warn('🪑 [Host] Could not seat JOIN_REQUEST', payload.address);
+                };
+                setTimeout(retry, 400);
+            }
             return;
         }
 
@@ -648,20 +660,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             });
         })();
 
-        // ☁️ Register preliminary match node (bind host for signed bet settlement)
-        supabase.from('live_matches')
-            .upsert({
-                room_code: code,
-                host_address: myAddress?.toLowerCase() || null,
-                bet_window_status: 'closed',
-                created_at: new Date().toISOString()
-            } as any, { onConflict: 'room_code' })
-            .select()
-            .then(res => {
-                if (res.data?.[0]) {
-                    // match_id updated on START_GAME
-                }
-            });
+        // live_matches requires match_id (PK) — written on START_GAME / Go live,
+        // not at hostGame time when we only have a room code.
     }, [destroyPeer, setIsHost, myAddress, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData, setRelayRoom]);
 
     const joinGame = useCallback((targetRoomId: string, token?: string, desiredSeat?: number) => {
