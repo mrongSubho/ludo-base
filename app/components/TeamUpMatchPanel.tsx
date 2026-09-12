@@ -719,57 +719,62 @@ export const TeamUpMatchPanel = ({
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-5 bg-white/[0.04] mx-5 rounded-2xl border border-white/10 animate-in zoom-in-95 duration-200 overflow-y-auto no-scrollbar">
                                     <div className="text-center mb-4">
                                         <h4 className="text-xl font-bold text-white uppercase tracking-wide mb-1">Join Game</h4>
-                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Room code + invite secret</p>
+                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Paste invite or room code</p>
                                     </div>
                                     <div className="w-full flex flex-col gap-3">
                                         <label className="flex flex-col gap-1">
-                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.18em]">Room code</span>
-                                            <input
-                                                type="text"
-                                                value={roomCode}
-                                                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                                                placeholder="XXXXXX"
-                                                className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-5 text-center text-4xl font-black text-cyan-400 placeholder:text-white/5 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all uppercase tracking-[0.2em]"
-                                                maxLength={6}
-                                            />
-                                        </label>
-                                        <label className="flex flex-col gap-1">
-                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.18em]">Invite secret</span>
                                             <input
                                                 type="text"
                                                 value={joinSecret}
                                                 onChange={(e) => setJoinSecret(e.target.value.trim())}
-                                                placeholder="From invite link ?s=…"
+                                                placeholder="Paste invite link or Z5VVAR"
                                                 autoComplete="off"
                                                 spellCheck={false}
-                                                className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-3 text-center text-[13px] font-mono text-cyan-300 placeholder:text-white/20 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all"
+                                                autoFocus
+                                                className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-4 text-center text-[15px] font-mono text-cyan-300 placeholder:text-white/20 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all break-all"
                                             />
-                                            <span className="text-[10px] text-white/30 leading-snug">
-                                                Paste the full invite link, or the secret after <span className="font-mono">s=</span>. Without it the host rejects the join.
+                                            <span className="text-[10px] text-white/30 leading-snug text-center">
+                                                One paste — full link, or just the room code if the host left it open.
                                             </span>
                                         </label>
                                         <div className="flex flex-col gap-2">
                                             <button
                                                 onClick={() => {
-                                                    const code = roomCode.trim().toUpperCase();
-                                                    if (code.length < 3) return;
-                                                    // Accept a full URL: extract room + s
-                                                    let secret = joinSecret.trim();
+                                                    const raw = joinSecret.trim();
+                                                    if (!raw) return;
+                                                    let code = '';
+                                                    let secret: string | undefined;
                                                     try {
-                                                        if (secret.includes('room=')) {
-                                                            const u = new URL(secret, window.location.origin);
+                                                        if (raw.includes('room=') || raw.includes('?')) {
+                                                            const u = new URL(raw, window.location.origin);
                                                             const r = u.searchParams.get('room');
                                                             const s = u.searchParams.get('s');
-                                                            if (r) setRoomCode(r.toUpperCase());
-                                                            if (r) {
-                                                                onJoin(r.toUpperCase(), s || undefined);
-                                                                return;
-                                                            }
+                                                            if (r) code = r.toUpperCase();
+                                                            if (s) secret = s;
+                                                        } else if (raw.includes('=') || raw.includes('&')) {
+                                                            const u = new URLSearchParams(raw.replace(/^\?/, ''));
+                                                            const r = u.get('room');
+                                                            const s = u.get('s');
+                                                            if (r) code = r.toUpperCase();
+                                                            if (s) secret = s;
                                                         }
-                                                    } catch { /* treat as raw secret */ }
-                                                    onJoin(code, secret || undefined);
+                                                    } catch { /* fall through */ }
+                                                    if (!code) {
+                                                        // Bare token: first 6 alnum = room; rest optional secret
+                                                        const cleaned = raw.replace(/[^A-Za-z0-9-]/g, '');
+                                                        const m = cleaned.match(/^([A-Za-z0-9]{4,8})(?:[sS=]*([A-Fa-f0-9-]{16,}))?/);
+                                                        if (m) {
+                                                            code = m[1].toUpperCase();
+                                                            if (m[2]) secret = m[2].toLowerCase();
+                                                        } else {
+                                                            code = cleaned.slice(0, 6).toUpperCase();
+                                                        }
+                                                    }
+                                                    if (code.length < 3) return;
+                                                    setRoomCode(code);
+                                                    onJoin(code, secret);
                                                 }}
-                                                disabled={roomCode.trim().length < 3}
+                                                disabled={joinSecret.trim().length < 3}
                                                 className="w-full min-h-[48px] bg-white text-slate-900 text-sm font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 disabled:opacity-20 transition-all"
                                             >
                                                 Join Game
