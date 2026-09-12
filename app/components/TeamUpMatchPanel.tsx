@@ -501,6 +501,8 @@ export const TeamUpMatchPanel = ({
     const feeLabel = fee > 0 ? fee.toLocaleString() : 'Free';
 
     const copyText = async (text: string, key: string) => {
+        // Debug / test hook: always expose the last copied invite payload.
+        try { (window as unknown as { __ludoLastInvite?: string }).__ludoLastInvite = text; } catch { /* ignore */ }
         let ok = false;
         try {
             if (navigator.clipboard?.writeText) {
@@ -641,12 +643,22 @@ export const TeamUpMatchPanel = ({
                                     {modeLabel} • {feeLabel}
                                 </span>
                                 {roomCodeValue ? (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); playSelect(); copyText(inviteLinkFor(), 'room'); }}
-                                        className="shrink-0 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-[10px] font-black tracking-[0.1em] text-white/60 uppercase hover:text-white transition-colors"
-                                    >
-                                        {copiedKey === 'room' ? 'Link copied' : `Copy invite · ${roomCodeValue}`}
-                                    </button>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); playSelect(); copyText(roomCodeValue, 'room'); }}
+                                            className="shrink-0 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-[10px] font-black tracking-[0.1em] text-white/60 uppercase hover:text-white transition-colors"
+                                        >
+                                            {copiedKey === 'room' ? 'Code copied' : `Copy code · ${roomCodeValue}`}
+                                        </button>
+                                        {roomSecret && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); playSelect(); copyText(inviteLinkFor(), 'link'); }}
+                                                className="text-[9px] font-bold text-cyan-300/70 hover:text-cyan-200 underline underline-offset-2"
+                                            >
+                                                {copiedKey === 'link' ? 'Link copied' : 'Copy invite link'}
+                                            </button>
+                                        )}
+                                    </div>
                                 ) : (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); playSelect(); onHost(); }}
@@ -658,7 +670,7 @@ export const TeamUpMatchPanel = ({
                             </div>
                             {roomCodeValue && (
                                 <p className="mt-1.5 text-[10px] text-white/35 leading-snug">
-                                    Invite link includes the room secret — share the link, not the code alone.
+                                    Friends join with this code from Team Up → Join with code.
                                 </p>
                             )}
                         </div>
@@ -734,7 +746,7 @@ export const TeamUpMatchPanel = ({
                                                 className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-4 text-center text-[15px] font-mono text-cyan-300 placeholder:text-white/20 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all break-all"
                                             />
                                             <span className="text-[10px] text-white/30 leading-snug text-center">
-                                                One paste — full link, or just the room code if the host left it open.
+                                                Type the room code (e.g. U8HJEO). Invite links work too.
                                             </span>
                                         </label>
                                         <div className="flex flex-col gap-2">

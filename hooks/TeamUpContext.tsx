@@ -605,12 +605,15 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const hostGame = useCallback((forcedRoomId?: string, expectedValidationToken?: string) => {
         destroyPeer();
         setIsHost(true);
-        // Prefer the matchmaking token; otherwise mint a room secret so
-        // invite links are not open-join if the code leaks via live-chat.
-        const joinSecret = expectedValidationToken || crypto.randomUUID();
-        // Always store lowercase so copy/paste and ?s= links match.
-        expectedValidationTokenRef.current = joinSecret.toLowerCase();
-        setRoomSecret(joinSecret.toLowerCase());
+        // Invite lobbies are open-join by room code (casual UX).
+        // Only matchmaking passes a validation token to lock the room.
+        if (expectedValidationToken) {
+            expectedValidationTokenRef.current = expectedValidationToken.trim().toLowerCase();
+            setRoomSecret(expectedValidationToken.trim().toLowerCase());
+        } else {
+            expectedValidationTokenRef.current = null;
+            setRoomSecret(null);
+        }
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
         setRoomId(code);
         setCurrentRoomCode(code);
