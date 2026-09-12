@@ -312,9 +312,11 @@ export default function Page() {
 
    const handlePlayNow = async (isBotOverride?: boolean) => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
-    console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'playerCount:', playerCount, 'isBotMatch:', effectiveIsBotMatch);
+    // Lobby ticket is the source of truth for seat count — never the UI selector.
+    const effectiveMatchType = (lobbyState?.matchType || playerCount) as '1v1' | '2v2' | '4P';
+    console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'matchType:', effectiveMatchType, 'isBotMatch:', effectiveIsBotMatch);
 
-    const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
+    const cc = effectiveMatchType === '2v2' ? assignCorners2v2() : assignCornersFFA(effectiveMatchType);
     let players: Player[] = [];
     const isInLobby = isLobbyConnected || (isHost && !!lobbyState);
 
@@ -343,14 +345,12 @@ export default function Page() {
         // --- Strict Synchronous Validation ---
         // Required seats come from the LOBBY's match type (the ticket), never the
         // local UI selector — a 1v1 ticket starts at 2 even if the UI says 4P.
-        const effectiveMatchType = lobbyState?.matchType || playerCount;
         const joinedHumanCount = players.length;
         const requiredHumans = effectiveMatchType === '1v1' ? 2 : 4;
 
         if (joinedHumanCount < requiredHumans) {
           console.warn(`⚠️ Only ${joinedHumanCount}/${requiredHumans} players joined. Aborting multiplayer start to prevent ghost fallback.`);
-          // If we are missing players, we don't proceed to setAppState('game').
-          // The QuickMatchPanel will catch this and either retry or show a stall warning.
+          // Caller (QuickMatchPanel) surfaces stall recovery — do not setAppState.
           return;
         }
       } else {
@@ -428,7 +428,7 @@ export default function Page() {
 
       broadcastAction('START_GAME', {
         initialBoardConfig: { players, colorCorner: cc },
-        playerCount,
+        playerCount: effectiveMatchType,
         isBotMatch: effectiveIsBotMatch,
         matchId: newMatchId
       });

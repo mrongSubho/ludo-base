@@ -18,6 +18,28 @@ const PRO_TIPS = [
     "Block your opponents to slow them down."
 ];
 
+/** Matchmaking snaps to the same fee ladders as the lobby. */
+const FEE_PRESETS = [0, 1_000, 10_000, 100_000, 1_000_000] as const;
+
+function snapFee(n: number): number {
+    return FEE_PRESETS.reduce((best, p) => (Math.abs(p - n) < Math.abs(best - n) ? p : best), FEE_PRESETS[0]);
+}
+
+function feeLabel(n: number): string {
+    if (n === 0) return 'Free';
+    if (n >= 1_000_000) return `${n / 1_000_000}M`;
+    if (n >= 1_000) return `${n / 1_000}k`;
+    return String(n);
+}
+
+function adjacentPresets(n: number): { lower?: number; higher?: number } {
+    const i = FEE_PRESETS.indexOf(snapFee(n) as typeof FEE_PRESETS[number]);
+    return {
+        lower: i > 0 ? FEE_PRESETS[i - 1] : undefined,
+        higher: i < FEE_PRESETS.length - 1 ? FEE_PRESETS[i + 1] : undefined,
+    };
+}
+
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this sheet always renders on the shared
 // dark-glass sandwich shell, so content uses only white-ink + white-opacity
@@ -94,14 +116,15 @@ export const QuickMatchPanel = ({
         error: matchError,
         isConnectingToEdge,
         startSearch,
-        startHybridSearch, 
+        startHybridSearch,
         cancelSearch,
         extendSearch
     } = useMatchmaking({
         playerId: normalizedAddress,
         gameMode,
         matchType,
-        wager,
+        // Always queue on a snapped preset — percentage bands fragment the pool.
+        wager: snapFee(wager),
         onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
             // Hybrid hosting: WE are the room. Guests come to us via joinGame —
@@ -110,9 +133,10 @@ export const QuickMatchPanel = ({
                 console.log('🏟️ [QuickMatch] Hybrid host: ignoring self-match event, waiting for guests to join.');
                 return;
             }
+            const fee = activeWagerRef.current;
             if (isMatchHost) {
                 hostGame(foundRoomCode, validationToken);
-                initQuickLobby(foundRoomCode, matchType as '1v1' | '2v2' | '4P', gameMode as 'classic' | 'power', wager);
+                initQuickLobby(foundRoomCode, matchType as '1v1' | '2v2' | '4P', gameMode as 'classic' | 'power', fee);
             } else {
                 joinGame(foundRoomCode, validationToken);
             }
@@ -134,7 +158,10 @@ export const QuickMatchPanel = ({
     const [tipIndex, setTipIndex] = useState(0);
     const [hasExpanded, setHasExpanded] = useState(false);
     const [showExpansionOptions, setShowExpansionOptions] = useState(false);
-    const [isInteractingWithOptimizer, setIsInteractingWithOptimizer] = useState(false);
+    /** Fee the ticket is actually searching on (snapped; changes on expand). */
+    const [activeWager, setActiveWager] = useState(() => snapFee(wager));
+    const activeWagerRef = useRef(activeWager);
+    useEffect(() => { activeWagerRef.current = activeWager; }, [activeWager]);
     const [wagerRange, setWagerRange] = useState<{ min: number; max?: number } | null>(null);
     const [opponentProfile, setOpponentProfile] = useState<{ 
         username: string; 
@@ -149,25 +176,26 @@ export const QuickMatchPanel = ({
 
     const [isStalled, setIsStalled] = useState(false);
 
-    // Auto-reveal Optimizer at 15s, vanish at 21s if no interaction
+    // Auto-reveal expand overlay at 15s; vanish at 28s if ignored.
+    // Radar keeps scanning underneath — the card is a centered overlay, not a dock swap.
     useEffect(() => {
         if (status === 'searching' || status === 'expanding') {
             if (searchTime === 15) {
                 setShowExpansionOptions(true);
             }
-            if (searchTime === 21 && !isInteractingWithOptimizer) {
+            if (searchTime === 28) {
                 setShowExpansionOptions(false);
             }
         }
-        
-        // Stall detection: If matched but haven't started after 4s
+
+        // Stall detection: matched but the board never opened
         if (status === 'matched' && !gameState?.isStarted) {
             const stallTimer = setTimeout(() => setIsStalled(true), 4000);
             return () => clearTimeout(stallTimer);
         } else {
             setIsStalled(false);
         }
-    }, [searchTime, status, isInteractingWithOptimizer, gameState?.isStarted]);
+    }, [searchTime, status, gameState?.isStarted]);
 
     // Tip rotation
     useEffect(() => {
@@ -179,35 +207,22 @@ export const QuickMatchPanel = ({
 
     // ─── Phase 24: Universal Transition Resilience ───
     useEffect(() => {
-        // SCENARIO 1: I am the Host and P2P is ready
-        if (status === 'matched' && p2pHost && isLobbyConnected) {
+        // SCENARIO 1: I am the Host.
+        // Start the INSTANT seats are full — do NOT wait on PeerJS (REST/JOIN_REQUEST
+        // can seat without it). Never force-start an incomplete table: handlePlayNow
+        // aborts and the Match! panel would stall forever.
+        if (status === 'matched' && p2pHost) {
             const joinedSlots = lobbyState?.slots.filter(s => s.status === 'joined') || [];
             const targetCount = matchType === '1v1' ? 2 : 4;
-            
-            // Critical Sync: Ensure the opponent we expect from the DB is actually in our lobby
             const expectedOpponentJoined = !expectedOpponent || joinedSlots.some(s => s.playerId?.toLowerCase() === expectedOpponent.toLowerCase());
+            const seatsReady = joinedSlots.length >= targetCount;
 
-            const allProfilesSynced = joinedSlots.length >= targetCount && joinedSlots.every(s => {
-                const pid = s.playerId?.toLowerCase();
-                return pid && pid !== 'guest' && participants[pid];
-            });
-
-            if (allProfilesSynced && isLobbyConnected && expectedOpponentJoined) {
-                console.log('🚀 [QuickMatch] P2P Mesh ready and expected opponent verified! Fast-starting game...');
+            if (seatsReady && expectedOpponentJoined) {
+                console.log('🚀 [QuickMatch] Seats ready — starting game...');
                 onStartGame(false);
-                return;
             }
-
-            // Short fuse: lobby sync now flows over Supabase, so 2s is plenty.
-            // Falls through to handlePlayNow's start gate if P2P is still dark.
-            // Hybrid hosting excluded: the host starts manually from Team Up.
-            let forceTimer: ReturnType<typeof setTimeout> | undefined;
-            if (!isHybrid) {
-                forceTimer = setTimeout(() => {
-                    console.log(`⚠️ [QuickMatch] P2P Handshake Timeout (isLobbyConnected=${isLobbyConnected}, opponentJoined=${expectedOpponentJoined}). Force-starting...`);
-                    onStartGame(false);
-                }, 2000);
-            } 
+            // Incomplete seats: isStalled UI (4s) offers Play with AI / Leave.
+            return;
         }
 
         // SCENARIO 2: I am the Guest and the Game has already started on the Host
@@ -215,7 +230,8 @@ export const QuickMatchPanel = ({
             console.log('🏁 [QuickMatch] Received GAME_START or playing status from Host. Synchronizing UI...');
             onStartGame(false);
         }
-    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, participants, gameState?.isStarted, expectedOpponent]);
+        // Guest with no START_GAME: isStalled UI offers Play with AI / Leave.
+    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, gameState?.isStarted, expectedOpponent, isHybrid]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
@@ -327,35 +343,47 @@ export const QuickMatchPanel = ({
     const handleExpandWager = (param: number | 'any') => {
         setHasExpanded(true);
         setShowExpansionOptions(false);
-        extendSearch(20); // Add 20s life to the search for the new criteria
-        
-        let min = 0;
-        let max: number | undefined = undefined;
+        extendSearch(20); // keep the current ticket alive while we re-queue
 
-        if (param === 20) {
-            min = Math.floor(wager * 0.8);
-            max = Math.floor(wager * 1.2);
-        } else if (param === 50) {
-            min = Math.floor(wager * 0.5);
-            max = Math.floor(wager * 1.5);
-        } else if (param === 'any') {
-            min = 0;
-            max = undefined; // Truly any fee: NULL upper bound = unbounded in the RPC
-        } else {
-            // Specific wager (Smart Suggestion)
-            min = param;
-            max = param;
+        if (param === 'any') {
+            setWagerRange({ min: 0, max: undefined });
+            console.log('[Matchmaking] Expanding search: any fee');
+            startSearch(0, undefined);
+            return;
         }
 
-        setWagerRange({ min, max });
-        console.log(`[Matchmaking] Expanding search range: ${min} - ${max || 'Infinity'}`);
-        startSearch(min, max);
+        // Exact preset only — no ±20/±50 bands.
+        const fee = snapFee(param);
+        setActiveWager(fee);
+        setWagerRange({ min: fee, max: fee });
+        console.log(`[Matchmaking] Expanding search to preset ${fee}`);
+        startSearch(fee, fee);
     };
+
+    const handleStayHere = () => {
+        setShowExpansionOptions(false);
+        extendSearch(20);
+    };
+
+    // Nearby pools → unique snapped presets, drop the one we're already on.
+    const snappedPools = (() => {
+        const seen = new Set<number>([activeWager]);
+        const out: { fee: number; waiters: number }[] = [];
+        for (const pool of nearbyPools || []) {
+            const fee = snapFee(pool.wager);
+            if (seen.has(fee)) continue;
+            seen.add(fee);
+            out.push({ fee, waiters: pool.waiters });
+        }
+        return out;
+    })();
+    const { lower: lowerFee, higher: higherFee } = adjacentPresets(activeWager);
 
     const handleRetry = () => {
         setHasExpanded(false);
         setWagerRange(null);
-        startSearch();
+        const fee = activeWager;
+        startSearch(fee, fee);
     };
 
     const isSearching = status === 'searching' || status === 'expanding';
@@ -399,7 +427,11 @@ export const QuickMatchPanel = ({
                                     </div>
                                     <div className="flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                        <span className="text-sm font-black text-amber-400 tracking-tight">{wager.toLocaleString()}</span>
+                                        <span className="text-sm font-black text-amber-400 tracking-tight">
+                                            {wagerRange?.max === undefined && wagerRange?.min === 0
+                                                ? 'Any'
+                                                : activeWager.toLocaleString()}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -549,7 +581,7 @@ export const QuickMatchPanel = ({
                                                     <span className={`text-[11px] uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
                                                         {status === 'error' ? 'FAULT DETECTED' :
                                                          status === 'timeout' ? 'LINK TIMEOUT' :
-                                                         showExpansionOptions ? 'EXPANDING SEARCH' :
+                                                         showExpansionOptions ? 'WIDEN THE SEARCH' :
                                                          status === 'expanding' ? 'REACH EXPANDED' :
                                                          status === 'idle' ? 'PREPARING SIGNAL' :
                                                          'SCANNING LUDO ARENA'}
@@ -560,74 +592,125 @@ export const QuickMatchPanel = ({
                                     )}
                                 </div>
                             </TeamUpWrapper>
-                            {/* Smart Expansion Suggestion Dock */}
+                            {/* Widen-the-search overlay — radar keeps scanning behind */}
                             <AnimatePresence>
-                                {showExpansionOptions && (
+                                {showExpansionOptions && status !== 'matched' && (
                                     <motion.div
-                                        initial={{ y: 100, opacity: 0 }}
-                                        animate={{ y: 0, opacity: 1 }}
-                                        exit={{ y: 100, opacity: 0 }}
-                                        onMouseEnter={() => {
-                                            setIsInteractingWithOptimizer(true);
-                                            extendSearch(20);
-                                        }}
-                                        onMouseLeave={() => setIsInteractingWithOptimizer(false)}
-                                        className="absolute bottom-24 inset-x-4 z-[150] backdrop-blur-2xl border border-white/10 rounded-2xl p-3 shadow-2xl flex flex-col gap-2 pointer-events-auto"
-                                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))' }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="absolute inset-0 z-[150] flex items-center justify-center px-5 pointer-events-auto"
                                     >
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                                <h3 className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em]">Match Optimizer</h3>
+                                        <div
+                                            className="absolute inset-0 bg-black/45"
+                                            onClick={() => setShowExpansionOptions(false)}
+                                        />
+                                        <motion.div
+                                            initial={{ y: 16, scale: 0.96 }}
+                                            animate={{ y: 0, scale: 1 }}
+                                            exit={{ y: 12, scale: 0.97 }}
+                                            className="ludo-quick-scope relative w-full max-w-[360px] rounded-[28px] border border-white/10 p-5 shadow-2xl flex flex-col gap-3"
+                                            style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.94))', backdropFilter: 'blur(32px)' }}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                                    <h3 className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.25em]">
+                                                        Widen the search
+                                                    </h3>
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowExpansionOptions(false)}
+                                                    aria-label="Keep searching this fee"
+                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/30 hover:text-white transition-all"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                </button>
                                             </div>
-                                            <button 
-                                                onClick={() => setShowExpansionOptions(false)} 
-                                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/20 hover:text-white transition-all"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                            </button>
-                                        </div>
-                                        
-                                        <div className="flex flex-wrap gap-2">
-                                            {nearbyPools && nearbyPools.length > 0 ? (
-                                                nearbyPools.map((pool, idx) => (
-                                                    <button 
-                                                        key={`pool-${idx}`}
-                                                        onClick={() => handleExpandWager(pool.wager)}
-                                                        className="flex-1 py-2 px-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                                    >
-                                                        <span className="flex items-center gap-1.5 text-[10px] font-black text-cyan-400">{pool.wager.toLocaleString()}<span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" /></span>
-                                                        <span className="text-[7px] text-cyan-400/40 uppercase font-bold tracking-widest group-hover:text-cyan-400/60">{pool.waiters} Waiting</span>
-                                                    </button>
-                                                ))
-                                            ) : (
-                                                <>
-                                                    <button 
-                                                        onClick={() => handleExpandWager('any')}
-                                                        className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                                    >
-                                                        <span className="text-[10px] font-black text-white">MATCH ANY</span>
-                                                        <span className="text-[7px] text-white/20 uppercase font-bold tracking-widest group-hover:text-white/40">Instant</span>
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setShowExpansionOptions(false);
-                                                            extendSearch(20);
-                                                        }}
-                                                        className="flex-1 py-2 px-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex flex-col items-center justify-center gap-0.5 group"
-                                                    >
-                                                        <span className="text-[10px] font-black text-white/40 uppercase">STAY HERE</span>
-                                                        <span className="text-[7px] text-white/10 uppercase font-bold tracking-widest">Priority Queue</span>
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                        
-                                        <p className="text-[8px] text-white/20 text-center font-bold tracking-tight px-2">
-                                            {nearbyPools && nearbyPools.length > 0 
-                                                ? "Players found in other arenas. Switch to pair instantly." 
-                                                : "Search density is low. Staying for 20s longer or try matching any fee."}
-                                        </p>
+
+                                            <p className="text-[11px] text-white/45 font-bold leading-snug">
+                                                No one at{' '}
+                                                <span className="text-amber-300 tabular-nums">{feeLabel(activeWager)}</span>{' '}
+                                                right now. Jump to a nearby preset — same lobby fee ladder.
+                                            </p>
+
+                                            <div className="flex flex-col gap-2">
+                                                {snappedPools.length > 0 ? (
+                                                    <>
+                                                        <p className="text-[9px] font-black text-emerald-300/80 uppercase tracking-[0.2em]">
+                                                            Players waiting
+                                                        </p>
+                                                        {snappedPools.map((pool) => (
+                                                            <button
+                                                                key={`pool-${pool.fee}`}
+                                                                onClick={() => handleExpandWager(pool.fee)}
+                                                                className="w-full py-3 px-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-all flex items-center justify-between"
+                                                            >
+                                                                <span className="text-sm font-black text-cyan-300 tabular-nums">
+                                                                    {feeLabel(pool.fee)}
+                                                                </span>
+                                                                <span className="text-[9px] font-black text-emerald-300/70 uppercase tracking-widest">
+                                                                    {pool.waiters} waiting
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {lowerFee !== undefined && (
+                                                            <button
+                                                                onClick={() => handleExpandWager(lowerFee)}
+                                                                className="w-full py-3 rounded-2xl bg-cyan-500 text-slate-950 text-sm font-black uppercase tracking-[0.16em] hover:bg-cyan-400 transition-all active:scale-[0.99]"
+                                                            >
+                                                                Try {feeLabel(lowerFee)}
+                                                            </button>
+                                                        )}
+                                                        {higherFee !== undefined && (
+                                                            <button
+                                                                onClick={() => handleExpandWager(higherFee)}
+                                                                className="w-full py-3 rounded-2xl bg-white/5 border border-white/15 text-white/70 text-sm font-black uppercase tracking-[0.16em] hover:bg-white/10 hover:text-white transition-all active:scale-[0.99]"
+                                                            >
+                                                                Try {feeLabel(higherFee)}
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {snappedPools.length > 0 && (lowerFee !== undefined || higherFee !== undefined) && (
+                                                    <div className="flex gap-2">
+                                                        {lowerFee !== undefined && (
+                                                            <button
+                                                                onClick={() => handleExpandWager(lowerFee)}
+                                                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[11px] font-black uppercase tracking-[0.12em] hover:bg-white/10 hover:text-white transition-all"
+                                                            >
+                                                                {feeLabel(lowerFee)}
+                                                            </button>
+                                                        )}
+                                                        {higherFee !== undefined && (
+                                                            <button
+                                                                onClick={() => handleExpandWager(higherFee)}
+                                                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[11px] font-black uppercase tracking-[0.12em] hover:bg-white/10 hover:text-white transition-all"
+                                                            >
+                                                                {feeLabel(higherFee)}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={() => handleExpandWager('any')}
+                                                    className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/50 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-[0.99]"
+                                                >
+                                                    Match any fee
+                                                </button>
+                                                <button
+                                                    onClick={handleStayHere}
+                                                    className="w-full py-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 hover:text-white/60 transition-colors"
+                                                >
+                                                    Keep waiting at {feeLabel(activeWager)}
+                                                </button>
+                                            </div>
+                                        </motion.div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -656,7 +739,7 @@ export const QuickMatchPanel = ({
                                             onClick={handleRetry}
                                             className="w-full py-3 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all active:scale-95"
                                         >
-                                            Retry {matchType} · {wager === 0 ? 'Free' : wager >= 1000 ? `${wager / 1000}k` : `${wager}`}
+                                            Retry {matchType} · {feeLabel(activeWager)}
                                         </button>
                                         
                                         <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 flex flex-col gap-3">
@@ -725,23 +808,32 @@ export const QuickMatchPanel = ({
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 </button>
 
-                                <div className="relative z-10 flex flex-col items-center gap-10 w-full" style={{ pointerEvents: 'auto' }}>
+                                <div className="relative z-10 flex flex-col items-center gap-6 w-full" style={{ pointerEvents: 'auto' }}>
                                     <div className="flex flex-col items-center gap-2">
                                         <div
-                                            className="text-6xl md:text-8xl font-black text-white tracking-tight uppercase drop-shadow-[0_0_50px_rgba(255,255,255,0.3)]"
+                                            className="text-5xl md:text-7xl font-black text-white tracking-tight uppercase drop-shadow-[0_0_40px_rgba(255,255,255,0.28)]"
                                         >
                                             Match!
                                         </div>
-                                        <div className="px-5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-3">
-                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType} Match</span>
+                                        <div className="px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-2.5 flex-wrap justify-center">
+                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType}</span>
                                             <div className="w-1 h-3 bg-white/10 rounded-full" />
-                                            <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">{gameMode} Mode</span>
+                                            <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">{gameMode}</span>
                                             <div className="w-1 h-3 bg-white/10 rounded-full" />
                                             <div className="flex items-center gap-1">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                                <span className="text-[10px] font-black text-amber-400 tracking-[0.1em]">{wager.toLocaleString()}</span>
+                                                <span className="text-[10px] font-black text-amber-400 tracking-[0.1em]">
+                                                    {wagerRange?.max === undefined && wagerRange?.min === 0
+                                                        ? 'Any'
+                                                        : feeLabel(activeWager)}
+                                                </span>
                                             </div>
                                         </div>
+                                        {hookMatchId && (
+                                            <span className="text-[9px] font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
+                                                Match {hookMatchId.slice(0, 8)}
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div className="flex items-center justify-around w-full max-w-md">
@@ -840,7 +932,9 @@ export const QuickMatchPanel = ({
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest animate-pulse"
                                             >
-                                                Still waiting for your opponent…
+                                                {p2pHost
+                                                    ? 'Opponent hasn’t linked yet…'
+                                                    : 'Still linking both players…'}
                                             </motion.div>
                                         )}
                                         <div className="flex items-center gap-3">
@@ -862,6 +956,26 @@ export const QuickMatchPanel = ({
                                                         : 'Match found — setting up the table…'}
                                             </span>
                                         </div>
+
+                                        {isStalled && (
+                                            <div className="flex w-full max-w-[280px] flex-col gap-2">
+                                                <button
+                                                    onClick={handleForceBotMatch}
+                                                    className="w-full py-3 rounded-2xl bg-cyan-500 text-slate-950 text-xs font-black uppercase tracking-[0.2em] hover:bg-cyan-400 transition-all active:scale-95"
+                                                >
+                                                    Play with AI instead
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        cancelSearch();
+                                                        handleBackToLobby();
+                                                    }}
+                                                    className="w-full py-3 rounded-2xl bg-white/5 border border-white/15 text-white/60 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-95"
+                                                >
+                                                    Leave this match
+                                                </button>
+                                            </div>
+                                        )}
 
                                         <button
                                             onClick={handleCancelAndClose}

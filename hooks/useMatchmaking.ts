@@ -46,6 +46,52 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     const refreshingRef = useRef(false);
     const poolsFiredRef = useRef(false);
     const expandFiredRef = useRef(false);
+    /** Fire onMatchFound once per match — ticket realtime + heartbeat used to race. */
+    const matchDispatchedRef = useRef(false);
+
+    /**
+     * Quick Match has no "room creator" — everyone searches independently.
+     * After pairing we still need ONE engine authority (P2P/Edge host role).
+     * Pick it deterministically from match_id + wallet so neither side is
+     * special for having queued first, and both clients agree without a race.
+     */
+    const resolveIsHost = useCallback(async (matchId: string, fallbackIsHost: boolean): Promise<boolean> => {
+        const me = (playerId || '').toLowerCase();
+        try {
+            const { data } = await supabase
+                .from('matchmaking_queue')
+                .select('player_id')
+                .eq('match_id', matchId)
+                .limit(4);
+            if (!data || data.length === 0) return fallbackIsHost;
+            const players = data
+                .map(r => String(r.player_id || '').toLowerCase())
+                .filter(Boolean);
+            if (players.length === 0) return fallbackIsHost;
+            // Stable pick: sort wallets, index by hash(matchId)
+            const sorted = [...new Set(players)].sort();
+            let h = 0;
+            for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
+            const authority = sorted[h % sorted.length];
+            return authority === me;
+        } catch {
+            return fallbackIsHost;
+        }
+    }, [playerId]);
+
+    const dispatchMatch = useCallback(async (
+        matchId: string,
+        roomCode: string,
+        fallbackIsHost: boolean,
+        validationToken?: string
+    ) => {
+        if (matchDispatchedRef.current) return;
+        if (statusRef.current === 'matched' && matchDispatchedRef.current) return;
+        matchDispatchedRef.current = true;
+        const isHost = await resolveIsHost(matchId, fallbackIsHost);
+        console.log(`🎯 [Matchmaking] Dispatch match ${matchId} room=${roomCode} isHost=${isHost}`);
+        onMatchFoundRef.current(matchId, roomCode, isHost, validationToken);
+    }, [resolveIsHost]);
 
     // --- Memoized Clients ---
     const edgeClient = useMemo(() => getEdgeClient(), []);
@@ -134,6 +180,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setMatchId(null);
             setRoomCode(null);
             setStatus('idle');
+            matchDispatchedRef.current = false;
             if (pollingRef.current) {
                 console.log('📡 [Matchmaking] Clearing polling timer');
                 clearInterval(pollingRef.current);
@@ -181,17 +228,18 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             if (typedData?.status === 'matched' && typedData.match_id) {
                 console.log(`✅ [Matchmaking] Match found! ID: ${typedData.match_id}`);
                 if (pollingRef.current) clearInterval(pollingRef.current);
-                
+
                 setMatchId(typedData.match_id);
                 setRoomCode(typedData.room_code || '');
                 setStatus('matched');
-                
-                onMatchFoundRef.current(typedData.match_id, typedData.room_code || '', true, typedData.validation_token);
+
+                // Our ticket landing "matched" does NOT mean we host — resolve from queue order.
+                void dispatchMatch(typedData.match_id, typedData.room_code || '', false, typedData.validation_token);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
         }
-    }, [playerId, gameMode, matchType]);
+    }, [playerId, gameMode, matchType, dispatchMatch]);
 
     // --- Continuous 1s Timer Effect ---
     useEffect(() => {
@@ -276,7 +324,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setMatchId(data.match_id);
             setRoomCode(data.room_code || '');
 
-            onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
+            // Direct RPC match: we joined someone already waiting → usually guest.
+            void dispatchMatch(data.match_id, data.room_code || '', false, data.validation_token);
             return true;
         }
         if (!data.ticket_id) throw new Error('Join returned neither match nor ticket');
@@ -284,7 +333,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         setTicketId(data.ticket_id);
         checkTicketStatus(data.ticket_id);
         return false;
-    }, [playerId, gameMode, matchType, wager, checkTicketStatus]);
+    }, [playerId, gameMode, matchType, wager, checkTicketStatus, dispatchMatch]);
 
     // 5s heartbeat: extend ticket + detect matches. Never purges, never touches Edge.
     const heartbeatTick = useCallback(async (wagerMin?: number, wagerMax?: number) => {
@@ -358,13 +407,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setRoomCode(edgeMatch.matchId);
 
             const isIHost = edgeMatch.players[0].id.toLowerCase() === normalizedPlayerId;
-            onMatchFoundRef.current(edgeMatch.matchId, edgeMatch.matchId, isIHost, edgeMatch.validationToken);
+            void dispatchMatch(edgeMatch.matchId, edgeMatch.matchId, isIHost, edgeMatch.validationToken);
         } catch (edgeErr) {
             console.warn('⚠️ [Matchmaking] Background Edge attempt failed quietly.', edgeErr);
         } finally {
             setIsConnectingToEdge(false);
         }
-    }, [edgeClient, playerId, gameMode, matchType, wager, isMatched]);
+    }, [edgeClient, playerId, gameMode, matchType, wager, isMatched, dispatchMatch]);
 
     // --- Search Triggers ---
 
@@ -396,6 +445,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         setMatchId(null);
         setRoomCode(null);
         setError(null);
+        matchDispatchedRef.current = false;
 
         if (pollingRef.current) clearInterval(pollingRef.current);
 
@@ -478,12 +528,12 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             if (data.status === 'matched') {
                 console.log('✅ [Matchmaking] HYBRID MATCH found. YOU ARE THE GUEST.');
                 if (pollingRef.current) clearInterval(pollingRef.current);
-                
+
                 setStatus('matched');
                 setMatchId(data.match_id);
                 setRoomCode(data.room_code || '');
 
-                onMatchFoundRef.current(data.match_id, data.room_code || '', false, data.validation_token);
+                void dispatchMatch(data.match_id, data.room_code || '', false, data.validation_token);
             } else {
                 setTicketId(data.ticket_id);
                 checkTicketStatus(data.ticket_id);
@@ -499,7 +549,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } finally {
             isStartingRef.current = false;
         }
-    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus, fetchNearbyPools]);
+    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus, fetchNearbyPools, dispatchMatch]);
 
     // --- Subscription Effects ---
 
@@ -522,13 +572,14 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
                     const { status: newStatus, match_id, room_code } = payload.new;
                     if (newStatus === 'matched') {
-                        console.log(`✅ [Matchmaking] REALTIME MATCH! YOU ARE THE HOST. Match: ${match_id}`);
+                        console.log(`✅ [Matchmaking] REALTIME MATCH! Match: ${match_id}`);
                         if (pollingRef.current) clearInterval(pollingRef.current);
-                        
+
                         setMatchId(match_id);
                         setRoomCode(room_code || '');
                         setStatus('matched');
-                        onMatchFoundRef.current(match_id, room_code || '', true, payload.new.validation_token);
+                        // Ticket UPDATE ≠ we host. Resolve from queue order.
+                        void dispatchMatch(match_id, room_code || '', false, payload.new.validation_token);
                     }
                 }
             )
@@ -538,7 +589,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             console.log('📡 [Matchmaking] Cleaning up Realtime subscription.');
             supabase.removeChannel(channel);
         };
-    }, [ticketId, status]);
+    }, [ticketId, status, dispatchMatch]);
 
     // --- Tab Lifecycle ---
 
