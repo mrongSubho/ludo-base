@@ -481,7 +481,7 @@ export default function GameLobby({
 
             {/* --- OVERLAY PANELS --- */}
             {pendingJoin && (
-                <div className="fixed inset-0 z-[190] flex items-center justify-center px-6 bg-black/55 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[250] flex items-center justify-center px-6 bg-black/60 backdrop-blur-sm">
                     <div
                         className="w-full max-w-[320px] rounded-[24px] border border-white/10 px-6 py-8 flex flex-col items-center gap-4 text-center shadow-2xl"
                         style={{ background: 'var(--panel-bg, rgba(13,13,13,0.96))', backdropFilter: 'blur(32px)' }}
@@ -538,7 +538,8 @@ export default function GameLobby({
                     </div>
                 </div>
             )}
-            {showTeamUpOptions && (
+            {/* Hide Team Up while a join is in flight so the Joining overlay is visible */}
+            {showTeamUpOptions && !pendingJoin && (
                 <PanelErrorBoundary
                     name="teamup"
                     onClose={() => {
@@ -552,7 +553,7 @@ export default function GameLobby({
                         leaveGame();
                         setShowTeamUpOptions(false);
                     }}
-                    onJoin={(code: string) => joinGame(code)}
+                    onJoin={(code: string, secret?: string) => startPartyJoin(code, undefined, secret || null)}
                     onHost={() => hostQuickLobby(matchType, gameMode, wager)}
                     currentRoomId={roomId}
                     isHost={isHost}
