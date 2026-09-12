@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
-import { InviteNotification } from './components/InviteNotification';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BoardHeaderCompact } from './components/BoardHeaderCompact';
 import { FooterNavPanel } from './components/FooterNavPanel';
@@ -466,7 +465,6 @@ export default function Page() {
       {showSplash && <SplashScreen />}
 
       <PresenceManager />
-      <InviteNotification />
 
       <div className={`fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]${appState !== 'dashboard' ? ' orbs-calm' : ''}`}>
         {/* Subdued orbs to prevent washout while keeping depth */}

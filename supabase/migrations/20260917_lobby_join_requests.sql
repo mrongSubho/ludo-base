@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS public.lobby_join_requests (
     username TEXT,
     avatar_url TEXT,
     desired_seat INT,
+    -- Host-required secret (matchmaking rooms). Null for open invite lobbies.
+    validation_token TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -695,6 +695,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 if (attempts < 8) setTimeout(sendJoin, 1200);
             };
             sendJoin();
+            // REST third path — survives realtime + PeerJS both being blocked.
+            // Host polls /api/lobby/join and seats via seatGuestPlayer.
+            void fetch('/api/lobby/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomCode: targetRoomId,
+                    wallet: myAddress,
+                    username: myProfile?.username,
+                    avatarUrl: myProfile?.avatar_url,
+                    desiredSeat: desiredSeatRef.current,
+                    secret: token,
+                }),
+                signal: AbortSignal.timeout(12000),
+            }).catch(() => { /* host may not have REST yet */ });
             // Treat lobby as connected once we can talk to the channel
             setIsLobbyConnected(true);
         }
@@ -740,6 +755,54 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             });
         })();
     }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef, setRelayRoom]);
+
+    // Host polls REST join requests (works when realtime JOIN_REQUEST never lands).
+    const processedJoinRequestIds = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        if (!isHost || !currentRoomCode || !lobbyState || lobbyState.status !== 'forming') return;
+        const room = currentRoomCode;
+        let cancelled = false;
+        const poll = async () => {
+            try {
+                const res = await fetch(`/api/lobby/join?roomCode=${encodeURIComponent(room)}`, {
+                    signal: AbortSignal.timeout(6000),
+                });
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                const requests: Array<{
+                    id?: string;
+                    wallet_address: string;
+                    username?: string | null;
+                    avatar_url?: string | null;
+                    desired_seat?: number | null;
+                    validation_token?: string | null;
+                }> = data?.requests || [];
+                for (const req of requests) {
+                    if (cancelled) return;
+                    if (!req?.wallet_address) continue;
+                    if (req.id && processedJoinRequestIds.current.has(req.id)) continue;
+                    if (req.id) processedJoinRequestIds.current.add(req.id);
+                    const seated = seatGuestPlayer({
+                        address: req.wallet_address,
+                        username: req.username || undefined,
+                        avatar_url: req.avatar_url || undefined,
+                        desiredSeat: Number.isInteger(req.desired_seat) ? (req.desired_seat as number) : undefined,
+                        validationToken: req.validation_token || undefined,
+                    });
+                    if (seated && req.id) {
+                        void fetch('/api/lobby/join', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: req.id }),
+                        }).catch(() => { /* cleanup only */ });
+                    }
+                }
+            } catch { /* timeout / offline */ }
+        };
+        void poll();
+        const iv = setInterval(() => { void poll(); }, 2000);
+        return () => { cancelled = true; clearInterval(iv); };
+    }, [isHost, currentRoomCode, lobbyState, seatGuestPlayer]);
 
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
