@@ -45,3 +45,6 @@ next-env.d.ts
 
 # supabase CLI local temp
 supabase/.temp/
+
+# browser test traces (local only)
+.playwright-cli/

@@ -5563,90 +5563,238 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   color: #0e7490;
 }
 
-/* ─── Live Arena immersive stage ─── */
-.arena-wall {
-  background:
-    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(34, 211, 238, 0.12), transparent 55%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.55), rgba(8, 10, 18, 0.9));
-  box-shadow: inset 0 0 40px rgba(34, 211, 238, 0.06);
+/* ─── Live Arena: venue plate + on-screen broadcast HUD ─── */
+.arena-venue {
+  background: #03050a;
 }
 
-.arena-wall-glow {
+.arena-venue-plate {
   position: absolute;
-  inset: auto 0 0 0;
-  height: 40%;
-  background: linear-gradient(0deg, rgba(34, 211, 238, 0.18), transparent);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Lift the crop so the curved LED wall fills the middle of the venue box */
+  object-position: center 22%;
+  user-select: none;
   pointer-events: none;
 }
 
-.arena-node {
+/* LED monitor bounds on the plate — all UI lives here only.
+   Measured on venue-hall.png: gold-trimmed wall ≈ y 25–59%, x 5–95%.
+   After cover-crop (object-position 22%), that maps to this box. */
+.arena-screen {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 22%;
+  bottom: 18%;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 72px;
-  min-height: 72px;
-  padding: 4px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-.arena-node-core {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  display: flex;
+.arena-screen > * {
+  pointer-events: auto;
+}
+
+.arena-screen--empty {
+  pointer-events: none;
   align-items: center;
   justify-content: center;
-  color: #a5f3fc;
-  background: rgba(34, 211, 238, 0.12);
-  border: 1px solid rgba(34, 211, 238, 0.35);
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  gap: 8px;
+  padding: 12px;
 }
 
-.arena-node-core.is-live {
-  box-shadow: 0 0 22px rgba(34, 211, 238, 0.45);
+.arena-screen--empty > * {
+  pointer-events: auto;
 }
 
-.arena-node:hover .arena-node-core,
-.arena-node:focus-visible .arena-node-core {
-  transform: scale(1.08);
-  box-shadow: 0 0 28px rgba(34, 211, 238, 0.55);
+.arena-screen-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 0;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
-.arena-node-meta {
+.arena-bug-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px 3px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #34d399;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 8px rgba(52, 211, 153, 0.65);
+}
+
+.arena-bug-live--off {
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+  text-shadow: none;
+}
+
+.arena-bug-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #64748b;
+  flex-shrink: 0;
+}
+
+.arena-bug-dot.is-live {
+  background: #34d399;
+  box-shadow: 0 0 6px #34d399;
+  animation: arena-bug-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes arena-bug-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.arena-bug-net {
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  color: rgba(103, 232, 249, 0.7);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.arena-screen-title {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  justify-content: center;
+  gap: 5px;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 14%;
 }
 
-.arena-node-code {
-  font-size: 9px;
+.arena-screen-mode {
+  font-size: clamp(26px, 7.5vw, 38px);
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff;
+  line-height: 1;
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.6),
+    0 0 24px rgba(34, 211, 238, 0.9),
+    0 0 48px rgba(34, 211, 238, 0.5);
+}
+
+.arena-screen-room {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  color: #a5f3fc;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
+.arena-screen-side {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  background: rgba(0, 0, 0, 0.5);
+  color: #67e8f9;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.arena-screen-side:hover,
+.arena-screen-side:focus-visible {
+  border-color: #00e5ff;
+  background: rgba(0, 229, 255, 0.15);
+}
+
+.arena-screen-third {
+  flex-shrink: 0;
+  padding: 0 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arena-screen-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.75), rgba(0, 18, 28, 0.7), rgba(0, 0, 0, 0.75));
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-bottom: none;
+}
+
+.arena-screen-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
   text-transform: uppercase;
 }
 
-.arena-floor {
-  background:
-    linear-gradient(90deg, rgba(34, 211, 238, 0.12), transparent 40%, rgba(245, 158, 11, 0.08)),
-    rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
+.arena-screen-stat--amber {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
 }
 
-.arena-floor-beam {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #00e5ff, transparent);
-  opacity: 0.7;
+.arena-screen-stat--live {
+  color: #34d399;
+  text-shadow: 0 0 8px rgba(52, 211, 153, 0.45);
+}
+
+.arena-screen-watch {
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-radius: 0 0 3px 3px;
+  background: #00e5ff;
+  color: #000;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.34em;
+  cursor: pointer;
+  box-shadow:
+    0 0 14px rgba(0, 229, 255, 0.7),
+    0 0 32px rgba(0, 229, 255, 0.3);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.arena-screen-watch:hover,
+.arena-screen-watch:focus-visible {
+  background: #a5f3fc;
+  box-shadow:
+    0 0 20px rgba(0, 229, 255, 1),
+    0 0 44px rgba(0, 229, 255, 0.45);
 }
 
 .arena-stat {
@@ -5676,8 +5824,46 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   color: rgba(255, 255, 255, 0.4);
 }
 
+body.theme-daybreak .arena-venue {
+  background: #cbd5e1;
+}
+
+body.theme-daybreak .arena-screen-mode {
+  color: #0f172a;
+  text-shadow: none;
+}
+
+body.theme-daybreak .arena-screen-watch {
+  background: #0891b2;
+  color: #fff;
+  box-shadow: none;
+}
+
+body.theme-daybreak .arena-screen-stats {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(14, 116, 144, 0.25);
+}
+
+body.theme-daybreak .arena-screen-stat {
+  color: #334155;
+}
+
+body.theme-daybreak .arena-bug-live {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(14, 116, 144, 0.35);
+  color: #0e7490;
+  text-shadow: none;
+}
+
+body.theme-daybreak .arena-bug-net,
+body.theme-daybreak .arena-screen-side {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(14, 116, 144, 0.3);
+  color: #0e7490;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .arena-node-core {
-    transition: none;
+  .arena-bug-dot.is-live {
+    animation: none;
   }
 }
