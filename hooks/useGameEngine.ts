@@ -3,7 +3,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSignMessage, useSignTypedData } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
-import { PlayerColor, PowerType, BotDifficulty, GameState } from '@/lib/types';
+import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
 import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
@@ -192,7 +192,7 @@ export function useGameEngine({
 
         const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-        const interval: any = setInterval(function () {
+        const interval = setInterval(function () {
             const timeLeft = animationEnd - Date.now();
             if (timeLeft <= 0) return clearInterval(interval);
 
@@ -218,8 +218,8 @@ export function useGameEngine({
         address,
         isHost: isAuthority,
         isLobbyConnected,
-        broadcastAction: broadcastAction as (type: string, payload?: unknown, fullState?: typeof localGameState) => void,
-        sendIntent: sendIntent as (type: string, payload?: unknown) => void,
+        broadcastAction,
+        sendIntent,
         playerCount,
         colorCorner,
         activeColorsArr,
@@ -249,7 +249,7 @@ export function useGameEngine({
         handleRoll,
         moveToken,
         getNextPlayer,
-        broadcastAction: broadcastAction as (type: string, payload?: unknown, stateOverride?: typeof localGameState) => void,
+        broadcastAction,
         isHost: isAuthority,
         colorCorner,
         matchConnectionStatus
@@ -273,7 +273,7 @@ export function useGameEngine({
     useEffect(() => {
         if (localGameState.gamePhase !== 'landing' || localGameState.winner) return;
         const safetyTimer = setTimeout(() => {
-            setLocalGameState((prev: any) => {
+            setLocalGameState((prev) => {
                 if (prev.gamePhase !== 'landing') return prev; // Already resolved
                 console.warn('⚠️ [Engine] Landing safety net triggered! Forcing phase to rolling.');
                 const nextPlayer = getNextPlayer(prev.currentPlayer);
@@ -298,7 +298,7 @@ export function useGameEngine({
     }, [isLobbyConnected, isHost, networkGameState]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
-        setLocalGameState((prev: any) => ({
+        setLocalGameState((prev) => ({
             ...prev,
             afkStats: {
                 ...prev.afkStats,
@@ -313,7 +313,7 @@ export function useGameEngine({
     }, []);
 
     const toggleAutoPlay = useCallback((color: PlayerColor, forceTrust: boolean = false) => {
-        setLocalGameState((prev: any) => {
+        setLocalGameState((prev) => {
             const nextState = {
                 ...prev,
                 afkStats: {
@@ -343,7 +343,8 @@ export function useGameEngine({
             if (type === 'REQUEST_ROLL') {
                 handleRoll(payload?.value);
             } else if (type === 'REQUEST_MOVE') {
-                moveToken(payload.color, payload.tokenIndex, payload.diceValue || localGameState.diceValue);
+                const diceValue = payload.diceValue ?? localGameState.diceValue;
+                if (diceValue !== null) moveToken(payload.color, payload.tokenIndex, diceValue);
             } else if (type === 'CMD_REQUEST_TRUST') {
                 toggleAutoPlay(payload.color, payload.isKicked);
             }

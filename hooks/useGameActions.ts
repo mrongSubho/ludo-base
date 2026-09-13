@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType } from '@/lib/types';
+import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
 import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType, getLegalTokenIndices } from '@/lib/gameLogic';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
@@ -21,8 +21,8 @@ interface UseGameActionsProps {
     address: string | undefined;
     isHost: boolean;
     isLobbyConnected: boolean;
-    broadcastAction: (type: GameActionType | string, payload?: unknown, fullState?: GameState) => void;
-    sendIntent: (type: string, payload?: unknown) => void;
+    broadcastAction: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => void;
+    sendIntent: <T extends GameIntentType>(type: T, payload: GameIntentPayloads[T]) => void;
     startBettingWindow: (betType: BetType) => Promise<string>;
     playerCount: '1v1' | '4P' | '2v2';
     colorCorner: ColorCorner;
