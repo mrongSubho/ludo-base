@@ -1,21 +1,29 @@
 import { useEffect } from 'react';
 import { GameState, GameStateSetter } from '@/lib/types';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
+import { shouldRunMatchTimer } from '@/lib/matchTimer';
 
 interface UseGameTimerProps {
     localGameState: GameState;
     setLocalGameState: GameStateSetter;
     matchConnectionStatus?: MatchConnectionStatus;
+    isNetworked?: boolean;
+    hasAuthoritativeSnapshot?: boolean;
 }
 
 export function useGameTimer({
     localGameState,
     setLocalGameState,
-    matchConnectionStatus = 'offline'
+    matchConnectionStatus = 'offline',
+    isNetworked = false,
+    hasAuthoritativeSnapshot = false
 }: UseGameTimerProps) {
     useEffect(() => {
-        if (localGameState.winner || matchConnectionStatus === 'ended' ||
-            matchConnectionStatus === 'reconnecting' || matchConnectionStatus === 'syncing') return;
+        if (localGameState.winner || !shouldRunMatchTimer({
+            isNetworked,
+            connectionStatus: matchConnectionStatus,
+            hasAuthoritativeSnapshot,
+        })) return;
 
         const interval = setInterval(() => {
             setLocalGameState((prev) => {
@@ -49,5 +57,5 @@ export function useGameTimer({
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, setLocalGameState, matchConnectionStatus]);
+    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
 }

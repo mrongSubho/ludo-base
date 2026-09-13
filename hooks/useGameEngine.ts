@@ -90,13 +90,14 @@ export function useGameEngine({
         startBettingWindow,
         serverSeq,
         applyServerState,
-        matchConnectionStatus
+        matchConnectionStatus,
+        hasAuthoritativeSnapshot
     } = useTeamUpContext();
     
     // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
     // In multiplayer, authority rests with the P2P Host (or Compute Host if P2P Host leaves).
     // In offline matches, the local player always has authority.
-    const isAuthority = isLobbyConnected ? (isHost || (isComputeHost as any)) : true;
+    const isAuthority = isLobbyConnected ? (isHost || isComputeHost) : true;
 
     const [localGameState, setLocalGameState] = useState<GameState>({
         ...INITIAL_GAME_STATE,
@@ -233,7 +234,13 @@ export function useGameEngine({
         applyServerState,
     });
 
-    useGameTimer({ localGameState, setLocalGameState, matchConnectionStatus });
+    useGameTimer({
+        localGameState,
+        setLocalGameState,
+        matchConnectionStatus,
+        isNetworked: isLobbyConnected,
+        hasAuthoritativeSnapshot,
+    });
 
     useAFKManager({
         localGameState,

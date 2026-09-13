@@ -10,7 +10,7 @@ interface UseMatchStatesProps {
     matchId: string | undefined;
     enabled: boolean;
     /** Apply a higher-seq server state. */
-    onServerState: (state: GameState, seq: number) => void;
+    onServerState: (state: GameState, seq: number, allowEqual?: boolean) => void;
     /** Latest known server seq (for comparison). */
     getSeq: () => number;
     refreshState: (matchId: string) => Promise<{ ok: boolean; seq?: number; state?: GameState; code?: string }>;
@@ -34,20 +34,20 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
     useEffect(() => {
         if (!enabled || !matchId || matchId === 'local') return;
 
-        const applyRow = (row: { seq?: number; state?: unknown }) => {
+        const applyRow = (row: { seq?: number; state?: unknown }, allowEqual = false) => {
             const seq = Number(row?.seq ?? 0);
             const state = row?.state as GameState | undefined;
             if (!state || !Number.isFinite(seq)) return;
-            if (seq <= getSeqRef.current()) return;
+            if (allowEqual ? seq < getSeqRef.current() : seq <= getSeqRef.current()) return;
             // Types stay server-side; strip if a row still has them
-            onServerStateRef.current(stripPowerTypesForWire(state) as GameState, seq);
+            onServerStateRef.current(stripPowerTypesForWire(state) as GameState, seq, allowEqual);
         };
 
         const refresh = async () => {
             onStatusRef.current?.('syncing');
             const result = await refreshStateRef.current(matchId);
             if (result.ok && result.state && typeof result.seq === 'number') {
-                applyRow({ seq: result.seq, state: result.state });
+                applyRow({ seq: result.seq, state: result.state }, true);
             }
             if (result.ok) onStatusRef.current?.('connected');
             else if (result.code === 'MATCH_NOT_FOUND') onStatusRef.current?.('ended');

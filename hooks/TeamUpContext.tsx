@@ -83,7 +83,9 @@ export interface TeamUpContextType {
     /** P4: monotonic match_states.seq known to this client. */
     serverSeq: number;
     /** Apply a server-authoritative state (Edge / match_states). */
-    applyServerState: (state: GameState, seq: number) => void;
+    applyServerState: (state: GameState, seq: number, allowEqual?: boolean) => void;
+    /** True after a snapshot has been applied since the latest reconnect. */
+    hasAuthoritativeSnapshot: boolean;
     matchConnectionStatus: MatchConnectionStatus;
 }
 
@@ -114,11 +116,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const serverSeqRef = useRef(0);
     const [serverSeq, setServerSeq] = useState(0);
     const [matchConnectionStatus, setMatchConnectionStatus] = useState<MatchConnectionStatus>('offline');
+    const [hasAuthoritativeSnapshot, setHasAuthoritativeSnapshot] = useState(false);
 
-    const applyServerState = useCallback((state: GameState, seq: number) => {
-        if (!Number.isFinite(seq) || seq <= serverSeqRef.current) return;
-        serverSeqRef.current = seq;
+    const applyServerState = useCallback((state: GameState, seq: number, allowEqual = false) => {
+        if (!Number.isFinite(seq) || (allowEqual ? seq < serverSeqRef.current : seq <= serverSeqRef.current)) return;
+        serverSeqRef.current = Math.max(serverSeqRef.current, seq);
         setServerSeq(seq);
+        setHasAuthoritativeSnapshot(true);
         setGameState(prev => ({
             ...prev,
             ...state,
@@ -141,6 +145,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         },
         onStatus: setMatchConnectionStatus,
     });
+
+    useEffect(() => {
+        if (matchConnectionStatus === 'reconnecting' || matchConnectionStatus === 'syncing') {
+            setHasAuthoritativeSnapshot(false);
+        }
+    }, [matchConnectionStatus]);
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -994,13 +1004,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, matchConnectionStatus,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
         activeBetWindow, startBettingWindow
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, hasAuthoritativeSnapshot,
         activeBetWindow, startBettingWindow
     ]);
 

@@ -17,6 +17,10 @@ export function useGamePresence(
         isComputeHost: false,
     });
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+    const electedHostRef = useRef<string | null>(null);
+    const pendingHostRef = useRef<string | null>(null);
+    const activeWalletsRef = useRef<string[]>([]);
+    const pendingHostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (!roomCode) return;
@@ -54,16 +58,39 @@ export function useGamePresence(
 
                 // Sort by joinedAt ascending (oldest first). 
                 // The oldest connected player is the Compute Host.
-                playersList.sort((a, b) => a.joinedAt - b.joinedAt);
+                playersList.sort((a, b) => a.joinedAt - b.joinedAt || a.wallet.localeCompare(b.wallet));
                 const activeWallets = playersList.map(p => p.wallet.toLowerCase());
+                activeWalletsRef.current = activeWallets;
+                const candidate = activeWallets[0] || null;
+                const current = electedHostRef.current;
 
-                const isHost = activeWallets.length > 0 && walletAddress 
-                    ? activeWallets[0] === walletAddress.toLowerCase() 
-                    : false;
+                if (!current || activeWallets.includes(current)) {
+                    electedHostRef.current = current || candidate;
+                    pendingHostRef.current = null;
+                    if (pendingHostTimerRef.current) {
+                        clearTimeout(pendingHostTimerRef.current);
+                        pendingHostTimerRef.current = null;
+                    }
+                } else if (candidate && candidate !== pendingHostRef.current) {
+                    pendingHostRef.current = candidate;
+                    if (pendingHostTimerRef.current) clearTimeout(pendingHostTimerRef.current);
+                    pendingHostTimerRef.current = setTimeout(() => {
+                        const nextHost = pendingHostRef.current;
+                        pendingHostTimerRef.current = null;
+                        pendingHostRef.current = null;
+                        if (!nextHost || !activeWalletsRef.current.includes(nextHost)) return;
+                        electedHostRef.current = nextHost;
+                        setPresenceState(prev => ({
+                            ...prev,
+                            isComputeHost: walletAddress?.toLowerCase() === electedHostRef.current,
+                        }));
+                    }, 1000);
+                }
 
-                setPresenceState({ 
-                    activePlayers: activeWallets, 
-                    isComputeHost: isHost
+                const electedHost = electedHostRef.current;
+                setPresenceState({
+                    activePlayers: activeWallets,
+                    isComputeHost: !!electedHost && electedHost === walletAddress?.toLowerCase(),
                 });
                 
                 console.log(`👑 [Presence] Compute Hierarchy updated:`, activeWallets);
@@ -78,6 +105,11 @@ export function useGamePresence(
             console.log(`🚪 [Presence] Leaving game-presence-${roomCode}`);
             channel.untrack().then(() => supabase.removeChannel(channel));
             channelRef.current = null;
+            if (pendingHostTimerRef.current) clearTimeout(pendingHostTimerRef.current);
+            pendingHostTimerRef.current = null;
+            pendingHostRef.current = null;
+            electedHostRef.current = null;
+            activeWalletsRef.current = [];
         };
     }, [roomCode, walletAddress]);
 
