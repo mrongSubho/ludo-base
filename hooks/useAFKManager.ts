@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { PlayerColor, GameState, GameStateSetter } from '@/lib/types';
+import { PlayerColor, GameState, GameStateSetter, GameActionType, GameActionPayload } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getLegalTokenIndices } from '@/lib/gameLogic';
 import { ColorCorner } from '@/lib/boardLayout';
@@ -12,7 +12,7 @@ interface UseAFKManagerProps {
     handleRoll: (value?: number) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
-    broadcastAction?: (type: string, payload?: unknown, stateOverride?: GameState) => void;
+    broadcastAction?: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, stateOverride?: GameState) => void;
     isHost?: boolean;
     colorCorner?: ColorCorner;
     matchConnectionStatus?: MatchConnectionStatus;

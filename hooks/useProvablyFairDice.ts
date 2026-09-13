@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { PlayerColor, GameState } from '@/lib/types';
+import { PlayerColor, GameState, LobbyState } from '@/lib/types';
 import { handleThreeSixes, getNextPlayer, getTeammateColor } from '@/lib/gameLogic';
 import { generateRandomNonce, sha256 } from '@/lib/encryption';
 
@@ -106,7 +106,7 @@ export function useProvablyFairDice({
         }
     }, [isHost, commitments, broadcastToAll, setGameState, gameState.matchId, resolveBet]);
 
-    const handleCommitReceived = useCallback(async (sender: string, hash: string, lobbyStateRef: React.MutableRefObject<any>) => {
+    const handleCommitReceived = useCallback(async (sender: string, hash: string, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
         setCommitments(prev => {
             const next = { ...prev, [sender.toLowerCase()]: hash };
             
@@ -129,7 +129,7 @@ export function useProvablyFairDice({
         });
     }, [isHost, myPendingNonce, myAddress, broadcastAction]);
 
-    const handleRevealReceived = useCallback(async (sender: string, nonce: string, lobbyStateRef: React.MutableRefObject<any>) => {
+    const handleRevealReceived = useCallback(async (sender: string, nonce: string, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
         setReveals(prev => {
             const next = { ...prev, [sender.toLowerCase()]: nonce };
             

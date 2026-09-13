@@ -15,6 +15,41 @@ export interface PowerItem {
 export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
 
+export interface GameIntentPayloads {
+    REQUEST_ROLL: { value?: number };
+    REQUEST_MOVE: { color: PlayerColor; tokenIndex: number; diceValue?: number };
+    DICE_COMMIT: { hash: string };
+    DICE_REVEAL: { nonce: string };
+    CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };
+}
+
+export type GameIntent = {
+    [T in GameIntentType]: {
+        type: T;
+        payload: GameIntentPayloads[T];
+        sender?: string;
+        intentId: string;
+    };
+}[GameIntentType];
+
+export interface GameActionPayloads {
+    ROLL_DICE: { isRolling?: boolean; diceValue?: number | null; rollId?: string | null };
+    MOVE_TOKEN: { payload: { color: PlayerColor; tokenIndex: number; steps: number; targetPosition: number } };
+    SYNC_STATE: unknown;
+    TURN_SWITCH: { nextPlayer: PlayerColor | null };
+    SYNC_PROFILE: unknown;
+    START_GAME: StartGamePayload;
+    DICE_COMMIT: { sender: string; hash: string };
+    DICE_REVEAL: { sender: string; nonce: string };
+    DICE_REVEAL_SIGNAL: unknown;
+    BET_WINDOW_OPEN: BetWindowPayload;
+    BET_WINDOW_CLOSED: BetWindowClosedPayload;
+    ENGINE_STATE: unknown;
+    CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };
+}
+
+export type GameActionPayload<T extends GameActionType> = GameActionPayloads[T];
+
 // ─── Spectator & Betting Types ───
 export type BetType = 'winner' | 'dice_roll' | 'elimination' | 'custom';
 

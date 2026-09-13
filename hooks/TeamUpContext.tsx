@@ -25,7 +25,12 @@ import {
     InvitePayload,
     LobbyActionType,
     BetType,
+    GameIntentType,
+    GameIntentPayloads,
+    GameIntent,
+    GameActionPayload,
 } from '@/lib/types';
+import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
 import { ActiveBettingWindow } from './useSpectatorSync';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import {
@@ -52,9 +57,9 @@ export interface TeamUpContextType {
     joinGame: (roomId: string, token?: string, desiredSeat?: number) => void;
     initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
     hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => string;
-    sendIntent: (type: string, payload: any) => void;
-    broadcastAction: (type: GameActionType, payload?: any, fullState?: any) => void;
-    broadcastLobbyAction: (type: LobbyActionType, payload?: any) => void;
+    sendIntent: <T extends GameIntentType>(type: T, payload: GameIntentPayloads[T]) => void;
+    broadcastAction: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => void;
+    broadcastLobbyAction: (type: LobbyActionType, payload?: Record<string, unknown>) => void;
     swapPlayers: (fromIdx: number, toIdx: number) => void;
     kickPlayer: (slotIdx: number) => void;
     sendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
@@ -68,7 +73,7 @@ export interface TeamUpContextType {
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
     participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor; lxp?: number; rxp?: number }>;
-    lastIntent: any | null;
+    lastIntent: GameIntent | null;
     clearIntent: () => void;
     leaveGame: () => void;
     validationToken?: string;
@@ -104,7 +109,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { signTypedDataAsync } = useSignTypedData();
     const { myProfile } = useGameData();
     const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync });
-    const [lastIntent, setLastIntent] = useState<any | null>(null);
+    const [lastIntent, setLastIntent] = useState<GameIntent | null>(null);
     // Matchmaking validation token the host will require from guests (if set).
     const expectedValidationTokenRef = useRef<string | null>(null);
     // Host-only join secret for invite lobbies (not on the matchmaking path).
@@ -165,8 +170,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setIsLobbyConnected(false);
     }, []);
 
-    const broadcastToAll = useCallback((data: any) => {
-        connectionsRef.current.forEach((conn: any) => {
+    const broadcastToAll = useCallback((data: unknown) => {
+        connectionsRef.current.forEach((conn) => {
             if (conn.open) conn.send(data);
         });
     }, [connectionsRef]);
@@ -203,7 +208,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         myAddress,
         lobbyState,
         currentRoomCode,
-        processGameAction: (data: any) => processGameAction(data),
+        processGameAction: (data: Record<string, unknown>) => processGameAction(data),
         joinGame: (id: string) => joinGame(id)
     });
 
@@ -211,7 +216,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { isComputeHost, activePlayers } = useGamePresence(currentRoomCode, myAddress);
 
     // 3. Broadcast Helpers
-    const broadcastAction = useCallback((type: GameActionType, payload?: any, fullState?: any) => {
+    const broadcastAction = useCallback(<T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => {
         if (!isHost && !isComputeHost) return;
         
         // Only the original P2P Host handles START_GAME logic
@@ -229,20 +234,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             // Always persist matchId on the host game state. /api/match/start
             // may fail; without an id every roll/move falls back to 'local'
             // and never hits move-auth.
-            const matchId = String(payload.matchId || gameStateRef.current.matchId || crypto.randomUUID());
+            const startPayload = payload as GameActionPayload<'START_GAME'>;
+            const matchId = String(startPayload.matchId || gameStateRef.current.matchId || crypto.randomUUID());
 
             setGameState((prev: GameState) => ({
                 ...prev,
                 isStarted: true,
                 matchId,
-                playerCount: payload.playerCount || prev.playerCount,
-                initialBoardConfig: payload.initialBoardConfig
+                playerCount: startPayload.playerCount || prev.playerCount,
+                initialBoardConfig: startPayload.initialBoardConfig
             }));
 
             // Seed server-authoritative match_states (v2 move validation)
-            if (myAddress && payload.initialBoardConfig) {
+            if (myAddress && startPayload.initialBoardConfig) {
                 const seats: Record<string, { kind: 'human' | 'bot' | 'afk'; wallet?: string }> = {};
-                (payload.initialBoardConfig.players as { color: string; isAi?: boolean; walletAddress?: string }[] || [])
+                (startPayload.initialBoardConfig.players as { color: string; isAi?: boolean; walletAddress?: string }[] || [])
                     .forEach(p => {
                         seats[p.color] = p.isAi
                             ? { kind: 'bot' }
@@ -251,8 +257,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 const initialState = {
                     ...ENGINE_INIT,
                     matchId,
-                    playerCount: payload.playerCount || '4P',
-                    currentPlayer: payload.initialBoardConfig.players?.[0]?.color || 'green',
+                    playerCount: startPayload.playerCount || '4P',
+                    currentPlayer: startPayload.initialBoardConfig.players?.[0]?.color || 'green',
                     isStarted: true,
                     status: 'playing' as const,
                     powerTiles: gameStateRef.current.powerTiles || [],
@@ -266,7 +272,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 moveAuth.seedMatch({
                     matchId,
                     roomCode: currentRoomCode || roomId || '',
-                    colorCorner: payload.initialBoardConfig.colorCorner,
+                    colorCorner: startPayload.initialBoardConfig.colorCorner,
                     playerSeats: seats,
                     initialState,
                 }).then(async (r) => {
@@ -313,17 +319,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
                 setTimeout(() => {
                     broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
-                    relayViaSupabase('lobby-action', { type: 'LOBBY_SYNC', lobbyState: newLobby }, lobbyStateRef as any);
+                    relayViaSupabase('lobby-action', { type: 'LOBBY_SYNC', lobbyState: newLobby }, lobbyStateRef);
                 }, 50);
                 return newLobby;
             });
         }
 
         // Always include matchId so guests + host share one Edge match.
+        const payloadRecord = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
         const actionData = {
             type,
-            ...payload,
-            matchId: payload?.matchId || gameStateRef.current.matchId,
+            ...payloadRecord,
+            matchId: payloadRecord.matchId || gameStateRef.current.matchId,
             stateOverride: fullState ? sanitizeGameStateForWire(fullState) : undefined,
             gameState: fullState
                 ? sanitizeGameStateForWire(fullState)
@@ -335,21 +342,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // For Compute Host, broadcastToAll will only reach the P2P host (if still connected)
         // relayViaSupabase reaches everyone.
         broadcastToAll(actionData);
-        relayViaSupabase('game-action', actionData, lobbyStateRef as any);
+        relayViaSupabase('game-action', actionData, lobbyStateRef);
     }, [isHost, isComputeHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
 
-    const broadcastLobbyAction = useCallback((type: LobbyActionType, payload?: any) => {
+    const broadcastLobbyAction = useCallback((type: LobbyActionType, payload: Record<string, unknown> = {}) => {
         if (!isHost) return;
         const actionData = { type, lobbyState: lobbyStateRef.current, ...payload };
         broadcastToAll(actionData);
-        relayViaSupabase('lobby-action', actionData, lobbyStateRef as any);
+        relayViaSupabase('lobby-action', actionData, lobbyStateRef);
     }, [isHost, broadcastToAll, relayViaSupabase, lobbyStateRef]);
 
     // 4. Betting Window Controller (extracted)
     const { activeBetWindow, startBettingWindow } = useBettingController({
         isHost,
         matchId: gameState.matchId,
-        broadcastAction: broadcastAction as (type: GameActionType, payload?: unknown, fullState?: GameState) => void,
+        broadcastAction,
     });
 
     // 5. Provably Fair Dice
@@ -370,7 +377,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         isHost,
         myAddress,
         connection: connections.values().next().value || null,
-        broadcastAction: (type: any, payload: any) => broadcastAction(type, payload),
+        broadcastAction,
         broadcastToAll,
         resolveBet,
     });
@@ -447,8 +454,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }, [isHost, setParticipants, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
 
     // 6. Game Engine Action Processor
-    const processGameAction = useCallback((data: any) => {
-        const { type, actionId, stateOverride } = data;
+    const processGameAction = useCallback((data: Record<string, unknown>) => {
+        const type = typeof data.type === 'string' ? data.type : '';
+        const actionId = typeof data.actionId === 'string' ? data.actionId : undefined;
+        const stateOverride = data.stateOverride;
         if (actionId && processedActionIds.current.has(actionId)) return;
         if (actionId) processedActionIds.current.add(actionId);
 
@@ -457,6 +466,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // 📬 Guest intent via Supabase (dual-path with PeerJS GAME_ACTION)
         if (type === 'GAME_INTENT' && isHost) {
             const action = data.action;
+            if (!isGameIntent(action)) return;
             const intentId = action?.intentId || actionId;
             if (intentId && processedIntentIds.current.has(intentId)) return;
             if (intentId) processedIntentIds.current.add(intentId);
@@ -468,7 +478,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // 🪑 Guest seat request via Supabase (works without PeerJS)
         if (type === 'JOIN_REQUEST' && isHost) {
             const payload = {
-                address: data.address || data.playerId as string,
+                address: String(data.address || data.playerId || ''),
                 username: data.username as string | undefined,
                 avatar_url: data.avatar_url as string | undefined,
                 desiredSeat: data.desiredSeat as number | undefined,
@@ -515,16 +525,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             setGameState(prev => ({
                 ...prev,
                 isStarted: true,
-                isBotMatch: data.isBotMatch || false,
-                playerCount: data.playerCount || prev.playerCount,
-                initialBoardConfig: data.initialBoardConfig,
-                matchId: data.matchId,
+                isBotMatch: data.isBotMatch === true,
+                playerCount: data.playerCount === '1v1' || data.playerCount === '2v2' || data.playerCount === '4P' ? data.playerCount : prev.playerCount,
+                initialBoardConfig: data.initialBoardConfig as GameState['initialBoardConfig'],
+                matchId: typeof data.matchId === 'string' ? data.matchId : prev.matchId,
                 lastUpdate: Date.now()
             }));
 
             // ☁️ Host: Register live match details + bind host for signed settlement
             if (isHost) {
-                const matchId = data.matchId || gameStateRef.current.matchId;
+                const matchId = typeof data.matchId === 'string'
+                    ? data.matchId
+                    : gameStateRef.current.matchId;
                 if (matchId) {
                     supabase.from('live_matches')
                         .update({
@@ -540,14 +552,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'ROLL_DICE') {
             setGameState((prev: GameState) => ({
                 ...prev,
-                diceValue: data.value ?? prev.diceValue,
-                isRolling: data.isRolling ?? false,
-                gamePhase: data.gamePhase ?? prev.gamePhase,
+                diceValue: typeof data.value === 'number' ? data.value : prev.diceValue,
+                isRolling: data.isRolling === true,
+                gamePhase: data.gamePhase === 'moving' || data.gamePhase === 'landing' || data.gamePhase === 'rolling' ? data.gamePhase : prev.gamePhase,
                 lastAction: { type: 'ROLL_DICE', payload: data }
             }));
         } else if (type === 'MOVE_TOKEN') {
-            const payload = data.payload || data;
-            const { color, tokenIndex, targetPosition } = payload;
+            const payload = (data.payload && typeof data.payload === 'object' ? data.payload : data) as Record<string, unknown>;
+            const color = payload.color as PlayerColor;
+            const tokenIndex = Number(payload.tokenIndex);
+            const targetPosition = Number(payload.targetPosition);
             setGameState(prev => {
                 const newPos = { ...prev.positions };
                 newPos[color as PlayerColor] = [...newPos[color as PlayerColor]];
@@ -555,7 +569,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return { ...prev, positions: newPos, lastUpdate: Date.now(), lastAction: { type: 'MOVE_TOKEN', payload } };
             });
         } else if (type === 'TURN_SWITCH') {
-            const nextPlayer = data.nextPlayer || data.currentPlayer;
+            const nextPlayer = (data.nextPlayer || data.currentPlayer) as PlayerColor;
             setGameState((prev: GameState) => ({
                 ...prev,
                 currentPlayer: nextPlayer,
@@ -566,9 +580,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 lastAction: { type: 'TURN_SWITCH', payload: data }
             }));
         } else if (type === 'DICE_COMMIT') {
-            handleCommitReceived(data.sender, data.hash, lobbyStateRef as any);
+            handleCommitReceived(String(data.sender || ''), String(data.hash || ''), lobbyStateRef);
         } else if (type === 'DICE_REVEAL') {
-            handleRevealReceived(data.sender, data.nonce, lobbyStateRef as any);
+            handleRevealReceived(String(data.sender || ''), String(data.nonce || ''), lobbyStateRef);
         }
     }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer]);
 
@@ -709,7 +723,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             let attempts = 0;
             const sendJoin = () => {
                 attempts += 1;
-                relayViaSupabase('lobby-action', joinPayload, lobbyStateRef as any);
+                relayViaSupabase('lobby-action', joinPayload, lobbyStateRef);
                 // Host channel may come up after us — keep retrying through the 8s UI window.
                 if (attempts < 8) setTimeout(sendJoin, 1200);
             };
@@ -855,7 +869,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         lobbyStateRef.current = lobby;
         const payload = { type: 'LOBBY_SYNC', lobbyState: lobby };
         broadcastToAll(payload);
-        relayViaSupabase('lobby-action', payload, lobbyStateRef as any);
+        relayViaSupabase('lobby-action', payload, lobbyStateRef);
     }, [myAddress, myProfile, setLobbyState, lobbyStateRef, broadcastToAll, relayViaSupabase]);
 
     // One-call room hosting for manual lobbies (Team Up panel, invites):
@@ -967,17 +981,17 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             console.error('startQuickMatch failed', err);
         }
     }, [myAddress, hostGame, joinGame, initQuickLobby]);
-    const updateGameState = useCallback((s: any) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
+    const updateGameState = useCallback((s: Partial<GameState>) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
     /**
      * Guest → host intent. Dual-path: PeerJS when open, always also via
      * Supabase broadcast so NAT/firewall drops on PeerJS don't mute the guest.
      * Both paths share `intentId` so the host applies each intent once.
      */
-    const sendIntent = useCallback((type: string, payload: any) => {
+    const sendIntent = useCallback(<T extends GameIntentType>(type: T, payload: GameIntentPayloads[T]) => {
         if (!isLobbyConnected || isHost || isComputeHost) return;
         const intentId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const action = { type, payload, sender: myAddress, intentId };
+        const action = createGameIntent(type, payload, myAddress, intentId);
 
         const conn = Array.from(connections.values())[0];
         if (conn && conn.open) {
