@@ -15,6 +15,8 @@ import {
 } from '@/lib/sessionProof';
 import { stripPowerTypesForWire } from '@/lib/engine';
 import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types';
+import type { MatchActionError, MatchActionErrorCode, MatchActionSuccess } from '@/lib/matchProtocol';
+import type { MatchStateSnapshot } from '@/lib/matchProtocol';
 
 type SignFn = (args: { account: `0x${string}`; message: string }) => Promise<string>;
 type SignTypedFn = (args: {
@@ -41,8 +43,8 @@ async function callMoveAuth(action: string, body: Record<string, unknown>) {
 }
 
 export type MoveAuthResult =
-    | { ok: true; seq: number; state: GameState; captured?: boolean; bonusRoll?: boolean }
-    | { ok: false; error: string; seq?: number; state?: GameState; legal?: number[] };
+    | ({ ok: true } & MatchActionSuccess)
+    | ({ ok: false } & MatchActionError);
 
 export function useMoveAuth(opts: {
     myAddress: string | undefined;
@@ -54,6 +56,9 @@ export function useMoveAuth(opts: {
     const sessionRef = useRef<Map<string, string>>(new Map());
 
     const getSessionId = useCallback((matchId: string) => sessionRef.current.get(matchId) || null, []);
+    const clearSession = useCallback((matchId: string) => {
+        sessionRef.current.delete(matchId);
+    }, []);
 
     /**
      * One wallet sign per match (EIP-712). MetaMask and smart wallets both land here.
@@ -156,7 +161,7 @@ export function useMoveAuth(opts: {
             } catch { /* fall back to per-action sign */ }
         }
 
-        const sessionId = sessionRef.current.get(params.matchId);
+        let sessionId = sessionRef.current.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;
@@ -178,7 +183,7 @@ export function useMoveAuth(opts: {
             }
         }
 
-        const r = await callMoveAuth('move', {
+        let r = await callMoveAuth('move', {
             matchId: params.matchId,
             actor,
             color: params.color,
@@ -191,6 +196,17 @@ export function useMoveAuth(opts: {
             signature,
             issuedAt: sessionId ? undefined : issuedAt,
         });
+        if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
+            clearSession(params.matchId);
+            const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.roomCode || params.matchId });
+            if (renewed.ok) {
+                r = await callMoveAuth('move', {
+                    matchId: params.matchId, actor, color: params.color, tokenIndex: params.tokenIndex,
+                    rollId: params.rollId, expectedSeq: params.expectedSeq, source,
+                    sessionId: renewed.sessionId,
+                });
+            }
+        }
         if (r.ok && r.data?.state) {
             return {
                 ok: true,
@@ -203,11 +219,12 @@ export function useMoveAuth(opts: {
         return {
             ok: false,
             error: r.data?.error || `HTTP ${r.status}`,
+            code: (r.data?.code || (r.status === 401 ? 'SESSION_EXPIRED' : r.status === 409 ? 'STALE_SEQ' : 'ILLEGAL_ACTION')) as MatchActionErrorCode,
             seq: r.data?.seq,
             state: r.data?.state,
             legal: r.data?.legal,
         };
-    }, [myAddress, signMessageAsync, createMatchSession]);
+    }, [myAddress, signMessageAsync, createMatchSession, clearSession]);
 
     const passTurn = useCallback(async (params: {
         matchId: string;
@@ -220,7 +237,7 @@ export function useMoveAuth(opts: {
         const source = params.source || 'player';
         const actor = (params.actorOverride || myAddress || '').toLowerCase();
         if (!actor) return { ok: false, error: 'no actor' };
-        const sessionId = sessionRef.current.get(params.matchId);
+        let sessionId = sessionRef.current.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;
@@ -238,7 +255,7 @@ export function useMoveAuth(opts: {
                 return { ok: false, error: 'sign rejected' };
             }
         }
-        const r = await callMoveAuth('pass', {
+        let r = await callMoveAuth('pass', {
             matchId: params.matchId,
             actor,
             rollId: params.rollId,
@@ -250,14 +267,44 @@ export function useMoveAuth(opts: {
             signature,
             issuedAt: sessionId ? undefined : issuedAt,
         });
+        if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
+            clearSession(params.matchId);
+            const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
+            if (renewed.ok) {
+                sessionId = renewed.sessionId;
+                r = await callMoveAuth('pass', {
+                    matchId: params.matchId, actor, rollId: params.rollId,
+                    expectedSeq: params.expectedSeq, source, reason: params.reason,
+                    sessionId,
+                });
+            }
+        }
         if (r.ok && r.data?.state) {
             return { ok: true, seq: r.data.seq, state: r.data.state as GameState };
         }
-        return { ok: false, error: r.data?.error || `HTTP ${r.status}`, seq: r.data?.seq, state: r.data?.state };
-    }, [myAddress, signMessageAsync]);
+        return {
+            ok: false,
+            error: r.data?.error || `HTTP ${r.status}`,
+            code: (r.data?.code || (r.status === 409 ? 'STALE_SEQ' : 'ILLEGAL_ACTION')) as MatchActionErrorCode,
+            seq: r.data?.seq,
+            state: r.data?.state,
+        };
+    }, [myAddress, signMessageAsync, createMatchSession, clearSession]);
 
     const getMatchState = useCallback(async (matchId: string) => {
-        return callMoveAuth('get', { matchId });
+        const r = await callMoveAuth('get', { matchId });
+        if (r.ok && r.data?.state && Number.isFinite(Number(r.data.seq))) {
+            return {
+                ok: true as const,
+                seq: Number(r.data.seq),
+                state: r.data.state as GameState,
+            } satisfies MatchStateSnapshot & { ok: true };
+        }
+        return {
+            ok: false as const,
+            error: r.data?.error || `HTTP ${r.status}`,
+            code: (r.data?.code || (r.status === 404 ? 'MATCH_NOT_FOUND' : 'ILLEGAL_ACTION')) as MatchActionErrorCode,
+        };
     }, []);
 
     const submitPower = useCallback(async (params: {
@@ -273,7 +320,7 @@ export function useMoveAuth(opts: {
         const actor = (params.actorOverride || myAddress || '').toLowerCase();
         if (!actor) return { ok: false, error: 'no actor' };
         const tokenIndex = params.tokenIndex === undefined ? null : params.tokenIndex;
-        const sessionId = sessionRef.current.get(params.matchId);
+        let sessionId = sessionRef.current.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;
@@ -293,7 +340,7 @@ export function useMoveAuth(opts: {
                 return { ok: false, error: 'sign rejected' };
             }
         }
-        const r = await callMoveAuth('power', {
+        let r = await callMoveAuth('power', {
             matchId: params.matchId,
             actor,
             color: params.color,
@@ -306,6 +353,17 @@ export function useMoveAuth(opts: {
             signature,
             issuedAt: sessionId ? undefined : issuedAt,
         });
+        if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
+            clearSession(params.matchId);
+            const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
+            if (renewed.ok) {
+                sessionId = renewed.sessionId;
+                r = await callMoveAuth('power', {
+                    matchId: params.matchId, actor, color: params.color, power: params.power,
+                    tokenIndex, expectedSeq: params.expectedSeq, source, sessionId,
+                });
+            }
+        }
         if (r.ok && r.data?.state) {
             return {
                 ok: true,
@@ -317,20 +375,23 @@ export function useMoveAuth(opts: {
         return {
             ok: false,
             error: r.data?.error || `HTTP ${r.status}`,
+            code: (r.data?.code || (r.status === 401 ? 'SESSION_EXPIRED' : r.status === 409 ? 'STALE_SEQ' : 'ILLEGAL_ACTION')) as MatchActionErrorCode,
             seq: r.data?.seq,
             state: r.data?.state,
             armed: r.data?.armed,
             kept: r.data?.kept,
         };
-    }, [myAddress, signMessageAsync]);
+    }, [myAddress, signMessageAsync, createMatchSession, clearSession]);
 
     return {
         seedMatch,
         createMatchSession,
         getSessionId,
+        clearSession,
         submitMove,
         passTurn,
         submitPower,
         getMatchState,
+        refreshMatchState: getMatchState,
     };
 }

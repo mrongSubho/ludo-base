@@ -89,7 +89,8 @@ export function useGameEngine({
         clearIntent,
         startBettingWindow,
         serverSeq,
-        applyServerState
+        applyServerState,
+        matchConnectionStatus
     } = useTeamUpContext();
     
     // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
@@ -232,7 +233,7 @@ export function useGameEngine({
         applyServerState,
     });
 
-    useGameTimer({ localGameState, setLocalGameState });
+    useGameTimer({ localGameState, setLocalGameState, matchConnectionStatus });
 
     useAFKManager({
         localGameState,
@@ -243,7 +244,8 @@ export function useGameEngine({
         getNextPlayer,
         broadcastAction: broadcastAction as (type: string, payload?: unknown, stateOverride?: typeof localGameState) => void,
         isHost: isAuthority,
-        colorCorner
+        colorCorner,
+        matchConnectionStatus
     });
 
     useAIBrain({
@@ -255,7 +257,8 @@ export function useGameEngine({
         handleUsePower,
         colorCorner,
         playerCount,
-        isLobbyConnected
+        isLobbyConnected,
+        matchConnectionStatus
     });
 
     // 🔧 FIX 4: Safety net — if gamePhase is stuck at 'landing' for >3s, force transition.
@@ -385,12 +388,15 @@ export function useGameEngine({
     }, [localGameState.currentPlayer, localGameState.winner, localGameState.afkStats, playTurn, localGameState.gamePhase, initialPlayers]);
 
     useEffect(() => {
-        if (isHost && isLobbyConnected && localGameState.lastUpdate > 0) {
+        const hasServerMatch = Boolean(
+            localGameState.matchId && localGameState.matchId !== 'local'
+        );
+        if (isHost && isLobbyConnected && !hasServerMatch && localGameState.lastUpdate > 0) {
             updateGameState(localGameState);
         }
     }, [isHost, isLobbyConnected, localGameState, updateGameState]);
 
-    // P4: guests copy TeamUpContext gameState (fed by match_states / gated hints)
+    // Networked guests copy only the server snapshot cached by TeamUpContext.
     useEffect(() => {
         if (!isHost && isLobbyConnected && networkGameState && networkGameState.lastUpdate > localGameState.lastUpdate) {
             setLocalGameState(prev => ({

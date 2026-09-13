@@ -10,6 +10,7 @@ import {
     DIFFICULTY_PARAMS,
     BotDifficulty
 } from '@/lib/constants';
+import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 
 interface UseAIBrainProps {
     localGameState: GameState;
@@ -21,6 +22,7 @@ interface UseAIBrainProps {
     colorCorner: ColorCorner;
     playerCount: '1v1' | '4P' | '2v2';
     isLobbyConnected: boolean;
+    matchConnectionStatus?: MatchConnectionStatus;
 }
 
 export function useAIBrain({
@@ -32,7 +34,8 @@ export function useAIBrain({
     handleUsePower,
     colorCorner,
     playerCount,
-    isLobbyConnected
+    isLobbyConnected,
+    matchConnectionStatus = 'offline'
 }: UseAIBrainProps) {
     const lastActionRef = useRef<string>('');
     
@@ -51,7 +54,8 @@ export function useAIBrain({
     useEffect(() => { handleUsePowerRef.current = handleUsePower; }, [handleUsePower]);
 
     useEffect(() => {
-        if (localGameState.winner) return;
+        if (localGameState.winner || matchConnectionStatus === 'ended' ||
+            matchConnectionStatus === 'reconnecting' || matchConnectionStatus === 'syncing') return;
 
         // In networked matches, only the Host orchestrates the AI.
         if (isLobbyConnected && !isHost) return;
@@ -146,7 +150,8 @@ export function useAIBrain({
         localGameState.gamePhase, 
         localGameState.diceValue, 
         localGameState.isRolling,
-        isLobbyConnected, 
+        isLobbyConnected,
+        matchConnectionStatus,
         isHost, 
         initialPlayers, 
         localGameState.afkStats, 

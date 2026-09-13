@@ -3,6 +3,7 @@ import { PlayerColor, GameState, GameStateSetter } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getLegalTokenIndices } from '@/lib/gameLogic';
 import { ColorCorner } from '@/lib/boardLayout';
+import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 
 interface UseAFKManagerProps {
     localGameState: GameState;
@@ -14,6 +15,7 @@ interface UseAFKManagerProps {
     broadcastAction?: (type: string, payload?: unknown, stateOverride?: GameState) => void;
     isHost?: boolean;
     colorCorner?: ColorCorner;
+    matchConnectionStatus?: MatchConnectionStatus;
 }
 
 export function useAFKManager({
@@ -25,10 +27,13 @@ export function useAFKManager({
     getNextPlayer,
     broadcastAction,
     isHost,
-    colorCorner
+    colorCorner,
+    matchConnectionStatus = 'offline'
 }: UseAFKManagerProps) {
     useEffect(() => {
-        if (localGameState.winner || localGameState.idleWarning) return;
+        if (localGameState.winner || localGameState.idleWarning ||
+            matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
+            matchConnectionStatus === 'syncing') return;
 
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
@@ -65,11 +70,13 @@ export function useAFKManager({
                 };
             });
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.winner, localGameState.idleWarning, initialPlayers, setLocalGameState]);
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.winner, localGameState.idleWarning, initialPlayers, setLocalGameState, matchConnectionStatus]);
 
     // Handle the Side-Effects of AFK Timeouts
     useEffect(() => {
-        if (localGameState.winner || localGameState.idleWarning) return;
+        if (localGameState.winner || localGameState.idleWarning ||
+            matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
+            matchConnectionStatus === 'syncing') return;
 
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
@@ -118,5 +125,5 @@ export function useAFKManager({
                 }
             }
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, isHost, broadcastAction, colorCorner]);
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, isHost, broadcastAction, colorCorner, matchConnectionStatus]);
 }

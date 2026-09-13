@@ -12,6 +12,7 @@ import {
     HOME_LANE_START_INDEX,
     POWER_EXPIRY_MS,
 } from '@/lib/constants';
+import type { MatchActionErrorCode } from '@/lib/matchProtocol';
 
 interface UseGameActionsProps {
     localGameState: GameState;
@@ -49,14 +50,14 @@ interface UseGameActionsProps {
             expectedSeq: number;
             source?: 'player' | 'host-assist';
             actorOverride?: string;
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; captured?: boolean; bonusRoll?: boolean; error?: string }>;
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; captured?: boolean; bonusRoll?: boolean; error?: string; code?: MatchActionErrorCode }>;
         passTurn: (p: {
             matchId: string;
             rollId: string;
             expectedSeq: number;
             source?: 'player' | 'host-assist';
             reason?: string;
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode }>;
         submitPower: (p: {
             matchId: string;
             color: PlayerColor;
@@ -64,7 +65,7 @@ interface UseGameActionsProps {
             tokenIndex?: number | null;
             expectedSeq: number;
             source?: 'player' | 'host-assist';
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; message?: string; armed?: string; kept?: boolean }>;
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode; message?: string; armed?: string; kept?: boolean }>;
     };
     /** Latest server seq (match_states). */
     serverSeqRef: React.MutableRefObject<number>;
@@ -101,6 +102,7 @@ export function useGameActions({
 
     const bettingWindowIdRef = useRef<string | null>(null);
     const rollingRef = useRef<boolean>(false);
+    const serverActionPendingRef = useRef(false);
     const stateRef = useRef(localGameState);
 
     useEffect(() => {
@@ -128,11 +130,13 @@ export function useGameActions({
 
     const moveToken = useCallback(async (color: PlayerColor, tokenIndex: number, steps: number, isRemote = false) => {
         const currentState0 = stateRef.current;
+        if (currentState0.status === 'finished' || currentState0.winner) return;
         const matchId = currentState0.matchId;
         const useServer = isLobbyConnected && !!moveAuth && !!matchId && matchId !== 'local';
 
         // ── v2: Edge-validated move (networked) ──────────────────────────
         if (useServer && !isRemote) {
+            if (serverActionPendingRef.current) return;
             const rollId = lastRollIdRef.current;
             if (!rollId) {
                 console.error('🏃 [MoveAuth] No rollId — cannot submit move');
@@ -149,53 +153,57 @@ export function useGameActions({
                 autoMoveTimeoutRef.current = null;
             }
 
-            const result = await moveAuth.submitMove({
-                matchId,
-                color,
-                tokenIndex,
-                rollId,
-                expectedSeq: serverSeqRef.current,
-                source: source as 'player' | 'host-assist',
-            });
+            serverActionPendingRef.current = true;
+            try {
+                const result = await moveAuth.submitMove({
+                    matchId,
+                    color,
+                    tokenIndex,
+                    rollId,
+                    expectedSeq: serverSeqRef.current,
+                    source: source as 'player' | 'host-assist',
+                });
 
-            if (!result.ok || !result.state) {
-                console.error('🏃 [MoveAuth] rejected:', result.error);
-                // Resync if server returned seq
-                if (typeof result.seq === 'number' && result.state) {
-                    serverSeqRef.current = result.seq;
-                    setLocalGameState(prev => ({ ...prev, ...result.state!, lastUpdate: Date.now() }));
+                if (!result.ok || !result.state) {
+                    console.error('🏃 [MoveAuth] rejected:', result.error, result.code);
+                    if (typeof result.seq === 'number' && result.state) {
+                        serverSeqRef.current = result.seq;
+                        applyServerState?.(result.state, result.seq);
+                        setLocalGameState(prev => ({ ...prev, ...result.state!, lastUpdate: Date.now() }));
+                    }
+                    return;
                 }
-                return;
-            }
 
-            serverSeqRef.current = result.seq ?? serverSeqRef.current;
-            lastRollIdRef.current = null;
-            if (result.state && typeof result.seq === 'number') {
-                applyServerState?.(result.state, result.seq);
-            }
+                serverSeqRef.current = result.seq ?? serverSeqRef.current;
+                lastRollIdRef.current = null;
+                if (result.state && typeof result.seq === 'number') {
+                    applyServerState?.(result.state, result.seq);
+                }
 
-            const nextState: GameState = {
-                ...currentState0,
-                ...result.state,
-                captureMessage: result.captured ? `Captured! Bonus roll for ${color}!` : currentState0.captureMessage,
-                gamePhase: 'landing',
-                timeLeft: 15,
-                lastUpdate: Date.now(),
-            };
-            setLocalGameState(nextState);
-            if (result.captured) audio.playCapture();
-            audio.playMove();
-            if (result.state.winner) {
-                audio.playWin();
-                triggerWinConfetti();
-                recordWin(color);
+                const nextState: GameState = {
+                    ...currentState0,
+                    ...result.state,
+                    captureMessage: result.captured ? `Captured! Bonus roll for ${color}!` : currentState0.captureMessage,
+                    gamePhase: 'landing',
+                    timeLeft: 15,
+                    lastUpdate: Date.now(),
+                };
+                setLocalGameState(nextState);
+                if (result.captured) audio.playCapture();
+                audio.playMove();
+                if (result.state.winner) {
+                    audio.playWin();
+                    triggerWinConfetti();
+                    recordWin(color);
+                }
+                setTimeout(() => {
+                    setLocalGameState(latest => latest.gamePhase === 'landing'
+                        ? { ...latest, gamePhase: 'rolling', lastUpdate: Date.now() }
+                        : latest);
+                }, 800);
+            } finally {
+                serverActionPendingRef.current = false;
             }
-            // Brief landing buffer then leave phase (server already advanced turn)
-            setTimeout(() => {
-                setLocalGameState(latest => latest.gamePhase === 'landing'
-                    ? { ...latest, gamePhase: 'rolling', lastUpdate: Date.now() }
-                    : latest);
-            }, 800);
             return;
         }
 
@@ -355,6 +363,7 @@ export function useGameActions({
     const handleRoll = useCallback(async (value?: number, isRemote = false) => {
         // 🔧 FIX 3: Read from stateRef instead of stale closure for guard check
         const guardState = stateRef.current;
+        if (guardState.status === 'finished' || guardState.winner) return;
         if (rollingRef.current || guardState.isRolling || guardState.gamePhase !== 'rolling') return;
         
         rollingRef.current = true;
@@ -572,6 +581,7 @@ export function useGameActions({
 
     const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
         const prev = stateRef.current;
+        if (prev.status === 'finished' || prev.winner) return;
         if (!prev || prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return;
         if (prev.powerSpentThisTurn) return;
         const matchId = prev.matchId;
@@ -579,6 +589,7 @@ export function useGameActions({
 
         // ── v2: Edge-validated power ─────────────────────────────────────
         if (useServer) {
+            if (serverActionPendingRef.current) return;
             const now = Date.now();
             const live = (prev.playerPowers?.[color] || []).filter(p => p.expiresAt > now);
             const pick: PowerType | undefined = type
@@ -602,42 +613,48 @@ export function useGameActions({
                 ? 'player'
                 : (isHost ? 'host-assist' : 'player');
 
-            const result = await moveAuth.submitPower({
-                matchId,
-                color,
-                power: pick,
-                tokenIndex: tokenIdx ?? null,
-                expectedSeq: serverSeqRef.current,
-                source: source as 'player' | 'host-assist',
-            });
+            serverActionPendingRef.current = true;
+            try {
+                const result = await moveAuth.submitPower({
+                    matchId,
+                    color,
+                    power: pick,
+                    tokenIndex: tokenIdx ?? null,
+                    expectedSeq: serverSeqRef.current,
+                    source: source as 'player' | 'host-assist',
+                });
 
-            if (result.kept || result.armed) {
-                setLocalGameState(s => ({ ...s, captureMessage: result.error || 'Power kept.' }));
-                return;
-            }
-            if (!result.ok || !result.state) {
-                console.error('⚡ [MoveAuth] power rejected:', result.error);
-                if (typeof result.seq === 'number' && result.state) {
-                    serverSeqRef.current = result.seq;
-                    setLocalGameState(s => ({ ...s, ...result.state!, lastUpdate: Date.now() }));
+                if (result.kept || result.armed) {
+                    setLocalGameState(s => ({ ...s, captureMessage: result.error || 'Power kept.' }));
+                    return;
                 }
-                return;
-            }
+                if (!result.ok || !result.state) {
+                    console.error('⚡ [MoveAuth] power rejected:', result.error, result.code);
+                    if (typeof result.seq === 'number' && result.state) {
+                        serverSeqRef.current = result.seq;
+                        applyServerState?.(result.state, result.seq);
+                        setLocalGameState(s => ({ ...s, ...result.state!, lastUpdate: Date.now() }));
+                    }
+                    return;
+                }
 
-            serverSeqRef.current = result.seq ?? serverSeqRef.current;
-            if (result.state && typeof result.seq === 'number') {
-                applyServerState?.(result.state, result.seq);
+                serverSeqRef.current = result.seq ?? serverSeqRef.current;
+                if (result.state && typeof result.seq === 'number') {
+                    applyServerState?.(result.state, result.seq);
+                }
+                setLocalGameState(s => ({
+                    ...s,
+                    ...result.state,
+                    captureMessage: result.message || s.captureMessage,
+                    lastUpdate: Date.now(),
+                }));
+                if (pick === 'nuke') audio.playNuke();
+                else if (pick === 'shield') audio.playShield();
+                else if (pick === 'boost') audio.playBoost();
+                else if (pick === 'teleport') audio.playTeleport();
+            } finally {
+                serverActionPendingRef.current = false;
             }
-            setLocalGameState(s => ({
-                ...s,
-                ...result.state,
-                captureMessage: result.message || s.captureMessage,
-                lastUpdate: Date.now(),
-            }));
-            if (pick === 'nuke') audio.playNuke();
-            else if (pick === 'shield') audio.playShield();
-            else if (pick === 'boost') audio.playBoost();
-            else if (pick === 'teleport') audio.playTeleport();
             return;
         }
 

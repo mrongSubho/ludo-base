@@ -3,6 +3,7 @@
 import React from 'react';
 import { TokenIcon } from './HeaderNavPanel';
 import { ChatIcon, SlidersIcon } from './icons';
+import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 
 // ─── BoardHeaderCompact ──────────────────────────────────────────────────────
 // In-game header: ONE shell pill holding the main-header clusters
@@ -23,6 +24,7 @@ interface BoardHeaderCompactProps {
     modeLabel: string;
     spectators?: number;
     streamNode?: React.ReactNode;
+    matchConnectionStatus?: MatchConnectionStatus;
     // Optional exit (spectating only): renders a leave button in the strip's
     // left slot. Match play exits via Settings → Leave Match instead.
     onExit?: () => void;
@@ -42,7 +44,22 @@ export const BoardHeaderCompact = ({
     spectators = 0,
     streamNode,
     onExit,
+    matchConnectionStatus = 'offline',
 }: BoardHeaderCompactProps) => {
+    const connectionLabel = {
+        offline: 'LOCAL',
+        connected: 'LIVE',
+        reconnecting: 'RECONNECTING',
+        syncing: 'SYNCING',
+        ended: 'MATCH ENDED',
+    }[matchConnectionStatus];
+    const connectionClass = {
+        offline: 'text-white/45 border-white/10 bg-white/5',
+        connected: 'text-emerald-300 border-emerald-400/25 bg-emerald-400/10',
+        reconnecting: 'text-amber-300 border-amber-400/30 bg-amber-400/10 animate-pulse',
+        syncing: 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10',
+        ended: 'text-white/60 border-white/15 bg-white/10',
+    }[matchConnectionStatus];
     return (
         <header className="board-compact-header ludo-header-scope px-0 pt-2 sticky top-0 z-[200]">
             {/* ── Single shell: clusters row + mode strip live inside ── */}
@@ -153,6 +170,12 @@ export const BoardHeaderCompact = ({
                     </span>
 
                     <div className="flex-none min-w-[24px] flex items-center justify-end gap-1.5">
+                        <span
+                            className={`rounded-full border px-1.5 py-0.5 text-[6px] font-black tracking-[0.16em] whitespace-nowrap ${connectionClass}`}
+                            aria-label={`Match connection: ${connectionLabel}`}
+                        >
+                            {connectionLabel}
+                        </span>
                         {spectators > 0 && (
                             <span
                                 className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[7px] font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 whitespace-nowrap"

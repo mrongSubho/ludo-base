@@ -27,6 +27,7 @@ import {
     BetType,
 } from '@/lib/types';
 import { ActiveBettingWindow } from './useSpectatorSync';
+import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import {
     createLobbySlots,
     assignJoinerToSlot,
@@ -83,6 +84,7 @@ export interface TeamUpContextType {
     serverSeq: number;
     /** Apply a server-authoritative state (Edge / match_states). */
     applyServerState: (state: GameState, seq: number) => void;
+    matchConnectionStatus: MatchConnectionStatus;
 }
 
 const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
@@ -111,6 +113,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     /** P4: highest match_states.seq this client has applied. */
     const serverSeqRef = useRef(0);
     const [serverSeq, setServerSeq] = useState(0);
+    const [matchConnectionStatus, setMatchConnectionStatus] = useState<MatchConnectionStatus>('offline');
 
     const applyServerState = useCallback((state: GameState, seq: number) => {
         if (!Number.isFinite(seq) || seq <= serverSeqRef.current) return;
@@ -121,6 +124,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             ...state,
             lastUpdate: Date.now(),
         }));
+        if (state.status === 'finished' || state.winner) {
+            setMatchConnectionStatus('ended');
+        }
     }, []);
 
     // P4: clients render match_states (postgres realtime + initial pull)
@@ -129,6 +135,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         enabled: isLobbyConnected,
         onServerState: applyServerState,
         getSeq: () => serverSeqRef.current,
+        refreshState: async (matchId) => {
+            const result = await moveAuth.getMatchState(matchId);
+            return result;
+        },
+        onStatus: setMatchConnectionStatus,
     });
 
     const gameStateRef = useRef(gameState);
@@ -266,6 +277,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
                     serverSeqRef.current = 0;
                     setServerSeq(0);
+                    setMatchConnectionStatus('offline');
                     try {
                         const sess = await moveAuth.createMatchSession({
                             matchId,
@@ -486,20 +498,14 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             return;
         }
 
-        // 🌟 Host ENGINE_STATE: hint only when match_states is live (P4).
-        // Apply only if payload.seq is strictly ahead of the server seq we know.
-        if (stateOverride && !isHost) {
+        // 🌟 Networked match snapshots are authoritative only when they are
+        // explicitly emitted by move-auth. Peer/host state broadcasts remain
+        // transport hints and must not advance a guest's rules state.
+        if (stateOverride && !isHost && data.source === 'match_states') {
             const payloadSeq = typeof data.seq === 'number' ? data.seq : null;
             const known = serverSeqRef.current;
             if (payloadSeq !== null && payloadSeq > known) {
                 applyServerState(stateOverride as GameState, payloadSeq);
-            } else if (known === 0 && payloadSeq === null) {
-                // Pre-seed / offline-style lobby: fall back to host hint
-                setGameState(prev => ({
-                    ...stateOverride,
-                    lastUpdate: Date.now(),
-                    lastAction: { type, payload: data }
-                }));
             } else {
                 console.log('🌟 [P4] Ignoring host override (server seq', known, '>= payload', payloadSeq, ')');
             }
@@ -988,7 +994,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, matchConnectionStatus,
         activeBetWindow, startBettingWindow
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,

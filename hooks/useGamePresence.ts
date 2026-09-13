@@ -22,6 +22,14 @@ export function useGamePresence(
         if (!roomCode) return;
 
         console.log(`📡 [Presence] Joining game-presence-${roomCode}...`);
+        const storageKey = `ludo-presence-joined-at:${roomCode}`;
+        const storedJoinedAt = typeof window !== 'undefined'
+            ? window.sessionStorage.getItem(storageKey)
+            : null;
+        const joinedAt = storedJoinedAt ? Number(storedJoinedAt) : Date.now();
+        if (!storedJoinedAt && typeof window !== 'undefined') {
+            window.sessionStorage.setItem(storageKey, String(joinedAt));
+        }
 
         const channel = supabase.channel(`game-presence-${roomCode}`, {
             config: { presence: { key: walletAddress || 'anonymous' } },
@@ -62,7 +70,7 @@ export function useGamePresence(
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED' && walletAddress) {
-                    await channel.track({ wallet: walletAddress, joinedAt: Date.now() });
+                    await channel.track({ wallet: walletAddress, joinedAt });
                 }
             });
 
@@ -75,4 +83,3 @@ export function useGamePresence(
 
     return presenceState;
 }
-

@@ -173,7 +173,7 @@ export default function Page() {
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId } = useTeamUp();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus } = useTeamUp();
 
   const finalAvatar = profile?.avatar_url || null;
 
@@ -613,6 +613,7 @@ export default function Page() {
                 onSettingsClick={() => toggle('settings')}
                 modeLabel={`Live #${spectatingRoomCode}`}
                 spectators={spectatorCount}
+                matchConnectionStatus={matchConnectionStatus}
                 onExit={handleLeaveSpectating}
               />
 
@@ -672,6 +673,7 @@ export default function Page() {
                 onSettingsClick={() => toggle('settings')}
                 modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
+                matchConnectionStatus={matchConnectionStatus}
                 streamNode={<StreamToggle
                   matchId={gameState?.matchId}
                   roomCode={lobbyState?.roomCode || roomId || null}
@@ -757,4 +759,3 @@ export default function Page() {
     </>
   );
 }
-

@@ -166,6 +166,17 @@ async function loadMatch(supabase: SupabaseClient, matchId: string) {
   return data;
 }
 
+async function staleStateResponse(supabase: SupabaseClient, matchId: string) {
+  const current = await loadMatch(supabase, String(matchId));
+  if (!current) return json({ error: 'Match not found', code: 'MATCH_NOT_FOUND' }, 404);
+  return json({
+    error: 'Stale seq',
+    code: 'STALE_SEQ',
+    seq: Number(current.seq),
+    state: stripPowerTypesForWire(current.state as EngineGameState),
+  }, 409);
+}
+
 /** Authorize in-match action: session key OR one-off signed message. */
 async function authorizeActor(opts: {
   supabase: SupabaseClient;
@@ -176,11 +187,11 @@ async function authorizeActor(opts: {
   signature?: string;
   issuedAt?: string;
   expectedMessage?: string;
-}): Promise<{ ok: true; via: 'session' | 'signature' } | { ok: false; error: string }> {
+}): Promise<{ ok: true; via: 'session' | 'signature' } | { ok: false; error: string; code?: string }> {
   const { supabase, matchId, actor, sessionId, message, signature, issuedAt, expectedMessage } = opts;
   if (sessionId) {
     const v = await verifyMatchSession(supabase, sessionId, matchId, actor);
-    if (!v.ok) return v;
+    if (!v.ok) return { ...v, code: 'SESSION_EXPIRED' };
     return { ok: true, via: 'session' };
   }
   if (!message || !signature || !issuedAt || !expectedMessage) {
@@ -358,7 +369,7 @@ Deno.serve(async (req) => {
 
       const seq = Number(row.seq);
       if (Number(expectedSeq) !== seq) {
-        return json({ error: 'Stale seq', seq }, 409);
+        return staleStateResponse(supabase, matchId);
       }
 
       const state = row.state as EngineGameState;
@@ -366,7 +377,7 @@ Deno.serve(async (req) => {
       const seats = row.player_seats as Seats;
       const playerCount = (state.playerCount || '4P') as EngineGameState['playerCount'];
 
-      if (state.winner) return json({ error: 'Match finished' }, 400);
+      if (state.winner || state.status === 'finished') return json({ error: 'Match finished', code: 'MATCH_FINISHED' }, 409);
       if (state.currentPlayer !== color) return json({ error: 'Not this color turn', currentPlayer: state.currentPlayer }, 403);
 
       // Ownership
@@ -431,7 +442,7 @@ Deno.serve(async (req) => {
       // Re-read to confirm we won the race
       const confirm = await loadMatch(supabase, matchId);
       if (!confirm || Number(confirm.seq) !== nextSeq) {
-        return json({ error: 'Concurrent update', seq: confirm?.seq ?? seq }, 409);
+        return staleStateResponse(supabase, matchId);
       }
 
       await supabase.from('match_rolls').update({
@@ -500,11 +511,12 @@ Deno.serve(async (req) => {
       const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
-      if (!row) return json({ error: 'Match not found' }, 404);
+      if (!row) return json({ error: 'Match not found', code: 'MATCH_NOT_FOUND' }, 404);
       const seq = Number(row.seq);
-      if (Number(expectedSeq) !== seq) return json({ error: 'Stale seq', seq }, 409);
+      if (Number(expectedSeq) !== seq) return staleStateResponse(supabase, matchId);
 
       const state = row.state as EngineGameState;
+      if (state.winner || state.status === 'finished') return json({ error: 'Match finished', code: 'MATCH_FINISHED' }, 409);
       const cc = row.color_corner as ColorCorner;
       const seats = row.player_seats as Seats;
       const color = state.currentPlayer;
@@ -558,6 +570,10 @@ Deno.serve(async (req) => {
         .eq('match_id', matchId)
         .eq('seq', seq);
       if (saveErr) return json({ error: saveErr.message }, 500);
+      const passConfirm = await loadMatch(supabase, matchId);
+      if (!passConfirm || Number(passConfirm.seq) !== nextSeq) {
+        return staleStateResponse(supabase, matchId);
+      }
 
       await supabase.from('match_rolls').update({
         status: 'passed',
@@ -623,9 +639,10 @@ Deno.serve(async (req) => {
       const row = await loadMatch(supabase, matchId);
       if (!row) return json({ error: 'Match not found' }, 404);
       const seq = Number(row.seq);
-      if (Number(expectedSeq) !== seq) return json({ error: 'Stale seq', seq }, 409);
+      if (Number(expectedSeq) !== seq) return staleStateResponse(supabase, matchId);
 
       const state = row.state as EngineGameState;
+      if (state.winner || state.status === 'finished') return json({ error: 'Match finished', code: 'MATCH_FINISHED' }, 409);
       const cc = row.color_corner as ColorCorner;
       const seats = row.player_seats as Seats;
       const playerCount = (state.playerCount || '4P') as EngineGameState['playerCount'];
@@ -664,6 +681,10 @@ Deno.serve(async (req) => {
         .eq('match_id', matchId)
         .eq('seq', seq);
       if (saveErr) return json({ error: saveErr.message }, 500);
+      const powerConfirm = await loadMatch(supabase, matchId);
+      if (!powerConfirm || Number(powerConfirm.seq) !== nextSeq) {
+        return staleStateResponse(supabase, matchId);
+      }
 
       try {
         const room = row.room_code;

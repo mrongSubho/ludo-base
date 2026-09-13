@@ -185,6 +185,10 @@ Networked matches seed `match_states` on `START_GAME`. Moves go through the `mov
 6. No legal move → signed `pass-turn`. **Powers (P3):** `submit-move` applies Boost (+6) and pickup; signed `submit-power` handles shield/boost/nuke/teleport (`seq++`). Power mode is server-trusted.
 7. **P4 display authority:** clients subscribe to `match_states` (realtime). Host `ENGINE_STATE` is a **hint only** — applied iff `payload.seq` is strictly ahead of the known server seq.
 8. **Match session (EIP-712):** after seed, client signs `LudoMatchSession { wallet, matchId, roomCode, expiresAt, nonce }` once. Edge stores `match_sessions`; later `submit-move` / `submit-power` / `pass-turn` send `sessionId` instead of a per-action signature. Smart wallets sign the same typed data once. Per-action signature remains fallback. Settlement (`/api/match/record`) always requires a wallet sign.
+9. **Authoritative action contract:** networked clients treat `match_states` as the rendering cache and never advance rules locally. Each move, pass, or power request is validated against the current `seq` and committed with compare-and-swap semantics. A stale request returns HTTP `409` with `{ code: "STALE_SEQ", seq, state }`, allowing the client to reconcile before attempting another action. Host `ENGINE_STATE` broadcasts are transport hints only; only snapshots tagged `source: "match_states"` can advance a guest's networked rules state.
+10. **Session recovery:** an expired/revoked match session returns `401` with `{ code: "SESSION_EXPIRED" }`. Player move, pass, and power submissions clear the cached grant, request one replacement EIP-712 grant, and retry once; they never loop or silently fall back to an unauthenticated action.
+11. **Terminal actions:** finished snapshots set the client connection state to `ended`. Timers, AFK escalation, bot scheduling, and new move/pass/power requests stop while a match is ended or while an authoritative reconnect refresh is in progress.
+12. **Reconnect and compute-host recovery:** a reconnect pauses local countdown/AFK orchestration until a newer `match_states` snapshot is applied. Compute-host ordering uses a room-scoped session timestamp so a transient Realtime reconnect does not cause unnecessary authority churn. The compute host remains a transport/orchestration fallback; wallet signatures and `host_address` remain the server authority for assisted actions.
 
 Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`npm run check:engine`).
 
@@ -254,7 +258,7 @@ If the original Host disconnects or goes AFK, the system performs an **Authority
 - **Continuation:** The new authority takes over game engine orchestration (AI moves, turn switching), ensuring the match progresses even if the creator leaves.
 
 ### 9.4 Authoritative State Overrides
-Periodic `ENGINE_STATE` signals are sent by the Authority. These payloads include a `stateOverride` key which Guests apply directly to their local `setLocalGameState`. This force-syncing acts as a "hard reset" for any potential client-side desynchronization.
+`ENGINE_STATE` signals may include a `stateOverride` key for low-latency animation and recovery hints. Guests may apply these hints only when their sequence is behind the payload sequence; the persisted `match_states` row remains authoritative. On a stale action response, the returned `{ seq, state }` snapshot is the preferred reconciliation path.
 
 ---
 *Created by Antigravity AI for Ludo Base.*
