@@ -48,3 +48,9 @@ supabase/.temp/
 
 # browser test traces (local only)
 .playwright-cli/
+
+# local design docs (not shipped)
+design-system/
+
+# local planning docs (not shipped)
+.planning/
