@@ -141,6 +141,8 @@ export function assignCornersFFA(playerCount: '1v1' | '4P' = '4P'): ColorCorner 
     if (playerCount === '1v1') {
         // For 1v1, we MUST ensure the two active players (first two in LOBBY_COLORS)
         // are diagonally opposite. We'll pick one axis randomly.
+        // The remaining colors still receive the unused diagonal so coordinate
+        // lookups remain total even though they are not seated in this match.
         const axis = Math.random() < 0.5 ? ['BL', 'TR'] : ['BR', 'TL'];
         const otherAxis = axis[0] === 'BL' ? ['BR', 'TL'] : ['BL', 'TR'];
         

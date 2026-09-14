@@ -181,6 +181,7 @@ export async function deriveSharedKey(walletA: string, walletB: string, salt = '
     return window.crypto.subtle.importKey('raw', hash, 'AES-GCM', true, ['encrypt', 'decrypt']);
 }
 
+/** Encrypt using the legacy wallet-derived key; retained only for old rows. */
 export async function encryptMessage(text: string, key: CryptoKey): Promise<{ iv: string; content: string }> {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
@@ -192,6 +193,7 @@ export async function encryptMessage(text: string, key: CryptoKey): Promise<{ iv
     };
 }
 
+/** Decrypt a legacy `{iv, content}` payload using its already-derived key. */
 export async function decryptMessage(encryptedData: { iv: string; content: string }, key: CryptoKey): Promise<string> {
     const iv = b64decode(encryptedData.iv);
     const content = b64decode(encryptedData.content);
@@ -216,12 +218,14 @@ export async function decryptAnyMessage(
 
 // --- PROVABLY FAIR UTILITIES ---
 
+/** Generate a cryptographically random 128-bit nonce as lowercase hex. */
 export function generateRandomNonce(): string {
     const array = new Uint8Array(16);
     window.crypto.getRandomValues(array);
     return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+/** Hash a string with SHA-256 and return its lowercase hexadecimal digest. */
 export async function sha256(message: string): Promise<string> {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);

@@ -57,6 +57,7 @@ export const INITIAL_GAME_STATE: GameState = {
 
 // ─── Power economy helpers ─────────────────────────────────────────────
 // Weighted rarity roll for hidden tile types.
+/** Select a power type from the configured rarity weights. */
 export function rollPowerType(rand: number = Math.random()): PowerType {
     let acc = 0;
     for (const p of POWER_RARITY) {
@@ -67,6 +68,7 @@ export function rollPowerType(rand: number = Math.random()): PowerType {
 }
 
 // Track indices (0–51) of the star squares for a given color/corner.
+/** Return shared-track indices occupied by safe stars for a color. */
 export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
     const out: number[] = [];
     for (let pos = 0; pos < 52; pos++) {
@@ -77,6 +79,7 @@ export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
 }
 
 // Nearest star strictly ahead (circular); -1 if the color has none.
+/** Find the next safe star clockwise from `pos`, or `-1` when unavailable. */
 export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorner): number {
     const stars = getStarIndices(color, cc);
     if (stars.length === 0) return -1;
@@ -92,6 +95,7 @@ export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorne
     return best;
 }
 
+/** Resolve the 2v2 teammate from the shared team-pairing table. */
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
     if (playerCount !== '2v2') return null;
     return TEAM_PAIRINGS[color];
@@ -140,12 +144,13 @@ export function getNextPlayer(
         }
     }
 
-    // Fallback logic if mapping is missing
+    // Keep legacy color order as a safe fallback for local callers without seating.
     const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
     const idx = order.indexOf(current);
     return order[(idx + 1) % 4];
 }
 
+/** Resolve a color to a team number, treating non-2v2 modes as free-for-all. */
 export function getTeam(color: PlayerColor, playerCount: string = '4P'): number {
     if (playerCount === '2v2') {
         return TEAM_ID[color];
@@ -155,6 +160,10 @@ export function getTeam(color: PlayerColor, playerCount: string = '4P'): number 
     return map[color];
 }
 
+/**
+ * Calculate a destination without mutating state. A six exits base, and the
+ * gate calculation maps an overshoot past shared index 50 into home 52–57.
+ */
 export function calculateNextPosition(
     currentPos: number,
     steps: number,
@@ -178,7 +187,9 @@ export function calculateNextPosition(
         return nextPos;
     }
 
-    // Currently on the global shared path (0-51)
+    // Currently on the global shared path (0-51); distance is relative to the
+    // player's start so every color crosses its own gate consistently.
+    // `nextDistance > 50` intentionally maps 50 -> 52, ..., 55 -> 57.
     const corner = cc[color];
     if (!corner) return currentPos;
     const startIdx = CORNER_SLOTS[corner].startIdx;

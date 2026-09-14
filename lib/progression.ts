@@ -8,6 +8,10 @@ export interface ProgressionInfo {
     rxp: number;
 }
 
+/**
+ * Convert level XP into the current level and progress within its quadratic
+ * level band. Negative input is clamped by the returned progress percentage.
+ */
 export const calculateLevel = (lxp: number = 0): { level: number; progress: number; lxpInLevel: number; nextLevelLxp: number } => {
     // Level = floor(sqrt(lxp / 100)) + 1
     const level = Math.floor(Math.sqrt(lxp / 100)) + 1;
@@ -29,6 +33,7 @@ export const calculateLevel = (lxp: number = 0): { level: number; progress: numb
     };
 };
 
+/** Map rank XP to its tier, sub-rank, and presentation gradient classes. */
 export const getTierInfo = (rxp: number = 0): { tier: string; subRank: string; color: string } => {
     if (rxp >= 5001) return { tier: 'Arena Master', subRank: '', color: 'from-orange-400 to-red-600' };
     if (rxp >= 3001) return { tier: 'Diamond', subRank: '', color: 'from-cyan-300 to-blue-500' };
@@ -51,6 +56,7 @@ export const getTierInfo = (rxp: number = 0): { tier: string; subRank: string; c
     return { tier: currentTier.name, subRank, color: currentTier.color };
 };
 
+/** Combine level XP and rank XP into the profile-ready progression view. */
 export const getProgression = (lxp: number = 0, rxp: number = 0): ProgressionInfo => {
     const levelInfo = calculateLevel(lxp);
     const tierInfo = getTierInfo(rxp);
