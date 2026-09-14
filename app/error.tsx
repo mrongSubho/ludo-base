@@ -18,6 +18,13 @@ export default function Error({
         console.error('[ludo-route-error]', error);
     }, [error]);
 
+    // Chunk-load failures (stale manifest after a deploy, dropped connection)
+    // can't heal via reset() — the bundle URL itself is dead. Hard reload
+    // refetches a fresh manifest pointing at live chunks.
+    const isChunkError = /loading chunk|ChunkLoadError|dynamically imported module|importing a module script/i.test(
+        error.message || ''
+    );
+
     return (
         <main className="min-h-[100dvh] flex items-center justify-center px-4 py-10 bg-black">
             <div className="panel-error-card w-full max-w-[420px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 shadow-2xl flex flex-col items-center gap-3 text-center">
@@ -28,14 +35,16 @@ export default function Error({
                     The arena hit a snag
                 </h1>
                 <p className="text-[12px] font-bold text-white/80 break-words max-w-full">
-                    {error.message || 'Unknown client error'}
-                    {error.digest ? ` · ${error.digest}` : ''}
+                    {isChunkError
+                        ? 'A fresh update just shipped — reloading pulls the latest arena.'
+                        : error.message || 'Unknown client error'}
+                    {!isChunkError && error.digest ? ` · ${error.digest}` : ''}
                 </p>
                 <button
-                    onClick={() => reset()}
+                    onClick={() => (isChunkError ? window.location.reload() : reset())}
                     className="mt-2 w-full py-3.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"
                 >
-                    Try again
+                    {isChunkError ? 'Reload arena' : 'Try again'}
                 </button>
             </div>
         </main>
