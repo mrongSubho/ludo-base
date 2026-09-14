@@ -46,7 +46,6 @@ import { hasOnboarded } from '@/lib/onboarding';
 import { OnboardingPanel } from './components/OnboardingPanel';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
-import confetti from 'canvas-confetti';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -196,29 +195,31 @@ export default function Page() {
     if (level > prevLevelRef.current) {
       prevLevelRef.current = level;
 
-      // Level-up confetti
-      const duration = 2 * 1000;
-      const end = Date.now() + duration;
-      const colors = ['#00E5FF', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ffffff'];
-      (function frame() {
-        confetti({
-          particleCount: 30,
-          spread: 100,
-          origin: { x: 0.5, y: 0.6 },
-          colors: colors.slice(0, Math.floor(Math.random() * colors.length) + 2),
-          gravity: 0.6,
-          scalar: 1.2,
-        });
-        if (Date.now() < end) requestAnimationFrame(frame);
-      })();
+      void import('canvas-confetti').then(({ default: confetti }) => {
+        const duration = 2 * 1000;
+        const end = Date.now() + duration;
+        const colors = ['#00E5FF', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ffffff'];
+        (function frame() {
+          confetti({
+            particleCount: 30,
+            spread: 100,
+            origin: { x: 0.5, y: 0.6 },
+            colors: colors.slice(0, Math.floor(Math.random() * colors.length) + 2),
+            gravity: 0.6,
+            scalar: 1.2,
+          });
+          if (Date.now() < end) requestAnimationFrame(frame);
+        })();
 
-      // Milestone check (every 5 levels)
-      if (level % 5 === 0 && level !== milestoneRef.current) {
-        milestoneRef.current = level;
-        setTimeout(() => {
-          confetti({ particleCount: 80, spread: 120, origin: { x: 0.5, y: 0.5 }, colors: ['#f59e0b', '#00E5FF', '#ffffff'], scalar: 1.5 });
-        }, 400);
-      }
+        if (level % 5 === 0 && level !== milestoneRef.current) {
+          milestoneRef.current = level;
+          setTimeout(() => {
+            confetti({ particleCount: 80, spread: 120, origin: { x: 0.5, y: 0.5 }, colors: ['#f59e0b', '#00E5FF', '#ffffff'], scalar: 1.5 });
+          }, 400);
+        }
+      }).catch((error: unknown) => {
+        console.error('Unable to load level-up celebration:', error);
+      });
     }
   }, [level]);
 

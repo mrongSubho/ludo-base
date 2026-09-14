@@ -49,12 +49,23 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             console.log("DEBUG: fetchInitialData starting for", currentAddrLower);
             setIsLoading(true);
 
-            // 1. Fetch Conversations sidebar
-            const { data: convoData, error: convoError } = await supabase
+            const conversationsPromise = supabase
                 .from('conversations')
-                .select('*')
+                .select('id, user_a, user_b, last_message_at, last_message_content, unread_count_a, unread_count_b')
                 .or(`user_a.eq.${currentAddrLower},user_b.eq.${currentAddrLower}`)
                 .order('last_message_at', { ascending: false });
+
+            const messagesPromise = supabase
+                .from('messages')
+                .select('id, sender_id, receiver_id, content, is_read, created_at, deleted_by_sender, deleted_by_receiver')
+                .or(`sender_id.ilike.${currentAddrLower},receiver_id.ilike.${currentAddrLower}`)
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            const [
+                { data: convoData, error: convoError },
+                { data: msgData, error: msgError },
+            ] = await Promise.all([conversationsPromise, messagesPromise]);
 
             if (convoError) {
                 console.warn("DEBUG: Conversations fetch error:", convoError.message);
@@ -62,14 +73,6 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                 console.log("DEBUG: Conversations result:", convoData?.length || 0, "rows");
                 if (convoData) setRawConversations(convoData);
             }
-
-            // 2. Fetch Recent Messages
-            const { data: msgData, error: msgError } = await supabase
-                .from('messages')
-                .select('*')
-                .or(`sender_id.ilike.${currentAddrLower},receiver_id.ilike.${currentAddrLower}`)
-                .order('created_at', { ascending: false })
-                .limit(30);
 
             if (msgError) {
                 console.error("DEBUG: Messages fetch error:", msgError.message);

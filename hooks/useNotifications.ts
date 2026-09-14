@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -89,14 +89,27 @@ export function useNotifications() {
             setPokes([]);
             return;
         }
-        try {
-            const { data: reqData } = await supabase
+        const requestsPromise = supabase
                 .from('friendships')
                 .select('id,friend_address,created_at,requester:players!friendships_user_address_fkey(wallet_address,username,avatar_url)')
                 .eq('status', 'pending')
                 .eq('friend_address', me)
                 .order('created_at', { ascending: false })
                 .limit(20);
+        const pokesPromise = fetch(`/api/social/poke?wallet=${me}`);
+        let requestResult: Awaited<typeof requestsPromise>;
+        let pokeResponse: Response;
+        try {
+            [requestResult, pokeResponse] = await Promise.all([requestsPromise, pokesPromise]);
+        } catch (err) {
+            console.error('Notifications refresh error:', err);
+            return;
+        }
+        const { data: reqData, error: requestError } = requestResult;
+
+        if (requestError) {
+            console.error('Notifications requests error:', requestError.message);
+        } else {
             setRequests(((reqData || []) as any[]).flatMap((r: any) => {
                 const p = r.requester;
                 if (!p?.wallet_address) return [];
@@ -108,23 +121,19 @@ export function useNotifications() {
                     time: timeAgo(r.created_at),
                 }];
             }));
-        } catch (err) {
-            console.error('Notifications requests error:', err);
         }
-        try {
-            const res = await fetch(`/api/social/poke?wallet=${me}`);
-            if (res.ok) {
-                const data = await res.json();
-                setPokes((Array.isArray(data) ? data : []).slice(0, 20).map((p: any) => ({
-                    id: p.id,
-                    sender_id: p.sender_id,
-                    name: displayNameOf(p.players?.username, p.sender_id),
-                    avatar: p.players?.avatar_url || null,
-                    time: timeAgo(p.created_at),
-                })));
-            }
-        } catch (err) {
-            console.error('Notifications pokes error:', err);
+
+        if (pokeResponse.ok) {
+            const data = await pokeResponse.json();
+            setPokes((Array.isArray(data) ? data : []).slice(0, 20).map((p: any) => ({
+                id: p.id,
+                sender_id: p.sender_id,
+                name: displayNameOf(p.players?.username, p.sender_id),
+                avatar: p.players?.avatar_url || null,
+                time: timeAgo(p.created_at),
+            })));
+        } else {
+            console.error('Notifications pokes error:', pokeResponse.status, pokeResponse.statusText);
         }
     }, [me]);
 
@@ -201,9 +210,10 @@ export function useNotifications() {
         }
     }, [me, markSeenPoke]);
 
-    const notifCount =
+    const notifCount = useMemo(() =>
         requests.filter(r => !seen.r.includes(r.id)).length +
-        pokes.filter(p => !seen.p.includes(p.sender_id.toLowerCase())).length;
+        pokes.filter(p => !seen.p.includes(p.sender_id.toLowerCase())).length,
+    [pokes, requests, seen]);
 
     return {
         requests,
