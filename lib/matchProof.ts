@@ -13,6 +13,7 @@ export const POWER_PREFIX = 'Ludo Base power';
 /** Max age for a signed privileged request. */
 export const PROOF_MAX_AGE_MS = 10 * 60 * 1000;
 
+/** Build the canonical payload signed before recording a completed match. */
 export function buildMatchRecordMessage(params: {
     winnerAddress: string | null;
     roomCode: string;
@@ -35,6 +36,7 @@ export function buildMatchRecordMessage(params: {
     ].join('\n');
 }
 
+/** Build the host-signed payload used by the bet settlement endpoint. */
 export function buildBetResolveMessage(params: {
     matchId: string;
     result: string;
@@ -52,6 +54,7 @@ export function buildBetResolveMessage(params: {
     ].join('\n');
 }
 
+/** Accept timestamps within the clock-skew window and proof freshness limit. */
 export function isFreshIssuedAt(issuedAt: string, nowMs: number = Date.now()): boolean {
     const t = Date.parse(issuedAt);
     if (!Number.isFinite(t)) return false;
@@ -59,6 +62,7 @@ export function isFreshIssuedAt(issuedAt: string, nowMs: number = Date.now()): b
     return age >= -60_000 && age <= PROOF_MAX_AGE_MS;
 }
 
+/** Build the player-signed payload for a server-validated token move. */
 export function buildMoveMessage(params: {
     matchId: string;
     actor: string;
@@ -80,6 +84,7 @@ export function buildMoveMessage(params: {
     ].join('\n');
 }
 
+/** Build the player-signed payload for passing an unplayable turn. */
 export function buildPassMessage(params: {
     matchId: string;
     actor: string;
@@ -97,6 +102,7 @@ export function buildPassMessage(params: {
     ].join('\n');
 }
 
+/** Build the host-signed payload that seeds a server-authoritative match. */
 export function buildSeedMessage(params: {
     matchId: string;
     hostAddress: string;
@@ -114,6 +120,7 @@ export function buildSeedMessage(params: {
     ].join('\n');
 }
 
+/** Build the player-signed payload for a server-authorized power action. */
 export function buildPowerMessage(params: {
     matchId: string;
     actor: string;

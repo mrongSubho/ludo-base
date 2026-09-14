@@ -43,7 +43,7 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 
 ### 3.1 Classic & Power Modes
 - **Classic:** Standard Ludo rules with tokens, capture, and bonus turns.
-- **Power:** Inclusion of special power tiles (Shield, Bomb, Warp, Boost) placed randomly on the board.
+- **Power:** Inclusion of special power tiles (Shield, Nuke, Teleport, Boost) placed randomly on the board.
 
 ### 3.2 Seating & Turn Order
 - **Seating Axis:** Players are assigned to corners: `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, or `Top-Left (TL)`.
@@ -127,8 +127,8 @@ In multiplayer networked matches, turn orchestration (AI moves, AFK detection, s
 ### 5.4 Strategic Power Usage
 AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently of movement:
 - **Shield:** Triggered if any ally token is vulnerable to an opponent within 6 steps.
-- **Bomb:** Triggered if an opponent token is within landing range of a multi-token capture.
-- **Boost/Warp:** Used strategically to accelerate finishing or clear dangerous zones.
+- **Nuke:** Triggered when an opponent cluster is within the configured blast radius.
+- **Boost/Teleport:** Used strategically to accelerate finishing or clear dangerous zones.
 
 ---
 
@@ -171,7 +171,6 @@ All **networked** rolls (humans, host-orchestrated bots, AFK auto-play) call the
 4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks). Offline / local-bot matches may use local RNG.
 5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move (Edge again when networked).
 6. **Server receipts (`match_rolls`):** Edge persists every networked face (`match_id`, unique `action_id`, `result`). Same `actionId` always replays the same face — no retry-until-six. Host broadcasts `rollId` with `ROLL_DICE` for spectators/audit. Table is RLS read-only for clients.
-7. **Server receipts (`match_rolls`):** Edge persists every networked face (`match_id`, unique `action_id`, `result`). Same `actionId` always replays the same face — no retry-until-six. Host broadcasts `rollId` with `ROLL_DICE` for spectators/audit. Table is RLS read-only for clients.
 
 ### 7.1b Server-validated moves (v2)
 

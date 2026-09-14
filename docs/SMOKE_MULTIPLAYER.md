@@ -135,4 +135,4 @@ Env: `npm run dev` → `http://localhost:3000`. Confirm `.env.local` has Supabas
 - Hybrid fill intentionally calls `allowOpenJoins()` — public pool guests do not need `?s=`.
 - Live-chat “join room” announce still has **no** secret (discovery path); treat as open while announced.
 
-*Last updated with `dc9942e` + typedown slice.*
+*Last reviewed: September 2026.*
