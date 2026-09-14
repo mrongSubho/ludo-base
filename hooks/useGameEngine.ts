@@ -97,7 +97,13 @@ export function useGameEngine({
     // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
     // In multiplayer, authority rests with the P2P Host (or Compute Host if P2P Host leaves).
     // In offline matches, the local player always has authority.
-    const isAuthority = isLobbyConnected ? (isHost || isComputeHost) : true;
+    const isNetworkedMatch = isLobbyConnected
+        || isHost
+        || isComputeHost
+        || Boolean(networkGameState?.matchId && networkGameState.matchId !== 'local');
+    const isAuthority = isNetworkedMatch
+        ? isHost || (isComputeHost && matchConnectionStatus === 'connected')
+        : true;
 
     const [localGameState, setLocalGameState] = useState<GameState>({
         ...INITIAL_GAME_STATE,

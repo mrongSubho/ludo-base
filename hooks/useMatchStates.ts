@@ -33,6 +33,7 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
 
     useEffect(() => {
         if (!enabled || !matchId || matchId === 'local') return;
+        let active = true;
 
         const applyRow = (row: { seq?: number; state?: unknown }, allowEqual = false) => {
             const seq = Number(row?.seq ?? 0);
@@ -44,8 +45,10 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
         };
 
         const refresh = async () => {
+            if (!active) return;
             onStatusRef.current?.('syncing');
             const result = await refreshStateRef.current(matchId);
+            if (!active) return;
             if (result.ok && result.state && typeof result.seq === 'number') {
                 applyRow({ seq: result.seq, state: result.state }, true);
             }
@@ -79,6 +82,7 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
         window.addEventListener('online', handleOnline);
 
         return () => {
+            active = false;
             window.removeEventListener('online', handleOnline);
             supabase.removeChannel(channel);
         };

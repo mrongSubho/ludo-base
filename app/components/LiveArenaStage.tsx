@@ -128,7 +128,7 @@ export function LiveArenaStage({
                             </div>
                         </>
                     ) : (
-                        <div className="arena-screen arena-screen--empty">
+                        <div className="arena-screen--empty">
                             <div className="arena-screen-top">
                                 <span className="arena-bug-live arena-bug-live--off">
                                     <span className="arena-bug-dot" />
