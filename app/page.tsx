@@ -236,10 +236,30 @@ export default function Page() {
     appState === 'game' ? (lobbyState?.roomCode ?? null) : null
   );
 
-  const handleWatchMatch = useCallback((roomCode: string) => {
-    setSpectatingRoomCode(roomCode);
+  const handleWatchMatch = useCallback(async (roomCode: string) => {
+    let resolvedRoom = roomCode;
+    if (roomCode === 'ARENA-POWER-4P') {
+      const response = await fetch('/api/live-arena/power4p', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok || !data.roomCode) return;
+      resolvedRoom = data.roomCode;
+    }
+    setSpectatingRoomCode(resolvedRoom);
     setAppState('spectating');
   }, []);
+
+  useEffect(() => {
+    if (appState !== 'spectating' || spectatingRoomCode !== 'ARENA-POWER-4P') return;
+    const authorityId = crypto.randomUUID();
+    const tick = () => fetch('/api/live-arena/power4p', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arenaKey: 'power4p-ai', authorityId }),
+    }).catch(() => undefined);
+    void tick();
+    const timer = window.setInterval(tick, 3000);
+    return () => window.clearInterval(timer);
+  }, [appState, spectatingRoomCode]);
 
   const handleLeaveSpectating = useCallback(() => {
     setSpectatingRoomCode(null);
@@ -621,8 +641,8 @@ export default function Page() {
               <main className="board-main has-top-back" style={{ paddingRight: spectatorGameState ? '296px' : undefined }}>
                 <Board
                   playerCount="4P"
-                  gameMode="classic"
-                  isBotMatch={false}
+                  gameMode="power"
+                  isBotMatch={true}
                   spectatorMode={true}
                   externalGameState={spectatorGameState ?? undefined}
                 />

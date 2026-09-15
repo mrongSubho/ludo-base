@@ -272,6 +272,18 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
         };
     }, [fetchMatches]);
 
+    const displayedMatches = liveMatches.length > 0 ? liveMatches : [{
+        match_id: 'power4p-ai',
+        room_code: 'ARENA-POWER-4P',
+        bet_window_status: 'closed' as const,
+        spectator_count: 0,
+        current_bet_type: null,
+        created_at: new Date().toISOString(),
+        game_mode: 'power',
+        total_bet_volume: 0,
+        streaming_enabled: true,
+    }];
+
     const handleWatch = useCallback((roomCode: string) => {
         onWatchMatch?.(roomCode);
     }, [onWatchMatch]);
@@ -289,7 +301,7 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
             <PredictorsStrip />
             {view === 'stage' ? (
                 <LiveArenaStage
-                    matches={liveMatches}
+                    matches={displayedMatches}
                     onWatch={handleWatch}
                     onSwitchToList={() => setView('list')}
                 />
@@ -310,8 +322,8 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
                     </div>
                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10">
                         <AnimatePresence>
-                            {liveMatches.length > 0 ? (
-                                liveMatches.map(match => (
+                            {displayedMatches.length > 0 ? (
+                                displayedMatches.map(match => (
                                     <ArenaCard
                                         key={match.match_id}
                                         match={match}

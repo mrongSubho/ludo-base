@@ -50,10 +50,24 @@ export function useSpectatorSync(roomCode: string | null) {
     useEffect(() => {
         if (!roomCode) return;
 
-        console.log(`👁️ [Spectator] Subscribing to game-room-${roomCode}`);
+        console.log(`👁️ [Spectator] Subscribing to live room ${roomCode}`);
+        let matchId: string | null = null;
+        const bootstrap = async () => {
+            const { data } = await supabase.from('live_matches').select('match_id').eq('room_code', roomCode).maybeSingle();
+            matchId = data?.match_id || null;
+            if (matchId) {
+                const { data: snapshot } = await supabase.from('match_states').select('seq, state').eq('match_id', matchId).maybeSingle();
+                if (snapshot?.state) updateState({ gameState: snapshot.state as unknown as GameState, isConnected: true });
+            }
+        };
+        void bootstrap();
 
         const channel = supabase
-            .channel(`game-room-${roomCode}`)
+            .channel(`match-states-room-${roomCode}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'match_states' }, ({ new: row }) => {
+                const next = row as { match_id?: string; seq?: number; state?: GameState };
+                if (matchId && next.match_id === matchId && next.state) updateState({ gameState: next.state, isConnected: true });
+            })
             .on('broadcast', { event: 'game-action' }, ({ payload }) => {
                 const { type, gameState, ...rest } = payload;
 
