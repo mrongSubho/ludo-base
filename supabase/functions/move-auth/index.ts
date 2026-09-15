@@ -229,6 +229,75 @@ Deno.serve(async (req) => {
     );
 
     // ── SESSION: one EIP-712 grant per match (MetaMask / smart wallet) ──
+    if (action === 'provisional-session') {
+      const { authorizationKey, roomCode, wallet, expiresAt, nonce, signature } = body;
+      if (!authorizationKey || !wallet || !expiresAt || !nonce || !signature) {
+        return json({ error: 'Missing provisional session payload' }, 400);
+      }
+      if (Number(expiresAt) < Date.now() || Number(expiresAt) > Date.now() + 2 * 60 * 60 * 1000) {
+        return json({ error: 'Invalid provisional expiry' }, 400);
+      }
+      let recovered: string;
+      try {
+        recovered = (await recoverTypedDataAddress({
+          domain: SESSION_DOMAIN,
+          types: SESSION_TYPES,
+          primaryType: 'LudoMatchSession',
+          message: {
+            wallet: wallet as `0x${string}`,
+            matchId: String(authorizationKey),
+            roomCode: String(roomCode || ''),
+            expiresAt: BigInt(expiresAt),
+            nonce: String(nonce),
+          },
+          signature: signature as `0x${string}`,
+        })).toLowerCase();
+      } catch {
+        return json({ error: 'Invalid provisional typed-data signature' }, 401);
+      }
+      if (recovered !== String(wallet).toLowerCase()) return json({ error: 'Signer is not the session wallet' }, 401);
+      const { data, error } = await supabase.from('provisional_match_sessions').upsert({
+        authorization_key: String(authorizationKey),
+        wallet_address: recovered,
+        room_code: roomCode || null,
+        expires_at: new Date(Number(expiresAt)).toISOString(),
+      }, { onConflict: 'authorization_key' }).select('id').single();
+      if (error || !data) return json({ error: error?.message || 'Provisional session failed' }, 500);
+      return json({ success: true, provisionalId: data.id });
+    }
+
+    if (action === 'bind-provisional-session') {
+      const { provisionalId, matchId, roomCode } = body;
+      if (!provisionalId || !matchId) return json({ error: 'Missing provisional binding payload' }, 400);
+      const provisional = await supabase.from('provisional_match_sessions')
+        .select('wallet_address, expires_at, room_code').eq('id', provisionalId).maybeSingle();
+      if (provisional.error || !provisional.data) return json({ error: 'Provisional session not found' }, 404);
+      if (isExpired(provisional.data.expires_at, Date.now())) return json({ error: 'Provisional session expired' }, 401);
+      const row = await loadMatch(supabase, String(matchId));
+      if (!row) return json({ error: 'Match not found — seed first' }, 404);
+      const wallet = String(provisional.data.wallet_address).toLowerCase();
+      const seated = Object.values(row.player_seats as Seats).some(s =>
+        s.kind === 'human' && (s.wallet || '').toLowerCase() === wallet
+      );
+      if (!seated && String(row.host_address || '').toLowerCase() !== wallet) {
+        return json({ error: 'Wallet is not seated in this match' }, 403);
+      }
+      const existing = await supabase.from('match_sessions')
+        .select('id, expires_at').eq('match_id', String(matchId))
+        .eq('wallet_address', wallet).is('revoked_at', null).maybeSingle();
+      if (existing.data) {
+        return json({ success: true, sessionId: existing.data.id, expiresAt: existing.data.expires_at });
+      }
+      const { data, error } = await supabase.from('match_sessions').insert({
+        match_id: String(matchId),
+        wallet_address: wallet,
+        room_code: roomCode || provisional.data.room_code || row.room_code || null,
+        expires_at: provisional.data.expires_at,
+      }).select('id, expires_at').single();
+      if (error || !data) return json({ error: error?.message || 'Session binding failed' }, 500);
+      return json({ success: true, sessionId: data.id, expiresAt: data.expires_at });
+    }
+
     if (action === 'session' || path.endsWith('create-session')) {
       const { matchId, roomCode, wallet, expiresAt, nonce, signature } = body;
       if (!matchId || !wallet || !expiresAt || !nonce || !signature) {

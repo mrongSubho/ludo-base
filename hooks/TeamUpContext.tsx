@@ -70,6 +70,8 @@ export interface TeamUpContextType {
         matchType?: '1v1' | '2v2' | '4P';
         wager?: number;
     }) => Promise<void>;
+    createProvisionalSession: (authorizationKey: string, roomCode?: string) => Promise<{ ok: boolean; provisionalId?: string; error?: string }>;
+    bindProvisionalSession: (provisionalId: string, matchId: string, roomCode?: string) => Promise<{ ok: boolean; sessionId?: string; error?: string }>;
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
     participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor; lxp?: number; rxp?: number }>;
@@ -111,6 +113,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { signTypedDataAsync } = useSignTypedData();
     const { myProfile } = useGameData();
     const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync });
+    const createProvisionalSession = useCallback((authorizationKey: string, roomCode?: string) =>
+        moveAuth.createProvisionalSession({ authorizationKey, roomCode }), [moveAuth]);
+    const bindProvisionalSession = useCallback((provisionalId: string, matchId: string, roomCode?: string) =>
+        moveAuth.bindProvisionalSession({ provisionalId, matchId, roomCode }), [moveAuth]);
     const [lastIntent, setLastIntent] = useState<GameIntent | null>(null);
     // Matchmaking validation token the host will require from guests (if set).
     const expectedValidationTokenRef = useRef<string | null>(null);
@@ -295,10 +301,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     setServerSeq(0);
                     setMatchConnectionStatus('offline');
                     try {
-                        const sess = await moveAuth.createMatchSession({
-                            matchId,
-                            roomCode: currentRoomCode || roomId || '',
-                        });
+                        const provisionalKey = `room:${currentRoomCode || roomId || ''}`;
+                        const provisionalId = sessionStorage.getItem(`ludo-provisional:${provisionalKey}`);
+                        const sess = provisionalId
+                            ? await moveAuth.bindProvisionalSession({
+                                provisionalId,
+                                matchId,
+                                roomCode: currentRoomCode || roomId || '',
+                            })
+                            : await moveAuth.createMatchSession({
+                                matchId,
+                                roomCode: currentRoomCode || roomId || '',
+                            });
                         if (!sess.ok) console.error('🔑 [MoveAuth] session failed', sess.error);
                         else console.log('🔑 [MoveAuth] session ready', sess.sessionId);
                     } catch (err) {
@@ -887,10 +901,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // Returns the room code synchronously so invite links work immediately.
     const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'classic', entryFee: number = 0) => {
         const code = generateRoomCode();
+        void createProvisionalSession(`room:${code}`, code).then(result => {
+            if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
+        });
         hostGame(code);
         initQuickLobby(code, matchType, gameMode, entryFee);
         return code;
-    }, [hostGame, initQuickLobby]);
+    }, [hostGame, initQuickLobby, createProvisionalSession]);
 
     /** Public-pool fill: matchmaking already paired guests — do not require room secret. */
     const allowOpenJoins = useCallback(() => {
@@ -1019,13 +1036,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
-        activeBetWindow, startBettingWindow
+        activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, hasAuthoritativeSnapshot,
-        activeBetWindow, startBettingWindow
+        activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 
     return (

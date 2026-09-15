@@ -72,6 +72,7 @@ export function useGameEngine({
     const { signMessageAsync } = useSignMessage();
     const { signTypedDataAsync } = useSignTypedData();
     const hasRecordedWin = useRef<boolean>(false);
+    const preAuthMatchRef = useRef<string | null>(null);
     const autoMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const activeColorsArr = useMemo(() => initialPlayers.map(p => p.color as PlayerColor), [initialPlayers]);
@@ -302,6 +303,38 @@ export function useGameEngine({
             setLocalGameState(networkGameState);
         }
     }, [isLobbyConnected, isHost, networkGameState]);
+
+    // Authorize the player's whole match as soon as the host publishes the
+    // authoritative match id. This keeps the wallet prompt in the pre-match
+    // transition instead of surprising the player on their first action.
+    useEffect(() => {
+        const matchId = networkGameState?.matchId;
+        if (!isLobbyConnected || isHost || !networkGameState?.isStarted || !matchId || matchId === 'local') return;
+        if (preAuthMatchRef.current === matchId) return;
+        preAuthMatchRef.current = matchId;
+        const provisionalKeys = [
+            `room:${roomId}`,
+            `search:${address?.toLowerCase()}:${gameMode}:${playerCount}`,
+        ];
+        const provisionalId = provisionalKeys
+            .map(key => sessionStorage.getItem(`ludo-provisional:${key}`))
+            .find(Boolean);
+        if (provisionalId) {
+            void moveAuth.bindProvisionalSession({ provisionalId, matchId, roomCode: roomId }).then(result => {
+                if (!result.ok) console.warn('🔑 [MoveAuth] provisional binding failed:', result.error);
+            });
+            return;
+        }
+        void moveAuth.createMatchSession({
+            matchId,
+            roomCode: roomId || matchId,
+        }).then(result => {
+            if (!result.ok) {
+                console.warn('🔑 [MoveAuth] pre-match session was not created:', result.error);
+                preAuthMatchRef.current = null;
+            }
+        });
+    }, [isLobbyConnected, isHost, networkGameState?.isStarted, networkGameState?.matchId, roomId, moveAuth]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
         setLocalGameState((prev) => ({

@@ -54,25 +54,23 @@ export function useMoveAuth(opts: {
     const { myAddress, signMessageAsync, signTypedDataAsync } = opts;
     /** matchId → sessionId (one EIP-712 sign per match). */
     const sessionRef = useRef<Map<string, string>>(new Map());
+    /** Prevent concurrent first actions from opening one wallet prompt each. */
+    const sessionPendingRef = useRef<Map<string, Promise<{ ok: boolean; sessionId?: string; error?: string }>>>(new Map());
 
     const getSessionId = useCallback((matchId: string) => sessionRef.current.get(matchId) || null, []);
     const clearSession = useCallback((matchId: string) => {
         sessionRef.current.delete(matchId);
     }, []);
 
-    /**
-     * One wallet sign per match (EIP-712). MetaMask and smart wallets both land here.
-     * Returns sessionId for subsequent submit-move / power / pass without popups.
-     */
-    const createMatchSession = useCallback(async (params: {
-        matchId: string;
-        roomCode: string;
-    }): Promise<{ ok: boolean; sessionId?: string; error?: string }> => {
+    const createProvisionalSession = useCallback(async (params: {
+        authorizationKey: string;
+        roomCode?: string;
+    }): Promise<{ ok: boolean; provisionalId?: string; error?: string }> => {
         if (!myAddress) return { ok: false, error: 'no wallet' };
         const payload = buildMatchSessionPayload({
             wallet: myAddress,
-            matchId: params.matchId,
-            roomCode: params.roomCode,
+            matchId: params.authorizationKey,
+            roomCode: params.roomCode || '',
         });
         let signature: string;
         try {
@@ -92,19 +90,92 @@ export function useMoveAuth(opts: {
         } catch {
             return { ok: false, error: 'session sign rejected' };
         }
-        const r = await callMoveAuth('session', {
-            matchId: params.matchId,
-            roomCode: params.roomCode,
+        const r = await callMoveAuth('provisional-session', {
+            authorizationKey: params.authorizationKey,
+            roomCode: params.roomCode || '',
             wallet: payload.wallet,
             expiresAt: payload.expiresAt,
             nonce: payload.nonce,
             signature,
         });
+        if (r.ok && r.data?.provisionalId) {
+            sessionStorage.setItem(`ludo-provisional:${params.authorizationKey}`, r.data.provisionalId);
+            return { ok: true, provisionalId: r.data.provisionalId };
+        }
+        return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
+    }, [myAddress, signTypedDataAsync]);
+
+    const bindProvisionalSession = useCallback(async (params: {
+        provisionalId: string;
+        matchId: string;
+        roomCode?: string;
+    }) => {
+        const r = await callMoveAuth('bind-provisional-session', params);
         if (r.ok && r.data?.sessionId) {
             sessionRef.current.set(params.matchId, r.data.sessionId);
             return { ok: true, sessionId: r.data.sessionId };
         }
         return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
+    }, []);
+
+    /**
+     * One wallet sign per match (EIP-712). MetaMask and smart wallets both land here.
+     * Returns sessionId for subsequent submit-move / power / pass without popups.
+     */
+    const createMatchSession = useCallback(async (params: {
+        matchId: string;
+        roomCode: string;
+    }): Promise<{ ok: boolean; sessionId?: string; error?: string }> => {
+        if (!myAddress) return { ok: false, error: 'no wallet' };
+        const existing = sessionRef.current.get(params.matchId);
+        if (existing) return { ok: true, sessionId: existing };
+        const pending = sessionPendingRef.current.get(params.matchId);
+        if (pending) return pending;
+
+        const request = (async () => {
+            const payload = buildMatchSessionPayload({
+                wallet: myAddress,
+                matchId: params.matchId,
+                roomCode: params.roomCode,
+            });
+            let signature: string;
+            try {
+                signature = await signTypedDataAsync({
+                    account: myAddress as `0x${string}`,
+                    domain: LUDO_SESSION_DOMAIN,
+                    types: LUDO_SESSION_TYPES,
+                    primaryType: 'LudoMatchSession',
+                    message: {
+                        wallet: payload.wallet as `0x${string}`,
+                        matchId: payload.matchId,
+                        roomCode: payload.roomCode,
+                        expiresAt: BigInt(payload.expiresAt),
+                        nonce: payload.nonce,
+                    },
+                });
+            } catch {
+                return { ok: false, error: 'session sign rejected' };
+            }
+            const r = await callMoveAuth('session', {
+                matchId: params.matchId,
+                roomCode: params.roomCode,
+                wallet: payload.wallet,
+                expiresAt: payload.expiresAt,
+                nonce: payload.nonce,
+                signature,
+            });
+            if (r.ok && r.data?.sessionId) {
+                sessionRef.current.set(params.matchId, r.data.sessionId);
+                return { ok: true, sessionId: r.data.sessionId };
+            }
+            return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
+        })();
+        sessionPendingRef.current.set(params.matchId, request);
+        try {
+            return await request;
+        } finally {
+            sessionPendingRef.current.delete(params.matchId);
+        }
     }, [myAddress, signTypedDataAsync]);
 
     const seedMatch = useCallback(async (params: {
@@ -237,6 +308,9 @@ export function useMoveAuth(opts: {
         const source = params.source || 'player';
         const actor = (params.actorOverride || myAddress || '').toLowerCase();
         if (!actor) return { ok: false, error: 'no actor' };
+        if (!sessionRef.current.has(params.matchId) && source === 'player' && myAddress) {
+            await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
+        }
         let sessionId = sessionRef.current.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
@@ -319,6 +393,9 @@ export function useMoveAuth(opts: {
         const source = params.source || 'player';
         const actor = (params.actorOverride || myAddress || '').toLowerCase();
         if (!actor) return { ok: false, error: 'no actor' };
+        if (!sessionRef.current.has(params.matchId) && source === 'player' && myAddress) {
+            await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
+        }
         const tokenIndex = params.tokenIndex === undefined ? null : params.tokenIndex;
         let sessionId = sessionRef.current.get(params.matchId);
         const issuedAt = new Date().toISOString();
@@ -385,6 +462,8 @@ export function useMoveAuth(opts: {
 
     return {
         seedMatch,
+        createProvisionalSession,
+        bindProvisionalSession,
         createMatchSession,
         getSessionId,
         clearSession,

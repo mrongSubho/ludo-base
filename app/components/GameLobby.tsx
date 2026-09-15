@@ -77,6 +77,7 @@ export default function GameLobby({
         leaveGame,
         allowOpenJoins,
         lowerEntryFee,
+        createProvisionalSession,
     } = useTeamUpContext();
     const { address } = useAccount();
     const { profile } = useCurrentUser();
@@ -171,12 +172,15 @@ export default function GameLobby({
             (L.slots || []).some(s => s.status === 'joined' && s.playerId?.toLowerCase() === me);
     }, [address]);
 
-    const startPartyJoin = useCallback((code: string, seat?: number, secret?: string | null) => {
+    const startPartyJoin = useCallback(async (code: string, seat?: number, secret?: string | null) => {
         guard('online-play', () => {
             setJoinError(null);
             joinedCodeRef.current = code;
             lastJoinRef.current = { code, seat, secret };
             setPendingJoin({ code, since: Date.now() });
+            void createProvisionalSession(`room:${code}`, code).then(result => {
+                if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
+            });
             joinGame(code, secret ?? undefined, seat);
             window.setTimeout(() => {
                 if (joinedCodeRef.current !== code) return; // already seated or superseded
@@ -190,7 +194,7 @@ export default function GameLobby({
                 setJoinError("Couldn’t reach the host. They may be offline, or the room is full or already started.");
             }, JOIN_TIMEOUT_MS);
         });
-    }, [guard, joinGame, isSeatedIn]);
+    }, [guard, joinGame, isSeatedIn, createProvisionalSession]);
 
     // Fast path: the instant our seat lands, open the room (no 20s wait).
     // Keyed on the joined code, not the pending flag — a seat landing just

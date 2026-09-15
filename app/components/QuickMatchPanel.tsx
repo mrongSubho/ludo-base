@@ -153,7 +153,8 @@ export const QuickMatchPanel = ({
         isHost: p2pHost,
         gameState,
         lobbyState,
-        participants
+        participants,
+        createProvisionalSession
     } = useTeamUpContext();
     const [tipIndex, setTipIndex] = useState(0);
     const [hasExpanded, setHasExpanded] = useState(false);
@@ -175,6 +176,7 @@ export const QuickMatchPanel = ({
     const [expectedOpponent, setExpectedOpponent] = useState<string | null>(null);
 
     const [isStalled, setIsStalled] = useState(false);
+    const preAuthStartedRef = useRef(false);
 
     // Auto-reveal expand overlay at 15s; vanish at 28s if ignored.
     // Radar keeps scanning underneath — the card is a centered overlay, not a dock swap.
@@ -316,13 +318,28 @@ export const QuickMatchPanel = ({
         // Wait for wallet address before starting search
         if (!normalizedAddress) return;
 
-        console.log('🏁 [QuickMatch] Triggering search initialization...');
-        if (isHybrid && roomCode) {
-            startHybridSearch(roomCode, slotsNeeded, matchType);
-        } else {
-            startSearch(wagerRange?.min, wagerRange?.max);
-        }
-    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, startSearch, startHybridSearch]); 
+        let cancelled = false;
+        void (async () => {
+            console.log('🏁 [QuickMatch] Triggering search initialization...');
+            if (!preAuthStartedRef.current) {
+                preAuthStartedRef.current = true;
+                const key = `search:${normalizedAddress}:${gameMode}:${matchType}`;
+                const result = await createProvisionalSession(key);
+                if (!result.ok) {
+                    preAuthStartedRef.current = false;
+                    console.warn('🔑 [QuickMatch] pre-match authorization failed:', result.error);
+                    return;
+                }
+            }
+            if (cancelled) return;
+            if (isHybrid && roomCode) {
+                startHybridSearch(roomCode, slotsNeeded, matchType);
+            } else {
+                startSearch(wagerRange?.min, wagerRange?.max);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, gameMode, createProvisionalSession, startSearch, startHybridSearch]);
 
     const handleBackToLobby = () => {
         cancelSearch();
