@@ -60,8 +60,7 @@ export default function ProfileSyncer() {
 
                 const updateData: any = {
                     wallet_address: address.toLowerCase(),
-                    avatar_url: finalAvatar,
-                    last_played_at: new Date().toISOString()
+                    avatar_url: finalAvatar
                 };
 
                 // Only overwrite username if we actually found a real decentralized name
@@ -77,8 +76,7 @@ export default function ProfileSyncer() {
                      console.log("📤 [ProfileSyncer] Dispatching update to Store:", updateData);
                      updateMyProfileOptimistic(updateData);
                 } else {
-                     // Silently touch last_played_at
-                     supabase.from('players').upsert(updateData, { onConflict: 'wallet_address' }).then();
+                 // No profile changes to persist.
                 }
             }
         }
@@ -90,5 +88,4 @@ export default function ProfileSyncer() {
 
     return null;
 }
-
 

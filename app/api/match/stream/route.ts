@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { recoverMessageAddress } from 'viem';
+import { buildStreamMessage, isFreshIssuedAt } from '@/lib/matchProof';
 
 /** Lazy client — do not require secrets at module eval (Vercel collect). */
 let _sb: SupabaseClient | null = null;
@@ -37,7 +39,7 @@ async function withTimeout<T>(p: PromiseLike<T>, ms: number, label: string): Pro
  */
 export async function POST(request: Request) {
     try {
-        const { matchId, roomCode, hostAddress, enabled } = await request.json();
+        const { matchId, roomCode, hostAddress, enabled, message, signature, issuedAt } = await request.json();
 
         if (!matchId) {
             return NextResponse.json({ error: 'Missing matchId' }, { status: 400 });
@@ -46,8 +48,28 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing roomCode' }, { status: 400 });
         }
 
-        console.log(`🎥 [API] streaming=${enabled} match=${matchId} room=${roomCode}`);
         const sb = db();
+        const { data: match, error: matchLookupError } = await sb.from('matches')
+            .select('id, room_code, participants')
+            .eq('id', matchId).maybeSingle();
+        if (matchLookupError) return NextResponse.json({ error: matchLookupError.message }, { status: 500 });
+        if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+        if (String(match.room_code || '') !== String(roomCode)) {
+            return NextResponse.json({ error: 'Room does not match canonical match' }, { status: 403 });
+        }
+        const canonicalHost = String(match.participants?.[0] || '').toLowerCase();
+        if (!canonicalHost || !hostAddress || String(hostAddress).toLowerCase() !== canonicalHost ||
+            !message || !signature || !issuedAt || !isFreshIssuedAt(issuedAt) ||
+            message !== buildStreamMessage({ matchId: String(matchId), roomCode: String(roomCode), hostAddress: canonicalHost, enabled: !!enabled, issuedAt })) {
+            return NextResponse.json({ error: 'Invalid host proof' }, { status: 401 });
+        }
+        let recovered: string;
+        try {
+            recovered = (await recoverMessageAddress({ message, signature: signature as `0x${string}` })).toLowerCase();
+        } catch {
+            return NextResponse.json({ error: 'Invalid host signature' }, { status: 401 });
+        }
+        if (recovered !== canonicalHost) return NextResponse.json({ error: 'Signer is not the canonical host' }, { status: 403 });
 
         const { error: matchError } = await withTimeout(
             sb.from('matches')

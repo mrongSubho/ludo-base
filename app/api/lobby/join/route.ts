@@ -80,13 +80,33 @@ export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
         const roomCode = (url.searchParams.get('roomCode') || '').trim().toUpperCase();
+        const hostAddress = (url.searchParams.get('hostAddress') || '').trim().toLowerCase();
+        const sessionId = url.searchParams.get('sessionId');
         if (!roomCode) {
             return NextResponse.json({ error: 'roomCode required' }, { status: 400 });
         }
         const sb = db();
+        if (!hostAddress || !sessionId) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
+        const { data: session } = await sb.from('app_sessions').select('wallet_address, expires_at, revoked_at')
+            .eq('id', sessionId).maybeSingle();
+        if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now() ||
+            String(session.wallet_address).toLowerCase() !== hostAddress) {
+            return NextResponse.json({ error: 'Invalid host session' }, { status: 401 });
+        }
+        const { data: room } = await sb.from('live_matches').select('match_id, host_address')
+            .eq('room_code', roomCode).maybeSingle();
+        let canonicalHost = String(room?.host_address || '').toLowerCase();
+        if (room?.match_id && !canonicalHost) {
+            const { data: match } = await sb.from('matches').select('participants')
+                .eq('id', room.match_id).maybeSingle();
+            canonicalHost = String(match?.participants?.[0] || '').toLowerCase();
+        }
+        if (!room?.match_id || canonicalHost !== hostAddress) {
+            return NextResponse.json({ error: 'Not the room host' }, { status: 403 });
+        }
         const { data, error } = await sb
             .from('lobby_join_requests')
-            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, validation_token, coins, created_at')
+            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, coins, created_at')
             .eq('room_code', roomCode)
             .order('created_at', { ascending: true })
             .limit(20);

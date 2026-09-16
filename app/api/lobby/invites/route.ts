@@ -11,14 +11,25 @@ function db(): SupabaseClient {
     return _sb;
 }
 
-/** Guest polls pending invites for their wallet (no Supabase Auth). */
+/** Guest polls pending invites for the wallet bound to its app session. */
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const wallet = (searchParams.get('wallet') || '').trim().toLowerCase();
+        const sessionId = searchParams.get('sessionId');
         if (!wallet) return NextResponse.json({ error: 'wallet required' }, { status: 400 });
+        if (!sessionId) return NextResponse.json({ error: 'session required' }, { status: 401 });
 
         const since = new Date(Date.now() - 2 * 60_000).toISOString();
+        const { data: session } = await db()
+            .from('app_sessions')
+            .select('wallet_address, expires_at, revoked_at')
+            .eq('id', sessionId)
+            .maybeSingle();
+        if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now() ||
+            String(session.wallet_address).toLowerCase() !== wallet) {
+            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        }
         const { data, error } = await db()
             .from('game_invites')
             .select('id, room_code, host_address, match_type, entry_fee, validation_token, status, created_at')

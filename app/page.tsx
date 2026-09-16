@@ -33,7 +33,7 @@ const MessagesPanel = dynamic(() => import('./components/MessagesPanel'));
 const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal'));
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
-import { useAccount, useDisconnect } from 'wagmi';
+import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
@@ -46,6 +46,7 @@ import { hasOnboarded } from '@/lib/onboarding';
 import { OnboardingPanel } from './components/OnboardingPanel';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
+import { buildStreamMessage } from '@/lib/matchProof';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -106,6 +107,7 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
    const [isStreaming, setIsStreaming] = useState(false);
    const [isPending, setIsPending] = useState(false);
    const [err, setErr] = useState<string | null>(null);
+   const { signMessageAsync } = useSignMessage();
 
    if (!isHost || !matchId || !roomCode) return null;
 
@@ -113,6 +115,10 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
      setIsPending(true);
      setErr(null);
      try {
+       if (!hostAddress) throw new Error('Host wallet unavailable');
+       const issuedAt = new Date().toISOString();
+       const message = buildStreamMessage({ matchId, roomCode: String(roomCode), hostAddress, enabled: !isStreaming, issuedAt });
+       const signature = await signMessageAsync({ account: hostAddress as `0x${string}`, message });
        const res = await fetch('/api/match/stream', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
@@ -120,8 +126,9 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
          body: JSON.stringify({
            matchId,
            roomCode,
-           hostAddress: hostAddress || undefined,
+           hostAddress,
            enabled: !isStreaming,
+           message, signature, issuedAt,
          }),
        });
        const data = await res.json().catch(() => ({}));
@@ -168,6 +175,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
+  const { signMessageAsync } = useSignMessage();
   // DM unread badge reads the same GameData store the panel writes, so it
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
@@ -457,18 +465,39 @@ export default function Page() {
     setAppState('game');
   };
 
-  const handleBackToSubMenu = () => {
+  const handleBackToSubMenu = async () => {
     // Host leaving a live stream should drop the Live Arena row.
     if (isHost && gameState?.matchId && lobbyState?.roomCode) {
-      void fetch('/api/match/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matchId: gameState.matchId,
-          roomCode: lobbyState.roomCode,
+      try {
+        const issuedAt = new Date().toISOString();
+        const hostAddress = String(address || '').toLowerCase();
+        const message = buildStreamMessage({
+          matchId: String(gameState.matchId),
+          roomCode: String(lobbyState.roomCode),
+          hostAddress,
           enabled: false,
-        }),
-      }).catch(() => { /* best-effort */ });
+          issuedAt,
+        });
+        const signature = await signMessageAsync({
+          account: hostAddress as `0x${string}`,
+          message,
+        });
+        await fetch('/api/match/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchId: gameState.matchId,
+            roomCode: lobbyState.roomCode,
+            hostAddress,
+            enabled: false,
+            issuedAt,
+            message,
+            signature,
+          }),
+        });
+      } catch {
+        // Stream cleanup is best-effort; leaving the local game must continue.
+      }
     }
     leaveGame();
     setBoardSeed(null);

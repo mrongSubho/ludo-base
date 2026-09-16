@@ -12,6 +12,7 @@ import { useGamePresence } from '@/hooks/useGamePresence';
 import { useBettingController } from '@/hooks/useBettingController';
 import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
 import { useMoveAuth } from '@/hooks/useMoveAuth';
+import { useAppSession } from '@/hooks/useAppSession';
 import { useMatchStates } from '@/hooks/useMatchStates';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 import { createPeerInstance } from '@/lib/peerFactory';
@@ -111,6 +112,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { address: myAddress } = useAccount();
     const { signMessageAsync } = useSignMessage();
     const { signTypedDataAsync } = useSignTypedData();
+    const { sessionId: appSessionId, ensureAppSession } = useAppSession();
     const { myProfile } = useGameData();
     const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync });
     const createProvisionalSession = useCallback((authorizationKey: string, roomCode?: string) =>
@@ -823,7 +825,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         let cancelled = false;
         const poll = async () => {
             try {
-                const res = await fetch(`/api/lobby/join?roomCode=${encodeURIComponent(room)}`, {
+                const session = appSessionId || await ensureAppSession();
+                if (!session || !myAddress) return;
+                const params = new URLSearchParams({ roomCode: room, hostAddress: myAddress, sessionId: session });
+                const res = await fetch(`/api/lobby/join?${params}`, {
                     signal: AbortSignal.timeout(6000),
                 });
                 if (!res.ok || cancelled) return;
@@ -834,7 +839,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     username?: string | null;
                     avatar_url?: string | null;
                     desired_seat?: number | null;
-                    validation_token?: string | null;
                     coins?: number | null;
                 }> = data?.requests || [];
                 for (const req of requests) {
@@ -847,7 +851,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         username: req.username || undefined,
                         avatar_url: req.avatar_url || undefined,
                         desiredSeat: Number.isInteger(req.desired_seat) ? (req.desired_seat as number) : undefined,
-                        validationToken: req.validation_token || undefined,
                         coins: typeof req.coins === 'number' ? req.coins : undefined,
                     });
                     if (seated && req.id) {
@@ -863,7 +866,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         void poll();
         const iv = setInterval(() => { void poll(); }, 2000);
         return () => { cancelled = true; clearInterval(iv); };
-    }, [isHost, currentRoomCode, lobbyState, seatGuestPlayer]);
+    }, [isHost, currentRoomCode, lobbyState, seatGuestPlayer, appSessionId, ensureAppSession, myAddress]);
 
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's

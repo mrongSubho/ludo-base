@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             issuedAt,
         } = body;
 
-        if (!participants || !Array.isArray(participants) || participants.length === 0) {
+        if (!participants || !Array.isArray(participants) || participants.length === 0 || !matchId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
         if (!message || !signature || !issuedAt || typeof roomCode !== 'string' || !roomCode) {
@@ -100,21 +100,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
-        if (!lowerParts.includes(recovered)) {
-            return NextResponse.json({ error: 'Signer is not a match participant' }, { status: 403 });
-        }
-
         // If a winner wallet is claimed, it must be one of the participants.
         if (winnerAddress && !lowerParts.includes(String(winnerAddress).toLowerCase())) {
             return NextResponse.json({ error: 'Winner is not a match participant' }, { status: 403 });
         }
 
-        // When matchId is provided, the match must exist and not already have a winner
-        // (blocks replay / double-award).
-        if (matchId) {
+        // Results may only settle a canonical match, and every signed field must
+        // agree with its stored identity.
+        {
             const { data: existing, error: fetchMatchErr } = await supabase
                 .from('matches')
-                .select('id, winner_address, participants')
+                .select('id, winner_address, finished_at, room_code, game_mode, participants')
                 .eq('id', matchId)
                 .maybeSingle();
             if (fetchMatchErr) {
@@ -123,7 +119,16 @@ export async function POST(request: Request) {
             if (!existing) {
                 return NextResponse.json({ error: 'Match not found' }, { status: 404 });
             }
-            if (existing.winner_address) {
+            const storedParts = (existing.participants || []).map((p: string) => p.toLowerCase()).sort();
+            if (existing.room_code !== roomCode || existing.game_mode !== (gameMode || 'classic') ||
+                JSON.stringify(storedParts) !== JSON.stringify([...lowerParts].sort())) {
+                return NextResponse.json({ error: 'Match payload does not match canonical match' }, { status: 403 });
+            }
+            const canonicalHost = String(existing.participants?.[0] || '').toLowerCase();
+            if (!canonicalHost || recovered !== canonicalHost) {
+                return NextResponse.json({ error: 'Only the canonical match host may record the result' }, { status: 403 });
+            }
+            if (existing.finished_at) {
                 return NextResponse.json({ error: 'Match already settled' }, { status: 409 });
             }
         }
@@ -132,22 +137,20 @@ export async function POST(request: Request) {
 
         // 1. Record the match
         let matchError = null;
-        if (matchId) {
-            const { error: updErr } = await supabase.from('matches').update({
-                winner_address: winnerAddress,
-                finished_at: new Date().toISOString()
-            }).eq('id', matchId);
+        {
+            const { data: claimedMatch, error: updErr } = await supabase.from('matches')
+                .update({
+                    winner_address: winnerAddress,
+                    finished_at: new Date().toISOString()
+                })
+                .eq('id', matchId)
+                .is('finished_at', null)
+                .select('id')
+                .maybeSingle();
             matchError = updErr;
-        } else {
-            console.warn('⚠️ [API] No matchId provided, inserting match record instead of updating');
-            const { error: insErr } = await supabase.from('matches').insert({
-                winner_address: winnerAddress,
-                room_code: roomCode,
-                game_mode: gameMode || 'classic',
-                participants: participants,
-                finished_at: new Date().toISOString()
-            });
-            matchError = insErr;
+            if (!matchError && !claimedMatch) {
+                return NextResponse.json({ error: 'Match already settled' }, { status: 409 });
+            }
         }
 
         if (matchError) {

@@ -208,9 +208,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'players open insert' AND tablename = 'players') THEN
         CREATE POLICY "players open insert" ON public.players FOR INSERT WITH CHECK (true);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'players open update' AND tablename = 'players') THEN
-        CREATE POLICY "players open update" ON public.players FOR UPDATE USING (true);
-    END IF;
+    -- Player updates are deliberately not opened here. The canonical
+    -- lockdown migration permits only non-sensitive profile fields and keeps
+    -- economy, progression, identity, and ECDH state server-owned.
 END $$;
 
 -- ── 7. Realtime: request + poke arrivals push live to both ends ─────────────

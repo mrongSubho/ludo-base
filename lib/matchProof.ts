@@ -9,6 +9,8 @@ export const MOVE_PREFIX = 'Ludo Base move';
 export const PASS_PREFIX = 'Ludo Base pass';
 export const SEED_PREFIX = 'Ludo Base seed';
 export const POWER_PREFIX = 'Ludo Base power';
+export const STREAM_PREFIX = 'Ludo Base stream';
+export const ECDH_PREFIX = 'Ludo Base ecdh key';
 
 /** Max age for a signed privileged request. */
 export const PROOF_MAX_AGE_MS = 10 * 60 * 1000;
@@ -139,5 +141,27 @@ export function buildPowerMessage(params: {
         `token: ${params.tokenIndex === null ? 'none' : params.tokenIndex}`,
         `seq: ${params.expectedSeq}`,
         `issued: ${params.issuedAt}`,
+    ].join('\n');
+}
+
+export function buildStreamMessage(params: {
+    matchId: string; roomCode: string; hostAddress: string; enabled: boolean; issuedAt: string;
+}): string {
+    return [
+        STREAM_PREFIX,
+        `match: ${params.matchId}`,
+        `room: ${params.roomCode}`,
+        `host: ${params.hostAddress.toLowerCase()}`,
+        `enabled: ${params.enabled}`,
+        `issued: ${params.issuedAt}`,
+    ].join('\n');
+}
+
+export function buildEcdhMessage(walletAddress: string, publicKey: JsonWebKey, issuedAt: string): string {
+    return [
+        ECDH_PREFIX,
+        `wallet: ${walletAddress.toLowerCase()}`,
+        `key: ${JSON.stringify(publicKey)}`,
+        `issued: ${issuedAt}`,
     ].join('\n');
 }

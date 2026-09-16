@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback } from 'react';
+import { useSignMessage } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { UserProfile, MessageData } from './GameDataContext';
 import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 import { DataConnection, Peer } from 'peerjs';
+import { buildEcdhMessage } from '@/lib/matchProof';
+import { useAppSession } from './useAppSession';
 
 interface ActionProps {
     address: string | undefined;
@@ -18,12 +21,18 @@ interface ActionProps {
 }
 
 /** Ensure our static ECDH pubkey is on the players row. */
-async function publishMyEcdhPubkey(walletAddress: string): Promise<void> {
+async function publishMyEcdhPubkey(walletAddress: string, signMessageAsync: (args: { message: string }) => Promise<`0x${string}`>): Promise<void> {
     try {
         await getOrCreateIdentityKey(walletAddress);
         const jwk = await exportPublicKeyJwk(walletAddress);
-        await supabase.from('players')
-            .upsert({ wallet_address: walletAddress.toLowerCase(), ecdh_pubkey: jwk as unknown as import('@/types/database.types').Json }, { onConflict: 'wallet_address' });
+        const issuedAt = new Date().toISOString();
+        const message = buildEcdhMessage(walletAddress, jwk, issuedAt);
+        const signature = await signMessageAsync({ message });
+        await fetch('/api/profile/ecdh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress, publicKey: jwk, issuedAt, message, signature }),
+        });
     } catch (err) {
         console.warn('Failed to publish ECDH pubkey', err);
     }
@@ -50,6 +59,8 @@ export const useDataActions = ({
     setRawConversations,
     setupConnectionListeners
 }: ActionProps) => {
+    const { signMessageAsync } = useSignMessage();
+    const { ensureAppSession } = useAppSession();
 
     const updateMyProfileOptimistic = useCallback((updates: Partial<UserProfile>) => {
         if (!address) return;
@@ -72,8 +83,27 @@ export const useDataActions = ({
             return merged;
         });
 
-        supabase.from('players').upsert({ wallet_address: lowerAddr, ...updates }, { onConflict: 'wallet_address' });
-    }, [address, setMyProfile]);
+        const persistedUpdates: Partial<UserProfile> = {};
+        if (updates.username !== undefined) persistedUpdates.username = updates.username;
+        if (updates.avatar_url !== undefined) persistedUpdates.avatar_url = updates.avatar_url;
+        if (updates.peer_id !== undefined) persistedUpdates.peer_id = updates.peer_id;
+        if (Object.keys(persistedUpdates).length > 0) {
+            void ensureAppSession().then(sessionId => {
+                if (!sessionId) return;
+                return fetch('/api/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        walletAddress: lowerAddr,
+                        sessionId,
+                        username: persistedUpdates.username,
+                        avatarUrl: persistedUpdates.avatar_url,
+                        peerId: persistedUpdates.peer_id,
+                    }),
+                });
+            });
+        }
+    }, [address, ensureAppSession, setMyProfile]);
 
     const sendMessage = useCallback(async (receiverId: string, content: string) => {
         if (!address) return;
@@ -96,7 +126,7 @@ export const useDataActions = ({
         setMessages(prev => [...prev, optimisticMsg]);
 
         try {
-            await publishMyEcdhPubkey(lowerAddr);
+            await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
             let peerJwk = await fetchPeerEcdhPubkey(targetId);
             if (!peerJwk) {
                 // One short poll — recipient may be mid-boot publishing their key.

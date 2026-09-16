@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { useAppSession } from '@/hooks/useAppSession';
 
 // ─── Theme-agnostic contract ────────────────────────────────────────────────
 // `ludo-invite-scope` carries daybreak/retro remaps (globals.css). Surfaces use
@@ -25,6 +26,7 @@ export const InviteNotification = () => {
     const { address, profile } = useCurrentUser();
     const { joinGame, lobbyState, leaveGame } = useTeamUpContext();
     const { playSelect } = useSoundEffects();
+    const { ensureAppSession } = useAppSession();
     const myCoins = typeof profile?.coins === 'number' ? profile.coins : null;
     const playSelectRef = useRef(playSelect);
     useEffect(() => { playSelectRef.current = playSelect; }, [playSelect]);
@@ -107,7 +109,7 @@ export const InviteNotification = () => {
             setInvite(null);
             setPhase('card');
         }, INVITE_LIFETIME_S * 1000);
-    }, [clearLifetimeTimers]);
+    }, [clearLifetimeTimers, ensureAppSession]);
 
     // Poll + best-effort realtime delivery.
     // Cleanup MUST NOT touch lifetime/join timers — those outlive this effect
@@ -118,7 +120,9 @@ export const InviteNotification = () => {
 
         const poll = async () => {
             try {
-                const res = await fetch(`/api/lobby/invites?wallet=${encodeURIComponent(lowerAddr)}`, {
+                const sessionId = await ensureAppSession();
+                if (!sessionId) return;
+                const res = await fetch(`/api/lobby/invites?wallet=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`, {
                     signal: AbortSignal.timeout(8000),
                 });
                 if (!res.ok) return;

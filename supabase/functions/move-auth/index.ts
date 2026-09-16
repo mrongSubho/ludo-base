@@ -381,6 +381,25 @@ Deno.serve(async (req) => {
         return json({ error: 'Invalid host signature' }, 401);
       }
 
+      const { data: canonicalMatch, error: matchError } = await supabase
+        .from('matches')
+        .select('id, room_code, participants')
+        .eq('id', String(matchId))
+        .maybeSingle();
+      if (matchError) return json({ error: matchError.message }, 500);
+      if (!canonicalMatch) return json({ error: 'Canonical match not found' }, 404);
+      const canonicalParticipants = (canonicalMatch.participants || []).map((p: string) => String(p).toLowerCase());
+      if (String(canonicalMatch.room_code || '') !== String(roomCode || '') ||
+          canonicalParticipants[0] !== String(hostAddress).toLowerCase()) {
+        return json({ error: 'Seed identity does not match canonical match' }, 403);
+      }
+      const seats = playerSeats as Seats;
+      for (const seat of Object.values(seats)) {
+        if (seat.kind === 'human' && (!seat.wallet || !canonicalParticipants.includes(seat.wallet.toLowerCase()))) {
+          return json({ error: 'Seat wallet is not a canonical participant' }, 403);
+        }
+      }
+
       const { data: existing } = await supabase
         .from('match_states')
         .select('match_id, seq')
