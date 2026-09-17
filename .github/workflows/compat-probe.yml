@@ -1,0 +1,54 @@
+name: compat-probe
+
+# Phase 4 database-compatibility probe.
+# Nightly + manual dispatch ONLY — deliberately NOT wired to push/pull_request
+# so it cannot block main until it has gone green-once on a scratch project.
+# To promote to blocking later, add `push: { branches: [main] }` and
+# `pull_request:` triggers (see docs/notes/compat-probe.md).
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # nightly 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: "Preview deploy URL for the HTTP matrix (optional)"
+        required: false
+        default: ""
+      skip_realtime:
+        description: "Skip realtime leak matrix (true/false)"
+        required: false
+        default: "false"
+
+jobs:
+  ci-compat-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Offline self-test (always, no secrets required)
+        run: npx --yes tsx scripts/compat-probe.ts --offline
+
+      - name: Full scratch-project mode (only when secrets present)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PREVIEW_URL: ${{ inputs.preview_url }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::notice::compat-probe full mode skipped — scratch-project secrets not configured (offline self-test already passed)"
+            exit 0
+          fi
+          EXTRA=""
+          if [ "${{ inputs.skip_realtime }}" = "true" ]; then EXTRA="$EXTRA --skip-realtime"; fi
+          if [ -z "$PREVIEW_URL" ]; then EXTRA="$EXTRA --skip-http"; fi
+          npx --yes tsx scripts/compat-probe.ts --full $EXTRA
