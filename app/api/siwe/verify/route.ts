@@ -59,6 +59,15 @@ export async function POST(request: Request) {
         }
 
         const db = supabase();
+        // First-time wallets have no players row yet, and app_sessions FKs to
+        // it — provision minimally or every fresh sign-in 500s in a retry
+        // storm (constant signing popups). Idempotent, defaults fill the rest.
+        const { error: playerError } = await db
+            .from('players')
+            .upsert({ wallet_address: recovered }, { onConflict: 'wallet_address', ignoreDuplicates: true });
+        if (playerError) {
+            return NextResponse.json({ error: playerError.message }, { status: 500 });
+        }
         await db
             .from('app_sessions')
             .update({ revoked_at: new Date().toISOString() })
