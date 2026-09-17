@@ -5,6 +5,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { ChatIcon } from './icons';
 import { useGameData } from '@/hooks/GameDataContext';
+import { useAppSession } from '@/hooks/useAppSession';
 import { EmptyState } from './EmptyState';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -168,6 +169,7 @@ const IconBtn = ({ onClick, title, label, tone, children, disabled = false }: {
 
 
 export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate }: FriendsPanelProps) {
+    const { ensureAppSession } = useAppSession();
     const { profile, address: connectedAddress } = useCurrentUser();
     // Guests can browse the directory, but social writes hit the wall.
     const { guard } = useGuestWall();
@@ -227,7 +229,10 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const fetchPokes = React.useCallback(async () => {
         if (!connectedAddress) return;
         try {
-            const res = await fetch(`/api/social/poke?wallet=${connectedAddress}`);
+            // Session-gated: pokes rows are server-only under default-deny.
+            const sessionId = await ensureAppSession();
+            if (!sessionId) return;
+            const res = await fetch(`/api/social/poke?wallet=${encodeURIComponent(connectedAddress)}&sessionId=${encodeURIComponent(sessionId)}`);
             if (res.ok) {
                 const data = await res.json();
                 setIncomingPokes(data);
@@ -235,26 +240,18 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         } catch (err) {
             console.error('Fetch pokes error:', err);
         }
-    }, [connectedAddress]);
+    }, [connectedAddress, ensureAppSession]);
 
     const fetchFriends = React.useCallback(async () => {
         if (!connectedAddress) return;
         try {
-            // 2. Fetch live friendships from Supabase (Onchain Friends)
             const currentAddrLower = connectedAddress.toLowerCase();
-            const { data, error } = await supabase
-                .from('friendships')
-                .select(`
-                    status,
-                    user_address,
-                    friend_address,
-                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at, current_room_code),
-                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url, total_wins, status, last_played_at, current_room_code)
-                `)
-                .eq('status', 'accepted')
-                .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
-
-            if (error) throw error;
+            const sessionId = await ensureAppSession();
+            if (!sessionId) return;
+            const response = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentAddrLower)}&sessionId=${encodeURIComponent(sessionId)}`);
+            if (!response.ok) throw new Error(`Friendships API failed: ${response.status}`);
+            const friendshipData = await response.json();
+            const data = friendshipData.accepted || [];
 
             if (data) {
                 const formatted = data.map((item: any) => {
@@ -296,24 +293,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                 });
             }
 
-            // 3. Fetch Pending Requests
-            const { data: requestsData, error: reqError } = await supabase
-                .from('friendships')
-                .select(`
-                    id,
-                    status,
-                    user_address,
-                    friend_address,
-                    created_at,
-                    requester:players!friendships_user_address_fkey(wallet_address, username, avatar_url),
-                    receiver:players!friendships_friend_address_fkey(wallet_address, username, avatar_url)
-                `)
-                .eq('status', 'pending')
-                .or(`user_address.eq.${currentAddrLower},friend_address.eq.${currentAddrLower}`);
-
-            if (reqError) throw reqError;
-
-            if (requestsData) {
+            const requestsData = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])];
+            if (requestsData.length) {
                 const incoming: Request[] = [];
                 const outgoing: Request[] = [];
 
@@ -348,6 +329,9 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
                 setPendingIncoming(incoming);
                 setPendingOutgoing(outgoing);
+            } else {
+                setPendingIncoming([]);
+                setPendingOutgoing([]);
             }
 
             await fetchPokes();
@@ -359,6 +343,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
     useEffect(() => {
         fetchFriends();
+        const friendshipRefresh = window.setInterval(fetchFriends, 15000);
 
         // 4. Real-time Status Updates
         const channel = supabase
@@ -395,34 +380,18 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             )
             .subscribe();
 
-        // 6. Real-time friendship rows (incoming requests + acceptances land live)
-        const friendshipChannel = supabase
-            .channel('friendships-sync')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'friendships' },
-                (payload: any) => {
-                    const row = payload.new || payload.old;
-                    if (!row) return;
-                    const me = (connectedAddress || '').toLowerCase();
-                    const involved = [row.user_address, row.friend_address]
-                        .filter(Boolean)
-                        .some((a: string) => a.toLowerCase() === me);
-                    if (involved) fetchFriends();
-                }
-            )
-            .subscribe();
-
         return () => {
             supabase.removeChannel(channel);
             supabase.removeChannel(pokeChannel);
-            supabase.removeChannel(friendshipChannel);
+            window.clearInterval(friendshipRefresh);
         };
     }, [connectedAddress, userFid, fetchFriends, fetchPokes]);
 
     const handleAcceptRequest = async (id: string) => {
         try {
-            const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
+            const sessionId = await ensureAppSession();
+            const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: connectedAddress, sessionId, action: 'accept', friendshipId: id }) });
+            const error = !response || !response.ok;
             if (!error) {
                 setPendingIncoming(prev => prev.filter(r => r.id !== id));
                 // We could optimally refetch friends here, but the user will likely close the panel
@@ -433,7 +402,9 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
     const handleRejectCancelRequest = async (id: string, isIncoming: boolean) => {
         try {
-            const { error } = await supabase.from('friendships').delete().eq('id', id);
+            const sessionId = await ensureAppSession();
+            const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: connectedAddress, sessionId, action: 'remove', friendshipId: id }) });
+            const error = !response || !response.ok;
             if (!error) {
                 if (isIncoming) setPendingIncoming(prev => prev.filter(r => r.id !== id));
                 else setPendingOutgoing(prev => prev.filter(r => r.id !== id));
@@ -446,15 +417,18 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         if (!guard('poke')) return;
         setPokingId(friendAddress);
         try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) return;
             const response = await fetch('/api/social/poke', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sender: connectedAddress.toLowerCase(), receiver: friendAddress })
+                body: JSON.stringify({ sender: connectedAddress.toLowerCase(), receiver: friendAddress, walletAddress: connectedAddress.toLowerCase(), sessionId })
             });
             if (response.ok) {
                 await fetchPokes();
                 // Trigger mission update event if it was a poke-back
                 window.dispatchEvent(new CustomEvent('mission-update'));
+                window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
             } else {
                 const err = await response.json();
                 alert(err.error || 'Failed to poke');
@@ -472,19 +446,13 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         if (!guard('friend-add')) return;
         const target = wallet.toLowerCase();
         try {
-            await supabase.from('players').upsert([
-                { wallet_address: connectedAddress.toLowerCase() },
-                { wallet_address: target }
-            ], { onConflict: 'wallet_address', ignoreDuplicates: true });
-            const { error } = await supabase.from('friendships').upsert({
-                user_address: connectedAddress.toLowerCase(),
-                friend_address: target,
-                status: 'pending'
-            }, { onConflict: 'user_address,friend_address' });
+            const sessionId = await ensureAppSession();
+            const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: connectedAddress, sessionId, action: 'request', target }) });
+            const error = !response || !response.ok;
             if (!error) {
                 setJustSent(prev => prev.includes(target) ? prev : [...prev, target]);
             } else {
-                alert(error.message || 'Failed to send request');
+                alert('Failed to send request');
             }
         } catch (err: any) {
             console.error('Add friend error:', err);

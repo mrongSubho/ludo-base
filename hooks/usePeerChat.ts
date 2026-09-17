@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
 import { UserProfile, MessageData } from './GameDataContext';
 import { decryptAnyMessage } from '@/lib/encryption';
+import { useAppSession } from './useAppSession';
 
 interface PeerChatProps {
     address: string | undefined;
@@ -16,6 +17,7 @@ export const usePeerChat = ({ address, setMessages, setMyProfile }: PeerChatProp
     const [isP2PActive, setIsP2PActive] = useState(false);
     const [peer, setPeer] = useState<Peer | null>(null);
     const [connections, setConnections] = useState<Record<string, DataConnection>>({});
+    const { ensureAppSession } = useAppSession();
 
     const setupConnectionListeners = (conn: DataConnection) => {
         conn.on('open', () => {
@@ -90,9 +92,10 @@ export const usePeerChat = ({ address, setMessages, setMyProfile }: PeerChatProp
                 console.log("✅ [P2P] Connection opened with ID:", id);
                 setIsP2PActive(true);
                 
-                supabase.from('players')
-                    .update({ peer_id: id, status: 'Online' })
-                    .eq('wallet_address', lowerAddr);
+                void ensureAppSession().then(sessionId => sessionId ? fetch('/api/presence', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: lowerAddr, sessionId, status: 'Online', peerId: id })
+                }) : null);
                 
                 setMyProfile(prev => prev ? { ...prev, peer_id: id, status: 'Online' } : prev);
             });
@@ -131,12 +134,15 @@ export const usePeerChat = ({ address, setMessages, setMyProfile }: PeerChatProp
             clearTimeout(retryTimeout);
             if (currentPeer) {
                 currentPeer.destroy();
-                supabase.from('players').update({ peer_id: null, status: 'Offline' }).eq('wallet_address', lowerAddr);
+                void ensureAppSession().then(sessionId => sessionId ? fetch('/api/presence', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: lowerAddr, sessionId, status: 'Offline', peerId: null })
+                }) : null);
             }
             setPeer(null);
             setIsP2PActive(false);
         };
-    }, [address]);
+    }, [address, ensureAppSession]);
 
     return {
         isP2PActive,

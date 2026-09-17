@@ -5,7 +5,7 @@ import { useDisconnect } from 'wagmi';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { supabase } from '@/lib/supabase';
+import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
@@ -252,6 +252,7 @@ const FEEDBACK_TOPICS = ['Bug report', 'Idea', 'Payout issue', 'Other'] as const
 
 function FeedbackView() {
     const { address } = useCurrentUser();
+    const { ensureAppSession } = useAppSession();
     const [topic, setTopic] = useState<string>(FEEDBACK_TOPICS[0]);
     const [message, setMessage] = useState('');
     const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -261,10 +262,14 @@ function FeedbackView() {
         if (!clean || status === 'sending') return;
         setStatus('sending');
         try {
-            const { error } = await supabase
-                .from('feedback')
-                .insert({ topic, message: clean.slice(0, 2000), address: address ?? null });
-            if (error) throw error;
+            // Best-effort attribution only — feedback is anonymous by contract
+            // (guests and signed-out visitors can submit; never gate on session).
+            const sessionId = await ensureAppSession().catch(() => null);
+            const response = await fetch('/api/feedback', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: address ?? null, sessionId, topic, message: clean }),
+            });
+            if (!response.ok) throw new Error('Feedback submission failed');
             setStatus('sent');
             setMessage('');
         } catch {

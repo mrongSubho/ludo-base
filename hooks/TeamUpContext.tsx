@@ -330,17 +330,19 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 
                 // ☁️ Update host status and room code in DB
                 if (isHost && myAddress) {
-                    supabase.from('players')
-                        .update({ status: 'In Match', current_room_code: currentRoomCode })
-                        .eq('wallet_address', myAddress)
-                        .then();
+                    void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ walletAddress: myAddress, sessionId, status: 'In Match', currentRoomCode })
+                    }) : null);
                     
-                    // Log to activities
-                    (supabase as any).from('activities').insert({
-                        actor_id: myAddress,
-                        type: 'join_tournament', // General match join for now
-                        metadata: { room_code: currentRoomCode }
-                    }).then();
+                    // Activity writes are authenticated and deduplicated server-side.
+                    void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/social/moderation', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            walletAddress: myAddress, sessionId, action: 'activity',
+                            target: currentRoomCode || roomId, requestId: `match-join:${currentRoomCode || roomId}`,
+                        }),
+                    }) : null).catch(err => console.warn('Activity write failed', err));
                 }
 
                 setTimeout(() => {
@@ -564,15 +566,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     ? data.matchId
                     : gameStateRef.current.matchId;
                 if (matchId) {
-                    supabase.from('live_matches')
-                        .update({
-                            match_id: matchId,
-                            host_address: myAddress?.toLowerCase() || null,
-                            spectator_count: 0,
-                            bet_window_status: 'closed'
-                        })
-                        .eq('room_code', currentRoomCode || roomId)
-                        .then();
+                    void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/live-matches/window', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ matchId, hostAddress: myAddress, sessionId, status: 'register' })
+                    }) : null);
                 }
             }
         } else if (type === 'ROLL_DICE') {
@@ -857,7 +854,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         void fetch('/api/lobby/join', {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: req.id }),
+                            body: JSON.stringify({ id: req.id, hostAddress: myAddress, sessionId: session }),
                         }).catch(() => { /* cleanup only */ });
                     }
                 }
@@ -951,10 +948,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setServerSeq(0);
 
         if (myAddress) {
-            supabase.from('players')
-                .update({ status: 'Online', current_room_code: null })
-                .eq('wallet_address', myAddress)
-                .then();
+            void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: myAddress, sessionId, status: 'Online' })
+            }) : null);
         }
     }, [destroyPeer, setIsHost, setIsLobbyConnected, setRoomId, setConnections, setGameState, setLobbyState, setParticipants, myAddress]);
 

@@ -32,59 +32,7 @@ export const useDataSync = ({
         if (!address || !isBootComplete) return;
         const lowerAddr = address.toLowerCase();
 
-        // 1. Messages Realtime
-        const msgChannel = supabase
-            .channel(`gamedata-messages-${lowerAddr}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'messages' },
-                async (payload) => {
-                    const rawMsg = payload.new as MessageData;
-                    const otherId = rawMsg.sender_id.toLowerCase() === lowerAddr ? rawMsg.receiver_id : rawMsg.sender_id;
-                    const decryptedContent = await decryptStoredContent(rawMsg.content, otherId);
-                    
-                    const newMsg = { ...rawMsg, content: decryptedContent };
-                    
-                    const isVisibleToMe = (msg: MessageData, myAddr: string) => {
-                        const low = myAddr.toLowerCase();
-                        if (msg.sender_id.toLowerCase() === low && msg.deleted_by_sender) return false;
-                        if (msg.receiver_id.toLowerCase() === low && msg.deleted_by_receiver) return false;
-                        return true;
-                    };
-
-                    if (isVisibleToMe(newMsg, lowerAddr)) {
-                        setMessages((prev) => {
-                            if (prev.some(m => m.id === newMsg.id)) return prev;
-                            return [...prev, newMsg].slice(-50);
-                        });
-                    }
-                }
-            )
-            .subscribe();
-
-        // 2. Conversations Realtime
-        const convoChannel = supabase
-            .channel(`gamedata-convos-${lowerAddr}`)
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'conversations' },
-                (payload) => {
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        const newConvo = payload.new;
-                        if (newConvo.user_a === lowerAddr || newConvo.user_b === lowerAddr) {
-                            setRawConversations(prev => {
-                                const filtered = prev.filter(c => c.id !== newConvo.id);
-                                return [newConvo, ...filtered].sort((a, b) =>
-                                    new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-                                );
-                            });
-                        }
-                    }
-                }
-            )
-            .subscribe();
-            
-        // 3. Leaderboard/Profile Realtime
+        // Leaderboard/Profile Realtime
         const playersChannel = supabase
             .channel('gamedata-players-sync')
             .on(
@@ -136,8 +84,6 @@ export const useDataSync = ({
             .subscribe();
 
         return () => {
-            supabase.removeChannel(msgChannel);
-            supabase.removeChannel(convoChannel);
             supabase.removeChannel(playersChannel);
             supabase.removeChannel(missionsChannel);
         };

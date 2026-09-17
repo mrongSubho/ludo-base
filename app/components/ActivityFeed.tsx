@@ -465,33 +465,14 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
 
     useEffect(() => {
         const fetchInitial = async () => {
-            const { data } = await supabase
-                .from('activities')
-                .select('*, actor:players(username, avatar_url)')
-                .order('created_at', { ascending: false })
-                .limit(6);
-            if (data) setActivities(data as any);
+            const response = await fetch('/api/activities');
+            if (response.ok) setActivities(await response.json());
         };
 
         fetchInitial();
 
-        const channel = supabase
-            .channel('public_activities')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activities' }, async (payload) => {
-                const { data } = await supabase
-                    .from('players')
-                    .select('username, avatar_url')
-                    .eq('wallet_address', payload.new.actor_id)
-                    .single();
-
-                const newActivity = { ...payload.new, actor: data } as Activity;
-                setActivities(prev => [newActivity, ...prev].slice(0, 6));
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        const refresh = window.setInterval(fetchInitial, 15000);
+        return () => window.clearInterval(refresh);
     }, []);
 
     const getActivityText = (activity: Activity) => {
@@ -857,35 +838,17 @@ function useBroadcastData(): BroadcastData {
     useEffect(() => {
         (async () => {
             try {
-                const { data } = await supabase
-                    .from('activities')
-                    .select('*, actor:players(username, avatar_url)')
-                    .order('created_at', { ascending: false })
-                    .limit(6);
-                if (data) setActivities(data as any);
+                const response = await fetch('/api/activities');
+                if (response.ok) setActivities(await response.json());
             } catch {
                 /* activities unavailable */
             }
         })();
-        const channel = supabase
-            .channel('unified_activities')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activities' }, async (payload) => {
-                try {
-                    const { data } = await supabase
-                        .from('players')
-                        .select('username, avatar_url')
-                        .eq('wallet_address', payload.new.actor_id)
-                        .single();
-                    const newActivity = { ...payload.new, actor: data } as Activity;
-                    setActivities(prev => [newActivity, ...prev].slice(0, 6));
-                } catch {
-                    /* skip actor-less activity */
-                }
-            })
-            .subscribe();
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        const refresh = window.setInterval(async () => {
+            const response = await fetch('/api/activities');
+            if (response.ok) setActivities(await response.json());
+        }, 15000);
+        return () => window.clearInterval(refresh);
     }, []);
 
     return { chats, rooms, searches, activities, country };

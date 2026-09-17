@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, PanelChildTabs, TabCount } from './PanelTabs';
 import { LiveArenaContent, LiveTile } from './LiveArenaDirectory';
@@ -57,7 +58,8 @@ interface ArenaPanelProps {
 }
 
 export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch }: ArenaPanelProps) {
-    const { address } = useCurrentUser();
+    const { address, isGuest } = useCurrentUser();
+    const { ensureAppSession } = useAppSession();
     // Guests can view missions, but claiming pays onchain — walled.
     const { guard } = useGuestWall();
     const [arenaTab, setArenaTab] = useState<ArenaTab>('live');
@@ -80,12 +82,24 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
     const [missions, setMissions] = useState<Mission[]>([]);
     const [isLoadingMissions, setIsLoadingMissions] = useState(false);
     const [claimingId, setClaimingId] = useState<string | null>(null);
+    // True when the wallet is connected but SIWE hasn't produced a session:
+    // missions are session-gated server-side, so show a sign-in prompt
+    // instead of a misleading empty list.
+    const [missionsLocked, setMissionsLocked] = useState(false);
 
     const fetchMissions = async () => {
         if (!address) return;
         setIsLoadingMissions(true);
         try {
-            const response = await fetch(`/api/missions/list?wallet=${address}`);
+            // Session-gated: player_missions is server-only under default-deny.
+            const sessionId = await ensureAppSession();
+            if (!sessionId) {
+                setMissions([]);
+                setMissionsLocked(true);
+                return;
+            }
+            setMissionsLocked(false);
+            const response = await fetch(`/api/missions/list?wallet=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sessionId)}`);
             if (response.ok) {
                 const data = await response.json();
                 setMissions(data);
@@ -117,12 +131,19 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
         if (!guard('arena-claim')) return;
         setClaimingId(missionId);
         try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) {
+                alert('Sign-in required to claim');
+                return;
+            }
             const response = await fetch('/api/missions/claim', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: address, missionId })
+                body: JSON.stringify({ walletAddress: address, missionId, sessionId })
             });
             if (response.ok) {
+                // Claim pays coins — refresh the header balance.
+                window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
                 // Refetch to update status
                 await fetchMissions();
             } else {
@@ -294,13 +315,21 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                                 <div className="flex items-center justify-center py-16">
                                                     <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                                                 </div>
+                                            ) : missionsLocked ? (
+                                                <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                                                    <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                                                        <LuShieldCheck className="w-7 h-7" />
+                                                    </div>
+                                                    <h3 className="text-white font-black text-sm mb-1">Sign in to track missions</h3>
+                                                    <p className="text-white/40 text-xs max-w-[220px]">Missions need an active session — sign in, then reopen this tab.</p>
+                                                </div>
                                             ) : visibleMissions.length === 0 ? (
                                                 <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                                                     <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
                                                         <LuShieldCheck className="w-7 h-7" />
                                                     </div>
-                                                    <h3 className="text-white font-black text-sm mb-1">All Caught Up!</h3>
-                                                    <p className="text-white/40 text-xs max-w-[220px]">Check back later for new missions.</p>
+                                                    <h3 className="text-white font-black text-sm mb-1">{isGuest ? 'Connect wallet to track missions' : 'All Caught Up!'}</h3>
+                                                    <p className="text-white/40 text-xs max-w-[220px]">{isGuest ? 'Connect a wallet to start earning mission rewards.' : 'Check back later for new missions.'}</p>
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col gap-2 pb-2">

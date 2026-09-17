@@ -9,6 +9,7 @@ import { BetType, SpectatorBet } from '@/lib/types';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { getFollowed } from '@/lib/follow';
+import { useAppSession } from '@/hooks/useAppSession';
 
 // ─────────────────────────────────────────────────────────────
 // SpectatorHUD — Overlay for live match spectators
@@ -83,12 +84,49 @@ export const SpectatorHUD = ({
 }: SpectatorHUDProps) => {
     const { address } = useAccount();
     const { myProfile, updateMyProfileOptimistic } = useGameData();
+    const { ensureAppSession } = useAppSession();
     const [betAmount, setBetAmount] = useState(500);
     const [selectedBetValue, setSelectedBetValue] = useState<string | null>(null);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [isBetting, setIsBetting] = useState(false);
     const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost' }[]>([]);
+    const seenResultsRef = useRef<Set<string>>(new Set());
+    // Settled-bet overlay: the old realtime listener is gone (no anon policy
+    // under default-deny), so poll my bets and surface newly settled ones.
+    // Each toast auto-expires; queue capped to avoid pileups.
+    useEffect(() => {
+        if (!address || !matchId) return;
+        let cancelled = false;
+        const poll = async () => {
+            try {
+                const sessionId = await ensureAppSession().catch(() => null);
+                if (!sessionId || cancelled) return;
+                const params = new URLSearchParams({ matchId, walletAddress: address, sessionId, mine: '1' });
+                const res = await fetch(`/api/spectator-bets?${params.toString()}`);
+                if (!res.ok || cancelled) return;
+                const bets = await res.json();
+                if (!Array.isArray(bets) || cancelled) return;
+                const fresh: { id: string; status: 'won' | 'lost' }[] = [];
+                for (const b of bets) {
+                    if ((b.status === 'won' || b.status === 'lost') && !seenResultsRef.current.has(b.id)) {
+                        seenResultsRef.current.add(b.id);
+                        fresh.push({ id: b.id, status: b.status });
+                        setTimeout(() => {
+                            seenResultsRef.current.delete(b.id);
+                            setBetResults(prev => prev.filter(r => r.id !== b.id));
+                        }, 8000);
+                    }
+                }
+                if (fresh.length > 0) setBetResults(prev => [...prev, ...fresh].slice(-3));
+            } catch {
+                /* transient — next poll retries */
+            }
+        };
+        void poll();
+        const t = setInterval(poll, 10000);
+        return () => clearInterval(t);
+    }, [address, matchId, ensureAppSession]);
     const [myBet, setMyBet] = useState<{ id: string; odds: number; amount: number } | null>(null);
     const [isCashingOut, setIsCashingOut] = useState(false);
     const [followedBets, setFollowedBets] = useState<(SpectatorBet & { id: string })[]>([]);
@@ -121,54 +159,6 @@ export const SpectatorHUD = ({
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [roomCode]);
-
-    // ── Real-time Bet Results ────────────────────────────────
-    useEffect(() => {
-        if (!address || !matchId) return;
-        
-        const channel = supabase
-            .channel(`bet-results-${address}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'spectator_bets',
-                    filter: `player_id=eq.${address.toLowerCase()}`
-                },
-                (payload) => {
-                    const newBet = payload.new as SpectatorBet & { status: string };
-                    if (newBet.match_id === matchId && (newBet.status === 'won' || newBet.status === 'lost')) {
-                        const resultId = crypto.randomUUID();
-                        setBetResults(prev => [...prev, { id: resultId, status: newBet.status as 'won' | 'lost' }]);
-                        // Remove after 4 seconds
-                        setTimeout(() => {
-                            setBetResults(prev => prev.filter(r => r.id !== resultId));
-                        }, 4000);
-                        // Settlement feed: wins and losses land in chat as system lines.
-                        // (profileRef: myProfile identity churns on every coin
-                        // update, so the name is read via ref, not effect deps.)
-                        const name = profileRef.current?.username ?? address.slice(0, 6) + '…';
-                        const feed: ChatMessage = {
-                            id: crypto.randomUUID(),
-                            author: '',
-                            text: newBet.status === 'won'
-                                ? `${name} won ${(newBet.potential_payout ?? 0).toLocaleString()} on ${newBet.bet_value}`
-                                : `${name} missed on ${newBet.bet_value}`,
-                            createdAt: Date.now(),
-                            system: true,
-                        };
-                        setChatMessages(prev => [...prev.slice(-49), feed]);
-                        supabase.channel(`chat-${roomCode}`).send({
-                            type: 'broadcast', event: 'spectator-chat', payload: feed,
-                        });
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [address, matchId, roomCode]);
 
     const sendChat = useCallback(async () => {
         if (!chatInput.trim() || !address) return;
@@ -212,10 +202,14 @@ export const SpectatorHUD = ({
                 window_closed_at: new Date(activeBetWindow.expiresAt).toISOString(),
             };
 
-            const { data: placed, error } = await supabase.from('spectator_bets').insert({
-                ...bet,
-                player_id: address.toLowerCase(),
-            }).select('id').single();
+            const sessionId = await ensureAppSession();
+            if (!sessionId) throw new Error('Sign-in required to place bets');
+            const response = await fetch('/api/spectator-bets', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: address, sessionId, ...bet }),
+            });
+            const placed = response.ok ? await response.json() : null;
+            const error = response.ok ? null : new Error((await response.json()).error || 'Bet rejected');
 
             if (error) {
                 console.error("Bet error:", error);
@@ -260,14 +254,15 @@ export const SpectatorHUD = ({
         if (!address || !myBet || !windowOpen || isCashingOut) return;
         setIsCashingOut(true);
         try {
-            const { data, error } = await supabase.rpc('cash_out_bet' as never, {
-                p_bet_id: myBet.id,
-                p_player_id: address.toLowerCase(),
-            } as never);
-            if (error) throw error;
-            const credited = Array.isArray(data)
-                ? Number((data[0] as { credited?: number } | undefined)?.credited ?? 0)
-                : Number((data as { credited?: number } | null)?.credited ?? 0);
+            const sessionId = await ensureAppSession();
+            if (!sessionId) throw new Error('Sign-in required to cash out');
+            const response = await fetch('/api/spectator-bets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: address, sessionId, action: 'cash_out', betId: myBet.id }),
+            });
+            if (!response.ok) throw new Error((await response.json()).error || 'Cash-out rejected');
+            const { credited } = await response.json() as { credited: number };
             updateMyProfileOptimistic({ coins: (myProfile?.coins ?? 0) + credited });
             const name = profileRef.current?.username ?? address.slice(0, 6) + '…';
             const feed: ChatMessage = {
@@ -288,7 +283,7 @@ export const SpectatorHUD = ({
         } finally {
             setIsCashingOut(false);
         }
-    }, [address, myBet, windowOpen, isCashingOut, myProfile, roomCode, updateMyProfileOptimistic]);
+    }, [address, myBet, windowOpen, isCashingOut, myProfile, roomCode, ensureAppSession, updateMyProfileOptimistic]);
 
     // ── Following: followed predictors' open picks in this match ──────────
     useEffect(() => {
@@ -301,30 +296,16 @@ export const SpectatorHUD = ({
         let cancelled = false;
         type FollowBetRow = { id: string; player_id: string; bet_type: string; bet_value: string; amount: number; status?: string };
         (async () => {
-            const { data } = await supabase
-                .from('spectator_bets')
-                .select('id, player_id, bet_type, bet_value, amount')
-                .eq('match_id', matchId)
-                .eq('status', 'pending')
-                .in('player_id', ids)
-                .order('created_at', { ascending: false })
-                .limit(10);
-            if (!cancelled && data) setFollowedBets(data as unknown as (SpectatorBet & { id: string; player_id: string; status?: string })[]);
+            const sessionId = await ensureAppSession();
+            if (!sessionId) return;
+            const response = await fetch(`/api/spectator-bets?matchId=${encodeURIComponent(matchId)}&walletAddress=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const data = response.ok ? await response.json() : [];
+            if (!cancelled) setFollowedBets((data as any[]).filter(row => ids.includes(String(row.player_id).toLowerCase())) as unknown as (SpectatorBet & { id: string; player_id: string; status?: string })[]);
         })();
-        const channel = supabase
-            .channel(`follow-bets-${matchId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'spectator_bets', filter: `match_id=eq.${matchId}` }, (payload) => {
-                const row = payload.new as FollowBetRow & { status?: string };
-                if (row.status === 'pending' && ids.includes((row.player_id || '').toLowerCase())) {
-                    setFollowedBets(prev => [row as SpectatorBet & { id: string; player_id: string }, ...prev.filter(b => (b as { player_id?: string }).player_id?.toLowerCase() !== row.player_id.toLowerCase())].slice(0, 10));
-                }
-            })
-            .subscribe();
         return () => {
             cancelled = true;
-            supabase.removeChannel(channel);
         };
-    }, [address, matchId]);
+    }, [address, matchId, ensureAppSession]);
 
     const progressPct = activeBetWindow?.expiresAt
         ? Math.min(100, (timeLeft / 3000) * 100)

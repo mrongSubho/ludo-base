@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePreferences } from '@/hooks/usePreferences';
-import { supabase } from '@/lib/supabase';
 import { getOwned, addOwned } from '@/lib/inventory';
+import { useAppSession } from '@/hooks/useAppSession';
 import { getShowcased, setShowcased } from '@/lib/showcase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
@@ -405,6 +405,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     const { profile, address } = useCurrentUser();
     // Guests may browse + showcase, but buying hits the wall.
     const { guard } = useGuestWall();
+    const { ensureAppSession } = useAppSession();
     const { preferences, updatePreference } = usePreferences();
     const wallet = address?.toLowerCase() ?? null;
     const balance = profile?.coins || 0;
@@ -449,14 +450,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setTransactionResult(null);
 
         try {
-            const { error } = await supabase
-                .from('players')
-                .update({ coins: balance - item.price })
-                .eq('wallet_address', wallet);
-            if (error) throw error;
+            const sessionId = await ensureAppSession();
+            const response = sessionId ? await fetch('/api/marketplace/purchase', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: [item.id], requestId: crypto.randomUUID() }),
+            }) : null;
+            if (!response?.ok) throw new Error('Purchase failed');
 
             const next = addOwned(wallet, item.id);
             setOwnedIds(next);
+
+            // Purchase deducts coins server-side — refresh the header balance.
+            window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
 
             const newActivity: MarketActivity = {
                 event: 'Sale', from: 'Market', to: 'Player', price: item.price, date: 'Just now'
@@ -487,16 +492,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setIsProcessing(true);
         setTransactionResult(null);
         try {
-            const { error } = await supabase
-                .from('players')
-                .update({ coins: balance - total })
-                .eq('wallet_address', wallet);
-            if (error) throw error;
+            const sessionId = await ensureAppSession();
+            const response = sessionId ? await fetch('/api/marketplace/purchase', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: missing.map(item => item.id), requestId: crypto.randomUUID() }),
+            }) : null;
+            if (!response?.ok) throw new Error('Purchase failed');
 
             let next = ownedIds;
             const now = 'Just now';
             const boughtIds = new Set(missing.map(m => m.id));
             for (const m of missing) next = addOwned(wallet, m.id);
+            window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
             setOwnedIds(next);
             setMarketData(prev => prev.map(item =>
                 boughtIds.has(item.id)

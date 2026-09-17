@@ -22,3 +22,15 @@ The audit identified six actionable source-level authorization/integrity vulnera
 5. Require an existing canonical `matchId` for match recording and validate all settlement fields server-side.
 
 Two additional leads require deployment verification: remote Edge Function dependency integrity and the effective production migration/route-authentication state.
+
+## Browser-side Supabase mutation inventory
+
+The cash-out and conversation-read RPCs are no longer callable from browser
+code; both now require the wallet-bound SIWE app session at their Next.js API
+routes. `user_blocks`, `user_reports`, and non-authoritative `activities`
+telemetry previously written from `PublicProfileModal.tsx` and
+`TeamUpContext.tsx` now go through `/api/social/moderation` (service role,
+session-gated). No browser code paths write identity, authority, economy,
+key, session, or game-state tables directly; the fresh-install baseline
+defines no client write policies (except anonymous feedback submission), so
+any residual direct write fails closed.

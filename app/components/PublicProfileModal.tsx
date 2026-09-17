@@ -7,6 +7,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { getProgression } from '@/lib/progression';
 import { FormChart } from './FormChart';
 import { ChatIcon } from './icons';
+import { useAppSession } from '@/hooks/useAppSession';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same vocabulary as the synced sandwich panels, applied to this centered
@@ -33,6 +34,7 @@ interface PublicProfileModalProps {
 }
 
 export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM }: PublicProfileModalProps) {
+    const { ensureAppSession } = useAppSession();
     const { address: currentUserAddress } = useCurrentUser();
     // Guests can scout profiles, but social writes hit the wall.
     const { guard } = useGuestWall();
@@ -76,9 +78,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
             try {
                 // 1. Fetch user stats from Supabase (FAST)
-                const { data: userData, error: userError } = await supabase
+                const { data: userData, error: userError } = await (supabase as any)
                     .from('players')
-                    .select('*')
+                    .select('wallet_address, username, avatar_url, lxp, rxp, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at')
                     .ilike('wallet_address', userAddress)
                     .single();
 
@@ -93,18 +95,25 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 setProfileLoading(false); // Render top half immediately
             }
 
-            // 1.5 Fetch block status
+            // 1.5 Fetch block status via the session-gated moderation route
+            // (user_blocks has no anon SELECT policy — direct reads go empty).
             try {
-                const { data: blockData } = await (supabase as any)
-                    .from('user_blocks')
-                    .select('id')
-                    .eq('blocker_address', currentUserAddress)
-                    .ilike('blocked_address', userAddress)
-                    .single();
-
-                setIsBlocked(!!blockData);
+                const blockSession = await ensureAppSession().catch(() => null);
+                if (!blockSession) {
+                    setIsBlocked(false);
+                } else {
+                    const params = new URLSearchParams({
+                        walletAddress: currentUserAddress,
+                        sessionId: blockSession,
+                        target: userAddress,
+                    });
+                    const blockRes = await fetch(`/api/social/moderation?${params.toString()}`);
+                    const blockData = blockRes.ok ? await blockRes.json() : { blocked: false };
+                    setIsBlocked(!!blockData.blocked);
+                }
             } catch (err) {
                 console.error("Error checking block status:", err);
+                setIsBlocked(false);
             }
 
             // 2. Fetch current user's friends list to validate DM capability (SLOWER)
@@ -123,14 +132,16 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 }
 
                 // 3. Fetch pending friend request state
-                const { data: pendingData } = await supabase
-                    .from('friendships')
-                    .select('id')
-                    .eq('status', 'pending')
-                    .or(`and(user_address.ilike.${currentUserAddress},friend_address.ilike.${userAddress}),and(user_address.ilike.${userAddress},friend_address.ilike.${currentUserAddress})`)
-                    .single();
-
-                setIsPending(!!pendingData);
+                const sessionId = await ensureAppSession();
+                if (sessionId) {
+                    const friendshipResponse = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}&sessionId=${encodeURIComponent(sessionId)}`);
+                    const friendshipData = friendshipResponse.ok ? await friendshipResponse.json() : { incoming: [], outgoing: [] };
+                    const pending = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])]
+                        .some((row: any) => [row.user_address, row.friend_address].map((value: string) => value.toLowerCase()).includes(userAddress.toLowerCase()));
+                    setIsPending(pending);
+                } else {
+                    setIsPending(false);
+                }
 
             } catch (err) {
                 console.error("Error during profile validation:", err);
@@ -231,6 +242,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         if (action === 'Add Friend' && !guard('friend-add')) return;
         if ((action === 'Poke' || action === 'Congratulate') && !guard('poke')) return;
         if (action === 'Block' && !guard('friend-add')) return;
+        if (action === 'Report' && !guard('friend-add')) return;
 
         if (action === 'Report') {
             setReportStep('select');
@@ -240,13 +252,20 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         setIsActionLoading(true);
         try {
             if (action === 'Poke') {
+                const pokeSession = await ensureAppSession();
+                if (!pokeSession) {
+                    setActionSuccess("Sign-in required to poke");
+                    setTimeout(() => setActionSuccess(null), 2500);
+                    return;
+                }
                 const response = await fetch('/api/social/poke', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender: currentUserAddress, receiver: userAddress })
+                    body: JSON.stringify({ sender: currentUserAddress, receiver: userAddress, walletAddress: currentUserAddress, sessionId: pokeSession })
                 });
                 const data = await response.json();
                 if (response.ok) {
+                    window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
                     setActionSuccess(data.type === 'poke_back' ? `Poked Back! +${data.reward} Coins` : "Poke Sent!");
                     setTimeout(() => setActionSuccess(null), 2500);
                 } else {
@@ -255,16 +274,10 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 }
             } else if (action === 'Add Friend') {
                 // Pre-emptively ensure both users exist in players table to avoid FK crashes
-                await supabase.from('players').upsert([
-                    { wallet_address: currentUserAddress.toLowerCase() },
-                    { wallet_address: userAddress.toLowerCase() }
-                ], { onConflict: 'wallet_address', ignoreDuplicates: true });
-
-                const { data, error } = await supabase.from('friendships').upsert({
-                    user_address: currentUserAddress.toLowerCase(),
-                    friend_address: userAddress.toLowerCase(),
-                    status: 'pending'
-                }, { onConflict: 'user_address,friend_address' }).select();
+                const sessionId = await ensureAppSession();
+                const response = sessionId ? await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'request', target: userAddress }) }) : null;
+                const data = response?.ok ? await response.json() : null;
+                const error = !response || !response.ok;
 
                 console.log("Add Friend Payload:", { user_address: currentUserAddress, friend_address: userAddress });
 
@@ -278,9 +291,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Unfriend') {
-                const { error } = await supabase.from('friendships')
-                    .delete()
-                    .or(`and(user_address.ilike.${currentUserAddress},friend_address.ilike.${userAddress}),and(user_address.ilike.${userAddress},friend_address.ilike.${currentUserAddress})`);
+                const sessionId = await ensureAppSession();
+                const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'remove', target: userAddress }) });
+                const error = !response || !response.ok;
                 if (!error) {
                     setIsFriend(false);
                     setActionSuccess("Friend Removed");
@@ -290,25 +303,23 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Block') {
-                const { error } = await (supabase as any).from('user_blocks').insert({
-                    blocker_address: currentUserAddress.toLowerCase(),
-                    blocked_address: userAddress.toLowerCase()
-                });
-                if (!error) {
+                const sessionId = await ensureAppSession();
+                const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'block', target: userAddress }) }) : null;
+                if (response?.ok) {
                     setIsBlocked(true);
                     setIsFriend(false); // Blocking someone immediately severs frontend friendship
                     setActionSuccess("Blocked");
                     setTimeout(() => setActionSuccess(null), 2500);
                 } else {
-                    setActionSuccess(error.code === '23505' ? "Already blocked" : "Couldn't block user");
+                    setActionSuccess("Couldn't block user");
                     setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Unblock') {
-                const { error } = await (supabase as any).from('user_blocks')
-                    .delete()
-                    .eq('blocker_address', currentUserAddress)
-                    .ilike('blocked_address', userAddress);
-                if (!error) {
+                const sessionId = await ensureAppSession();
+                const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'unblock', target: userAddress }) }) : null;
+                if (response?.ok) {
                     setIsBlocked(false);
                     setActionSuccess("Unblocked");
                     setTimeout(() => setActionSuccess(null), 2500);
@@ -317,13 +328,10 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                     setTimeout(() => setActionSuccess(null), 2500);
                 }
             } else if (action === 'Congratulate') {
-                // Celebrate accomplishment / High rank
-                const { error } = await (supabase as any).from('activities').insert({
-                    actor_id: currentUserAddress,
-                    type: 'congratulate',
-                    metadata: { target_id: userAddress }
-                });
-                if (!error) {
+                const sessionId = await ensureAppSession();
+                const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'congratulate', target: userAddress, requestId: crypto.randomUUID() }) }) : null;
+                if (response?.ok) {
                     setActionSuccess("Celebrated!");
                     setTimeout(() => setActionSuccess(null), 2500);
                 } else {
@@ -345,13 +353,10 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         setReportStep('submitting');
 
         try {
-            const { error } = await (supabase as any).from('user_reports').insert({
-                reporter_address: currentUserAddress.toLowerCase(),
-                reported_address: userAddress.toLowerCase(),
-                reason: selectedReportReason
-            });
-
-            if (!error) {
+            const sessionId = await ensureAppSession();
+            const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'report', target: userAddress, reason: selectedReportReason }) }) : null;
+            if (response?.ok) {
                 setReportStep('done');
                 setTimeout(() => setReportStep('none'), 2000); // Reset UI after 2s
             } else {

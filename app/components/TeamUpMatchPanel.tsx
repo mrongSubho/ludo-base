@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
-import { supabase } from '@/lib/supabase';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
 import { useSoundEffects } from '../hooks/useSoundEffects';
@@ -542,23 +541,17 @@ export const TeamUpMatchPanel = ({
     const fetchOnlinePage = async (page: number, append: boolean) => {
         setLoadingOnline(true);
         try {
-            const me = address?.toLowerCase();
-            let q = supabase
-                .from('players')
-                .select('wallet_address, username, avatar_url, status, last_seen_at')
-                .eq('status', 'Online')
-                .order('last_seen_at', { ascending: false })
-                .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
-            if (me) q = q.neq('wallet_address', me);
-            const { data, error } = await q;
-            if (error) throw error;
-            // Freshness guard: heartbeat missed twice (>2min) = ghost.
-            const cutoff = Date.now() - 2 * 60 * 1000;
-            const live = (data || []).filter(p => p.last_seen_at && new Date(p.last_seen_at).getTime() >= cutoff);
+            // Service-backed presence directory: last_seen_at is server-only
+            // under default-deny, so freshness + paging live in the route.
+            const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+            if (address) params.set('walletAddress', address);
+            const res = await fetch(`/api/presence/online?${params.toString()}`);
+            if (!res.ok) throw new Error(`Presence directory failed: ${res.status}`);
+            const { players, hasMore } = await res.json();
             if (!cancelledRef.current) {
-                setGlobalOnline(prev => append ? [...prev, ...live] : live);
+                setGlobalOnline(prev => append ? [...prev, ...(players || [])] : (players || []));
                 setOnlinePage(page);
-                setOnlineHasMore((data || []).length === PAGE_SIZE);
+                setOnlineHasMore(!!hasMore);
             }
         } catch {
             if (!cancelledRef.current && !append) setGlobalOnline([]);

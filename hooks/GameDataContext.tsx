@@ -81,6 +81,7 @@ interface GameDataContextType {
     sendMessage: (receiverId: string, content: string) => Promise<void>;
     markChatAsRead: (senderId: string) => Promise<void>;
     deleteMessageLocal: (msg: MessageData) => Promise<void>;
+    ensureEcdhPublished: () => Promise<void>;
 
     // Session Inbox (ephemeral, per device + wallet)
     /** ids read this session — visible until you leave, vanished after */
@@ -267,26 +268,6 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [address]);
 
-    // Publish static ECDH pubkey once we have an identity so friends can seal DMs to us.
-    useEffect(() => {
-        if (!address) return;
-        let cancelled = false;
-        (async () => {
-            try {
-                await getOrCreateIdentityKey(address.toLowerCase());
-                const jwk = await exportPublicKeyJwk(address.toLowerCase());
-                if (cancelled) return;
-                await supabase.from('players').upsert(
-                    { wallet_address: address.toLowerCase(), ecdh_pubkey: jwk as unknown as Json },
-                    { onConflict: 'wallet_address' }
-                );
-            } catch (err) {
-                console.warn('ECDH pubkey publish failed', err);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [address]);
-
     // Initial Core Payload (Boot Sequence)
     useEffect(() => {
         if (address) bootSequence(decryptStoredContent);
@@ -317,7 +298,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         updateMyProfileOptimistic,
         sendMessage,
         markChatAsRead,
-        deleteMessageLocal
+        deleteMessageLocal,
+        ensureEcdhPublished
     } = useDataActions({
         address,
         peer,
@@ -417,7 +399,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         updateMyProfileOptimistic,
         sendMessage,
         markChatAsRead,
-        deleteMessageLocal
+        deleteMessageLocal,
+        ensureEcdhPublished
     };
 
     return (

@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react';
 import { useSignMessage } from 'wagmi';
-import { supabase } from '@/lib/supabase';
 import { UserProfile, MessageData } from './GameDataContext';
 import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 import { DataConnection, Peer } from 'peerjs';
@@ -38,15 +37,21 @@ async function publishMyEcdhPubkey(walletAddress: string, signMessageAsync: (arg
     }
 }
 
-/** Fetch recipient static ECDH pubkey (cache in profilesMap not required). */
-async function fetchPeerEcdhPubkey(peerId: string): Promise<JsonWebKey | null> {
-    const { data } = await supabase
-        .from('players')
-        .select('ecdh_pubkey')
-        .ilike('wallet_address', peerId)
-        .maybeSingle();
-    const pk = data?.ecdh_pubkey as unknown as JsonWebKey | null | undefined;
-    return pk && typeof pk === 'object' && (pk as JsonWebKey).kty ? (pk as JsonWebKey) : null;
+/** Fetch recipient static ECDH pubkey via the session-gated service route
+ * (players.ecdh_pubkey is server-only under default-deny — anon reads go empty). */
+async function fetchPeerEcdhPubkey(peerId: string, sessionId: string | null, myAddress: string): Promise<JsonWebKey | null> {
+    if (!sessionId) return null;
+    try {
+        const res = await fetch(
+            `/api/profile/ecdh?wallet=${encodeURIComponent(peerId.toLowerCase())}&walletAddress=${encodeURIComponent(myAddress.toLowerCase())}&sessionId=${encodeURIComponent(sessionId)}`
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        const pk = data?.publicKey as unknown as JsonWebKey | null | undefined;
+        return pk && typeof pk === 'object' && (pk as JsonWebKey).kty ? (pk as JsonWebKey) : null;
+    } catch {
+        return null;
+    }
 }
 
 export const useDataActions = ({
@@ -127,11 +132,12 @@ export const useDataActions = ({
 
         try {
             await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
-            let peerJwk = await fetchPeerEcdhPubkey(targetId);
+            const dmSession = await ensureAppSession();
+            let peerJwk = await fetchPeerEcdhPubkey(targetId, dmSession, lowerAddr);
             if (!peerJwk) {
                 // One short poll — recipient may be mid-boot publishing their key.
                 await new Promise(r => setTimeout(r, 1200));
-                peerJwk = await fetchPeerEcdhPubkey(targetId);
+                peerJwk = await fetchPeerEcdhPubkey(targetId, dmSession, lowerAddr);
             }
             if (!peerJwk) {
                 // Fail closed (no plaintext). Message stays retryable.
@@ -143,16 +149,6 @@ export const useDataActions = ({
             }
 
             const encrypted = await encryptForPeer(lowerAddr, peerJwk, content);
-
-            // Ensure both ends exist or the messages FK rejects the insert.
-            try {
-                await supabase.from('players').upsert([
-                    { wallet_address: lowerAddr },
-                    { wallet_address: targetId },
-                ], { onConflict: 'wallet_address', ignoreDuplicates: true });
-            } catch {
-                /* pre-registration is best-effort */
-            }
 
             // P2P Attempt
             let p2pSent = false;
@@ -176,11 +172,14 @@ export const useDataActions = ({
             }
 
             // Supabase Relay
-            const { data, error } = await supabase.from('messages').insert({
-                sender_id: lowerAddr,
-                receiver_id: targetId,
-                content: JSON.stringify(encrypted)
-            }).select().single();
+            const sessionId = await ensureAppSession();
+            if (!sessionId) throw new Error('Sign-in required to send messages');
+            const response = await fetch('/api/messages', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: lowerAddr, sessionId, action: 'send', receiverId: targetId, content: JSON.stringify(encrypted) })
+            });
+            const data = response.ok ? await response.json() : null;
+            const error = response.ok ? null : new Error((await response.json()).error || 'Message send failed');
 
             if (error && !p2pSent) {
                 setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
@@ -204,7 +203,7 @@ export const useDataActions = ({
             console.error('sendMessage failed', err);
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
         }
-    }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners]);
+    }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession]);
 
     const markChatAsRead = useCallback(async (senderId: string) => {
         if (!address) return;
@@ -227,24 +226,53 @@ export const useDataActions = ({
         }));
 
         try {
-            const { error } = await supabase.rpc('mark_conversation_read', { me: lowerAddr, friend: friendLower });
-            if (error) throw error;
+            const sessionId = await ensureAppSession();
+            if (!sessionId) throw new Error('Sign-in required');
+            const response = await fetch('/api/messages', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: lowerAddr, sessionId, action: 'read', receiverId: friendLower })
+            });
+            if (!response.ok) throw new Error('Unable to mark messages read');
         } catch (e) {
-            console.warn('mark_conversation_read RPC failed, falling back to direct update', e);
-            supabase.from('messages').update({ is_read: true }).ilike('sender_id', senderId).ilike('receiver_id', lowerAddr).eq('is_read', false);
+            console.warn('mark messages read failed', e);
         }
-    }, [address, setMessages, setRawConversations]);
+    }, [address, setMessages, setRawConversations, ensureAppSession]);
 
     const deleteMessageLocal = useCallback(async (msg: MessageData) => {
         if (!address) return;
         setMessages(prev => prev.filter(m => m.id !== msg.id));
-        supabase.from('messages').update({ deleted_by_sender: true, deleted_by_receiver: true }).eq('id', msg.id);
-    }, [address, setMessages]);
+        const sessionId = await ensureAppSession();
+        if (!sessionId) return;
+        await fetch('/api/messages', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress: address, sessionId, action: 'delete', messageId: msg.id })
+        });
+    }, [address, setMessages, ensureAppSession]);
+
+    /** Publish our static ECDH pubkey iff the server lacks it. Called when
+     * entering messaging surfaces (not at boot — boot prompts are hostile).
+     * No-ops silently when there is no session or the key already matches. */
+    const ensureEcdhPublished = useCallback(async () => {
+        if (!address) return;
+        const lowerAddr = address.toLowerCase();
+        try {
+            const dmSession = await ensureAppSession();
+            if (!dmSession) return;
+            await getOrCreateIdentityKey(lowerAddr);
+            const jwk = await exportPublicKeyJwk(lowerAddr);
+            const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
+            if (serverJwk && JSON.stringify(serverJwk) === JSON.stringify(jwk)) return;
+            await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+        } catch (err) {
+            console.warn('ECDH publish check failed', err);
+        }
+    }, [address, ensureAppSession, signMessageAsync]);
 
     return {
         updateMyProfileOptimistic,
         sendMessage,
         markChatAsRead,
-        deleteMessageLocal
+        deleteMessageLocal,
+        ensureEcdhPublished
     };
 };

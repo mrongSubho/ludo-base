@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
 import type { GameState } from '@/lib/types';
 import { stripPowerTypesForWire } from '@/lib/engine';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
@@ -58,24 +57,9 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
         };
         void refresh();
 
-        const channel = supabase
-            .channel(`match-states-${matchId}`)
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'match_states', filter: `match_id=eq.${matchId}` },
-                (payload) => {
-                    const row = (payload.new || payload.old) as { seq?: number; state?: unknown };
-                    if (row) applyRow(row);
-                }
-            )
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    void refresh();
-                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-                    onStatusRef.current?.('reconnecting');
-                }
-            });
-
+        // No postgres_changes subscription on match_states: the table has no
+        // anon SELECT grant under default-deny, so realtime rows never arrive;
+        // polling via refreshState (GET /api/match/state) is the sync path.
         const handleOnline = () => {
             void refresh();
         };
@@ -84,7 +68,6 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
         return () => {
             active = false;
             window.removeEventListener('online', handleOnline);
-            supabase.removeChannel(channel);
         };
     }, [matchId, enabled]);
 }

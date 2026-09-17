@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { BetType, BetWindowPayload, BetWindowClosedPayload, GameActionType, GameState } from '@/lib/types';
 import { ActiveBettingWindow } from './useSpectatorSync';
+import { useAccount } from 'wagmi';
+import { useAppSession } from './useAppSession';
 
 export const BET_WINDOW_MS = 3000;
 
@@ -18,6 +19,8 @@ interface UseBettingControllerProps {
  * Settlement still requires a host-signed resolve-bet after CLOSED.
  */
 export function useBettingController({ isHost, matchId, broadcastAction }: UseBettingControllerProps) {
+    const { address } = useAccount();
+    const { ensureAppSession } = useAppSession();
     const [activeBetWindow, setActiveBetWindow] = useState<ActiveBettingWindow | null>(null);
 
     const startBettingWindow = useCallback(async (betType: BetType): Promise<string> => {
@@ -31,14 +34,11 @@ export function useBettingController({ isHost, matchId, broadcastAction }: UseBe
         setActiveBetWindow({ windowId, betType, expiresAt, windowClosedAt: null });
 
         if (matchId) {
-            supabase.from('live_matches')
-                .update({
-                    bet_window_status: 'open',
-                    current_bet_type: betType,
-                    window_opened_at: new Date().toISOString()
-                })
-                .eq('match_id', matchId)
-                .then();
+            const sessionId = await ensureAppSession();
+            if (sessionId && address) void fetch('/api/live-matches/window', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matchId, betType, status: 'open', hostAddress: address, sessionId })
+            });
         }
 
         await new Promise(resolve => setTimeout(resolve, BET_WINDOW_MS));
@@ -49,17 +49,15 @@ export function useBettingController({ isHost, matchId, broadcastAction }: UseBe
         setActiveBetWindow(prev => prev?.windowId === windowId ? { ...prev, windowClosedAt } : prev);
 
         if (matchId) {
-            supabase.from('live_matches')
-                .update({
-                    bet_window_status: 'closed',
-                    window_closed_at: windowClosedAt
-                })
-                .eq('match_id', matchId)
-                .then();
+            const sessionId = await ensureAppSession();
+            if (sessionId && address) void fetch('/api/live-matches/window', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ matchId, betType, status: 'closed', hostAddress: address, sessionId })
+            });
         }
 
         return windowClosedAt;
-    }, [isHost, matchId, broadcastAction]);
+    }, [isHost, matchId, broadcastAction, address, ensureAppSession]);
 
     return { activeBetWindow, startBettingWindow };
 }

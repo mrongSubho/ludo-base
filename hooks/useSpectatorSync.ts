@@ -56,18 +56,26 @@ export function useSpectatorSync(roomCode: string | null) {
             const { data } = await supabase.from('live_matches').select('match_id').eq('room_code', roomCode).maybeSingle();
             matchId = data?.match_id || null;
             if (matchId) {
-                const { data: snapshot } = await supabase.from('match_states').select('seq, state').eq('match_id', matchId).maybeSingle();
-                if (snapshot?.state) updateState({ gameState: snapshot.state as unknown as GameState, isConnected: true });
+                // Service-backed snapshot: match_states is server-only under
+                // default-deny (live_matches stays publicly readable).
+                try {
+                    const res = await fetch(`/api/match/state?matchId=${encodeURIComponent(matchId)}`);
+                    if (res.ok) {
+                        const snapshot = await res.json();
+                        if (snapshot?.state) updateState({ gameState: snapshot.state as unknown as GameState, isConnected: true });
+                    }
+                } catch {
+                    /* realtime + broadcast channels still sync live moves */
+                }
             }
         };
         void bootstrap();
 
         const channel = supabase
             .channel(`match-states-room-${roomCode}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'match_states' }, ({ new: row }) => {
-                const next = row as { match_id?: string; seq?: number; state?: GameState };
-                if (matchId && next.match_id === matchId && next.state) updateState({ gameState: next.state, isConnected: true });
-            })
+            // No postgres_changes on match_states: no anon SELECT grant under
+            // default-deny means realtime rows never arrive; the broadcast
+            // channel below + snapshot polling above are the working sync paths.
             .on('broadcast', { event: 'game-action' }, ({ payload }) => {
                 const { type, gameState, ...rest } = payload;
 

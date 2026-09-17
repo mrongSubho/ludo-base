@@ -35,6 +35,20 @@ interface UseLobbyManagerProps {
     getRoomSecret?: () => string | null;
 }
 
+/** Stored SIWE session without prompting a signature (invites are fire-and-forget). */
+function readStoredSessionId(wallet: string): string | null {
+    try {
+        const raw = localStorage.getItem('ludo-siwe-session');
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as { sessionId: string; wallet: string; expiresAt: string };
+        if (String(parsed.wallet || '').toLowerCase() !== wallet.toLowerCase()) return null;
+        if (new Date(parsed.expiresAt).getTime() <= Date.now()) return null;
+        return parsed.sessionId || null;
+    } catch {
+        return null;
+    }
+}
+
 export function useLobbyManager({
     myAddress,
     myProfile,
@@ -92,6 +106,15 @@ export function useLobbyManager({
         }
         const lowerFriendId = friendId.toLowerCase();
 
+        // Fail fast without a session: the invite API is host-session gated,
+        // and marking the seat first would orphan it (invited locally, no row
+        // lands, invitee never notified).
+        const storedSession = myAddress ? readStoredSessionId(myAddress) : null;
+        if (!storedSession) {
+            console.error('🚨 Invite blocked: no stored SIWE session — complete sign-in first.');
+            return;
+        }
+
         setLobbyState(prev => {
             if (!prev) return prev;
             // Prefer: empty seat → same invited seat (re-ping) → any empty.
@@ -121,6 +144,7 @@ export function useLobbyManager({
         });
 
         // Service-role API — anon RLS cannot insert game_invites (wallet-only app).
+        // Host-session gated; the stored SIWE session is attached without prompting.
         void fetch('/api/lobby/invite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -131,10 +155,28 @@ export function useLobbyManager({
                 matchType: lobbyState.matchType,
                 entryFee: lobbyState.entryFee,
                 validationToken: getRoomSecret?.() ?? null,
+                sessionId: myAddress ? readStoredSessionId(myAddress) : null,
             }),
         }).then(async (res) => {
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) console.error('🚨 Error sending invite:', data?.error || res.status);
+            if (!res.ok) {
+                console.error('🚨 Error sending invite:', data?.error || res.status);
+                // Roll back the optimistic seat so a rejected invite (e.g.
+                // expired session) doesn't orphan an `invited` slot forever.
+                // Only reverts if the slot is still ours — never clobbers newer state.
+                setLobbyState(prev => {
+                    if (!prev) return prev;
+                    const idx = prev.slots.findIndex(s => s.status === 'invited' && s.playerId?.toLowerCase() === lowerFriendId);
+                    if (idx === -1) return prev;
+                    const newSlots = prev.slots.map((s, i) => i === idx
+                        ? { ...s, status: 'empty' as const, playerId: undefined, playerName: undefined, invitedAt: undefined }
+                        : s);
+                    const newLobby = { ...prev, slots: newSlots };
+                    lobbyStateRef.current = newLobby;
+                    broadcastToAll({ type: 'LOBBY_SYNC', lobbyState: newLobby });
+                    return newLobby;
+                });
+            }
         }).catch((err) => console.error('🚨 Invite network error:', err));
     }, [lobbyState, broadcastToAll, myAddress, getRoomSecret]);
 

@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
-import { supabase } from '@/lib/supabase';
 import { useTeamUp } from '@/hooks/useTeamUp';
+import { useAppSession } from '@/hooks/useAppSession';
 
 export default function PresenceManager() {
     const { address, isConnected } = useAccount();
     const { gameState, lobbyState } = useTeamUp();
+    const { ensureAppSession } = useAppSession();
     const lastStatusRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -22,14 +23,12 @@ export default function PresenceManager() {
 
             // Publish room code with status so EVERY client (host or guest)
             // is spectatable — the old host-only write left guests invisible.
-            await supabase
-                .from('players')
-                .update({
-                    status: currentStatus,
-                    current_room_code: currentStatus === 'In Match' ? (lobbyState as any)?.roomCode ?? null : null,
-                    last_seen_at: new Date().toISOString()
-                })
-                .eq('wallet_address', address.toLowerCase());
+            const sessionId = await ensureAppSession();
+            if (!sessionId) return;
+            await fetch('/api/presence', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: address, sessionId, status: currentStatus, currentRoomCode: (lobbyState as any)?.roomCode })
+            });
 
             lastStatusRef.current = currentStatus;
         };
@@ -39,7 +38,13 @@ export default function PresenceManager() {
             if (address) {
                 // We use a regular update here; navigating away might cancel the request
                 // but we try our best. The SQL job handles the rest.
-                supabase.from('players').update({ status: 'Offline' }).eq('wallet_address', address.toLowerCase()).then();
+                void ensureAppSession().then(sessionId => {
+                    if (!sessionId) return null;
+                    return fetch('/api/presence', {
+                        method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ walletAddress: address, sessionId, status: 'Offline' })
+                    });
+                });
             }
         };
 
@@ -56,7 +61,7 @@ export default function PresenceManager() {
             window.removeEventListener('beforeunload', handleUnload);
             syncStatus('Offline');
         };
-    }, [address, isConnected, gameState.status, gameState.isStarted, (lobbyState as any)?.roomCode]);
+    }, [address, isConnected, gameState.status, gameState.isStarted, (lobbyState as any)?.roomCode, ensureAppSession]);
 
     return null;
 }

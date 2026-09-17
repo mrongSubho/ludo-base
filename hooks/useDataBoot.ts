@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
 import { UserProfile, LeaderboardEntry, Friend, MessageData } from './GameDataContext';
+import { supabase } from '@/lib/supabase';
+import { useAppSession } from './useAppSession';
 
 export const useDataBoot = (address: string | undefined) => {
+    const { ensureAppSession } = useAppSession();
     const [isBooting, setIsBooting] = useState(false);
     const [isBootComplete, setIsBootComplete] = useState(false);
     const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
@@ -26,21 +28,42 @@ export const useDataBoot = (address: string | undefined) => {
 
         console.log("🚀 [GameData] Initiating Boot Sequence Payload...");
         try {
+            const sessionId = await ensureAppSession();
+            const privateData = sessionId
+                ? fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`).then(async res => {
+                    if (!res.ok) throw new Error(`Messages API failed: ${res.status}`);
+                    return res.json();
+                })
+                : Promise.resolve({ conversations: [], messages: [] });
             const [
                 profileRes,
                 leaderboardRes,
                 friendsRes,
-                convoRes,
-                msgRes
+                privateRes
             ] = await Promise.all([
-                supabase.from('players').select('*').eq('wallet_address', lowerAddr).maybeSingle(),
+                // Baseline directory grant only (peer_id + coins are server-only —
+                // peer_id/coins merge in from GET /api/profile below).
+                (supabase.from('players') as any).select('wallet_address, username, avatar_url, lxp, rxp, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at').eq('wallet_address', lowerAddr).maybeSingle(),
                 (supabase.from('players') as any).select('wallet_address, username, avatar_url, total_wins, last_played_at, status, lxp, rxp, rank_tier').order('total_wins', { ascending: false }).limit(50),
                 fetch(`/api/friends?wallet=${lowerAddr}`).then(res => res.json()),
-                supabase.from('conversations').select('*').or(`user_a.eq.${lowerAddr},user_b.eq.${lowerAddr}`).order('last_message_at', { ascending: false }),
-                supabase.from('messages').select('*').or(`sender_id.ilike.${lowerAddr},receiver_id.ilike.${lowerAddr}`).order('created_at', { ascending: false }).limit(30)
+                privateData
             ]);
 
             // Process Profile
+            // Coins path: merge the session-gated service profile (GET /api/profile)
+            // so myProfile.coins survives default-deny (baseline grant excludes it).
+            if (sessionId && profileRes.data) {
+                try {
+                    const svcRes = await fetch(`/api/profile?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`);
+                    if (svcRes.ok) {
+                        const svc = await svcRes.json();
+                        if (typeof svc?.coins === 'number') profileRes.data.coins = svc.coins;
+                        if (svc?.peer_id !== undefined) profileRes.data.peer_id = svc.peer_id;
+                    }
+                } catch {
+                    /* offline — profile stands without coins */
+                }
+            }
             if (profileRes.data) {
                 setMyProfile(profileRes.data);
                 localStorage.setItem(`cache_profile_${lowerAddr}`, JSON.stringify(profileRes.data));
@@ -78,13 +101,13 @@ export const useDataBoot = (address: string | undefined) => {
             }
 
             // Process Conversations
-            if (convoRes.data) {
-                setRawConversations(convoRes.data);
+            if (privateRes.conversations) {
+                setRawConversations(privateRes.conversations);
             }
 
             // Process Messages
-            if (msgRes.data) {
-                const decryptedMessages = await Promise.all(msgRes.data.map(async (m: any) => {
+            if (privateRes.messages) {
+                const decryptedMessages = await Promise.all(privateRes.messages.map(async (m: any) => {
                     const otherId = m.sender_id.toLowerCase() === lowerAddr ? m.receiver_id : m.sender_id;
                     return {
                         ...m,
@@ -110,7 +133,7 @@ export const useDataBoot = (address: string | undefined) => {
         } finally {
             setIsBooting(false);
         }
-    }, [address]);
+    }, [address, ensureAppSession]);
 
     // Initial Hydration
     useEffect(() => {

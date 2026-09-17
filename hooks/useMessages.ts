@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAppSession } from './useAppSession';
 
 export interface MessageData {
     id: string;
@@ -25,6 +26,7 @@ export interface Conversation {
 }
 
 export function useMessages(currentUserAddress: string | undefined | null, selectedChatId?: string | null) {
+    const { ensureAppSession } = useAppSession();
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [rawConversations, setRawConversations] = useState<any[]>([]);
@@ -46,94 +48,28 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         const currentAddrLower = currentUserAddress.toLowerCase();
 
         const fetchInitialData = async () => {
-            console.log("DEBUG: fetchInitialData starting for", currentAddrLower);
             setIsLoading(true);
-
-            const conversationsPromise = supabase
-                .from('conversations')
-                .select('id, user_a, user_b, last_message_at, last_message_content, unread_count_a, unread_count_b')
-                .or(`user_a.eq.${currentAddrLower},user_b.eq.${currentAddrLower}`)
-                .order('last_message_at', { ascending: false });
-
-            const messagesPromise = supabase
-                .from('messages')
-                .select('id, sender_id, receiver_id, content, is_read, created_at, deleted_by_sender, deleted_by_receiver')
-                .or(`sender_id.ilike.${currentAddrLower},receiver_id.ilike.${currentAddrLower}`)
-                .order('created_at', { ascending: false })
-                .limit(30);
-
-            const [
-                { data: convoData, error: convoError },
-                { data: msgData, error: msgError },
-            ] = await Promise.all([conversationsPromise, messagesPromise]);
-
-            if (convoError) {
-                console.warn("DEBUG: Conversations fetch error:", convoError.message);
-            } else {
-                console.log("DEBUG: Conversations result:", convoData?.length || 0, "rows");
-                if (convoData) setRawConversations(convoData);
-            }
-
-            if (msgError) {
-                console.error("DEBUG: Messages fetch error:", msgError.message);
-            } else {
-                console.log("DEBUG: Messages result:", msgData?.length || 0, "rows");
-                if (msgData) {
-                    const visible = msgData.reverse().filter(m => isVisibleToMe(m, currentAddrLower));
-                    setMessages(visible as MessageData[]);
+            const sessionId = await ensureAppSession();
+            if (sessionId) {
+                const response = await fetch(`/api/messages?walletAddress=${encodeURIComponent(currentAddrLower)}&sessionId=${encodeURIComponent(sessionId)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setRawConversations(data.conversations || []);
+                    if (data.messages) {
+                        const visible = [...data.messages].reverse().filter((m: MessageData) => isVisibleToMe(m, currentAddrLower));
+                        setMessages(visible);
+                    }
+                } else {
+                    console.error('Messages API fetch failed:', response.status);
                 }
             }
             setIsLoading(false);
         };
 
         fetchInitialData();
-
-        // 3. Real-time Messages
-        const msgChannel = supabase
-            .channel(`messages-realtime-${currentAddrLower}`)
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'messages' },
-                (payload) => {
-                    const newMsg = payload.new as MessageData;
-                    if (isVisibleToMe(newMsg, currentAddrLower)) {
-                        setMessages((prev) => {
-                            if (prev.some(m => m.id === newMsg.id)) return prev;
-                            const newArr = [...prev, newMsg];
-                            return newArr.slice(-50);
-                        });
-                    }
-                }
-            )
-            .subscribe();
-
-        // 4. Real-time Conversations (sidebar updates)
-        const convoChannel = supabase
-            .channel(`conversations-realtime-${currentAddrLower}`)
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'conversations' },
-                (payload) => {
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        const newConvo = payload.new;
-                        if (newConvo.user_a === currentAddrLower || newConvo.user_b === currentAddrLower) {
-                            setRawConversations(prev => {
-                                const filtered = prev.filter(c => c.id !== newConvo.id);
-                                return [newConvo, ...filtered].sort((a, b) =>
-                                    new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-                                );
-                            });
-                        }
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(msgChannel);
-            supabase.removeChannel(convoChannel);
-        };
-    }, [currentUserAddress, isVisibleToMe]);
+        const refresh = window.setInterval(fetchInitialData, 15000);
+        return () => window.clearInterval(refresh);
+    }, [currentUserAddress, isVisibleToMe, ensureAppSession]);
 
     // 5. Real-time Profile/Status Updates
     useEffect(() => {
@@ -242,7 +178,8 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             const fetchProfiles = async () => {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('wallet_address, username, avatar_url, status, last_seen_at')
+                    // Baseline directory grant only (last_seen_at is server-only).
+                    .select('wallet_address, username, avatar_url, status, last_played_at')
                     .in('wallet_address', uniqueIds);
 
                 if (error) {
@@ -261,8 +198,8 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
                             let currentStatus = p.status || 'Offline';
 
                             // Self-Healing
-                            if (currentStatus === 'Online' && p.last_seen_at) {
-                                const lastSeen = new Date(p.last_seen_at).getTime();
+                            if (currentStatus === 'Online' && p.last_played_at) {
+                                const lastSeen = new Date(p.last_played_at).getTime();
                                 if (now - lastSeen > driftLimit) {
                                     currentStatus = 'Offline';
                                 }
@@ -301,19 +238,16 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         // Optimistically add to UI
         setMessages(prev => [...prev, optimisticMsg]);
 
-        const { data, error } = await supabase.from('messages').insert({
-            sender_id: currentUserAddress.toLowerCase(),
-            receiver_id: receiverId.toLowerCase(),
-            content: content
-        }).select().single();
+        const sessionId = await ensureAppSession();
+        const response = sessionId ? await fetch('/api/messages', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'send', receiverId, content })
+        }) : null;
+        const data = response?.ok ? await response.json() : null;
+        const error = !response || !response.ok;
 
         if (error) {
-            console.error("CRITICAL: Error sending message:", {
-                code: error.code,
-                message: error.message,
-                details: error.details,
-                hint: error.hint
-            });
+            console.error("CRITICAL: Error sending message");
             // Mark failed in UI
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
         } else if (data) {
@@ -341,23 +275,13 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
             return changed ? next : prev;
         });
 
-        // 2. Clear unread count in conversations table (for sidebar UI)
-        try {
-            await supabase.rpc('mark_conversation_read', {
-                me: currentAddrLower,
-                friend: senderId.toLowerCase()
-            });
-        } catch (e) {
-            console.warn("RPC mark_conversation_read failed (table probably missing)");
-        }
-
-        // 3. Mark individual messages as read in DB
-        await supabase
-            .from('messages')
-            .update({ is_read: true })
-            .ilike('sender_id', senderId)
-            .ilike('receiver_id', currentAddrLower)
-            .eq('is_read', false);
+        // 2. Mark messages and recompute sidebar counters through the
+        // authenticated server route.
+        const sessionId = await ensureAppSession();
+        if (sessionId) await fetch('/api/messages', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress: currentAddrLower, sessionId, action: 'read', receiverId: senderId })
+        });
     };
 
     const deleteMessageLocal = async (msg: MessageData) => {
@@ -368,16 +292,12 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         // Optimistically remove from UI
         setMessages(prev => prev.filter(m => m.id !== msg.id));
 
-        // Update database to delete for BOTH users immediately
-        const updatePayload = {
-            deleted_by_sender: true,
-            deleted_by_receiver: true
-        };
-
-        const { error } = await supabase
-            .from('messages')
-            .update(updatePayload)
-            .eq('id', msg.id);
+        const sessionId = await ensureAppSession();
+        const response = sessionId && await fetch('/api/messages', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress: currentAddrLower, sessionId, action: 'delete', messageId: msg.id })
+        });
+        const error = !response || !response.ok;
 
         if (error) {
             console.error("Error deleting message:", error);

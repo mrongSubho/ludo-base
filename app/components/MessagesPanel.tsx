@@ -5,6 +5,7 @@ import { ChatIcon } from './icons';
 
 import { useGameData, Conversation } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -92,11 +93,15 @@ const Avatar = ({ url, name, box = 'w-11 h-11', dot }: {
 };
 
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
-    const { address, profile: myProfile } = useCurrentUser();
+    const { address, profile: myProfile, isGuest } = useCurrentUser();
+    const { sessionId: appSessionId, ready: sessionReady } = useAppSession();
+    // Wallet connected but no SIWE session: the inbox is session-gated
+    // server-side, so show a sign-in prompt instead of an empty list.
+    const inboxLocked = !!address && sessionReady && !appSessionId;
     // Guests read threads free; sending needs a wallet (wall, not a failure).
     const { guard } = useGuestWall();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal } = useGameData();
+    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, ensureEcdhPublished } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
@@ -132,13 +137,8 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         let cancelled = false;
         (async () => {
             try {
-                const { data: celData } = await (supabase as any)
-                    .from('activities')
-                    .select('id,actor_id,created_at,actor:players(username,avatar_url)')
-                    .eq('type', 'congratulate')
-                    .filter('metadata->>target_id', 'eq', me)
-                    .order('created_at', { ascending: false })
-                    .limit(10);
+                const response = await fetch(`/api/activities?target=${encodeURIComponent(me)}`);
+                const celData = response.ok ? await response.json() : [];
                 if (!cancelled) {
                     setCongrats((celData || []).map((c: any) => ({
                         id: c.id,
@@ -244,6 +244,12 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
             setNotifTab('messages');
         }
     }, [initialChatId]);
+
+    // Publish our ECDH pubkey on entering messaging (iff the server lacks
+    // it) so idle recipients stay sealable. Never at boot. Silent on reject.
+    useEffect(() => {
+        if (address) ensureEcdhPublished().catch(() => undefined);
+    }, [address, ensureEcdhPublished]);
 
     // Reset selection if account changes
     useEffect(() => {
@@ -367,26 +373,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         ? conversations.filter(c => c.name.toLowerCase().includes(q))
         : conversations;
     const unreadCount = conversations.filter(c => c.unread).length;
-
-    // ── Session Inbox: read messages vanish across sessions ────────────
-    // Session start is mount time. On arrival we soft-delete (own side only)
-    // our read messages older than this session — unread survive until opened.
     const sessionStartRef = useRef<string>(new Date().toISOString());
-    useEffect(() => {
-        if (!address) return;
-        const me = address.toLowerCase();
-        const cutoff = sessionStartRef.current;
-        (async () => {
-            try {
-                await supabase.from('messages').update({ deleted_by_sender: true })
-                    .eq('sender_id', me).eq('is_read', true).lt('created_at', cutoff);
-                await supabase.from('messages').update({ deleted_by_receiver: true })
-                    .eq('receiver_id', me).eq('is_read', true).lt('created_at', cutoff);
-            } catch {
-                /* best-effort; display rules below enforce the same view */
-            }
-        })();
-    }, [address]);
+
+    // Retention is enforced by the server; this client only filters local data.
 
     const isVisibleThisSession = (m: (typeof messages)[number]) => {
         const me = (address || '').toLowerCase();
@@ -682,10 +671,15 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         <SectionLabel>
                                             {visibleChats.length} chat{visibleChats.length === 1 ? '' : 's'}
                                         </SectionLabel>
-                                        {visibleChats.length === 0 ? (
+                                        {inboxLocked ? (
                                             <EmptyState
-                                                title={q ? 'No chats match' : 'No messages yet'}
-                                                body={q ? 'Try a different search.' : 'Say hi from a friend profile to start a thread.'}
+                                                title="Sign in to load messages"
+                                                body="Your inbox needs an active session — sign in, then reopen."
+                                            />
+                                        ) : visibleChats.length === 0 ? (
+                                            <EmptyState
+                                                title={q ? 'No chats match' : isGuest ? 'Connect wallet to message' : 'No messages yet'}
+                                                body={q ? 'Try a different search.' : isGuest ? 'Connect a wallet to start chatting with friends.' : 'Say hi from a friend profile to start a thread.'}
                                             />
                                         ) : (
                                             <div className="flex flex-col gap-2 pb-2">

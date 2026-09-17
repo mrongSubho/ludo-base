@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getEdgeClient } from '@/lib/teamup/edge-server-singleton';
+import { useAppSession } from './useAppSession';
 
 export type MatchmakingStatus = 'idle' | 'searching' | 'expanding' | 'timeout' | 'matched' | 'error';
+
+/** Session-gated ticket poll shape (GET /api/matchmaking/status). The route
+ *  returns `validation_token: string | null` — null for open rooms. */
+interface TicketStatus {
+    status: string;
+    match_id?: string | null;
+    room_code?: string | null;
+    validation_token: string | null;
+    players?: string[];
+}
 
 interface UseMatchmakingProps {
     playerId: string;
@@ -10,6 +21,8 @@ interface UseMatchmakingProps {
     matchType: string;
     wager: number;
     onMatchFound: (matchId: string, roomCode: string, isHost: boolean, validationToken?: string) => void;
+    /** Fired when host resolution degrades to the fallback (route failure). */
+    onDegraded?: (matchId: string, cause: unknown) => void;
 }
 
 export function useMatchmaking(props: UseMatchmakingProps) {
@@ -18,7 +31,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         gameMode,
         matchType,
         wager,
-        onMatchFound
+        onMatchFound,
+        onDegraded
     } = props;
 
     // --- State ---
@@ -32,6 +46,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     const [searchTime, setSearchTime] = useState(0);
     const [maxSearchTime, setMaxSearchTime] = useState(30);
     const [error, setError] = useState<string | null>(null);
+    const { ensureAppSession } = useAppSession();
 
     // --- Refs ---
     const ticketIdRef = useRef<string | null>(null);
@@ -41,6 +56,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     const isStartingRef = useRef(false);
     const statusRef = useRef<MatchmakingStatus>(status);
     const onMatchFoundRef = useRef(onMatchFound);
+    const onDegradedRef = useRef(onDegraded);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const refreshingRef = useRef(false);
@@ -57,24 +73,34 @@ export function useMatchmaking(props: UseMatchmakingProps) {
      */
     const resolveIsHost = useCallback(async (matchId: string, fallbackIsHost: boolean): Promise<boolean> => {
         const me = (playerId || '').toLowerCase();
+        const markDegraded = (cause: unknown) => {
+            // Split-brain guard: silently returning the fallback lets two peers
+            // diverge with no surfaced error, so log loudly (matchId + cause)
+            // and expose the degraded state to the caller. Dispatch semantics
+            // are unchanged — the fallback is still returned.
+            console.error(`❌ [Matchmaking] Host resolution degraded for match ${matchId}, using fallback=${fallbackIsHost}:`, cause);
+            onDegradedRef.current?.(matchId, cause);
+        };
         try {
-            const { data } = await supabase
-                .from('matchmaking_queue')
-                .select('player_id')
-                .eq('match_id', matchId)
-                .limit(4);
-            if (!data || data.length === 0) return fallbackIsHost;
-            const players = data
-                .map(r => String(r.player_id || '').toLowerCase())
-                .filter(Boolean);
-            if (players.length === 0) return fallbackIsHost;
+            // Owner-checked roster via the status route: matchmaking_queue
+            // player_ids are server-only under default-deny (anon reads go empty).
+            const sessionId = await ensureAppSession().catch(() => null);
+            const params = new URLSearchParams({ matchId });
+            if (playerId) params.set('walletAddress', playerId);
+            if (sessionId) params.set('sessionId', sessionId);
+            const res = await fetch(`/api/matchmaking/status?${params.toString()}`);
+            if (!res.ok) { markDegraded(`status route failed: ${res.status}`); return fallbackIsHost; }
+            const data = await res.json();
+            const players = ((data?.players || []) as string[]).map(p => String(p || '').toLowerCase()).filter(Boolean);
+            if (players.length === 0) { markDegraded('empty roster'); return fallbackIsHost; }
             // Stable pick: sort wallets, index by hash(matchId)
             const sorted = [...new Set(players)].sort();
             let h = 0;
             for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
             const authority = sorted[h % sorted.length];
             return authority === me;
-        } catch {
+        } catch (err) {
+            markDegraded(err);
             return fallbackIsHost;
         }
     }, [playerId]);
@@ -83,14 +109,17 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         matchId: string,
         roomCode: string,
         fallbackIsHost: boolean,
-        validationToken?: string
+        validationToken?: string | null
     ) => {
         if (matchDispatchedRef.current) return;
         if (statusRef.current === 'matched' && matchDispatchedRef.current) return;
         matchDispatchedRef.current = true;
         const isHost = await resolveIsHost(matchId, fallbackIsHost);
         console.log(`🎯 [Matchmaking] Dispatch match ${matchId} room=${roomCode} isHost=${isHost}`);
-        onMatchFoundRef.current(matchId, roomCode, isHost, validationToken);
+        // Single null→undefined boundary: the status route types the token as
+        // `string | null` (open rooms carry null); downstream only uses
+        // truthiness guards, so null and undefined behave identically.
+        onMatchFoundRef.current(matchId, roomCode, isHost, validationToken ?? undefined);
     }, [resolveIsHost]);
 
     // --- Memoized Clients ---
@@ -100,9 +129,10 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     useEffect(() => {
         statusRef.current = status;
         onMatchFoundRef.current = onMatchFound;
+        onDegradedRef.current = onDegraded;
         ticketIdRef.current = ticketId;
         maxSearchTimeRef.current = maxSearchTime;
-    }, [status, onMatchFound, ticketId, maxSearchTime]);
+    }, [status, onMatchFound, onDegraded, ticketId, maxSearchTime]);
 
     // --- Stable Callbacks ---
 
@@ -111,24 +141,18 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
     const fetchNearbyPools = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('matchmaking_queue')
-                .select('wager')
-                .eq('status', 'searching')
-                .eq('game_mode', gameMode)
-                .eq('match_type', matchType)
-                .neq('player_id', playerId.toLowerCase())
-                .limit(50);
-
-            if (error) throw error;
-            
+            // Public aggregate via service role: matchmaking_queue player_ids
+            // are server-only under default-deny (anon reads go empty).
+            const params = new URLSearchParams({ gameMode, matchType });
+            if (playerId) params.set('walletAddress', playerId);
+            const res = await fetch(`/api/matchmaking/pools?${params.toString()}`);
+            if (!res.ok) throw new Error(`Pools route failed: ${res.status}`);
+            const { pools } = await res.json();
             const counts: Record<number, number> = {};
-            data?.forEach(row => {
-                const w = row.wager;
-                if (w !== null && w !== undefined) {
-                    counts[w] = (counts[w] || 0) + 1;
-                }
-            });
+            for (const [wager, count] of Object.entries((pools || {}) as Record<string, number>)) {
+                const w = Number(wager);
+                if (Number.isFinite(w) && count > 0) counts[w] = count;
+            }
 
             const sortedPools = Object.entries(counts)
                 .map(([wagerStr, count]) => ({
@@ -162,12 +186,14 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
         console.log(`📡 [Matchmaking] cancelSearch called (allForPlayer: ${allForPlayer}, skipStateReset: ${skipStateReset})`);
         try {
+            const sessionId = await ensureAppSession();
             await fetch('/api/matchmaking/cancel', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     ticketId: allForPlayer ? null : currentTicketId,
-                    playerId: allForPlayer ? playerId.toLowerCase() : null
+                    playerId: playerId.toLowerCase(),
+                    sessionId
                 })
             });
         } catch (err) {
@@ -187,43 +213,23 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             }
             lastSearchRef.current = ''; 
         }
-    }, [playerId]);
+    }, [playerId, ensureAppSession]);
 
     const checkTicketStatus = useCallback(async (id: string) => {
         if (statusRef.current === 'matched') return;
         
         console.log(`📡 [Matchmaking] Checking status (ID: ${id})...`);
         try {
-            // 1. Primary check by specific ticket ID
-            const { data, error } = await supabase
-                .from('matchmaking_queue')
-                .select('status, match_id, room_code, validation_token')
-                .eq('id', id)
-                .maybeSingle();
-
-            if (error) throw error;
-
-            let typedData = data as any;
-
-            // 2. Secondary fallback (Defensive): Check if ANY matched ticket exists for this player
-            // This handles cases where ID might have changed or been mis-matched during a race
-            if (!typedData || typedData.status !== 'matched') {
-                const { data: fallbackData } = await supabase
-                    .from('matchmaking_queue')
-                    .select('status, match_id, room_code, validation_token')
-                    .eq('player_id', playerId.toLowerCase())
-                    .eq('game_mode', gameMode)
-                    .eq('match_type', matchType)
-                    .eq('status', 'matched')
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                
-                if (fallbackData) {
-                    console.log('📡 [Matchmaking] Secondary fallback found match!');
-                    typedData = fallbackData;
-                }
-            }
+            // Session-gated status route: validation_token is secret material
+            // (no anon column grant), so ticket polling must never read the
+            // queue directly from the browser.
+            const sessionId = await ensureAppSession();
+            const params = new URLSearchParams({ ticketId: id });
+            if (playerId) params.set('walletAddress', playerId);
+            if (sessionId) params.set('sessionId', sessionId);
+            const res = await fetch(`/api/matchmaking/status?${params.toString()}`);
+            if (!res.ok) throw new Error(`Status route failed: ${res.status}`);
+            const typedData = (await res.json()) as TicketStatus;
 
             if (typedData?.status === 'matched' && typedData.match_id) {
                 console.log(`✅ [Matchmaking] Match found! ID: ${typedData.match_id}`);
@@ -239,7 +245,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
         }
-    }, [playerId, gameMode, matchType, dispatchMatch]);
+    }, [playerId, gameMode, matchType, dispatchMatch, ensureAppSession]);
 
     // --- Continuous 1s Timer Effect ---
     useEffect(() => {
@@ -295,6 +301,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     const joinSupabase = useCallback(async (wagerMin?: number, wagerMax?: number) => {
         const normalizedPlayerId = playerId?.toLowerCase();
         if (!normalizedPlayerId) return false;
+        const sessionId = await ensureAppSession();
+        if (!sessionId) throw new Error('Wallet session required for matchmaking');
 
         console.log('📡 [Matchmaking] Joining via Supabase RPC...');
         const response = await fetch('/api/matchmaking/join', {
@@ -302,6 +310,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 playerId: normalizedPlayerId,
+                sessionId,
                 gameMode,
                 matchType,
                 wager,
@@ -333,7 +342,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         setTicketId(data.ticket_id);
         checkTicketStatus(data.ticket_id);
         return false;
-    }, [playerId, gameMode, matchType, wager, checkTicketStatus, dispatchMatch]);
+    }, [playerId, gameMode, matchType, wager, checkTicketStatus, dispatchMatch, ensureAppSession]);
 
     // 5s heartbeat: extend ticket + detect matches. Never purges, never touches Edge.
     const heartbeatTick = useCallback(async (wagerMin?: number, wagerMax?: number) => {
@@ -508,11 +517,14 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         try {
             // Purge stale tickets (Supabase side) - BLOCKING to avoid race with join
             await cancelSearch(true, true);
+            const sessionId = await ensureAppSession();
+            if (!sessionId) throw new Error('Wallet session required for matchmaking');
             const response = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     playerId,
+                    sessionId,
                     gameMode,
                     matchType: lobbyMatchType,
                     wager,
@@ -570,16 +582,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 (payload: any) => {
                     if (statusRef.current === 'matched') return;
 
-                    const { status: newStatus, match_id, room_code } = payload.new;
+                    const { status: newStatus, match_id } = payload.new;
                     if (newStatus === 'matched') {
                         console.log(`✅ [Matchmaking] REALTIME MATCH! Match: ${match_id}`);
-                        if (pollingRef.current) clearInterval(pollingRef.current);
-
-                        setMatchId(match_id);
-                        setRoomCode(room_code || '');
-                        setStatus('matched');
-                        // Ticket UPDATE ≠ we host. Resolve from queue order.
-                        void dispatchMatch(match_id, room_code || '', false, payload.new.validation_token);
+                        // Never trust payload columns (ungranted under default-deny,
+                        // and validation_token must come owner-checked): re-verify
+                        // through the session-gated status route, which dispatches.
+                        void checkTicketStatus(ticketId);
                     }
                 }
             )
@@ -589,7 +598,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             console.log('📡 [Matchmaking] Cleaning up Realtime subscription.');
             supabase.removeChannel(channel);
         };
-    }, [ticketId, status, dispatchMatch]);
+    }, [ticketId, status, checkTicketStatus]);
 
     // --- Tab Lifecycle ---
 

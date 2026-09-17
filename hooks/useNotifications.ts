@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAppSession } from './useAppSession';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 // ─── Shared notifications inbox (single source of truth) ────────────────────
@@ -61,6 +62,7 @@ function readSeen(me: string): SeenState {
 }
 
 export function useNotifications() {
+    const { ensureAppSession } = useAppSession();
     const { address } = useCurrentUser();
     const me = (address || '').toLowerCase();
 
@@ -71,7 +73,7 @@ export function useNotifications() {
     useEffect(() => {
         if (me) setSeen(readSeen(me));
         else setSeen({ r: [], p: [] });
-    }, [me]);
+    }, [me, ensureAppSession]);
 
     const persistSeen = useCallback((next: SeenState) => {
         if (!me) return;
@@ -89,28 +91,19 @@ export function useNotifications() {
             setPokes([]);
             return;
         }
-        const requestsPromise = supabase
-                .from('friendships')
-                .select('id,friend_address,created_at,requester:players!friendships_user_address_fkey(wallet_address,username,avatar_url)')
-                .eq('status', 'pending')
-                .eq('friend_address', me)
-                .order('created_at', { ascending: false })
-                .limit(20);
-        const pokesPromise = fetch(`/api/social/poke?wallet=${me}`);
-        let requestResult: Awaited<typeof requestsPromise>;
+        const sessionId = await ensureAppSession();
+        if (!sessionId) return;
+        const requestsPromise = fetch(`/api/friendships?walletAddress=${encodeURIComponent(me)}&sessionId=${encodeURIComponent(sessionId)}`);
+        const pokesPromise = fetch(`/api/social/poke?wallet=${encodeURIComponent(me)}&sessionId=${encodeURIComponent(sessionId)}`);
         let pokeResponse: Response;
         try {
-            [requestResult, pokeResponse] = await Promise.all([requestsPromise, pokesPromise]);
-        } catch (err) {
-            console.error('Notifications refresh error:', err);
-            return;
-        }
-        const { data: reqData, error: requestError } = requestResult;
-
-        if (requestError) {
-            console.error('Notifications requests error:', requestError.message);
-        } else {
-            setRequests(((reqData || []) as any[]).flatMap((r: any) => {
+            const [requestResponse, poke] = await Promise.all([requestsPromise, pokesPromise]);
+            if (!requestResponse.ok) throw new Error(`Friendships API failed: ${requestResponse.status}`);
+            const friendshipData = await requestResponse.json();
+            const requestData = friendshipData.incoming || [];
+            const { data: reqData } = { data: requestData };
+            pokeResponse = poke;
+            setRequests((reqData as any[]).flatMap((r: any) => {
                 const p = r.requester;
                 if (!p?.wallet_address) return [];
                 return [{
@@ -121,6 +114,9 @@ export function useNotifications() {
                     time: timeAgo(r.created_at),
                 }];
             }));
+        } catch (err) {
+            console.error('Notifications refresh error:', err);
+            return;
         }
 
         if (pokeResponse.ok) {
@@ -142,14 +138,6 @@ export function useNotifications() {
         if (!me) return;
         const channel = supabase
             .channel('notif-inbox-sync')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, (payload: any) => {
-                const row = payload.new || payload.old;
-                if (!row) return;
-                const involved = [row.user_address, row.friend_address]
-                    .filter(Boolean)
-                    .some((a: string) => a.toLowerCase() === me);
-                if (involved) fetchAll();
-            })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pokes', filter: `receiver_id=eq.${me}` }, () => {
                 fetchAll();
             })
@@ -172,35 +160,42 @@ export function useNotifications() {
     }, [me, persistSeen]);
 
     const acceptRequest = useCallback(async (id: string) => {
-        const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('id', id);
+        const sessionId = await ensureAppSession();
+        const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: me, sessionId, action: 'accept', friendshipId: id }) });
+        const error = !response || !response.ok;
         if (!error) {
             setRequests(prev => prev.filter(r => r.id !== id));
             markSeenRequest(id);
         }
         return !error;
-    }, [markSeenRequest]);
+    }, [markSeenRequest, ensureAppSession, me]);
 
     const declineRequest = useCallback(async (id: string) => {
-        const { error } = await supabase.from('friendships').delete().eq('id', id);
+        const sessionId = await ensureAppSession();
+        const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: me, sessionId, action: 'remove', friendshipId: id }) });
+        const error = !response || !response.ok;
         if (!error) {
             setRequests(prev => prev.filter(r => r.id !== id));
             markSeenRequest(id);
         }
         return !error;
-    }, [markSeenRequest]);
+    }, [markSeenRequest, ensureAppSession, me]);
 
     const pokeBack = useCallback(async (friendId: string) => {
         if (!me) return false;
         try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) return false;
             const res = await fetch('/api/social/poke', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sender: me, receiver: friendId.toLowerCase() })
+                body: JSON.stringify({ sender: me, receiver: friendId.toLowerCase(), walletAddress: me, sessionId })
             });
             if (res.ok) {
                 setPokes(prev => prev.filter(p => p.sender_id.toLowerCase() !== friendId.toLowerCase()));
                 markSeenPoke(friendId);
                 window.dispatchEvent(new CustomEvent('mission-update'));
+                window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
                 return true;
             }
             return false;
@@ -208,7 +203,7 @@ export function useNotifications() {
             console.error('Poke back error:', err);
             return false;
         }
-    }, [me, markSeenPoke]);
+    }, [me, markSeenPoke, ensureAppSession]);
 
     const notifCount = useMemo(() =>
         requests.filter(r => !seen.r.includes(r.id)).length +

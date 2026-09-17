@@ -9,6 +9,7 @@ import { RANGES, FormChart, rangeCutoff } from './FormChart';
 import { getShowcased } from '@/lib/showcase';
 import { exitGuest } from '@/lib/guest';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { useAppSession } from '@/hooks/useAppSession';
 import {
     AVATARS, AvatarDef, encodeAvatar, isDirectImage, isUnlocked,
     resolveAvatarDef, validateName, NAME_RULES,
@@ -94,6 +95,7 @@ const AvatarFace = ({ def, letter, box = 'w-14 h-14' }: {
 export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClose: () => void; onOpenMarketplace?: () => void }) {
     const { profile, address, displayName: finalName, isGuest } = useCurrentUser();
     const { guard } = useGuestWall();
+    const { ensureAppSession } = useAppSession();
 
     const finalAvatar = profile?.avatar_url || null;
     const avatarDef = resolveAvatarDef(finalAvatar);
@@ -148,26 +150,20 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
         setSaving(true);
         setSaveError(null);
         try {
-            // Uniqueness (case-insensitive), excluding self.
-            const { data: clash } = await supabase
-                .from('players')
-                .select('wallet_address')
-                .ilike('username', clean)
-                .neq('wallet_address', address.toLowerCase())
-                .limit(1);
-            if (clash && clash.length > 0) {
-                setSaveError('That name is taken');
-                setSaving(false);
-                return;
-            }
-            const { error } = await supabase
-                .from('players')
-                .update({
+            const response = await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    sessionId: await ensureAppSession(),
                     username: clean,
-                    avatar_url: draftAvatarId ? encodeAvatar(draftAvatarId) : profile?.avatar_url || null,
-                })
-                .eq('wallet_address', address.toLowerCase());
-            if (error) throw error;
+                    avatarUrl: draftAvatarId ? encodeAvatar(draftAvatarId) : profile?.avatar_url || null,
+                }),
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Couldn’t save profile');
+            }
             // The profile realtime channel picks the update up.
             setEditing(false);
             setSavedFlash(true);
