@@ -2169,8 +2169,9 @@ async function seedFixtures(
   );
 
   // spectator bets: open + settled (settled via status insert for fixture purposes).
+  // Upserts keep re-runs green against an already-seeded scratch project.
   if (matchId) {
-    const b1 = await service.from('spectator_bets').insert({
+    const b1 = await service.from('spectator_bets').upsert({
       player_id: fx.outsider,
       match_id: matchId,
       bet_type: 'winner',
@@ -2180,9 +2181,9 @@ async function seedFixtures(
       potential_payout: 200,
       status: 'open',
       action_id: 'compat-open-001',
-    });
+    }, { onConflict: 'player_id,action_id', ignoreDuplicates: true });
     push('seed/bet-open', !b1.error, b1.error ? supaErrorText(b1.error) : 'open bet seeded');
-    const b2 = await service.from('spectator_bets').insert({
+    const b2 = await service.from('spectator_bets').upsert({
       player_id: fx.guest,
       match_id: matchId,
       bet_type: 'winner',
@@ -2192,7 +2193,7 @@ async function seedFixtures(
       potential_payout: 100,
       status: 'lost',
       action_id: 'compat-settled-001',
-    });
+    }, { onConflict: 'player_id,action_id', ignoreDuplicates: true });
     push('seed/bet-settled', !b2.error, b2.error ? supaErrorText(b2.error) : 'settled bet seeded');
   }
 
