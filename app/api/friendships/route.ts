@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 
 export async function GET(request: Request) {
     try {
@@ -64,6 +64,10 @@ export async function POST(request: Request) {
         } else if (action === 'request') {
             const friend = String(target || '').toLowerCase();
             if (!/^0x[a-f0-9]{40}$/.test(friend) || friend === wallet) return NextResponse.json({ error: 'Invalid target' }, { status: 400 });
+            // Fresh wallets have no players row yet — provision before the
+            // FK-checked upsert so friending new users doesn't 500.
+            const provErr = await ensurePlayerRow(friend);
+            if (provErr) return NextResponse.json({ error: provErr }, { status: 400 });
             const { error } = await db.from('friendships').upsert({
                 user_address: wallet, friend_address: friend, status: 'pending',
             }, { onConflict: 'user_address,friend_address' });

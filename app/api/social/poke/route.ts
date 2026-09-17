@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 
 /**
  * POKE SYSTEM LOGIC
@@ -129,7 +129,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Already poked this friend' }, { status: 400 });
         }
 
-        // 3. Create new Poke
+        // 3. Create new Poke (provision the receiver first — fresh wallets
+        // have no players row yet and the FK would reject the poke).
+        const provErr = await ensurePlayerRow(r);
+        if (provErr) return NextResponse.json({ error: provErr }, { status: 500 });
         await supabase
             .from('pokes')
             .insert({
