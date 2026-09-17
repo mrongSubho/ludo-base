@@ -1,12 +1,29 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { recoverMessageAddress } from 'viem';
 import { buildEcdhMessage, isFreshIssuedAt } from '@/lib/matchProof';
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+/** Recipient ECDH pubkey lookup for DM sealing (service role: ecdh_pubkey is server-only). */
+export async function GET(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const target = (searchParams.get('wallet') || '').toLowerCase();
+        if (!/^0x[a-f0-9]{40}$/.test(target)) {
+            return NextResponse.json({ error: 'Invalid wallet' }, { status: 400 });
+        }
+        const requester = await requireAppSession(
+            searchParams.get('walletAddress'),
+            searchParams.get('sessionId'),
+        );
+        if (!requester) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        const { data, error } = await serviceDb().from('players')
+            .select('ecdh_pubkey').eq('wallet_address', target).maybeSingle();
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ publicKey: (data?.ecdh_pubkey as unknown) ?? null });
+    } catch (error) {
+        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    }
+}
 
 export async function POST(request: Request) {
     try {
@@ -23,7 +40,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
         if (recovered !== String(walletAddress).toLowerCase()) return NextResponse.json({ error: 'Signer mismatch' }, { status: 403 });
-        const { error } = await supabase.from('players').upsert(
+        // Service role: players writes are default-deny; proof is the wallet signature above.
+        const { error } = await serviceDb().from('players').upsert(
             { wallet_address: recovered, ecdh_pubkey: publicKey },
             { onConflict: 'wallet_address' },
         );

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 const LIMIT = 20;
@@ -7,11 +7,18 @@ const SLOW_MODE_S = 10;
 const PRUNE_KEEP = 300;
 
 // Service role for room upserts (anon holds no UPDATE policy by design).
-// Falls back to anon when unconfigured — upserts then degrade to inserts.
-const serviceClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Fail loudly when the service key is missing — never silently fall back to
+// anon (Phase 1: loud 500s instead of silent empty results / duplicate floods).
+// Lazy singleton: module eval at build time must not require secrets.
+let _service: SupabaseClient | null = null;
+function svc(): SupabaseClient {
+    if (_service) return _service;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new Error('Supabase service role is not configured');
+    _service = createClient(url, key);
+    return _service;
+}
 
 // GET /api/live-chat?country=US&limit=20 — newest-first, returned oldest-first.
 export async function GET(request: Request) {
@@ -69,8 +76,9 @@ export async function POST(request: Request) {
         }
 
         // Slow-mode applies to fresh shouts only — room state syncs bypass it.
+        // Service-backed: live_chat has no anon SELECT policy under default-deny.
         if (!roomCode) {
-            const { data: last } = await supabase
+            const { data: last } = await svc()
                 .from('live_chat')
                 .select('created_at')
                 .eq('sender_id', wallet)
@@ -83,7 +91,8 @@ export async function POST(request: Request) {
             }
         }
 
-        // Identity snapshot (trust the DB, not the client).
+        // Identity snapshot (trust the DB, not the client). Directory columns
+        // are baseline-granted, so this stays on the anon client.
         const { data: profile } = await supabase
             .from('players')
             .select('username, avatar_url')
@@ -106,7 +115,7 @@ export async function POST(request: Request) {
             const roomRow = { sender_id: wallet, username, avatar_url: profile?.avatar_url || null, content, country, room_code: roomCode, room_open: roomOpen };
             const missingCols = (e: any) => e?.code === '42703' || String(e?.message || '').includes('room_code');
             try {
-                const { data: existing } = await serviceClient
+                const { data: existing } = await svc()
                     .from('live_chat')
                     .select('id')
                     .eq('sender_id', wallet)
@@ -115,7 +124,7 @@ export async function POST(request: Request) {
                     .limit(1)
                     .maybeSingle();
                 if (existing?.id) {
-                    const { data: updated, error: updErr } = await serviceClient
+                    const { data: updated, error: updErr } = await svc()
                         .from('live_chat')
                         .update({ content, room_open: roomOpen, created_at: new Date().toISOString() })
                         .eq('id', existing.id)
@@ -124,7 +133,7 @@ export async function POST(request: Request) {
                     if (updErr) throw updErr;
                     return NextResponse.json(updated);
                 }
-                const { data: planted, error: plantErr } = await serviceClient
+                const { data: planted, error: plantErr } = await svc()
                     .from('live_chat')
                     .insert(roomRow)
                     .select(FULL_COLS)
@@ -165,7 +174,9 @@ export async function POST(request: Request) {
             }
         }
 
-        const { data: inserted, error } = await supabase
+        // Fresh shouts go through the service role: live_chat has no anon
+        // INSERT policy under default-deny. Missing key fails loud (500).
+        const { data: inserted, error } = await svc()
             .from('live_chat')
             .insert({
                 sender_id: wallet,
@@ -179,9 +190,9 @@ export async function POST(request: Request) {
         if (error) throw error;
 
         // Opportunistic prune: keep only the newest rows so the table
-        // self-cleans without a cron job.
+        // self-cleans without a cron job. Service role: anon holds no DELETE.
         try {
-            const { data: keep } = await supabase
+            const { data: keep } = await svc()
                 .from('live_chat')
                 .select('created_at')
                 .order('created_at', { ascending: false })
@@ -189,7 +200,7 @@ export async function POST(request: Request) {
                 .range(PRUNE_KEEP - 1, PRUNE_KEEP - 1);
             const cutoff = keep?.[0]?.created_at;
             if (cutoff) {
-                await supabase.from('live_chat').delete().lt('created_at', cutoff);
+                await svc().from('live_chat').delete().lt('created_at', cutoff);
             }
         } catch {
             /* prune is best-effort */

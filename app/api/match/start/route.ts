@@ -1,12 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { serviceDb } from '@/lib/serverAuth';
 
 export async function POST(request: Request) {
     try {
+        // Server-owned insert (service role bypasses default-deny RLS).
+        // Deliberately session-optional: local/offline games and pre-login hosts
+        // call this before any SIWE session exists; the canonical host proof
+        // is enforced downstream at /api/match/record settlement time.
+        const supabase = serviceDb();
         const { roomCode, gameMode, participants } = await request.json();
 
         if (!roomCode || !participants || !Array.isArray(participants)) {

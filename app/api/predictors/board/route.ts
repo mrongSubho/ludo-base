@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { serviceDb } from '@/lib/serverAuth';
 
 // Daily sharp board: today's settled spectator bets aggregated per predictor.
-// Bets table is world-readable; usernames resolve via players.
+// spectator_bets is default-deny (no public RLS policy), so this public board
+// reads through the service role. No session required (world-readable output).
 export async function GET() {
     try {
+        const db = serviceDb();
         const now = new Date();
         const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
 
-        const { data: bets, error } = await supabase
+        const { data: bets, error } = await db
             .from('spectator_bets')
             .select('player_id, amount, potential_payout, status')
             .gte('resolved_at', startOfToday.toISOString())
@@ -37,7 +39,7 @@ export async function GET() {
         const ids = ranked.map(r => r.player_id);
         let profiles: Record<string, { username: string | null; avatar_url: string | null }> = {};
         if (ids.length > 0) {
-            const { data: players } = await supabase
+            const { data: players } = await db
                 .from('players')
                 .select('wallet_address, username, avatar_url')
                 .in('wallet_address', ids);
@@ -59,6 +61,11 @@ export async function GET() {
         );
     } catch (err: any) {
         console.error('Predictor board error:', err.message || err);
+        // Loud on misconfiguration (never self-heals); empty array only for
+        // genuinely empty or transient query failures.
+        if (String(err?.message || '').includes('service role is not configured')) {
+            return NextResponse.json({ error: 'Service unavailable' }, { status: 500 });
+        }
         return NextResponse.json([]);
     }
 }

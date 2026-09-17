@@ -1,17 +1,7 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
-let _sb: SupabaseClient | null = null;
-function db(): SupabaseClient {
-    if (_sb) return _sb;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error('Supabase is not configured');
-    _sb = createClient(url, key);
-    return _sb;
-}
-
-/** Host → guest invite insert (service role; wallet RLS cannot do this). */
+/** Host → guest invite insert (service role; wallet RLS cannot do this). Host-session gated. */
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -21,7 +11,11 @@ export async function POST(request: Request) {
         if (!roomCode || !host || !guest) {
             return NextResponse.json({ error: 'roomCode, hostAddress, guestAddress required' }, { status: 400 });
         }
-        const { error } = await db().from('game_invites').insert({
+        const wallet = await requireAppSession(body.hostAddress, body.sessionId);
+        if (!wallet || wallet !== host) {
+            return NextResponse.json({ error: 'Invalid host session' }, { status: 401 });
+        }
+        const { error } = await serviceDb().from('game_invites').insert({
             room_code: roomCode,
             host_address: host,
             guest_address: guest,

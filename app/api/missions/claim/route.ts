@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 export async function POST(request: Request) {
     try {
-        const { walletAddress, missionId } = await request.json();
+        const { walletAddress, missionId, sessionId } = await request.json();
 
         if (!walletAddress || !missionId) {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
+        const wallet = await requireAppSession(walletAddress, sessionId);
+        if (!wallet) {
+            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        }
 
-        const lowAddr = walletAddress.toLowerCase();
+        // Service role: player_missions + players.coins are server-only under default-deny.
+        const supabase = serviceDb();
+        const lowAddr = wallet;
 
         // 1. Fetch Mission Status
         const { data: mission, error: missionError } = await supabase

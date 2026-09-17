@@ -1,15 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-let _sb: SupabaseClient | null = null;
-function db(): SupabaseClient {
-    if (_sb) return _sb;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error('Supabase is not configured');
-    _sb = createClient(url, key);
-    return _sb;
-}
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 /** Guest polls pending invites for the wallet bound to its app session. */
 export async function GET(request: Request) {
@@ -20,17 +10,12 @@ export async function GET(request: Request) {
         if (!wallet) return NextResponse.json({ error: 'wallet required' }, { status: 400 });
         if (!sessionId) return NextResponse.json({ error: 'session required' }, { status: 401 });
 
-        const since = new Date(Date.now() - 2 * 60_000).toISOString();
-        const { data: session } = await db()
-            .from('app_sessions')
-            .select('wallet_address, expires_at, revoked_at')
-            .eq('id', sessionId)
-            .maybeSingle();
-        if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now() ||
-            String(session.wallet_address).toLowerCase() !== wallet) {
+        const authed = await requireAppSession(wallet, sessionId);
+        if (!authed) {
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
-        const { data, error } = await db()
+        const since = new Date(Date.now() - 2 * 60_000).toISOString();
+        const { data, error } = await serviceDb()
             .from('game_invites')
             .select('id, room_code, host_address, match_type, entry_fee, validation_token, status, created_at')
             .eq('guest_address', wallet)

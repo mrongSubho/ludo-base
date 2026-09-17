@@ -1,13 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { recoverMessageAddress } from 'viem';
 import { buildMatchRecordMessage, isFreshIssuedAt } from '@/lib/matchProof';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { serviceDb } from '@/lib/serverAuth';
 
 async function updateMissionProgress(walletAddress: string, missionId: string, increment: number) {
+    // Signature-gated settlement (canonical host wallet-signs the payload).
+    // Service role bypasses default-deny RLS; throws loudly when unconfigured.
+    const supabase = serviceDb();
     const lowAddr = walletAddress.toLowerCase();
     const now = new Date();
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
@@ -48,6 +47,7 @@ async function updateMissionProgress(walletAddress: string, missionId: string, i
 
 export async function POST(request: Request) {
     try {
+        const supabase = serviceDb();
         const body = await request.json();
         const {
             winnerAddress,

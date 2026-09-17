@@ -1,26 +1,32 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 export async function POST(request: Request) {
     try {
-        const { ticketId, playerId } = await request.json();
+        // serviceDb() is called in-handler (never at module scope): module
+        // eval at build time must not require secrets.
+        const supabase = serviceDb();
+        const { ticketId, playerId, sessionId } = await request.json();
 
         if (!ticketId && !playerId) {
             return NextResponse.json({ error: 'Missing ticketId or playerId' }, { status: 400 });
         }
+        let owner = playerId;
+        if (!owner && ticketId) {
+            owner = (await supabase.from('matchmaking_queue').select('player_id').eq('id', ticketId).maybeSingle()).data?.player_id;
+        }
+        const wallet = await requireAppSession(owner, sessionId);
+        if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         console.log('📡 [Matchmaking] Received cancellation request:', { ticketId, playerId });
 
         let query = supabase.from('matchmaking_queue').update({ status: 'cancelled' });
 
+        // Owner-scoped: the session wallet must own the ticket. Without this,
+        // any valid session knowing a ticket UUID could cancel another player's search.
+        query = query.eq('player_id', wallet);
         if (ticketId) {
             query = query.eq('id', ticketId);
-        } else if (playerId) {
-            query = query.eq('player_id', playerId);
         }
 
         const { error } = await query.in('status', ['searching', 'expanding']);

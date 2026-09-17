@@ -1,19 +1,11 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { recoverMessageAddress } from 'viem';
 import { buildStreamMessage, isFreshIssuedAt } from '@/lib/matchProof';
+import { serviceDb } from '@/lib/serverAuth';
 
-/** Lazy client — do not require secrets at module eval (Vercel collect). */
-let _sb: SupabaseClient | null = null;
-function db(): SupabaseClient {
-    if (_sb) return _sb;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) {
-        throw new Error('Supabase is not configured');
-    }
-    _sb = createClient(url, key);
-    return _sb;
+/** Service-role DB — host proof is a wallet signature, not an app session. Throws loudly when unconfigured. */
+function db() {
+    return serviceDb();
 }
 
 /** Bound hanging Supabase calls so the route cannot stall the platform. */

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 const DAILY_MISSIONS = [
     { id: 'daily_bonus', type: 'social', title: 'Daily Bonus', description: 'Claim your daily 100 coins!', target: 1, rewardType: 'coins', rewardAmount: 100 },
@@ -17,8 +17,14 @@ export async function GET(request: Request) {
     if (!walletAddress) {
         return NextResponse.json({ error: 'Wallet address required' }, { status: 400 });
     }
+    const wallet = await requireAppSession(walletAddress, searchParams.get('sessionId'));
+    if (!wallet) {
+        return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
 
     try {
+        // Service role: player_missions is default-deny (no public RLS policy).
+        const supabase = serviceDb();
         // 1. Calculate Start of Day in UTC (00:00:00)
         const now = new Date();
         const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 /**
  * POKE SYSTEM LOGIC
@@ -9,14 +9,25 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
-        const { sender, receiver } = await request.json();
+        const { sender, receiver, sessionId, walletAddress } = await request.json();
 
         if (!sender || !receiver) {
             return NextResponse.json({ error: 'Missing addresses' }, { status: 400 });
         }
+        // Session-scoped: the caller must own the sender's app session.
+        const authed = await requireAppSession(walletAddress ?? sender, sessionId);
+        if (!authed) {
+            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        }
 
         const s = sender.toLowerCase();
         const r = receiver.toLowerCase();
+        if (authed !== s) {
+            return NextResponse.json({ error: 'Sender mismatch' }, { status: 403 });
+        }
+
+        // Service role: pokes + players.coins + player_missions are server-only under default-deny.
+        const supabase = serviceDb();
 
         // 0. Enforce Limits (UTC 00:00:00 boundary)
         const now = new Date();
@@ -141,6 +152,11 @@ export async function GET(request: Request) {
 
     if (!wallet) return NextResponse.json([], { status: 400 });
 
+    const authed = await requireAppSession(wallet, searchParams.get('sessionId'));
+    if (!authed) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+    // Service role: pokes rows are server-only under default-deny.
+    const supabase = serviceDb();
     // Get pokes sent to me that I haven't poked back yet
     const { data, error } = await supabase
         .from('pokes')

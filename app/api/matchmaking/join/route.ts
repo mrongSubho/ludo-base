@@ -1,21 +1,68 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+/**
+ * Attach the caller's ticket validation_token to a direct-match response.
+ * The RPCs never mint tokens, so without this the fast path dispatches
+ * `undefined` while the poll path delivers owner-checked tokens — guests
+ * would then fail the room-secret gate on private lobbies. Mint-on-read is
+ * safe here: service role, session-bound caller, own ticket row only.
+ */
+async function withCallerToken(db: any, playerId: string, data: any) {
+    if (!data || data.status !== 'matched' || !data.match_id) return data;
+    if (data.validation_token) return data;
+    try {
+        const { data: ticket } = await db
+            .from('matchmaking_queue')
+            .select('id, validation_token')
+            .eq('player_id', playerId)
+            .eq('match_id', data.match_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (!ticket) return data;
+        if (ticket.validation_token) return { ...data, validation_token: ticket.validation_token };
+        const minted = [...crypto.getRandomValues(new Uint8Array(16))]
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+        // Guarded single-mint: only persist when the row is still tokenless.
+        // On a lost race (0 rows updated) re-read the winner's token instead
+        // of returning an unpersisted value the secret gate would reject.
+        const { data: claimed, error } = await db
+            .from('matchmaking_queue')
+            .update({ validation_token: minted })
+            .eq('id', ticket.id)
+            .is('validation_token', null)
+            .select('validation_token')
+            .maybeSingle();
+        if (error) throw error;
+        if (claimed?.validation_token) {
+            return { ...data, validation_token: claimed.validation_token };
+        }
+        // Lost the race after all: re-read whatever won.
+        const { data: winner } = await db
+            .from('matchmaking_queue')
+            .select('validation_token')
+            .eq('id', ticket.id)
+            .maybeSingle();
+        return { ...data, validation_token: winner?.validation_token ?? undefined };
+    } catch (err) {
+        // Token is best-effort hardening: open rooms join fine without it.
+        console.warn('⚠️ [Matchmaking] Token mint skipped:', (err as Error).message);
+        return data;
+    }
+}
 
 export async function POST(request: Request) {
     try {
-        let { playerId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, isHybrid } = await request.json();
-
-        if (playerId) {
-            playerId = playerId.toLowerCase();
-        }
+        const supabase = serviceDb();
+        let { playerId, sessionId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, isHybrid } = await request.json();
 
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+        const wallet = await requireAppSession(playerId, sessionId);
+        if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        playerId = wallet;
 
         console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, isHybrid });
 
@@ -38,7 +85,7 @@ export async function POST(request: Request) {
             }
 
             console.log('✅ [Matchmaking] Hybrid RPC Result:', data);
-            return NextResponse.json(data);
+            return NextResponse.json(await withCallerToken(supabase, playerId, data));
         }
 
         // Call the atomic join RPC
@@ -57,7 +104,7 @@ export async function POST(request: Request) {
         }
 
         console.log('✅ [Matchmaking] RPC Result:', data);
-        return NextResponse.json(data);
+        return NextResponse.json(await withCallerToken(supabase, playerId, data));
     } catch (err: any) {
         console.error('❌ [Matchmaking] Unexpected error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });

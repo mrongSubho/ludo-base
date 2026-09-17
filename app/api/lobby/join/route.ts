@@ -1,16 +1,6 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-
-let _sb: SupabaseClient | null = null;
-function db(): SupabaseClient {
-    if (_sb) return _sb;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error('Supabase is not configured');
-    _sb = createClient(url, key);
-    return _sb;
-}
+import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 function sha256Hex(s: string): string {
     return createHash('sha256').update(s).digest('hex');
@@ -36,7 +26,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Wallet required' }, { status: 401 });
         }
 
-        const sb = db();
+        const sb = serviceDb();
 
         // Prefer room row by room_code; fall back to match_id-keyed rows.
         const { data: room } = await sb
@@ -80,19 +70,15 @@ export async function GET(request: Request) {
     try {
         const url = new URL(request.url);
         const roomCode = (url.searchParams.get('roomCode') || '').trim().toUpperCase();
-        const hostAddress = (url.searchParams.get('hostAddress') || '').trim().toLowerCase();
-        const sessionId = url.searchParams.get('sessionId');
         if (!roomCode) {
             return NextResponse.json({ error: 'roomCode required' }, { status: 400 });
         }
-        const sb = db();
-        if (!hostAddress || !sessionId) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
-        const { data: session } = await sb.from('app_sessions').select('wallet_address, expires_at, revoked_at')
-            .eq('id', sessionId).maybeSingle();
-        if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now() ||
-            String(session.wallet_address).toLowerCase() !== hostAddress) {
-            return NextResponse.json({ error: 'Invalid host session' }, { status: 401 });
-        }
+        const sb = serviceDb();
+        const hostAddress = await requireAppSession(
+            url.searchParams.get('hostAddress'),
+            url.searchParams.get('sessionId'),
+        );
+        if (!hostAddress) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
         const { data: room } = await sb.from('live_matches').select('match_id, host_address')
             .eq('room_code', roomCode).maybeSingle();
         let canonicalHost = String(room?.host_address || '').toLowerCase();
@@ -117,14 +103,31 @@ export async function GET(request: Request) {
     }
 }
 
-/** Host: delete a processed join request. */
+/** Host: delete a processed join request (host-session gated). */
 export async function DELETE(request: Request) {
     try {
         const body = await request.json();
         const id = String(body.id || '');
         if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-        const sb = db();
-        await sb.from('lobby_join_requests').delete().eq('id', id);
+        const wallet = await requireAppSession(body.hostAddress ?? body.walletAddress, body.sessionId);
+        if (!wallet) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
+        const sb = serviceDb();
+        const { data: req } = await sb.from('lobby_join_requests')
+            .select('room_code').eq('id', id).maybeSingle();
+        if (!req) return NextResponse.json({ success: true });
+        const { data: room } = await sb.from('live_matches')
+            .select('match_id, host_address').eq('room_code', req.room_code).maybeSingle();
+        let canonicalHost = String(room?.host_address || '').toLowerCase();
+        if (room?.match_id && !canonicalHost) {
+            const { data: match } = await sb.from('matches').select('participants')
+                .eq('id', room.match_id).maybeSingle();
+            canonicalHost = String(match?.participants?.[0] || '').toLowerCase();
+        }
+        if (!room?.match_id || canonicalHost !== wallet) {
+            return NextResponse.json({ error: 'Not the room host' }, { status: 403 });
+        }
+        const { error } = await sb.from('lobby_join_requests').delete().eq('id', id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         return NextResponse.json({ success: true });
     } catch (err) {
         return NextResponse.json({ error: (err as Error).message }, { status: 500 });
