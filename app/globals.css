@@ -5237,9 +5237,14 @@ body.theme-retro-futurism .token-dot-placeholder {
   }
 
   .dashboard-container {
-    min-height: 0 !important;
+    /* Fill the shell so the lobby column stretches to the viewport: the dice
+       flex-1 absorbs free space and mt-auto pins the broadcast card just
+       above the footer — no bunched-at-top content, no blank gap. */
+    min-height: 100% !important;
     height: auto !important;
     overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .dash-main.pb-safe-footer {
@@ -5248,10 +5253,23 @@ body.theme-retro-futurism .token-dot-placeholder {
     gap: 12px !important;
   }
 
+  .dash-main {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
   .ludo-lobby-scope {
+    flex: 1 1 auto !important;
+    height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  .ludo-lobby-scope .setup-tier {
+    flex: 1 1 auto !important;
+    height: auto !important;
   }
 
   /* Keep broadcast card above footer even when column is short */
