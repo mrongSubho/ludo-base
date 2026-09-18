@@ -46,20 +46,25 @@ export type MoveAuthResult =
     | ({ ok: true } & MatchActionSuccess)
     | ({ ok: false } & MatchActionError);
 
+/** Module-shared session maps: useMoveAuth is instantiated twice
+ * (TeamUpContext creates the match session at start; useGameEngine consumes
+ * it per action). Per-instance maps meant the consumer never saw the
+ * producer's session → a wallet popup on EVERY move. Keyed by matchId;
+ * a wrong-wallet entry fails closed server-side and renews via 401. */
+const sharedMoveSessions = new Map<string, string>();
+/** Prevent concurrent first actions from opening one wallet prompt each. */
+const sharedMovePending = new Map<string, Promise<{ ok: boolean; sessionId?: string; error?: string }>>();
+
 export function useMoveAuth(opts: {
     myAddress: string | undefined;
     signMessageAsync: SignFn;
     signTypedDataAsync: SignTypedFn;
 }) {
     const { myAddress, signMessageAsync, signTypedDataAsync } = opts;
-    /** matchId → sessionId (one EIP-712 sign per match). */
-    const sessionRef = useRef<Map<string, string>>(new Map());
-    /** Prevent concurrent first actions from opening one wallet prompt each. */
-    const sessionPendingRef = useRef<Map<string, Promise<{ ok: boolean; sessionId?: string; error?: string }>>>(new Map());
-
-    const getSessionId = useCallback((matchId: string) => sessionRef.current.get(matchId) || null, []);
+    /* session maps are module-shared (see top of file). */
+    const getSessionId = useCallback((matchId: string) => sharedMoveSessions.get(matchId) || null, []);
     const clearSession = useCallback((matchId: string) => {
-        sessionRef.current.delete(matchId);
+        sharedMoveSessions.delete(matchId);
     }, []);
 
     const createProvisionalSession = useCallback(async (params: {
@@ -112,7 +117,7 @@ export function useMoveAuth(opts: {
     }) => {
         const r = await callMoveAuth('bind-provisional-session', params);
         if (r.ok && r.data?.sessionId) {
-            sessionRef.current.set(params.matchId, r.data.sessionId);
+            sharedMoveSessions.set(params.matchId, r.data.sessionId);
             return { ok: true, sessionId: r.data.sessionId };
         }
         return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
@@ -127,9 +132,9 @@ export function useMoveAuth(opts: {
         roomCode: string;
     }): Promise<{ ok: boolean; sessionId?: string; error?: string }> => {
         if (!myAddress) return { ok: false, error: 'no wallet' };
-        const existing = sessionRef.current.get(params.matchId);
+        const existing = sharedMoveSessions.get(params.matchId);
         if (existing) return { ok: true, sessionId: existing };
-        const pending = sessionPendingRef.current.get(params.matchId);
+        const pending = sharedMovePending.get(params.matchId);
         if (pending) return pending;
 
         const request = (async () => {
@@ -165,16 +170,16 @@ export function useMoveAuth(opts: {
                 signature,
             });
             if (r.ok && r.data?.sessionId) {
-                sessionRef.current.set(params.matchId, r.data.sessionId);
+                sharedMoveSessions.set(params.matchId, r.data.sessionId);
                 return { ok: true, sessionId: r.data.sessionId };
             }
             return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
         })();
-        sessionPendingRef.current.set(params.matchId, request);
+        sharedMovePending.set(params.matchId, request);
         try {
             return await request;
         } finally {
-            sessionPendingRef.current.delete(params.matchId);
+            sharedMovePending.delete(params.matchId);
         }
     }, [myAddress, signTypedDataAsync]);
 
@@ -226,13 +231,13 @@ export function useMoveAuth(opts: {
         if (!actor) return { ok: false, error: 'no actor' };
 
         // Lazy session: first action may create the EIP-712 grant (guests).
-        if (!sessionRef.current.has(params.matchId) && source === 'player' && myAddress) {
+        if (!sharedMoveSessions.has(params.matchId) && source === 'player' && myAddress) {
             try {
                 await createMatchSession({ matchId: params.matchId, roomCode: params.roomCode || params.matchId });
             } catch { /* fall back to per-action sign */ }
         }
 
-        let sessionId = sessionRef.current.get(params.matchId);
+        let sessionId = sharedMoveSessions.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;
@@ -308,10 +313,10 @@ export function useMoveAuth(opts: {
         const source = params.source || 'player';
         const actor = (params.actorOverride || myAddress || '').toLowerCase();
         if (!actor) return { ok: false, error: 'no actor' };
-        if (!sessionRef.current.has(params.matchId) && source === 'player' && myAddress) {
+        if (!sharedMoveSessions.has(params.matchId) && source === 'player' && myAddress) {
             await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
         }
-        let sessionId = sessionRef.current.get(params.matchId);
+        let sessionId = sharedMoveSessions.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;
@@ -393,11 +398,11 @@ export function useMoveAuth(opts: {
         const source = params.source || 'player';
         const actor = (params.actorOverride || myAddress || '').toLowerCase();
         if (!actor) return { ok: false, error: 'no actor' };
-        if (!sessionRef.current.has(params.matchId) && source === 'player' && myAddress) {
+        if (!sharedMoveSessions.has(params.matchId) && source === 'player' && myAddress) {
             await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
         }
         const tokenIndex = params.tokenIndex === undefined ? null : params.tokenIndex;
-        let sessionId = sessionRef.current.get(params.matchId);
+        let sessionId = sharedMoveSessions.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;
