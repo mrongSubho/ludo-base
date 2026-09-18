@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { buildEcdhMessage, isFreshIssuedAt } from '@/lib/matchProof';
+import { buildEcdhMessage, ecdhKeyFingerprint, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
@@ -31,7 +31,9 @@ export async function POST(request: Request) {
         if (!walletAddress || !publicKey || !issuedAt || !message || !signature || !isFreshIssuedAt(issuedAt)) {
             return NextResponse.json({ error: 'Missing or expired key proof' }, { status: 401 });
         }
-        const expected = buildEcdhMessage(String(walletAddress), publicKey, issuedAt);
+        // Recompute the fingerprint server-side: the signed text binds the
+        // key without ever displaying the raw blob in the wallet popup.
+        const expected = buildEcdhMessage(String(walletAddress), await ecdhKeyFingerprint(publicKey), issuedAt);
         if (message !== expected) return NextResponse.json({ error: 'Message mismatch' }, { status: 401 });
         // 6492-aware (EOA ecrecover + 1271/6492 validator on Base 8453).
         // Same broken primitive caused the ECDH half of the signing storm.

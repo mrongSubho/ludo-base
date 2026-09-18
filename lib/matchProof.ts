@@ -157,11 +157,31 @@ export function buildStreamMessage(params: {
     ].join('\n');
 }
 
-export function buildEcdhMessage(walletAddress: string, publicKey: JsonWebKey, issuedAt: string): string {
+/** Canonical fingerprint of a P-256 JWK (fixed field order — browser and
+ * Node must hash byte-identical text). Displayed in the wallet popup
+ * instead of the raw key blob. */
+export async function ecdhKeyFingerprint(publicKey: JsonWebKey): Promise<string> {
+    const x = (publicKey as { x?: unknown }).x;
+    const y = (publicKey as { y?: unknown }).y;
+    if (typeof x !== 'string' || typeof y !== 'string' || !x || !y) {
+        throw new Error('Invalid P-256 public key');
+    }
+    const canonical = JSON.stringify({ crv: 'P-256', kty: 'EC', x, y });
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+    const bytes = new Uint8Array(digest);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+export function buildEcdhMessage(walletAddress: string, fingerprint: string, issuedAt: string): string {
     return [
-        ECDH_PREFIX,
+        'Ludo Base message key',
         `wallet: ${walletAddress.toLowerCase()}`,
-        `key: ${JSON.stringify(publicKey)}`,
+        '',
+        'This registers your private chat key so friends can message you securely. It never moves tokens.',
+        '',
+        `fingerprint: ${fingerprint}`,
         `issued: ${issuedAt}`,
     ].join('\n');
 }

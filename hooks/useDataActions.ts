@@ -5,7 +5,7 @@ import { useSignMessage } from 'wagmi';
 import { UserProfile, MessageData } from './GameDataContext';
 import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 import { DataConnection, Peer } from 'peerjs';
-import { buildEcdhMessage } from '@/lib/matchProof';
+import { buildEcdhMessage, ecdhKeyFingerprint } from '@/lib/matchProof';
 import { useAppSession } from './useAppSession';
 
 interface ActionProps {
@@ -28,7 +28,7 @@ async function publishMyEcdhPubkey(
         await getOrCreateIdentityKey(walletAddress);
         const jwk = await exportPublicKeyJwk(walletAddress);
         const issuedAt = new Date().toISOString();
-        const message = buildEcdhMessage(walletAddress, jwk, issuedAt);
+        const message = buildEcdhMessage(walletAddress, await ecdhKeyFingerprint(jwk), issuedAt);
         // Explicit account (matches the SIWE call): without it some
         // connectors resolve the active account ambiguously and reprompt.
         const signature = await signMessageAsync({ account: walletAddress as `0x${string}`, message });
