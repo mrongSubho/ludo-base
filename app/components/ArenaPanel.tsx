@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelTabs, PanelChildTabs, TabCount } from './PanelTabs';
 import { LiveArenaContent, LiveTile } from './LiveArenaDirectory';
 import { LuTrophy, LuX, LuShieldCheck } from 'react-icons/lu';
@@ -62,6 +63,8 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
     const { ensureAppSession } = useAppSession();
     // Guests can view missions, but claiming pays onchain — walled.
     const { guard } = useGuestWall();
+    // Mobile: instant shell — motion enter/exit ghosts the previous panel.
+    const isMobile = useIsMobileView();
     const [arenaTab, setArenaTab] = useState<ArenaTab>('live');
 
     // Live header stats, reported up by the live tab content.
@@ -202,7 +205,7 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
     const weeklyLeft = missions.filter(m => !m.id.startsWith('daily') && !(m as any).is_claimed).length;
 
     return (
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <>
                     {/* Backdrop */}
@@ -214,10 +217,11 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                     {/* Panel Container */}
                     <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={isMobile ? false : { opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                            className="w-full max-w-[500px] relative h-full pointer-events-auto"
+                            exit={isMobile ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: 20 }}
+                            transition={isMobile ? { duration: 0 } : { type: 'tween', duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                            className="w-full max-w-[500px] relative h-full pointer-events-auto panel-motion-host"
                         >
                             <div
                                 className="ludo-arena-scope absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"

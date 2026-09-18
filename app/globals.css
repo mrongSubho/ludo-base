@@ -5773,6 +5773,148 @@ textarea:focus-visible {
   }
 }
 
+/* ─── Mobile panel performance ─────────────────────────────────────────────
+   Sandwich panels on phones were painting 32px backdrop-blur + multi-layer
+   cosmic gradients + animated orbs on every tab swap. Mobile compositors
+   lag and leave the previous panel as a ghost frame. On small viewports the
+   chrome becomes a cheap solid shell — same layout, no ghosting.
+   !important beats the inline backdropFilter styles on panel roots. */
+@media (max-width: 768px) {
+  html,
+  body {
+    background-attachment: scroll !important;
+  }
+
+  .cosmic-core-bg .cosmic-orb,
+  .cosmic-core-bg .boot-dot {
+    display: none !important;
+  }
+
+  /* All sandwich panel shells + modal cards that share the dark-glass recipe */
+  .ludo-profile-scope,
+  .ludo-friends-scope,
+  .ludo-rankings-scope,
+  .ludo-leaderboard-scope,
+  .ludo-arena-scope,
+  .ludo-market-scope,
+  .ludo-messages-scope,
+  .ludo-settings-scope,
+  .ludo-teamup-scope,
+  .ludo-quick-scope,
+  .ludo-offline-scope,
+  .ludo-migrate-scope,
+  .ludo-broadcast-scope,
+  .ludo-pubprofile-scope,
+  .ludo-invite-scope,
+  .ludo-wallet-scope,
+  .ludo-wall-scope,
+  .ludo-quit-scope,
+  .ludo-splash-scope,
+  .ludo-guestpill-scope,
+  .ludo-onboard-scope,
+  .ludo-idle-scope {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-image: none !important;
+    background-color: var(--panel-solid, rgba(8, 10, 16, 0.97)) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
+    /* Own paint layer so unmount/swap never leaves a stale blur composite */
+    transform: translateZ(0);
+    contain: paint;
+  }
+
+  body.theme-daybreak .ludo-profile-scope,
+  body.theme-daybreak .ludo-friends-scope,
+  body.theme-daybreak .ludo-rankings-scope,
+  body.theme-daybreak .ludo-leaderboard-scope,
+  body.theme-daybreak .ludo-arena-scope,
+  body.theme-daybreak .ludo-market-scope,
+  body.theme-daybreak .ludo-messages-scope,
+  body.theme-daybreak .ludo-settings-scope,
+  body.theme-daybreak .ludo-teamup-scope,
+  body.theme-daybreak .ludo-quick-scope,
+  body.theme-daybreak .ludo-offline-scope,
+  body.theme-daybreak .ludo-migrate-scope,
+  body.theme-daybreak .ludo-broadcast-scope,
+  body.theme-daybreak .ludo-pubprofile-scope,
+  body.theme-daybreak .ludo-onboard-scope {
+    background-color: var(--panel-solid, #f7f8fa) !important;
+    box-shadow: 0 10px 28px rgba(23, 23, 23, 0.14) !important;
+  }
+
+  :root {
+    --panel-solid: rgba(8, 10, 16, 0.97);
+  }
+  body.theme-daybreak {
+    --panel-solid: #f7f8fa;
+  }
+
+  /* Decorative orbs inside panels are blur-paint on every frame — hide them */
+  .ludo-profile-scope .cosmic-orb,
+  .ludo-friends-scope .cosmic-orb,
+  .ludo-rankings-scope .cosmic-orb,
+  .ludo-leaderboard-scope .cosmic-orb,
+  .ludo-arena-scope .cosmic-orb,
+  .ludo-market-scope .cosmic-orb,
+  .ludo-messages-scope .cosmic-orb,
+  .ludo-settings-scope .cosmic-orb,
+  .ludo-teamup-scope .cosmic-orb,
+  .ludo-quick-scope .cosmic-orb,
+  .ludo-offline-scope .cosmic-orb,
+  .ludo-migrate-scope .cosmic-orb,
+  .ludo-broadcast-scope .cosmic-orb,
+  .ludo-pubprofile-scope .cosmic-orb,
+  .ludo-invite-scope .cosmic-orb,
+  .ludo-onboard-scope .cosmic-orb {
+    display: none !important;
+  }
+
+  /* Chrome bars: blur + heavy shadows on sticky header/footer thrash compositing */
+  .header,
+  .footer-nav {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .footer-nav [style*="backdropFilter"],
+  .footer-nav [style*="backdrop-filter"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Staggered .animate-in delays make multi-child panels feel like lag */
+  .animate-in,
+  .animate-in:nth-child(1),
+  .animate-in:nth-child(2),
+  .animate-in:nth-child(3),
+  .animate-in:nth-child(4) {
+    animation: none !important;
+  }
+
+  /* Glass cards inside panels — drop blur, keep contrast */
+  .ludo-profile-scope [class*="backdrop-blur"],
+  .ludo-friends-scope [class*="backdrop-blur"],
+  .ludo-rankings-scope [class*="backdrop-blur"],
+  .ludo-leaderboard-scope [class*="backdrop-blur"],
+  .ludo-arena-scope [class*="backdrop-blur"],
+  .ludo-market-scope [class*="backdrop-blur"],
+  .ludo-messages-scope [class*="backdrop-blur"],
+  .ludo-settings-scope [class*="backdrop-blur"],
+  .ludo-lobby-scope [class*="backdrop-blur"],
+  .ludo-onboard-scope [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Framer-motion inline styles on panel wrappers (opacity/y tweens) */
+@media (max-width: 768px) {
+  .panel-motion-host {
+    transition: none !important;
+  }
+}
+
 /* ─── Daybreak: cyan text needs more weight on light glass ─── */
 body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) {
   color: #0e7490;

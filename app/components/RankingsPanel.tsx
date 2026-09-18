@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
+import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
 import { PanelTabs } from './PanelTabs';
@@ -35,6 +36,9 @@ const MEDAL = ['#facc15', '#e2e8f0', '#d97706'];
 export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: RankingsPanelProps) {
     const { address } = useAccount();
     const { leaderboard: players, isBooting } = useGameData();
+    // Mobile: mount the shell immediately — enter/exit tweens on a blurred
+    // panel leave a ghost of the previous tab for seconds on phones.
+    const isMobile = useIsMobileView();
     const [activeFilter, setActiveFilter] = useState<'global' | 'friends'>('global');
     const [searchQuery, setSearchQuery] = useState('');
     const [friendWallets, setFriendWallets] = useState<string[]>([]);
@@ -173,7 +177,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
     };
 
     return (
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <>
                     {/* Backdrop */}
@@ -185,10 +189,11 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                     {/* Panel Container */}
                     <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={isMobile ? false : { opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                            className="w-full max-w-[500px] relative h-full pointer-events-auto"
+                            exit={isMobile ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: 20 }}
+                            transition={isMobile ? { duration: 0 } : { type: 'tween', duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                            className="w-full max-w-[500px] relative h-full pointer-events-auto panel-motion-host"
                         >
                             <div
                                 className="ludo-rankings-scope absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"

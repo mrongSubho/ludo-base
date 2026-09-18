@@ -65,6 +65,38 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : null;
         ro?.observe(document.body);
 
+        // ─── Mobile: kill inline backdrop-filter on panel shells ───────────
+        // Panels set style={{ backdropFilter: 'blur(32px)' }} inline. On phones
+        // that blur composites so slowly the previous tab sticks as a ghost.
+        // CSS !important loses against some browser/style pipelines — force it.
+        const mobileMq = window.matchMedia('(max-width: 768px)');
+        const stripBlur = () => {
+            if (!mobileMq.matches) return;
+            const nodes = document.querySelectorAll<HTMLElement>(
+                '[style*="backdropFilter"], [style*="backdrop-filter"], [class*="-scope"]'
+            );
+            nodes.forEach((el) => {
+                const hasScope = el.className.includes('-scope');
+                const hasInlineBlur =
+                    el.style.getPropertyValue('backdrop-filter') ||
+                    el.style.getPropertyValue('-webkit-backdrop-filter');
+                if (!hasScope && !hasInlineBlur) return;
+                el.style.setProperty('backdrop-filter', 'none', 'important');
+                el.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+            });
+        };
+        stripBlur();
+        const blurT = window.setTimeout(stripBlur, 400);
+        const blurT2 = window.setTimeout(stripBlur, 1500);
+        const mo = new MutationObserver(() => stripBlur());
+        mo.observe(document.body, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['style', 'class'],
+        });
+        mobileMq.addEventListener('change', stripBlur);
+
         return () => {
             vv?.removeEventListener('resize', apply);
             vv?.removeEventListener('scroll', apply);
@@ -73,7 +105,11 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             window.clearTimeout(t1);
             window.clearTimeout(t2);
             window.clearTimeout(t3);
+            window.clearTimeout(blurT);
+            window.clearTimeout(blurT2);
             ro?.disconnect();
+            mo.disconnect();
+            mobileMq.removeEventListener('change', stripBlur);
             probe.remove();
         };
     }, []);

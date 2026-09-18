@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
+import { useIsMobileView } from '@/hooks/useIsMobileView';
 
 // Tab Type
 type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | null;
@@ -67,6 +68,9 @@ export const FooterNavPanel = ({
     onSelectChat,
     onOpenProfile
 }: FooterNavPanelProps) => {
+    // Mobile: no layout spring / backdrop-blur on the active pill — those
+    // stall the compositor while sandwich panels are mounting beside it.
+    const isMobile = useIsMobileView();
     // Single source of truth for footer clearance: measure the real rendered
     // box (compact vs full breakpoint, font loading — safe-area padding
     // included). Use sites add breathing room ONLY, never env(safe-area…)
@@ -105,15 +109,20 @@ export const FooterNavPanel = ({
                             className={`nav-item relative z-10 group ${isActive ? 'active' : ''}`}
                             onClick={() => onToggleTab(tab.id as Tab)}
                         >
-                            {/* Active Sliding Background */}
-                            {isActive && (
+                            {/* Active indicator: static on mobile, spring slide on desktop */}
+                            {isActive && (isMobile ? (
+                                <div
+                                    className="absolute inset-0 border border-white/10 rounded-2xl -z-10"
+                                    style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))' }}
+                                />
+                            ) : (
                                 <motion.div
                                     layoutId="active-nav-bg"
                                     className="absolute inset-0 border border-white/10 rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
-                                    style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))', backdropFilter: 'blur(8px)' }}
+                                    style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))' }}
                                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
                                 />
-                            )}
+                            ))}
                             {/* Hover Background */}
                             {!isActive && (
                                 <div className="absolute inset-0 bg-white/[0.04] border border-white/5 rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
