@@ -3,12 +3,40 @@
 import React, { useEffect, useRef } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { completeOnboarding } from '@/lib/onboarding';
+import { PanelTabs } from './PanelTabs';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
-// First-run setup shown once per device before the lobby: pick a theme
-// (+ token style). Compact + minimal by design. Selections apply live so the
-// user sees the arena change. Fresh devices (no stored choice) start on
-// Daybreak + Orbs; stored prefs are always respected.
+// First-run setup shown once per device before the lobby. Chrome matches
+// Settings → Appearance (same card shell + PanelTabs segmented controls).
+// Fresh devices default to Retro + Orbs; stored prefs are always respected.
+// Selections apply live so the user sees the arena change.
+
+const BoltIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+);
+
+const SunIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+);
+
+const PawnIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <circle cx="12" cy="7" r="3" />
+        <path d="M12 10v7M8.5 21h7M9.5 17h5" />
+    </svg>
+);
+
+const OrbIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
 
 export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
     const { preferences, updatePreference } = usePreferences();
@@ -20,8 +48,9 @@ export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
         if (defaulted.current) return;
         defaulted.current = true;
         try {
+            // Fresh device → Retro (product default). Stored choices win.
             if (localStorage.getItem('ludo-theme') === null) {
-                updatePreference('ludo-theme', 'light');
+                updatePreference('ludo-theme', 'retro');
             }
             if (localStorage.getItem('token-style') === null) {
                 updatePreference('token-style', 'orb');
@@ -37,12 +66,10 @@ export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
         onDone();
     };
 
-    const card = (active: boolean) => `onboard-pick${active ? ' onboard-pick-active' : ''}`;
-
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4 bg-black/70 backdrop-blur-md">
             <div
-                className="ludo-onboard-scope w-full max-w-[360px] rounded-[26px] border border-white/10 px-5 pt-5 pb-4 flex flex-col gap-3.5 shadow-2xl"
+                className="ludo-onboard-scope w-full max-w-[360px] rounded-[26px] border border-white/10 px-5 pt-5 pb-5 flex flex-col gap-4 shadow-2xl"
                 style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
             >
                 <div className="text-center flex flex-col gap-1">
@@ -54,58 +81,47 @@ export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
                     </h2>
                 </div>
 
-                {/* Theme */}
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40 px-1">
-                        Theme
-                    </span>
-                    <div className="flex gap-2">
-                        <button onClick={() => updatePreference('ludo-theme', 'retro')} aria-pressed={theme === 'retro'} className={card(theme === 'retro')}>
-                            <span
-                                className="w-full h-9 rounded-lg border border-white/15"
-                                style={{ background: 'linear-gradient(135deg, #0b0f19 0%, #12202e 55%, #0e3a45 100%)' }}
-                                aria-hidden
-                            />
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Retro</span>
-                        </button>
-                        <button onClick={() => updatePreference('ludo-theme', 'light')} aria-pressed={theme === 'light'} className={card(theme === 'light')}>
-                            <span
-                                className="w-full h-9 rounded-lg border border-black/10"
-                                style={{ background: 'linear-gradient(135deg, #fdf6e3 0%, #fde68a 45%, #a5b4fc 100%)' }}
-                                aria-hidden
-                            />
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Daybreak</span>
-                        </button>
+                {/* Appearance — same card shell + segmented controls as Settings */}
+                <section>
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+                            Appearance
+                        </span>
+                        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
                     </div>
-                </div>
-
-                {/* Token style */}
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40 px-1">
-                        Tokens
-                    </span>
-                    <div className="flex gap-2">
-                        <button onClick={() => updatePreference('token-style', 'pawn')} aria-pressed={tokenStyle === 'pawn'} className={card(tokenStyle === 'pawn')}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-white">
-                                <path d="M12 2a3 3 0 0 0-3 3c0 1.2.7 2.2 1.7 2.7L10 9H8a2 2 0 0 0-2 2v1h12v-1a2 2 0 0 0-2-2h-2l-.7-1.3c1-.5 1.7-1.5 1.7-2.7a3 3 0 0 0-3-3z" />
-                                <path d="M6 15h12l-1.5 6h-9L6 15z" />
-                            </svg>
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Chess</span>
-                        </button>
-                        <button onClick={() => updatePreference('token-style', 'orb')} aria-pressed={tokenStyle === 'orb'} className={card(tokenStyle === 'orb')}>
-                            <span className="w-6 h-6 rounded-full" style={{ background: 'radial-gradient(circle at 35% 30%, #a5f3fc 0%, #0891b2 55%, #083344 100%)', boxShadow: '0 0 12px rgba(34,211,238,0.6)' }} aria-hidden />
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">Orbs</span>
-                        </button>
+                    <div className="onboard-appearance rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                        <div className="onboard-appearance-row">
+                            <div className="onboard-row-label">Theme</div>
+                            <PanelTabs
+                                value={theme}
+                                onPick={(v) => updatePreference('ludo-theme', v)}
+                                options={[
+                                    { value: 'retro', label: 'Retro', icon: BoltIcon },
+                                    { value: 'light', label: 'Daybreak', icon: SunIcon },
+                                ]}
+                            />
+                        </div>
+                        <div className="onboard-appearance-row">
+                            <div className="onboard-row-label">Token style</div>
+                            <PanelTabs
+                                value={tokenStyle}
+                                onPick={(v) => updatePreference('token-style', v)}
+                                options={[
+                                    { value: 'pawn', label: 'Chess', icon: PawnIcon },
+                                    { value: 'orb', label: 'Orbs', icon: OrbIcon },
+                                ]}
+                            />
+                        </div>
                     </div>
-                </div>
+                </section>
 
                 <button
                     onClick={finish}
-                    className="mt-1 w-full py-3.5 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"
+                    className="onboard-cta w-full min-h-[56px] py-4 rounded-2xl bg-cyan-400 text-black text-[15px] sm:text-base font-black uppercase tracking-[0.22em] shadow-[0_0_28px_rgba(34,211,238,0.4)] hover:bg-cyan-300 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                 >
                     Enter the lobby
                 </button>
-                <p className="text-center text-[9px] font-bold text-white/35 -mt-1.5">
+                <p className="text-center text-[9px] font-bold text-white/35 -mt-2">
                     Change anytime in Settings
                 </p>
             </div>

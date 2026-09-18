@@ -447,42 +447,69 @@ body.theme-daybreak .panel-error-card .panel-error-stack {
   border-color: rgba(23, 23, 23, 0.12) !important;
   color: rgba(23, 23, 23, 0.75) !important;
 }
-/* Onboarding picks: full theme-proof card treatment (dark base + daybreak) */
-.onboard-pick {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 10px;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+/* Onboarding Appearance card: Settings → Appearance parity (PanelTabs live here) */
+.ludo-onboard-scope .onboard-appearance-row {
+  padding: 0.875rem;
 }
-.onboard-pick:hover { background: rgba(255, 255, 255, 0.08); }
-.onboard-pick:active { transform: scale(0.98); }
-.onboard-pick-active {
-  border-color: rgba(103, 232, 249, 0.8);
-  background: rgba(34, 211, 238, 0.1);
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+.ludo-onboard-scope .onboard-row-label {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 0.5rem;
 }
+/* PanelTabs spacing utilities are Tailwind — re-assert inside onboard scope */
+.ludo-onboard-scope .onboard-appearance :is(.p-1) { padding: 0.25rem; }
+.ludo-onboard-scope .onboard-appearance :is(.gap-1) { gap: 0.25rem; }
+.ludo-onboard-scope .onboard-appearance :is(.gap-1\.5) { gap: 0.375rem; }
+.ludo-onboard-scope .onboard-appearance :is(.py-1\.5) { padding-block: 0.375rem; }
+.ludo-onboard-scope .onboard-appearance :is(.divide-y) > :not([hidden]) ~ :not([hidden]) {
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+.ludo-onboard-scope .onboard-appearance :is(.bg-white\/\[0\.04\]) { background-color: rgba(255, 255, 255, 0.04); }
+.ludo-onboard-scope .onboard-appearance :is(.bg-black\/50) { background-color: rgba(0, 0, 0, 0.5); }
+.ludo-onboard-scope .onboard-appearance :is(.shadow-\[inset_0_0_0_1px_rgba\(34\,211\,238\,0\.5\)\]) {
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.5);
+}
+.ludo-onboard-scope .onboard-cta {
+  min-height: 56px;
+}
+
+/* Daybreak: onboard panel goes porcelain like Settings — keep CTA cyan-brand */
 body.theme-daybreak .ludo-onboard-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/50) { color: color-mix(in srgb, #171717 65%, transparent); }
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/40) { color: color-mix(in srgb, #171717 55%, transparent); }
+body.theme-daybreak .ludo-onboard-scope :is(.text-white\/35) { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak .ludo-onboard-scope :is(.text-white\/60) { color: color-mix(in srgb, #171717 58%, transparent); }
+body.theme-daybreak .ludo-onboard-scope :is(.text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
+body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
 body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
 body.theme-daybreak .ludo-onboard-scope :is(.border-white\/10) { border-color: rgba(23, 23, 23, 0.14); }
-body.theme-daybreak .ludo-onboard-scope .onboard-pick {
-  border-color: rgba(23, 23, 23, 0.12);
+body.theme-daybreak .ludo-onboard-scope .onboard-row-label { color: color-mix(in srgb, #171717 45%, transparent); }
+body.theme-daybreak .ludo-onboard-scope .onboard-appearance {
   background: #ffffff;
-  box-shadow: 0 14px 28px -14px rgba(23, 23, 23, 0.25);
+  border-color: rgba(23, 23, 23, 0.12);
+  box-shadow: 0 14px 28px -14px rgba(23, 23, 23, 0.2);
 }
-body.theme-daybreak .ludo-onboard-scope .onboard-pick:hover { background: #f1f5f9; }
-body.theme-daybreak .ludo-onboard-scope .onboard-pick-active {
-  border-color: #0e7490;
-  background: rgba(14, 116, 144, 0.1);
-  box-shadow: 0 0 18px rgba(14, 116, 144, 0.25);
+body.theme-daybreak .ludo-onboard-scope .onboard-appearance :is(.bg-white\/\[0\.04\]) { background-color: #ffffff; }
+body.theme-daybreak .ludo-onboard-scope .onboard-appearance :is(.bg-black\/50) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-onboard-scope .onboard-appearance :is(.shadow-\[inset_0_0_0_1px_rgba\(34\,211\,238\,0\.5\)\]) {
+  box-shadow: inset 0 0 0 1px rgba(23, 23, 23, 0.28);
 }
+body.theme-daybreak .ludo-onboard-scope .onboard-appearance :is(.divide-y) > :not([hidden]) ~ :not([hidden]) {
+  border-top-color: rgba(23, 23, 23, 0.08);
+}
+body.theme-daybreak .ludo-onboard-scope :is(.bg-white\/\[0\.07\]) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-onboard-scope :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
+body.theme-daybreak .ludo-onboard-scope .onboard-cta {
+  color: #0b0f19;
+  box-shadow: 0 0 24px rgba(14, 116, 144, 0.28);
+}
+body.theme-daybreak .ludo-onboard-scope .onboard-cta:hover { background-color: #22d3ee; }
+
 body.theme-daybreak .ludo-header-scope :is(.hover\:text-white:hover) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.bg-white\/20) { background-color: rgba(23, 23, 23, 0.15); }
 body.theme-daybreak .ludo-header-scope [class*="bg-white text-black"] { background-color: #171717; color: #ffffff; }
