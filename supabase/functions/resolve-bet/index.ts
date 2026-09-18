@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import { recoverMessageAddress } from 'https://esm.sh/viem@2.37.0';
+import { verifyPersonalSign } from '../_shared/walletVerify.ts';
 
 const BET_RESOLVE_PREFIX = 'Ludo Base bet resolve';
 const MAX_AGE_MS = 10 * 60 * 1000;
@@ -76,25 +76,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    let recovered: string;
-    try {
-      recovered = (await recoverMessageAddress({
-        message,
-        signature: signature as `0x${string}`,
-      })).toLowerCase();
-    } catch {
-      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-        status: 401,
+    // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
+    const verdict = await verifyPersonalSign({
+      address: String(hostAddress),
+      message,
+      signature,
+    });
+    if (!verdict.ok) {
+      const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer is not the claimed host';
+      return new Response(JSON.stringify({ error, code: verdict.code }), {
+        status: verdict.code === 'ecrecover-invalid' ? 401 : 403,
         headers: corsHeaders,
       });
     }
-
-    if (recovered !== String(hostAddress).toLowerCase()) {
-      return new Response(JSON.stringify({ error: 'Signer is not the claimed host' }), {
-        status: 403,
-        headers: corsHeaders,
-      });
-    }
+    const recovered = String(hostAddress).toLowerCase();
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

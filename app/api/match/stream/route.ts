@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { recoverMessageAddress } from 'viem';
 import { buildStreamMessage, isFreshIssuedAt } from '@/lib/matchProof';
+import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb } from '@/lib/serverAuth';
 
 /** Service-role DB — host proof is a wallet signature, not an app session. Throws loudly when unconfigured. */
@@ -55,13 +55,19 @@ export async function POST(request: Request) {
             message !== buildStreamMessage({ matchId: String(matchId), roomCode: String(roomCode), hostAddress: canonicalHost, enabled: !!enabled, issuedAt })) {
             return NextResponse.json({ error: 'Invalid host proof' }, { status: 401 });
         }
-        let recovered: string;
-        try {
-            recovered = (await recoverMessageAddress({ message, signature: signature as `0x${string}` })).toLowerCase();
-        } catch {
-            return NextResponse.json({ error: 'Invalid host signature' }, { status: 401 });
+        // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
+        const verdict = await verifyPersonalSign({
+            address: canonicalHost,
+            message,
+            signature,
+        });
+        if (!verdict.ok) {
+            return NextResponse.json(
+                { error: 'Invalid host signature', code: verdict.code },
+                { status: 401 },
+            );
         }
-        if (recovered !== canonicalHost) return NextResponse.json({ error: 'Signer is not the canonical host' }, { status: 403 });
+        const recovered = canonicalHost;
 
         const { error: matchError } = await withTimeout(
             sb.from('matches')

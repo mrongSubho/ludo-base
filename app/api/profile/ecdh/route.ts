@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { recoverMessageAddress } from 'viem';
 import { buildEcdhMessage, isFreshIssuedAt } from '@/lib/matchProof';
+import { verifyPersonalSign } from '@/lib/walletVerify';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 /** Recipient ECDH pubkey lookup for DM sealing (service role: ecdh_pubkey is server-only). */
@@ -33,13 +33,18 @@ export async function POST(request: Request) {
         }
         const expected = buildEcdhMessage(String(walletAddress), publicKey, issuedAt);
         if (message !== expected) return NextResponse.json({ error: 'Message mismatch' }, { status: 401 });
-        let recovered: string;
-        try {
-            recovered = (await recoverMessageAddress({ message, signature: signature as `0x${string}` })).toLowerCase();
-        } catch {
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        // 6492-aware (EOA ecrecover + 1271/6492 validator on Base 8453).
+        // Same broken primitive caused the ECDH half of the signing storm.
+        const verdict = await verifyPersonalSign({
+            address: String(walletAddress),
+            message,
+            signature,
+        });
+        if (!verdict.ok) {
+            const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';
+            return NextResponse.json({ error, code: verdict.code }, { status: 401 });
         }
-        if (recovered !== String(walletAddress).toLowerCase()) return NextResponse.json({ error: 'Signer mismatch' }, { status: 403 });
+        const recovered = String(walletAddress).toLowerCase();
         // Service role: players writes are default-deny; proof is the wallet signature above.
         const { error } = await serviceDb().from('players').upsert(
             { wallet_address: recovered, ecdh_pubkey: publicKey },

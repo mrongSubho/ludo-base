@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { recoverMessageAddress } from 'viem';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
+import { verifyPersonalSign } from '@/lib/walletVerify';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 /** Lazy client — module eval at build time must not require secrets. */
@@ -45,18 +45,19 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Message mismatch' }, { status: 401 });
         }
 
-        let recovered: string;
-        try {
-            recovered = (await recoverMessageAddress({
-                message,
-                signature: signature as `0x${string}`,
-            })).toLowerCase();
-        } catch {
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        // 6492-aware: plain ecrecover for EOAs, universal-validator
+        // (1271 + counterfactual 6492) for smart accounts on Base 8453.
+        // Distinct codes so storms are observable, not silent.
+        const verdict = await verifyPersonalSign({
+            address: String(address),
+            message,
+            signature,
+        });
+        if (!verdict.ok) {
+            const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';
+            return NextResponse.json({ error, code: verdict.code }, { status: 401 });
         }
-        if (recovered !== String(address).toLowerCase()) {
-            return NextResponse.json({ error: 'Signer mismatch' }, { status: 401 });
-        }
+        const recovered = String(address).toLowerCase();
 
         const db = supabase();
         // First-time wallets have no players row yet, and app_sessions FKs to

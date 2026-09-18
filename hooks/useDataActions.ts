@@ -20,13 +20,18 @@ interface ActionProps {
 }
 
 /** Ensure our static ECDH pubkey is on the players row. */
-async function publishMyEcdhPubkey(walletAddress: string, signMessageAsync: (args: { message: string }) => Promise<`0x${string}`>): Promise<void> {
+async function publishMyEcdhPubkey(
+    walletAddress: string,
+    signMessageAsync: (args: { account: `0x${string}`; message: string }) => Promise<`0x${string}`>,
+): Promise<void> {
     try {
         await getOrCreateIdentityKey(walletAddress);
         const jwk = await exportPublicKeyJwk(walletAddress);
         const issuedAt = new Date().toISOString();
         const message = buildEcdhMessage(walletAddress, jwk, issuedAt);
-        const signature = await signMessageAsync({ message });
+        // Explicit account (matches the SIWE call): without it some
+        // connectors resolve the active account ambiguously and reprompt.
+        const signature = await signMessageAsync({ account: walletAddress as `0x${string}`, message });
         await fetch('/api/profile/ecdh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -131,8 +136,19 @@ export const useDataActions = ({
         setMessages(prev => [...prev, optimisticMsg]);
 
         try {
-            await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+            // Session FIRST (at most one shared SIWE popup per intent), then
+            // publish our ECDH key ONLY if the server lacks it. A doomed
+            // sign (no session, or key already published) is skipped entirely
+            // — no popup — and the send fails closed below as before.
             const dmSession = await ensureAppSession();
+            if (dmSession) {
+                await getOrCreateIdentityKey(lowerAddr);
+                const localJwk = await exportPublicKeyJwk(lowerAddr);
+                const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
+                if (!serverJwk || JSON.stringify(serverJwk) !== JSON.stringify(localJwk)) {
+                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                }
+            }
             let peerJwk = await fetchPeerEcdhPubkey(targetId, dmSession, lowerAddr);
             if (!peerJwk) {
                 // One short poll — recipient may be mid-boot publishing their key.
@@ -203,7 +219,7 @@ export const useDataActions = ({
             console.error('sendMessage failed', err);
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
         }
-    }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession]);
+    }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession, signMessageAsync]);
 
     const markChatAsRead = useCallback(async (senderId: string) => {
         if (!address) return;

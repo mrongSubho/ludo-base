@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { recoverMessageAddress } from 'viem';
 import { buildMatchRecordMessage, isFreshIssuedAt } from '@/lib/matchProof';
+import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb } from '@/lib/serverAuth';
 
 async function updateMissionProgress(walletAddress: string, missionId: string, increment: number) {
@@ -88,17 +88,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Message payload mismatch' }, { status: 401 });
         }
 
+        // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
+        // The canonical-host check below compares against `recovered`, so on
+        // success it must equal the claimed host signer.
         const lowerParts = participants.map((p: string) => String(p).toLowerCase());
-        let recovered: string;
-        try {
-            recovered = (await recoverMessageAddress({
-                message,
-                signature: signature as `0x${string}`,
-            })).toLowerCase();
-        } catch (err) {
-            console.error('❌ [API] Signature recovery failed:', err);
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        const hostClaim = lowerParts[0] || '';
+        const verdict = await verifyPersonalSign({ address: hostClaim, message, signature });
+        if (!verdict.ok) {
+            const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';
+            console.error('❌ [API] Signature recovery failed:', verdict.code);
+            return NextResponse.json({ error, code: verdict.code }, { status: 401 });
         }
+        const recovered: string = hostClaim;
 
         // If a winner wallet is claimed, it must be one of the participants.
         if (winnerAddress && !lowerParts.includes(String(winnerAddress).toLowerCase())) {

@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import { recoverMessageAddress, recoverTypedDataAddress } from 'https://esm.sh/viem@2.37.0';
+import { verifyPersonalSign, verifyTypedDataSign } from '../_shared/walletVerify.ts';
 import {
   BASE_INDEX,
   BOARD_FINISH_INDEX,
@@ -141,12 +141,19 @@ function buildPowerMessage(p: {
   ].join('\n');
 }
 
-async function recover(message: string, signature: string): Promise<string | null> {
-  try {
-    return (await recoverMessageAddress({ message, signature: signature as `0x${string}` })).toLowerCase();
-  } catch {
-    return null;
-  }
+/** 6492-aware personal-sign check (EOA ecrecover + 1271/6492 on Base 8453). */
+async function verifyActorSignature(
+  actor: string,
+  message: string,
+  signature: string,
+): Promise<{ ok: true } | { ok: false; error: string; code: string }> {
+  const verdict = await verifyPersonalSign({ address: actor, message, signature });
+  if (verdict.ok) return { ok: true };
+  return {
+    ok: false,
+    error: verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch',
+    code: verdict.code,
+  };
 }
 
 type Seats = Record<string, { kind: 'human' | 'bot' | 'afk'; wallet?: string }>;
@@ -207,9 +214,9 @@ async function authorizeActor(opts: {
   }
   if (!isFresh(issuedAt)) return { ok: false, error: 'Proof expired' };
   if (message !== expectedMessage) return { ok: false, error: 'Message payload mismatch' };
-  const recovered = await recover(message, signature);
-  if (!recovered || recovered !== actor.toLowerCase()) {
-    return { ok: false, error: 'Invalid signature' };
+  const sigCheck = await verifyActorSignature(String(actor), message, signature);
+  if (!sigCheck.ok) {
+    return { ok: false, error: sigCheck.error, code: sigCheck.code };
   }
   return { ok: true, via: 'signature' };
 }
@@ -237,25 +244,25 @@ Deno.serve(async (req) => {
       if (Number(expiresAt) < Date.now() || Number(expiresAt) > Date.now() + 2 * 60 * 60 * 1000) {
         return json({ error: 'Invalid provisional expiry' }, 400);
       }
-      let recovered: string;
-      try {
-        recovered = (await recoverTypedDataAddress({
-          domain: SESSION_DOMAIN,
-          types: SESSION_TYPES,
-          primaryType: 'LudoMatchSession',
-          message: {
-            wallet: wallet as `0x${string}`,
-            matchId: String(authorizationKey),
-            roomCode: String(roomCode || ''),
-            expiresAt: BigInt(expiresAt),
-            nonce: String(nonce),
-          },
-          signature: signature as `0x${string}`,
-        })).toLowerCase();
-      } catch {
-        return json({ error: 'Invalid provisional typed-data signature' }, 401);
+      // 6492-aware typed-data grant (EOA ecrecover + 1271/6492 on Base 8453).
+      const provisionalVerdict = await verifyTypedDataSign({
+        domain: SESSION_DOMAIN,
+        types: SESSION_TYPES,
+        primaryType: 'LudoMatchSession',
+        message: {
+          wallet: wallet as `0x${string}`,
+          matchId: String(authorizationKey),
+          roomCode: String(roomCode || ''),
+          expiresAt: BigInt(expiresAt),
+          nonce: String(nonce),
+        },
+        claimedWallet: String(wallet),
+        signature,
+      });
+      if (!provisionalVerdict.ok) {
+        return json({ error: 'Invalid provisional typed-data signature', code: provisionalVerdict.code }, 401);
       }
-      if (recovered !== String(wallet).toLowerCase()) return json({ error: 'Signer is not the session wallet' }, 401);
+      const recovered: string = String(wallet).toLowerCase();
       const { data, error } = await supabase.from('provisional_match_sessions').upsert({
         authorization_key: String(authorizationKey),
         wallet_address: recovered,
@@ -309,27 +316,25 @@ Deno.serve(async (req) => {
         return json({ error: 'expiresAt too far in the future' }, 400);
       }
 
-      let recovered: string;
-      try {
-        recovered = (await recoverTypedDataAddress({
-          domain: SESSION_DOMAIN,
-          types: SESSION_TYPES,
-          primaryType: 'LudoMatchSession',
-          message: {
-            wallet: wallet as `0x${string}`,
-            matchId: String(matchId),
-            roomCode: String(roomCode || ''),
-            expiresAt: BigInt(expiresAt),
-            nonce: String(nonce),
-          },
-          signature: signature as `0x${string}`,
-        })).toLowerCase();
-      } catch {
-        return json({ error: 'Invalid typed-data signature' }, 401);
+      // 6492-aware typed-data grant (EOA ecrecover + 1271/6492 on Base 8453).
+      const sessionVerdict = await verifyTypedDataSign({
+        domain: SESSION_DOMAIN,
+        types: SESSION_TYPES,
+        primaryType: 'LudoMatchSession',
+        message: {
+          wallet: wallet as `0x${string}`,
+          matchId: String(matchId),
+          roomCode: String(roomCode || ''),
+          expiresAt: BigInt(expiresAt),
+          nonce: String(nonce),
+        },
+        claimedWallet: String(wallet),
+        signature,
+      });
+      if (!sessionVerdict.ok) {
+        return json({ error: 'Invalid typed-data signature', code: sessionVerdict.code }, 401);
       }
-      if (recovered !== String(wallet).toLowerCase()) {
-        return json({ error: 'Signer is not the session wallet' }, 401);
-      }
+      const recovered: string = String(wallet).toLowerCase();
 
       const row = await loadMatch(supabase, String(matchId));
       if (!row) return json({ error: 'Match not found — seed first' }, 404);
@@ -376,10 +381,11 @@ Deno.serve(async (req) => {
         matchId, hostAddress, roomCode: roomCode || '', expectedSeq: expectedSeq ?? 0, issuedAt,
       });
       if (message !== expected) return json({ error: 'Message payload mismatch' }, 401);
-      const recovered = await recover(message, signature);
-      if (!recovered || recovered !== hostAddress.toLowerCase()) {
-        return json({ error: 'Invalid host signature' }, 401);
+      const seedCheck = await verifyActorSignature(String(hostAddress), message, signature);
+      if (!seedCheck.ok) {
+        return json({ error: 'Invalid host signature', code: seedCheck.code }, 401);
       }
+      const recovered = String(hostAddress).toLowerCase();
 
       const { data: canonicalMatch, error: matchError } = await supabase
         .from('matches')
@@ -457,7 +463,7 @@ Deno.serve(async (req) => {
         issuedAt,
         expectedMessage: expectedMsg,
       });
-      if (!auth.ok) return json({ error: auth.error }, 401);
+      if (!auth.ok) return json({ error: auth.error, code: auth.code }, 401);
       const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
@@ -604,7 +610,7 @@ Deno.serve(async (req) => {
         supabase, matchId: String(matchId), actor: String(actor), sessionId,
         message, signature, issuedAt, expectedMessage: expectedMsg,
       });
-      if (!authP.ok) return json({ error: authP.error }, 401);
+      if (!authP.ok) return json({ error: authP.error, code: authP.code }, 401);
       const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
@@ -731,7 +737,7 @@ Deno.serve(async (req) => {
         supabase, matchId: String(matchId), actor: String(actor), sessionId,
         message, signature, issuedAt, expectedMessage: expectedMsg,
       });
-      if (!authW.ok) return json({ error: authW.error }, 401);
+      if (!authW.ok) return json({ error: authW.error, code: authW.code }, 401);
       const recovered = String(actor).toLowerCase();
 
       const row = await loadMatch(supabase, matchId);
