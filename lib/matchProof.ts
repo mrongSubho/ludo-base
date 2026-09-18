@@ -28,6 +28,7 @@ export function buildMatchRecordMessage(params: {
     const parts = params.participants.map(p => p.toLowerCase()).sort();
     return [
         MATCH_RECORD_PREFIX,
+        'Record the result — wins are tallied offchain, nothing leaves your wallet.',
         `winner: ${params.winnerAddress ? params.winnerAddress.toLowerCase() : 'none'}`,
         `room: ${params.roomCode}`,
         `mode: ${params.gameMode}`,
@@ -48,6 +49,7 @@ export function buildBetResolveMessage(params: {
 }): string {
     return [
         BET_RESOLVE_PREFIX,
+        'Settle the bets for this match.',
         `match: ${params.matchId}`,
         `result: ${params.result}`,
         `type: ${params.betType}`,
@@ -76,6 +78,7 @@ export function buildMoveMessage(params: {
 }): string {
     return [
         MOVE_PREFIX,
+        'Confirm your move — this only proves it is you.',
         `match: ${params.matchId}`,
         `actor: ${params.actor.toLowerCase()}`,
         `color: ${params.color}`,
@@ -96,6 +99,7 @@ export function buildPassMessage(params: {
 }): string {
     return [
         PASS_PREFIX,
+        'Confirm you skip this turn.',
         `match: ${params.matchId}`,
         `actor: ${params.actor.toLowerCase()}`,
         `roll: ${params.rollId}`,
@@ -114,6 +118,7 @@ export function buildSeedMessage(params: {
 }): string {
     return [
         SEED_PREFIX,
+        'Start this match — nothing leaves your wallet.',
         `match: ${params.matchId}`,
         `host: ${params.hostAddress.toLowerCase()}`,
         `room: ${params.roomCode}`,
@@ -134,6 +139,7 @@ export function buildPowerMessage(params: {
 }): string {
     return [
         POWER_PREFIX,
+        'Confirm your power play — this only proves it is you.',
         `match: ${params.matchId}`,
         `actor: ${params.actor.toLowerCase()}`,
         `color: ${params.color}`,
@@ -149,6 +155,7 @@ export function buildStreamMessage(params: {
 }): string {
     return [
         STREAM_PREFIX,
+        'Turn match streaming on or off.',
         `match: ${params.matchId}`,
         `room: ${params.roomCode}`,
         `host: ${params.hostAddress.toLowerCase()}`,

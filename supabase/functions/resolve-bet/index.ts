@@ -14,6 +14,7 @@ function buildBetResolveMessage(params: {
 }): string {
   return [
     BET_RESOLVE_PREFIX,
+    'Settle the bets for this match.',
     `match: ${params.matchId}`,
     `result: ${params.result}`,
     `type: ${params.betType}`,

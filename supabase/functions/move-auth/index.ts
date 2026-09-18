@@ -96,6 +96,7 @@ function isFresh(issuedAt: string): boolean {
 function buildMoveMessage(p: { matchId: string; actor: string; color: string; tokenIndex: number; rollId: string; expectedSeq: number; issuedAt: string }) {
   return [
     MOVE_PREFIX,
+    'Confirm your move — this only proves it is you.',
     `match: ${p.matchId}`,
     `actor: ${p.actor.toLowerCase()}`,
     `color: ${p.color}`,
@@ -109,6 +110,7 @@ function buildMoveMessage(p: { matchId: string; actor: string; color: string; to
 function buildPassMessage(p: { matchId: string; actor: string; rollId: string; expectedSeq: number; issuedAt: string }) {
   return [
     PASS_PREFIX,
+    'Confirm you skip this turn.',
     `match: ${p.matchId}`,
     `actor: ${p.actor.toLowerCase()}`,
     `roll: ${p.rollId}`,
@@ -120,6 +122,7 @@ function buildPassMessage(p: { matchId: string; actor: string; rollId: string; e
 function buildSeedMessage(p: { matchId: string; hostAddress: string; roomCode: string; expectedSeq: number; issuedAt: string }) {
   return [
     SEED_PREFIX,
+    'Start this match — nothing leaves your wallet.',
     `match: ${p.matchId}`,
     `host: ${p.hostAddress.toLowerCase()}`,
     `room: ${p.roomCode}`,
@@ -134,6 +137,7 @@ function buildPowerMessage(p: {
 }) {
   return [
     POWER_PREFIX,
+    'Confirm your power play — this only proves it is you.',
     `match: ${p.matchId}`,
     `actor: ${p.actor.toLowerCase()}`,
     `color: ${p.color}`,
