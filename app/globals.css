@@ -5816,7 +5816,8 @@ textarea:focus-visible {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     background-image: none !important;
-    background-color: var(--panel-solid, rgba(8, 10, 16, 0.97)) !important;
+    /* Fully opaque — never translucent glass on mobile */
+    background-color: var(--panel-solid, #0d0f16) !important;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45) !important;
     /* Own paint layer so unmount/swap never leaves a stale blur composite */
     transform: translateZ(0);
@@ -5838,15 +5839,66 @@ textarea:focus-visible {
   body.theme-daybreak .ludo-broadcast-scope,
   body.theme-daybreak .ludo-pubprofile-scope,
   body.theme-daybreak .ludo-onboard-scope {
-    background-color: var(--panel-solid, #f7f8fa) !important;
+    background-color: var(--panel-solid, #f2f4f8) !important;
     box-shadow: 0 10px 28px rgba(23, 23, 23, 0.14) !important;
   }
 
   :root {
-    --panel-solid: rgba(8, 10, 16, 0.97);
+    /* Opaque deep ink (retro) — panels never show lobby through them */
+    --panel-solid: #0d0f16;
   }
   body.theme-daybreak {
-    --panel-solid: #f7f8fa;
+    /* Opaque porcelain */
+    --panel-solid: #f2f4f8;
+  }
+
+  /* Ink on solid shells: white/cyan already match the dark-glass design.
+     Lift only the faintest labels (were tuned for translucent glass). */
+  .ludo-profile-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-friends-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-rankings-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-leaderboard-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-arena-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-market-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-messages-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-settings-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-lobby-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-onboard-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5) {
+    color: rgba(255, 255, 255, 0.42) !important;
+  }
+
+  .ludo-profile-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-friends-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-rankings-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-leaderboard-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-arena-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-market-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-messages-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-settings-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-lobby-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-onboard-scope :is(.text-white\/30, .text-white\/35) {
+    color: rgba(255, 255, 255, 0.55) !important;
+  }
+
+  /* Daybreak solid: keep dark ink (existing porcelain remaps already do this) */
+  body.theme-daybreak .ludo-profile-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-friends-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-rankings-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-arena-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-settings-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-onboard-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-lobby-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10) {
+    color: rgba(23, 23, 23, 0.45) !important;
+  }
+
+  body.theme-daybreak .ludo-profile-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-friends-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-rankings-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-arena-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-settings-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-onboard-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-lobby-scope :is(.text-white\/30, .text-white\/35) {
+    color: rgba(23, 23, 23, 0.55) !important;
   }
 
   /* Decorative orbs inside panels are blur-paint on every frame — hide them */
