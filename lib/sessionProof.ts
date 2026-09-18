@@ -12,7 +12,11 @@ export const LUDO_SESSION_DOMAIN = {
     name: 'Ludo Base',
     version: '1',
     chainId: 8453,
-    verifyingContract: '0x0000000000000000000000000000000000000000',
+    // NOTE: no verifyingContract by design — there is no onchain verifier
+    // contract, and a 0x0 placeholder renders as a scam signal in wallets
+    // (Coinbase flags the Review screen). EIP-712 treats it as optional.
+    // Changing this invalidates outstanding match sessions (30min TTL);
+    // they fail closed and the user signs once more.
 } as const;
 
 export const LUDO_SESSION_TYPES = {

@@ -50,7 +50,10 @@ const SESSION_DOMAIN = {
   name: 'Ludo Base',
   version: '1',
   chainId: 8453,
-  verifyingContract: '0x0000000000000000000000000000000000000000',
+  // NOTE: kept in lockstep with lib/sessionProof.ts LUDO_SESSION_DOMAIN —
+  // no verifyingContract (no onchain verifier exists; 0x0 reads as a scam
+  // signal in wallet Review screens). Both sides must build byte-identical
+  // domains or verification fails closed.
 } as const;
 const SESSION_TYPES = {
   LudoMatchSession: [
