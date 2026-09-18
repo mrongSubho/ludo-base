@@ -1958,7 +1958,11 @@ body.theme-retro-futurism::before {
   align-items: center;
   justify-content: space-around;
   padding: 10px 8px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 10px;
+  /* Clamp: in-app webviews report large bottom insets for empty hidden
+     toolbars. 34px still clears the iPhone home indicator + Android
+     gesture bar; anything above is dead space. */
+  padding-bottom: min(calc(10px + env(safe-area-inset-bottom, 0px)), 34px);
   z-index: 200 !important;
   /* Opaque enough that lobby content (broadcast card) never bleeds under labels */
   background: rgba(10, 12, 18, 0.94) !important;
@@ -2031,7 +2035,9 @@ body.theme-retro-futurism::before {
 @media (max-width: 430px) {
   .footer-nav {
     padding: 8px 4px;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 8px;
+    /* Same clamp as base: kills dead space from empty webview insets. */
+    padding-bottom: min(calc(8px + env(safe-area-inset-bottom, 0px)), 34px);
   }
   .nav-item {
     padding: 6px 2px;
