@@ -978,9 +978,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     )}
                                 </div>
 
-                                {/* ─── Set-completion bar (store only) ─── */}
+                                {/* ─── Set-completion bar (store only). shrink-0: never
+                                    squished by the grid on short viewports; the panel
+                                    bottom reserve (globals.css sandwich geometry) keeps
+                                    it above the fixed footer. ─── */}
                                 {mode === 'market' && !selectedItem && tabItems.length > 0 && (
-                                    <div className="px-5 pb-3 relative z-10">
+                                    <div className="px-5 pb-3 pt-1 relative z-10 shrink-0">
                                         {missing.length === 0 ? (
                                             <div className="flex items-center gap-3 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 py-2.5">
                                                 <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">

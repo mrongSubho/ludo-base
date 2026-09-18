@@ -494,8 +494,10 @@ export default function GameLobby({
                         />
                     </div>
 
-                    {/* 4. LIVE BROADCAST — slim; full feed opens on tap */}
-                    <div className="w-full mt-auto pt-2">
+                    {/* 4. LIVE BROADCAST — slim; full feed opens on tap.
+                        .broadcast-anchor (globals.css) keeps it clear of the
+                        fixed footer on narrow phones. */}
+                    <div className="broadcast-anchor w-full mt-auto pt-2">
                         <LiveBroadcastCard onOpenProfile={onOpenProfile} />
                     </div>
 

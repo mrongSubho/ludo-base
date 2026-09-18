@@ -67,9 +67,29 @@ export const FooterNavPanel = ({
     onSelectChat,
     onOpenProfile
 }: FooterNavPanelProps) => {
+    // Single source of truth for footer clearance: measure the real rendered
+    // height (compact vs full breakpoint, font loading, safe-area excluded —
+    // safe-area is added at each use site) so panels and dashboard padding
+    // derive from it instead of hardcoded guesses.
+    useEffect(() => {
+        const el = document.querySelector('.footer-nav');
+        if (!el) return;
+        const set = () => {
+            document.documentElement.style.setProperty('--footer-h', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+        };
+        set();
+        const ro = new ResizeObserver(set);
+        ro.observe(el);
+        window.addEventListener('resize', set);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', set);
+        };
+    }, []);
+
     return (
         <>
-            <nav className="footer-nav ludo-footer-scope relative overflow-hidden">
+            <nav className="footer-nav ludo-footer-scope overflow-hidden">
                 {[
                     { id: 'profile', icon: ProfileIcon, label: 'Profile' },
                     { id: 'friends', icon: UsersIcon, label: 'Friends' },
