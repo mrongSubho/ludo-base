@@ -557,7 +557,8 @@ export default function Page() {
                     onSettingsClick={() => toggle('settings')}
                 />
 
-              <main className="dash-main pb-safe-footer px-safe h-full">
+              {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
+              <main className="dash-main pb-safe-footer px-safe">
 
                 <GameLobby
                   gameMode={selectedMode as any}

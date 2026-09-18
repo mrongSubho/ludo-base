@@ -190,6 +190,7 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  height: var(--app-vh, 100dvh);
   background-image:
     linear-gradient(180deg, transparent 0%, var(--ludo-bg) 72%),
     var(--lobby-photo);
@@ -224,17 +225,31 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 .ludo-lobby-scope .pb-24 { padding-bottom: 6rem; }
 .ludo-lobby-scope .pb-32 { padding-bottom: 8rem; }
 
-/* ─── Lobby height tiers: compact (<800px) + tight (<700px) ──────────────
+/* ─── Lobby height tiers: short viewports always denser ──────────────────
    Semantic classes (arbitrary [@media] variants don't emit in this setup).
-   Goal: lobby fits without scrolling on phones; desktop untouched. */
+   Goal: lobby fits without scrolling on phones AND short desktop windows. */
 @media (max-height: 800px) {
-  .ludo-lobby-scope .dice-tier { width: 6rem; height: 6rem; margin-top: 1.5rem; margin-bottom: 0.5rem; --tz: 48px; }
+  .ludo-lobby-scope .dice-tier,
+  .ludo-lobby-scope .lobby-dice-cube {
+    width: 5.5rem !important;
+    height: 5.5rem !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+    --tz: 44px !important;
+  }
 }
 @media (max-height: 700px) {
-  .ludo-lobby-scope .dice-tier { width: 5rem; height: 5rem; margin-top: 1rem; --tz: 40px; }
-  .ludo-lobby-scope .setup-tier { gap: 0.5rem; }
+  .ludo-lobby-scope .dice-tier,
+  .ludo-lobby-scope .lobby-dice-cube {
+    width: 4.5rem !important;
+    height: 4.5rem !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.15rem !important;
+    --tz: 36px !important;
+  }
+  .ludo-lobby-scope .setup-tier { gap: 0.35rem !important; }
   .ludo-lobby-scope .fee-tier { padding: 0.25rem; padding-bottom: 0.375rem; }
-  .ludo-lobby-scope .broadcast-tier { height: 3.5rem; }
+  .ludo-lobby-scope .broadcast-tier { height: 3.25rem; }
 }
 
 /* ─── QuickMatch diagnostic chips: readable in both themes ─────────────── */
@@ -1016,7 +1031,7 @@ body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
 
 html,
 body {
-  height: 100%;
+  height: var(--app-vh, 100%);
   width: 100vw;
   max-width: 100vw;
   margin: 0;
@@ -1296,8 +1311,11 @@ body.theme-retro-futurism::before {
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  /* Prefer the measured visual viewport: host webviews (Coinbase Wallet,
+     Base App) can expose a taller layout viewport than the painted area,
+     which would push a bottom:0 footer into a blank band. */
+  height: var(--app-vh, 100vh);
+  height: var(--app-vh, 100dvh);
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
@@ -1305,9 +1323,9 @@ body.theme-retro-futurism::before {
   background: transparent !important;
   position: relative;
   overflow-x: clip;
-  /* Fixed viewport height (not min-): with overflow-y:auto on .dashboard-shell
-     this makes the shell the real scroll container, so nothing below the fold
-     is ever cut off without a way to reach it. */
+  overflow-y: hidden;
+  /* Fixed viewport height + overflow hidden: lobby fits without scrolling
+     on every viewport; free space is absorbed by the dice flex-1. */
 }
 
 /* On actual mobile devices, go truly edge-to-edge */
@@ -1335,6 +1353,7 @@ body.theme-retro-futurism::before {
   z-index: 200 !important;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
+  flex: 0 0 auto;
 }
 
 /* Daybreak keeps a light bar to match its porcelain panels */
@@ -1954,9 +1973,17 @@ body.theme-daybreak .header {
 }
 
 /* ─── Footer Navigation ─── */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --vv-dead-bottom: 0px;
+  --app-vh: 100dvh;
+}
 .footer-nav {
   position: fixed;
-  bottom: 0;
+  /* Pin to the VISUAL bottom edge. --vv-dead-bottom is the layout-viewport
+     strip below the painted area (empty host toolbars in Coinbase etc.);
+     without it the footer floats above a blank dark band. */
+  bottom: var(--vv-dead-bottom, 0px);
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -1965,11 +1992,9 @@ body.theme-daybreak .header {
   align-items: center;
   justify-content: space-around;
   padding: 10px 8px;
-  padding-bottom: 10px;
-  /* Clamp: in-app webviews report large bottom insets for empty hidden
-     toolbars. 34px still clears the iPhone home indicator + Android
-     gesture bar; anything above is dead space. */
-  padding-bottom: min(calc(10px + env(safe-area-inset-bottom, 0px)), 34px);
+  /* --safe-bottom is JS-clamped: >48px means an invisible webview toolbar,
+     not a real home indicator — FrameProvider zeroes those. */
+  padding-bottom: min(calc(10px + var(--safe-bottom, 0px)), 34px);
   z-index: 200 !important;
   /* Opaque enough that lobby content (broadcast card) never bleeds under labels */
   background: rgba(10, 12, 18, 0.94) !important;
@@ -2042,9 +2067,8 @@ body.theme-daybreak .header {
 @media (max-width: 430px) {
   .footer-nav {
     padding: 8px 4px;
-    padding-bottom: 8px;
     /* Same clamp as base: kills dead space from empty webview insets. */
-    padding-bottom: min(calc(8px + env(safe-area-inset-bottom, 0px)), 34px);
+    padding-bottom: min(calc(8px + var(--safe-bottom, 0px)), 34px);
   }
   .nav-item {
     padding: 6px 2px;
@@ -2173,13 +2197,32 @@ body.theme-daybreak .header {
    keeps 3D exact (--tz stays half the cube). */
 .ludo-lobby-scope.lobby-compact {
   min-height: 0;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+}
+.lobby-compact .setup-tier {
+  gap: 0.35rem !important;
 }
 .lobby-compact .lobby-dice-cube {
-  width: 96px;
-  height: 96px;
-  margin-top: 8px;
-  margin-bottom: 8px;
-  --tz: 48px;
+  width: 80px;
+  height: 80px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  --tz: 40px;
+}
+.lobby-compact .dice-tier {
+  width: 80px !important;
+  height: 80px !important;
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+  --tz: 40px !important;
+}
+.lobby-compact .broadcast-tier {
+  height: 3.25rem;
+}
+.lobby-compact .broadcast-anchor {
+  padding-bottom: 0;
+  margin-top: auto;
 }
 
 /* ─── Player Rows & Wrappers ─── */
@@ -3164,7 +3207,8 @@ body.theme-retro-futurism .home-pad {
     touch-action: none !important;
     position: relative !important;
     width: 100vw !important;
-    height: 100dvh !important;
+    height: var(--app-vh, 100vh) !important;
+    height: var(--app-vh, 100dvh) !important;
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -3172,7 +3216,8 @@ body.theme-retro-futurism .home-pad {
   .app-shell {
     max-width: 100vw !important;
     width: 100vw !important;
-    height: 100dvh !important;
+    height: var(--app-vh, 100vh) !important;
+    height: var(--app-vh, 100dvh) !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -3186,7 +3231,8 @@ body.theme-retro-futurism .home-pad {
     left: 0 !important;
     transform: none !important;
     border-radius: 0 !important;
-    /* Flat edge-to-edge footer */
+    /* Flat edge-to-edge footer; still pinned to the visual bottom */
+    bottom: var(--vv-dead-bottom, 0px) !important;
   }
 
   .board-main {
@@ -4488,23 +4534,55 @@ body.theme-retro-futurism .token-dot-placeholder {
   /* No reserve here — .dash-main.pb-safe-footer owns the single footer
      clearance, so short pages don't end with dead scroll space. */
   padding-bottom: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  /* stop rubber-band chaining; shell owns its scroll */
-  scroll-padding-bottom: calc(var(--footer-h, 76px) + 16px);
+  /* Lobby must fit the viewport — never scroll on any device/chrome. */
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Flex-fill chain (all viewports): shell → container → main → lobby → setup.
+   Each step min-height:0 so free space goes to the dice tier, not overflow. */
+.dashboard-container {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+  position: relative;
+}
+
+.dash-main {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 0 24px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px;
+  /* Never h-full on the element — header + 100% main overflows the shell. */
+  height: auto !important;
+}
+
+.ludo-lobby-scope {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+
+.ludo-lobby-scope .setup-tier {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
 }
 
 .dash-header {
   /* Removed transparent override to respect .header background */
   padding: 20px 24px 10px;
-}
-
-.dash-main {
-  flex: 1;
-  padding: 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  flex: 0 0 auto !important;
 }
 
 .dash-section {
@@ -5193,9 +5271,9 @@ body.theme-retro-futurism .token-dot-placeholder {
 /* ─── Layout Helpers ─── */
 .pb-safe-footer {
   /* Single content reserve: measured footer box (padding already includes the
-     safe-area) + breathing room. Never add env(safe-area-inset-bottom) here —
-     in-app webviews report large insets and it would triple-count. */
-  padding-bottom: calc(var(--footer-h, 76px) + 16px);
+     clamped safe-area) + breathing room. Never add env(safe-area-inset-bottom)
+     here — webviews report large insets and it would triple-count. */
+  padding-bottom: calc(var(--footer-h, 76px) + 8px);
 }
 
 /* ─── Footer-aware sandwich geometry (all overlay panels) ───
@@ -5231,33 +5309,21 @@ body.theme-retro-futurism .token-dot-placeholder {
 .ludo-messages-scope.absolute,
 .ludo-broadcast-scope.absolute {
   top: calc(64px + env(safe-area-inset-top, 0px)) !important;
-  bottom: calc(var(--footer-h) + var(--panel-gap)) !important;
-  max-height: calc(100vh - 64px - var(--footer-h) - var(--panel-gap) * 2) !important;
-  max-height: calc(100dvh - 64px - env(safe-area-inset-top, 0px) - var(--footer-h) - var(--panel-gap)) !important;
+  bottom: calc(var(--footer-h) + var(--panel-gap) + var(--vv-dead-bottom, 0px)) !important;
+  max-height: calc(var(--app-vh, 100dvh) - 64px - var(--footer-h) - var(--panel-gap) - var(--vv-dead-bottom, 0px)) !important;
 }
 
-/* ─── Mobile: lobby must scroll clear of fixed footer ─── */
+/* ─── Mobile / short viewports: lobby FITS, never scrolls ─── */
 @media (max-width: 500px) {
   .dashboard-shell {
-    /* Body is overflow:hidden on mobile; the shell owns vertical scroll. */
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    /* html/body carry touch-action:none (board gestures) — without this the
-       shell cannot be scrolled by touch, stranding the Live Broadcast card
-       behind the fixed footer. Chain stops at the shell (its own scroller),
-       so the board is unaffected. */
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
     touch-action: pan-x pan-y !important;
-    /* Single reserve lives on .dash-main below — the shell keeps none, so no
-       dead scroll gap piles up above the fixed footer. */
-    scroll-padding-bottom: calc(var(--footer-h) + 16px);
     padding-bottom: 0 !important;
   }
 
   .dashboard-container {
-    /* Fill the shell so the lobby column stretches to the viewport: the dice
-       flex-1 absorbs free space and mt-auto pins the broadcast card just
-       above the footer — no bunched-at-top content, no blank gap. */
-    min-height: 100% !important;
+    min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
     display: flex !important;
@@ -5266,12 +5332,14 @@ body.theme-retro-futurism .token-dot-placeholder {
 
   .dash-main.pb-safe-footer {
     /* The one and only dashboard bottom reserve: measured footer box + air. */
-    padding-bottom: calc(var(--footer-h) + 16px) !important;
-    gap: 12px !important;
+    padding-bottom: calc(var(--footer-h) + 8px) !important;
+    gap: 8px !important;
   }
 
   .dash-main {
     flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
     display: flex !important;
     flex-direction: column !important;
   }
@@ -5281,25 +5349,59 @@ body.theme-retro-futurism .token-dot-placeholder {
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   .ludo-lobby-scope .setup-tier {
     flex: 1 1 auto !important;
     height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
   }
 
   /* Keep broadcast card above footer even when column is short */
   .broadcast-tier {
-    margin-bottom: 8px;
+    margin-bottom: 0;
   }
 
   /* Broadcast anchor: plain (non-utility) spacing so the global reset can't
      zero it; scroll-margin keeps the card clear of the fixed footer. */
   .broadcast-anchor {
-    padding-bottom: 8px;
-    scroll-margin-bottom: calc(var(--footer-h) + 16px);
+    padding-bottom: 4px;
+    margin-top: auto;
   }
+}
+
+/* Short viewports (phones + compact desktop windows): preemptive density */
+@media (max-height: 780px) {
+  .ludo-lobby-scope {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+  .ludo-lobby-scope .setup-tier { gap: 0.4rem !important; }
+  .ludo-lobby-scope .dice-tier,
+  .ludo-lobby-scope .lobby-dice-cube {
+    width: 5.5rem !important;
+    height: 5.5rem !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.25rem !important;
+    --tz: 44px !important;
+  }
+  .ludo-lobby-scope .broadcast-tier { height: 3.25rem; }
+  .dash-main.pb-safe-footer {
+    padding-bottom: calc(var(--footer-h, 76px) + 8px) !important;
+    gap: 8px !important;
+  }
+}
+@media (max-height: 680px) {
+  .ludo-lobby-scope .dice-tier,
+  .ludo-lobby-scope .lobby-dice-cube {
+    width: 4.5rem !important;
+    height: 4.5rem !important;
+    --tz: 36px !important;
+  }
+  .ludo-lobby-scope .setup-tier { gap: 0.25rem !important; }
+  .ludo-lobby-scope .broadcast-tier { height: 3rem; }
 }
 
 .px-safe {
