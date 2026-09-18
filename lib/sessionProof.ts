@@ -56,7 +56,9 @@ export function buildMatchSessionPayload(params: {
     };
 }
 
-/** SIWE-style app session for chat / profile / settings (not match moves). */
+/** SIWE-style app session for chat / profile / settings (not match moves).
+ * EIP-4361 shaped so wallets render it cleanly. Single source of truth —
+ * client and server build the identical text, so restyle freely here only. */
 export function buildSiweMessage(params: {
     domain: string;
     address: string;
@@ -68,8 +70,7 @@ export function buildSiweMessage(params: {
         `${params.domain} wants you to sign in with your Ethereum account:`,
         params.address,
         '',
-        'Sign in to Ludo Base (profile, chat, settings).',
-        'This does not authorize match moves or payouts.',
+        'Welcome to Ludo Base — the onchain board arena. This signs you in for profile, chat and settings. It never moves tokens or plays moves; those always ask separately.',
         '',
         `URI: https://${params.domain}`,
         `Version: 1`,
@@ -77,5 +78,8 @@ export function buildSiweMessage(params: {
         `Nonce: ${params.nonce}`,
         `Issued At: ${params.issuedAt}`,
         `Expiration Time: ${params.expirationTime}`,
+        'Resources:',
+        `- https://${params.domain}/terms`,
+        `- https://${params.domain}/privacy`,
     ].join('\n');
 }
