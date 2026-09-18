@@ -61,8 +61,10 @@ export function buildMatchSessionPayload(params: {
 }
 
 /** SIWE-style app session for chat / profile / settings (not match moves).
- * EIP-4361 shaped so wallets render it cleanly. Single source of truth —
- * client and server build the identical text, so restyle freely here only. */
+ * Short custom copy (not strict EIP-4361 prose) so wallets show plain text
+ * instead of a wall of fields. Single source of truth — client and server
+ * build the identical text, so restyle freely here only. Nonce stays: the
+ * server requires it present and unique per session. */
 export function buildSiweMessage(params: {
     domain: string;
     address: string;
@@ -71,19 +73,15 @@ export function buildSiweMessage(params: {
     nonce: string;
 }): string {
     return [
-        `${params.domain} wants you to sign in with your Ethereum account:`,
+        'You are signing in with your Base account:',
         params.address,
         '',
-        'Welcome to Ludo Base — the onchain board arena. This signs you in for profile, chat and settings. It never moves tokens or plays moves; those always ask separately.',
+        'This signs you in for profile, chat and settings. Signing in never makes any transaction.',
         '',
         `URI: https://${params.domain}`,
-        `Version: 1`,
-        `Chain ID: 8453`,
+        'Chain ID: 8453',
         `Nonce: ${params.nonce}`,
         `Issued At: ${params.issuedAt}`,
         `Expiration Time: ${params.expirationTime}`,
-        'Resources:',
-        `- https://${params.domain}/terms`,
-        `- https://${params.domain}/privacy`,
     ].join('\n');
 }
