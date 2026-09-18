@@ -68,9 +68,9 @@ export const FooterNavPanel = ({
     onOpenProfile
 }: FooterNavPanelProps) => {
     // Single source of truth for footer clearance: measure the real rendered
-    // height (compact vs full breakpoint, font loading, safe-area excluded —
-    // safe-area is added at each use site) so panels and dashboard padding
-    // derive from it instead of hardcoded guesses.
+    // box (compact vs full breakpoint, font loading — safe-area padding
+    // included). Use sites add breathing room ONLY, never env(safe-area…)
+    // again: in-app webviews report large bottom insets and it triple-counts.
     useEffect(() => {
         const el = document.querySelector('.footer-nav');
         if (!el) return;

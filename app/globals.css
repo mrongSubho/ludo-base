@@ -4478,7 +4478,7 @@ body.theme-retro-futurism .token-dot-placeholder {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   /* stop rubber-band chaining; shell owns its scroll */
-  scroll-padding-bottom: calc(var(--footer-h, 76px) + env(safe-area-inset-bottom, 0px) + 16px);
+  scroll-padding-bottom: calc(var(--footer-h, 76px) + 16px);
 }
 
 .dash-header {
@@ -5179,8 +5179,10 @@ body.theme-retro-futurism .token-dot-placeholder {
 
 /* ─── Layout Helpers ─── */
 .pb-safe-footer {
-  /* Single content reserve: measured footer height + safe-area + breathing room. */
-  padding-bottom: calc(var(--footer-h, 76px) + env(safe-area-inset-bottom, 0px) + 16px);
+  /* Single content reserve: measured footer box (padding already includes the
+     safe-area) + breathing room. Never add env(safe-area-inset-bottom) here —
+     in-app webviews report large insets and it would triple-count. */
+  padding-bottom: calc(var(--footer-h, 76px) + 16px);
 }
 
 /* ─── Footer-aware sandwich geometry (all overlay panels) ───
@@ -5188,7 +5190,9 @@ body.theme-retro-futurism .token-dot-placeholder {
    .footer-nav (z-200) renders ABOVE panels (z-110). FooterNavPanel measures
    its real height at runtime (ResizeObserver → --footer-h); the :root values
    below are fallbacks only (compact ~62px ≤430px, full ~76px above).
-   Panels inset above the footer by footer + safe-area + a small air gap.
+   Panels inset above the footer by the measured footer box + a small air gap.
+   --footer-h already contains the safe-area (it is measured from the rendered
+   box), so use sites must NOT add env(safe-area-inset-bottom) again.
    Qualified with .absolute so nested relative/static modals sharing a scope
    class (e.g. the QuickMatch confirm card) are untouched. Unlayered, so it
    beats the Tailwind utilities with no per-file TSX churn. */
@@ -5214,9 +5218,9 @@ body.theme-retro-futurism .token-dot-placeholder {
 .ludo-messages-scope.absolute,
 .ludo-broadcast-scope.absolute {
   top: calc(64px + env(safe-area-inset-top, 0px)) !important;
-  bottom: calc(var(--footer-h) + env(safe-area-inset-bottom, 0px) + var(--panel-gap)) !important;
+  bottom: calc(var(--footer-h) + var(--panel-gap)) !important;
   max-height: calc(100vh - 64px - var(--footer-h) - var(--panel-gap) * 2) !important;
-  max-height: calc(100dvh - 64px - var(--footer-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--panel-gap) * 2) !important;
+  max-height: calc(100dvh - 64px - env(safe-area-inset-top, 0px) - var(--footer-h) - var(--panel-gap)) !important;
 }
 
 /* ─── Mobile: lobby must scroll clear of fixed footer ─── */
@@ -5232,7 +5236,7 @@ body.theme-retro-futurism .token-dot-placeholder {
     touch-action: pan-x pan-y !important;
     /* Single reserve lives on .dash-main below — the shell keeps none, so no
        dead scroll gap piles up above the fixed footer. */
-    scroll-padding-bottom: calc(var(--footer-h) + env(safe-area-inset-bottom, 0px) + 16px);
+    scroll-padding-bottom: calc(var(--footer-h) + 16px);
     padding-bottom: 0 !important;
   }
 
@@ -5248,8 +5252,8 @@ body.theme-retro-futurism .token-dot-placeholder {
   }
 
   .dash-main.pb-safe-footer {
-    /* The one and only dashboard bottom reserve: footer + safe-area + air. */
-    padding-bottom: calc(var(--footer-h) + env(safe-area-inset-bottom, 0px) + 16px) !important;
+    /* The one and only dashboard bottom reserve: measured footer box + air. */
+    padding-bottom: calc(var(--footer-h) + 16px) !important;
     gap: 12px !important;
   }
 
@@ -5281,7 +5285,7 @@ body.theme-retro-futurism .token-dot-placeholder {
      zero it; scroll-margin keeps the card clear of the fixed footer. */
   .broadcast-anchor {
     padding-bottom: 8px;
-    scroll-margin-bottom: calc(var(--footer-h) + env(safe-area-inset-bottom, 0px) + 16px);
+    scroll-margin-bottom: calc(var(--footer-h) + 16px);
   }
 }
 
