@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { supabase } from '@/lib/supabase';
-import { useAccount, useSignMessage, useSignTypedData } from 'wagmi';
+import { useAccount, useChainId, useSignMessage, useSignTypedData } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
@@ -110,11 +110,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [validationToken, setValidationToken] = useState<string | undefined>(undefined);
 
     const { address: myAddress } = useAccount();
+    const chainId = useChainId();
     const { signMessageAsync } = useSignMessage();
     const { signTypedDataAsync } = useSignTypedData();
     const { sessionId: appSessionId, ensureAppSession } = useAppSession();
     const { myProfile } = useGameData();
-    const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync });
+    const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync, chainId });
     const createProvisionalSession = useCallback((authorizationKey: string, roomCode?: string) =>
         moveAuth.createProvisionalSession({ authorizationKey, roomCode }), [moveAuth]);
     const bindProvisionalSession = useCallback((provisionalId: string, matchId: string, roomCode?: string) =>

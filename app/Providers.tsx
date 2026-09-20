@@ -7,6 +7,7 @@ import { base, baseSepolia } from "wagmi/chains";
 import { coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode } from "react";
+import { DATA_SUFFIX } from "@/lib/builderCode";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
 import { TeamUpProvider } from "@/hooks/TeamUpContext";
@@ -32,6 +33,10 @@ const config = createConfig({
         [baseSepolia.id]: http(),
     },
     ssr: true,
+    // ERC-8021 Builder Code attribution on every tx (see lib/builderCode.ts).
+    // Undefined until NEXT_PUBLIC_BUILDER_CODE is set — then all
+    // useSendTransaction / useWriteContract / useSendCalls flows are attributed.
+    ...(DATA_SUFFIX ? { dataSuffix: DATA_SUFFIX } : {}),
 });
 
 const queryClient = new QueryClient();

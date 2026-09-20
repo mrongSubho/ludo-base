@@ -1,0 +1,1218 @@
+# Chips (CHIPS) — Full Token Economy Plan
+
+**Project:** Ludo Base  
+**Token:** Chips · Symbol `CHIPS`  
+**Standard:** **B20 Asset** (Base native protocol-level token standard)  
+**Network (now):** Base Sepolia (`84532`)  
+**Network (later):** Base Mainnet (`8453`)  
+**Supply:** **10,000,000,000** fixed (10B)  
+**Document type:** Product tokenomics + gamification + settlement architecture  
+**Status:** Planning baseline (v4.1 — freeze: review patches applied — mint end-state, scorer scope, pause/settleBy, mission loop, freeze gates, predict deferral)  
+**Last updated:** 2026-09-20
+
+---
+
+## 0. Executive decisions (locked)
+
+| # | Decision | Detail |
+| --- | --- | --- |
+| 1 | **Single currency** | One asset only: **CHIPS**. No soft/hard dual token. |
+| 2 | **On-chain by default** | Online multiplayer, marketplace, mission claims, tournaments, spectator pots — all CHIPS on Base. |
+| 3 | **Offline exception** | Only **Offline / AI matches** stay off-chain (no stake, no CHIPS transfer). |
+| 4 | **Token standard** | **B20 Asset** via Base factory precompile — not a custom ERC-20 clone. |
+| 5 | **Name / symbol** | Name: **Chips** · Symbol: **CHIPS** |
+| 6 | **Supply** | **10B max cap**, supply cap enforced at B20 creation (+ §8.1b end-state). **2B initial liquid**, 8B in `SupplyLocker` under gated quarterly unlocks (§2.2). |
+| 7 | **Allocation** | Play rewards 30% · Treasury 20% · Team 20% · Liquidity 20% · Partners 10% |
+| 8 | **Claims** | **100% pull-based.** Nothing auto-transfers to a player wallet from game clients. |
+| 9 | **Paid matches** | Entry fee is approved + pulled into a **visible on-chain Match Pool**. Winners **claim individually** from that pool (immediately after settle, or later from their claim hub). |
+
+Supabase is **no longer the balance authority**. It becomes:
+
+- match/session authority (rules, dice, move auth — unchanged trust model)
+- **indexer / cache** of on-chain balances and pool state for fast UI
+- publisher of signed settlement payloads that the **contracts** accept
+
+---
+
+## 1. Why B20 (and why Chips on it)
+
+B20 is Base’s native ERC-20-compatible token standard, implemented as chain precompiles (not a Solidity ERC-20 you deploy yourself). It gives Ludo Base production controls that matter for a real game economy:
+
+| B20 capability | How Chips uses it |
+| --- | --- |
+| ERC-20 parity | Wallets, explorers, OnchainKit, swaps treat CHIPS like any ERC-20 |
+| **Supply cap** | Hard 10B ceiling via `updateSupplyCap` in factory `initCalls`. The cap is admin-mutable on B20 (raise or lower freely, floor = current `totalSupply`) — so "fixed" is delivered by the explicit end-state in §8.1b: distribute → lock role-admins → `renounceLastAdmin()` → assert `supplyCap == 10B` immutable. Cap value (10B×1e18 = 1e28) fits well under the `uint128.max` ceiling; deploy script asserts the on-chain value rather than citing a sentinel. **Max is 10B; initial liquid supply is 2B** — the remaining 8B sits pre-minted in the `SupplyLocker` under gated tranche releases (§2.2). |
+| **Roles (least privilege, end-state in §8.1b)** | **`MINT_ROLE` holders = ∅ after bootstrap** — full 10B is pre-minted in the create/bootstrap run; `SeasonDistributor` only **draws/transfers** unlocked budget (never mints). `initCalls` may briefly grant `MINT_ROLE` to the distributor for a single bootstrap mint if the factory path requires it, but the same runbook **revokes it** before Phase 1 exit (§8.1 assert). `BURN_ROLE` on `MatchPool` + `Marketplace` only (TreasuryRouter receives protocol fees, it does not burn); `PAUSE_ROLE`/`UNPAUSE_ROLE` split on SecurityMultisig; `METADATA_ROLE` on OpsMultisig + timelock; `OPERATOR_ROLE` on SecurityMultisig + timelock for announcements ONLY with the UI multiplier permanently pinned at 1× (no scheduled/instant updates ever; all contracts and the indexer use raw balances exclusively). **Never granted:** `SEIZE_ROLE`, `BURN_BLOCKED_ROLE` (deprecated third-party-burn path — banning `SEIZE` alone is insufficient). Every admin-gated call routes through named timelocks (§8.10) until an explicit `renounceLastAdmin()` decision, which freezes policy updates too — so geo/eligibility policy must be designed *before* any renounce. |
+| **ERC-2612 permit (EOA-only)** | B20 `permit` recovers EOA signatures only — it does **not** work for smart/AA wallets (our default is `smartWalletOnly`). Permit is the EOA fast-path only. The primary join path is EIP-5792 batched `approve + joinPool` via `useSendCalls` (see §4.6). |
+| **Memos (`burnWithMemo`, `transferWithMemo`, …)** | Memo field is `bytes32` (e.g. `keccak256("match:burn")`), emitted as a `Memo` event joined to its parent via `(txHash, logIndex - 1)`. Human tags (`match:fee`, `match:burn`, `market:burn`, `season:claim`) are the pre-image convention; the indexer stores both tag string and `bytes32`. `burn`/`burnWithMemo` burn from the **caller's own balance** and require `BURN_ROLE` — so the pool/market contract holds gross custody and burns from itself. |
+| **batchMint** | Season / partner distributions in one tx. Separate surface from announcements (both Asset-gated); do not conflate. |
+| **Announcements** | Treasury/season transparency via B20 `announce` brackets, gated by `OPERATOR_ROLE` held under multisig+timelock with the multiplier permanently pinned at 1× (see Roles row). If OPERATOR is ever renounced away, announcements fall back to off-chain event logs — never silently. |
+| **Granular pause** | `TRANSFER \| MINT \| BURN \| SEIZE` are independently pausable. **Pausing `TRANSFER` freezes claims too** (claims are transfers from pool/ClaimHub) — the incident policy must state this; there is no separate "claim" pause feature. |
+| **Policy registry** | All scopes default `ALWAYS_ALLOW`. Geo/eligibility gating is a **Phase-1 legal requirement** for paid-entry pools (not "optional later") — design the policy + age-gate + legal opinion before mainnet value. `approve`/`permit` are not policy-gated. |
+| Factory | Deterministic address via `B20Factory` + `(variant, sender, salt)`; variant byte in address (`0xB200…`). |
+| **Builder Codes (ERC-8021)** | Every CHIPS tx carries the ERC-8021 attribution suffix (`dataSuffix` on the wagmi config + `capabilities.dataSuffix` for `sendCalls`). Missing attribution is silent revenue loss. See §8.7. |
+
+**Variant:** `ASSET` (decimals **18**). Not `STABLECOIN` — CHIPS is a game/utility asset, not a fiat proxy.
+
+**Factory precompile:** `0xB20f000000000000000000000000000000000000`  
+**Create call:** `createB20(ASSET, salt, params, initCalls)`  
+**Activation:** confirm B20 Asset feature is live on Base Sepolia via ActivationRegistry before deploy.
+
+### 1.1 Token identity
+
+| Field | Value |
+| --- | --- |
+| Name | `Chips` |
+| Symbol | `CHIPS` |
+| Standard | B20 Asset |
+| Decimals | 18 |
+| Max supply | 10,000,000,000 CHIPS (cap; see §2 for the unlock schedule) |
+| Initial liquid supply | 2,000,000,000 CHIPS at bootstrap (bucket split in §2.1); remaining 8B pre-minted into `SupplyLocker` |
+| Supply cap | Set to 10B via `updateSupplyCap` in factory `initCalls`, then made immutable by the §8.1b end-state (`renounceLastAdmin()` + on-chain assert). No down-only primitive exists on B20 — immutability comes from renouncing admin, with the freeze trade-offs named in §8.1b. |
+| Version (EIP-712) | `1` (B20 fixed) |
+| contractURI | ERC-7572 metadata (name, logo, explorer, terms URL) |
+| extraMetadata | `game=ludo-base`, `season-budget=published`, `docs=<this path>` |
+
+---
+
+## 2. Supply & allocation (10B max, 2B initial)
+
+```text
+10,000,000,000 CHIPS max (100%)
+├── Playing Rewards ....... 30%  ·  3,000,000,000  (600M liquid · 2.4B locked)
+├── Treasury .............. 20%  ·  2,000,000,000  (500M liquid · 1.5B locked)
+├── Team .................. 20%  ·  2,000,000,000  (400M in vesting · 1.6B locked)
+├── Liquidity ............. 20%  ·  2,000,000,000  (300M liquid · 1.7B locked)
+└── Partners .............. 10%  ·  1,000,000,000  (200M liquid · 0.8B locked)
+                                                ─────────────────────────────
+Initial liquid/allocated: 2.0B · Locked in SupplyLocker: 8.0B (§2.2)
+```
+
+### 2.1 Allocation rules
+
+| Bucket | Amount (of 10B) | Initial (liquid at bootstrap) | Locked (SupplyLocker) | Custody | Release |
+| --- | --- | --- | --- | --- | --- |
+| **Playing Rewards** | 3.0B | 600M (covers S1 400M + 200M buffer) | 2.4B | `SeasonDistributor` **coded contract** (not an EOA): holds unlocked budget, exposes a coded epoch-budget function (per-epoch ceiling, timelocked parameter changes). **No mint authority after bootstrap** (`MINT_ROLE` holders = ∅): holds pre-minted unlocked budget and tops up from `SupplyLocker` tranches; coded epoch-budget function only | **Season budgets** via epoch caps + per-wallet daily/weekly caps (§5.3). Epoch ceilings are hard stops: when an epoch budget depletes, issuance pauses to the published refill schedule (never pro-rata dilution, never over-mint). Never free-form client mint. Unspent rolls forward within the 3B lifetime cap. Unlocked tranches top up the distributor per §2.2. |
+| **Treasury** | 2.0B | 500M (ops/runway + 50M conversion pool) | 1.5B | Multisig Treasury + timelock (delays per §8.10: standard ops 48h, large moves 7d; timelock active before mainnet value). Also funds the legacy conversion pool (§3.3, capped, from Treasury — never from the 3B play budget) | Ops, audits, infra, esports, buyback-burn later, grants. All large moves via `announce`. |
+| **Team** | 2.0B | 400M into vesting | 1.6B | Named vesting contract (e.g. OpenZeppelin `VestingWallet` or equivalent, multisig admin) | 12-month cliff, 36-month linear after cliff (institutional minimum for a 20% founder allocation). Vesting contract address published at deploy; no EOA unlocks. Unlocked tranches flow into vesting (cliff/linear still apply — unlock ≠ liquid; vesting tail accretes to circulating, never at unlock). |
+| **Liquidity** | 2.0B | 300M seed | 1.7B | Time-locked vault / LP program (locked at deploy) | **No public sale on day one.** Unlock only against numeric KPIs (owner: Treasury multisig proposes, SecurityMultisig approves after timelock; thresholds published in TOKEN_PARAMS before mainnet; §11: retention + pool-volume thresholds + delay), not discretion. |
+| **Partners** | 1.0B | 200M | 0.8B | Partner distributor contract (pull-based `claimGrant`) + named milestone oracle (oracle identity, key/threshold, and timelock published at deploy; oracle can only release against published milestones, never mint) | Farcaster creators, guilds, Base ecosystem, KOL cups. Grants released against published milestones only. |
+
+**Deployment pattern:** mint full 10B once (bounded by the cap), allocate 2B liquid per the table above, immobilize 8B in the `SupplyLocker` (§2.2) in the same bootstrap run, then execute the §8.1b end-state. Pre-mint-to-locker (not future mint rights) is deliberate: the full 10B exists and is visible on-chain from day one, so "fixed supply" is auditable, not a promise about future restraint. Playing Rewards then **draw down** unlocked budget — it is not an open faucet.
+
+> Rationale: max supply is real (cap + visible 10B), liquid supply starts lean (2B), and growth unlocks only against proven usage.
+
+### 2.2 Smart unlock schedule (8B gated locker)
+
+The `SupplyLocker` is a coded contract holding the 8B with per-bucket accounting. Releases run on **quarterly envelopes of 500M** (16 envelopes ≈ 4 years), split pro-rata per bucket — but each envelope, once its gates pass, pays out as **three monthly drips of ~166.7M**, not one quarterly cliff (cliffs concentrate predictable short-the-rumor windows; drips slice the meta-order):
+
+| Per monthly drip | Play | Treasury | Team → vesting | Liquidity | Partners |
+| --- | --- | --- | --- | --- | --- |
+| ~166.7M | 50M | 31.25M | ~33.3M | ~35.4M | ~16.7M |
+
+A quarterly envelope opens **iff the two hard gates pass** (checked on-chain where possible, independently attested otherwise):
+
+1. **Time:** ≥90 days since the last envelope opened (global clock — at most one envelope per window; missed windows never compound).
+2. **Utilization (the demand gate):** ≥75% of previously unlocked play + partner budgets actually claimed/distributed (proof via ClaimHub + distributor accounting, read on-chain by the locker). Unlocking into idle wallets is forbidden.
+
+**Sink health is a deceleration signal, not a hard block:** the trailing-90-day burn/emissions ratio (numerator = `burnWithMemo` events in the allowlisted memo set; denominator = distributor draws + voucher/market mint events in the same window; both computed on-chain from `chips_events`) trims the next envelope when weak — year-1 target ≥5%, year-2+ ≥10%, steady ≥15%, each set with ~10pp headroom over trailing data. A soft print **skips or halves** the next envelope; it never permanently bricks the schedule. Any off-chain input to the ratio requires an **independent attestor** (never self-scored metrics) — auditors get the calculator spec, not a multisig promise.
+
+**Security gate:** no active incident pause, no unresolved ε-breach (§8.6).
+
+Destinations are fixed and **pre-announced ≥30 days before each window** (addresses published): play → `SeasonDistributor` epoch budget; treasury → Treasury multisig (timelocked); team → vesting contract (cliff/linear still apply); liquidity → locked vault/LP program; partners → partner distributor (milestone-gated). LP is seeded **before** the first envelope opens, and each window ships with a market-maker absorption plan at T+0 — conditional timing gets a deterministic outer calendar (earliest-possible dates) plus 30-day utilization/burn telemetry, so MMs can model it.
+
+Controls: SecurityMultisig can **pause** unlocks immediately; resume via timelock. **Acceleration** requires a 14-day announced timelock with published rationale (emergency only). **Deceleration** (skipping a passed gate) is always allowed and default-safe. Every drip emits `UnlockExecuted` + a B20 `announce` + dashboard update.
+
+**Circulating-supply reconciliation (published from day one):** the dashboard reports three numbers, never one — (a) locker-locked, (b) unlocked-but-designated (vesting/treasury/vault/partner-designated wallets), (c) CMC/CG-verified circulating. Team/treasury-unlocked balances are never marketed as float.
+
+**Stall-path funding (pre-committed):** S1 is sized to a **≤500M worst case** (600M initial play budget minus a 100M Sybil reserve), so one stalled quarter cannot halt missions. If 1–2 consecutive envelopes fail their gates, EITHER a **capped Treasury bridge** (≤100M, timelocked, announced, repaid from the next passed envelope) OR an **automatic S2-draw reduction** of equal size engages — chosen at freeze, not improvised mid-season. The 0-tranche-year-1 scenario is simulated publicly before S1 locks.
+
+Coverage check: S1+S2 draws (400M + 320M = 720M) are covered by the initial 600M play budget plus first-year envelopes (4 × 150M = 600M) — with utilization gates ensuring unlocks track real demand, not the calendar alone.
+
+---
+
+## 3. Single-currency game economy
+
+### 3.1 What moves CHIPS (on-chain)
+
+| System | Flow |
+| --- | --- |
+| Paid multiplayer (Classic / Power / Snakes) | Entry → Match Pool → protocol fees/burn → winner claim |
+| Free online tables | No stake; optional mission progress only |
+| Tournaments | Entry → Tournament pool → prize claims |
+| Spectator predictions (Arena) | Stake → Predict slice of match pool or sibling pool → claim |
+| Marketplace | Buyer pays CHIPS → seller (+ burn + treasury split) |
+| Mission claims | User pulls reward from claim contract / voucher |
+| Season rank rewards | User pulls merkle claim after season end |
+| Social rewards (poke, referral) | Claim vouchers — still user-initiated pull |
+| Vanity / forge / boosts | Spend CHIPS → burn-heavy sinks |
+
+### 3.2 What stays off-chain
+
+| System | Rule |
+| --- | --- |
+| **Offline / AI matches** | Local engine only. **No CHIPS stake, no pool, no claim.** |
+| LXP / RXP / cosmetics equip state | Off-chain progression + prefs (unchanged) |
+| Dice rolls, move auth, match proof | Off-chain authority (unchanged security model) |
+| Chat / DMs (ECDH) | Unchanged |
+
+Offline/AI may advance **local practice stats**. It does **not** pay CHIPS. If we later want practice→reward, it must be a **capped online claim** (mission progress), never a local mint.
+
+### 3.3 Supabase role after CHIPS
+
+| Keep in Supabase | Move on-chain / contract-adjacent |
+| --- | --- |
+| Match engine state, Edge RNG receipts, move-auth | Token balances (source of truth = chain) |
+| Profiles, friends, messages, missions **progress** | Mission **payouts** |
+| Pool *cache* for UI (amount, seats, status) | Pool **funds**, settle, claims |
+| Settlement *proposal* + signatures | Settlement **execution** + credit assignment |
+| Anti-fraud signals | Final economic writes |
+
+`players.coins` becomes a **display mirror** (indexed from chain / claim hub), not a writable game currency. RLS stays locked; no client writes.
+
+> **Decimals migration note:** CHIPS is 18 decimals (10B×1e18 = 1e28). Legacy `players.coins bigint` (max ~9e18 ≈ 9 CHIPS) and `spectator_bets.amount bigint` cannot hold CHIPS base units. All on-chain amounts use `numeric` in Postgres and `bigint`/`parseUnits` in TS (viem). Cutover plan: feature-flag legacy coin writes (`purchase_marketplace`, `cash_out_bet`, `settle_match_bets`, `join_tournament` coin path) → freeze → backfill `coins_source='legacy'|'chain_cache'` → UI reads chain/indexer only. Never run legacy coin payouts and CHIPS claims in parallel for the same reward.
+
+---
+
+## 4. Match Pool system (core economic primitive)
+
+This replaces “wager number in lobby + settle later in DB.”
+
+### 4.1 Design goals
+
+1. Every paid match has a **visible on-chain pool** before play starts.
+2. Players **explicitly authorize** entry — primary: EIP-5792 batched `approve + joinPool` in one wallet approval (smart-wallet compatible); fallback: EIP-2612 `permit` for EOAs, or plain `approve` + `joinPool`.
+3. Protocol fees + burn are **deterministic and visible** in the pool UI.
+4. After settle, **each winner claims their own cut** — no push payout from a hot key.
+5. Claims can happen **right after the match** or **later from the player’s claim hub**.
+6. Free matches never touch the pool contract.
+7. Every pool/market/claim tx carries the ERC-8021 Builder Code suffix (§8.7).
+
+### 4.2 Contracts (pool family)
+
+| Contract | Purpose |
+| --- | --- |
+| `Chips` | B20 Asset token |
+| `MatchPool` | Create / fund / lock / settle / claim for multiplayer matches. **Holds gross custody.** Burns its own balance via `burnWithMemo`; routes protocol fees via `transferWithMemo`. Reentrancy-guarded, CEI-ordered. |
+| `ClaimHub` | Per-player accrued claimable balance — **view/aggregator + batch-claim router** over `MatchPool` credits (funds stay in `MatchPool`; `ClaimHub` never double-counts). Batch pull entry point. |
+| `MissionClaim` | Pull-based mission / social / engagement rewards |
+| `SeasonClaim` | Merkle season rank claims |
+| `Marketplace` | Listings, purchases, fee + burn split |
+| `TreasuryRouter` | Receives protocol fees; optional auto-buyback later |
+| `SeasonDistributor` | Holds 3B play budget; funds epochs to claim contracts |
+
+**Sepolia Phase 1 minimum:** `Chips` + `MatchPool` + `ClaimHub` + `MissionClaim`.
+
+### 4.2b Pool creation policy (compile-time-safe economics)
+
+Permissionless pool creation is allowed **iff** every parameter is validated on-chain at `createPool` — otherwise a malicious creator ships a 100%-fee pool behind a cloned lobby card:
+
+| Parameter | On-chain rule (enforced in `createPool`, immutable after) |
+| --- | --- |
+| `entryFee` | Must equal a published fee-tier allowlist (100 / 1,000 / 10,000 / tournament-published). No free-form fees. |
+| `protocolBps` / `burnBps` | Hard caps: `protocolBps ≤ 500` (5%), `burnBps ≤ 200` (2%); exact tier values from §4.5. Tuner = Treasury multisig via timelock (§8.10); tiers versioned, existing pools unaffected. |
+| `maxSeats` / `gameMode` | Whitelist: seats ∈ {2, 4}, mode ∈ {classic, power, snakes}. |
+| `authority` | Bound at creation to the registered host wallet (must match the TeamUp host that created the lobby); changeable only via the compute-host rotation rule (§4.7 liveness). The pool creator cannot self-appoint a different settler. |
+| `seatWallets` | Full seat allowlist committed at creation (`createPool(roomCode, seatWallets[], seatColors[])`, lengths must equal `maxSeats`). `joinPool` reverts for non-allowlisted wallets — closes seat squatting without trusting off-chain TeamUp state. |
+| `poolKind` / `parentPoolId` / `windowClosedAt` | `poolKind` ∈ {match, predict}; predict pools commit `parentPoolId` + fixed `windowClosedAt` **at creation** (never mirrored mid-match — see §4.10). **Phase 1: match pools only** — predict join-policy (not match `seatWallets`) is a Phase-2 entry artifact. |
+
+Join-UX rule: the client reads `entryFee / protocolBps / burnBps / authority / status` **from chain** (never the indexer cache) and displays them pre-approve; any cache-vs-chain mismatch reverts the flow. Foundry squat test required (non-allowlisted join reverts; over-cap params revert).
+
+### 4.3 Pool lifecycle
+
+```text
+┌──────────┐   join/fund    ┌──────────┐   all seats / host lock   ┌──────────┐
+│  OPEN    │ ─────────────► │  FUNDED  │ ───────────────────────►  │  LOCKED  │──settleBy deadline──► TIMEOUT path
+└──────────┘                └──────────┘                           └────┬─────┘  (anyone-refund, see liveness)
+      │                              │                                     │
+      │ cancel (host, pre-lock only) │ match plays (off-chain engine)      │
+      ▼                              ▼                                     ▼
+┌──────────┐                  ┌──────────┐   dual-signed settle     ┌──────────┐
+│CANCELLED │                  │ EXPIRED  │   (authority)          │ SETTLED  │
+└──────────┘                  └──────────┘                        └────┬─────┘
+     refunds to joiners (pull)      TTL + caller pinned (§4.7)          pull claims
+                                                                           (until unlockAt)
+```
+
+Coded transition table (terminal states absorb all further transitions):
+
+| From → To | Caller | Condition |
+| --- | --- | --- |
+| OPEN → FUNDED | any allowlisted joiner | `joinPool` with exact fee; `filledSeats < maxSeats` |
+| OPEN → CANCELLED | creating host only | **pre-lock only**; full refunds via `refundJoin` pull |
+| FUNDED → LOCKED | host | all seats funded-confirmed (indexer confirmations per §8.6) |
+| LOCKED → SETTLED | dual-sign settle (host + Edge co-signer, §4.7) | `status == locked`, `block.timestamp ≤ settleBy` |
+| LOCKED → CANCELLED (timeout-refund) | **anyone** | `block.timestamp > settleBy + pauseDelta` (effective) with no valid settle → full refunds, no fees/burn |
+| OPEN/FUNDED → EXPIRED | anyone | lobby TTL elapsed (published per tier, e.g. 24h unfilled) → refunds |
+| SETTLED/CANCELLED/EXPIRED → * | — | terminal; every further transition reverts |
+
+`settleBy = lockedAt + settleWindow` (published per tier, e.g. 60 min) is stored at lock. Cancel is **never** available post-lock — a losing host cannot cancel instead of paying winners.
+
+**Pause extension (freeze rule):** any on-chain pause that blocks settle (`TRANSFER` or `BURN`) **auto-extends `settleBy` by the pool’s pause-delta** — `pauseDelta[poolId]` accumulates `unpausedAt - pausedAt` while the relevant feature is paused; effective deadline = `settleBy + pauseDelta`. Timeout-refund and settle both read the **effective** deadline. Product copy: incident pause delays payouts; it does **not** convert wins into refunds. BURN-pause still reverts `settlePool` wholesale (no partial settle) until unpause — then settle remains available until the extended deadline. Foundry test: pause → unpause → settle succeeds after original `settleBy` but before extended deadline; timeout-refund before extended deadline reverts.
+
+### 4.4 Pool parameters (on-chain struct)
+
+```solidity
+struct MatchPool {
+    bytes32 poolId;          // keccak(chainId, matchId, roomCode, chainSalt) — chainId in hash blocks Sepolia/mainnet replay.
+                             // chainSalt embeds chainId too: factory salts are DISTINCT per env (e.g. keccak("ludo-base-chips-v1", chainId))
+                             // so Sepolia/mainnet token addresses differ — kills commemorative-vs-real confusion at address level.
+    uint8   gameMode;        // classic | power | snakes (whitelisted at creation)
+    uint8   poolKind;        // 0 = match, 1 = predict (locked at creation, §4.10)
+    uint8   maxSeats;        // 2 or 4 (2v2 = 4 seats, 2 teams)
+    uint8   filledSeats;
+    uint8   status;          // open | funded | locked | settled | cancelled | expired (transition table §4.3)
+    address[] seats;         // participant wallets in seat order (allowlist committed at creation)
+    uint8[] seatColors;      // color per seat, committed at join/lock — makes TEAM_PAIRINGS checks executable (§4.5)
+    mapping(address => uint256) seatIndex; // 1-based; 0 = not seated (winners-⊆-seats check)
+    address authority;       // registered settler, bound at creation to the lobby host; rotation only via §4.7 liveness rule
+    uint128 entryFee;        // CHIPS per seat (tier allowlist at creation)
+    uint128 gross;           // filledSeats * entryFee (updated on join)
+    uint128 protocolBps;     // protocol fee (capped §4.2b)
+    uint128 burnBps;         // burn cut (capped §4.2b)
+    uint128 prizeFund;       // gross - fees - burn (locked for winners)
+    uint128 protocolAmount;
+    uint128 burnAmount;
+    bytes32 resultHash;      // AUDIT LOG of the settled payout (hash of canonical payoutPlan, stored at settle for explorers).
+                             // Not a forgery mitigation (outcome unknown at lock): integrity comes from dual-sign + nonce
+                             // consumption + winners-⊆-seats + equal-split checks, not from this field.
+    uint64  createdAt;
+    uint64  lockedAt;
+    uint64  settleBy;        // lockedAt + settleWindow — anyone may timeout-refund after effective deadline
+    uint64  pauseDelta;      // Σ (unpausedAt - pausedAt) while TRANSFER|BURN paused; effective settleBy += pauseDelta (§4.3)
+    uint64  settledAt;
+    uint64  claimUnlockAt;   // settledAt + disputeWindow — claimMatch/claimAll/refundJoin revert before this (§4.8)
+    uint64  windowClosedAt;  // predict pools only: entry cutoff committed at creation (§4.10)
+    bytes32 parentPoolId;    // predict pools only: main pool reference
+    uint256 settleNonce;     // consumed per settle — cross-pool settle replay reverts (§4.7)
+    // NOTE: no claimDeadline in v1 — match prizes do not expire (see §4.8). If an expiry is ever
+    // introduced it needs a new plan revision + migration, not a silent field reuse.
+}
+```
+
+### 4.5 Fee schedule (visible in lobby)
+
+Default **paid** table (tunable per mode / stake tier within the §4.2b caps):
+
+| Stake tier | Entry example | Protocol fee | Burn | Winner share of prize fund |
+| --- | --- | --- | --- | --- |
+| Casual paid | 100 CHIPS | 4% | 1% | 100% of prize fund (1v1) or mode split |
+| Standard | 1,000 CHIPS | 5% | 2% | mode split |
+| High roller | 10,000 CHIPS | 5% | 2% | mode split |
+| Tournament | variable | 5% | 2% | published bracket |
+
+Fee governance: tiers change only via Treasury-multisig proposal + timelock (§8.10); on-chain caps in §4.2b are immutable per pool at creation and can only be *lowered* for future pools by contract upgrade — never raised silently. Player-facing take (fees+burn) is shown as a single "protocol take" number in the lobby; no sensitivity games (take never rises when volume drops).
+
+**1v1 example (1,000 entry):**
+
+```text
+Gross     = 2,000
+Fee   5%  =   100  → TreasuryRouter (transferWithMemo, memo=keccak("match:fee"))
+Burn  2%  =    40  → MatchPool.burnWithMemo(memo=keccak("match:burn")) from pool custody
+Prize     = 1,860  → winner claimable
+```
+
+**Casual 1v1 example (100 entry):**
+
+```text
+Gross     = 200
+Fee   4%  =     8  → TreasuryRouter
+Burn  1%  =     2  → burn
+Prize     =   190  → winner claimable
+```
+
+**4-player FFA example (1,000 entry):**
+
+```text
+Gross     = 4,000
+Fee   5%  =   200
+Burn  2%  =    80
+Prize     = 3,720
+Split     = winner 100% (default FFA)
+          optional: 70/20/10 for top-3 experimental queues
+```
+
+**High-roller 1v1 example (10,000 entry):**
+
+```text
+Gross     = 20,000
+Fee   5%  =  1,000
+Burn  2%  =    400
+Prize     = 18,600
+```
+
+**2v2 example:** prize fund split equally to **2 winning teammates** (each claim their half) unless a team wallet is used — prefer individual seat claims. The 2-seat winner set **must satisfy `TEAM_PAIRINGS`** (`lib/constants.ts`: Green+Yellow vs Red+Blue) — enforced on-chain from the `seatColors` map committed at join/lock (never by UI alone, never by Edge attestation alone). **Equal-split is an on-chain equality check**, not product intent: each teammate's payout must equal `prizeFund / 2` exactly, or settle reverts (no teammate haircuts).
+
+> **Gas reality check:** casual 100-CHIPS tiers are likely gas-negative on L2 (join + settle + claim gas > net prize). Keep 100-CHIPS as a Sepolia calibration tier only; mainnet paid minimums start at Standard (1,000) unless a paymaster covers claim gas (§8.9).
+
+### 4.6 Join flow (user authorization — batch-first)
+
+```text
+Player sees lobby: "Pool 0xabc… · Entry 1,000 CHIPS · Fee 5% · Burn 2% · Seats 3/4"
+
+1. Wallet connect + SIWE app session (identity). SIWE verifies against the active
+   chain (84532 in Phase 1, 8453 on mainnet) — the current 8453-only gate
+   (lib/walletVerify.ts, lib/sessionProof.ts) must accept 84532 first.
+2. Primary path — EIP-5792 batch (works for smart wallets, our default):
+   Client builds sendCalls([{ approve(MatchPool, entryFee) }, { joinPool(poolId) }])
+   with ERC-8021 builder-code attribution (§8.7). One user approval, atomic.
+   Allowance is exactly entryFee with a short deadline — never infinite.
+3. Fallback path — EOA permit: sign Permit(owner, MatchPool, value=entryFee, deadline),
+   then MatchPool.joinPool(poolId, permitArgs). Permit is EOA-only and must not be
+   offered to smart-wallet users.
+4. Contract:
+   - `joinPool` requires `permit.owner == msg.sender` when the permit path is used; leftover allowance after an exact-fee join is asserted ~0 in tests
+   - pulls entryFee via transferFrom (permit or pre-approved allowance)
+   - seat = msg.sender, must be in the creation-time `seatWallets` allowlist (front-run squats revert); records `seatColors[msg.sender]`; guest wallets cannot join paid tables
+   - gross += entryFee
+   - emits PoolJoined(poolId, seatIndex, player, entryFee) + Memo(keccak("match:join"))
+5. Indexer updates Supabase lobby cache (with reorg handling — §8.6)
+6. Game starts when seats full OR host calls lockPool
+
+> Wallet-compat note: where the wallet lacks atomic batch support, the client falls back to sequential `approve` → `joinPool` with the same exact-fee + short-deadline parameters (two approvals, same guarantees). Exact-allowance discipline is first-party-UX-only and unenforceable on third-party/Farcaster-frame clients — Phase 3 frames use a signed join-intent binding so a frame relay cannot substitute calldata (e.g. infinite approval).
+```
+
+**Fail-closed:** online paid match **cannot start** until all seats show `funded` on-chain (or host cancels). Guest wallets cannot join paid tables.
+
+**Free online tables:** **no MatchPool is created.** Free play never calls the pool contract. A pool is created only when `entryFee > 0` or a Phase-2 predict sibling needs a parent poolId. (`entryFee = 0` pools are not a supported product surface.)
+
+### 4.7 Settlement (authority → claim credits, not pushes)
+
+Game remains off-chain for speed and existing integrity (Edge rolls, match session, host proof). Settlement becomes a **signed payload + on-chain credit**.
+
+**Settlement payload — EIP-712 `ChipsMatchSettle` (version `1`):**
+
+```text
+domain:    { name: "LudoBase MatchPool", version: "1", chainId, verifyingContract: MatchPool }
+message:   { poolId, matchId, roomCode, gameMode, participants[], winnerAddresses[],
+             payoutPlan[{ addr, amount }...], nonce, deadline, authority }
+```
+
+* `payoutPlan` canonical encoding (ordered addrs ascending, amounts, `chainId`, `poolId`, `nonce`) hashes to `resultHash`. Any malleability = revert.
+* `sum(payoutPlan) == prizeFund` enforced on-chain.
+* 2v2 winner sets enforced against `TEAM_PAIRINGS` (see §4.5).
+* Authority = **dual-sign from day one, including Sepolia** (not a Phase-4 upgrade): the host signature AND an Edge co-signature are both required. Edge co-signer identity: a dedicated settlement key held in the Edge runtime secret store, key-separated from the voucher op-key (§6.1) and from game-ops keys; signing policy: Edge attests `(poolId, winnerSet, payoutPlanHash, seqRange)` derived from `match_states` + roll receipts, never from host assertions alone. Edge-down fallback: after **effective** `settleBy` (incl. pause-delta, §4.3), anyone may trigger the timeout-refund path — liveness never depends on Edge availability. **Ops SLO (freeze):** Edge co-signs at match completion (async), producing a settle-ready payload **before** the winner’s claim CTA; Edge availability is monitored; if co-sign is missing, UI explains delayed payout (not a silent loss) until timeout-refund. Mainnet hardens custody (threshold/HSM) without changing the interface, so Sepolia pools are already dual-sign-shaped (no storage migration later).
+* Host rotation: if compute-host baton-passes (`ENGINE_LOGIC.md` §5.3/§9.3), the new host must call `rotateAuthority(poolId, edgeAttestation)` — Edge attests the handover against presence + `match_states.host_address`; the contract updates `authority` only with a valid Edge co-signature. Stale hosts cannot settle after rotation.
+* Abandon/forfeit is never host-declared alone — it requires Edge-signed evidence (`cancelAuthority(poolId, evidence)`, see §5.1): `evidence = { poolId, accusedSeat, seqAtDisconnect, afkStrikes, edgeSig }`, caller = anyone submitting valid Edge-signed evidence (permissionless with valid sig; no bond in v1, rate-limited per pool).
+* Personal-sign text payloads (`lib/matchProof.ts` style) remain for off-chain match-record/bet-resolve only — **on-chain settle verifies EIP-712** (EOA `ecrecover` + ERC-1271/6492 smart-wallet path, Base-chain-gated per skill).
+
+**On-chain `settlePool(poolId, payoutPlan, proof)` — exact checks, all required:**
+
+1. Requires `status == locked` and `block.timestamp ≤ settleBy + pauseDelta[poolId]` (effective deadline; else only timeout-refund).
+2. Recovers host signer AND Edge co-signer from the EIP-712 `ChipsMatchSettle` signatures; requires `hostSigner == pool.authority == message.authority` and Edge signer == registered Edge co-signer; requires `block.timestamp ≤ deadline`.
+3. Requires `message.settleNonce == pool.settleNonce`, then consumes it (`settleNonce++`) — cross-pool settle replay reverts.
+4. Checks `sum(payoutPlan) == prizeFund` and `keccak(canonicalPayoutPlan) == resultHash` (audit field only — written in this call from the submitted plan; **not** a pre-lock commitment and **not** a security oracle; dual-sign + nonce + seat/team checks are the integrity path).
+5. Requires every `payoutPlan.addr` ∈ `seats` (accomplice-diversion reverts) and 2v2 sets satisfy `TEAM_PAIRINGS` via `seatColors` with exact equal-split (teammate haircut reverts).
+6. Marks pool `settled`, stores `resultHash` + `settledAt`, sets `claimUnlockAt = settledAt + disputeWindow`.
+7. For each winner: records credit `(player, poolId) → amount` against funds held in `MatchPool` and emits a `ClaimHub`-indexed credit event — **credits only, no transfers**.
+8. Burns `burnAmount` from pool custody via `burnWithMemo(keccak("match:burn"))` (pool holds `BURN_ROLE`; no EOA burner).
+9. Routes `protocolAmount` to `TreasuryRouter` via `transferWithMemo(keccak("match:fee"))`.
+10. Emits `PoolSettled`, `ChipsBurned`, `FeeRouted`.
+
+**No auto `transfer` to winners in settle.** Credits sit until claimed.
+
+### 4.8 Individual claim (pull — two paths)
+
+Players choose when to pull. Both are first-class.
+
+#### Path A — Immediate claim (post-match)
+
+```text
+Match ends → UI: "You won 1,860 CHIPS · CLAIM (unlocks in N min)"
+After claimUnlockAt, user sends claimMatch(poolId) (wallet tx with builder-code suffix)
+MatchPool (funds holder) via ClaimHub router (ClaimHub calls MatchPool.claimFor under an
+explicit router allowlist; reentrancy guard spans both contracts):
+  - require settled && block.timestamp >= claimUnlockAt && credit[player][poolId] > 0 && !claimed
+  - checks-effects-interactions: zero the credit FIRST (idempotent, reentrancy-guarded)
+  - CHIPS.transfer(player, amount)
+  - emit PrizeClaimed(poolId, player, amount) + Memo(keccak("match:prize"))
+```
+
+Gas is paid by the player. UX copy must show gross, gas estimate, and net. Sponsored claims
+via ERC-8168 payer (§8.9) cover gas only — prize value still comes from pool custody.
+`claimMatch` and `claimAll` zero the same credit record atomically: claiming one path
+bricks the other for that `(player, poolId)` (Foundry test required).
+
+#### Path B — Deferred claim (user pool / hub)
+
+```text
+Credits accumulate in ClaimHub across matches, missions, seasons.
+
+claimable[player] = Σ unclaimed credits
+
+User opens Wallet → Claimable
+  Match wins:     4,220
+  Missions:         350
+  Season S1:      1,200
+  Social:           40
+
+User calls ClaimHub.claimAll()  // or claimMany(refs[])
+→ one transfer of total
+→ emits ClaimBatch(player, total, refs[])
+```
+
+Aggregation rules: `claimAll` is paginated under the hood via `claimMany(refs[], cursor)` with `MAX_CLAIM_REFS` per tx (published constant, e.g. 25) — an unbounded loop is a gas-grief vector, so the infinite variant is a client-side loop over bounded calls, never one unbounded tx. Cross-contract batches (match + mission + season in one tx) are all-or-nothing per ref with CEI ordering across the batch (zero every touched credit before any transfer) under a router-level reentrancy guard (per-contract guards alone don't cover cross-contract reentry through the router).
+
+**Smart planning defaults:**
+
+| Rule | Default |
+| --- | --- |
+| Minimum claim | None on free-tier; optional 10 CHIPS min to reduce dust tx spam (does not fix gas-negative micro-prizes — see §4.5) |
+| Batch claim | `claimAll` pulls every open credit |
+| Expiry | Unclaimed match prizes **do not expire** in v1 (player-friendly). Optional 180-day soft nudge in UI. No `claimDeadline` enforcement, no automatic burn/sweep of user credits. |
+| Dust | **No ops-initiated burn of user credits.** Dust consolidation is strictly user-opt-in (`claimAll` includes dust) — an ops job can never pull or burn from `credit[player][poolId]`. |
+| Forfeit | Cancelled/expired/timeout pools refund joiners via `refundJoin(poolId)` pull — consuming the **same** `(player, poolId)` credit record that claims use, so cancelled→settled confusion can never double-pay |
+| Sybil | **Scorer scope (freeze): rewards-only.** Scorer-signed claim authorizations gate **play-reward surfaces only** — `MissionClaim`, `SeasonClaim`, partner `claimGrant`. **Match prizes and pool refunds never require a scorer** — dual-sign settle (or cancel/timeout paths) is the sole authorization; a scorer outage cannot freeze settled pot money. On those reward surfaces, eligibility is enforced **on-chain** (not UI-only): scorer key = named custodian in §8.10, nonce-consumed, attests wallet-age/deposit/paid-volume. Free-table farming is costless, so paid-pool volume and stake dominate the score. |
+| Dispute window | **On-chain enforced for all staked pools** (`claimMatch`/`claimAll`/`refundJoin` revert before `claimUnlockAt`): |
+
+| Tier | `disputeWindow` | Rationale |
+| --- | --- | --- |
+| Casual paid | 2 min | low stakes, fast UX |
+| Standard | 5 min | |
+| High roller / Tournament | 10 min | watcher coverage window |
+
+> KPI note: settle-latency p95 < 10 min (§11) measures `lock → settled`, **excluding** the dispute window (`settled → claimable`). The window exists so automated watchers can trigger timeout-refund or flag — not so humans must win a 10-minute race. |
+
+### 4.9 Pool UI (product surface)
+
+Every lobby tile for a paid match shows:
+
+- Pool id (short)
+- Entry fee in CHIPS
+- Seats filled / max
+- Live **gross pot**
+- Fee % / burn %
+- Projected winner claim
+- Chain: Base Sepolia / Base
+- CTA: **Approve & Join** / **Watch** / **Claim**
+
+Arena live spectator view shows the same pool card + claim history after settle.
+
+### 4.10 Related pools
+
+| Pool type | Entry | Settlement | Claim |
+| --- | --- | --- | --- |
+| Ranked 1v1 | CHIPS | Host/authority signature | Winner individual |
+| Casual 4P | CHIPS | Authority | Winner (or top-N split) |
+| 2v2 | CHIPS per seat | Authority + team winners | Each teammate |
+| Tournament | CHIPS | Bracket authority + final root | Each earner |
+| Spectator predict | CHIPS | Same match authority + bet type | Winning predictors |
+| Free match | none | Progression only | Mission claims only |
+
+Spectator bets use `poolKind = predict` **inside `MatchPool`** (locked shape — no separate `PredictPool` contract). A predict pool commits `parentPoolId` + fixed `windowClosedAt` **at creation** and enforces `block.timestamp ≤ windowClosedAt` on every entry (conservative skew, e.g. cutoff = 5s before the off-chain 3s reveal window opens, so a lagging mirror can never admit post-reveal entries).
+
+> **Predict integrity (ADR-001 on-chain):** the cutoff is committed at creation, never mirrored mid-match. Predict settles only after the main pool settles; if the main pool is cancelled/expired/timeout, predict entries refund (no loss to predictors).
+
+**Predict payout — parimutuel (locked):** predictors stake on an outcome (winner color / dice parity / bet type per market). After the main pool settles, the losing side's net (gross − fees − burn) is distributed pro-rata to winning-side stakes; winners additionally reclaim their own stake. Worked example (1,000 CHIPS stakes, 5% fees + 2% burn on predict gross): sides A=3,000 / B=1,000, A wins → distributable = 4,000 − 280 = 3,720; each 1,000 A-stake claims 1,000 + (1,000/3,000 × (3,720 − 3,000)) = 1,240.
+
+**Predict triggers (callers pinned):** `settlePredict` callable by anyone after the parent settles (reads parent outcome, permissionless); `refundPredict` callable by anyone if the parent cancels/expires/times out. Predict pools inherit the parent's dispute window before predictor claims unlock, with no independent predict dispute.
+
+> **Legal:** paid-outcome prediction is a sportsbook surface with higher gambling exposure than playing. It ships only under the §9/H7 pre-freeze legal gate (permitted/blocked geos, age verification method) — never inherits the match-pool analysis by default.
+
+---
+
+## 5. Smart burn mechanism
+
+Burns are not marketing language — they are **on-chain, memo-tagged, measurable**.
+
+### 5.1 Burn sources (priority order)
+
+| Source | Rate (Sepolia default) | Memo tag | When |
+| --- | --- | --- | --- |
+| **1. Match pool burn** | 1–2% of gross by tier (hard max) | `match:burn` | At settle |
+| **2. Marketplace burn** | 6% of sale total (5% protocol + 1% burn) | `market:burn` | On purchase |
+| **3. Prestige / forge** | Fixed + % on upgrades | `forge:burn` | On craft |
+| **4. Vanity sinks** | Custom name, frames, emote slots | `vanity:burn` | On purchase |
+| **5. Season pass** | 20–40% of pass price burned | `pass:burn` | On buy |
+| **6. Tournament no-show** | 100% of forfeited entry | `tour:forfeit` | On bracket lock |
+| **7. Ranked abandon** | 50% of stake if quit after lock | `match:abandon` | On `cancelAuthority(poolId, evidence)` with Edge-signed evidence only (never host-declared alone). Caller = anyone submitting valid Edge-signed evidence (permissionless, rate-limited per pool). `evidence = { poolId, accusedSeat, seqAtDisconnect, afkStrikes, edgeSig }`. Split: 50% burn, 50% to the non-abandoning side's prize fund. Disconnect-vs-quit: grace window (e.g. 60s reconnect) before abandon is submittable; false-positive appeals feed the dispute path (§4.8). |
+| **8. Boost tax** | 10–20% of XP-boost spend | `boost:burn` | On boost |
+| **9. Treasury buyback-burn** | Optional later from revenue | `treasury:bb` | Manual/multisig |
+
+### 5.2 What we do **not** burn
+
+- Mission principal rewards (don’t tax fun)
+- Free-table play (no fee)
+- Team vest unlocks
+- Liquidity inventory
+
+### 5.3 Emission vs burn targets
+
+Play budget is 3B (fixed lifetime draw, not new mint). Net-inflation warning: at the
+indicative rates below, S1 emits ~400M against ~16–28M burned (**net +372–384M**). The
+"sinks keep pace" goal (§5.5) is therefore back-loaded — treat S1–S3 as deliberate
+net-inflationary bootstrap and gate it with per-wallet caps, or the 3B budget is a faucet:
+
+| Phase | Play emissions (indicative) | Expected burn share of emissions |
+| --- | --- | --- |
+| Season 1 bootstrap | ~400M | 4–7% |
+| Seasons 2–3 growth | ~280–320M / season | 8–12% |
+| Steady state | declining curve from remaining budget | 15–30%+ as volume grows |
+
+Back-of-envelope guardrail: 10k DAU × 50 CHIPS/day × 90d ≈ 45M/season (fits); 100k DAU at
+the same rate ≈ 450M (blows S1 alone). Required controls (Phase 1): per-wallet
+daily cap (e.g. ≤200 CHIPS/day missions) + weekly cap + paid-pool-volume weighting for
+season claims. Re-run the model at 10k/100k DAU before locking S1 budgets.
+
+> **Budget-exhaustion rule (freeze gate):** per-wallet caps bound individuals, not the aggregate (100k DAU × 18k/season cap = 1.8B demand vs 400M S1 draw). Epoch ceilings are therefore **hard stops**: when an epoch budget depletes, mission issuance pauses to the published refill schedule — never pro-rata dilution, never over-mint. And the **Sybil-profitability analysis is a freeze exit criterion**: model farm revenue vs wallet-creation + gas + 7%-wash-take cost at 22k-wallet (full S1 drain) and 100k-wallet scale; if farming is profitable at scale, S1 budgets don't lock until stake/deposit gates (§7.2) close the gap. First-come Sybils must never eat honest users' rewards.
+
+**Season emission curve (from the 3B play budget, not new mint):**
+
+| Season | Budget draw | Notes |
+| --- | --- | --- |
+| S1 | 400M | Acquisition, generous missions |
+| S2 | 320M | Introduce ranked pools hard |
+| S3 | 280M | Tournament top-ups |
+| S4 | 240M | Tighten daily caps |
+| S5 | 200M | Skill-weighted more |
+| S6 | 160M | |
+| S7 | 120M | |
+| S8+ | 100M → floor 60M | Remaining budget amortized; governance can re-slice only downward |
+
+Unspent season budget **rolls forward** in the distributor — it is not burned automatically (preserves optionality) but cannot exceed the 3B lifetime play allocation.
+
+### 5.4 Burn transparency
+
+- Every burn uses B20 `burnWithMemo` with a `bytes32` memo (tag pre-images: `match:burn`, `market:burn`, `forge:burn`, `vanity:burn`, `pass:burn`, `tour:forfeit`, `match:abandon`, `boost:burn`, `treasury:bb`).
+- Protocol-fee legs use `transferWithMemo` with `match:fee` / `market:fee` tags.
+- Public dashboard: circulating supply = `totalSupply()` on-chain; burned = Σ burn events; play remaining = distributor balance.
+- Memo taxonomy indexed in `chips_events` for product analytics — indexer joins `Memo` to its parent via `(txHash, logIndex - 1)` and stores both `memo_bytes32` and human `tag`.
+
+### 5.5 Deflation philosophy
+
+Chips is **not** a pure deflationary meme. The goal is:
+
+> **Sinks + burns keep pace with play emissions so competitive CHIPS retains meaning.**
+
+Match protocol fees fund treasury (runway, esports). Burn reduces float. Play rewards fund engagement. Liquidity bucket waits for real demand — we do not print to fake volume.
+
+---
+
+## 6. Pull-based claims (full stack)
+
+**Invariant:** clients never receive CHIPS pushed from a privileged hot wallet for gameplay outcomes.
+
+| Reward type | Contract | Player action |
+| --- | --- | --- |
+| Match prize | MatchPool / ClaimHub | `claimMatch` or `claimAll` |
+| Pool refund (cancel) | MatchPool | `refundJoin` |
+| Daily / weekly missions | MissionClaim | Sign in → `claimMission` |
+| Social (poke/referral) | MissionClaim voucher | `claimVoucher` |
+| Season rank | SeasonClaim merkle | `claimSeason(epoch, proof)` |
+| Tournament prize | Tournament pool | `claimMatch` / `claimAll` |
+| Prediction win | Predict pool | `claimMatch` |
+| Partner grant | Partner distributor | `claimGrant` |
+
+### 6.1 Mission claims (on-chain)
+
+Progress stays in Supabase (play counts, wins, pokes). Payout is a **voucher**:
+
+```text
+Server (service role) issues EIP-712 voucher:
+  domain: { name: "LudoBase MissionClaim", version: "1", chainId, verifyingContract: MissionClaim }
+  message: { chainId, wallet, missionId, amount, periodId, deadline, nonce }
+  sig: opKey (rotated; on-chain registry below)
+
+User wallet calls MissionClaim.claim(voucher) (wallet tx with builder-code suffix)
+Contract:
+  - verify op signature against the ON-CHAIN signer registry (multisig-rotatable; EOA + 1271/6492 path)
+  - require block.timestamp ≤ deadline (vouchers expire — rotation actually invalidates the unredeemed)
+  - replay-guard: consumed voucher-hash registry ONLY — used[keccak(chainId, contract, wallet, missionId,
+    periodId, amount, nonce)] (one primitive, explicit; no ambiguous period-key fallback)
+  - require period issuance ≤ on-chain per-period ceiling (consistent with §5.3 caps)
+  - transfer CHIPS from MissionClaim budget
+  - emit MissionClaimed + Memo(keccak("mission:claim"))
+```
+
+Custody: the signer registry holds N op-keys with per-key scopes; rotation = on-chain `setOpKey` (multisig + timelock §8.10) that simultaneously revokes the old key — server-side revocation lists alone do not revoke on-chain. Incident procedure: rotate key, publish revoked-key list, expired-deadline vouchers die on their own. The voucher-issuing server waits N confirmations (§8.6 thresholds) on paid-join proofs before minting — a reorged join must never mint a voucher.
+
+Daily mission amounts remain small (tens of CHIPS), weekly larger, premium streak larger still — all inside season budget **and** per-wallet daily/weekly caps (§5.3). Paid-match missions require **on-chain join** events (indexer), not self-reported lobby state.
+
+### 6.2 Season claims
+
+```text
+End of season:
+  ops builds merkle leaves (chainId, SeasonClaim contract, epoch, wallet, amount)
+  leaves published to IPFS + N-hour public challenge window (e.g. 48h)
+  root set by multisig + timelock (§8.10); epoch frozen on activation —
+  no root replacement after claims open, ever
+  UI shows projected amount from off-chain rank
+
+User: claimSeason(epoch, amount, proof)
+  → contract checks claimed[epoch][wallet] == false, verifies proof against the frozen root
+  → pull CHIPS
+  → optional badge mint later
+```
+
+Leaf binding (`chainId` + contract + epoch) kills cross-epoch and Sepolia/mainnet proof replay. The root setter is custodian of the whole epoch budget: malicious-root rug needs no front-running, so the setter is multisig + timelock + public leaf window by rule, not by ops discipline.
+
+RXP tiers drive amounts (same progression spine as today: Bronze → Arena Master).
+
+### 6.3 Claim UX rules
+
+1. Show **gross claimable**, **gas estimate**, and **net**.
+2. One primary CTA: **Claim all available**.
+3. Secondary: claim single match.
+4. Never require a claim to play free tables.
+5. Guests: can view; claims wallet-walled (existing GuestWall).
+6. SIWE app session for API session work; **token claim itself is a wallet tx with builder-code attribution**.
+7. Every claim/join/market tx goes through the wagmi `dataSuffix` config (§8.7) — no unattributed sends.
+
+---
+
+## 7. Gamification (single-currency)
+
+Keep LXP/RXP as **skill identity**. CHIPS is **economic identity**.
+
+### 7.1 Loop
+
+```text
+Free online / AI → RXP + mission PROGRESS only (no CHIPS for free-only accounts)
+       ↓
+First paid join (or welcome grant if product ships one) unlocks mission CHIPS
+       ↓
+Paid pool (visible pot) → win → claim now or later via ClaimHub
+       ↓
+Paid-volume floor maintained (e.g. ≥1 paid join/week) → daily/weekly mission CHIPS
+       ↓
+Climb RXP + paid volume → season merkle claim (rank ∧ paid-volume eligibility)
+       ↓
+Spend: marketplace / boosts / tournaments / vanity (burns fire)
+       ↓
+Tournaments & ranked high-stakes → bigger pools → bigger claims
+```
+
+> **Loop invariant:** free-only accounts earn **RXP and cosmetics progress**, not CHIPS mission payouts. Optional **welcome grant** (one-time, small, from play budget) is the only free→CHIPS bridge — if shipped, it is capped and listed in §7.2; it is not open daily missions.
+
+Offline/AI = practice only.
+
+### 7.2 Mission design (pull payouts)
+
+| Tier | Examples | CHIPS (indicative) | Cadence |
+| --- | --- | --- | --- |
+| Daily free | Play 3, Win 1, Capture 2, Login | 20–80 | Daily pull |
+| Daily social | Poke back (capped) | 20 | Daily |
+| Weekly | 5 paid wins, 1 tournament entry | 200–800 | Weekly |
+| Season | Rank thresholds | see ladder | End of season |
+| Achievement | First blood, 100 captures | one-time | Claim |
+
+Paid-match missions require **on-chain join** events (indexer), not self-reported lobby state — reduces farming. All mission/season payouts additionally respect per-wallet daily/weekly caps (§5.3).
+
+**Anti-Sybil rules (freeze-committed, not slogans):**
+- Wash-trade break-even: a 1v1 self-match cycle costs ≈7% fees+burn while manufacturing "paid wins" + volume score. Missions counting paid wins require **≥N distinct opponents per period** (e.g. 5) + minimum ELO/activity floor — repeat-pairing graphs and stake-cycling velocity are monitored off-chain, and the scorer authorization (§4.8) withholds eligibility on detection.
+- Poke loops: mutual-poke detection (A↔B same-period pairs pay once, capped); referral rewards have a per-referrer ceiling + referee-uniqueness proof (one reward per verified wallet, ever).
+- Daily mission redemption itself requires a paid-volume floor (even tiny, e.g. 1 paid join/week) — free-only farms earn RXP, not CHIPS. **Optional welcome grant:** one-time ≤50 CHIPS from play budget at first wallet link + first free online match (not a recurring faucet); if shipped, publish the amount in TOKEN_PARAMS before Phase 1.
+- Season ladder headcount model: each tier publishes **floor + max-claimants** before S1 locks (e.g. Diamond: floor X paid-volume, ≤N claimants). The S1 400M budget is allocated across tiers × headcount, not vibes.
+
+### 7.3 Ranked seasons
+
+| Item | Design |
+| --- | --- |
+| Length | 3 months (align `season_id`) |
+| Reset | Soft reset 30% RXP |
+| Economy | Paid ranked uses MatchPool; free ranked = RXP only |
+| Season claim | Merkle from Playing Rewards budget. Eligibility = rank tier **and** paid-pool volume floor (rank alone is farmable — ~10–25 days of dailies ≈ Bronze at the S1 ladder below). Publish the floor per season. |
+| Titles | Off-chain + optional B20 extraMetadata / future badge |
+
+Indicative season claim ladder (S1 Sepolia calibration):
+
+| Tier | CHIPS |
+| --- | --- |
+| Bronze | 500 |
+| Silver | 1,500 |
+| Gold | 4,000 |
+| Platinum | 9,000 |
+| Diamond | 20,000 |
+| Arena Master | 50,000 + exclusive cosmetic |
+
+### 7.4 Marketplace (on-chain spend + burn)
+
+| Item class | Pay | Burn | Notes |
+| --- | --- | --- | --- |
+| Common cosmetics | CHIPS | market burn % | Equip themes/dice/tokens |
+| Rare / legendary | CHIPS | higher burn % | Limited supply windows |
+| Collectibles | CHIPS | burn + treasury | Later ERC-1155 optional |
+| Boosts | CHIPS | boost tax | LXP only, no dice odds |
+| Vanity | CHIPS | vanity burn | Names, frames |
+
+**CHIPS catalog price band (Phase-0 draft — Phase 2 may tune, published before launch):** after legacy conversion (100 coins = 1 CHIPS), old 100–2,000 coin items become ~1–20 CHIPS — **too cheap to matter**. Draft band: common **50–200**, rare **500–2,000**, legendary/prestige **5,000–50,000**, boosts **100–1,000**, vanity **200–5,000**. Aligns with Standard stake (1,000) so cosmetics compete with stake for attention. Written into TOKEN_PARAMS before marketplace build.
+
+Purchase flow: EIP-5792 batched `approve + Marketplace.buy(listingId)` via `useSendCalls`
+(EOA permit fallback) with builder-code attribution → fee + burn + treasury split in one tx.
+Burn leg uses `burnWithMemo(keccak("market:burn"))` from Marketplace custody.
+
+Authorities: marketplace fee-split parameters change only via Treasury-multisig + timelock (§8.10); listing/curation policy (what may list, takedown rule) is published pre-Phase-2 and enforced by a named curator key with revocation.
+
+### 7.5 Tournaments
+
+Existing SQL tables stay for **bracket operations**. Economics go on-chain:
+
+- Entry pulled into tournament pool
+- Visible prize pool on Arena tab
+- Results signed by tournament authority (named key/threshold + timelock in §8.10; bracket outcomes feed the same dual-sign settle path as pools)
+- Winners pull individual claims
+
+### 7.6 Spectator / Arena
+
+- Low-stakes predict can still use match pool sibling
+- All CHIPS
+- Same settle authority + 3s window (ADR-001) **with on-chain entry cutoff** (§4.10)
+- Winning predictors pull claims
+- Protocol burn on predict gross
+
+---
+
+## 8. Technical architecture
+
+### 8.1 B20 create (Chips) — `base-std` encoders, `base-forge` toolchain
+
+> Toolchain: `base-forge` / `base-cast` / `base-anvil` (B20-aware Foundry build).
+> Standard `forge` cannot simulate calls to precompile addresses and aborts with
+> `call to non-contract address`. Deploy scripts import `base-std`
+> (`B20Constants`, `B20FactoryLib`, `IB20Factory`, `StdPrecompiles`).
+
+```solidity
+// script/CreateChips.s.sol (base-forge)
+import {Script, console} from "forge-std/Script.sol";
+import {B20Constants} from "base-std/lib/B20Constants.sol";
+import {B20FactoryLib} from "base-std/lib/B20FactoryLib.sol";
+import {IB20Factory} from "base-std/interfaces/IB20Factory.sol";
+import {StdPrecompiles} from "base-std/StdPrecompiles.sol";
+
+contract CreateChips is Script {
+    function run() external returns (address token) {
+        address multisig = vm.envAddress("CHIPS_ADMIN_MULTISIG");
+        address distributor = vm.envAddress("SEASON_DISTRIBUTOR");
+        address matchPool = vm.envAddress("MATCH_POOL");
+        address marketplace = vm.envAddress("MARKETPLACE");
+        address securityMsig = vm.envAddress("SECURITY_MULTISIG");
+        address opsMsig = vm.envAddress("OPS_MULTISIG");
+
+        bytes32 salt = keccak256(abi.encode("ludo-base-chips-v1", block.chainid));
+        // NOTE: salt embeds chainId — Sepolia and mainnet get DISTINCT token addresses.
+        // NOTE: encoder takes (name, symbol, admin, decimals) ONLY — no supplyCap field.
+        bytes memory params =
+            B20FactoryLib.encodeAssetCreateParams("Chips", "CHIPS", multisig, 18);
+
+        bytes[] memory initCalls = new bytes[](10);
+        initCalls[0] = B20FactoryLib.encodeUpdateSupplyCap(10_000_000_000e18);
+        // initCalls may grant MINT_ROLE to distributor ONLY for the bootstrap mint
+        // of the full 10B; the SAME runbook revokes it before Phase-1 exit so
+        // post-bootstrap assert is: MINT_ROLE holders == ∅ (never "distributor only").
+        initCalls[1] = B20FactoryLib.encodeGrantRole(B20Constants.MINT_ROLE, distributor);
+        initCalls[2] = B20FactoryLib.encodeGrantRole(B20Constants.BURN_ROLE, matchPool);
+        initCalls[3] = B20FactoryLib.encodeGrantRole(B20Constants.BURN_ROLE, marketplace);
+        initCalls[4] = B20FactoryLib.encodeGrantRole(B20Constants.PAUSE_ROLE, securityMsig);
+        initCalls[5] = B20FactoryLib.encodeGrantRole(B20Constants.UNPAUSE_ROLE, securityMsig);
+        initCalls[6] = B20FactoryLib.encodeGrantRole(B20Constants.METADATA_ROLE, opsMsig);
+        initCalls[7] = B20FactoryLib.encodeGrantRole(B20Constants.OPERATOR_ROLE, securityMsig);
+        initCalls[8] = B20FactoryLib.encodeUpdateContractURI("https://ludobase.xyz/token/chips.json");
+        initCalls[9] = B20FactoryLib.encodeUpdateExtraMetadata("game", "ludo-base");
+        // NEVER granted: SEIZE_ROLE, BURN_BLOCKED_ROLE (assert both absent post-deploy).
+        // OPERATOR granted SOLELY for announcements; multiplier stays pinned at 1× forever —
+        // no scheduled/instant updates, ever; deploy script asserts multiplier == 1×.
+        // TreasuryRouter is intentionally absent from BURN_ROLE (it receives protocol fees; it does not burn).
+
+        vm.startBroadcast();
+        token = StdPrecompiles.B20_FACTORY.createB20(
+            IB20Factory.B20Variant.ASSET, salt, params, initCalls
+        );
+        vm.stopBroadcast();
+        console.log("CHIPS B20:", token); // expect 0xB200… prefix
+    }
+}
+```
+
+Bootstrap allocation (same deploy runbook, `§8.8`): mint full 10B once (bounded by the
+cap above); allocate 2B liquid per §2.1 (600M play → SeasonDistributor, 500M treasury,
+400M vesting, 300M liquidity seed, 200M partners); transfer 8B to the freshly deployed
+`SupplyLocker` (per-bucket accounting initialized in the same run); **revoke `MINT_ROLE`
+from every address (distributor included)** — `MINT_ROLE` holders = ∅ after bootstrap —
+then execute the §8.1b end-state. Playing Rewards then **draw down** unlocked budget from
+the distributor’s pre-minted balance plus locker top-ups — **never new mint**. There is
+no burn-and-remint path.
+
+### 8.1b Admin end-state — exact ordered transaction list (freeze-committed)
+
+"Cap-lock" is not a B20 primitive. Immutability comes from this exact sequence — every step timelocked (§8.10) and announced, verified by a post-deploy assert script:
+
+1. `setRoleAdmin` map: assign each role's admin to the timelock contract (no EOA remains role-admin of anything). Publish the full role→admin→timelock-delay table.
+2. Route all future admin-gated calls (`updateSupplyCap`, `grantRole`, `revokeRole`, `updatePolicy`, metadata, OPERATOR announces) through the timelocks. Direct multisig admin calls are disabled by step 1.
+3. Assert: `supplyCap() == 10_000_000_000e18`, `SEIZE_ROLE`/`BURN_BLOCKED_ROLE` holders == ∅, multiplier == 1× with no scheduled updates, **`MINT_ROLE` holders == ∅** (full 10B pre-minted; distributor is a budget holder, not a minter), `totalSupply() == 10_000_000_000e18`.
+4. Decision — `renounceLastAdmin()`: renouncing makes the cap (and everything admin-gated) **permanently immutable**, including policy updates (geo gating added later becomes impossible) and `revokeRole` (a compromised pool/market `BURN_ROLE` could never be disarmed). Therefore: **do NOT renounce before mainnet policy is final**. Until renounce, admin trust = the multisig set + thresholds + timelocks in §8.10, published and monitored. The renounce decision (with its freeze trade-offs) is a Phase-4 gate item, not a bootstrap step.
+5. Ongoing monitoring: `updateSupplyCap` calls, role grants, `updateName` (rotates the EIP-712 permit domain — outstanding permits brick; renames require a re-issuance window), and multiplier reads are watched with alerts; any deviation from the end-state asserts pages.
+
+Geo/eligibility policy ordering consequence: because renounce would freeze `updatePolicy`, the PolicyRegistry design (sender/executor-scope only — never receiver-scope, which would trap winners' claims) must ship *before* any renounce. See §8.10.
+
+### 8.2 Settlement trust model (do not regress)
+
+From project AGENTS.md, still binding:
+
+- 2v2 teams via `TEAM_PAIRINGS`
+- Engine math for legality
+- Edge `roll-dice` / `move-auth` / match sessions
+- `/api/match/record` signature-gated; no free-form client payout
+- `resolve-bet` host-signed + `live_matches.host_address`
+- RLS locks on player money columns
+- DMs ECDH
+
+**New binding rules:**
+
+1. MatchPool settle verifies **EIP-712 `ChipsMatchSettle`** (not personal-sign text) with chain-gated domain (`chainId` + `MatchPool` address), **dual-signed host + Edge from day one** (Sepolia included). Off-chain match-record/bet-resolve text signatures stay off-chain.
+2. `payoutPlan` canonical encoding (ordered addrs, amounts, `chainId`, `poolId`, `nonce`) must hash to `resultHash` (audit field); `sum == prizeFund`; 2v2 sets must satisfy `TEAM_PAIRINGS` via `seatColors` with exact equal-split; winners ⊆ seats; `signer == pool.authority == message.authority`; `deadline` enforced; `settleNonce` consumed.
+3. Clients cannot call a privileged `pay(player)` — only `claim*`.
+4. Indexer never writes CHIPS balances to Postgres as truth; only cache. All amounts `numeric` (never `bigint`) with reorg-safe upsert on `(chain_id, tx_hash, log_index)`.
+5. `check:engine` / engine tests unchanged; pool logic tested in `base-forge` (B20 mocks from `base-std/test/lib/mocks` for unit tests, `base-anvil` fork for integration).
+6. Free offline play never hits pool contracts.
+7. **Dual-chain auth:** Phase 1 accepts `84532` (Base Sepolia); mainnet adds `8453`. Every signature path (SIWE, match session, move/power, settle, vouchers) validates `chainId` explicitly — the current 8453-only gate must be lifted for Sepolia first. `poolId` commits to `chainId` (no cross-chain replay).
+8. **RPC discipline (Base skill):** production RPC via dedicated provider or self-hosted Reth, proxied through backend — never public endpoints in prod, never API keys client-side.
+9. **Join-UX chain rule:** pool economics are read from chain pre-approve (§4.2b); cache-vs-chain mismatch reverts the flow.
+10. **Pause matrix** (§8.10): TRANSFER-pause freezes joins+claims+refunds+market (victims' exits included — pausing to stop fraud has a cost); MINT-pause freezes distributor top-ups; voucher issuance and root updates have their own freeze switches with named callers.
+
+### 8.3 Database (indexer cache)
+
+Migrations under `supabase/migrations/`:
+
+```text
+chips_pools (
+  pool_id text pk,
+  match_id uuid,
+  room_code text,
+  game_mode text,
+  entry_fee numeric,
+  max_seats int,
+  filled_seats int,
+  status text,
+  gross numeric, protocol_fee numeric, burn numeric, prize_fund numeric,
+  chain_id int, tx_create text,
+  settled_at timestamptz, settle_tx text,
+  result_hash text,
+  updated_at
+)
+
+chips_pool_seats (
+  pool_id, seat_index, wallet_address,
+  join_tx, entry_amount, credited_amount, claimed_tx,
+  primary key (pool_id, wallet_address)
+  -- pool_id commits chainId (§4.4), so cross-chain collision is impossible by construction
+)
+
+chips_claimable (
+  wallet_address,
+  source text,           -- match | mission | season | social | tournament | legacy
+  ref_id text,           -- poolId | mission key | epoch | legacy-snapshot-id
+  amount numeric,
+  status text,           -- credited | claimed (no `expired` in v1 — prizes never expire; expiry states arrive only with a plan revision)
+  claim_tx text,
+  credited_at, claimed_at,
+  unique (wallet_address, source, ref_id)
+)
+
+chips_events (
+  chain_id, tx_hash, log_index,
+  event_name, wallet_address, amount, memo_bytes32, memo_tag,
+  payload jsonb, ingested_at,
+  unique (chain_id, tx_hash, log_index)
+)
+
+chips_mission_vouchers (
+  wallet_address, mission_id, period_id, amount,
+  signature, claimed_tx, created_at,
+  unique (wallet_address, mission_id, period_id)
+)
+```
+
+Deprecate economic writes to `players.coins`. Keep column briefly as mirror + migration flag `coins_source='legacy'|'chain_cache'`.
+
+> **Legacy conversion economics (frozen at spec freeze):** legacy `players.coins` balances convert to CHIPS at **100 legacy = 1 CHIPS**, paid from a **capped 50M CHIPS conversion pool drawn from Treasury** (never from the 3B play budget, never new mint — Treasury pre-holds it at bootstrap). Claim window: **90 days from Phase-1 launch**, pull-based (`claimLegacy` with the legacy-balance snapshot root); unclaimed pool reverts to Treasury on expiry. This is a haircut on whale/paper balances by design (10B CHIPS vs uncapped legacy issuance); the rate, cap, and window are published before Phase 1 and never adjusted after. `coin_ledger` writers are enumerated and frozen alongside (`cash_out_bet`, `settle_match_bets` coin path, `purchase_marketplace`, tournament coin deduct — grep all `coins` writers before the flag).
+
+> Cutover (feature-flagged): freeze legacy writers → backfill `coins_source` flag → open conversion window → UI reads chain/indexer only → RLS denies client coin writes (smoke test). See §12.
+
+### 8.4 API surface
+
+| Route | Role |
+| --- | --- |
+| `GET /api/chips/balance?wallet=` | Cached on-chain balance + claimable sum |
+| `GET /api/chips/pools?status=` | Lobby pool cache |
+| `POST /api/chips/pool/prepare` | Build join calldata + permit payload **+ builder-code suffix** |
+| `POST /api/match/settle/propose` | Build EIP-712 settlement for authority (chain-gated) |
+| `GET /api/chips/claimable?wallet=` | ClaimHub mirror |
+| `POST /api/missions/voucher` | Session-gated mission voucher |
+| `GET /api/chips/season/:epoch/proof` | Merkle proof |
+
+All POSTs that move value return **unsigned tx payloads** for the wallet; server never holds player keys.
+
+### 8.5 Frontend
+
+| Area | Change |
+| --- | --- |
+| Header | CHIPS balance (chain) + **Claimable** badge |
+| GameLobby | Free vs Paid; paid shows pool card + batched **Approve & Join** (EIP-5792, one approval) |
+| Match end | Win: Claim now / Later · Loss: receipt + gas note (gross / gas / net + builder-code note) |
+| Arena | Live pools, spectator entry (on-chain cutoff), post-settle claims |
+| Marketplace | Batched approve+buy + burn visible + attribution |
+| Missions | Progress off-chain · **Claim** wallet tx (attributed) |
+| Profile/Season | Rank + season claim window |
+| Settings | Token address, B20 factory, explorer links, burn dashboard |
+| Terms/Privacy | Rewrite: virtual coins language removed; CHIPS utility on Base; testnet disclaimers |
+
+### 8.6 Indexer job
+
+Watch B20 + pool contracts on Base Sepolia (dedicated RPC, backend-proxied — never public endpoints in prod):
+
+1. `PoolCreated`, `PoolJoined`, `PoolLocked`, `PoolSettled`, `PrizeClaimed`, `ChipsBurned` (+ `Memo` joined via `(txHash, logIndex-1)`), `MissionClaimed`, `SeasonClaimed`
+2. Idempotent upsert into `chips_events` / caches on `(chain_id, tx_hash, log_index)` with backfill cursors (cursor durability: last-finalized-block persisted per chain; backfill window covers reorg depth × 3)
+3. Reorg handling: confirmations threshold per env (**Base Sepolia/mainnet: 12 blocks ≈ 24s; vibenet: 25 blocks ≈ 5s**) + rewind/replay on reorg; paid-match start requires confirmed `funded` seats (never unconfirmed head). The voucher server applies the SAME thresholds to paid-join proofs before minting — a reorged join must never mint a voucher.
+4. Alert if ClaimHub-view sum ≠ chain reads beyond ε (published threshold, e.g. >0.1% or >10k CHIPS absolute) — **and act**: ε-breach freezes voucher issuance and new pool creation (existing claims/refunds keep working) until reconciled. An alarm nobody must obey is decoration.
+5. Rebuild lobby pool list for matchmaking UI
+6. Timing: explicit `pollingInterval ≈ 100ms` on receipt waits / block watches (viem defaults hide fast chains); indexer lag p95 is a KPI (§11)
+
+### 8.7 Builder Codes — ERC-8021 attribution (Base skill, mandatory)
+
+Every CHIPS transaction carries attribution. Missing suffix = silent, permanent loss of builder tracking/referral fees — no error is raised.
+
+* Source a Builder Code once at `base.dev` → Settings → Builder Codes (do not re-register if `lib/builderCode.ts` exists).
+* Stack: `wagmi` (config-level `dataSuffix`) + `viem >= 2.45` + `ox` (`Attribution.toDataSuffix`). Repo wiring: `lib/builderCode.ts` → `DATA_SUFFIX` in `app/Providers.tsx` (`createConfig({ dataSuffix })` covers `useSendTransaction`/`useWriteContract`/`useSendCalls`); EIP-5792 `sendCalls` passes attribution via `capabilities.dataSuffix` (a `sendCalls` wrapper injects it so no call site can forget). Smart-wallet txs are supported by Base analytics; EOA support follows (data preserved either way).
+* `POST /api/chips/pool/prepare` returns calldata **plus** the suffix; client-level config is preferred over per-tx plumbing so no call site can forget it.
+* Verification: `base.dev` Onchain → Total Transactions; explorer input-data tail (`8021` repeating, last 16 bytes); `builder-code-checker.vercel.app`.
+* Permanent rule (written to project `AGENTS.md`): never send a transaction without the builder-code suffix.
+
+### 8.8 Deploy runbook (Base skill)
+
+* Keys: `cast wallet import <account>` keystores only — never commit keys, never hardcode API keys (env / `foundry.toml` `${}` refs, `.env` gitignored).
+* `foundry.toml`: `[etherscan] base-sepolia` + `base` URLs with `${ETHERSCAN_API_KEY}` (BaseScan key from basescan.org/apidashboard).
+* Toolchain: `base-forge` / `base-cast` for all B20 txs; unit tests on `base-std` mocks, integration on `base-anvil`.
+* Funds: CDP faucet (`base-sepolia`, `eth`) for deployer + test wallets; verify funding on sepolia.basescan.org before broadcasting.
+* Deploy: `forge create … --rpc-url <dedicated-https> --account <keystore> --verify`; validate all shell inputs (contract path, rpc-url, account, api key) before constructing commands.
+* Record: `docs/tokenomics/TOKEN_PARAMS.md` (factory salt per env, token `0xB200…`, pools, chain IDs, builder-code id, role-admin table, renounce decision).
+
+### 8.9 Sessions & gas sponsorship (vibenet skill — Phase 1 interface, Phase 3 funding)
+
+* The EIP-712 match session stays as the Phase-1 auth fallback. In parallel, prototype **EIP-8130 scoped session keys** (devnet `vibenet` chain `84538453`, `rpc.vibes.base.org` — 8130 is experimental and runs on vibenet only, not Base Sepolia): authorize actors with `tokenLimits` (CHIPS spend cap/period) + `callScopes` (e.g. `transfer` selector → `MatchPool` only), expiry on the actor, byte-identical binding at use time, read-back verification (`isActor`/`getConfigSequence`, never receipt logs). 8130 tooling currently needs the `chunter-cb/viem` fork (`feat/eip-8130-production`, `scripts/setup-viem-8130.sh`) until upstream `wevm/viem#5004` merges — pin this in `contracts/` docs and never ship the fork to prod.
+* **ERC-8168 payer** design (hosted payer per env, `context.flow` per surface: `"pool-join"`, `"claim"`, `"market-buy"`): payer covers **gas only, never value** — entry fees/purchases still debit the user; sponsored value calls must be wallet-wrapped (`encodeWalletCalls`). Handle `mode:"send"` (`{ transactionHash }` return shape), budget rejections (`BUDGET_EXHAUSTED`/`SENDER_LIMIT_REACHED` with retry hints), and `actor is not bound` retries after first-tx deploys (`createChange` rides the first tx; `eth_getCode` decides).
+* Until sponsorship is funded, claims show gross/gas/net with the user paying gas; gas-negative micro-tiers stay Sepolia-only (§4.5).
+
+### 8.10 Authority matrix + timelocks + pause matrix (freeze-committed)
+
+Every money-adjacent authority named once — key/threshold/timelock, no orphans:
+
+| Authority | Power | Key / threshold | Timelock |
+| --- | --- | --- | --- |
+| CHIPS admin (pre-renounce) | `updateSupplyCap`, `grantRole`, `revokeRole`, `updatePolicy`, metadata, OPERATOR announces | Admin multisig (signer set + threshold published at deploy) | 7d large / 48h standard |
+| Security multisig | `pause`/`unpause`, OPERATOR announces (multiplier pinned 1×) | SecurityMultisig (distinct signer set from admin) | pause: immediate (incident); unpause: 24h |
+| Treasury multisig | fee-tier tuning (§4.5), liquidity unlock proposal, grants | Treasury multisig | 48h standard / 7d large |
+| SeasonDistributor | epoch budget function only (coded; parameter changes timelocked) | contract (no EOA control) | parameter changes 7d |
+| SupplyLocker | quarterly tranche releases iff §2.2 gates pass | coded gates (no EOA control) | pause immediate (SecurityMultisig); accelerate 14d announced timelock |
+| Voucher op-keys | sign vouchers within on-chain ceilings | registry, multisig-rotatable | rotation immediate + old-key revoke atomic |
+| Merkle root setter | set epoch root (once; epoch freezes after) | multisig | 48h + 48h public leaf window before activation |
+| Claim scorer | sign claim-eligibility authorizations for **mission/season/partner play-rewards only** (never match prizes or pool refunds — §4.8) | named scorer key, nonce-consumed; **mainnet: threshold or HSM** (single-key OK on Sepolia only) | rotation immediate |
+| Tournament authority | bracket outcomes → dual-sign settle | named key/threshold | results final on settle |
+| Partner oracle | release `claimGrant` against milestones | named oracle identity | per-release timelock |
+| Edge co-signer | co-sign settles + authority rotations + abandon evidence | dedicated settlement key, separated from op-keys | signing-policy bound (attests poolId/winnerSet/planHash/seqRange only) |
+| Marketplace curator | listing policy, takedowns | named curator key, revocable | takedown immediate, fee changes 7d |
+| `windowClosedAt` writer | none — committed at predict-pool creation, immutable | — | — |
+
+Pause matrix (pausing to stop fraud also freezes victims' exits — priced in):
+
+| Pause | Freezes | Unfreezes via |
+| --- | --- | --- |
+| TRANSFER | joins, claims, refunds, marketplace buys. **`settleBy` auto-extends by pause-delta** while TRANSFER is paused (settle path also needs transfers for fee/burn legs) | 24h-timelocked unpause; max-pause SLA published (e.g. 72h) then automatic review |
+| MINT | distributor top-ups, batchMint | same |
+| BURN | settle's burn leg → full `settlePool` reverts while paused (credits are recorded before burn in step order, but the tx reverts wholesale — no partial settle). **`settleBy` auto-extends by pause-delta (§4.3)** so pause ≠ refund conversion | same |
+| Voucher issuance | `MissionClaim` funding + voucher server | named caller, immediate |
+| Root updates | `SeasonClaim.setRoot` | epoch freeze is permanent |
+
+Geo/age enforcement point (committed): eligibility is enforced at **sender/executor scope only** (`TRANSFER_SENDER_POLICY`, `TRANSFER_EXECUTOR_POLICY`) — never receiver scope, which would trap winners' claims and refunds. Policy admin = named in the matrix above with update timelock; oracle method (how chain knows jurisdiction/age) specified before mainnet value. Until the oracle exists, geo-gating is testnet-honor + legal gate, not an on-chain claim.
+
+---
+
+## 9. Security & anti-abuse
+
+| Risk | Mitigation |
+| --- | --- |
+| Fake settle | Dual-sign (host + Edge) + `settleNonce` consumption + `deadline` + `signer == authority` + winners-⊆-seats + equal-split + on-chain authority registration (mirror match/record rules for the off-chain half); Edge co-sign SLO at match completion |
+| Double claim | CEI-zeroed shared record; `claimMatch`/`claimAll`/`refundJoin` consume one record; `ClaimHub` acts only via `MatchPool.claimFor` allowlist; router-level reentrancy guard; unique (wallet, source, ref); Foundry cross-path + forbidden-transition tests |
+| Client mint | No client mint path; **`MINT_ROLE` holders = ∅ after bootstrap** (full 10B pre-minted; distributor only draws pre-minted budget) |
+| Mint-cap change | Renounce-or-timelock end-state (§8.1b); every admin call monitored; no down-only primitive claimed |
+| Seize / rebase backdoor | `SEIZE_ROLE` + `BURN_BLOCKED_ROLE` never granted (deploy assert); `OPERATOR` multisig+timelock, multiplier pinned 1×, raw-balance discipline everywhere |
+| Mission farm | EIP-712 vouchers with on-chain signer registry + revoke + per-period ceilings + deadlines + consumed-hash replay guard; paid-join proofs wait N confirmations; distinct-opponent minimums; poke/referral loop caps; **paid-volume floor (free-only = no mission CHIPS)**; Sybil-profitability model gates S1 budgets |
+| Self-match exploit | Wash break-even analysis + distinct-opponent minimums + stake-cycling detection + paid-volume-weighted rewards (not slogans — §7.2 rules) |
+| Host collusion on pots | Dual-sign from day one (not Phase 4); **effective** `settleBy + pauseDelta` + anyone-timeout-refund; pre-lock-only cancel; Edge-signed abandon evidence; slashing not in v1 (accepted residual, stated) |
+| RLS regression | Chain is truth; Postgres money columns service-only cache; legacy writers frozen behind flag; conversion pool capped from Treasury |
+| Pause abuse | Pause matrix with max-pause SLA + unpause quorum (§8.10); TRANSFER-pause-freezes-claims stated; victims'-exit cost priced in |
+| Permit phishing | Train users to check the **spender field** (B20 permit domain is the token's own `(name, version, chainId, token)` — MatchPool appears as `spender` in the message, not the domain); exact-allowance + short-deadline first-party defaults; batch-first UX so permit is rarely needed; frame-relay join-intent binding (Phase 3) |
+| Missing attribution | Client-level `dataSuffix` + `sendCalls` wrapper + prepare-endpoint suffix + `AGENTS.md` permanent rule; verify on base.dev |
+| Smart-wallet gaps | Batch-first join (permit is EOA-only); 1271/6492 verify paths on all signed routes; EIP-712 domains include `verifyingContract` where a verifier contract exists |
+| Eligibility bypass | Reward-surface eligibility enforced on-chain (scorer-signed authorization), never UI-only; **match prizes/refunds are scorer-free**; geo scoped to sender/executor only (never receiver — would trap claims/refunds); named policy admins + timelocks |
+| Regulatory | **Pre-freeze legal issue-spot** producing acceptance criteria (permitted/blocked geos, product adjustments per geo, age threshold + verification method, Phase-4 gate artifacts) — before Phase-1 build, not Phase 4; testnet first; age gate; no “investment returns” marketing; predict pools need their own sportsbook sign-off |
+
+---
+
+## 10. Roadmap
+
+### Phase 0 — Spec freeze (v4.1 this document)
+- Approve single-currency + B20 + 10B split + pool claim model
+- Legal wording for utility token + testnet
+- **Freeze gates (exit criteria for Phase 0 — all must be written down before any Phase-1 build):**
+  1. Pre-freeze legal issue-spot with geo/product acceptance criteria (predict sportsbook called out separately)
+  2. Sybil-profitability model at 22k/100k-wallet scale + **S1 budget decision** (lock 400M or reduce)
+  3. **Stall-path election** (§2.2): Treasury bridge ≤100M **or** automatic S2-draw reduction — chosen once, not improvised
+  4. Liquidity unlock thresholds: numeric KPIs + **named owner + date** in TOKEN_PARAMS
+  5. `isActivated(ASSET)` read recorded in TOKEN_PARAMS
+  6. **Mint end-state:** bootstrap runbook revokes all `MINT_ROLE`s; post-deploy assert `MINT_ROLE holders == ∅` and `totalSupply == 10B`
+  7. **Pause/settleBy policy:** auto-extend by pause-delta (§4.3) — already locked in this doc; copy into incident runbook
+  8. **Scorer scope:** rewards-only (§4.8) — already locked; copy into MissionClaim/SeasonClaim interfaces only
+  9. **Predict deferral:** Phase 1 ships match pools only; predict join-policy + legal sign-off are Phase-2 **entry** criteria
+  10. Marketplace CHIPS price-band **draft** (post-legacy-conversion scale) — even if tuned in Phase 2
+  11. Optional welcome-grant ship/no-ship + amount (§7.2)
+
+### Phase 1 — Base Sepolia foundation
+1. Confirm B20 Asset activation on Sepolia via ActivationRegistry
+2. ✅ Dual-chain auth (done): `lib/chains.ts` allowlist (84532/8453); SIWE + match-session + move-auth verify per-chain with cross-chain replay rejection (`scripts/chain-gate.test.ts`, `scripts/verify-6492-gate.mjs` parity gate). Smart-wallet path uses `SIWE_VERIFY_RPC_URL_SEPOLIA` on Sepolia.
+3. `createB20` Chips via `base-forge` script (§8.1) + allocation bootstrap (2B liquid + 8B `SupplyLocker`) + **revoke all `MINT_ROLE`s** + §8.1b end-state txs (assert `MINT_ROLE holders == ∅`, `totalSupply == 10B`)
+4. Deploy `MatchPool` (funds holder) + `ClaimHub` (router) + `MissionClaim`; BaseScan `--verify`
+5. `base-forge` tests: join/settle/claim/burn/refund idempotency + double-claim across `claimMatch`/`claimAll` + 2v2 pairing enforcement
+6. Indexer + pool cache (dedicated RPC, reorg handling, memo join, ε-alerts, 100ms polling)
+7. Lobby paid join UX (EIP-5792 batch-first; permit EOA fallback) + builder-code attribution
+8. Post-match claim UX (gross/gas/net)
+9. Mission voucher claim (EIP-712 + caps)
+10. Paymaster **interface** design (§8.9; funding stays Phase 3) + 8130 session-key prototype on vibenet
+11. Terms/settings copy (utility-token language + testnet disclaimers)
+12. Migrate `players.coins` to cache-only (feature flag + legacy-writer freeze)
+
+**Exit criteria:** Player funds a visible pool on Sepolia, match settles with dual-signed EIP-712 authority + Edge evidence, winner claims CHIPS to wallet after the dispute window, `bytes32`-memo burn visible on explorer, attribution verified on base.dev, **post-bootstrap `MINT_ROLE` holders == ∅**. Test gates: Foundry double-claim across paths + forbidden-transition table + seat-squat revert + dispute-deny (pre-unlock claim reverts) + timeout-refund + **pause-delta settleBy extension** + reorg/ε handling; per-entrypoint gas benchmarks published (justifying the 1,000-CHIPS mainnet minimum); scorer **not** required on `claimMatch`/`refundJoin` (negative test).
+
+### Phase 2 — Full online economy
+- **Entry gate (before any predict build):** predict join-policy spec (open/allowlist, min/max stake, not match `seatWallets`) + sportsbook legal sign-off from Phase-0 issue-spot
+- Ranked paid queue + tiers (per-wallet caps enforced; scorer on season/mission only)
+- Tournaments on-chain pools
+- Spectator predict pools (on-chain entry cutoff, `poolKind` inside MatchPool)
+- Marketplace batched buys + burns + attribution; **CHIPS catalog prices** from Phase-0 draft band
+- Season 1 merkle claims from 3B budget draw (rank **and** paid-volume eligibility; scorer on SeasonClaim)
+- Burn dashboard (bytes32 memos)
+- Hide gas-negative tiers on mainnet lobby until paymaster funding (Phase 3)
+
+### Phase 3 — Growth
+- Farcaster frames joining pools (frame-wallet relay; batch-first, attribution intact)
+- Creator cups / partner grants (milestone-gated `claimGrant`)
+- Funded claim/join paymaster (ERC-8168, gas-only; `context.flow` budgets) + 8130 session keys → mainnet path
+- Optional badges / collectibles
+
+### Phase 4 — Base mainnet
+- External audit (B20 integration + pools + claims + settle EIP-712 + TEAM_PAIRINGS + cross-path double-claim)
+- Multisig + timelock on treasury/admin (active before value); renounce decision taken with §8.1b trade-offs
+- Skill-vs-chance legal opinion + geo/age-gate sign-off (acceptance criteria from the Phase-0 issue-spot)
+- Dual-sign custody hardened (threshold/HSM — interface unchanged since Sepolia); Sepolia balances **do not** migrate as value (commemorative only; distinct factory salts per env back this at the address level)
+- Liquidity unlock only against numeric thresholds (published in TOKEN_PARAMS with owner + date from Phase 0)
+
+---
+
+## 11. KPIs
+
+| Metric | Healthy | Alarm |
+| --- | --- | --- |
+| Paid pool fill rate | Rising; p50 lock < 5 min | Pools stuck empty 24h+ |
+| Claim rate (24h after settle) | 40–70% | <20% (abandoned claims) or ~100% instant (bot drain) |
+| Burn / season emission | Trending up with volume | Near zero with high emissions |
+| Free online retention | Stable after paid launch | Free mode dies |
+| Avg CHIPS in open pools | Depth without deadlock | Dead capital (open > 48h unfilled) |
+| Mission voucher abuse | Voucher reject rate < 1% | Spike after reward raise |
+| Treasury runway | Funded by protocol fees | Fees zero, ops burn |
+| Unlock utilization | Envelopes release as monthly drips on gated demand (utilization ≥75%; sink ratio decelerates, never blocks); dashboard reconciles locked/designated/circulating | Drips into idle wallets; envelopes paused >2 windows; reconciliation breaks |
+| Offline share | Minority of sessions | Everyone hides in AI |
+| Indexer lag p95 | < 30s behind head | > 5 min or ε-breach on ClaimHub-vs-chain |
+| Settle latency, lock → settled (excludes dispute window) | p95 < 10 min | Stuck locked pools |
+| Locked-but-unsettled pools | ~0 older than **effective** `settleBy + pauseDelta` | Any pool past effective deadline without timeout-refund (liveness breach) |
+
+---
+
+## 12. Immediate engineering checklist
+
+- [ ] Phase-0 freeze gates (all 11): legal issue-spot + acceptance criteria; Sybil model + S1 decision; **stall-path election**; liquidity owner/date; `isActivated(ASSET)`; mint end-state `MINT_ROLE==∅`; pause/settleBy runbook; scorer rewards-only interfaces; predict Phase-2 entry criteria; marketplace CHIPS price draft; welcome-grant ship/no-ship
+- [ ] `docs/tokenomics/TOKEN_PARAMS.md` post-deploy addresses (factory salt per env, token `0xB200…`, pools, chain IDs, builder-code id, role-admin table, renounce decision, welcome grant, market price band, stall-path choice)
+- [ ] `contracts/` `base-forge` project (B20-aware: `base-forge`/`base-cast`/`base-anvil` + `base-std`); `foundry.toml` BaseScan config
+- [ ] Keystore deployer (`cast wallet import`), CDP faucet funding, dedicated RPC via backend
+- [ ] B20 create script (§8.1) + initCalls allocation bootstrap + §8.1b end-state txs (role-admin map, timelocks, SEIZE/BURN_BLOCKED-absent + multiplier-1× asserts)
+- [ ] `MatchPool` (funds holder, seat allowlist, `seatColors`, CEI, reentrancy-guarded, `settleBy`/`pauseDelta`/`claimUnlockAt`/nonce) + `ClaimHub` (allowlisted router, bounded `claimMany`) + EIP-712 dual-sign settle + `TEAM_PAIRINGS` + ⊆-seats + equal-split tests (incl. cross-path double-claim, squat revert, dispute-deny, timeout-refund, **pause-delta extension**, **scorer-free match claim/refund**, forbidden transitions) + gas benchmarks
+- [ ] Dual-chain auth: SIWE / match-session / move-auth / voucher routes accept `84532` (Phase 1) with explicit chain validation; **integration test:** Sepolia lobby/join never uses default 8453 session domain (`lib/sessionProof.ts` default stays mainnet; Sepolia callers must pass `chainId: 84532`)
+- [ ] Settlement signer service (EIP-712 `ChipsMatchSettle`, chain-gated, Edge co-signer with separated custody; 1271/6492 path)
+- [ ] Mission voucher API (EIP-712 + on-chain registry/revoke/ceilings/deadlines) + `MissionClaim`
+- [ ] Merkle season pipeline (bound leaves, multisig root + leaf window + epoch freeze) + `SeasonClaim`
+- [ ] Indexer (dedicated RPC; reorg handling with numeric confirmations; `(txHash, logIndex-1)` memo join; ε-alerts with freeze action; 100ms polling)
+- [ ] Lobby batched join UX (`useSendCalls` approve+join; permit EOA fallback) + builder-code `dataSuffix` wiring (`ox`, `viem>=2.45`, `sendCalls` wrapper, `AGENTS.md`)
+- [ ] Claim UX (gross/gas/net) + paginated `claimAll`
+- [ ] Legacy conversion pool (100:1, 50M cap, 90-day window) + writer freeze + snapshot root
+- [ ] Explorer links + burn dashboard page (bytes32 tags)
+- [ ] 8130 session-key prototype on vibenet (track `wevm/viem#5004`; never ship fork); paymaster interface (§8.9)
+- [ ] Watcher runbook (dispute-window monitoring, timeout-refund triggers using **effective** `settleBy + pauseDelta`, ε-breach response, Edge co-sign lag alerts, pause incident checklist)
+- [ ] Smoke: RLS still denies client coin writes; legacy coin writers frozen behind flag; engine tests still pass
+- [ ] Rewrite Terms §1 economic language for CHIPS (utility on Base; testnet disclaimers; age/geo)
+
+---
+
+## 13. Decision log (v4.1 — freeze)
+
+| Decision | Choice |
+| --- | --- |
+| Currency model | **Single: CHIPS only** |
+| Offline/AI | Off-chain, zero CHIPS |
+| Standard | **B20 Asset**, 18 decimals (`base-std` encoders; `base-forge` toolchain; distinct factory salts per env) |
+| Name / symbol | **Chips / CHIPS** |
+| Supply | **10B max cap; 2B initial liquid; 8B in gated `SupplyLocker`** (quarterly 500M envelopes as monthly ~166.7M drips: time + ≥75% utilization hard gates, sink ratio decelerates, no compounding; §2.2) |
+| Admin | Exact tx list: role-admin map → timelocks → asserts; **`MINT_ROLE` holders = ∅ after full pre-mint**; `SEIZE`/`BURN_BLOCKED` never; OPERATOR multisig+timelock, multiplier 1×; renounce deferred to Phase 4 with policy-first ordering |
+| Allocation | 30 / 20 / 20 / 20 / 10 (play / treasury / team / liq / partners); coded distributor; team 12-mo cliff + 36-mo linear; named oracles; timelocked unlocks |
+| Play emissions | Draw from pre-minted unlocked budget (600M initial + tranche top-ups toward 3B lifetime); season + per-wallet caps + hard epoch stops; S1–S3 net-inflationary by design; Sybil-profitability gate before S1 locks; **no mint after bootstrap** |
+| Legacy conversion | 100:1 from capped 50M Treasury pool, 90-day window, unclaimed reverts |
+| Burns | Pool burn + market + sinks; `bytes32`-memo-tagged; dashboard; pool/market burn from contract custody |
+| Claims | **Pull-only** (match now or ClaimHub-batch later, paginated); funds in `MatchPool`; shared credit record incl. refunds; no expiry/dust-sweep of user credits in v1 |
+| Dispute | On-chain `claimUnlockAt` per tier (2/5/10 min); timeout-refund by anyone past **effective** `settleBy + pauseDelta`; cancel pre-lock-only; BURN/TRANSFER pause auto-extends settle deadline |
+| Paid match | Seat-allowlisted creation + **batch-first** EIP-5792 approve+join (permit EOA fallback) → **visible pool** → dual-signed EIP-712 settle (day one) → **individual claim** |
+| 2v2 | `seatColors` committed; TEAM_PAIRINGS + exact equal-split enforced on-chain |
+| Predict | **Phase 1 out of scope**; Phase 2 entry = join-policy (open/allowlist + min/max stake, not match seats) + sportsbook legal sign-off; then `poolKind` in MatchPool, creation-committed cutoff, parimutuel, pinned triggers |
+| Free tables | **No MatchPool** when entry is free |
+| Pause vs settle | **Auto-extend `settleBy` by `pauseDelta`** (TRANSFER/BURN) — pause does not convert wins into refunds |
+| Mission CHIPS | Free-only accounts earn RXP not mission CHIPS; paid-volume floor required (e.g. ≥1 paid join/week); optional one-time welcome grant ≤50 CHIPS (Phase-0 ship/no-ship) |
+| Vouchers/seasons | On-chain signer registry + revoke + ceilings + deadlines + consumed-hash guard; bound merkle leaves + frozen epochs; scorer on these surfaces only |
+| Attribution | ERC-8021 Builder Codes on every tx (client-level `dataSuffix` + `sendCalls` wrapper); rule lives in project `AGENTS.md` |
+| Sessions / gas | EIP-712 match session now; 8130 scoped keys (vibenet prototype, fork never ships) + ERC-8168 gas-only paymaster (interface Phase 1, funding Phase 3) |
+| Balance authority | Chain; Supabase cache + game authority; legacy coin writers frozen behind flag |
+| Eligibility | On-chain scorer for **mission/season/partner rewards only** (match claims/refunds scorer-free); geo sender/executor-only; named policy admins; mainnet scorer = threshold/HSM |
+| Mint end-state | Full 10B pre-minted; **`MINT_ROLE` holders = ∅** after bootstrap (distributor draws only) |
+| Edge settle SLO | Co-sign at match completion (async); settle-ready payload before claim CTA; timeout-refund past effective `settleBy` if Edge-down |
+| resultHash | Audit log of settled payout only — not a pre-lock commitment or security oracle |
+| Gas micro-tiers | 100-CHIPS tier Sepolia-only; mainnet lobby hides tiers below gas floor until paymaster |
+| Standard rejected | Custom ERC-20 clone; dual soft currency; push payouts; single-host settle; UI-only eligibility; scorer on match prizes; mint-after-bootstrap |
+
+---
+
+## 14. Open calibration points (defaults chosen in v4.1)
+
+| Question | Default in this plan |
+| --- | --- |
+| Symbol display | `CHIPS` (name still “Chips”) |
+| Fee bands | Protocol fees 4–5% by tier (hard cap 5%), burn 1–2% max (hard cap 2%); marketplace 5% protocol + 1% burn |
+| Initial supply / unlocks | 2B liquid at bootstrap; 8B in `SupplyLocker`, quarterly 500M tranches gated on time + utilization + sink ratchet (§2.2) |
+| Mint end-state | Full 10B pre-minted; `MINT_ROLE` holders = ∅ after bootstrap |
+| Stall-path | **Phase-0 election required:** Treasury bridge ≤100M **or** automatic S2-draw reduction |
+| 1v1 vs FFA prize split | Winner-take-prize-fund; top-3 experimental later |
+| Dispute delay | On-chain per tier: casual 2 min / standard 5 min / high+ tournament 10 min; timeout-refund past **effective** `settleBy + pauseDelta` |
+| Pause vs settle | Auto-extend `settleBy` by `pauseDelta` (locked; product copy: pause delays, does not refund) |
+| Cancel | Pre-lock, creating host only; post-lock funds move only via settle or timeout-refund |
+| Scorer scope | Rewards-only (mission/season/partner); match prizes/refunds never need scorer |
+| Mission CHIPS gate | Paid-volume floor (e.g. ≥1 paid join/week); free-only = RXP only |
+| Welcome grant | Optional one-time ≤50 CHIPS — **Phase-0 ship/no-ship + amount** |
+| Marketplace CHIPS prices | Draft band §7.4 (common 50–200 … prestige 5k–50k) — finalize in TOKEN_PARAMS |
+| Gasless claims | Paymaster **interface** Phase 1, funding Phase 3 (§8.9); gas-negative micro-tiers Sepolia-only; mainnet lobby hides them until funded |
+| Offline → reward bridge | None for missions; free-only = RXP; optional welcome grant ≤50 CHIPS only (Phase-0 ship/no-ship) |
+| Predict | **Phase 1 out of scope**; Phase 2 entry = join-policy + sportsbook sign-off; then creation-committed cutoff + parimutuel |
+| Predict legal | Own sportsbook sign-off — never inherited from match-pool analysis |
+| Edge co-sign SLO | Async co-sign at match completion; UI delays payout copy if missing |
+| Admin renounce | Deferred to Phase 4 with policy-first ordering (§8.1b); pause stays on multisig + max-pause SLA |
+| Legacy conversion | 100:1, 50M Treasury pool, 90-day window — published pre-Phase-1, never adjusted |
+| Builder code | Single code from `base.dev`; never re-register if `builderCode.ts` exists; rule in `AGENTS.md` |
+| 8130 dependency | Prototype on vibenet only (not Sepolia); fork never ships; `wevm/viem#5004` tracked |
+| Sepolia session default | Callers on 84532 must pass `chainId: 84532` explicitly (never rely on mainnet default in `sessionProof`) |
+
+---
+
+*This is the production planning baseline (v4.1 freeze) for Ludo Base’s on-chain economy: one token (Chips/CHIPS on B20), 10B max with 2B initial liquid + gated locker, pull-based claims, visible match pools, dual-sign settle, scorer rewards-only, and memo-tagged burns. Implementation starts at Phase 1 contracts + join/settle/claim UX on Base Sepolia — after all eleven Phase-0 freeze gates are written down — not at a token announcement.*

@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
+    // 6492-aware host proof (EOA ecrecover + 1271/6492 on the 8453/84532 allowlist).
     const verdict = await verifyPersonalSign({
       address: String(hostAddress),
       message,

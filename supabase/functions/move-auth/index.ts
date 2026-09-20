@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import { verifyPersonalSign, verifyTypedDataSign } from '../_shared/walletVerify.ts';
+import { verifyPersonalSign, verifyTypedDataSign, parseChainId, DEFAULT_CHAIN_ID } from '../_shared/walletVerify.ts';
 import {
   BASE_INDEX,
   BOARD_FINISH_INDEX,
@@ -46,15 +46,24 @@ const SEED_PREFIX = 'Ludo Base seed';
 const POWER_PREFIX = 'Ludo Base power';
 const MAX_AGE_MS = 10 * 60 * 1000;
 
-const SESSION_DOMAIN = {
+const SESSION_DOMAIN_BASE = {
   name: 'Ludo Base',
   version: '1',
-  chainId: 8453,
-  // NOTE: kept in lockstep with lib/sessionProof.ts LUDO_SESSION_DOMAIN —
+  // NOTE: kept in lockstep with lib/sessionProof.ts buildSessionDomain —
   // no verifyingContract (no onchain verifier exists; 0x0 reads as a scam
   // signal in wallet Review screens). Both sides must build byte-identical
-  // domains or verification fails closed.
+  // domains or verification fails closed. chainId is resolved per-request
+  // from body.chainId (allowlisted 84532/8453, default mainnet).
 } as const;
+
+/** Dual-chain session domain. Unknown chain ids fall back to mainnet here
+ *  AND fail inside verifyTypedDataSign only when the domain itself is not
+ *  allowlisted — explicit non-allowlist body.chainId is rejected 400 first. */
+function sessionDomainFor(chainId: unknown) {
+  if (chainId !== undefined && parseChainId(chainId) === null) return null;
+  const cid = parseChainId(chainId) ?? DEFAULT_CHAIN_ID;
+  return { ...SESSION_DOMAIN_BASE, chainId: cid } as const;
+}
 const SESSION_TYPES = {
   LudoMatchSession: [
     { name: 'wallet', type: 'address' },
@@ -148,7 +157,7 @@ function buildPowerMessage(p: {
   ].join('\n');
 }
 
-/** 6492-aware personal-sign check (EOA ecrecover + 1271/6492 on Base 8453). */
+/** 6492-aware personal-sign check (EOA ecrecover + 1271/6492 on the 8453/84532 allowlist). */
 async function verifyActorSignature(
   actor: string,
   message: string,
@@ -251,9 +260,11 @@ Deno.serve(async (req) => {
       if (Number(expiresAt) < Date.now() || Number(expiresAt) > Date.now() + 2 * 60 * 60 * 1000) {
         return json({ error: 'Invalid provisional expiry' }, 400);
       }
-      // 6492-aware typed-data grant (EOA ecrecover + 1271/6492 on Base 8453).
+      const provisionalDomain = sessionDomainFor(body.chainId);
+      if (!provisionalDomain) return json({ error: 'Unsupported chain' }, 400);
+      // 6492-aware typed-data grant (EOA ecrecover + 1271/6492 on the grant chain).
       const provisionalVerdict = await verifyTypedDataSign({
-        domain: SESSION_DOMAIN,
+        domain: provisionalDomain,
         types: SESSION_TYPES,
         primaryType: 'LudoMatchSession',
         message: {
@@ -265,6 +276,7 @@ Deno.serve(async (req) => {
         },
         claimedWallet: String(wallet),
         signature,
+        chainId: provisionalDomain.chainId,
       });
       if (!provisionalVerdict.ok) {
         return json({ error: 'Invalid provisional typed-data signature', code: provisionalVerdict.code }, 401);
@@ -323,9 +335,11 @@ Deno.serve(async (req) => {
         return json({ error: 'expiresAt too far in the future' }, 400);
       }
 
-      // 6492-aware typed-data grant (EOA ecrecover + 1271/6492 on Base 8453).
+      const grantDomain = sessionDomainFor(body.chainId);
+      if (!grantDomain) return json({ error: 'Unsupported chain' }, 400);
+      // 6492-aware typed-data grant (EOA ecrecover + 1271/6492 on the grant chain).
       const sessionVerdict = await verifyTypedDataSign({
-        domain: SESSION_DOMAIN,
+        domain: grantDomain,
         types: SESSION_TYPES,
         primaryType: 'LudoMatchSession',
         message: {
@@ -337,6 +351,7 @@ Deno.serve(async (req) => {
         },
         claimedWallet: String(wallet),
         signature,
+        chainId: grantDomain.chainId,
       });
       if (!sessionVerdict.ok) {
         return json({ error: 'Invalid typed-data signature', code: sessionVerdict.code }, 401);

@@ -1,5 +1,6 @@
 /**
- * 6492-aware personal-sign verification for Next.js auth routes (Base 8453 only).
+ * 6492-aware personal-sign verification for Next.js auth routes
+ * (Base mainnet 8453 + Base Sepolia 84532).
  *
  * Background (signing-storm fix): the server previously verified wallet
  * signatures with bare `recoverMessageAddress` (plain ecrecover), which
@@ -12,9 +13,9 @@
  *   1. Fast EOA path — local `recoverMessageAddress` + address compare
  *      (zero RPC; EOAs never pay for an eth_call and keep working when the
  *      RPC is down).
- *   2. Smart-account path — `publicClient.verifyMessage` on Base 8453, which
- *      handles deployed ERC-1271 contracts AND counterfactual ERC-6492
- *      wrapped signatures via the universal signature validator
+ *   2. Smart-account path — `publicClient.verifyMessage` on the signature's
+ *      chain, which handles deployed ERC-1271 contracts AND counterfactual
+ *      ERC-6492 wrapped signatures via the universal signature validator
  *      (deployless eth_call, no chain writes). Verified empirically against
  *      Base mainnet with a real Coinbase Smart Account wrapper
  *      (see scripts/siwe-matrix.ts case (c)).
@@ -22,16 +23,27 @@
  * Distinct failure codes (`ecrecover-invalid` vs `signer-mismatch`) are
  * returned for observability — routes must surface `code` in 401 bodies.
  *
- * Chain gating: Base 8453 only, matching the `Chain ID: 8453` line in
- * `buildSiweMessage` (lib/sessionProof.ts). Message formats are NOT changed
- * here — this helper only changes how signatures are CHECKED.
+ * Chain gating: only 8453 / 84532 (lib/chains.ts). When the message carries
+ * a `Chain ID: N` line it must be allowlisted AND match the caller's expected
+ * chain — otherwise fail closed (cross-chain replay protection). Messages
+ * without a chain line (match-action proofs) stay bound by match/session DB
+ * rows + TTL. Message formats are NOT changed here — this helper only
+ * changes how signatures are CHECKED.
  */
 
 import { createPublicClient, http, recoverMessageAddress } from 'viem';
-import { base } from 'viem/chains';
+import {
+    DEFAULT_CHAIN_ID,
+    extractMessageChainId,
+    isSupportedChainId,
+    parseChainId,
+    verifyRpcUrl,
+    viemChainFor,
+    type SupportedChainId,
+} from './chains';
 
-/** The only chain wallet signatures are verified against. */
-export const VERIFY_CHAIN_ID = 8453;
+/** The default chain wallet signatures are verified against. @deprecated Prefer parseChainId callers pass explicit chain ids. */
+export const VERIFY_CHAIN_ID = DEFAULT_CHAIN_ID;
 
 export type WalletVerifyOk = { ok: true; via: 'eoa' | 'smart' };
 export type WalletVerifyFail = {
@@ -50,19 +62,21 @@ type VerifyMessageClient = {
         signature: `0x${string}`;
     }) => Promise<boolean>;
 };
-let _client: VerifyMessageClient | null = null;
+let _clients: Partial<Record<SupportedChainId, VerifyMessageClient>> = {};
 
-/** Singleton Base public client (one per serverless instance). */
-function baseClient(): VerifyMessageClient {
-    if (_client) return _client;
-    const rpc = (process.env.SIWE_VERIFY_RPC_URL || '').trim();
+/** Per-chain singleton public clients (one per serverless instance). */
+function chainClient(chainId: SupportedChainId): VerifyMessageClient {
+    const existing = _clients[chainId];
+    if (existing) return existing;
+    const rpc = verifyRpcUrl(chainId);
     // Structural minimal typing: only verifyMessage is used, which keeps
     // this file immune to viem chain/transport generic drift.
-    _client = createPublicClient({
-        chain: base,
+    const client = createPublicClient({
+        chain: viemChainFor(chainId),
         transport: rpc ? http(rpc) : http(),
     });
-    return _client;
+    _clients[chainId] = client;
+    return client;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -81,12 +95,15 @@ function isHexSig(s: unknown): s is `0x${string}` {
 
 /**
  * Verify a personal_sign `message`/`signature` against `address`.
+ * `chainId` is the expected chain (defaults to mainnet). When the message
+ * carries a `Chain ID: N` line it must be allowlisted and equal `chainId`.
  * Never throws — all failures are encoded in the result.
  */
 export async function verifyPersonalSign(params: {
     address: string;
     message: string;
     signature: unknown;
+    chainId?: number;
 }): Promise<WalletVerifyResult> {
     const claimed = String(params.address || '').toLowerCase();
     if (!/^0x[a-f0-9]{40}$/.test(claimed)) {
@@ -99,6 +116,21 @@ export async function verifyPersonalSign(params: {
         return { ok: false, code: 'ecrecover-invalid' };
     }
     const signature = params.signature;
+
+    // Chain gate: explicit expectation wins; otherwise the message's own
+    // chain line; otherwise mainnet default. Any conflict fails closed.
+    const expected = params.chainId === undefined ? null : parseChainId(params.chainId);
+    if (params.chainId !== undefined && expected === null) {
+        return { ok: false, code: 'signer-mismatch' };
+    }
+    const msgChainRaw = extractMessageChainId(params.message);
+    if (msgChainRaw !== null && !isSupportedChainId(msgChainRaw)) {
+        return { ok: false, code: 'signer-mismatch' };
+    }
+    if (expected !== null && msgChainRaw !== null && expected !== msgChainRaw) {
+        return { ok: false, code: 'signer-mismatch' };
+    }
+    const effective: SupportedChainId = expected ?? (msgChainRaw as SupportedChainId | null) ?? DEFAULT_CHAIN_ID;
 
     // Path 1 — EOA fast path (local ecrecover, no RPC).
     let recovered: string | null = null;
@@ -113,13 +145,13 @@ export async function verifyPersonalSign(params: {
     }
 
     // Path 2 — smart-account path (ERC-1271 deployed + ERC-6492
-    // counterfactual via the universal validator). One retry on transport
-    // failure: public RPCs rate-limit, and a flake must not 401 a valid
-    // smart wallet (that 401 is what fed the reprompt storm).
+    // counterfactual via the universal validator) on the EFFECTIVE chain.
+    // One retry on transport failure: public RPCs rate-limit, and a flake
+    // must not 401 a valid smart wallet (that 401 is what fed the reprompt storm).
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
             const valid = await withTimeout(
-                baseClient().verifyMessage({ address: claimed as `0x${string}`, message: params.message, signature }),
+                chainClient(effective).verifyMessage({ address: claimed as `0x${string}`, message: params.message, signature }),
                 8_000,
             );
             if (valid) return { ok: true, via: 'smart' };

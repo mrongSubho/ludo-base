@@ -103,8 +103,11 @@ try {
     );
     check(
         "parity:chain-gating",
-        next.includes("8453") && edge.includes("8453"),
-        "both helpers gate to Base 8453",
+        next.includes("84532") &&
+            edge.includes("84532") &&
+            next.includes("parseChainId") &&
+            edge.includes("parseChainId"),
+        "both helpers gate to the 84532/8453 allowlist via parseChainId",
     );
 } catch (e) {
     check("parity:read", false, `cannot read helpers: ${e.message}`);

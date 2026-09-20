@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useSignMessage, useSignTypedData } from 'wagmi';
+import { useSignMessage, useSignTypedData, useChainId } from 'wagmi';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
@@ -211,7 +211,8 @@ export function useGameEngine({
 
     const serverSeqRef = useRef(0);
     const lastRollIdRef = useRef<string | null>(null);
-    const moveAuth = useMoveAuth({ myAddress: address, signMessageAsync, signTypedDataAsync });
+    const chainId = useChainId();
+    const moveAuth = useMoveAuth({ myAddress: address, signMessageAsync, signTypedDataAsync, chainId });
 
     const {
         moveToken,

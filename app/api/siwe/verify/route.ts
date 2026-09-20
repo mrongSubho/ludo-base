@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
+import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -27,6 +28,12 @@ export async function POST(request: Request) {
         if (!domain || !address || !nonce || !issuedAt || !expirationTime || !signature) {
             return NextResponse.json({ error: 'Missing SIWE fields' }, { status: 400 });
         }
+        // Dual-chain gate: explicit chain ids must be allowlisted (84532/8453).
+        // Absent = mainnet default (existing sessions keep verifying).
+        if (body.chainId !== undefined && parseChainId(body.chainId) === null) {
+            return NextResponse.json({ error: 'Unsupported chain' }, { status: 400 });
+        }
+        const chainId = parseChainId(body.chainId) ?? DEFAULT_CHAIN_ID;
         if (new Date(expirationTime).getTime() < Date.now()) {
             return NextResponse.json({ error: 'Already expired' }, { status: 400 });
         }
@@ -40,18 +47,20 @@ export async function POST(request: Request) {
             issuedAt,
             expirationTime,
             nonce,
+            chainId,
         });
         if (body.message && body.message !== message) {
             return NextResponse.json({ error: 'Message mismatch' }, { status: 401 });
         }
 
         // 6492-aware: plain ecrecover for EOAs, universal-validator
-        // (1271 + counterfactual 6492) for smart accounts on Base 8453.
+        // (1271 + counterfactual 6492) for smart accounts on the message chain.
         // Distinct codes so storms are observable, not silent.
         const verdict = await verifyPersonalSign({
             address: String(address),
             message,
             signature,
+            chainId,
         });
         if (!verdict.ok) {
             const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';

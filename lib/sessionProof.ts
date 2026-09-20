@@ -5,8 +5,31 @@
  * - C: Smart wallets sign the same EIP-712 grant once (no extra path required)
  */
 
+import {
+    DEFAULT_CHAIN_ID,
+    parseChainId,
+    type SupportedChainId,
+} from './chains';
+
 export const SESSION_TTL_MS = 30 * 60 * 1000;
 export const APP_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * EIP-712 match-session domain for a supported chain.
+ * Throws on any other chain id — callers must fail closed, never coerce.
+ * Client and Edge must build byte-identical domains or verification fails.
+ */
+export function buildSessionDomain(chainId: number = DEFAULT_CHAIN_ID): {
+    name: string;
+    version: string;
+    chainId: SupportedChainId;
+} {
+    const parsed = parseChainId(chainId);
+    if (parsed === null) {
+        throw new Error(`Unsupported signing chain: ${String(chainId)}`);
+    }
+    return { name: 'Ludo Base', version: '1', chainId: parsed };
+}
 
 export const LUDO_SESSION_DOMAIN = {
     name: 'Ludo Base',
@@ -71,7 +94,13 @@ export function buildSiweMessage(params: {
     issuedAt: string;
     expirationTime: string;
     nonce: string;
+    /** Signing chain. Defaults to mainnet (8453); Sepolia flows pass 84532. */
+    chainId?: number;
 }): string {
+    const parsed = parseChainId(params.chainId ?? DEFAULT_CHAIN_ID);
+    if (parsed === null) {
+        throw new Error(`Unsupported signing chain: ${String(params.chainId)}`);
+    }
     return [
         'You are signing in with your Base account:',
         params.address,
@@ -79,7 +108,7 @@ export function buildSiweMessage(params: {
         'This signs you in for profile, chat and settings. Signing in never makes any transaction.',
         '',
         `URI: https://${params.domain}`,
-        'Chain ID: 8453',
+        `Chain ID: ${parsed}`,
         `Nonce: ${params.nonce}`,
         `Issued At: ${params.issuedAt}`,
         `Expiration Time: ${params.expirationTime}`,

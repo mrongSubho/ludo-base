@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "base-mcp": {
+      "source": "base/skills",
+      "sourceType": "github",
+      "skillPath": "skills/base-mcp/SKILL.md",
+      "computedHash": "52ed8be2e6bf5f91fdbc06753e7b5f3bd01fa82fee4b331b292214dd52c9c69f"
+    },
+    "build-on-base": {
+      "source": "base/skills",
+      "sourceType": "github",
+      "skillPath": "skills/build-on-base/SKILL.md",
+      "computedHash": "c0e0a8ff241fb21ee9abd63394cf0355135f78b83f8f24376ce396cdb2f41b7b"
+    },
+    "plugin-review": {
+      "source": "base/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/plugin-review/SKILL.md",
+      "computedHash": "34621fdb2191b2fa3a6a322166dc34217df664adff94e34e229fbcbbc9fc9ede"
+    },
+    "skill-creator": {
+      "source": "base/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/skill-creator/SKILL.md",
+      "computedHash": "bb3a8a0b52c84eff06a0f62b8a844d522e952be1d3a1ad438972b64b0758ed4e"
+    },
+    "vibenet": {
+      "source": "base/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vibenet/SKILL.md",
+      "computedHash": "4396eed443f04477bf868608f4dd67a5668e537c4c4e275ad186e69d6e03afff"
+    }
+  }
+}

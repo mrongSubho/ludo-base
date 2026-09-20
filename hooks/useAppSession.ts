@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { useAccount, useSignMessage } from 'wagmi';
+import { useAccount, useChainId, useSignMessage } from 'wagmi';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
+import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { AppSessionGuard } from '@/lib/appSessionGuard';
 
 const STORAGE_KEY = 'ludo-siwe-session';
@@ -49,6 +50,7 @@ function readStored(address: string | undefined): Stored | null {
 
 export function useAppSession() {
     const { address } = useAccount();
+    const walletChainId = useChainId();
     const { signMessageAsync } = useSignMessage();
     const [ready, setReady] = useState(false);
 
@@ -79,11 +81,15 @@ export function useAppSession() {
                 const issuedAt = new Date().toISOString();
                 const expirationTime = new Date(Date.now() + APP_SESSION_TTL_MS).toISOString();
                 const nonce = crypto.randomUUID();
-                const message = buildSiweMessage({ domain, address, issuedAt, expirationTime, nonce });
+                // Sign on the active wallet chain when supported (Sepolia-first
+                // for Phase 1 testing), else mainnet default. Server enforces
+                // the allowlist and rebuilds the identical text.
+                const chainId = parseChainId(walletChainId) ?? DEFAULT_CHAIN_ID;
+                const message = buildSiweMessage({ domain, address, issuedAt, expirationTime, nonce, chainId });
                 const signature = await signMessageAsync({ account: address as `0x${string}`, message });
                 return {
                     signature: signature as string,
-                    body: { domain, address, nonce, issuedAt, expirationTime, signature, message },
+                    body: { domain, address, nonce, issuedAt, expirationTime, signature, message, chainId },
                 };
             },
             verify: async (signed) => {
@@ -123,7 +129,7 @@ export function useAppSession() {
             },
         }, opts);
         return result.sessionId;
-    }, [address, signMessageAsync]);
+    }, [address, signMessageAsync, walletChainId]);
 
     const clearAppSession = useCallback(() => {
         try {

@@ -8,11 +8,12 @@ import {
     buildSeedMessage,
 } from '@/lib/matchProof';
 import {
-    LUDO_SESSION_DOMAIN,
+    buildSessionDomain,
     LUDO_SESSION_TYPES,
     buildMatchSessionPayload,
     type MatchSessionTypedMessage,
 } from '@/lib/sessionProof';
+import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { stripPowerTypesForWire } from '@/lib/engine';
 import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types';
 import type { MatchActionError, MatchActionErrorCode, MatchActionSuccess } from '@/lib/matchProtocol';
@@ -21,7 +22,8 @@ import type { MatchStateSnapshot } from '@/lib/matchProtocol';
 type SignFn = (args: { account: `0x${string}`; message: string }) => Promise<string>;
 type SignTypedFn = (args: {
     account: `0x${string}`;
-    domain: typeof LUDO_SESSION_DOMAIN;
+    /** Widened from `typeof LUDO_SESSION_DOMAIN` for dual-chain (84532/8453) grants. */
+    domain: { name: string; version: string; chainId: number };
     types: typeof LUDO_SESSION_TYPES;
     primaryType: 'LudoMatchSession';
     message: MatchSessionTypedMessage;
@@ -59,8 +61,17 @@ export function useMoveAuth(opts: {
     myAddress: string | undefined;
     signMessageAsync: SignFn;
     signTypedDataAsync: SignTypedFn;
+    /**
+     * Active wallet chain for EIP-712 match-session grants. Validated
+     * against the 84532/8453 allowlist; unsupported values fall back to the
+     * mainnet default (server enforces the allowlist either way).
+     */
+    chainId?: number;
 }) {
     const { myAddress, signMessageAsync, signTypedDataAsync } = opts;
+    // Dual-chain gate: the EIP-712 domain chain must match what Edge verifies.
+    const signingChainId = parseChainId(opts.chainId) ?? DEFAULT_CHAIN_ID;
+    const sessionDomain = buildSessionDomain(signingChainId);
     /* session maps are module-shared (see top of file). */
     const getSessionId = useCallback((matchId: string) => sharedMoveSessions.get(matchId) || null, []);
     const clearSession = useCallback((matchId: string) => {
@@ -81,7 +92,7 @@ export function useMoveAuth(opts: {
         try {
             signature = await signTypedDataAsync({
                 account: myAddress as `0x${string}`,
-                domain: LUDO_SESSION_DOMAIN,
+                domain: sessionDomain,
                 types: LUDO_SESSION_TYPES,
                 primaryType: 'LudoMatchSession',
                 message: {
@@ -101,6 +112,7 @@ export function useMoveAuth(opts: {
             wallet: payload.wallet,
             expiresAt: payload.expiresAt,
             nonce: payload.nonce,
+            chainId: signingChainId,
             signature,
         });
         if (r.ok && r.data?.provisionalId) {
@@ -147,7 +159,7 @@ export function useMoveAuth(opts: {
             try {
                 signature = await signTypedDataAsync({
                     account: myAddress as `0x${string}`,
-                    domain: LUDO_SESSION_DOMAIN,
+                    domain: sessionDomain,
                     types: LUDO_SESSION_TYPES,
                     primaryType: 'LudoMatchSession',
                     message: {
@@ -167,6 +179,7 @@ export function useMoveAuth(opts: {
                 wallet: payload.wallet,
                 expiresAt: payload.expiresAt,
                 nonce: payload.nonce,
+                chainId: signingChainId,
                 signature,
             });
             if (r.ok && r.data?.sessionId) {

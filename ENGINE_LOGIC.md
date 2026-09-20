@@ -193,7 +193,7 @@ Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`
 
 ### 7.1c SIWE app session (chat / profile / settings)
 
-`/api/siwe/verify` + `app_sessions` (7-day TTL). `useAppSession.ensureAppSession()` prompts one SIWE sign. **Never** authorizes match moves or payouts.
+`/api/siwe/verify` + `app_sessions` (7-day TTL). `useAppSession.ensureAppSession()` prompts one SIWE sign. **Never** authorizes match moves or payouts. Dual-chain: SIWE text carries `Chain ID: 84532 | 8453` from the active wallet chain (`lib/chains.ts` allowlist); the server rebuilds the identical text and verifies on that chain's RPC — cross-chain replays fail closed. Match-session EIP-712 domains are likewise per-chain (`buildSessionDomain`); Edge `move-auth` resolves the domain from `body.chainId`.
 
 ### 7.2 Chat encryption
 DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair in localStorage and publishes the public JWK on `players.ecdh_pubkey`. Senders generate an ephemeral pair, derive AES-GCM via the peer's static pubkey, and store `{v:1, epk, iv, content}`. Recipients open with their static private key. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`20260914_messages_rls_lockdown.sql`).
