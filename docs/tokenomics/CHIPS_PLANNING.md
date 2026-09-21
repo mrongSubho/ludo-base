@@ -760,6 +760,79 @@ Existing SQL tables stay for **bracket operations**. Economics go on-chain:
 - Winning predictors pull claims
 - Protocol burn on predict gross
 
+### 7.7 Onboarding track (1K core + gated extended tracks)
+
+New players earn a **1,000 CHIPS core package** — never a lump sum for signing up, always tranched across gated milestones. Gameplay pays first; social pays last (Galxe outages must never block earnings).
+
+#### Core package (1,000 CHIPS, all one-time, `is_claimed`-locked per wallet)
+
+| Order | Track | Milestones | CHIPS | Verified by |
+| --- | --- | --- | --- | --- |
+| **A. Tutorial** | Finish interactive tutorial (all lessons, incl. one practice capture + one home-stretch finish) | **100** | Server-side tutorial progress flags |
+| **B. AI gauntlet** | Finish one AI match in **each** mode: Classic, Power, Snakes | 3 × 100 = **300** | Online-recorded match (`/api/match/record` with matchId); min ≥15 turns + ≥5 min duration; loss counts, quit/AFK-forfeit doesn't |
+| **C. First Blood (PvP)** | Complete first online multiplayer match | **150** (100 finish / 150 win) | Match record + participant check |
+| **D. Playtime** | 60 cumulative minutes in completed online matches | **150** | Server match durations (forfeited/AFK-struck matches excluded) |
+| **E. Social (Galxe)** | Follow X · Like + repost quest tweet · Join Discord + verify role · Galxe Passport verified | 4 × 75 = **300** | Galxe quest completion via custom API credential callback |
+
+**Anti-lockout rule:** Track E unlocks as soon as A is done — it sits last in the checklist but runs in parallel, so a Galxe verification outage never blocks gameplay earnings. Users bank up to 700 and claim the 300 when Galxe recovers.
+
+**AI carve-out (fenced):** §3.2 bans CHIPS for offline/AI play; onboarding is the single sanctioned "capped online claim" exception. Track B matches must be **online-recorded** (server matchId, duration/turn floors) — pure-local bot-farming earns nothing.
+
+**Package expiry:** 30 days from wallet-first-seen. Bounds liability, kills dormant-wallet farming.
+
+#### Extended tracks (global gate: own 1K core complete)
+
+No extended-track reward is earnable or claimable until the user's own core package is fully claimed. Progress may accrue, but **claims stay locked behind the core-complete flag**:
+
+| # | Track | Payout | Rules |
+| --- | --- | --- | --- |
+| 1 | **Referral kicker** | 50 per successful referee for the first 10 successes (= 500), then 10 per success; 5,000 slots per user (max 50,400/user) | A referee counts as successful only on completing their full 1K core + Passport verification. See slot engine + dashboard below. |
+| 2 | **Day-2 / Day-3 return** | Day-2: **50**, Day-3: **100** (consecutive days, ≥1 match each) | Streak days counted from core-completion day (Day 1 = completion day), so slow onboarders are never punished; streak resets on a miss; each wallet earns once |
+| 3 | **Friend + DM** | 10 per friend-add or first-DM conversation, capped at 10 actions (**100 max**) | Friend must accept (no self-adds, no duplicate pairs); DM needs ≥1 message each way. |
+| 4 | **Clan join** | **100** | Join a partner guild's cup lobby (partners budget converts to acquisition; Phase-2 surface). |
+
+All extended tracks are one-time per wallet, voucher-issued under §6.1 (EIP-712, consumed-hash guard, 30-day deadlines), and count toward season accounting.
+
+#### Referral slot engine (5,000 slots/user, consumed on link)
+
+- **Reserve = consume:** a slot is permanently consumed when a referee links the referrer's code/invite (at onboarding start, before core). Linking never pays, and dead referees **eat cap** — incomplete, expired, or flagged referees never free the slot. Referrers should invite people who will actually finish.
+- **Resolve successful:** referee completes full 1K core + Passport → payout tier by success order (first 10 successes = 50 each, 11th+ = 10 each). Earnings accrue to a claimable referral balance (voucher path, pull-based). Non-completing referees resolve as unsuccessful with no payout and no refund of the slot.
+- **Dashboard** (`GET /api/referrals/dashboard?wallet=`, cached read): two numbers — **successful count** (completed 1K core) and **unsuccessful count** (linked but not completed: in-progress + expired + flagged) — plus slots remaining of 5,000 and a claim button for matured earnings. Nothing more.
+
+```text
+referral_links (
+  referrer_wallet, referee_wallet, code,
+  status text,            -- pending | successful | unsuccessful
+  tier_paid int,          -- 50 | 10 | null
+  claim_tx text,
+  created_at, completed_at,
+  unique (referrer_wallet, referee_wallet)
+)
+```
+
+#### Galxe integration
+
+- Galxe Space "Ludo Base": native quests (X follow / like / repost, Discord join + role verify) plus **custom API credentials** Ludo exposes for tutorial / AI-per-mode / playtime / PvP / core-complete / referral-success.
+- Galxe Passport (humanity-score threshold) + minimum X/Discord account ages required before any Track E or referral payout.
+- One OAT per completed track (A–E + referral tier-up) — doubles as the Sybil-resistant identity input for future seasons.
+
+#### Budget (50k-user gate)
+
+| Line | Math | CHIPS |
+| --- | --- | --- |
+| Core packages | 50,000 × 1,000 | **50.0M** (hard sub-ceiling, FCFS counter in UI) |
+| Referrals | ~20% refer ~3 avg × 50 (tail bounded by 10/success rate) | ~1.5–2.0M |
+| Day-2/Day-3 | 40% hit Day-2 × 50 + 25% hit Day-3 × 100 | ~2.25M |
+| Friend/DM | ~60% avg 3 actions × 10 | ~0.9M |
+| Clan join | ~30% × 100 | ~1.5M |
+| **Total ask** | | **~56–57M → 60M S1 sub-ceiling** |
+
+60M = 15% of S1's 400M. The FCFS cap + circuit breaker pause issuance past the ceiling instead of breaching the budget; the season ladder (§7.3) is sized against ~340M net of onboarding at full uptake.
+
+#### Onboarding KPIs
+
+Funnel completion per track (A→E drop-off), referral slot conversion (successful / reserved), cost-per-activated-user in CHIPS, Sybil reject rate (Passport fails + scorer denials + flagged slots), D7 retention lift of core-completers vs non-completers. If completion collapses past Track B, the tutorial is the problem, not the rewards.
+
 ---
 
 ## 8. Technical architecture
@@ -1079,6 +1152,7 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 10. Paymaster **interface** design (§8.9; funding stays Phase 3) + 8130 session-key prototype on vibenet
 11. Terms/settings copy (utility-token language + testnet disclaimers)
 12. Migrate `players.coins` to cache-only (feature flag + legacy-writer freeze)
+13. Onboarding track (§7.7): tutorial flags, AI/PvP/playtime mission set, Galxe Space + API credentials + OATs, referral slot engine + dashboard, 60M sub-ceiling + FCFS counter
 
 **Exit criteria:** Player funds a visible pool on Sepolia, match settles with dual-signed EIP-712 authority + Edge evidence, winner claims CHIPS to wallet after the dispute window, `bytes32`-memo burn visible on explorer, attribution verified on base.dev, **post-bootstrap `MINT_ROLE` holders == ∅**. Test gates: Foundry double-claim across paths + forbidden-transition table + seat-squat revert + dispute-deny (pre-unlock claim reverts) + timeout-refund + **pause-delta settleBy extension** + reorg/ε handling; per-entrypoint gas benchmarks published (justifying the 1,000-CHIPS mainnet minimum); scorer **not** required on `claimMatch`/`refundJoin` (negative test).
 
@@ -1142,6 +1216,7 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 - [ ] Lobby batched join UX (`useSendCalls` approve+join; permit EOA fallback) + builder-code `dataSuffix` wiring (`ox`, `viem>=2.45`, `sendCalls` wrapper, `AGENTS.md`)
 - [ ] Claim UX (gross/gas/net) + paginated `claimAll`
 - [ ] Legacy conversion pool (100:1, 50M cap, 90-day window) + writer freeze + snapshot root
+- [ ] Onboarding voucher set (§7.7 core + extended) + referral_links table + dashboard + 60M sub-ceiling + Galxe credentials
 - [ ] Explorer links + burn dashboard page (bytes32 tags)
 - [ ] 8130 session-key prototype on vibenet (track `wevm/viem#5004`; never ship fork); paymaster interface (§8.9)
 - [ ] Watcher runbook (dispute-window monitoring, timeout-refund triggers using **effective** `settleBy + pauseDelta`, ε-breach response, Edge co-sign lag alerts, pause incident checklist)
