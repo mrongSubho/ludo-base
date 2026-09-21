@@ -651,13 +651,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             ) : (
                                 <>
                                     <div className="px-5 pt-3">
-                                        <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl pl-2.5 pr-1.5 h-10 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
+                                        <div className="search-shell flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl pl-2.5 pr-1.5 h-10 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
                                             <SearchIcon />
                                             <input
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 placeholder="Search"
-                                                className="flex-1 min-w-0 bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 focus:outline-none focus:ring-0"
+                                                className="flex-1 min-w-0 bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
                                             />
                                             {searchQuery && (
                                                 <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/10 text-white/60 hover:text-white">

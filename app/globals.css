@@ -6293,6 +6293,24 @@ body.token-style-orb .blue-token::after {
 
 /* ─── A11y: focus-visible + reduced motion (UI pass) ─── */
 
+/* Search shells (Friends / Messages / Marketplace / Rankings):
+   The rounded wrapper is the single focus ring. Nested text inputs must not
+   also paint the global focus-visible outline — that stacked into a second
+   rectangular frame inside the pill in both themes. */
+.search-shell input:focus,
+.search-shell input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.search-shell:focus-within {
+  outline: 2px solid rgba(34, 211, 238, 0.85);
+  outline-offset: 2px;
+}
+body.theme-daybreak .search-shell:focus-within {
+  outline-color: rgba(8, 145, 178, 0.85);
+  border-color: rgba(8, 145, 178, 0.55) !important;
+}
+
 /* Visible keyboard focus — never outline:none without a ring */
 button:focus-visible,
 a:focus-visible,
