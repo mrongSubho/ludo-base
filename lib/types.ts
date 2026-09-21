@@ -12,6 +12,15 @@ export interface PowerItem {
     expiresAt: number;
 }
 
+/** Per-color combat counters for the post-match sheet (tokens sent home). */
+export interface MatchCaptureStat {
+    /** Tokens this color sent to base. */
+    kicks: number;
+    /** Tokens of this color that were sent to base. */
+    gotKicked: number;
+}
+export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
+
 export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
 
@@ -127,6 +136,8 @@ export interface GameState {
     activeShields: { color: PlayerColor, tokenIdx: number }[];
     consecutiveSixes: number;
     afkStats: Record<PlayerColor, AfkPlayerStats>;
+    /** Post-match combat counters (kicks / got-kicked). Safe to broadcast. */
+    matchStats?: MatchCaptureStats;
     idleWarning: { player: PlayerColor; timeLeft: number } | null;
     participantPeers: Record<string, string>; // walletAddress -> peerId
     isStarted: boolean;

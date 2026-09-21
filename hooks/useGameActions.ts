@@ -718,11 +718,26 @@ export function useGameActions({
                 return;
             }
             const newPositions = { ...prev.positions };
+            const prevStats = prev.matchStats ?? {
+                green: { kicks: 0, gotKicked: 0 },
+                red: { kicks: 0, gotKicked: 0 },
+                yellow: { kicks: 0, gotKicked: 0 },
+                blue: { kicks: 0, gotKicked: 0 },
+            };
+            const nextStats = {
+                green: { ...prevStats.green },
+                red: { ...prevStats.red },
+                yellow: { ...prevStats.yellow },
+                blue: { ...prevStats.blue },
+            };
             victims.forEach(v => {
                 newPositions[v.color] = [...newPositions[v.color]];
                 newPositions[v.color][v.idx] = BASE_INDEX;
+                nextStats[myColor].kicks += 1;
+                nextStats[v.color].gotKicked += 1;
             });
             nextState.positions = newPositions;
+            nextState.matchStats = nextStats;
             nextState.nukeFlash = cells;
             nextState.captureMessage = `NUKE! ${victims.length} token${victims.length === 1 ? '' : 's'} vaporized!`;
             sound = 'nuke';

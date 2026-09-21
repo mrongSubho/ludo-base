@@ -93,6 +93,7 @@ interface CelebrationOverlayProps {
     onReset: () => void;
 }
 
+/** Legacy compact card — MatchStatsOverlay owns the post-match surface now. */
 export function CelebrationOverlay({ winner, onReset }: CelebrationOverlayProps) {
     return (
         <AnimatePresence>

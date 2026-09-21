@@ -85,6 +85,39 @@ export const SAFE_POSITIONS: Point[] = [
 export type PowerType = 'shield' | 'boost' | 'nuke' | 'teleport';
 export type PowerItem = { type: PowerType; expiresAt: number };
 
+/** Per-color combat counters (tokens sent home) for post-match stats. */
+export type MatchCaptureStat = { kicks: number; gotKicked: number };
+export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
+
+export function emptyEngineMatchStats(): MatchCaptureStats {
+    const row = () => ({ kicks: 0, gotKicked: 0 });
+    return { green: row(), red: row(), yellow: row(), blue: row() };
+}
+
+export function applyEngineCaptureEvents(
+    stats: MatchCaptureStats | undefined,
+    kicker: PlayerColor,
+    victims: { capturedColor: PlayerColor }[]
+): MatchCaptureStats {
+    const base = stats ?? emptyEngineMatchStats();
+    const next: MatchCaptureStats = {
+        green: { ...base.green },
+        red: { ...base.red },
+        yellow: { ...base.yellow },
+        blue: { ...base.blue },
+    };
+    const byVictim: Partial<Record<PlayerColor, number>> = {};
+    for (const v of victims) {
+        byVictim[v.capturedColor] = (byVictim[v.capturedColor] || 0) + 1;
+    }
+    (Object.keys(byVictim) as PlayerColor[]).forEach((color) => {
+        const n = byVictim[color] || 0;
+        next[kicker].kicks += n;
+        next[color].gotKicked += n;
+    });
+    return next;
+}
+
 /** Minimal board state Edge validates against. */
 export interface EngineGameState {
     positions: Record<PlayerColor, number[]>;
@@ -102,6 +135,8 @@ export interface EngineGameState {
     powerSpentThisTurn: boolean;
     lastUpdate: number;
     matchId?: string;
+    /** Combat counters — safe to broadcast; optional on older states. */
+    matchStats?: MatchCaptureStats;
     /** Authority-only power types — never broadcast. */
     powerTiles?: { r: number; c: number; type?: PowerType }[];
     playerPowers?: Partial<Record<PlayerColor, PowerItem[]>>;
@@ -353,6 +388,9 @@ export function processMove(
         newPositions[c.capturedColor][c.capturedIdx] = BASE_INDEX;
     });
     const captured = captures.length > 0;
+    const matchStats = captured
+        ? applyEngineCaptureEvents(state.matchStats, actingColor, captures)
+        : (state.matchStats ?? emptyEngineMatchStats());
 
     const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
     const teamWon = (t: number) => {
@@ -391,6 +429,7 @@ export function processMove(
                 ? [...state.winners, tokenColor]
                 : state.winners,
             activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+            matchStats,
             lastUpdate: Date.now(),
         },
         captured,

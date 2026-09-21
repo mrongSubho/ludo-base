@@ -17,11 +17,11 @@ import { useElementSize } from '@/hooks/useElementSize';
 import { HomeBlock } from './BoardHome';
 import { BoardTokens } from './BoardTokens';
 import { BoardGrid } from './BoardGrid';
-import { 
-    IdleWarningOverlay, 
-    CelebrationOverlay, 
-    NameOverlay 
+import {
+    IdleWarningOverlay,
+    NameOverlay
 } from './BoardOverlays';
+import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
 
 // Modular Hooks
@@ -40,6 +40,7 @@ export default function Board({
     externalGameState,
     wager = 0,
     botDifficulty = 'pro',
+    onExitMatch,
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -53,6 +54,7 @@ export default function Board({
     externalGameState?: import('@/lib/types').GameState;
     wager?: number;
     botDifficulty?: import('@/lib/types').BotDifficulty;
+    onExitMatch?: () => void;
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
@@ -340,7 +342,19 @@ export default function Board({
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
          </motion.div>
 
-            <CelebrationOverlay winner={localGameState.winner} onReset={resetGame} />
+            <MatchStatsOverlay
+                open={!!localGameState.winner && !spectatorMode}
+                gameState={localGameState}
+                players={players}
+                myPlayer={myPlayer}
+                playerCount={playerCount}
+                wager={wager}
+                gameMode={gameMode}
+                lxpGain={lxpGain}
+                onRematch={resetGame}
+                onExit={onExitMatch}
+                /* onClaimChips left undefined — MatchPool claim wires later */
+            />
 
             <PlayerRow
                 corners={['BL', 'BR']}

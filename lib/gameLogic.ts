@@ -1,4 +1,4 @@
-import { GameState, PlayerColor, LobbySlot, LobbyState } from './types';
+import { GameState, PlayerColor, LobbySlot, LobbyState, MatchCaptureStats } from './types';
 import { Point, PathCell, ColorCorner, SAFE_POSITIONS as GLOBAL_SAFE_POINTS, CORNER_SLOTS, getBoardCoordinate } from './boardLayout';
 import {
     BOARD_FINISH_INDEX,
@@ -14,12 +14,43 @@ import {
 } from './constants';
 import type { PowerType } from './types';
 
+/** Zeroed combat counters for every color. */
+export function emptyMatchStats(): MatchCaptureStats {
+    const row = () => ({ kicks: 0, gotKicked: 0 });
+    return { green: row(), red: row(), yellow: row(), blue: row() };
+}
+
+/** Immutable increment of kick / got-kicked after a capture list. */
+export function applyCaptureEvents(
+    stats: MatchCaptureStats | undefined,
+    kicker: PlayerColor,
+    victims: { capturedColor: PlayerColor }[]
+): MatchCaptureStats {
+    const base = stats ?? emptyMatchStats();
+    const next: MatchCaptureStats = {
+        green: { ...base.green },
+        red: { ...base.red },
+        yellow: { ...base.yellow },
+        blue: { ...base.blue },
+    };
+    const byVictim: Partial<Record<PlayerColor, number>> = {};
+    for (const v of victims) {
+        byVictim[v.capturedColor] = (byVictim[v.capturedColor] || 0) + 1;
+    }
+    (Object.keys(byVictim) as PlayerColor[]).forEach((color) => {
+        const n = byVictim[color] || 0;
+        next[kicker].kicks += n;
+        next[color].gotKicked += n;
+    });
+    return next;
+}
+
 export const INITIAL_GAME_STATE: GameState = {
-    positions: { 
-        green: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX], 
-        red: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX], 
-        yellow: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX], 
-        blue: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX] 
+    positions: {
+        green: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX],
+        red: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX],
+        yellow: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX],
+        blue: [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX]
     },
     currentPlayer: 'green',
     diceValue: null,
@@ -46,6 +77,7 @@ export const INITIAL_GAME_STATE: GameState = {
         yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
         blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
     },
+    matchStats: emptyMatchStats(),
     idleWarning: null,
     participantPeers: {},
     isStarted: false,
@@ -329,22 +361,26 @@ export function resolveTrap(state: GameState, targetPoint: Point, tokenColor: Pl
 }
 
 export function resolveCapturesInPositions(
-    state: GameState, 
-    tokenColor: PlayerColor, 
-    nextPos: number, 
-    cc: ColorCorner, 
+    state: GameState,
+    tokenColor: PlayerColor,
+    nextPos: number,
+    cc: ColorCorner,
     playerCount: string,
     currentPositions: Record<PlayerColor, number[]>
-): { captured: boolean, newPositions: Record<PlayerColor, number[]> } {
+): {
+    captured: boolean;
+    newPositions: Record<PlayerColor, number[]>;
+    captureList: { capturedColor: PlayerColor; capturedIdx: number }[];
+} {
     const captures = checkMultiCapture(tokenColor, nextPos, state, cc, playerCount);
-    if (captures.length === 0) return { captured: false, newPositions: currentPositions };
+    if (captures.length === 0) return { captured: false, newPositions: currentPositions, captureList: [] };
 
     const newPositions = { ...currentPositions };
     captures.forEach(c => {
         newPositions[c.capturedColor] = [...newPositions[c.capturedColor]];
         newPositions[c.capturedColor][c.capturedIdx] = BASE_INDEX;
     });
-    return { captured: true, newPositions };
+    return { captured: true, newPositions, captureList: captures };
 }
 
 /** @deprecated Win detection lives inline in processMove. Do not reintroduce. */
@@ -418,10 +454,13 @@ export function processMove(
     }
 
     // 2. Resolve Captures
-    const { captured, newPositions } = resolveCapturesInPositions(state, tokenColor, nextPos, cc, playerCount, {
+    const { captured, newPositions, captureList } = resolveCapturesInPositions(state, tokenColor, nextPos, cc, playerCount, {
         ...state.positions,
         [tokenColor]: [...state.positions[tokenColor]].map((p, i) => i === tokenIndex ? nextPos : p)
     });
+    const matchStats = captured
+        ? applyCaptureEvents(state.matchStats, actingColor, captureList)
+        : (state.matchStats ?? emptyMatchStats());
 
     // 3. Check Win Status — team membership from TEAM_PAIRINGS/TEAM_ID only
     const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
@@ -460,6 +499,7 @@ export function processMove(
             winner,
             status,
             winners: allFinished(tokenColor) && !state.winners.includes(tokenColor) ? [...state.winners, tokenColor] : state.winners,
+            matchStats,
             lastUpdate: Date.now()
         },
         captured,

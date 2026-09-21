@@ -746,6 +746,7 @@ export default function Page() {
                     initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
                     wager={betAmount}
                     botDifficulty={botDifficulty}
+                    onExitMatch={handleBackToSubMenu}
                   />
                 )}
               </main>
