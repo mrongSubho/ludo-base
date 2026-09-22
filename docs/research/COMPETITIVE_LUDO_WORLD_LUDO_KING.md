@@ -8,7 +8,7 @@
 | **Evidence roots** | `ludo-apkresearch/research/apk-analysis/ludo-world` · `ludo-apkresearch/research/apk-analysis/ludo-king` |
 | **Companion plan** | `docs/tokenomics/CHIPS_PLANNING.md` (v4.3 — read in full for this report) |
 | **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` |
-| **Status** | Research baseline |
+| **Status** | Research baseline + gap/lessons synthesis (§§10–13) |
 | **Last updated** | 2026-09-22 |
 
 ---
@@ -25,6 +25,10 @@
 - [7. Tech shopping list](#7-tech-shopping-list)
 - [8. Risks and non-goals](#8-risks-and-non-goals)
 - [9. Suggested roadmap deltas](#9-suggested-roadmap-deltas)
+- [10. Gap register — what we are lacking](#10-gap-register--what-we-are-lacking)
+- [11. What we can add to improve](#11-what-we-can-add-to-improve)
+- [12. Lessons for us](#12-lessons-for-us)
+- [13. Recommendations — decision board](#13-recommendations--decision-board)
 
 ---
 
@@ -43,7 +47,7 @@
 | Min / target SDK | 22 / 35 | 24 / 36 | n/a (web; Base Sepolia 84532 → Base 8453) |
 | i18n | ~106 `values-*` locales | ~113 `values-*` locales | English-first; themes (`retro-futurism` / `daybreak`) but no locale pipeline yet |
 
-**One-line take:** Ludo World is the *network-ops* reference (reconnect discipline, server-driven config, dual attribution). Ludo King is the *monetization + integrity* reference (MAX mediation, voice/local play, layered anti-tamper). Ours is the only *on-chain-settlement* design (visible pools, pull claims, memo-tagged burns) — but it currently lacks their crash/analytics/attribution plumbing, asset-delivery story, and decade of abuse-hardening. The recommendations in §6 close exactly those gaps.
+**One-line take:** Ludo World is the *network-ops* reference (reconnect discipline, server-driven config, dual attribution). Ludo King is the *monetization + integrity* reference (MAX mediation, voice/local play, layered anti-tamper). Ours is the only *on-chain-settlement* design (visible pools, pull claims, memo-tagged burns) — but it currently lacks their crash/analytics/attribution plumbing, asset-delivery story, and decade of abuse-hardening. Engineering takeaways are in §6; the full gap register, improvement backlog, lessons, and decision board are in §§10–13.
 
 ---
 
@@ -167,11 +171,13 @@ CHIPS plan (v4.3 Strix-audited, **planned — not implemented**): **Chips/CHIPS,
 | Analytics | Dual attribution + 3 crash pipes (best) | Firebase full suite | Indexer plan only — gap |
 | i18n | 106 locales | 113 locales | None yet — gap |
 
+Full gap inventory: [§10](#10-gap-register--what-we-are-lacking). Improvement backlog: [§11](#11-what-we-can-add-to-improve). Decision board: [§13](#13-recommendations--decision-board).
+
 ---
 
 ## 6. Recommendations — what to take from each
 
-Prioritized P0 → P3. Every item preserves the `AGENTS.md` invariants (single `TEAM_PAIRINGS` truth, engine-math legality, Edge RNG authority, pull-only claims).
+Prioritized P0 → P3. Every item preserves the `AGENTS.md` invariants (single `TEAM_PAIRINGS` truth, engine-math legality, Edge RNG authority, pull-only claims). For the consolidated gap register, improvement bands, and product decision board, see [§§10–13](#10-gap-register--what-we-are-lacking).
 
 ### P0 — close structural gaps before Phase-1 value
 
@@ -239,6 +245,187 @@ Additive only — no `CHIPS_PLANNING.md` rewrite:
 - **Phase 1:** add heartbeat/reconnect counters + web-push turn/claim nudges + Sentry to the exit demo (alongside visible-pool → dual-sign settle → pull-claim + memo burn + Builder-Code verification + `MINT_ROLE == ∅`).
 - **Phase 2:** spectator predict stays gated on join-policy + sportsbook sign-off (unchanged); add rewarded-ads seam + voice spike as non-blocking tracks.
 - **Phase 3/4:** frames + paymaster + audit path unchanged.
+
+---
+
+## 10. Gap register — what we are lacking
+
+An explicit inventory of missing capabilities versus Ludo World + Ludo King, scored by what actually blocks Phase-1 value and player trust. Severity: **B**locks money/reputation · **G**rowth-limited · **P**olish. Status is repo state as of this revision (no `contracts/`, no client crash SDK, English-first UI).
+
+### 10.1 Observability and ops (sev: B)
+
+| Gap | Competitor evidence | Us today | Why it hurts |
+| --- | --- | --- | --- |
+| Client crash reporting | World: Bugly + CrashSight + Dengta. King: Crashlytics + NDK | None | Sepolia playtests die silently; settle p95 / claim-rate KPIs have no client counterpart |
+| Product analytics + session funnel | World: AppsFlyer + Adjust + Firebase. King: Firebase full suite | No client analytics; `chips_events` only planned | Cannot tell drop-off at wallet connect → approve → join → claim |
+| Web-vitals / animation jank | (implicit in native profilers) | GSAP 1.3s hops with no jank budget | Low-end mobile is our weakest render path (§5) |
+| Remote config / kill-switch | World: `LudoUrlCfg.json`. King: RemoteConfig | Hardcoded tiers + local env | Cannot hot-disable a bad pool tier or RPC without a deploy |
+| In-match ops counters (heartbeat / reconnect / seq-gap) | World TSDK: 29× reconnect/heartbeat/TCP refs | Lobby dual-path + `match_states` refresh exists; **no named ops ladder** | NAT flaps look like "game froze" instead of graphable SLOs (§6.1) |
+| Broken lint gate | n/a | `npm run lint` is broken (Next 16 removed `next lint`) | Typecheck + engine tests only — style/regression floor is thinner than CI implies |
+
+### 10.2 Live ops and retention (sev: G)
+
+| Gap | Competitor evidence | Us today | Why it hurts |
+| --- | --- | --- | --- |
+| Quests / achievements / battle-pass cadence | King: Play Games achievements. World: IMSDK notice/help/gameservice | RXP + seasons + missions **designed** (`CHIPS_PLANNING` §7), not shipped | No daily return reason outside "play a match" |
+| In-game notice / announcement surface | World: IMSDK notice + help | No live-ops bulletin channel in product | Season drops, dispute freezes, unlock windows have nowhere to speak |
+| Limited-window cosmetics cadence | King: legendary limited drops | Marketplace is a mock panel | Burn/emission story has no content engine |
+| Tournaments / cups | Both run seasonal ops | Designed only | Creator/guild distribution (Partners 10%) has no stage |
+
+### 10.3 Social and session quality (sev: G)
+
+| Gap | Competitor evidence | Us today | Why it hurts |
+| --- | --- | --- | --- |
+| Voice | King: Agora RTC/Gaming | None | Long 4P sessions feel lonelier than King; watch party / Arena is weaker |
+| Rich presence / emotes | Both ship social layers | Themed preset chat + ECDH DMs only | Expressive play is our thinnest surface |
+| Local / Nearby play | King: Nearby + Bluetooth. World: offline template assets | Offline vs AI exists; no co-located shared-device mode | Party / café use-case (King's real-world hook) is missing |
+| Turn / claim push | King: FCM + UnityNotificationManager. World: localpush AlarmService | No web-push / VAPID | Claim-rate KPI (40–70% in `CHIPS_PLANNING` §11) will miss without nudges |
+| Spectator → predict / coach | (emerging in casual live) | Listen-only `useSpectatorSync.ts`; predict gated | Arena narrative stops at "watch" |
+
+### 10.4 Distribution and platform (sev: G)
+
+| Gap | Competitor evidence | Us today | Why it hurts |
+| --- | --- | --- | --- |
+| i18n | 106–113 `values-*` locales each | English-first; 2 themes, 0 locale pipeline | Excludes the LATAM / SEA / MENA volume both competitors own |
+| App-store presence | Play Store + decade of ASO | Web + Farcaster frames planned | Discovery cost stays on wallets/social; no organic install shelf |
+| Deep-link surface | King: `lk.gggred.com` autoVerify | `?s=` invite links only | Share → install → seat conversion has no owned domain/ASO path |
+| Consent / age / geo story | King: UMP 3.2.0 + AdServices | Policy notes + pre-freeze legal spot (planned) | Paid pools need eligibility **before** mainnet value (B20 policy registry) |
+
+### 10.5 Economy and settlement buildout (sev: B)
+
+| Gap | Competitor evidence | Us today | Why it hurts |
+| --- | --- | --- | --- |
+| Settlement contracts | Both have opaque server settle (weakness we exploit) | **No `contracts/` at all** — UI slots only | Entire CHIPS thesis is unproven in code |
+| Claim UX | Server wallets "just work" | `MatchStatsOverlay` "Claim wiring soon" | Pull-claims design without claim UI is a narrative, not a product |
+| Marketplace / cosmetics | King: IAP + MAX content | Mock `MarketplacePanel` | Burn sink (`match:burn` / `market:burn`) has no primary surface |
+| Attribution completeness | World dual MMP | `lib/builderCode.ts` wired; not end-to-end proven on B20 | Silent revenue loss if ERC-8021 suffix is dropped (plan §8.7) |
+| Gas / paymaster path | n/a (server settle is free to user) | ERC-8168 paymaster planned | Low stakes die to gas friction (§6.7 guard is correct but incomplete) |
+
+### 10.6 Client integrity and abuse (sev: B once value ships)
+
+| Gap | Competitor evidence | Us today | Why it hurts |
+| --- | --- | --- | --- |
+| Build / bundle integrity | King: ACTK + pairip VM + SignatureCheck | No SRI / Trusted Types / build-hash pin on Edge tickets | Modded clients become viable the moment CHIPS is real |
+| Industrial farm defenses | King root/Magisk checks; World device perms | Sybil model **planned as Phase-0 gate**; caps designed, not enforced on-chain | Farm bots are the default attack on any claim faucet |
+| Dispute-window staffing | (nobody has this — our novel surface) | Runbook in plan §12, unstaffed | 2/5/10-min windows become a liability if nobody watches |
+| Abandon / AFK honesty | Both have invisible server abandon logic | Dual-sign abandon designed (HIGH-2); grace window not live | Ranked pots leak to rage-quit without it |
+
+---
+
+## 11. What we can add to improve
+
+Backlog grouped by delivery band. Every row preserves `AGENTS.md` invariants. "Differentiator" marks what neither competitor can copy without abandoning their server-settle model.
+
+### 11.1 Ship before any Sepolia value (Phase 0 freeze gates)
+
+| # | Add | Why | Differentiator? |
+| --- | --- | --- | --- |
+| A1 | Sentry (or equiv) + Web-Vitals + a `telemetry` beacon on board/room transitions | Closes §10.1; makes playtest data real | No |
+| A2 | Signed Edge `config.json` (pool tiers, fee caps, `settleBy` / `refundGrace`, RPC list, feature flags) | World's `LudoUrlCfg` pattern; kills hardcoded drift (§6.3) | No |
+| A3 | Heartbeat / reconnect / seq-gap **named counters** + match-connection SLO board | World TSDK benchmark (§6.1); feeds co-sign retry alerts | No |
+| A4 | B20 + ERC-8021 trailing-suffix Foundry assertion on `base-anvil` | Highest-risk unknown in the whole plan (§6.4) | Yes (Base-native) |
+| A5 | Fix or replace `npm run lint` (ESLint via `eslint`/`next` config or Biome) and put it in CI | Hygiene; stop pretending CI covers style | No |
+| A6 | Sybil-profitability model **frozen** and cited in TOKEN_PARAMS | Farming is industrial (Lesson L8) | No |
+| A7 | Legal issue-spot + eligibility policy schema for paid pools (geo/age) | B20 policy registry must exist before mainnet value | No |
+
+### 11.2 Phase 1 — playable economy (value-adjacent)
+
+| # | Add | Why | Differentiator? |
+| --- | --- | --- | --- |
+| B1 | ClaimHub claim UI + tx status + "claim later" hub tab | Pull-only claims are our trust story — they must be one-tap honest | Yes (visible pool) |
+| B2 | Web-push (VAPID) turn nudges + claim reminders | Claim-rate KPI depends on this (§6.9) | No |
+| B3 | Match receipt page: rolls (`match_rolls`), settle sigs, pool address, memo burns | **Trust artifacts competitors cannot show** — the product marketing is the explorer link | **Yes** |
+| B4 | Dual-path abandon grace + AFK strike counter visible to seats | HIGH-2 economics without it are wrong | Yes (on-chain memo) |
+| B5 | Live-ops notice strip (server-driven, signed) for freeze / unlock / season | World IMSDK notice analogue; required when money can pause | No |
+| B6 | Quest/mission skeleton wired to `MissionClaim` vouchers (gameplay first, social last) | Retention spine of `CHIPS_PLANNING` §7 | Partial (on-chain claim) |
+| B7 | Emotes + expanded preset-chat | Cheap retention until voice | No |
+| B8 | QR / share-link **local room** pass-and-play on one device | King Nearby analogue on web (§6.9) | No |
+
+### 11.3 Phase 2+ — growth and session depth
+
+| # | Add | Why | Differentiator? |
+| --- | --- | --- | --- |
+| C1 | Push-to-talk voice spike (LiveKit or similar) | King's Agora lesson (§6.8) | No |
+| C2 | i18n pipeline (`next-intl` or equivalent) + 4 priority locales first (es, pt-BR, hi/id, ar) | Match competitor geo volume without 110-locale vanity | No |
+| C3 | Spectator predict pools **only after** join-policy + sportsbook sign-off | Already gated; don't shortcut | Yes (on-chain predict) |
+| C4 | Rewarded-ads seam → RXP / mission progress (never CHIPS direct) | King MAX lesson without day-one ad weight (§6.5) | No |
+| C5 | Limited-window cosmetics drops with published burn split | King content cadence + our on-chain sink | Partial |
+| C6 | Farcaster frames with signed join-intent binding | Growth loop with wallet attribution (§6.14) | **Yes** |
+| C7 | Native shell (Capacitor/TWA) + Play Integrity **only if** store distribution becomes a goal | Don't inherit King's permission posture on web | No |
+| C8 | Build-hash pin + CSP/SRI/Trusted Types + Edge ticket binding to client build | Web-integrity set (§6.11) | No |
+
+### 11.4 Explicitly *do not* add (non-goals that look like gaps)
+
+- Device-permission fingerprinting (`READ_PHONE_STATE`, `READ_LOGS`, `GET_TASKS`, …) — World's posture would alarm Base/Farcaster users and still not secure money.
+- Opaque server settlement "because it's easier" — that is the competitor weakness we exist to fix.
+- Soft/hard dual currency or push payouts — already rejected in `CHIPS_PLANNING` §0/§13.
+- 9-ad-network MAX stack on day one — keep the seam (C4), don't ship the weight.
+- Scoring match prizes in the mission scorer — farm surface (plan §4.8).
+
+---
+
+## 12. Lessons for us
+
+Condensed principles the two APKs teach. Inline "Lesson for us" notes in §§2–3 remain the evidence trail; this section is the rulebook.
+
+| # | Lesson | Evidence | Rule for Ludo Base |
+| --- | --- | --- | --- |
+| **L1** | **Netcode ops are a product feature, not plumbing.** | World's TSDK embeds heartbeat, reconnect, TCP-fallback counters *in the game script* (29 refs) | Name and graph our reconnect ladder like TSDK; expose connection state in-match UX (not only console). Dual-path intents fix *delivery* — they do not fix *observability*. |
+| **L2** | **Server-driven config beats deploys for live risk.** | World `LudoUrlCfg.json`; King RemoteConfig | Any tier, fee cap, RPC, or kill-switch that ops must change under fire goes in signed Edge config (A2), still enforced on-chain. |
+| **L3** | **Monetization is a *system*, not a banner.** | King: MAX + 9 nets + UMP + OMID + IAP + PAD | Design the free-tier revenue leg (ads → RXP) *as architecture* now even if we integrate late. Free play must not dilute CHIPS (never ads → CHIPS). |
+| **L4** | **Retention is social + live-ops density.** | King voice/Nearby/achievements; World notice/help/gameservice | Board skins don't return players; voice, quests, and a notice channel do. Ship the notice strip (B5) before marketing seasons. |
+| **L5** | **Localization is table stakes for casual scale.** | 106 / 113 locale trees | Don't aim for 110 locales; aim for a real pipeline and 4–8 high-ROI locales before paid UA. |
+| **L6** | **Crash/telemetry is mandatory when money moves.** | World ships *three* crash pipes; King NDK Crashlytics | No Sepolia CHIPS playtest without Sentry + Web-Vitals + funnel events (A1). "It felt fine" is not a KPI. |
+| **L7** | **Client anti-cheat is layered, continuous, and still not enough.** | King: ACTK + packer/VM + SignatureCheck + RootUtil + license | Treat all client checks as **abuse signal only**. Money stays on Edge attest + dual-sign settle + pull-claims (AGENTS.md invariants). Ship C8 as hygiene, not as trust. |
+| **L8** | **Farming is industrial the moment value exists.** | King root/Magisk; World device fingerprinting | Freeze the Sybil-profitability model in Phase 0 (A6). Enforce distinct-opponent floors, volume floors, epoch caps **on-chain**, never in UI. |
+| **L9** | **Gas changes the product floor.** | Competitors settle at ₹1-equivalent because DB rows are free | Keep the gas-negative tier exclusion (§6.7). Fund ERC-8168 paymaster before arguing for low stakes. UX copy should say "min stake" not "gas". |
+| **L10** | **Don't copy their trust model — exploit it.** | Both settle invisibly server-side | Our marketing and design center is **visible pool + receipt + pull claim** (B3). If a feature would hide settlement, it is a regression even if it converts better this week. |
+| **L11** | **Permissions are brand.** | World's ~22-perm device-fingerprint posture | Web/Farcaster users will bounce on scary prompts. Prefer wallet + session + Edge tickets over device identity. |
+| **L12** | **Attribution needs two layers when you care about unit economics.** | World ships AppsFlyer *and* Adjust | On-chain Builder Codes cover CHIPS txs; still add a product analytics funnel (A1) for off-chain steps (lobby, invite open, reconnect). Silent drop-off is silent loss. |
+| **L13** | **Novel surfaces need runbooks or they become liabilities.** | Neither competitor has a public dispute window | Dispute windows, pauseDelta, and refundGrace are only as good as the watcher (plan §12). Staff them before mainnet, not after the first incident. |
+| **L14** | **CI that lies is worse than no CI.** | (ours) `npm run lint` broken while CI is green on typecheck/engine | Fix the gate (A5). Engineering trust in the pipeline is part of player trust in the chain. |
+
+---
+
+## 13. Recommendations — decision board
+
+§6 remains the engineering shopping list. This is the **priority board** for product/eng leads: what to fund, in what order, and what to refuse.
+
+### 13.1 Do now (this sprint)
+
+1. **Telemetry first (A1).** Without it every later KPI is anecdote. Owner: eng; exit: Sentry project + 3 funnel events + Web-Vitals dashboard.
+2. **Prove B20 + Builder Codes on anvil (A4).** Kill or confirm the plan's riskiest assumption before UI. Owner: contracts/eng; exit: Foundry test green or documented fallback path chosen.
+3. **Repair lint/CI honesty (A5).** Trivial cost, permanent debt otherwise.
+4. **Draft the gap owners.** Each §10 row gets a named owner in this doc's next revision (or a linked tracker) — unowned gaps become lesson L13.
+
+### 13.2 Do before Phase-1 value moves
+
+5. Heartbeat/reconnect ops ladder (A3) + signed config endpoint (A2).
+6. ClaimHub UI + **match receipt page** (B1, B3) — the receipt is our differentiation demo, not a nice-to-have.
+7. Web-push claim/turn nudges (B2) and live-ops notice strip (B5) — these protect claim-rate and freeze comms.
+8. Sybil freeze (A6) + eligibility legal spot (A7) *before* any paid pool UI ships.
+9. Dual-sign abandon grace (B4) — ranked economics are wrong without it.
+
+### 13.3 Do after Phase-1 proves settle
+
+10. Emotes/local room (B7, B8) → voice spike (C1) → i18n 4-locale pilot (C2).
+11. Cosmetics cadence + rewarded-ads seam (C5, C4) to stabilize the burn/emission story.
+12. Frames + predict + paymaster (C6, C3, plan §8.9) only with their gates intact.
+
+### 13.4 Refuse (even when competitors have them)
+
+| Refuse | Reason |
+| --- | --- |
+| Copy World's permission/fingerprint stack | Brand + trust damage on web; weakens our posture (L11) |
+| Opaque server settle or push payouts | Would make us a worse King (L10, plan §0) |
+| Ads → CHIPS direct | Inflates emissions; violates single-currency discipline (L3) |
+| UI-only anti-farm / UI-only gas floor | Industrial farms walk through UI (L8, L9) |
+| Broad locale freeze without pipeline | Vanity i18n; ship pipeline + few locales instead (L5) |
+| More board themes before ops surfaces | Content volume ≠ retention (L4) |
+
+### 13.5 Success check for the *next* revision of this report
+
+We can delete most of §10.1 when: Sentry + funnels are live, config endpoint is signed and consumed, reconnect counters appear in one ops dashboard, lint runs in CI, and the Foundry Builder-Code test is green. We can mark §10.5 progress when ClaimHub + receipt page are real. Update this file when engine or settlement behavior changes.
 
 ---
 
