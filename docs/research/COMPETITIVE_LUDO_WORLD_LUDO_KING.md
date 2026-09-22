@@ -7,7 +7,7 @@
 | **Subjects** | Ludo World (Tencent, `com.tencent.ludosuperstar` v2.1.10) · Ludo King (Gametion, `com.ludo.king` v10.1.0.388) · Ludo Base (this repo) |
 | **Evidence roots** | `ludo-apkresearch/research/apk-analysis/ludo-world` · `ludo-apkresearch/research/apk-analysis/ludo-king` |
 | **Companion plan** | `docs/tokenomics/CHIPS_PLANNING.md` (v4.3 — read in full for this report) |
-| **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` |
+| **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (sequencing: Spine → CHIPS + product-ops) |
 | **Status** | Research baseline + gap/lessons synthesis (§§10–13) |
 | **Last updated** | 2026-09-22 |
 
