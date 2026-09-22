@@ -54,3 +54,10 @@ design-system/
 
 # local planning docs (not shipped)
 .planning/
+
+# agent skills (third-party, reproducible via `npx skills add` + skills-lock.json)
+.agents/
+
+# agent tool scaffolds (local-only)
+.commandcode/
+.agent/

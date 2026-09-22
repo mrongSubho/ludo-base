@@ -25,7 +25,7 @@ Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wag
 - `app/components/` — all UI. New component files: `PascalCase.tsx`; hooks/utilities: `camelCase`.
 - `supabase/functions/` — **Deno Edge Functions** (`roll-dice`, `resolve-bet`): `Deno` global + `https://esm.sh/` imports. Not bundled by Next; deploy separately. `resolve-bet` requires a host-signed payload (`lib/matchProof.ts` + `live_matches.host_address`).
 - **Migrations:** new SQL goes in `supabase/migrations/` (canonical). Root `migrations/` still has older files — do not add new ones there. Apply manually (SQL Editor or Management API).
-- `.agent/` — third-party Antigravity Kit; ignore for app work.
+- `.agent/` — third-party Antigravity Kit; `.agents/` — third-party installable skills (reproducible via `npx skills add` + `skills-lock.json`); `.commandcode/` — agent tool scaffold. All gitignored; ignore for app work.
 
 ## Security & trust model (do not regress)
 
