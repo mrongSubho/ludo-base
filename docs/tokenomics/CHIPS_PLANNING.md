@@ -7,8 +7,8 @@
 **Network (later):** Base Mainnet (`8453`)  
 **Supply:** **10,000,000,000** fixed (10B)  
 **Document type:** Product tokenomics + gamification + settlement architecture  
-**Status:** Planning baseline (v4.1 — freeze: review patches applied — mint end-state, scorer scope, pause/settleBy, mission loop, freeze gates, predict deferral)  
-**Last updated:** 2026-09-20
+**Status:** Planning baseline (v4.2 — review recommendations applied: dispute countdown UX, Edge co-sign retry queue, ClaimHub cross-contract batch CEI, mainnet gas floor hard-filter)  
+**Last updated:** 2026-09-22
 
 ---
 
@@ -343,7 +343,7 @@ Prize     = 18,600
 
 **2v2 example:** prize fund split equally to **2 winning teammates** (each claim their half) unless a team wallet is used — prefer individual seat claims. The 2-seat winner set **must satisfy `TEAM_PAIRINGS`** (`lib/constants.ts`: Green+Yellow vs Red+Blue) — enforced on-chain from the `seatColors` map committed at join/lock (never by UI alone, never by Edge attestation alone). **Equal-split is an on-chain equality check**, not product intent: each teammate's payout must equal `prizeFund / 2` exactly, or settle reverts (no teammate haircuts).
 
-> **Gas reality check:** casual 100-CHIPS tiers are likely gas-negative on L2 (join + settle + claim gas > net prize). Keep 100-CHIPS as a Sepolia calibration tier only; mainnet paid minimums start at Standard (1,000) unless a paymaster covers claim gas (§8.9).
+> **Gas reality check & Mainnet Gas Floor:** Casual 100-CHIPS tiers are demonstrably gas-negative on L2 (aggregate lifecycle gas across approve, join, settle, and claim exceeds net prize at early token valuations). Casual 100-CHIPS is strictly a Sepolia calibration tier. On Base Mainnet, the lobby client **must hard-filter/hide any stake tier < 1,000 CHIPS** by default to protect players from negative expected value, until the ERC-8168 Gas Paymaster (§8.9) is live and funded.
 
 ### 4.6 Join flow (user authorization — batch-first)
 
@@ -391,7 +391,7 @@ message:   { poolId, matchId, roomCode, gameMode, participants[], winnerAddresse
 * `payoutPlan` canonical encoding (ordered addrs ascending, amounts, `chainId`, `poolId`, `nonce`) hashes to `resultHash`. Any malleability = revert.
 * `sum(payoutPlan) == prizeFund` enforced on-chain.
 * 2v2 winner sets enforced against `TEAM_PAIRINGS` (see §4.5).
-* Authority = **dual-sign from day one, including Sepolia** (not a Phase-4 upgrade): the host signature AND an Edge co-signature are both required. Edge co-signer identity: a dedicated settlement key held in the Edge runtime secret store, key-separated from the voucher op-key (§6.1) and from game-ops keys; signing policy: Edge attests `(poolId, winnerSet, payoutPlanHash, seqRange)` derived from `match_states` + roll receipts, never from host assertions alone. Edge-down fallback: after **effective** `settleBy` (incl. pause-delta, §4.3), anyone may trigger the timeout-refund path — liveness never depends on Edge availability. **Ops SLO (freeze):** Edge co-signs at match completion (async), producing a settle-ready payload **before** the winner’s claim CTA; Edge availability is monitored; if co-sign is missing, UI explains delayed payout (not a silent loss) until timeout-refund. Mainnet hardens custody (threshold/HSM) without changing the interface, so Sepolia pools are already dual-sign-shaped (no storage migration later).
+* Authority = **dual-sign from day one, including Sepolia** (not a Phase-4 upgrade): the host signature AND an Edge co-signature are both required. Edge co-signer identity: a dedicated settlement key held in the Edge runtime secret store, key-separated from the voucher op-key (§6.1) and from game-ops keys; signing policy: Edge attests `(poolId, winnerSet, payoutPlanHash, seqRange)` derived from `match_states` + roll receipts, never from host assertions alone. Edge-down fallback: after **effective** `settleBy` (incl. pause-delta, §4.3), anyone may trigger the timeout-refund path — liveness never depends on Edge availability. **Ops SLO & Retry Pipeline (freeze):** Edge co-signing is triggered asynchronously upon match completion via an idempotent Supabase background worker / retry queue (decoupled from host client connectivity, preventing a malicious losing host from griefing settlement by dropping network requests). The pipeline targets producing a settle-ready payload within <15s and **before** the winner’s claim CTA. Co-sign queue latency is actively monitored with an alert threshold at >60s. If Edge co-sign is temporarily missing, UI explains delayed payout (not a silent loss) until retry succeeds or timeout-refund engages. Mainnet hardens custody (threshold/HSM) without changing the interface, so Sepolia pools are already dual-sign-shaped (no storage migration later).
 * Host rotation: if compute-host baton-passes (`ENGINE_LOGIC.md` §5.3/§9.3), the new host must call `rotateAuthority(poolId, edgeAttestation)` — Edge attests the handover against presence + `match_states.host_address`; the contract updates `authority` only with a valid Edge co-signature. Stale hosts cannot settle after rotation.
 * Abandon/forfeit is never host-declared alone — it requires Edge-signed evidence (`cancelAuthority(poolId, evidence)`, see §5.1): `evidence = { poolId, accusedSeat, seqAtDisconnect, afkStrikes, edgeSig }`, caller = anyone submitting valid Edge-signed evidence (permissionless with valid sig; no bond in v1, rate-limited per pool).
 * Personal-sign text payloads (`lib/matchProof.ts` style) remain for off-chain match-record/bet-resolve only — **on-chain settle verifies EIP-712** (EOA `ecrecover` + ERC-1271/6492 smart-wallet path, Base-chain-gated per skill).
@@ -418,8 +418,12 @@ Players choose when to pull. Both are first-class.
 #### Path A — Immediate claim (post-match)
 
 ```text
-Match ends → UI: "You won 1,860 CHIPS · CLAIM (unlocks in N min)"
-After claimUnlockAt, user sends claimMatch(poolId) (wallet tx with builder-code suffix)
+Match ends → UI: "You won 1,860 CHIPS · Claim Unlocks in 04:59 (Dispute Protection Window)"
+Primary CTA button is disabled with an active real-time countdown timer (`claimUnlockAt - now()`);
+tooltip explains on-chain dispute verification. Client strictly blocks sending `claimMatch`
+prior to `block.timestamp >= claimUnlockAt` to eliminate preventable revert gas errors.
+Once unlocked, CTA lights up: "Claim 1,860 CHIPS (Est. Net ~1,858 CHIPS)".
+User sends claimMatch(poolId) (wallet tx with builder-code suffix)
 MatchPool (funds holder) via ClaimHub router (ClaimHub calls MatchPool.claimFor under an
 explicit router allowlist; reentrancy guard spans both contracts):
   - require settled && block.timestamp >= claimUnlockAt && credit[player][poolId] > 0 && !claimed
@@ -451,7 +455,7 @@ User calls ClaimHub.claimAll()  // or claimMany(refs[])
 → emits ClaimBatch(player, total, refs[])
 ```
 
-Aggregation rules: `claimAll` is paginated under the hood via `claimMany(refs[], cursor)` with `MAX_CLAIM_REFS` per tx (published constant, e.g. 25) — an unbounded loop is a gas-grief vector, so the infinite variant is a client-side loop over bounded calls, never one unbounded tx. Cross-contract batches (match + mission + season in one tx) are all-or-nothing per ref with CEI ordering across the batch (zero every touched credit before any transfer) under a router-level reentrancy guard (per-contract guards alone don't cover cross-contract reentry through the router).
+Aggregation rules: `claimAll` is paginated under the hood via `claimMany(refs[], cursor)` with `MAX_CLAIM_REFS` per tx (published constant, e.g. 25) — an unbounded loop is a gas-grief vector, so the infinite variant is a client-side loop over bounded calls, never one unbounded tx. Cross-contract batches (match + mission + season in one tx) are all-or-nothing per ref. **Strict batch-level Checks-Effects-Interactions (CEI)** is enforced across the multi-contract graph: `ClaimHub` zeroes/marks claimed every touched credit across `MatchPool`, `MissionClaim`, and `SeasonClaim` **BEFORE** initiating any external token transfer. A global router-level `nonReentrant` guard spans `ClaimHub`, and underlying contracts enforce `caller == claimHubRouter` under an explicit allowlist, preventing re-entry through recipient `fallback`/`receive` hooks.
 
 **Smart planning defaults:**
 
@@ -471,7 +475,9 @@ Aggregation rules: `claimAll` is paginated under the hood via `claimMany(refs[],
 | Standard | 5 min | |
 | High roller / Tournament | 10 min | watcher coverage window |
 
-> KPI note: settle-latency p95 < 10 min (§11) measures `lock → settled`, **excluding** the dispute window (`settled → claimable`). The window exists so automated watchers can trigger timeout-refund or flag — not so humans must win a 10-minute race. |
+> KPI note: settle-latency p95 < 10 min (§11) measures `lock → settled`, **excluding** the dispute window (`settled → claimable`). The window exists so automated watchers can trigger timeout-refund or flag — not so humans must win a 10-minute race.
+>
+> **Dispute UX Rule:** The post-match and claim UI must show an active real-time countdown timer (`claimUnlockAt - now()`, mm:ss) with copy explaining dispute verification. The Claim CTA remains client-disabled until `block.timestamp >= claimUnlockAt` so players are never exposed to preventable contract reverts.
 
 ### 4.9 Pool UI (product surface)
 
@@ -1020,8 +1026,8 @@ All POSTs that move value return **unsigned tx payloads** for the wallet; server
 | Area | Change |
 | --- | --- |
 | Header | CHIPS balance (chain) + **Claimable** badge |
-| GameLobby | Free vs Paid; paid shows pool card + batched **Approve & Join** (EIP-5792, one approval) |
-| Match end | Win: Claim now / Later · Loss: receipt + gas note (gross / gas / net + builder-code note) |
+| GameLobby | Free vs Paid; paid shows pool card + batched **Approve & Join** (EIP-5792, one approval); **Mainnet hard-filters/hides stake tiers < 1,000 CHIPS** to protect against gas-negative churn |
+| Match end | Win: Dispute countdown timer (`claimUnlockAt - now()`), CTA disabled until unlocked; Claim now / Later; Gross / gas / net estimates + builder-code attribution · Loss: receipt + gas note |
 | Arena | Live pools, spectator entry (on-chain cutoff), post-settle claims |
 | Marketplace | Batched approve+buy + burn visible + attribution |
 | Missions | Progress off-chain · **Claim** wallet tx (attributed) |
@@ -1039,6 +1045,7 @@ Watch B20 + pool contracts on Base Sepolia (dedicated RPC, backend-proxied — n
 4. Alert if ClaimHub-view sum ≠ chain reads beyond ε (published threshold, e.g. >0.1% or >10k CHIPS absolute) — **and act**: ε-breach freezes voucher issuance and new pool creation (existing claims/refunds keep working) until reconciled. An alarm nobody must obey is decoration.
 5. Rebuild lobby pool list for matchmaking UI
 6. Timing: explicit `pollingInterval ≈ 100ms` on receipt waits / block watches (viem defaults hide fast chains); indexer lag p95 is a KPI (§11)
+7. **Settlement pipeline & Edge co-sign monitor:** Match-end triggers an idempotent Supabase background task / retry queue for Edge co-signing (<15s target); pages/alerts on co-sign latency >60s, guaranteeing settle payloads are signed and cached well before the dispute window lapses.
 
 ### 8.7 Builder Codes — ERC-8021 attribution (Base skill, mandatory)
 
@@ -1103,8 +1110,8 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 
 | Risk | Mitigation |
 | --- | --- |
-| Fake settle | Dual-sign (host + Edge) + `settleNonce` consumption + `deadline` + `signer == authority` + winners-⊆-seats + equal-split + on-chain authority registration (mirror match/record rules for the off-chain half); Edge co-sign SLO at match completion |
-| Double claim | CEI-zeroed shared record; `claimMatch`/`claimAll`/`refundJoin` consume one record; `ClaimHub` acts only via `MatchPool.claimFor` allowlist; router-level reentrancy guard; unique (wallet, source, ref); Foundry cross-path + forbidden-transition tests |
+| Fake settle / Edge outage | Dual-sign (host + Edge) + `settleNonce` consumption + `deadline` + `signer == authority` + winners-⊆-seats + equal-split + on-chain authority registration; async Edge co-sign via idempotent Supabase retry queue (<15s target, alert >60s); anyone-timeout-refund past effective `settleBy + pauseDelta` if Edge unreachable |
+| Double claim / batch reentrancy | Strict batch-level CEI: all touched credits zeroed across `MatchPool`, `MissionClaim`, `SeasonClaim` before any ERC-20 transfer; global `nonReentrant` on `ClaimHub`; `claimMatch`/`claimAll`/`refundJoin` consume one shared record; `ClaimHub` acts only via `MatchPool.claimFor` allowlist; unique `(wallet, source, ref)`; Foundry cross-path + forbidden-transition tests |
 | Client mint | No client mint path; **`MINT_ROLE` holders = ∅ after bootstrap** (full 10B pre-minted; distributor only draws pre-minted budget) |
 | Mint-cap change | Renounce-or-timelock end-state (§8.1b); every admin call monitored; no down-only primitive claimed |
 | Seize / rebase backdoor | `SEIZE_ROLE` + `BURN_BLOCKED_ROLE` never granted (deploy assert); `OPERATOR` multisig+timelock, multiplier pinned 1×, raw-balance discipline everywhere |
@@ -1207,25 +1214,25 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 - [ ] `contracts/` `base-forge` project (B20-aware: `base-forge`/`base-cast`/`base-anvil` + `base-std`); `foundry.toml` BaseScan config
 - [ ] Keystore deployer (`cast wallet import`), CDP faucet funding, dedicated RPC via backend
 - [ ] B20 create script (§8.1) + initCalls allocation bootstrap + §8.1b end-state txs (role-admin map, timelocks, SEIZE/BURN_BLOCKED-absent + multiplier-1× asserts)
-- [ ] `MatchPool` (funds holder, seat allowlist, `seatColors`, CEI, reentrancy-guarded, `settleBy`/`pauseDelta`/`claimUnlockAt`/nonce) + `ClaimHub` (allowlisted router, bounded `claimMany`) + EIP-712 dual-sign settle + `TEAM_PAIRINGS` + ⊆-seats + equal-split tests (incl. cross-path double-claim, squat revert, dispute-deny, timeout-refund, **pause-delta extension**, **scorer-free match claim/refund**, forbidden transitions) + gas benchmarks
+- [ ] `MatchPool` (funds holder, seat allowlist, `seatColors`, CEI, reentrancy-guarded, `settleBy`/`pauseDelta`/`claimUnlockAt`/nonce) + `ClaimHub` (allowlisted router, bounded `claimMany`, router-level batch CEI reentrancy guard) + EIP-712 dual-sign settle + `TEAM_PAIRINGS` + ⊆-seats + equal-split tests (incl. cross-path double-claim, squat revert, dispute-deny, timeout-refund, **pause-delta extension**, **scorer-free match claim/refund**, forbidden transitions) + gas benchmarks
 - [ ] Dual-chain auth: SIWE / match-session / move-auth / voucher routes accept `84532` (Phase 1) with explicit chain validation; **integration test:** Sepolia lobby/join never uses default 8453 session domain (`lib/sessionProof.ts` default stays mainnet; Sepolia callers must pass `chainId: 84532`)
 - [ ] Settlement signer service (EIP-712 `ChipsMatchSettle`, chain-gated, Edge co-signer with separated custody; 1271/6492 path)
 - [ ] Mission voucher API (EIP-712 + on-chain registry/revoke/ceilings/deadlines) + `MissionClaim`
 - [ ] Merkle season pipeline (bound leaves, multisig root + leaf window + epoch freeze) + `SeasonClaim`
 - [ ] Indexer (dedicated RPC; reorg handling with numeric confirmations; `(txHash, logIndex-1)` memo join; ε-alerts with freeze action; 100ms polling)
 - [ ] Lobby batched join UX (`useSendCalls` approve+join; permit EOA fallback) + builder-code `dataSuffix` wiring (`ox`, `viem>=2.45`, `sendCalls` wrapper, `AGENTS.md`)
-- [ ] Claim UX (gross/gas/net) + paginated `claimAll`
+- [ ] Claim UX (gross/gas/net + dispute countdown timer with client-disabled CTA until unlocked) + paginated `claimAll`
 - [ ] Legacy conversion pool (100:1, 50M cap, 90-day window) + writer freeze + snapshot root
 - [ ] Onboarding voucher set (§7.7 core + extended) + referral_links table + dashboard + 60M sub-ceiling + Galxe credentials
 - [ ] Explorer links + burn dashboard page (bytes32 tags)
 - [ ] 8130 session-key prototype on vibenet (track `wevm/viem#5004`; never ship fork); paymaster interface (§8.9)
-- [ ] Watcher runbook (dispute-window monitoring, timeout-refund triggers using **effective** `settleBy + pauseDelta`, ε-breach response, Edge co-sign lag alerts, pause incident checklist)
+- [ ] Watcher runbook (dispute-window monitoring, Edge co-sign retry queue latency alerts, timeout-refund triggers using **effective** `settleBy + pauseDelta`, ε-breach response, pause incident checklist)
 - [ ] Smoke: RLS still denies client coin writes; legacy coin writers frozen behind flag; engine tests still pass
 - [ ] Rewrite Terms §1 economic language for CHIPS (utility on Base; testnet disclaimers; age/geo)
 
 ---
 
-## 13. Decision log (v4.1 — freeze)
+## 13. Decision log (v4.2 — freeze)
 
 | Decision | Choice |
 | --- | --- |
@@ -1240,7 +1247,7 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 | Legacy conversion | 100:1 from capped 50M Treasury pool, 90-day window, unclaimed reverts |
 | Burns | Pool burn + market + sinks; `bytes32`-memo-tagged; dashboard; pool/market burn from contract custody |
 | Claims | **Pull-only** (match now or ClaimHub-batch later, paginated); funds in `MatchPool`; shared credit record incl. refunds; no expiry/dust-sweep of user credits in v1 |
-| Dispute | On-chain `claimUnlockAt` per tier (2/5/10 min); timeout-refund by anyone past **effective** `settleBy + pauseDelta`; cancel pre-lock-only; BURN/TRANSFER pause auto-extends settle deadline |
+| Dispute | On-chain `claimUnlockAt` per tier (2/5/10 min) with real-time countdown timer; timeout-refund by anyone past **effective** `settleBy + pauseDelta`; cancel pre-lock-only; BURN/TRANSFER pause auto-extends settle deadline |
 | Paid match | Seat-allowlisted creation + **batch-first** EIP-5792 approve+join (permit EOA fallback) → **visible pool** → dual-signed EIP-712 settle (day one) → **individual claim** |
 | 2v2 | `seatColors` committed; TEAM_PAIRINGS + exact equal-split enforced on-chain |
 | Predict | **Phase 1 out of scope**; Phase 2 entry = join-policy (open/allowlist + min/max stake, not match seats) + sportsbook legal sign-off; then `poolKind` in MatchPool, creation-committed cutoff, parimutuel, pinned triggers |
@@ -1253,9 +1260,9 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 | Balance authority | Chain; Supabase cache + game authority; legacy coin writers frozen behind flag |
 | Eligibility | On-chain scorer for **mission/season/partner rewards only** (match claims/refunds scorer-free); geo sender/executor-only; named policy admins; mainnet scorer = threshold/HSM |
 | Mint end-state | Full 10B pre-minted; **`MINT_ROLE` holders = ∅** after bootstrap (distributor draws only) |
-| Edge settle SLO | Co-sign at match completion (async); settle-ready payload before claim CTA; timeout-refund past effective `settleBy` if Edge-down |
+| Edge settle SLO | Co-sign at match completion (async via idempotent Supabase retry queue, <15s target, alert >60s); settle-ready payload before claim CTA; timeout-refund past effective `settleBy` if Edge-down |
 | resultHash | Audit log of settled payout only — not a pre-lock commitment or security oracle |
-| Gas micro-tiers | 100-CHIPS tier Sepolia-only; mainnet lobby hides tiers below gas floor until paymaster |
+| Gas micro-tiers | 100-CHIPS tier Sepolia-only; mainnet lobby hard-filters/hides tiers below 1,000 CHIPS gas floor until paymaster |
 | Standard rejected | Custom ERC-20 clone; dual soft currency; push payouts; single-host settle; UI-only eligibility; scorer on match prizes; mint-after-bootstrap |
 
 ---
