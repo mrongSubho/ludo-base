@@ -24,11 +24,13 @@ npm test              # includes chaos + properties + foundation + checklist
 
 ## Manual / staging drills (do before stable-build gate)
 
+Paste results into `docs/ops/UNPARK_DECISION.md` §1.2 when done.
+
 1. **Drop PeerJS 10s** mid-match — expect `reconnecting` badge → `resync_ok` → timers resume only after snapshot.
 2. **Drop Supabase Realtime** — dual-path intents still seat/move via the surviving path.
 3. **Kill host / elect compute-host** — `net_authority_switch` increments; no illegal FSM transition; no double-apply (`intentId` dedup).
 4. **Airplane mode 30s** — abandon grace countdown visible (G3); no abandon accepted before `ABANDON_GRACE_MS`.
-5. **Duplicate join** (same guest twice) — one seat; second `JOIN_REQUEST` is a no-op.
+5. **Duplicate join** (same guest twice) — one seat; second `JOIN_REQUEST` is a no-op. *(covered by `npm run drill:live` D5)*
 
 ## Counters to graph during drills
 

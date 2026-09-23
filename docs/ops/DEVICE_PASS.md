@@ -24,12 +24,21 @@ One low-end phone, one Classic match vs AI (or Pass & Play), one report pasted b
 
 ## Results
 
-<!-- paste formatDevicePassMarkdown output here -->
+Paste block (from phone console after ≥6 hops):
+
+```text
+await __ludoPerf.markdown()
+→ [paste here]
+```
+
+Then copy this whole file’s **Results** into `docs/ops/UNPARK_DECISION.md` §1.1.
+
 _awaiting device pass_
 
 ## Sign-off
 
 - [ ] Q2 device pass recorded above
 - [ ] Verdict PASS **or** canvas escalation ticket linked
+- [ ] Copied into `UNPARK_DECISION.md` §1.1
 
-See also: `docs/ops/UNPARK_CHECKLIST.md` · `lib/perf/budget.ts` · `lib/perf/report.ts`
+See also: `docs/ops/UNPARK_CHECKLIST.md` · `docs/ops/UNPARK_DECISION.md` · `lib/perf/budget.ts` · `lib/perf/report.ts`

@@ -16,6 +16,7 @@
     "test:gaps": "npx --yes tsx --test scripts/gameplay-gaps.test.ts",
     "test:checklist": "npx --yes tsx --test scripts/verify-checklist.test.ts",
     "drill:live": "npx --yes tsx --test scripts/drill.runner.ts",
+    "unpark:evidence": "npx --yes tsx scripts/unpark-evidence.ts",
     "check:engine": "node scripts/check-edge-engine.mjs",
     "sync:engine": "node scripts/sync-edge-engine.mjs",
     "replay": "npx --yes tsx scripts/replay.ts",

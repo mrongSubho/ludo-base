@@ -84,6 +84,8 @@ These are **human / device** gates. Code for 1–3 is ready as of 2026-09-22.
 
 ## Un-park decision board (when the boxes above close)
 
+Use the fill-in note: **`docs/ops/UNPARK_DECISION.md`** (paste evidence → pick UN-PARK / DEFER / PARTIAL → choose one growth slice).
+
 | Track | Un-park when | First slice |
 | --- | --- | --- |
 | **Voice** | Stable gate + session-length data says chat/voice is the drop-off | Push-to-talk spike (LiveKit), not full Agora |

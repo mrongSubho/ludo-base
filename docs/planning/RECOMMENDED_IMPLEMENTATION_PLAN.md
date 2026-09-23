@@ -286,7 +286,7 @@ These stay in the competitive gap register as *known* gaps. **No implementation,
 | Native/store shell | Separate distribution decision |
 | Frames / predict / paymaster funding | Belong to post-stable growth or CHIPS tracks |
 
-Record un-park as a dated decision in this file’s decision table — do not sneak them into Track G.
+Record un-park as a dated decision in **`docs/ops/UNPARK_DECISION.md`** (then copy the outcome into this file’s decision table) — do not sneak them into Track G.
 
 ---
 
