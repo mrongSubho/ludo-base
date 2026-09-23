@@ -19,7 +19,7 @@
 - **Player identity is the parent Base Account.** See §1.1. Sub-accounts never appear as `wallet_address`.
 - **CHIPS join authorization stays CHIPS_PLANNING §4.6.** Spend permissions are not the primary join path. See §3.
 
-> **API surface note:** `CDPHooksProvider`, `createOnLogin: "smart"`, `siwe:base`, `wallet_addSubAccount`, `listSpendPermissions`, `useLinkOAuth`, `useCdpPaymaster` are **named targets to confirm in Phase 0a** against current CDP docs — not locked compile-time APIs. Nothing in `package.json` yet.
+> **API surface note (2026-09-24, verified against docs.cdp.coinbase.com):** Packages `@coinbase/cdp-hooks` / `@coinbase/cdp-core` / `@coinbase/cdp-react`. Providers: `CDPHooksProvider` **and** `CDPReactProvider` both exist. Config: `projectId`, `ethereum.createOnLogin: "eoa" | "smart"` (smart creates **EOA + Smart Account**). Signing: `useSignEvmMessage` / `useSignEvmTypedData`. SIWE login: `useSignInWithSiwe` / `useVerifySiweSignature` / `siwe:base` (+ peer `@base-org/account`). OAuth: `signInWithOAuth("google"|"apple"|"x"|"telegram")` — **Facebook is not in CDP social login** (keep off the auth table until portal/docs confirm). Spend perms: `useCreateSpendPermission` / `useListSpendPermissions` / `useRevokeSpendPermission` (0b+). `useCdpPaymaster` is a **boolean on send**, not a hook. `wallet_addSubAccount` still 0b. Spike checklist: `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md`.
 
 ## 1. Why this works (same-account mechanics)
 
@@ -58,13 +58,13 @@ CDP auto-linking merges Google ↔ same-email OTP **at Coinbase**. It does **not
 | --- | --- | --- |
 | Device Google account | ✅ CDP Google OAuth | Coinbase-owned OAuth login; **auto-linking** merges Google ↔ same-email OTP accounts (no duplicates) |
 | Apple | ✅ CDP OAuth | Same auto-linking (`@icloud.com`) |
-| Facebook | ✅ CDP OAuth | Sign-in and post-login linking; same-email auto-linking where CDP supports it |
+| Facebook | ⚠️ not in CDP social docs | Google/Apple/X/Telegram are CDP OAuth. Facebook only if portal/docs add it; else app-layer identity or drop. Do not advertise on signup until confirmed |
 | X | ✅ `useLinkOAuth` | Sign-in and post-login linking |
 | Telegram | ✅ CDP OAuth | Optional |
 | Email OTP / SMS OTP | ✅ | 6-digit, 10/5-min expiry, rate-limited, up to 5 devices |
 | Passkey (Sign in with Base) | ✅ | One passkey across every Base-enabled app |
 
-Signup screen: **Continue with Google / Apple / Facebook / Email / Passkey** (X optional at signup, always linkable post-login). After first login, prompt a backup linked method.
+Signup screen: **Continue with Google / Apple / Email / Passkey** (X optional at signup; Facebook only when CDP supports it). After first login, prompt a backup linked method.
 
 **OAuth presentation (all social methods):** provider sign-in runs in the **user's default browser** (system browser / the tab that opened us) — never an in-app webview or our own captive browser. Flow: if the provider session cookie already exists in that browser → one-tap / silent confirm; if not → provider's login page in the same browser → return to app. **App handoff first (Google/Facebook/X/Apple app) is not a web-app control** — on web we use standard popup/redirect OAuth in the current default browser. Do not add deep-link-to-app wrappers. If a native shell is ever built, OAuth must use ASWebAuthenticationSession (iOS) / Chrome Custom Tabs or the default browser (Android), still not a WKWebView we own. Phase 0 spike verifies CDP's actual popup vs redirect behavior per provider.
 
@@ -133,7 +133,7 @@ Aligned with `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md`: **engine/gaps f
 
 | Phase | Gate | Scope |
 | --- | --- | --- |
-| **0a — Auth spike (now, thin)** | During stable build | CDP project + `projectId` in **env** (never hardcoded); enable email/SMS/Google/Apple/Facebook/X + passkey; auto-linking ON; Base Sepolia target. Spike = **sign-in + parent-signed** SIWE + one EIP-712 match-session grant + personal_sign move proof. **No** sub-account default, **no** CHIPS spend permission, **no** Sepolia value playtest. Confirm SDK names, popup vs redirect, parent-sign with/without sub default, builder-code on CDP path if any tx |
+| **0a — Auth spike (now, thin)** | During stable build | Checklist: `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md`. CDP project + `projectId` in **env**; enable email/SMS/Google/Apple/X + passkey (+ Telegram optional); auto-linking ON; Base Sepolia target. Spike = **parent-signed** Ludo SIWE + one EIP-712 match-session grant + personal_sign move proof. **No** sub-account default, **no** CHIPS spend permission, **no** Sepolia value playtest |
 | **0b — Sub-account + CHIPS spike** | **After stable-build gate** | `wallet_addSubAccount`, spend-permission read/revoke UX prototype, one CHIPS grant or exact-fee join on Sepolia (per §3.2). Record pass/fallback only |
 | **1 — Auth cutover** | After 0a green | Provider wiring, signer adapter, linking UI, EOA↔smart decision (§1.2), guest→CDP migration checklist, multi-device + recovery matrix (passkey new-device sync, OTP expiry, **7-day** re-auth) |
 | **2 — Gameplay rails** | After stable-build **and** CHIPS un-park | Sub-account per session (if §1.1 proven), join path per §3.2 (batch exact-fee primary), contracts track |
