@@ -159,7 +159,7 @@ export function getNextPlayer(
             // If current corner isn't in activeOrder (e.g. just finished in FFA), 
             // find its position in cornerOrder and find next active one
             if (currentIdx === -1) {
-                let checkIdx = cornerOrder.indexOf(currentCorner);
+                const checkIdx = cornerOrder.indexOf(currentCorner);
                 for (let i = 1; i <= 4; i++) {
                     const nextC = cornerOrder[(checkIdx + i) % 4];
                     if (occupiedCorners.includes(nextC)) {

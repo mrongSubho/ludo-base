@@ -73,7 +73,7 @@ export const BOT_ROLL_DELAY_MIN = 150;
 export const BOT_ROLL_DELAY_MAX = 1900;
 export const BOT_MOVE_DELAY = 900;
 
-// --- AI Difficulty Tiers (see ENGINE_LOGIC.md §5.2) ---
+// --- AI Difficulty Tiers (see ENGINE_LOGIC.md section 5.2) ---
 // Rookie plays noisy and ignores power play, pro is the baseline brain,
 // master plays clean with sharper capture/power weights and fast clocks.
 export type BotDifficulty = 'rookie' | 'pro' | 'master';

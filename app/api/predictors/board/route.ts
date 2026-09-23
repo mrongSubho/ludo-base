@@ -37,7 +37,7 @@ export async function GET() {
             .slice(0, 10);
 
         const ids = ranked.map(r => r.player_id);
-        let profiles: Record<string, { username: string | null; avatar_url: string | null }> = {};
+        const profiles: Record<string, { username: string | null; avatar_url: string | null }> = {};
         if (ids.length > 0) {
             const { data: players } = await db
                 .from('players')

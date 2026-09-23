@@ -16,7 +16,7 @@ import {
  * AI Heuristics Engine
  * Evaluates the best possible move for a bot player based on a priority scoring system.
  *
- * Difficulty tiers live in constants.ts (see ENGINE_LOGIC.md §5.2).
+ * Difficulty tiers live in constants.ts (see ENGINE_LOGIC.md section 5.2).
  */
 export function getBestMove(
     positions: Record<PlayerColor, number[]>,

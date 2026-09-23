@@ -199,7 +199,7 @@ GET-only poll. Phase 2 extended modes are session-gated — the probe documents
 both (`PHASE2_GATED_ROUTES` expectations) and the live route enforces
 `401`/`403`/owner-only token.
 
-### Phase 2 fixtures (additive to §Fixtures)
+### Phase 2 fixtures (additive to section Fixtures)
 
 `CMP002` match + `matched` host/guest tickets (shared `match_id`, distinct
 `validation_token`s) + Phase 2 owner/outsider `app_sessions` + `match_states`

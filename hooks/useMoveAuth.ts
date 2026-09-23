@@ -250,7 +250,7 @@ export function useMoveAuth(opts: {
             } catch { /* fall back to per-action sign */ }
         }
 
-        let sessionId = sharedMoveSessions.get(params.matchId);
+        const sessionId = sharedMoveSessions.get(params.matchId);
         const issuedAt = new Date().toISOString();
         let message: string | undefined;
         let signature: string | undefined;

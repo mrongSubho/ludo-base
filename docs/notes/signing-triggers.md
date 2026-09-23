@@ -49,7 +49,7 @@ This is the loop engine. Everything below is a caller of this funnel (SIWE) or a
 
 | trigger | file:line | cadence | failure behavior (reject vs verify-fail) | loops? |
 |---|---|---|---|---|
-| SIWE app session (chat/profile/settings; NEVER match moves) | `hooks/useAppSession.ts:58` | on-demand via `ensureAppSession()` (see §2 for all callers incl. 4s/15s/20s/30s polls) | reject → `null` silent; verify-fail → `console.error` + `null`; both reset guard, next caller reprompts | **YES — primary storm source** when verify can never succeed (6492) or session never persists |
+| SIWE app session (chat/profile/settings; NEVER match moves) | `hooks/useAppSession.ts:58` | on-demand via `ensureAppSession()` (see section 2 for all callers incl. 4s/15s/20s/30s polls) | reject → `null` silent; verify-fail → `console.error` + `null`; both reset guard, next caller reprompts | **YES — primary storm source** when verify can never succeed (6492) or session never persists |
 | ECDH pubkey publish (static P-256 key → `POST /api/profile/ecdh`) | `hooks/useDataActions.ts:29` inside `publishMyEcdhPubkey()` | user-action: `sendMessage` (`useDataActions.ts:134`) every DM send; surface-enter: `ensureEcdhPublished` (`useDataActions.ts:265`) on messaging-surface mount (`MessagesPanel.tsx:251`) | `try/catch → console.warn('Failed to publish ECDH pubkey')`, silent; send continues to session-gated fetch (fails closed if no peer key) | YES if DM send retried: each `sendMessage` re-signs ECDH BEFORE checking session (line 134 precedes line 135) |
 | EIP-712 match session grant (one sign per match → moves/powers without popups) | `hooks/useMoveAuth.ts:77` (`createProvisionalSession`) + `hooks/useMoveAuth.ts:143` (`createMatchSession`) | user-action: first match action / host seed path (`TeamUpContext.tsx:310-323`) | reject → `{ ok:false, error:'session sign rejected' }`; verify-fail → `{ ok:false, error:'HTTP …' }`; lazy `submitMove/pass/power` fall back to per-action `signMessageAsync` below | single retry per action; 401 renews via `createMatchSession` → **second prompt** per 401 |
 | Seed match (host authority) | `hooks/useMoveAuth.ts:198` | user-action: host starts networked match | reject throws to caller (`TeamUpContext` logs `seed error`); no retry | no loop (single attempt) |
@@ -88,13 +88,13 @@ This is the loop engine. Everything below is a caller of this funnel (SIWE) or a
 
 | trigger | file:line | cadence | failure behavior | loops? |
 |---|---|---|---|---|
-| GameData boot | `hooks/useDataBoot.ts:31` (`bootSequence`) | once per `address` boot (plus manual re-boot) | `sessionId ? fetch : empty` — boot CONTINUES sessionless (profile/leaderboard load, DMs empty) | no loop alone, but leaves app sessionless so §2a loops bite |
+| GameData boot | `hooks/useDataBoot.ts:31` (`bootSequence`) | once per `address` boot (plus manual re-boot) | `sessionId ? fetch : empty` — boot CONTINUES sessionless (profile/leaderboard load, DMs empty) | no loop alone, but leaves app sessionless so section 2a loops bite |
 | Profile persistence | `hooks/useDataActions.ts:96` (`updateMyProfileOptimistic` → `void ensureAppSession().then(…)`) | on every profile/peer-id update | silent skip when null | no loop (fire-and-forget) |
 | TeamUp presence/activity mirrors | `hooks/TeamUpContext.tsx:333` (presence), `:339` (activity), `:951` (presence on lobby change), `:569` (live-match register) — all `void Promise.resolve(appSessionId \|\| ensureAppSession()).then(…)` | on lobby/match transitions | silent skip | burst on transitions, not steady loop |
 
 ### 2c. User-action (correct: exactly one prompt per intent when healthy)
 
-DM send (`useDataActions.ts:135,175` — note ECDH pre-sign at `:134` fires FIRST), mark-read (`:229`), delete (`:244`), peer-key check (`:259`), matchmaking join/cancel, friendships/pokes/marketplace/arena/spectator/settings/profile panels (see scan: `FriendsPanel:233,249,392,405,420,449`, `PublicProfileModal:101,135,255,277,294,306,319,331,356`, `SpectatorHUD:103,205,257,299`, `ArenaPanel:95,134`, `MarketplacePanel:453,495`, `SettingsPanel:267`, `UserProfilePanel:158`). All follow the same null-skip contract: healthy = 1 prompt then cached 7-day session; broken (6492-verify-fail or storage failure) = EVERY action reprompts AND §2a timers keep prompting between actions — the user-perceived "constant signing prompts".
+DM send (`useDataActions.ts:135,175` — note ECDH pre-sign at `:134` fires FIRST), mark-read (`:229`), delete (`:244`), peer-key check (`:259`), matchmaking join/cancel, friendships/pokes/marketplace/arena/spectator/settings/profile panels (see scan: `FriendsPanel:233,249,392,405,420,449`, `PublicProfileModal:101,135,255,277,294,306,319,331,356`, `SpectatorHUD:103,205,257,299`, `ArenaPanel:95,134`, `MarketplacePanel:453,495`, `SettingsPanel:267`, `UserProfilePanel:158`). All follow the same null-skip contract: healthy = 1 prompt then cached 7-day session; broken (6492-verify-fail or storage failure) = EVERY action reprompts AND section 2a timers keep prompting between actions — the user-perceived "constant signing prompts".
 
 ## 3. Why reject vs verify-failure are indistinguishable to the user (and why that storms)
 
@@ -107,9 +107,9 @@ There is no `lastFailureAt`, no exponential backoff, no `verifyFailedPermanently
    (`app/api/siwe/verify/route.ts:50-59`); EIP-6492 wrappers 401 with `Invalid signature`
    (proven live: matrix (c) → `401 {"error":"Invalid signature"}` vs (a) → `200 {success,sessionId}`).
    Coinbase Smart Wallet / other 4337 accounts on iPhone therefore NEVER obtain a session.
-2. **Per-instance session state** (§0) — even a successful sign only satisfies ONE hook instance;
+2. **Per-instance session state** (section 0) — even a successful sign only satisfies ONE hook instance;
    siblings still prompt until remount/localStorage re-read.
-3. **4s + 2s + 15s + 20s + 30s + 5s pollers all calling the funnel** (§2a) — a sessionless client
+3. **4s + 2s + 15s + 20s + 30s + 5s pollers all calling the funnel** (section 2a) — a sessionless client
    is re-prompted on the fastest active cadence (2s as host, 4s as guest) even if the user
    never clicks anything. Each prompt is a wallet popup on iPhone (MetaMask + Coinbase Smart
    Wallet both affected per incident).

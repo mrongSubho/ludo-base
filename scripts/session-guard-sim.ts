@@ -129,7 +129,7 @@ async function main(): Promise<void> {
 
     // ---- T3: success caches --------------------------------------------------
     {
-        let t = 0;
+        const t = 0;
         const guard = new AppSessionGuard({ now: () => t });
         const signCalls = { n: 0 };
         const deps = makeDeps({ now: () => t, signCalls, signBehavior: "ok", verifyBehavior: "ok-200" });

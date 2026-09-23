@@ -62,7 +62,7 @@ type VerifyMessageClient = {
         signature: `0x${string}`;
     }) => Promise<boolean>;
 };
-let _clients: Partial<Record<SupportedChainId, VerifyMessageClient>> = {};
+const _clients: Partial<Record<SupportedChainId, VerifyMessageClient>> = {};
 
 /** Per-chain singleton public clients (one per serverless instance). */
 function chainClient(chainId: SupportedChainId): VerifyMessageClient {

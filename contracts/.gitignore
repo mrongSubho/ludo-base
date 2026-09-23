@@ -1,0 +1,4 @@
+# Foundry build artifacts — do not commit
+cache/
+out/
+broadcast/

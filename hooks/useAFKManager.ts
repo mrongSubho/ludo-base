@@ -45,7 +45,7 @@ export function useAFKManager({
         if (!isCurrentlyBot && localGameState.timeLeft <= 0) {
             setLocalGameState((prev) => {
                 const stats = prev.afkStats[color];
-                let nextStats = { ...stats };
+                const nextStats = { ...stats };
                 let nextWarning = null;
 
                 if (!stats.isAutoPlaying) {

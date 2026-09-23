@@ -128,7 +128,7 @@ export function BoardTokens({
                 let stackZ = 0;
                 if (targetPt) {
                     const key = `${targetPt.r}-${targetPt.c}`;
-                    let stack = occupancy[key] || [];
+                    const stack = occupancy[key] || [];
                     if (stack.length > 1) {
                         // Sort so myColor is last (rendered on top) — stable for others
                         const sorted = [...stack].sort((a, b) => {

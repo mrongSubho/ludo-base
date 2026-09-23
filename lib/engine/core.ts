@@ -243,7 +243,7 @@ export function getNextPlayer(
         if (activeOrder.length > 0) {
             const currentIdx = activeOrder.indexOf(currentCorner);
             if (currentIdx === -1) {
-                let checkIdx = cornerOrder.indexOf(currentCorner);
+                const checkIdx = cornerOrder.indexOf(currentCorner);
                 for (let i = 1; i <= 4; i++) {
                     const nextC = cornerOrder[(checkIdx + i) % 4];
                     if (occupiedCorners.includes(nextC)) {
@@ -594,7 +594,7 @@ export function applyPower(
     if (!live.some(p => p.type === type)) return { ok: false, error: 'Power not held' };
 
     const inv = [...live];
-    let next: EngineGameState = { ...state, playerPowers: { ...state.playerPowers } };
+    const next: EngineGameState = { ...state, playerPowers: { ...state.playerPowers } };
     let message = '';
 
     if (type === 'shield') {
@@ -625,7 +625,7 @@ export function applyPower(
     }
 
     if (type === 'nuke') {
-        let idx = tokenIdx;
+        const idx = tokenIdx;
         if (idx === undefined) {
             return { ok: false, error: 'Nuke needs a target token', armed: 'nuke' };
         }
@@ -649,7 +649,7 @@ export function applyPower(
     }
 
     // teleport
-    let idx = tokenIdx;
+    const idx = tokenIdx;
     if (idx === undefined) {
         return { ok: false, error: 'Teleport needs a target token', armed: 'teleport' };
     }

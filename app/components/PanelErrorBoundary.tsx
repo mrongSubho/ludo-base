@@ -25,7 +25,7 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
     }
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
-        // eslint-disable-next-line no-console
+         
         console.error(`[ludo-panel-error:${this.props.name}]`, error.message, info.componentStack);
         this.setState({ stack: info.componentStack || null });
     }

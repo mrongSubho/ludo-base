@@ -36,7 +36,7 @@ export function calculateSnakesMove(currentPos: number, roll: number): SnakesMov
     let targetPos = currentPos + roll;
     let bounced = false;
     let slideType: 'snake' | 'ladder' | null = null;
-    let bonusTurn = roll === 6;
+    const bonusTurn = roll === 6;
 
     if (targetPos > 100) {
         targetPos = 100 - (targetPos - 100);

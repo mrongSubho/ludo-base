@@ -74,7 +74,7 @@ Once a player has finished all 4 of their own tokens, they can move their teamma
 - **Effects/sounds:** Nuke = blast-cell red blink (`nukeFlash`, 1.4s) + siren→boom + heavy haptic + kill-feed line. Shield = cyan token rings until consumed. Boost/Teleport/Pickup = sweep/blip/chime. Legacy emoji power badge removed.
 
 ### 3.6 Valid-move highlighting (UI, not engine)
-- A token is legal iff `calculateNextPosition(pos, dice, color, cc) !== pos`. `BoardTokens.tsx` + `BoardHome.tsx` evaluate this per-token on every `moving` phase and mark legal tokens (double pulsing ring + bounce arrow, bright filter) vs illegal (dimmed to ~38% opacity, desaturated). A dashed ring at `getBoardCoordinate(nextPos)` previews the landing cell (including home-exit to `startIdx` on `6`). Turn with no legal moves passes instantly — see §5.1.
+- A token is legal iff `calculateNextPosition(pos, dice, color, cc) !== pos`. `BoardTokens.tsx` + `BoardHome.tsx` evaluate this per-token on every `moving` phase and mark legal tokens (double pulsing ring + bounce arrow, bright filter) vs illegal (dimmed to ~38% opacity, desaturated). A dashed ring at `getBoardCoordinate(nextPos)` previews the landing cell (including home-exit to `startIdx` on `6`). Turn with no legal moves passes instantly — see section 5.1.
 - **Three Sixes:** Rolling three consecutive `6`s skips the third roll and passes the turn.
 - **Bonus Turn:** Received for rolling a `6`, capturing an opponent, or reaching the finish tile.
 
@@ -100,7 +100,7 @@ Standardized star positions: `{r:2, c:9}, {r:7, c:2}, {r:9, c:14}, {r:14, c:7}` 
 - **Strikes:** Failing to act on time results in a "Strike" and an auto-move.
 - **Expulsion:** 3 strikes total throughout the match results in an immediate kick. The player is replaced by a Bot, and their rewards are forfeited.
 - **Ultimatum:** A 10s "Are you still there?" screen appears after 4 consecutive missed actions.
-- **No-valid-move fast path:** If `gamePhase === 'moving'` and no token satisfies the §3.5 legality check, the turn hands over with **0ms delay** (was 2s). The dice does a spring toss-in at the next player's corner as the only turn-pass cue. `hooks/useGameActions.ts` also hard-resets `rollingRef` on this path — otherwise the roll guard deadlocks every future roll (see six-loop bug).
+- **No-valid-move fast path:** If `gamePhase === 'moving'` and no token satisfies the section 3.5 legality check, the turn hands over with **0ms delay** (was 2s). The dice does a spring toss-in at the next player's corner as the only turn-pass cue. `hooks/useGameActions.ts` also hard-resets `rollingRef` on this path — otherwise the roll guard deadlocks every future roll (see six-loop bug).
 
 ### 5.2 Bot Heuristics (`aiEngine.ts`)
 Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
@@ -135,7 +135,7 @@ AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently o
 ## 6. UI & UX Aesthetics [Visual Design System]
 
 ### 6.1 Interactive Feedback
-- **Token Pulse / Valid-move cues:** Tokens pulse when it's your turn; legal tokens get a double pulsing ring + bounce arrow and stay bright, illegal ones are dimmed (~38% opacity) — see §3.5. Destination ring previews the landing cell.
+- **Token Pulse / Valid-move cues:** Tokens pulse when it's your turn; legal tokens get a double pulsing ring + bounce arrow and stay bright, illegal ones are dimmed (~38% opacity) — see section 3.5. Destination ring previews the landing cell.
 - **Token art:** `ChessTokens.tsx` pawn pieces (rank via `getTokenRank`) are default; a pure-CSS orb style is opt-in via `body.token-style-orb` (`TokenStyleSwitcher.tsx` + `usePreferences.ts:tokenStyle`) and hides the SVGs. Both share the same movement pipeline. Previews: `/token-preview`, `/token-move-test`.
 - **Movement:** GSAP timeline only (see `BoardTokens.tsx:TokenPiece`): FLIP with layout-measured `offsetWidth` units, **uniform `TOTAL 1.3s`** for any dice (cell hops `LEAP 0.79*cellDur` / `BEAT 0.21*cellDur`, hop `-18px` in screen space via an upright wrapper that cancels board rotation). Stacking offsets on the outer div are instant (`x/y {duration:0}`) to avoid wobble on captures. Capture run-home is a `RunHomeGhost` that sprints the reverse track with `xPercent/yPercent`. Dice pass-in: spring toss + expanding ring; awaiting-roll / awaiting-move blink rings on `LudoDice` / avatar. The former `.ludo-token-pulse` wrapper is required — never animate `transform` on the counter-rotated root itself.
 - **Screen Shake**: Capturing an opponent triggers a subtle board-wide vibration.

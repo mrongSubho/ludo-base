@@ -19,7 +19,7 @@
 - **Cold-load negative:** with no wallet connected the app never prompts (correct). Proves the
   "no timer-driven signing without prior failure" ideal HOLDS when `address` is undefined —
   the violation only appears once a wallet is connected but sessionless.
-- **Static violations (the storm proxy):** the six timer callers in `docs/notes/signing-triggers.md §2a`
+- **Static violations (the storm proxy):** the six timer callers in `docs/notes/signing-triggers.md section 2a`
   (2s host poll, 4s invite poll, 5s matchmaking heartbeat, 15s messages, 20s notifications, 30s presence)
   all call the funnel unconditionally. Combined with the matrix result
   (`npx tsx scripts/siwe-matrix.ts --live`: **(a) 200** vs **(c) 401 `{"error":"Invalid signature"}`**),
@@ -27,7 +27,7 @@
   That chain — `6492-401 → null → 2s/4s reprompt → iPhone popup` — IS the reproducible storm,
   even though the popup itself needs a phone to be seen.
 - **Per-instance multiplier:** `sessionId` + `signingRef` are per-`useAppSession()` instance
-  (`hooks/useAppSession.ts:18-20`); N mounts → N prompts for one intent (see trigger graph §0).
+  (`hooks/useAppSession.ts:18-20`); N mounts → N prompts for one intent (see trigger graph section 0).
 - **Double-popup DM:** `sendMessage` signs ECDH (`useDataActions.ts:134`) before SIWE (`:135`),
   so one sessionless DM intent = 2 popups.
 

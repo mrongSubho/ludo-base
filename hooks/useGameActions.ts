@@ -480,7 +480,7 @@ export function useGameActions({
 
         let pDelayedAction: 'turnSwitch' | 'autoMove' | null = null;
         let pNextPlayer: PlayerColor | null = null;
-        let pTargetColor: PlayerColor = targetColor;
+        const pTargetColor: PlayerColor = targetColor;
         let pLastValidTokenIndex = -1;
         let pFinalStateForBroadcast: GameState | null = null;
 
@@ -671,7 +671,7 @@ export function useGameActions({
             if (i >= 0) inv.splice(i, 1);
             return inv;
         };
-        let nextState = { ...prev };
+        const nextState = { ...prev };
         let sound: 'nuke' | 'shield' | 'boost' | 'teleport' | null = null;
         let flash: { r: number, c: number }[] | null = null;
 

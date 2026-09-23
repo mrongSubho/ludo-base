@@ -37,7 +37,7 @@ function shufflePlayers(playerCount: '2' | '4' | '2v2' = '4', isBotMatch: boolea
 
     return COLOR_SEATS.map((seat, i) => {
         if (!activeIndices.includes(i)) return null;
-        let p = { ...templates[i], ...seat };
+        const p = { ...templates[i], ...seat };
         if (isBotMatch) {
             if (p.name !== 'Alex') p.isAi = true;
             else p.isAi = false;
@@ -259,7 +259,7 @@ export default function SnakesBoard({
                         stepIndex++;
                         setTimeout(animateStep, 350);
                     } else {
-                        let hasSlide = !!slideType;
+                        const hasSlide = !!slideType;
 
                         if (!bounced) {
                             if (slideType === 'ladder') {

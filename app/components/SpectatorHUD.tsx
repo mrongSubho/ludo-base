@@ -97,7 +97,7 @@ export const SpectatorHUD = ({
     // Each toast auto-expires; queue capped to avoid pileups.
     useEffect(() => {
         if (!address || !matchId) return;
-        let cancelled = false;
+        const cancelled = false;
         const poll = async () => {
             try {
                 const sessionId = await ensureAppSession().catch(() => null);

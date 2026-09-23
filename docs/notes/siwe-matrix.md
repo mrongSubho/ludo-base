@@ -51,4 +51,4 @@ Safety: `--live` refuses non-local URLs unless `SIWE_MATRIX_ALLOW_REMOTE=1`. Liv
 - (a) stays 200 (no EOA regression).
 - If the fix adds 6492 verification (e.g. `verifyHash` / 1271 / validator contract), (c) must flip to
   200 with a session; if it does NOT add 6492 support, (c) stays 401 AND the client must enter a
-  terminal non-retrying state (see `docs/notes/loop-repro.md` gate §2–3) instead of the 2s/4s storm.
+  terminal non-retrying state (see `docs/notes/loop-repro.md` gate section 2–3) instead of the 2s/4s storm.
