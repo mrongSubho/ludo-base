@@ -30,13 +30,15 @@
 | --- | --- | --- |
 | Device Google account | ✅ CDP Google OAuth | Coinbase-owned OAuth login; **auto-linking** merges Google ↔ same-email OTP accounts (no duplicates) |
 | Apple | ✅ CDP OAuth | Same auto-linking (`@icloud.com`) |
+| Facebook | ✅ CDP OAuth | Sign-in and post-login linking; same-email auto-linking where CDP supports it |
 | X | ✅ `useLinkOAuth` | Sign-in and post-login linking |
 | Telegram | ✅ CDP OAuth | Optional |
 | Email OTP / SMS OTP | ✅ | 6-digit, 10/5-min expiry, rate-limited, up to 5 devices |
 | Passkey (Sign in with Base) | ✅ | One passkey across every Base-enabled app |
-| Discord | ❌ not a wallet signer | Link at **app layer** (own Discord OAuth → verified profile identity for social missions), same pattern as Farcaster identity |
 
-Signup screen: **Continue with Google / Apple / Email / Passkey** (X optional at signup, always linkable post-login). After first login, prompt a backup linked method.
+Signup screen: **Continue with Google / Apple / Facebook / Email / Passkey** (X optional at signup, always linkable post-login). After first login, prompt a backup linked method.
+
+**OAuth presentation (all social methods):** provider sign-in runs in the **user's default browser** (system browser / the tab that opened us) — never an in-app webview or our own captive browser. Flow: if the provider session cookie already exists in that browser → one-tap / silent confirm; if not → provider's login page in the same browser → return to app. **App handoff first (Google/Facebook/X/Apple app) is not a web-app control** — on web we use standard popup/redirect OAuth in the current default browser. Do not add deep-link-to-app wrappers. If a native shell is ever built, OAuth must use ASWebAuthenticationSession (iOS) / Chrome Custom Tabs or the default browser (Android), still not a WKWebView we own. Phase 0 spike verifies CDP's actual popup vs redirect behavior per provider.
 
 ## 3. Gameplay rails (sub-accounts + spend permissions)
 
@@ -56,9 +58,9 @@ Signup screen: **Continue with Google / Apple / Email / Passkey** (X optional at
 
 ## 5. Phases
 
-- **Phase 0 (decisions + spike, ~1 wk):** CDP project + `projectId`; enable email/SMS/Google/Apple/X; auto-linking ON; Base Sepolia target; spike = sign-in + sub-account + one CHIPS spend permission on Sepolia.
+- **Phase 0 (decisions + spike, ~1 wk):** CDP project + `projectId`; enable email/SMS/Google/Apple/Facebook/X; auto-linking ON; Base Sepolia target; spike = sign-in + sub-account + one CHIPS spend permission on Sepolia.
 - **Phase 1 (auth cutover):** provider wiring, signing migration, linking UI, multi-device + recovery test matrix (passkey new-device sync, OTP expiry, 30-day re-auth).
-- **Phase 2 (gameplay rails):** sub-account per session, allowance grant UX, route pool-entry intent through permission (contracts track), Discord app-layer linking.
+- **Phase 2 (gameplay rails):** sub-account per session, allowance grant UX, route pool-entry intent through permission (contracts track).
 - **Phase 3 (hardening):** revoke UX, allowance telemetry/alerts, paymaster migration (CDP → own 8168), audit of allowance defaults.
 
 ## 6. Risks
