@@ -4,12 +4,12 @@
 | --- | --- |
 | **Project** | Ludo Base |
 | **Document type** | Execution plan — **stable, industry-grade game build first** |
-| **Inputs** | `docs/research/COMPETITIVE_LUDO_WORLD_LUDO_KING.md` §§5–13 · `AGENTS.md` · `ENGINE_LOGIC.md` · current `hooks/` + `lib/` + `app/` + `supabase/` |
+| **Inputs** | `docs/research/COMPETITIVE_LUDO_WORLD_LUDO_KING.md` §§5–9 · `AGENTS.md` · `ENGINE_LOGIC.md` · current `hooks/` + `lib/` + `app/` + `supabase/` |
 | **Focus** | Close operational/game-engine gaps with modern industry-grade tech |
 | **Parked (until stable build)** | **Voice · i18n · ads** — and any growth stack that depends on them |
 | **CHIPS posture** | Design + freeze-pack only during this plan; contracts/value UI **after** the stable-build gate |
 | **Status** | Recommended plan (supersedes CHIPS-primary sequencing in v1 of this file) |
-| **Last updated** | 2026-09-22 |
+| **Last updated** | 2026-09-23 (review findings applied) |
 
 ---
 
@@ -97,6 +97,7 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 | **AI isolation** | `lib/aiEngine.ts` on main thread | **Web Worker** (or deferred idle) so Master bots never jank GSAP hops |
 | **Render budget** | DOM + GSAP FLIP 1.3s (smooth desktop, weak low-end mobile) | **Frame budget** (≤16ms compose during hop) + composite-only motion; optional canvas token layer only if budget fails |
 | **Net resilience** | Dual-path intents + snapshot refresh | Named **heartbeat / reconnect / seq-gap** ladder, resync protocol, connection SLOs |
+| **Signaling ownership** | Public PeerJS broker + runtime `esm.sh` import (`lib/peerFactory.ts`); rejoin unauthenticated | Self-hosted or Realtime-only decision (**N0**); pinned dep, no runtime CDN, session-proofed resync |
 | **Chaos-tested multiplayer** | Manual smoke (`docs/SMOKE_MULTIPLAYER.md` was deleted — recreate) | Scripted **reconnect / NAT-flap / host-fail** scenarios in CI or a weekly drill script |
 | **Observability** | Console + `console.warn` in TeamUp | Sentry + Web-Vitals + netcode metrics + play funnel |
 | **CI honesty** | `npm test` + `tsc` green; `npm run lint` broken | Lint real; engine tests + property tests + typecheck + multiplayer integration job |
@@ -137,6 +138,7 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 | AI on main thread | **E4** |
 | Implicit match states / flappy authority | **E5** + **N2** |
 | Wire trust is partial | **N4** |
+| Signaling on free public broker + runtime CDN import; resync unauthenticated | **N0** |
 | Local/party play weak | **G2** |
 | Abandon/AFK honesty | **G3** |
 | Live-ops notice | **G4** |
@@ -150,22 +152,23 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 
 | ID | Work | Where | Detail |
 | --- | --- | --- | --- |
-| **E1** | Golden **replay log** format | new `lib/replay/` | Append-only action events (`{ actionId, seq, actor, intent, diceReceipt?, resultHash }`) matching live authority order. Record from `useGameActions` / host apply path; replay into pure `processMove`-style reducer. |
+| **E1** | Golden **replay log** format | new `lib/replay/` | Append-only action events (`{ actionId, seq, actor, intent, diceReceipt?, resultHash }`) matching live authority order. Record from `useGameActions` / host apply path; replay into pure `processMove`-style reducer. Prerequisite: a canonical JSON serializer (sorted keys, fixed number encoding) so host and guest hash byte-identical states — prove with a cross-path hash test before the first golden replay. |
 | **E2** | **Property-based tests** | `scripts/engine.props.test.ts` + `fast-check` | Invariants: legal move ⊆ board; `calculateNextPosition` never teleports across gates; capture list ↔ board occupancy; 3×six skip; exact finish 57; home-lane 52–57; 2v2 TEAM_PAIRINGS assist/capture; snakes mode node degree. |
 | **E3** | **Replay debugger** | `scripts/replay.ts` + optional `app/token-move-test` panel | CLI: `replay apply <file>` asserts final `GameState` hash. Dev UI already has `app/token-move-test` — extend to load a replay. |
 | **E4** | **AI in a Web Worker** | new `lib/ai/worker.ts` | Move `aiEngine` + difficulty clocks off main thread; structured message `AiRequest`/`AiResponse` (Zod). Timeout → deterministic fallback move (never freeze turn). |
 | **E5** | **Match FSM** | new `lib/matchFsm.ts` | Explicit states/transitions for lobby/seating/live/ended/reconnecting/compute-host-elect. Replace scattered booleans gradually (`TeamUpContext`, `useMatchStates`, `useGameTimer`). Illegal transition → telemetry, not silent divergence. |
-| **E6** | **Engine hash / snapshot digest** | `lib/engine` helper | `hashGameState(state)` for replay assertions and host/guest diff (debug). Must ignore ephemeral UI fields. |
+| **E6** | **Engine hash / snapshot digest** | `lib/engine` helper | `hashGameState(state)` for replay assertions and host/guest diff (debug). Must ignore ephemeral UI fields and serialize via the E1 canonical serializer. |
 | **E7** | **Difficulty calibration suite** | `scripts/ai.bench.ts` | Fixed seeds; Rookie/Pro/Master win-rate and blunder-rate targets from `AI_SCORES` / `DIFFICULTY_PARAMS`. Fail CI on wild drift. |
 
 ### Track N — Netcode reliability
 
 | ID | Work | Where | Detail |
 | --- | --- | --- | --- |
+| **N0** | **Signaling ownership + resync auth** | `lib/peerFactory.ts`, `hooks/usePeerChat.ts`, host apply path | Week 1–2 spike: self-hosted PeerServer vs Realtime-only signaling (decide on p95 latency, reconnect success, ops cost). Remove the runtime `esm.sh` import — pin `peerjs`, fix Turbopack bundling, no CDN in prod path. `ResyncRequest` carries match session proof, verified host-side (no unauthenticated snapshot resume). |
 | **N1** | **Heartbeat / reconnect / seq-gap ladder** | `useSupabaseRelay`, `usePeerManager`, `useMatchStates`, `TeamUpContext` | Named counters (TSDK-style): `net_heartbeat_ok/timeout`, `net_reconnect_attempt/success`, `net_seq_gap`, `net_authority_switch`, `net_resync_applied`. Exponential backoff with jitter. |
 | **N2** | **Resync protocol** | host + guest apply path | On seq-gap or reconnect: request `match_states` snapshot → apply → resume timers only after snapshot (already sketched in `ENGINE_LOGIC.md` §12 — **implement as a single `resyncMatch()`**, don’t leave it tribal). |
 | **N3** | **Chaos drills** | `scripts/net.chaos.ts` + doc `docs/ops/NETCODE_DRILLS.md` | Scripted: drop PeerJS 10s, drop Supabase broadcast, delay intents, duplicate `intentId`, kill host / compute-host elect, clock skew on timers. Record pass/fail + counters. |
-| **N4** | **Zod wire schemas** | new `lib/protocol/` | One schema module shared by client + Deno `_shared` (keep Deno-safe). Every inbound PeerJS/Realtime/Edge payload `parse` → typed or drop+meter. Apply on `GAME_ACTION`, `GAME_INTENT`, `JOIN_REQUEST`, `SYNC_PROFILE`, `match_states`, Edge responses. |
+| **N4** | **Zod wire schemas** | new `lib/protocol/` | One schema module shared by client + Deno `_shared` (keep Deno-safe). Every inbound PeerJS/Realtime/Edge payload `parse` → typed or drop+meter. Apply on `GAME_ACTION`, `GAME_INTENT`, `JOIN_REQUEST`, `SYNC_PROFILE`, `match_states`, Edge responses. Every message carries `protocolVersion` (reject unknown-major, tolerate unknown-minor-with-defaults; schema changes ship with a migration note). Dedup stores (`processedIntentIds` / `processedActionIds`) are TTL + LRU-bounded with an eviction counter. Enforce per-peer rate limits and pre-parse size caps (length gate before Zod). Rotate the room secret on compute-host election. Deno side consumes schemas via pinned import or vendored copy + parity gate (extend the `check-edge-engine.mjs` pattern to schemas). |
 | **N5** | **Connection state UX** | board chrome | Visible badge: `live` / `degraded` / `resyncing` / `host-elect`. No silent “frozen” games. |
 | **N6** | **Spectator parity** | `useSpectatorSync` | Same schema + resync path as players (listen-only). |
 
@@ -178,6 +181,8 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 | **Q3** | **Honest CI** | `package.json`, `.github/workflows/ci.yml` | Replace broken `next lint` with `eslint` (or Biome). Jobs: `lint`, `typecheck`, `engine-tests`, `engine-props`, `ai-bench` (soft), `net-chaos` (nightly). |
 | **Q4** | **Multiplayer integration tests** | `scripts/mp.it.ts` or Playwright | 2–4 client harness against local/edge stub: seat → roll → move → capture → end. Prefer Node harness before browser E2E. |
 | **Q5** | **Error boundaries + player-facing failure copy** | `app/components` shell | Typed error codes from N4; recoverable vs fatal. |
+| **Q6** | **Deploy + data ops** | Edge functions, `supabase/migrations/`, Realtime | Version-tag Edge deploys (version in response header; previous-version redeploy one command away) + client→function version check (stale client fails closed). Migration review with RLS impact; CI job applies migrations to scratch Postgres and asserts money-column denies. Set Realtime load targets (rooms × players × msg/s) and define the in-match degraded mode. |
+| **Q7** | **Standing SLOs + telemetry policy** | `lib/telemetry.ts`, G4 notice strip | Promote 3–4 exit criteria to SLOs (match-completion rate, resync success, `roll-dice` p95) with alert thresholds; notice strip doubles as status page. Enforce scrubbing in code (`beforeSend` deny-list for signatures/keys/DM plaintext, payload truncation); sample high-volume events, keep 100% of resync/authority-switch/errors. |
 
 ### Track G — Gameplay gaps (no voice / i18n / ads)
 
@@ -199,7 +204,7 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
 
 | Concern | Choice | Why this, now |
 | --- | --- | --- |
-| Schema / wire | **Zod** (already in the dependency tree via wagmi/onchainkit) or **Valibot** if bundle size matters | One source of truth client + Edge; parse-or-drop |
+| Schema / wire | **Zod** as a direct dep (v3.25.76 currently hoisted transitively — pin it; Valibot if bundle size matters) | One source of truth client + Edge; parse-or-drop; versioned protocol (N4) |
 | Property tests | **fast-check** + existing `node:test` via `tsx --test` | Stays in current runner; no Jest migration required |
 | Match control | **Hand-rolled typed FSM** (`lib/matchFsm.ts`) first | XState is fine later; a 10-state explicit machine is clearer than a new runtime dependency on day one |
 | AI concurrency | **Web Worker** + structured clone messages | Zero network; isolates Master cost |
@@ -207,7 +212,7 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
 | Render | **Measure first** (Q2). Default path: keep GSAP FLIP + `transform`/`opacity` only. Escalate to **PixiJS/canvas token layer** only if hop frame budget fails on low-end mobile | Avoid a rewrite while the core is still hardening |
 | Multiplayer transport | Keep **PeerJS + Supabase Realtime dual-path**; optionally prototype WebTransport matchmaking later from `docs/superpowers/specs/2024-03-15-competitive-multiplayer-webtransport-design.md` | Spec exists; do not replace transport during stabilization |
 | Integration tests | Node harness for engine+host protocol; Playwright only for 1 golden 4P path | Fast feedback in PR |
-| Lint | **ESLint** flat config or **Biome** | Unbreak CI (L14) |
+| Lint | **ESLint 9** (already in devDeps with `eslint-config-next`; `eslint.config.mjs` exists) | Wire into `npm run lint` + CI `lint` job — no new tool decision needed |
 | Telemetry | Sentry + Web-Vitals | Industry default for web games/apps |
 
 **Explicitly rejected for this phase:** Unity/Cocos rewrite · Colyseus/Socket.io migration · full rollback netcode · XState-at-all-costs · i18n frameworks · ad SDKs · voice SFUs.
@@ -221,6 +226,7 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
 │ FOUNDATION (weeks 1–3)                                          │
 │  Q3 CI honest · Q1 telemetry · N4 Zod wire · E1 replay log      │
 │  E5 Match FSM skeleton · N1 counters · E2 property tests        │
+│  N0 signaling spike (week 1–2: own signaling decision)          │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -251,8 +257,8 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
 
 | Week | Engine (E) | Netcode (N) | Quality (Q) | Gameplay (G) | C0 thin |
 | --- | --- | --- | --- | --- | --- |
-| 1 | E1 replay log schema | — | Q3 lint/CI + Q1 telemetry init | — | TOKEN_PARAMS skeleton |
-| 2 | E2 fast-check properties | N4 Zod protocol module | Q1 funnel events | — | — |
+| 1 | E1 replay log schema (+ canonical JSON) | N0 signaling spike | Q3 lint/CI + Q1 telemetry init | — | TOKEN_PARAMS skeleton |
+| 2 | E2 fast-check properties | N0 decision + N4 Zod protocol module | Q1 funnel events | — | — |
 | 3 | E5 FSM + E6 hash | N1 counters | — | G1 receipt (debug) | Optional M11 spike |
 | 4 | E4 AI worker | N2 `resyncMatch()` | Q2 budget harness | G3 AFK/abandon UX | Sybil model draft |
 | 5 | E3 replay CLI | N5 connection badge | Q4 mp harness | — | Legal issue-spot brief |
@@ -263,6 +269,8 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
 | 10 | **Stable burn-down** | Drill sign-off | Metrics review | Polish | Un-park decision meeting |
 
 Order is load-bearing: **schemas and CI before large refactors; FSM before more multiplayer features; chaos before calling it stable.**
+
+**Staffing assumption:** the table above assumes parallel bandwidth across tracks. Solo-dev order (steel thread first): **Q3 → N4-minimal (5 hot message types) → Q1-minimal (init + 3 funnel events) → one instrumented 2-player loop** (seat → roll → move → end, schema-parsed, telemetry-emitting, replay-logged) → E5 → N2 → N3 → E4 → rest. Do not start the worker (E4) or chaos harness (N3/Q4) before the steel thread is green. Record pre-worker AI calibration (E7) to prove the worker migration is strength-neutral.
 
 ---
 
@@ -310,7 +318,7 @@ All must be true (checkbox list for the un-park meeting):
 
 ### Engine
 
-- [ ] Replay log records and replays to identical `hashGameState` for ≥50 golden matches (CI sample)
+- [ ] Replay log records and replays to identical `hashGameState` for ≥50 golden matches (CI sample; canonical serializer proven by cross-path hash test first)
 - [ ] fast-check properties green in CI (E2 invariant list)
 - [ ] Match FSM is the only transition authority; illegal transitions metered at 0 in a soak week
 - [ ] AI Master runs in a worker; main-thread long tasks during bot turns &lt; 50ms
@@ -319,7 +327,8 @@ All must be true (checkbox list for the un-park meeting):
 ### Netcode
 
 - [ ] Named `net_*` counters on a dashboard; forced reconnect drill documented
-- [ ] All inbound PeerJS/Realtime/Edge payloads schema-parsed (N4) with drop metrics
+- [ ] Signaling decision executed (N0): no public broker or runtime CDN in the prod path; resync requires session proof
+- [ ] All inbound PeerJS/Realtime/Edge payloads schema-parsed (N4) with drop metrics; `protocolVersion` compat enforced; dedup stores bounded
 - [ ] `resyncMatch()` path covered by chaos: drop PeerJS, drop broadcast, host fail
 - [ ] Connection badge states observed correctly in drills (N5)
 
@@ -329,7 +338,9 @@ All must be true (checkbox list for the un-park meeting):
 - [ ] Telemetry: crash-free sessions measured; play funnel visible (lobby → end)
 - [ ] Hop frame budget met on a low-end reference device **or** canvas escalation ticket filed with data
 - [ ] Multiplayer harness (Q4) green on main
-- [ ] Recreated smoke doc: `docs/ops/NETCODE_DRILLS.md` signed off
+- [ ] Recreated smoke doc: `docs/ops/NETCODE_DRILLS.md` signed off; `AGENTS.md:13` + `README.md` pointers updated (both still link the deleted `docs/SMOKE_MULTIPLAYER.md`)
+- [ ] Edge deploys version-tagged with one-command rollback; migration RLS regression green in CI; Realtime load targets met (Q6)
+- [ ] Standing SLOs (Q7) defined with thresholds and dashboards; scrubbing/sampling policy enforced in code
 
 ### Gameplay (this plan’s G set)
 
@@ -347,13 +358,15 @@ Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
 ## 11. Immediate next actions
 
 1. **Scope lock agreement** — voice/i18n/ads parked (this doc §1.2 / §8).
-2. **Q3** — fix lint/CI this week so every later PR is honestly gated.
-3. **Q1** — telemetry + `lib/telemetry.ts` funnels on the play path.
-4. **N4** — create `lib/protocol/` Zod schemas for the five hottest message types; parse-or-drop.
-5. **E1 + E2** — replay JSONL + fast-check properties against `scripts/engine.test.ts` fixtures.
-6. **E5** — draft `lib/matchFsm.ts` state table (implement incrementally).
-7. Optional C0: M11 spike + TOKEN_PARAMS skeleton (no contracts build).
-8. Un-park meeting only after §10 checklist is green.
+2. **Q3** — wire existing ESLint 9 config into `npm run lint` + CI `lint` job so every later PR is honestly gated.
+3. **N0** — signaling spike: self-hosted PeerServer vs Realtime-only; pin `peerjs`, remove the `esm.sh` runtime import.
+4. **Q1** — telemetry + `lib/telemetry.ts` funnels on the play path (with scrubbing/sampling policy, Q7).
+5. **N4** — create `lib/protocol/` Zod schemas (direct dep, pinned) for the five hottest message types; `protocolVersion` + parse-or-drop from day one.
+6. **E1 + E2** — canonical JSON serializer first, then replay JSONL + fast-check properties against `scripts/engine.test.ts` fixtures.
+7. **E5** — draft `lib/matchFsm.ts` state table (implement incrementally).
+8. Solo-dev order: steel thread (instrumented 2P loop) before E4/N3/Q4. Record pre-worker AI calibration (E7) to prove the worker migration is strength-neutral.
+9. Optional C0: M11 spike + TOKEN_PARAMS skeleton (no contracts build).
+10. Un-park meeting only after §10 checklist is green.
 
 ---
 
@@ -370,6 +383,11 @@ Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
 | Match control | Typed hand-rolled FSM first |
 | Render | Measure GSAP budget; canvas/Pixi only on proven failure |
 | Transport | Keep PeerJS + Supabase dual-path during stabilization |
+| Signaling | Self-hosted PeerServer spike week 1–2; no public broker / runtime CDN in prod path; session-proofed resync (N0) |
+| Protocol evolution | `protocolVersion` + compat policy; TTL/LRU-bounded dedup; per-peer rate + pre-parse size caps; secret rotation on host-elect (N4) |
+| State hashing | Canonical JSON serializer proven before golden replays (E1/E6) |
+| Deploys + data | Versioned Edge deploys + rollback; migration RLS regression in CI; Realtime load targets; standing SLOs (Q6/Q7) |
+| Solo-dev order | Steel thread (Q3 → N4-min → Q1-min → instrumented 2P loop) before worker/chaos breadth |
 | Trust model | AGENTS.md invariants unchanged |
 
 ---
