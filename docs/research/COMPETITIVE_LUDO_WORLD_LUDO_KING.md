@@ -7,7 +7,7 @@
 | **Subjects** | Ludo World (Tencent, `com.tencent.ludosuperstar` v2.1.10) · Ludo King (Gametion, `com.ludo.king` v10.1.0.388) · Ludo Base (this repo) |
 | **Evidence roots** | `ludo-apkresearch/research/apk-analysis/ludo-world` · `ludo-apkresearch/research/apk-analysis/ludo-king` |
 | **Companion plan** | `docs/tokenomics/CHIPS_PLANNING.md` (v4.3 — read in full for this report) |
-| **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (sequencing: Spine → CHIPS + product-ops) |
+| **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (engine/gaps first → stable build → then CHIPS/growth) |
 | **Status** | Research baseline + gap/lessons synthesis (§§10–13) |
 | **Last updated** | 2026-09-22 |
 
@@ -343,16 +343,18 @@ Backlog grouped by delivery band. Every row preserves `AGENTS.md` invariants. "D
 
 ### 11.3 Phase 2+ — growth and session depth
 
-| # | Add | Why | Differentiator? |
-| --- | --- | --- | --- |
-| C1 | Push-to-talk voice spike (LiveKit or similar) | King's Agora lesson (§6.8) | No |
-| C2 | i18n pipeline (`next-intl` or equivalent) + 4 priority locales first (es, pt-BR, hi/id, ar) | Match competitor geo volume without 110-locale vanity | No |
-| C3 | Spectator predict pools **only after** join-policy + sportsbook sign-off | Already gated; don't shortcut | Yes (on-chain predict) |
-| C4 | Rewarded-ads seam → RXP / mission progress (never CHIPS direct) | King MAX lesson without day-one ad weight (§6.5) | No |
-| C5 | Limited-window cosmetics drops with published burn split | King content cadence + our on-chain sink | Partial |
-| C6 | Farcaster frames with signed join-intent binding | Growth loop with wallet attribution (§6.14) | **Yes** |
-| C7 | Native shell (Capacitor/TWA) + Play Integrity **only if** store distribution becomes a goal | Don't inherit King's permission posture on web | No |
-| C8 | Build-hash pin + CSP/SRI/Trusted Types + Edge ticket binding to client build | Web-integrity set (§6.11) | No |
+**Status note (2026-09-22):** Voice, i18n, and ads are **parked until after a stable build** — see `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` §8. Do not staff C1/C2/C4 until the stable-build gate is green and those tracks are explicitly un-parked.
+
+| # | Add | Why | Differentiator? | Status |
+| --- | --- | --- | --- | --- |
+| C1 | Push-to-talk voice spike (LiveKit or similar) | King's Agora lesson (§6.8) | No | **Parked** — after stable build |
+| C2 | i18n pipeline (`next-intl` or equivalent) + 4 priority locales first (es, pt-BR, hi/id, ar) | Match competitor geo volume without 110-locale vanity | No | **Parked** — after stable build |
+| C3 | Spectator predict pools **only after** join-policy + sportsbook sign-off | Already gated; don't shortcut | Yes (on-chain predict) | Gated (CHIPS Phase 2) |
+| C4 | Rewarded-ads seam → RXP / mission progress (never CHIPS direct) | King MAX lesson without day-one ad weight (§6.5) | No | **Parked** — after stable build |
+| C5 | Limited-window cosmetics drops with published burn split | King content cadence + our on-chain sink | Partial | After CHIPS value track |
+| C6 | Farcaster frames with signed join-intent binding | Growth loop with wallet attribution (§6.14) | **Yes** | After stable + CHIPS |
+| C7 | Native shell (Capacitor/TWA) + Play Integrity **only if** store distribution becomes a goal | Don't inherit King's permission posture on web | No | Out of current plan |
+| C8 | Build-hash pin + CSP/SRI/Trusted Types + Edge ticket binding to client build | Web-integrity set (§6.11) | No | With Track Q/N hardening |
 
 ### 11.4 Explicitly *do not* add (non-goals that look like gaps)
 
@@ -408,9 +410,11 @@ Condensed principles the two APKs teach. Inline "Lesson for us" notes in §§2�
 
 ### 13.3 Do after Phase-1 proves settle
 
-10. Emotes/local room (B7, B8) → voice spike (C1) → i18n 4-locale pilot (C2).
-11. Cosmetics cadence + rewarded-ads seam (C5, C4) to stabilize the burn/emission story.
+10. Emotes/local room (B7, B8) only — **voice (C1) and i18n (C2) stay parked** until the stable-build gate in `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` §10 is green and explicitly un-parked.
+11. Cosmetics cadence after the CHIPS value track; **rewarded-ads seam (C4) parked** with the other monetization gaps.
 12. Frames + predict + paymaster (C6, C3, plan §8.9) only with their gates intact.
+
+> **Sequencing update (2026-09-22):** Current execution order is **engine + gaps first** (stable build), then CHIPS value, then growth. See `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md`.
 
 ### 13.4 Refuse (even when competitors have them)
 

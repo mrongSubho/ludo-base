@@ -7,7 +7,7 @@
 **Network (later):** Base Mainnet (`8453`)  
 **Supply:** **10,000,000,000** fixed (10B)  
 **Document type:** Product tokenomics + gamification + settlement architecture  
-**Execution sequencing:** `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (Spine first, then CHIPS Phase 1 + product-ops in parallel — do not start full MatchPool before the B20+ERC-8021 Foundry spike and Phase-0 freeze pack)  
+**Execution sequencing:** `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` — **engine/gaps first (stable build)**, then CHIPS value track. Voice / i18n / ads are parked until after that gate. During the stable-build push, CHIPS work is freeze-pack + optional M11 spike only (no MatchPool/ClaimHub/value UI).  
 **Status:** Planning baseline (v4.3 — Strix audit applied: Edge-fallback settle, abandon dual-sign, on-chain sink counters, upgrade matrix, lobby-ticket authority, M1–M11 + hygiene)  
 **Last updated:** 2026-09-22
 
