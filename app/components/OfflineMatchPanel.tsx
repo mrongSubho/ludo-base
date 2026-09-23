@@ -35,6 +35,8 @@ interface OfflineMatchPanelProps {
     matchType: '1v1' | '2v2' | '4P';
     onClose: () => void;
     onStartOfflineGame: (difficulty: BotDifficulty) => void;
+    /** G2 — one-device hot-seat (all humans, no AI). */
+    onStartPassAndPlay?: () => void;
 }
 
 const DIFFICULTY_BLURB: Record<BotDifficulty, string> = {
@@ -47,10 +49,13 @@ export const OfflineMatchPanel = ({
     gameMode,
     matchType,
     onClose,
-    onStartOfflineGame
+    onStartOfflineGame,
+    onStartPassAndPlay
 }: OfflineMatchPanelProps) => {
     const [difficulty, setDifficulty] = useState<BotDifficulty>('pro');
+    const [mode, setMode] = useState<'ai' | 'pass'>('ai');
     const aiCount = (matchType === '1v1' ? 2 : 4) - 1;
+    const seatTotal = matchType === '1v1' ? 2 : 4;
     return (
         <>
             {/* Backdrop */}
@@ -97,13 +102,44 @@ export const OfflineMatchPanel = ({
                             </span>
                             <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                             <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">
-                                {aiCount} × AI
+                                {mode === 'pass' ? `${seatTotal} × Human` : `${aiCount} × AI`}
                             </span>
                         </div>
                     </div>
 
                     {/* Content Area */}
                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
+                        <SectionLabel>Mode</SectionLabel>
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => setMode('ai')}
+                                aria-pressed={mode === 'ai'}
+                                className={`py-3 min-h-[52px] rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] transition-all active:scale-95 ${mode === 'ai'
+                                    ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300'
+                                    : 'border-white/10 bg-white/5 text-white/60'}`}
+                            >
+                                vs AI
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode('pass')}
+                                aria-pressed={mode === 'pass'}
+                                disabled={!onStartPassAndPlay}
+                                className={`py-3 min-h-[52px] rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] transition-all active:scale-95 ${mode === 'pass'
+                                    ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300'
+                                    : 'border-white/10 bg-white/5 text-white/60'}`}
+                            >
+                                Pass &amp; Play
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-white/45 px-0.5 -mt-0.5">
+                            {mode === 'pass'
+                                ? 'Same device · take turns · no bots · free'
+                                : `Fill ${aiCount} seat${aiCount > 1 ? 's' : ''} with AI · Free`}
+                        </p>
+
+                        {mode === 'ai' && (<>
                         <SectionLabel>Setup</SectionLabel>
                         <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-3">
                             <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
@@ -134,15 +170,30 @@ export const OfflineMatchPanel = ({
                                 Practice your strategy or play casually against AI opponents. Offline matches do not require a network connection or entry fee.
                             </p>
                         </div>
+                        </>)}
+
+                        {mode === 'pass' && (
+                            <div className="flex flex-col gap-4 text-center px-4 py-10">
+                                <p className="text-white/60 text-sm font-bold leading-relaxed">
+                                    Pass &amp; Play — {seatTotal} humans share this device. Hand off after each turn. No bots, no network, no entry fee.
+                                </p>
+                                <p className="text-[10px] text-white/40">
+                                    Want a remote table? Use an invite link instead.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer Action */}
                     <div className="px-5 pt-3 pb-5 border-t border-white/10 relative z-10">
                         <button
-                            onClick={() => onStartOfflineGame(difficulty)}
+                            onClick={() => {
+                                if (mode === 'pass') onStartPassAndPlay?.();
+                                else onStartOfflineGame(difficulty);
+                            }}
                             className="w-full py-3 min-h-[44px] bg-white text-black font-black uppercase tracking-[0.2em] rounded-2xl text-sm shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all active:scale-95"
                         >
-                            Start Offline Match
+                            {mode === 'pass' ? 'Start Pass & Play' : 'Start Offline Match'}
                         </button>
                     </div>
                     </div>

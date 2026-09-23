@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '@/lib/types';
-import { stripPowerTypesForWire } from '@/lib/engine';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
+import { resyncMatch, shouldPauseLocalOrchestration } from '@/lib/netcode/resync';
 
 interface UseMatchStatesProps {
     matchId: string | undefined;
@@ -17,8 +17,8 @@ interface UseMatchStatesProps {
 }
 
 /**
- * P4: subscribe to `match_states` and apply rows with increasing `seq`.
- * Display authority is the server row — not host ENGINE_STATE broadcasts.
+ * P4 + N2: `match_states` display authority via the single `resyncMatch` path.
+ * Timers/AFK/bots stay paused while status is reconnecting/syncing (ENGINE_LOGIC section 12).
  */
 export function useMatchStates({ matchId, enabled, onServerState, getSeq, refreshState, onStatus }: UseMatchStatesProps) {
     const onServerStateRef = useRef(onServerState);
@@ -30,38 +30,36 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
     refreshStateRef.current = refreshState;
     onStatusRef.current = onStatus;
 
+    const runResync = useCallback(async (id: string, allowEqual = true) => {
+        await resyncMatch({
+            matchId: id,
+            currentSeq: getSeqRef.current(),
+            fetchSnapshot: (mid) => refreshStateRef.current(mid),
+            apply: (state, seq, allowEq) => onServerStateRef.current(state, seq, allowEq),
+            allowEqual,
+            onStatus: (status) => onStatusRef.current?.(status),
+        });
+    }, []);
+
     useEffect(() => {
         if (!enabled || !matchId || matchId === 'local') return;
         let active = true;
 
-        const applyRow = (row: { seq?: number; state?: unknown }, allowEqual = false) => {
-            const seq = Number(row?.seq ?? 0);
-            const state = row?.state as GameState | undefined;
-            if (!state || !Number.isFinite(seq)) return;
-            if (allowEqual ? seq < getSeqRef.current() : seq <= getSeqRef.current()) return;
-            // Types stay server-side; strip if a row still has them
-            onServerStateRef.current(stripPowerTypesForWire(state) as GameState, seq, allowEqual);
+        const guard = (fn: () => Promise<void>) => async () => {
+            if (!active || shouldPauseLocalOrchestration('ended')) return;
+            await fn();
         };
 
-        const refresh = async () => {
-            if (!active) return;
-            onStatusRef.current?.('syncing');
-            const result = await refreshStateRef.current(matchId);
-            if (!active) return;
-            if (result.ok && result.state && typeof result.seq === 'number') {
-                applyRow({ seq: result.seq, state: result.state }, true);
-            }
-            if (result.ok) onStatusRef.current?.('connected');
-            else if (result.code === 'MATCH_NOT_FOUND') onStatusRef.current?.('ended');
-            else onStatusRef.current?.('reconnecting');
-        };
+        const refresh = guard(async () => {
+            await runResync(matchId, true);
+        });
         void refresh();
 
         // No postgres_changes subscription on match_states: the table has no
         // anon SELECT grant under default-deny, so realtime rows never arrive;
         // polling via refreshState (GET /api/match/state) is the sync path.
         const handleOnline = () => {
-            void refresh();
+            void runResync(matchId, true);
         };
         window.addEventListener('online', handleOnline);
 
@@ -69,5 +67,5 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
             active = false;
             window.removeEventListener('online', handleOnline);
         };
-    }, [matchId, enabled]);
+    }, [matchId, enabled, runResync]);
 }

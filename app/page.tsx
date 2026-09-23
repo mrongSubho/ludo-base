@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
+import NoticeStrip from './components/NoticeStrip';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BoardHeaderCompact } from './components/BoardHeaderCompact';
 import { FooterNavPanel } from './components/FooterNavPanel';
@@ -19,6 +20,8 @@ const BoardLoader = () => (
 const Board = dynamic(() => import('./components/Board'), {
     loading: () => <BoardLoader />,
 });
+import { derivePoolId, matchPoolAddress } from '@/lib/chips';
+import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
 const SnakesBoard = dynamic(() => import('./components/SnakesBoard'), {
     loading: () => <BoardLoader />,
 });
@@ -384,13 +387,14 @@ export default function Page() {
         }
       } else {
         // --- OFFLINE / BOT MATCH START ---
-        // Any offline-seeded match (bot pick or matchmaking fallback) must seat
-        // exactly one human - the local user - and fill the rest with bots.
-        players = shufflePlayers(playerCount, true, cc) as Player[];
+        // Bot match: exactly one human + AI fill.
+        // Pass & Play (G2): all seats human on one device (isBotMatch=false).
+        players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
 
-        // Bind the local user to the single human seat so wallet-keyed lookups resolve
+        // Bind the local user to the single human seat so wallet-keyed lookups resolve.
+        // Pass & Play keeps every seat as a distinct local human (no wallet bind).
         const myAddr = address?.toLowerCase();
-        if (myAddr) {
+        if (myAddr && effectiveIsBotMatch) {
           const profileData = participants[myAddr];
           players = players.map(p => {
             if (p && !p.isAi && !p.walletAddress) {
@@ -559,6 +563,7 @@ export default function Page() {
 
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
               <main className="dash-main pb-safe-footer px-safe">
+                <NoticeStrip className="mb-2" />
 
                 <GameLobby
                   gameMode={selectedMode as any}
@@ -568,6 +573,7 @@ export default function Page() {
                   wager={betAmount}
                   setWager={setBetAmount}
                   onStartGame={onStartGame}
+                  onStartPassAndPlay={() => onStartGame(false)}
                   onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                 />
               </main>
@@ -745,6 +751,18 @@ export default function Page() {
                     initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
                     initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
                     wager={betAmount}
+                    poolId={
+                      matchPoolAddress() && roomId
+                        ? derivePoolId({
+                            chainId:
+                              parseChainId(
+                                (typeof window !== 'undefined' ? (window as any).__ludoChainId : null),
+                              ) ?? DEFAULT_CHAIN_ID,
+                            matchId: roomId,
+                            roomCode: roomId,
+                          })
+                        : null
+                    }
                     botDifficulty={botDifficulty}
                     onExitMatch={handleBackToSubMenu}
                   />

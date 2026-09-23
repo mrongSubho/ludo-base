@@ -21,7 +21,7 @@ export interface MatchCaptureStat {
 }
 export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'EMOTE';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
 
 export interface GameIntentPayloads {
@@ -55,6 +55,8 @@ export interface GameActionPayloads {
     BET_WINDOW_CLOSED: BetWindowClosedPayload;
     ENGINE_STATE: unknown;
     CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };
+    /** G5 preset emote float (not a DM — no encryption required). */
+    EMOTE: { emoteId: string; color: PlayerColor; actor?: string; t?: number };
 }
 
 export type GameActionPayload<T extends GameActionType> = GameActionPayloads[T];

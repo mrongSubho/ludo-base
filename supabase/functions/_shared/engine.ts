@@ -87,6 +87,39 @@ export const SAFE_POSITIONS: Point[] = [
 export type PowerType = 'shield' | 'boost' | 'nuke' | 'teleport';
 export type PowerItem = { type: PowerType; expiresAt: number };
 
+/** Per-color combat counters (tokens sent home) for post-match stats. */
+export type MatchCaptureStat = { kicks: number; gotKicked: number };
+export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
+
+export function emptyEngineMatchStats(): MatchCaptureStats {
+    const row = () => ({ kicks: 0, gotKicked: 0 });
+    return { green: row(), red: row(), yellow: row(), blue: row() };
+}
+
+export function applyEngineCaptureEvents(
+    stats: MatchCaptureStats | undefined,
+    kicker: PlayerColor,
+    victims: { capturedColor: PlayerColor }[]
+): MatchCaptureStats {
+    const base = stats ?? emptyEngineMatchStats();
+    const next: MatchCaptureStats = {
+        green: { ...base.green },
+        red: { ...base.red },
+        yellow: { ...base.yellow },
+        blue: { ...base.blue },
+    };
+    const byVictim: Partial<Record<PlayerColor, number>> = {};
+    for (const v of victims) {
+        byVictim[v.capturedColor] = (byVictim[v.capturedColor] || 0) + 1;
+    }
+    (Object.keys(byVictim) as PlayerColor[]).forEach((color) => {
+        const n = byVictim[color] || 0;
+        next[kicker].kicks += n;
+        next[color].gotKicked += n;
+    });
+    return next;
+}
+
 /** Minimal board state Edge validates against. */
 export interface EngineGameState {
     positions: Record<PlayerColor, number[]>;
@@ -104,12 +137,15 @@ export interface EngineGameState {
     powerSpentThisTurn: boolean;
     lastUpdate: number;
     matchId?: string;
+    /** Combat counters — safe to broadcast; optional on older states. */
+    matchStats?: MatchCaptureStats;
     /** Authority-only power types — never broadcast. */
     powerTiles?: { r: number; c: number; type?: PowerType }[];
     playerPowers?: Partial<Record<PlayerColor, PowerItem[]>>;
     [key: string]: unknown;
 }
 
+/** Convert a local token position into the board coordinate used by the UI. */
 export function getBoardCoordinate(pos: number, color: PlayerColor, cc: ColorCorner): Point | null {
     if (pos < 0) return null;
     if (pos < 52) return SHARED_PATH[pos];
@@ -121,17 +157,25 @@ export function getBoardCoordinate(pos: number, color: PlayerColor, cc: ColorCor
     return null;
 }
 
+/** Return the teammate for a 2v2 color, or `null` for free-for-all modes. */
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
     if (playerCount !== '2v2') return null;
     return TEAM_PAIRINGS[color];
 }
 
+/** Resolve a color to its team number for the requested match format. */
 export function getTeam(color: PlayerColor, playerCount: string = '4P'): number {
     if (playerCount === '2v2') return TEAM_ID[color];
     const map: Record<PlayerColor, number> = { green: 1, red: 2, yellow: 3, blue: 4 };
     return map[color];
 }
 
+/**
+ * Calculate a legal destination without mutating state.
+ * Base entry requires a six, and positions that overshoot the finish remain
+ * unchanged. The distance arithmetic is relative to the color's gate so a
+ * roll crossing index 50 enters home positions 52–57 correctly.
+ */
 export function calculateNextPosition(
     currentPos: number,
     steps: number,
@@ -166,6 +210,7 @@ export function calculateNextPosition(
     return (currentPos + steps) % 52;
 }
 
+/** Return token indices whose positions change for the supplied roll. */
 export function getLegalTokenIndices(
     positions: Record<PlayerColor, number[]>,
     color: PlayerColor,
@@ -181,6 +226,11 @@ export function getLegalTokenIndices(
     return legal;
 }
 
+/**
+ * Select the next occupied corner in physical anti-clockwise order.
+ * Filtering by active corners lets finished players leave the turn cycle;
+ * the color-order fallback keeps older callers safe when seating is absent.
+ */
 export function getNextPlayer(
     current: PlayerColor,
     playerCount: string,
@@ -195,7 +245,7 @@ export function getNextPlayer(
         if (activeOrder.length > 0) {
             const currentIdx = activeOrder.indexOf(currentCorner);
             if (currentIdx === -1) {
-                let checkIdx = cornerOrder.indexOf(currentCorner);
+                const checkIdx = cornerOrder.indexOf(currentCorner);
                 for (let i = 1; i <= 4; i++) {
                     const nextC = cornerOrder[(checkIdx + i) % 4];
                     if (occupiedCorners.includes(nextC)) {
@@ -217,6 +267,7 @@ export function getNextPlayer(
     return order[(idx + 1) % 4];
 }
 
+/** Count allied tokens occupying a logical track position. */
 export function getTeamForceAtPoint(
     team: number,
     pointPos: number,
@@ -232,6 +283,10 @@ export function getTeamForceAtPoint(
     return force;
 }
 
+/**
+ * Find opposing tokens captured by a move, applying team force, safe cells,
+ * teammate truce, and per-token shields.
+ */
 export function checkMultiCapture(
     color: PlayerColor,
     nextPos: number,
@@ -271,6 +326,11 @@ export interface MoveResult {
     applied: boolean;
 }
 
+/**
+ * Apply one authoritative move as an immutable state transition.
+ * Invalid destinations are rejected; valid moves resolve traps, captures,
+ * bonus turns, shield cleanup, and the appropriate individual/team victory.
+ */
 export function processMove(
     state: EngineGameState,
     tokenColor: PlayerColor,
@@ -330,6 +390,9 @@ export function processMove(
         newPositions[c.capturedColor][c.capturedIdx] = BASE_INDEX;
     });
     const captured = captures.length > 0;
+    const matchStats = captured
+        ? applyEngineCaptureEvents(state.matchStats, actingColor, captures)
+        : (state.matchStats ?? emptyEngineMatchStats());
 
     const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
     const teamWon = (t: number) => {
@@ -368,6 +431,7 @@ export function processMove(
                 ? [...state.winners, tokenColor]
                 : state.winners,
             activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+            matchStats,
             lastUpdate: Date.now(),
         },
         captured,
@@ -376,6 +440,7 @@ export function processMove(
     };
 }
 
+/** Track consecutive sixes and flag the third six, which forfeits the turn. */
 export function handleThreeSixes(
     currentSixes: number,
     roll: number
@@ -386,6 +451,7 @@ export function handleThreeSixes(
     return { isThreeSixes: false, nextSixes };
 }
 
+/** Return colors that still have unfinished tokens for turn scheduling. */
 export function activeColorsForTurns(state: EngineGameState): PlayerColor[] {
     const colors = (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).filter(c =>
         (state.positions[c] || []).some(p => p !== BOARD_FINISH_INDEX)
@@ -411,6 +477,7 @@ export const POWER_EXPIRY_MS: Record<PowerType, number> = {
     teleport: 5 * 60 * 1000,
 };
 
+/** Return shared-track indices that render as safe stars for a color. */
 export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
     const out: number[] = [];
     for (let pos = 0; pos < 52; pos++) {
@@ -420,6 +487,7 @@ export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
     return out;
 }
 
+/** Find the next safe star clockwise from `pos`, or `-1` if none exists. */
 export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorner): number {
     const stars = getStarIndices(color, cc);
     if (stars.length === 0) return -1;
@@ -435,6 +503,11 @@ export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorne
     return best;
 }
 
+/**
+ * Find opponents in the nuke's logical range and the screen cells to flash.
+ * Range is measured on track indices; safe cells and shields are checked
+ * after mapping each candidate to its rendered coordinate.
+ */
 export function countNukeVictims(
     state: EngineGameState,
     color: PlayerColor,
@@ -500,6 +573,11 @@ export type PowerApplyResult =
  * Must be called on the authority while gamePhase is 'rolling' and powerSpentThisTurn is false.
  * Nuke/teleport without tokenIdx → armed targeting (no state mutation).
  */
+/**
+ * Spend one authority-held power during the rolling phase.
+ * Targeted powers return an `armed` error without consuming inventory until a
+ * valid token target is supplied; no-target failures keep the item.
+ */
 export function applyPower(
     state: EngineGameState,
     color: PlayerColor,
@@ -518,7 +596,7 @@ export function applyPower(
     if (!live.some(p => p.type === type)) return { ok: false, error: 'Power not held' };
 
     const inv = [...live];
-    let next: EngineGameState = { ...state, playerPowers: { ...state.playerPowers } };
+    const next: EngineGameState = { ...state, playerPowers: { ...state.playerPowers } };
     let message = '';
 
     if (type === 'shield') {
@@ -549,7 +627,7 @@ export function applyPower(
     }
 
     if (type === 'nuke') {
-        let idx = tokenIdx;
+        const idx = tokenIdx;
         if (idx === undefined) {
             return { ok: false, error: 'Nuke needs a target token', armed: 'nuke' };
         }
@@ -573,7 +651,7 @@ export function applyPower(
     }
 
     // teleport
-    let idx = tokenIdx;
+    const idx = tokenIdx;
     if (idx === undefined) {
         return { ok: false, error: 'Teleport needs a target token', armed: 'teleport' };
     }
@@ -596,6 +674,10 @@ export function applyPower(
 }
 
 /** After a successful move: grant pickup if landed exactly on a typed power tile. */
+/**
+ * Grant a power for an exact landing, refresh duplicate expiry, and respawn
+ * one typed tile at a non-colliding shared-path coordinate.
+ */
 export function applyPowerPickup(
     state: EngineGameState,
     color: PlayerColor,
@@ -660,6 +742,10 @@ export function applyPowerPickup(
 }
 
 /** Wire a full move including boost consumption + pickup (Edge path). */
+/**
+ * Validate and resolve a server-authorized move, including boost consumption,
+ * pickup handling, and the reset of the per-turn power flag.
+ */
 export function resolveNetworkedMove(params: {
     state: EngineGameState;
     color: PlayerColor;

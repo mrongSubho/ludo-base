@@ -4,7 +4,7 @@
 | --- | --- |
 | **Project** | Ludo Base |
 | **Document type** | Execution plan — **stable, industry-grade game build first** |
-| **Inputs** | `docs/research/COMPETITIVE_LUDO_WORLD_LUDO_KING.md` §§5–9 · `AGENTS.md` · `ENGINE_LOGIC.md` · current `hooks/` + `lib/` + `app/` + `supabase/` |
+| **Inputs** | `docs/research/COMPETITIVE_LUDO_WORLD_LUDO_KING.md` section section 5–9 · `AGENTS.md` · `ENGINE_LOGIC.md` · current `hooks/` + `lib/` + `app/` + `supabase/` |
 | **Focus** | Close operational/game-engine gaps with modern industry-grade tech |
 | **Parked (until stable build)** | **Voice · i18n · ads** — and any growth stack that depends on them |
 | **CHIPS posture** | Design + freeze-pack only during this plan; contracts/value UI **after** the stable-build gate |
@@ -59,7 +59,7 @@ Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIP
 - Playback/replay/debug tooling
 - Session gaps that improve play without new platform dependencies (emotes, local room, notice strip, abandon/AFK honesty, match receipt as a *debug/trust* artifact)
 - CI truthfulness and API boundary typing
-- CHIPS **documentation/freeze** only (narrow lane in §9)
+- CHIPS **documentation/freeze** only (narrow lane in section 9)
 
 ### 1.2 Out of scope (do not open tickets)
 
@@ -124,7 +124,7 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 | Spectators | `hooks/useSpectatorSync.ts`, `hooks/useSpectatorPresence.ts` | Schema + resync parity with players |
 | Tooling | `lib/teamup/*`, `scripts/*` tests | Reuse for chaos drills |
 
-### 3.2 Gaps this plan closes (from competitive §10, minus parked)
+### 3.2 Gaps this plan closes (from competitive section 10, minus parked)
 
 | Gap class | Closed by |
 | --- | --- |
@@ -166,7 +166,7 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 | --- | --- | --- | --- |
 | **N0** | **Signaling ownership + resync auth** | `lib/peerFactory.ts`, `hooks/usePeerChat.ts`, host apply path | Week 1–2 spike: self-hosted PeerServer vs Realtime-only signaling (decide on p95 latency, reconnect success, ops cost). Remove the runtime `esm.sh` import — pin `peerjs`, fix Turbopack bundling, no CDN in prod path. `ResyncRequest` carries match session proof, verified host-side (no unauthenticated snapshot resume). |
 | **N1** | **Heartbeat / reconnect / seq-gap ladder** | `useSupabaseRelay`, `usePeerManager`, `useMatchStates`, `TeamUpContext` | Named counters (TSDK-style): `net_heartbeat_ok/timeout`, `net_reconnect_attempt/success`, `net_seq_gap`, `net_authority_switch`, `net_resync_applied`. Exponential backoff with jitter. |
-| **N2** | **Resync protocol** | host + guest apply path | On seq-gap or reconnect: request `match_states` snapshot → apply → resume timers only after snapshot (already sketched in `ENGINE_LOGIC.md` §12 — **implement as a single `resyncMatch()`**, don’t leave it tribal). |
+| **N2** | **Resync protocol** | host + guest apply path | On seq-gap or reconnect: request `match_states` snapshot → apply → resume timers only after snapshot (already sketched in `ENGINE_LOGIC.md` section 12 — **implement as a single `resyncMatch()`**, don’t leave it tribal). |
 | **N3** | **Chaos drills** | `scripts/net.chaos.ts` + doc `docs/ops/NETCODE_DRILLS.md` | Scripted: drop PeerJS 10s, drop Supabase broadcast, delay intents, duplicate `intentId`, kill host / compute-host elect, clock skew on timers. Record pass/fail + counters. |
 | **N4** | **Zod wire schemas** | new `lib/protocol/` | One schema module shared by client + Deno `_shared` (keep Deno-safe). Every inbound PeerJS/Realtime/Edge payload `parse` → typed or drop+meter. Apply on `GAME_ACTION`, `GAME_INTENT`, `JOIN_REQUEST`, `SYNC_PROFILE`, `match_states`, Edge responses. Every message carries `protocolVersion` (reject unknown-major, tolerate unknown-minor-with-defaults; schema changes ship with a migration note). Dedup stores (`processedIntentIds` / `processedActionIds`) are TTL + LRU-bounded with an eviction counter. Enforce per-peer rate limits and pre-parse size caps (length gate before Zod). Rotate the room secret on compute-host election. Deno side consumes schemas via pinned import or vendored copy + parity gate (extend the `check-edge-engine.mjs` pattern to schemas). |
 | **N5** | **Connection state UX** | board chrome | Visible badge: `live` / `degraded` / `resyncing` / `host-elect`. No silent “frozen” games. |
@@ -196,7 +196,7 @@ Not a Unity/Cocos rewrite. It means the **web game core** meets the same product
 
 ### Track C0 — CHIPS narrow lane (not the critical path)
 
-See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is green.
+See section 9. Do not staff MatchPool/ClaimHub/contracts implementation until section 10 is green.
 
 ---
 
@@ -239,7 +239,7 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
 ┌─────────────────────────────────────────────────────────────────┐
 │ STABLE (weeks 8–10)                                             │
 │  G2 local room · G4 notice · G5 emotes · N6 spectators          │
-│  Bug burn-down · drill sign-off · STABLE-BUILD checklist §10    │
+│  Bug burn-down · drill sign-off · STABLE-BUILD checklist section 10    │
 └────────────────────────────┬────────────────────────────────────┘
                              ▼
               ┌──────────────┴──────────────┐
@@ -249,7 +249,7 @@ See §9. Do not staff MatchPool/ClaimHub/contracts implementation until §10 is 
      — separate decision             per CHIPS_PLANNING + old plan
 ```
 
-**Parallel thin lane (any time, max ~0.5 FTE):** C0 freeze pack + optional M11 Foundry spike (§9).
+**Parallel thin lane (any time, max ~0.5 FTE):** C0 freeze pack + optional M11 Foundry spike (section 9).
 
 ---
 
@@ -276,7 +276,7 @@ Order is load-bearing: **schemas and CI before large refactors; FSM before more 
 
 ## 8. Parked until after stable build
 
-These stay in the competitive gap register as *known* gaps. **No implementation, no design spikes, no dependency adds** until the §10 gate is green and we explicitly un-park.
+These stay in the competitive gap register as *known* gaps. **No implementation, no design spikes, no dependency adds** until the section 10 gate is green and we explicitly un-park.
 
 | Item | Notes when un-parked |
 | --- | --- |
@@ -313,6 +313,8 @@ Rationale: money code on an unstable multiplayer core multiplies incident surfac
 ---
 
 ## 10. Stable-build exit criteria
+
+All must be true (checkbox list for the un-park meeting). Live snapshot: `docs/ops/UNPARK_CHECKLIST.md`.
 
 All must be true (checkbox list for the un-park meeting):
 
@@ -357,7 +359,7 @@ Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
 
 ## 11. Immediate next actions
 
-1. **Scope lock agreement** — voice/i18n/ads parked (this doc §1.2 / §8).
+1. **Scope lock agreement** — voice/i18n/ads parked (this doc section 1.2 / section 8).
 2. **Q3** — wire existing ESLint 9 config into `npm run lint` + CI `lint` job so every later PR is honestly gated.
 3. **N0** — signaling spike: self-hosted PeerServer vs Realtime-only; pin `peerjs`, remove the `esm.sh` runtime import.
 4. **Q1** — telemetry + `lib/telemetry.ts` funnels on the play path (with scrubbing/sampling policy, Q7).
@@ -366,7 +368,7 @@ Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
 7. **E5** — draft `lib/matchFsm.ts` state table (implement incrementally).
 8. Solo-dev order: steel thread (instrumented 2P loop) before E4/N3/Q4. Record pre-worker AI calibration (E7) to prove the worker migration is strength-neutral.
 9. Optional C0: M11 spike + TOKEN_PARAMS skeleton (no contracts build).
-10. Un-park meeting only after §10 checklist is green.
+10. Un-park meeting only after section 10 checklist is green.
 
 ---
 

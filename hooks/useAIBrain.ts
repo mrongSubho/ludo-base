@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { Player } from './useGameEngine';
-import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
+import { getBestMoveAsync, getBestPowerUsageAsync } from '@/lib/ai/client';
 import { ColorCorner } from '@/lib/boardLayout';
 import {
     BOT_ROLL_DELAY_MIN,
@@ -11,6 +11,7 @@ import {
     BotDifficulty
 } from '@/lib/constants';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
+import { shouldPauseLocalOrchestration } from '@/lib/netcode/resync';
 
 interface UseAIBrainProps {
     localGameState: GameState;
@@ -54,8 +55,7 @@ export function useAIBrain({
     useEffect(() => { handleUsePowerRef.current = handleUsePower; }, [handleUsePower]);
 
     useEffect(() => {
-        if (localGameState.winner || matchConnectionStatus === 'ended' ||
-            matchConnectionStatus === 'reconnecting' || matchConnectionStatus === 'syncing') return;
+        if (localGameState.winner || shouldPauseLocalOrchestration(matchConnectionStatus)) return;
 
         // In networked matches, only the Host orchestrates the AI.
         if (isLobbyConnected && !isHost) return;
@@ -105,12 +105,20 @@ export function useAIBrain({
             // Timer survives effect re-runs. Function ref is always fresh.
             rollTimerRef.current = setTimeout(() => {
                 rollTimerRef.current = null;
-                const powerPick = getBestPowerUsage(localGameState, color, colorCorner, playerCount, difficulty);
-                if (powerPick) {
-                    handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
-                } else {
-                    handleRollRef.current();
-                }
+                void (async () => {
+                    const powerPick = await getBestPowerUsageAsync({
+                        state: localGameState,
+                        playerId: color,
+                        colorCorner,
+                        playerCount,
+                        difficulty,
+                    });
+                    if (powerPick) {
+                        handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
+                    } else {
+                        handleRollRef.current();
+                    }
+                })();
             }, randomDelay);
         } 
         
@@ -120,25 +128,27 @@ export function useAIBrain({
             // 🔧 FIX 1: Same ref-based pattern for move timer.
             moveTimerRef.current = setTimeout(() => {
                 moveTimerRef.current = null;
-                const bestMove = getBestMove(
-                    localGameState.positions,
-                    color,
-                    diceValue,
-                    colorCorner,
-                    playerCount,
-                    localGameState.powerTiles,
-                    localGameState,
-                    difficulty
-                );
-                
-                if (bestMove !== null) {
-                    moveTokenRef.current(color, bestMove, diceValue);
-                } else {
-                    console.warn('🤖 [AIBrain] No valid moves found for bot. Forcing turn switch.');
-                    // 🔧 SAFETY: If getBestMove returns null, reset lastActionRef
-                    // so the next effect run can try again or let the engine handle it.
-                    lastActionRef.current = '';
-                }
+                void (async () => {
+                    const bestMove = await getBestMoveAsync({
+                        positions: localGameState.positions,
+                        playerId: color,
+                        roll: diceValue,
+                        colorCorner,
+                        playerCount,
+                        powerTiles: localGameState.powerTiles as { r: number; c: number }[],
+                        state: localGameState,
+                        difficulty,
+                    });
+
+                    if (bestMove !== null) {
+                        moveTokenRef.current(color, bestMove, diceValue);
+                    } else {
+                        console.warn('🤖 [AIBrain] No valid moves found for bot. Forcing turn switch.');
+                        // 🔧 SAFETY: If getBestMove returns null, reset lastActionRef
+                        // so the next effect run can try again or let the engine handle it.
+                        lastActionRef.current = '';
+                    }
+                })();
             }, clock.moveDelay ?? BOT_MOVE_DELAY);
         }
 

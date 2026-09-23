@@ -4,6 +4,8 @@ import React from 'react';
 import { TokenPiece } from '@/app/components/BoardTokens';
 import { getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
 import { getIntermediatePathCoords } from '@/lib/gameLogic';
+import { getHopSamples } from '@/lib/perf/budget';
+import { installPerfDebugHook } from '@/lib/perf/report';
 
 const CC: ColorCorner = { green: 'TL', red: 'TR', yellow: 'BR', blue: 'BL' };
 
@@ -11,6 +13,11 @@ export default function TokenMoveTestPage() {
     const [pos, setPos] = React.useState(0);
     const [log, setLog] = React.useState<string[]>([]);
     const logRef = React.useRef<HTMLPreElement>(null);
+
+    // Q2 device-pass hook: `await __ludoPerf.markdown()` in the console.
+    React.useEffect(() => {
+        installPerfDebugHook(getHopSamples);
+    }, []);
 
     const move = (dice: number) => {
         setPos(p => {
@@ -29,7 +36,7 @@ export default function TokenMoveTestPage() {
         <div className="min-h-screen bg-[#101018] text-white p-6 flex gap-8">
             <div>
                 <h1 className="text-lg font-bold mb-1">TOKEN MOVE LAB</h1>
-                <p className="text-xs text-white/40 mb-4">Same TokenPiece code, zero game engine. Watch the green token.</p>
+                <p className="text-xs text-white/40 mb-4">Same TokenPiece code, zero game engine. Watch the green token. Device pass: move ≥6 hops then run <code>await __ludoPerf.markdown()</code> in the console.</p>
                 <div className="flex gap-2 mb-4">
                     {[1, 2, 3, 4, 5, 6].map(d => (
                         <button

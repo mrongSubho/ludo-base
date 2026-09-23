@@ -32,6 +32,9 @@ import {
     GameActionPayload,
 } from '@/lib/types';
 import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
+import { bumpNet } from '@/lib/netcode/counters';
+import { track } from '@/lib/telemetry';
+import { createMatchFsm, type MatchFsmEvent, type MatchPhase } from '@/lib/matchFsm';
 import { ActiveBettingWindow } from './useSpectatorSync';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import {
@@ -95,6 +98,10 @@ export interface TeamUpContextType {
     /** True after a snapshot has been applied since the latest reconnect. */
     hasAuthoritativeSnapshot: boolean;
     matchConnectionStatus: MatchConnectionStatus;
+    /** E5 match lifecycle phase (lobby→seating→live→resyncing→ended). */
+    matchPhase: MatchPhase;
+    /** Illegal FSM transitions observed (should stay 0 in healthy matches). */
+    matchFsmIllegal: number;
 }
 
 const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
@@ -132,6 +139,20 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [matchConnectionStatus, setMatchConnectionStatus] = useState<MatchConnectionStatus>('offline');
     const [hasAuthoritativeSnapshot, setHasAuthoritativeSnapshot] = useState(false);
 
+    // E5 — single match lifecycle machine (illegal transitions are metered).
+    const fsmRef = useRef(createMatchFsm('idle'));
+    const [matchPhase, setMatchPhase] = useState<MatchPhase>(fsmRef.current.phase);
+    const [matchFsmIllegal, setMatchFsmIllegal] = useState(0);
+    const sendMatchEvent = useCallback((event: MatchFsmEvent) => {
+        const from = fsmRef.current.phase;
+        const to = fsmRef.current.send(event);
+        if (to !== from) setMatchPhase(to);
+        setMatchFsmIllegal(fsmRef.current.illegalTransitions);
+        if (fsmRef.current.illegalTransitions > 0 && to === from) {
+            track('net_degraded', { reason: 'fsm_illegal', event: event.type, phase: from });
+        }
+    }, []);
+
     const applyServerState = useCallback((state: GameState, seq: number, allowEqual = false) => {
         if (!Number.isFinite(seq) || (allowEqual ? seq < serverSeqRef.current : seq <= serverSeqRef.current)) return;
         serverSeqRef.current = Math.max(serverSeqRef.current, seq);
@@ -144,8 +165,15 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }));
         if (state.status === 'finished' || state.winner) {
             setMatchConnectionStatus('ended');
+            sendMatchEvent({ type: 'FINISH' });
+        } else if (state.isStarted) {
+            sendMatchEvent({ type: 'START' });
+            // RESYNC_APPLIED is only legal from resyncing — do not spam illegal events.
+            if (fsmRef.current.phase === 'resyncing') {
+                sendMatchEvent({ type: 'RESYNC_APPLIED' });
+            }
         }
-    }, []);
+    }, [sendMatchEvent]);
 
     // P4: clients render match_states (postgres realtime + initial pull)
     useMatchStates({
@@ -163,8 +191,15 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     useEffect(() => {
         if (matchConnectionStatus === 'reconnecting' || matchConnectionStatus === 'syncing') {
             setHasAuthoritativeSnapshot(false);
+            sendMatchEvent({ type: 'RESYNC_NEEDED' });
         }
-    }, [matchConnectionStatus]);
+        if (matchConnectionStatus === 'connected' && fsmRef.current.phase === 'resyncing') {
+            sendMatchEvent({ type: 'RESYNC_APPLIED' });
+        }
+        if (matchConnectionStatus === 'ended') {
+            sendMatchEvent({ type: 'FINISH' });
+        }
+    }, [matchConnectionStatus, sendMatchEvent]);
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -263,6 +298,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 playerCount: startPayload.playerCount || prev.playerCount,
                 initialBoardConfig: startPayload.initialBoardConfig
             }));
+            sendMatchEvent({ type: 'ALL_SEATED' });
+            sendMatchEvent({ type: 'START' });
 
             // Seed server-authoritative match_states (v2 move validation)
             if (myAddress && startPayload.initialBoardConfig) {
@@ -433,6 +470,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return false;
             }
         }
+        sendMatchEvent({ type: 'GUEST_SEATED' });
         const coins = typeof payload.coins === 'number' && Number.isFinite(payload.coins)
             ? payload.coins
             : null;
@@ -480,7 +518,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         broadcastLobbyAction('LOBBY_SYNC', { lobbyState: lobby });
         console.log('✅ [Host] Seated guest via', payload.peerId ? 'PeerJS' : 'Supabase', payload.address);
         return true;
-    }, [isHost, setParticipants, setLobbyState, lobbyStateRef, broadcastLobbyAction]);
+    }, [isHost, setParticipants, setLobbyState, lobbyStateRef, broadcastLobbyAction, sendMatchEvent]);
 
     // 6. Game Engine Action Processor
     const processGameAction = useCallback((data: Record<string, unknown>) => {
@@ -492,13 +530,30 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         console.log('🕹️ Processing action:', type, data);
 
+        // G5 — preset emote float (lightweight; not a DM)
+        if (type === 'EMOTE') {
+            const payload = (data.payload ?? data.action ?? data) as Record<string, unknown>;
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('ludo-emote', { detail: payload }));
+            }
+            return;
+        }
+
         // 📬 Guest intent via Supabase (dual-path with PeerJS GAME_ACTION)
         if (type === 'GAME_INTENT' && isHost) {
             const action = data.action;
-            if (!isGameIntent(action)) return;
+            if (!isGameIntent(action)) {
+                bumpNet('net_schema_drop');
+                track('schema_drop', { via: 'supabase', kind: 'GAME_INTENT' });
+                return;
+            }
             const intentId = action?.intentId || actionId;
-            if (intentId && processedIntentIds.current.has(intentId)) return;
+            if (intentId && processedIntentIds.current.has(intentId)) {
+                bumpNet('net_intent_dup');
+                return;
+            }
             if (intentId) processedIntentIds.current.add(intentId);
+            bumpNet('net_intent_ok');
             console.log('📬 [Host] Intent via Supabase:', action?.type);
             setLastIntent(action);
             return;
@@ -648,8 +703,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (data.type === 'GAME_ACTION') {
             if (isHost) {
                 const intentId = data.action?.intentId as string | undefined;
-                if (intentId && processedIntentIds.current.has(intentId)) return;
+                if (intentId && processedIntentIds.current.has(intentId)) {
+                    bumpNet('net_intent_dup');
+                    return;
+                }
                 if (intentId) processedIntentIds.current.add(intentId);
+                bumpNet('net_intent_ok');
                 console.log('📬 [Host] Received Intent (PeerJS):', data.action);
                 setLastIntent(data.action);
             }
@@ -661,6 +720,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const hostGame = useCallback((forcedRoomId?: string, expectedValidationToken?: string) => {
         destroyPeer();
         setIsHost(true);
+        fsmRef.current.reset();
+        sendMatchEvent({ type: 'OPEN_LOBBY' });
         // Invite lobbies are open-join by room code (casual UX).
         // Only matchmaking passes a validation token to lock the room.
         if (expectedValidationToken) {
@@ -721,11 +782,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         // live_matches requires match_id (PK) — written on START_GAME / Go live,
         // not at hostGame time when we only have a room code.
-    }, [destroyPeer, setIsHost, myAddress, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData, setRelayRoom]);
+    }, [destroyPeer, setIsHost, myAddress, setRoomId, setCurrentRoomCode, setIsLobbyConnected, peerRef, lobbyStateRef, setConnections, gameStateRef, handleGuestData, setRelayRoom, sendMatchEvent]);
 
     const joinGame = useCallback((targetRoomId: string, token?: string, desiredSeat?: number) => {
         destroyPeer();
         setIsHost(false);
+        fsmRef.current.reset();
+        sendMatchEvent({ type: 'OPEN_LOBBY' });
         setValidationToken(token);
         setCurrentRoomCode(targetRoomId);
         // Sync ref immediately so JOIN_REQUEST hits the right channel this tick.
@@ -813,7 +876,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 }
             });
         })();
-    }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef, setRelayRoom]);
+    }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef, setRelayRoom, sendMatchEvent]);
 
     // Host polls REST join requests (works when realtime JOIN_REQUEST never lands).
     const processedJoinRequestIds = useRef<Set<string>>(new Set());
@@ -1037,12 +1100,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
+        matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, hasAuthoritativeSnapshot,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 

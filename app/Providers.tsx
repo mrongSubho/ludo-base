@@ -6,8 +6,9 @@ import { WagmiProvider, createConfig, http } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { DATA_SUFFIX } from "@/lib/builderCode";
+import { initTelemetry } from "@/lib/telemetry";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
 import { TeamUpProvider } from "@/hooks/TeamUpContext";
@@ -42,6 +43,9 @@ const config = createConfig({
 const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: ReactNode }) {
+    useEffect(() => {
+        initTelemetry();
+    }, []);
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>

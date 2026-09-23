@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BOARD_FINISH_INDEX, TEAM_ID } from '@/lib/constants';
 import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { getDisplayNameHelper } from './PlayerInfoRow';
+import { buildMatchReceipt, renderReceiptMarkdown, type MatchReceipt } from '@/lib/receipt/buildMatchReceipt';
 
 // ─── Post-match stats sheet ──────────────────────────────────────────────────
 // Terminal-glass treatment of the classic win sheet: result banner, XP strip,
 // per-player home/finish table, CHIPS claim slot (UI only — contracts wire
-// later per docs/tokenomics/CHIPS_PLANNING.md §4.8 Path A), then Back/Rematch.
+// later per docs/tokenomics/CHIPS_PLANNING.md section 4.8 Path A), then Back/Rematch.
 
 const COLOR_ACCENT: Record<string, string> = {
     green: '#10b981',
@@ -43,7 +44,7 @@ function playerDidWin(
     return winner === player.color || gameState.winners?.includes(player.color);
 }
 
-/** Placeholder pool math until MatchPool is live (CHIPS_PLANNING §4.5). */
+/** Placeholder pool math until MatchPool is live (CHIPS_PLANNING section 4.5). */
 function estimateClaimChips(wager: number, seats: number, winners: number): number {
     if (wager <= 0 || seats <= 0 || winners <= 0) return 0;
     const gross = wager * seats;
@@ -104,13 +105,17 @@ export interface MatchStatsOverlayProps {
     onRematch: () => void;
     onExit?: () => void;
     /**
-     * Future CHIPS claim (MatchPool.claimMatch). Leave undefined until contracts
-     * land — button renders in “wiring soon” state.
+     * MatchPool claim (pull). Wired in Board when poolId is known.
      */
     onClaimChips?: () => void;
+    /** On-chain MatchPool id for this paid match (0x…). */
+    poolId?: `0x${string}` | null;
     /** Overriding estimate (e.g. real pool credit from indexer). */
     claimableChips?: number | null;
     claimUnlocksInMin?: number | null;
+    /** Live claim busy / lock from usePoolClaim. */
+    claimBusy?: boolean;
+    claimError?: string | null;
 }
 
 export function MatchStatsOverlay({
@@ -125,8 +130,11 @@ export function MatchStatsOverlay({
     onRematch,
     onExit,
     onClaimChips,
+    poolId,
     claimableChips,
     claimUnlocksInMin,
+    claimBusy,
+    claimError,
 }: MatchStatsOverlayProps) {
     const seats = playerCount === '1v1' ? 2 : 4;
 
@@ -152,7 +160,8 @@ export function MatchStatsOverlay({
             : estimateClaimChips(wager, seats, winnerCount);
     const isPaid = wager > 0;
     const showClaimSlot = open && isPaid;
-    const claimReady = typeof onClaimChips === 'function' && estClaim > 0 && !!iWon;
+    const poolLive = typeof onClaimChips === 'function' && !!poolId;
+    const claimReady = poolLive && estClaim > 0 && !!iWon && !claimBusy;
 
     const myLevel = myPlayer?.level ?? 1;
     const myLxp = myPlayer?.lxp ?? 0;
@@ -160,6 +169,25 @@ export function MatchStatsOverlay({
     const xpInto = myLxp % 1000;
     const xpNeed = 1000;
     const xpPct = Math.min(100, Math.round((xpInto / xpNeed) * 100));
+
+    // G1 — match receipt (debug + trust artifact; CHIPS settle spine later)
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const receipt: MatchReceipt | null = useMemo(() => {
+        if (!open || !gameState.winner) return null;
+        return buildMatchReceipt({ state: gameState, players });
+    }, [open, gameState, players]);
+
+    const copyReceipt = useCallback(() => {
+        if (!receipt) return;
+        const md = renderReceiptMarkdown(receipt);
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+            void navigator.clipboard.writeText(md).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+            });
+        }
+    }, [receipt]);
 
     return (
         <AnimatePresence>
@@ -272,7 +300,7 @@ export function MatchStatsOverlay({
                             })}
                         </div>
 
-                        {/* CHIPS claim slot — contracts wire later (§4.8 Path A) */}
+                        {/* CHIPS claim slot — MatchPool.claimMatch (pull, section 4.8 Path A) */}
                         {showClaimSlot && (
                             <div className={`match-stats-claim ${iWon ? 'ready' : 'dim'}`}>
                                 <div className="match-stats-claim-head">
@@ -285,7 +313,9 @@ export function MatchStatsOverlay({
                                     {iWon
                                         ? claimUnlocksInMin != null
                                             ? `Pull-based claim · unlocks in ${claimUnlocksInMin} min`
-                                            : 'Pull-based prize claim · MatchPool'
+                                            : poolLive
+                                              ? 'Pull-based prize claim · MatchPool'
+                                              : 'Prize needs on-chain pool (pending deploy)'
                                         : 'No pool credit for this seat'}
                                 </p>
                                 {iWon && (
@@ -296,10 +326,29 @@ export function MatchStatsOverlay({
                                             if (claimReady) onClaimChips?.();
                                         }}
                                         disabled={!claimReady}
-                                        title={claimReady ? undefined : 'Claim wiring soon — CHIPS contracts pending'}
+                                        title={
+                                            claimReady
+                                                ? undefined
+                                                : claimBusy
+                                                  ? 'Claim in flight…'
+                                                  : poolLive
+                                                    ? 'Claim unlocks after dispute window'
+                                                    : 'Set NEXT_PUBLIC_MATCH_POOL_ADDRESS + poolId'
+                                        }
                                     >
-                                        {claimReady ? 'Claim CHIPS' : 'Claim · wiring soon'}
+                                        {claimBusy
+                                            ? 'Claiming…'
+                                            : claimReady
+                                              ? 'Claim CHIPS'
+                                              : poolLive
+                                                ? 'Claim · locked'
+                                                : 'Claim · pool pending'}
                                     </button>
+                                )}
+                                {claimError && (
+                                    <p className="match-stats-claim-note" style={{ color: '#fca5a5' }}>
+                                        {claimError}
+                                    </p>
                                 )}
                             </div>
                         )}
@@ -309,6 +358,52 @@ export function MatchStatsOverlay({
                                 <p className="match-stats-claim-note center">
                                     Free / offline table · progression only (no CHIPS pool)
                                 </p>
+                            </div>
+                        )}
+
+                        {/* G1 match receipt — post-mortem / trust artifact */}
+                        {receipt && (
+                            <div className="match-stats-claim" style={{ textAlign: 'left' }}>
+                                <button
+                                    type="button"
+                                    className="match-stats-cta ghost"
+                                    style={{ width: '100%', marginBottom: showReceipt ? '8px' : 0 }}
+                                    onClick={() => setShowReceipt((v) => !v)}
+                                    aria-expanded={showReceipt}
+                                >
+                                    {showReceipt ? 'Hide match receipt' : 'Match receipt'}
+                                </button>
+                                {showReceipt && (
+                                    <div style={{ fontSize: '11px', lineHeight: 1.5, opacity: 0.9 }}>
+                                        <div style={{ fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all' }}>
+                                            hash · {receipt.finalHash}
+                                        </div>
+                                        {receipt.lastRollId && (
+                                            <div style={{ fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all' }}>
+                                                roll · {receipt.lastRollId}
+                                            </div>
+                                        )}
+                                        <div style={{ marginTop: 6, opacity: 0.85 }}>
+                                            Net — gaps {receipt.net.seqGaps} · resyncs {receipt.net.resyncs} ·
+                                            dup {receipt.net.intentDup} · schema drops {receipt.net.schemaDrops}
+                                        </div>
+                                        <div style={{ marginTop: 6, opacity: 0.85 }}>
+                                            {receipt.players.map((p) => (
+                                                <div key={p.color}>
+                                                    {p.name}: {p.afk.copy}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="match-stats-cta ghost"
+                                            style={{ marginTop: 8 }}
+                                            onClick={copyReceipt}
+                                        >
+                                            {copied ? 'Copied' : 'Copy receipt'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 

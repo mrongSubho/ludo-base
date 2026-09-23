@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
+import { measureHop, recordHopSample, PERF_BUDGET } from '@/lib/perf/budget';
 import { PlayerColor, GameState } from '@/lib/types';
 import { Point, getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
 import { getIntermediatePathCoords, calculateNextPosition } from '@/lib/gameLogic';
@@ -174,6 +175,8 @@ export function TokenPiece({
 
                 // ONE GSAP timeline: DISCRETE cell-by-cell hops.
                 // Each cell = leap (travel while airborne) -> land -> beat.
+                // Q2: compose (set + timeline build) is measured against the hop budget.
+                void measureHop(`token-hop:${n}c`, () => {
                 tlRef.current?.kill();
                 const tl = gsap.timeline({
                     onComplete: () => {
@@ -202,6 +205,7 @@ export function TokenPiece({
                     tl.to(shadow, { opacity: 0.5, duration: UP, ease: 'power2.out' }, t0)
                       .to(shadow, { opacity: 0.9, duration: DOWN, ease: 'power2.in' }, t0 + UP);
                 }
+                }).then((m) => recordHopSample(m));
             } else {
                 setVisualPt(tp);
             }

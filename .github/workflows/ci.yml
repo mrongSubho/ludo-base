@@ -36,6 +36,19 @@ jobs:
         # Fail on any TS error — ignoreBuildErrors is off in next.config.ts.
         run: npx tsc -p tsconfig.json --noEmit --pretty false
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: ESLint (Next 16 removed `next lint`)
+        run: npm run lint
+
   auth-gate:
     # Signing-storm regression gate: no ecrecover-only auth path may ship.
     # Every wallet-signature check must go through the 6492-aware shared

@@ -15,6 +15,9 @@ import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { PaidPoolJoinButton } from './PaidPoolJoinButton';
+import { derivePoolId, isChipsConfigured } from '@/lib/chips';
+import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
 
 /** Preset entry fees (Coins). 0 = Free. */
 const FEE_PRESETS = [0, 1000, 10000, 100000, 1000000] as const;
@@ -50,6 +53,8 @@ interface GameLobbyProps {
     wager: number;
     setWager: (wager: number) => void;
     onStartGame: (isBotMatch?: boolean, difficulty?: import('@/lib/types').BotDifficulty) => void;
+    /** G2 — pass-and-play (all-human hot-seat). */
+    onStartPassAndPlay?: () => void;
     onOpenProfile?: (address: string) => void;
 }
 
@@ -61,6 +66,7 @@ export default function GameLobby({
     wager,
     setWager,
     onStartGame,
+    onStartPassAndPlay,
     onOpenProfile,
 }: GameLobbyProps) {
     const {
@@ -482,6 +488,29 @@ export default function GameLobby({
                                 </div>
                             </div>
                         )}
+
+                        {/* CHIPS paid-pool join — MatchPool approve+join when env is live */}
+                        {wager > 0 && isChipsConfigured() && (
+                            <div className="mt-3 px-1">
+                                <PaidPoolJoinButton
+                                    poolId={
+                                        roomId
+                                            ? derivePoolId({
+                                                  chainId:
+                                                      parseChainId(
+                                                          (typeof window !== 'undefined'
+                                                              ? (window as any).__ludoChainId
+                                                              : null),
+                                                      ) ?? DEFAULT_CHAIN_ID,
+                                                  matchId: roomId,
+                                                  roomCode: roomId,
+                                              })
+                                            : null
+                                    }
+                                    entryFee={wager >= 1000 ? wager / 1000 : wager}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* 3. ACTION DICE - flex-1 so it rides lower, centered in
@@ -613,6 +642,10 @@ export default function GameLobby({
                     onStartOfflineGame={(difficulty) => {
                         setShowOfflineOptions(false);
                         onStartGame(true, difficulty);
+                    }}
+                    onStartPassAndPlay={() => {
+                        setShowOfflineOptions(false);
+                        onStartPassAndPlay?.();
                     }}
                 />
             )}

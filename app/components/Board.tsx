@@ -22,6 +22,10 @@ import {
     NameOverlay
 } from './BoardOverlays';
 import { MatchStatsOverlay } from './MatchStatsOverlay';
+import { usePoolClaim } from '@/hooks/useChipsPool';
+import { EmoteTray, parseEmotePayload } from './EmoteTray';
+import type { EmoteEvent } from '@/lib/emotes';
+import type { GameActionPayload } from '@/lib/types';
 import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
 
 // Modular Hooks
@@ -39,6 +43,7 @@ export default function Board({
     spectatorMode = false,
     externalGameState,
     wager = 0,
+    poolId = null,
     botDifficulty = 'pro',
     onExitMatch,
 }: {
@@ -53,12 +58,32 @@ export default function Board({
     spectatorMode?: boolean;
     externalGameState?: import('@/lib/types').GameState;
     wager?: number;
+    /** MatchPool id for paid online matches (CHIPS claim). */
+    poolId?: `0x${string}` | null;
     botDifficulty?: import('@/lib/types').BotDifficulty;
     onExitMatch?: () => void;
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
-    const { participants } = useTeamUp();
+    const { participants, broadcastAction } = useTeamUp();
+    const {
+        claim: claimChips,
+        claimable: onchainClaimable,
+        isPending: claimBusy,
+        error: claimError,
+        configured: claimConfigured,
+    } = usePoolClaim(poolId);
+    const [emoteFloats, setEmoteFloats] = React.useState<EmoteEvent[]>([]);
+
+    React.useEffect(() => {
+        const onEmote = (ev: Event) => {
+            const parsed = parseEmotePayload((ev as CustomEvent).detail);
+            if (!parsed) return;
+            setEmoteFloats((f) => [...f.slice(-4), parsed]);
+        };
+        window.addEventListener('ludo-emote', onEmote);
+        return () => window.removeEventListener('ludo-emote', onEmote);
+    }, []);
 
     const [boardConfig, setBoardConfig] = useState(() => {
         if (initialPlayers && initialColorCorner) {
@@ -340,6 +365,23 @@ export default function Board({
               </div>
 
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
+             {!spectatorMode && myPlayer && (
+                 <div className="absolute bottom-2 right-2 z-[45]">
+                     <EmoteTray
+                         myColor={myPlayer.color}
+                         floats={emoteFloats}
+                         onEmote={(event) => {
+                             setEmoteFloats((f) => [...f.slice(-4), event]);
+                             broadcastAction('EMOTE', {
+                                 emoteId: event.emoteId,
+                                 color: event.color,
+                                 actor: event.actor,
+                                 t: event.t,
+                             } as GameActionPayload<'EMOTE'>);
+                         }}
+                     />
+                 </div>
+             )}
          </motion.div>
 
             <MatchStatsOverlay
@@ -353,7 +395,13 @@ export default function Board({
                 lxpGain={lxpGain}
                 onRematch={resetGame}
                 onExit={onExitMatch}
-                /* onClaimChips left undefined — MatchPool claim wires later */
+                poolId={claimConfigured ? poolId : null}
+                onClaimChips={claimConfigured ? () => void claimChips() : undefined}
+                claimableChips={
+                    onchainClaimable != null ? Number(onchainClaimable) / 1e18 : undefined
+                }
+                claimBusy={claimBusy}
+                claimError={claimError}
             />
 
             <PlayerRow
