@@ -96,7 +96,7 @@ test('prop: TEAM_PAIRINGS is a fixed-point-free involution and team-stable', () 
         assert.equal(TEAM_ID[color], TEAM_ID[mate!]);
     }
     assert.notEqual(getTeam('green', '2v2'), getTeam('red', '2v2'));
-    assert.notEqual(getTeam('yellow', '2v2'), getTeam('blue', '2v2'));
+    assert.notEqual(getTeam('blue', '2v2'), getTeam('yellow', '2v2'));
 });
 
 test('prop: overshoot past finish is illegal (exact 57)', () => {

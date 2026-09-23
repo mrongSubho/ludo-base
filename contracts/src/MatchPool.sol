@@ -682,13 +682,13 @@ contract MatchPool is ReentrancyGuard {
         }
     }
 
+    /// @dev TEAM_PAIRINGS Green+Blue vs Red+Yellow. Colors: 1=G, 2=Y, 3=R, 4=B.
     function _isTeamPair(bytes32 poolId, address a, address b) private view returns (bool) {
         uint8 ca = _seatColors[poolId][seatIndex[poolId][a] - 1];
         uint8 cb = _seatColors[poolId][seatIndex[poolId][b] - 1];
-        bool teamGY = (ca == 1 && cb == 2) || (ca == 2 && cb == 1);
-        bool teamRB = (ca == 3 && cb == 4) || (ca == 4 && cb == 3);
-        return teamGY || teamRB;
-    }
+        bool teamGB = (ca == 1 && cb == 4) || (ca == 4 && cb == 1);
+        bool teamRY = (ca == 3 && cb == 2) || (ca == 2 && cb == 3);
+        return teamGB || teamRY;
     }
 
     function _domainSep() private view returns (bytes32) {

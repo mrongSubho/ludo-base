@@ -31,7 +31,7 @@ Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wag
 
 These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 
-1. **2v2 teams are one source of truth:** `TEAM_PAIRINGS` in `lib/constants.ts` — **Green+Yellow vs Red+Blue**. Seating (`assignCorners2v2`), `getTeammateColor`, `getTeam`, assist, capture, and win checks must all use it. Never fork a second pairing.
+1. **2v2 teams are one source of truth:** `TEAM_PAIRINGS` in `lib/constants.ts` — **Green+Blue vs Red+Yellow**. Seating (`assignCorners2v2`), `getTeammateColor`, `getTeam`, assist, capture, and win checks must all use it. Never fork a second pairing.
 2. **Move legality uses engine math:** always `calculateNextPosition` / `getLegalTokenIndices`. Never `pos + roll` (breaks gate crossing into home stretch 52–57).
 3. **Networked rolls:** Edge `roll-dice` only; receipts in `match_rolls` (unique `action_id`). **Networked moves (v2):** Edge `move-auth` (seed / `submit-move` / `pass-turn` / `submit-power`). **Match session (A/C):** one EIP-712 `LudoMatchSession` sign per match → `match_sessions.sessionId` for in-match actions (no per-move popup). Fallback = per-action signature. **SIWE app session (B):** `/api/siwe/verify` + `app_sessions` for chat/profile/settings only — never match moves. `match_states.seq` is display + rules authority. Offline keeps local `processMove`. `npm run check:engine` must pass.
 4. **`/api/match/record`:** requires wallet signature over `buildMatchRecordMessage`; signer must be a listed participant; no coin pot payout (progression only); replay blocked if match already has a winner.

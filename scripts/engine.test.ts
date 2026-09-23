@@ -24,11 +24,11 @@ const CC_4P = {
     blue: 'TL',
 } as const;
 
-test('2v2 teammate pairing is Green+Yellow and Red+Blue', () => {
-    assert.equal(getTeammateColor('green', '2v2'), 'yellow');
-    assert.equal(getTeammateColor('yellow', '2v2'), 'green');
-    assert.equal(getTeammateColor('red', '2v2'), 'blue');
-    assert.equal(getTeammateColor('blue', '2v2'), 'red');
+test('2v2 teammate pairing is Green+Blue and Red+Yellow', () => {
+    assert.equal(getTeammateColor('green', '2v2'), 'blue');
+    assert.equal(getTeammateColor('blue', '2v2'), 'green');
+    assert.equal(getTeammateColor('red', '2v2'), 'yellow');
+    assert.equal(getTeammateColor('yellow', '2v2'), 'red');
     assert.equal(getTeammateColor('green', '4P'), null);
 });
 
@@ -47,8 +47,8 @@ test('assignCorners2v2 seats teammates on the same diagonal axis', () => {
         const cc = assignCorners2v2();
         const axisOf = (corner: string) =>
             (['BL', 'TR'].includes(corner) ? 'A' : 'B') as 'A' | 'B';
-        assert.equal(axisOf(cc.green), axisOf(cc.yellow), 'green/yellow must share a diagonal');
-        assert.equal(axisOf(cc.red), axisOf(cc.blue), 'red/blue must share a diagonal');
+        assert.equal(axisOf(cc.green), axisOf(cc.blue), 'green/blue must share a diagonal');
+        assert.equal(axisOf(cc.red), axisOf(cc.yellow), 'red/yellow must share a diagonal');
         assert.notEqual(axisOf(cc.green), axisOf(cc.red), 'teams must sit on opposite diagonals');
     }
 });

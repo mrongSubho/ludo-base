@@ -4,6 +4,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Hex } from 'viem';
 import { SettlePoolButton } from './SettlePoolButton';
+import { buildPayoutPlan, payoutShareLabel, type MatchShape } from '@/lib/payoutPlan';
 import { BOARD_FINISH_INDEX, TEAM_ID } from '@/lib/constants';
 import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
@@ -52,6 +53,12 @@ function estimateClaimChips(wager: number, seats: number, winners: number): numb
     const gross = wager * seats;
     const prize = Math.floor(gross * 0.93); // 5% protocol + 2% burn sketch
     return Math.floor(prize / winners);
+}
+
+function matchShapeOf(playerCount: string): MatchShape {
+    if (playerCount === '2v2') return '2v2';
+    if (playerCount === '1v1') return '1v1';
+    return '4P';
 }
 
 const RankBadge = ({ rank, won }: { rank: number; won: boolean }) => (
@@ -173,6 +180,24 @@ export function MatchStatsOverlay({
     const poolLive = typeof onClaimChips === 'function' && !!poolId;
     const claimReady = poolLive && estClaim > 0 && !!iWon && !claimBusy;
 
+    // Locked splits: 2v2 50/50 · 4P top-2 75/25 (lib/payoutPlan + MatchPool).
+    const shape = matchShapeOf(playerCount);
+    const prizeFundWei = BigInt(Math.max(0, Math.floor(wager * seats * 0.93 * 1e18)));
+    const settlePlan = useMemo(() => {
+        if (!showClaimSlot || !winnerAddress || !isPoolHost) return null;
+        // Phase-1: single funded winner wallet (1v1 / sole winner). Multi-seat
+        // wallets attach per winnerAddress when each seat maps to a wallet.
+        try {
+            return buildPayoutPlan({
+                shape,
+                prizeFund: prizeFundWei,
+                winners: [{ addr: winnerAddress as `0x${string}`, rank: 1, seatIndex: 1 }],
+            });
+        } catch {
+            return null;
+        }
+    }, [showClaimSlot, winnerAddress, isPoolHost, shape, prizeFundWei]);
+
     const myLevel = myPlayer?.level ?? 1;
     const myLxp = myPlayer?.lxp ?? 0;
     // Display-only XP bar until progression feed is wired into this sheet.
@@ -293,7 +318,12 @@ export function MatchStatsOverlay({
                                             {row.won ? (
                                                 isPaid ? (
                                                     <>
-                                                        <span className="match-stats-outcome-label">Prize</span>
+                                                        <span className="match-stats-outcome-label">
+                                                            Prize
+                                                            {winnerCount > 1
+                                                                ? ` · ${payoutShareLabel(shape, idx + 1, winnerCount)}`
+                                                                : ''}
+                                                        </span>
                                                         <span className="match-stats-outcome-val">
                                                             {formatChips(Math.floor(estClaim))}
                                                         </span>
@@ -323,12 +353,14 @@ export function MatchStatsOverlay({
                                 <SettlePoolButton
                                     poolId={poolId as Hex}
                                     authority={poolAuthority as Hex}
-                                    plan={[
-                                        {
-                                            addr: winnerAddress as Hex,
-                                            amount: BigInt(Math.floor(estClaim * 1e18)),
-                                        },
-                                    ]}
+                                    plan={
+                                        settlePlan ?? [
+                                            {
+                                                addr: winnerAddress as Hex,
+                                                amount: BigInt(Math.floor(estClaim * 1e18)),
+                                            },
+                                        ]
+                                    }
                                 />
                             </div>
                         )}

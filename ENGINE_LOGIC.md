@@ -49,7 +49,7 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Seating Axis:** Players are assigned to corners: `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, or `Top-Left (TL)`.
 - **Turns:** Anti-clockwise rotation.
 - **Diagonal Partnership (2v2):** Partners always sit diagonally opposite (`BL+TR` or `BR+TL`).
-- **Team pairings (single source of truth — `TEAM_PAIRINGS` in `lib/constants.ts`):** **Green+Yellow** vs **Red+Blue**. Seating (`assignCorners2v2`), capture truce, teammate assist, AI targeting, and win checks all read this table. Never fork a second pairing.
+- **Team pairings (single source of truth — `TEAM_PAIRINGS` in `lib/constants.ts`):** **Green+Blue** vs **Red+Yellow**. Seating (`assignCorners2v2`), capture truce, teammate assist, AI targeting, and win checks all read this table. Never fork a second pairing.
 
 ### 3.3 Movement & Capture (Force Mechanics)
 - **Home Exit:** Requires a `DICE_MAX` (6) to move from base (`BASE_INDEX: -1`) to start tile (0).
@@ -63,7 +63,7 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 ### 3.4 2v2 Teammate Assist
 Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
 - **Victory:** A team wins only when all 8 tokens (4 per player) have reached the Finish square.
-- **Teams:** Green+Yellow (team 1) vs Red+Blue (team 2).
+- **Teams:** Green+Blue (team 1) vs Red+Yellow (team 2).
 
 ### 3.5 Power System v3 (hidden tiles → timed inventory → targeted spend)
 - **Tiles:** exactly 5 (`POWER_TILES_COUNT`), main track only, never home tiles. Each carries a hidden type (rarity: Boost .4 / Shield .25 / Teleport .2 / Nuke .15). Tiles render NOTHING pre-pickup; landing exactly on one reveals (flash + discovery message), grants to inventory, and spawns a replacement elsewhere.

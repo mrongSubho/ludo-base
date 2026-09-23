@@ -17,17 +17,17 @@ export const MAX_CONSECUTIVE_SIXES = 3;
 export const DEFAULT_TURN_TIMER_SECS = 15;
 
 export const TEAM_PAIRINGS = {
-    green: 'yellow',
-    yellow: 'green',
-    red: 'blue',
-    blue: 'red',
+    green: 'blue',
+    blue: 'green',
+    red: 'yellow',
+    yellow: 'red',
 } as const;
 
 export const TEAM_ID = {
     green: 1,
-    yellow: 1,
+    blue: 1,
     red: 2,
-    blue: 2,
+    yellow: 2,
 } as const;
 
 export const SHARED_PATH: Point[] = [
