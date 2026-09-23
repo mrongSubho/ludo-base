@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
 import LudoDice from './LudoDice';
 import { Player } from '@/hooks/useGameEngine';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getEdgeClient } from '@/lib/teamup/edge-server-singleton';
@@ -375,7 +376,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     await edgeClient.connect();
                     connected = true;
                     break;
-                } catch (e) {
+                } catch (_e) {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             }
@@ -498,7 +499,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             return;
         }
 
-        const normalizedPlayerId = playerId.toLowerCase();
+        const _normalizedPlayerId = playerId.toLowerCase();
         const criteria = `hybrid-${roomCode}-${slotsNeeded}-${lobbyMatchType}-${wager}-${wagerMin}-${wagerMax}`;
         
         if (statusRef.current === 'searching' && lastSearchRef.current === criteria) {

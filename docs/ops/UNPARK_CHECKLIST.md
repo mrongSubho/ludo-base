@@ -44,13 +44,17 @@
 | Chaos: drop PeerJS / broadcast / host fail | **Code done** — `scripts/net.chaos.ts`; **live drills pending** |
 | Connection badge (N5) | **Done** — `ConnectionBadge` in `BoardHeaderCompact` |
 | **N0** peerjs pinned (no CDN) + resync session proof | **Done** — `lib/peerFactory.ts`, `lib/netcode/resyncProof.ts`, Edge `resync` · notes `docs/ops/SIGNALING.md` |
+| **N6** spectator schema + resync + counters | **Done** — `useSpectatorSync` + `lib/protocol` spectator schemas |
 
 ### Quality
 
 | Item | State |
 | --- | --- |
-| Lint + typecheck + engine tests + properties | **Done / green** |
-| Telemetry + play funnel | **Done** — `lib/telemetry.ts` (console transport until Sentry DSN) |
+| Lint + typecheck + engine tests + properties | **Done / green** — rules `error`; legacy quarantine in `eslint.config.mjs` |
+| Telemetry + play funnel | **Done** — `lib/telemetry.ts` + Q7 scrub/sample policy (`lib/telemetryPolicy.ts`) |
+| **Q7 standing SLOs + telemetry policy** | **Done** — `docs/ops/SLOS.md` · `scripts/q7.test.ts` |
+| **Q6 deploy + data ops** | **Done** — `lib/edgeOps.ts` · `docs/ops/DEPLOY_OPS.md` · `npm run check:rls` in CI |
+| **C0 freeze pack** | **Draft** — `docs/tokenomics/C0_FREEZE_PACK.md` (counsel/analytics sign-off still external) |
 | Hop frame budget (Q2) | **Code done** — `measureHop` on TokenPiece; **device measurement pending** |
 | Multiplayer harness (Q4) | **Done** — `scripts/mp.harness.ts` (4P seat→capture→resync→end + 1v1) · `npm run test:mp` |
 | Smoke doc | **Done** — `docs/ops/NETCODE_DRILLS.md` |

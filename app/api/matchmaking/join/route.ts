@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- legacy types; tracked burn-down */
+ 
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
@@ -55,7 +57,20 @@ async function withCallerToken(db: any, playerId: string, data: any) {
 export async function POST(request: Request) {
     try {
         const supabase = serviceDb();
-        let { playerId, sessionId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, isHybrid } = await request.json();
+        const body = await request.json() as {
+            playerId: string;
+            sessionId: string;
+            gameMode: string;
+            matchType: string;
+            wager: number;
+            wagerMin: number;
+            wagerMax: number;
+            roomCode: string;
+            slotsNeeded: number;
+            isHybrid: boolean;
+        };
+        let playerId = body.playerId;
+        const { sessionId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, isHybrid } = body;
 
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

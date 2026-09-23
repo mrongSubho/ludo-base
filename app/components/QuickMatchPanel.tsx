@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -157,7 +158,7 @@ export const QuickMatchPanel = ({
         createProvisionalSession
     } = useTeamUpContext();
     const [tipIndex, setTipIndex] = useState(0);
-    const [hasExpanded, setHasExpanded] = useState(false);
+    const [_hasExpanded, setHasExpanded] = useState(false);
     const [showExpansionOptions, setShowExpansionOptions] = useState(false);
     /** Fee the ticket is actually searching on (snapped; changes on expand). */
     const [activeWager, setActiveWager] = useState(() => snapFee(wager));
@@ -403,7 +404,7 @@ export const QuickMatchPanel = ({
         startSearch(fee, fee);
     };
 
-    const isSearching = status === 'searching' || status === 'expanding';
+    const _isSearching = status === 'searching' || status === 'expanding';
 
     return (
         <>

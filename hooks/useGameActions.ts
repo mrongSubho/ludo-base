@@ -100,7 +100,7 @@ export function useGameActions({
 }: UseGameActionsProps) {
 
 
-    const bettingWindowIdRef = useRef<string | null>(null);
+    const _bettingWindowIdRef = useRef<string | null>(null);
     const rollingRef = useRef<boolean>(false);
     const serverActionPendingRef = useRef(false);
     const stateRef = useRef(localGameState);

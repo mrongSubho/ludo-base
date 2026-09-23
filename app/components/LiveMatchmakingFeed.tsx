@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';

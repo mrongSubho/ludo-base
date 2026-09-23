@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
 import { useCallback, useRef, useEffect } from 'react';
@@ -123,7 +124,7 @@ export const useAudio = () => {
                 ambientNodes.current.osc1.stop();
                 ambientNodes.current.osc2.stop();
                 ambientNodes.current.lfo?.stop();
-            } catch (e) { }
+            } catch (_e) { }
             ambientNodes.current.gain.disconnect();
             ambientNodes.current = null;
         }

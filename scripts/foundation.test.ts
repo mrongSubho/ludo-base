@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { track, captureException, setTelemetryTransport, initTelemetry } from '../lib/telemetry';
+import { track, captureException, setTelemetryTransport, initTelemetry, setTelemetrySampleRate } from '../lib/telemetry';
 import {
     bumpNet,
     getNetCounters,
@@ -77,6 +77,7 @@ test('telemetry redacts sensitive keys and does not throw', () => {
             /* ok */
         },
     });
+    setTelemetrySampleRate(1);
     track('roll_ok', { signature: '0xdead', dice: 6 });
     assert.equal(events[0]?.name, 'roll_ok');
     const props = events[0]?.props as Record<string, unknown>;

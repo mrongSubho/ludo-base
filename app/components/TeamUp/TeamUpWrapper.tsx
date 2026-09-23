@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 // app/components/TeamUp/TeamUpWrapper.tsx
 import React, { ReactNode, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

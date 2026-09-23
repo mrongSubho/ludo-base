@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { serviceDb } from '@/lib/serverAuth';

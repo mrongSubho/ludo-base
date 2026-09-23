@@ -29,14 +29,21 @@ import {
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-ludo-edge-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+/** Q6 — calver bumped on each deploy (lockstep with lib/edgeOps.ts EDGE_API_VERSION). */
+const EDGE_API_VERSION = '2026-09-23.1';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: {
+      ...CORS,
+      'Content-Type': 'application/json',
+      'x-ludo-edge-version': EDGE_API_VERSION,
+    },
   });
 }
 

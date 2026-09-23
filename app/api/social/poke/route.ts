@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 

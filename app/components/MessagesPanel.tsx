@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -153,7 +154,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
             }
         })();
         return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [address]);
 
     const pokeBack = async (friendId: string) => {
@@ -310,7 +311,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
             }
         }
         if (changed) setVanishedIds(prev => new Set(prev)); // re-render
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [messages, selectedChatId, address]);
 
     // …and is persisted as vanished on interval, page hide, and unmount.
@@ -407,7 +408,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         const read = inThread.filter(m => m.is_read);
         const kept = [...read.slice(-Math.max(0, 20 - unread.length)), ...unread];
         return kept.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     })() : [];
 
     return (

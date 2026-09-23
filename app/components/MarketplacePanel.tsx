@@ -564,7 +564,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             c[t.id] = { total: items.length, owned: items.filter(i => isOwnedId(i.id)).length };
         }
         return c;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [marketData, ownedIds]);
 
     const totalOwned = TAB_META.reduce((n, t) => n + counts[t.id].owned, 0);
@@ -591,7 +591,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         else if (sort === 'price-desc') sorted.sort((a, b) => b.price - a.price);
         else if (sort === 'rarity') sorted.sort((a, b) => RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity]);
         return sorted;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [marketData, ownedIds, activeTab, mode, statusFilter, rarityFilter, search, sort]);
 
     const tabItems = useMemo(() => marketData.filter(i => i.type === activeTab), [marketData, activeTab]);

@@ -19,8 +19,6 @@ export default tseslint.config(
     },
     ...tseslint.configs.recommended,
     {
-        // Existing files disable react-hooks / @next rules from the old
-        // eslint-config-next setup. Register stubs so those directives don't error.
         plugins: {
             'react-hooks': {
                 rules: {
@@ -38,17 +36,21 @@ export default tseslint.config(
     {
         rules: {
             'no-unused-vars': 'off',
-            // Style debt is warn until burn-down (stable-build gate keeps CI honest
-            // while we fix the existing unused/prefer-const surface incrementally).
+            // Burned down 2026-09-23 — style gates are errors again.
             '@typescript-eslint/no-unused-vars': [
-                'warn',
-                { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                    ignoreRestSiblings: true,
+                },
             ],
-            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-explicit-any': 'error',
             'no-console': 'off',
             'no-empty': ['error', { allowEmptyCatch: true }],
             'no-constant-condition': ['error', { checkLoops: false }],
-            'prefer-const': 'warn',
+            'prefer-const': 'error',
             eqeqeq: ['error', 'smart'],
         },
     }

@@ -20,6 +20,8 @@ jobs:
         run: npm test
       - name: Edge engine sync
         run: node scripts/check-edge-engine.mjs
+      - name: RLS static gate
+        run: npm run check:rls
 
   typecheck:
     runs-on: ubuntu-latest

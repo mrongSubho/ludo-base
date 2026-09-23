@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -162,7 +163,7 @@ export default function GameLobby({
         if (wager > 0 && wager > coins) {
             setWager(suggestedEntryFee(coins));
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [coins]);
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
@@ -253,7 +254,7 @@ export default function GameLobby({
             window.history.replaceState(null, '', window.location.pathname);
             startPartyJoin(code.trim().toUpperCase(), seat, secret);
         } catch { /* no link — normal entry */ }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     // Handle Joining from Live Feed

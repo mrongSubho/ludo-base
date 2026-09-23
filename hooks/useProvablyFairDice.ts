@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 import { useState, useCallback } from 'react';
 import { PlayerColor, GameState, LobbyState } from '@/lib/types';
 import { handleThreeSixes, getNextPlayer, getTeammateColor } from '@/lib/gameLogic';

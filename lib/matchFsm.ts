@@ -100,7 +100,7 @@ export function createMatchFsm(initial: MatchPhase = 'idle') {
         },
         send(event: MatchFsmEvent): MatchPhase {
             const to = nextPhase(phase, event);
-            const ok = to !== null;
+            const _ok = to !== null;
             if (!to) {
                 illegal += 1;
                 for (const fn of listeners) fn(phase, phase, event, false);

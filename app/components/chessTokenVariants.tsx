@@ -24,7 +24,7 @@ export const ClassicSlimPiece = ({ color, rank }: { color: string; rank: Preview
     const base = COLORS[color] || '#22c55e';
     const hi = shadeHex(base, 58), mid = shadeHex(base, -14), dark = shadeHex(base, -40), deep = shadeHex(base, -66), blackest = shadeHex(base, -82);
     const cyl = `url(#sc-cyl-${id})`;
-    const p = { hi, mid, dark, deep, blackest };
+    const _p = { hi, mid, dark, deep, blackest };
 
     return (
         <svg viewBox="0 0 200 200" className="w-full h-full">
@@ -169,7 +169,7 @@ export const SoftRenderPiece = ({ color, rank }: { color: string; rank: PreviewR
     const id = rawId.replace(/[^a-zA-Z0-9]/g, '');
     const base = SOFT_COLORS[color] || '#31d158';
     const lit = shadeHex(base, 55);
-    const lite = shadeHex(base, 30);
+    const _lite = shadeHex(base, 30);
     const shd = shadeHex(base, -22);
     const shd2 = shadeHex(base, -34);
     const edge = shadeHex(base, -44);

@@ -58,7 +58,7 @@ export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
         } catch {
             /* storage unavailable — hook fallbacks stand */
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     const finish = () => {

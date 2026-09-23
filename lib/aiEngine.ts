@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor, calculateNextPosition, getLegalTokenIndices } from './gameLogic';
 import { Point, ColorCorner, getBoardCoordinate, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';

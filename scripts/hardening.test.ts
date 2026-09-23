@@ -67,7 +67,7 @@ const players: BoardPlayer[] = [
 ];
 
 test('N2 resync applies forward snapshot and reports stale', async () => {
-    let seq = 0;
+    const seq = 0;
     let applied = 0;
     const apply = (_s: GameState, next: number) => {
         applied = next;

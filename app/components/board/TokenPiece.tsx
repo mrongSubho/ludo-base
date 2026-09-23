@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -189,7 +190,7 @@ export function TokenPiece({
 
                 const glide = glideRef.current, hop = hopRef.current, shadow = shadowRef.current;
                 const LEAP = cellDur * 0.79;   // airborne travel per cell
-                const BEAT = cellDur * 0.21;   // grounded pause between cells
+                const _BEAT = cellDur * 0.21;   // grounded pause between cells
                 const UP = cellDur * 0.32;
                 const DOWN = cellDur * 0.47;
 

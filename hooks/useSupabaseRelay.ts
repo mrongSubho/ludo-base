@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LobbyState } from '@/lib/types';

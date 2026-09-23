@@ -81,9 +81,9 @@ Treasury bridge (≤100M) is **not** elected. If ever used, a **superseding deci
 
 | Sybil model artifact | Status |
 | --- | --- |
-| 22k-wallet full-S1 drain case | **OPEN — analytics** (before S1 locks) |
-| 100k-wallet case | **OPEN — analytics** (before S1 locks) |
-| Break-even: wallet-create + gas + 7% wash take | **OPEN — analytics** |
+| 22k-wallet full-S1 drain case | **DRAFT** — `docs/tokenomics/C0_FREEZE_PACK.md` §1 (publish spreadsheet before S1 lock) |
+| 100k-wallet case | **DRAFT** — same |
+| Break-even: wallet-create + gas + 7% wash take | **DRAFT** — same |
 
 ### 3.2 Welcome grant (LOCKED)
 
@@ -176,7 +176,7 @@ App env: `NEXT_PUBLIC_CHIPS_ADDRESS`, `NEXT_PUBLIC_MATCH_POOL_ADDRESS` (see `lib
 
 | # | Gate | Status |
 | --- | --- | --- |
-| 1 | Pre-freeze legal issue-spot + geo/product acceptance criteria | **OPEN — external** (legal). Scope: utility token, skill/chance, paid pools, predict = separate sportsbook surface. |
+| 1 | Pre-freeze legal issue-spot + geo/product acceptance criteria | **DRAFT brief** — `docs/tokenomics/C0_FREEZE_PACK.md` §2 (counsel sign-off still OPEN — external) |
 | 2 | Sybil-profitability model (22k/100k) + S1 decision | **PARTIAL** — S1 = 400M provisional LOCKED; model **OPEN — analytics** before S1 final lock |
 | 3 | Stall-path election | **LOCKED** — automatic S2-draw reduction |
 | 4 | Liquidity unlock: numeric KPIs + owner + date | **PARTIAL** — KPIs from CHIPS_PLANNING section 11; **owner/date OPEN — product** |

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 

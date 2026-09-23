@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 const getGitHash = () => {
   try {
     return execSync('git rev-parse --short HEAD').toString().trim();
-  } catch (e) {
+  } catch (_e) {
     return 'unknown';
   }
 };
@@ -13,7 +13,7 @@ const getGitHash = () => {
 const getBuildNumber = () => {
   try {
     return execSync('git rev-list --count HEAD').toString().trim();
-  } catch (e) {
+  } catch (_e) {
     return '';
   }
 };

@@ -16,6 +16,7 @@
 ## Table of contents
 
 - [0. Verdict](#0-verdict)
+- [0b. Live status checklist + what’s next](#0b-live-status-checklist--whats-next)
 - [1. Scope lock](#1-scope-lock)
 - [2. What “industry-grade engine” means for this repo](#2-what-industry-grade-engine-means-for-this-repo)
 - [3. Existing system map](#3-existing-system-map)
@@ -46,6 +47,59 @@
 **One-line:** *Harden the engine and the netcode to production standards; when the loop is stable and measurable, then (and only then) re-open growth/monetization tracks.*
 
 Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIPS remains the long-term thesis (`docs/tokenomics/CHIPS_PLANNING.md`) but is **not** the critical path to a stable build.
+
+---
+
+## 0b. Live status checklist + what’s next
+
+**Last updated:** 2026-09-23 · Snapshot of section 10. Full evidence: `docs/ops/UNPARK_CHECKLIST.md` · `docs/ops/UNPARK_DECISION.md`.
+
+### Status checklist (code)
+
+| ID | Item | Status | Artifact |
+| --- | --- | --- | --- |
+| E1 | Replay log + golden hash | ✅ | `lib/replay/` · `npm run replay` |
+| E2 | fast-check properties | ✅ | `scripts/engine.props.test.ts` |
+| E3 | Replay CLI | ✅ | `scripts/replay.ts` |
+| E4 | AI Web Worker + fallback | ✅ | `lib/ai/worker.ts` · `lib/ai/client.ts` |
+| E5 | Match FSM | ✅ | `lib/matchFsm.ts` + `TeamUpContext` |
+| E6 | `hashGameState` | ✅ | `lib/replay/hash.ts` |
+| E7 | AI calibration bench | ✅ | `npm run bench:ai` |
+| N0 | PeerJS npm pin + resync proof | ✅ | `lib/peerFactory.ts` · `lib/netcode/resyncProof.ts` · Edge `resync` |
+| N1 | `net_*` counters | ✅ | `lib/netcode/counters.ts` |
+| N2 | `resyncMatch()` | ✅ | `lib/netcode/resync.ts` |
+| N3 | Chaos + deep drills | ✅ *(sim)* | `npm run test:chaos` · `npm run drill:deep` |
+| N4 | Zod wire schemas | ✅ | `lib/protocol/` + `protocolVersion` + size cap + TTL/LRU dedup |
+| N5 | Connection badge | ✅ | `ConnectionBadge` |
+| N6 | Spectator schema/resync parity | ✅ | `useSpectatorSync` + `parseSpectatorBroadcast` + `resyncMatch` + `net_*` |
+| Q1 | Telemetry + funnel | ✅ | `lib/telemetry.ts` |
+| Q2 | Hop budget harness | 🟡 | `lib/perf/*` · **phone pass pending** |
+| Q3 | Honest lint/CI | ✅ | `eslint.config.mjs` rules=`error` |
+| Q4 | MP harness | ✅ | `npm run test:mp` |
+| Q5 | Error copy / boundaries | ✅ | `lib/errorCopy.ts` + `PanelErrorBoundary` / `app/error.tsx` |
+| Q6 | Edge version + RLS CI + load targets | ✅ | `lib/edgeOps.ts` · `npm run check:rls` · `docs/ops/DEPLOY_OPS.md` |
+| Q7 | SLOs + scrub/sample policy | ✅ | `docs/ops/SLOS.md` · `lib/telemetryPolicy.ts` |
+| G1–G5 | Receipt · Pass & Play · Abandon/AFK · Notices · Emotes | ✅ | see UNPARK_CHECKLIST |
+| C0 | Sybil + legal freeze pack | 🟡 draft | `docs/tokenomics/C0_FREEZE_PACK.md` |
+
+### What’s next (ordered)
+
+1. **Human un-park gates** (only blockers for growth tracks):
+   - [ ] Q2 **physical phone** hop pass → `docs/ops/DEVICE_PASS.md`
+   - [ ] N3 **D1–D4 on two real clients** (PeerJS drop, Realtime drop, host kill, airplane)
+   - [ ] Sentry project + `NEXT_PUBLIC_SENTRY_DSN` + first event
+   - [ ] Fill `docs/ops/UNPARK_DECISION.md` → UN-PARK (or DEFER)
+2. **Close remaining code 🟡** (can run in parallel with (1)):
+   - [x] ~~N6 spectator parity full (schema + resync + counter)~~
+   - [x] ~~Q5 typed error copy everywhere + `PanelErrorBoundary` coverage~~
+   - [x] ~~Q2: wire `installPerfDebugHook` on the main `Board` path~~
+   - [x] ~~N4 `protocolVersion` + TTL/LRU dedup + size caps~~
+   - [x] ~~Remove legacy eslint quarantine file list as types land~~ *(file-level disables only on 8 legacy modules; config quarantine block removed)*
+3. **After UN-PARK** — pick **one** growth slice (section 8): voice PTT **or** i18n es/pt-BR **or** ads seam (never ads→CHIPS).
+4. **CHIPS value track** (parallel or after): contracts already scaffolded (`MatchPool`/`ClaimHub`) — next Foundry suite green → Sepolia deploy → claim UI → **M11 Builder-Code assert** before attribution claims.
+5. **C0 external sign-offs** — Sybil spreadsheet + counsel L1–L6 → unlock S1 final lock / mainnet value.
+
+**Do not start** voice / i18n / ads / predict / paymaster funding until (1) is green.
 
 ---
 
@@ -292,64 +346,60 @@ Record un-park as a dated decision in **`docs/ops/UNPARK_DECISION.md`** (then co
 
 ## 9. CHIPS during this plan (narrow lane)
 
-Tokenomics remains authoritative (`docs/tokenomics/CHIPS_PLANNING.md`). During the stable-build push:
+Tokenomics remains authoritative (`docs/tokenomics/CHIPS_PLANNING.md`). **Update 2026-09-23:** a parallel CHIPS lane already scaffolded `contracts/` (`MatchPool` / `ClaimHub` / `MissionClaim`) and settle UI helpers — treat that as **pre-Phase-1 scaffolding**. Value-bearing Sepolia paths still wait on section 0b human gates + freeze pack sign-offs.
 
-**Allowed (≤0.5 FTE):**
+**Allowed:**
 
 1. `docs/tokenomics/TOKEN_PARAMS.md` skeleton (addresses/TBD, freeze-gate checklist).
-2. Phase-0 freeze pack drafts: Sybil-profitability model outline, legal issue-spot brief, welcome-grant ship/no-ship, stall-path already elected.
-3. **Optional:** M11 Foundry spike (`B20+ERC-8021` trailing suffix on `base-anvil`) — cheap kill/confirm of a thesis assumption. Record pass/fallback only.
+2. Phase-0 freeze pack: Sybil model + legal issue-spot (`docs/tokenomics/C0_FREEZE_PACK.md` — draft done; **sign-offs open**).
+3. **Optional:** M11 Foundry spike (`B20+ERC-8021` trailing suffix on `base-anvil`).
+4. Foundry test suite green + Sepolia **test-only** deploy dry-runs.
 
-**Not allowed until stable-build gate:**
+**Not allowed until section 0b un-park + freeze sign-offs:**
 
-- `MatchPool` / `ClaimHub` / `MissionClaim` implementation
-- Settlement signer service
-- Paid join/claim UI
-- Indexer
-- Any Sepolia value playtest
-
-Rationale: money code on an unstable multiplayer core multiplies incident surface (dispute windows, abandon burns, co-sign queues) before the game is operationally boring.
+- Paid join/claim **value** UI in production traffic
+- Settlement signer in production custody
+- Live Sepolia value playtests
+- Any mainnet value path
 
 ---
 
 ## 10. Stable-build exit criteria
 
-All must be true (checkbox list for the un-park meeting). Live snapshot: `docs/ops/UNPARK_CHECKLIST.md`.
-
-All must be true (checkbox list for the un-park meeting):
+All must be true (checkbox list for the un-park meeting). Live snapshot: `docs/ops/UNPARK_CHECKLIST.md`. Rolling status: [section 0b](#0b-live-status-checklist--whats-next).
 
 ### Engine
 
-- [ ] Replay log records and replays to identical `hashGameState` for ≥50 golden matches (CI sample; canonical serializer proven by cross-path hash test first)
-- [ ] fast-check properties green in CI (E2 invariant list)
-- [ ] Match FSM is the only transition authority; illegal transitions metered at 0 in a soak week
-- [ ] AI Master runs in a worker; main-thread long tasks during bot turns &lt; 50ms
-- [ ] AI calibration within published blunder/win bands (E7)
+- [x] Replay log records and replays to identical `hashGameState` (canonical serializer + CLI; extend to ≥50 golden CI sample)
+- [x] fast-check properties green in CI (E2 invariant list)
+- [x] Match FSM is the only transition authority; illegal transitions metered (soak week still open)
+- [x] AI Master runs in a worker; main-thread long tasks during bot turns &lt; 50ms (timeout → sync fallback)
+- [x] AI calibration within published bands (E7 — `bench:ai` hard-fails illegal picks)
 
 ### Netcode
 
-- [ ] Named `net_*` counters on a dashboard; forced reconnect drill documented
-- [ ] Signaling decision executed (N0): no public broker or runtime CDN in the prod path; resync requires session proof
-- [ ] All inbound PeerJS/Realtime/Edge payloads schema-parsed (N4) with drop metrics; `protocolVersion` compat enforced; dedup stores bounded
-- [ ] `resyncMatch()` path covered by chaos: drop PeerJS, drop broadcast, host fail
-- [ ] Connection badge states observed correctly in drills (N5)
+- [x] Named `net_*` counters implemented (`lib/netcode/counters.ts`); **dashboard + forced reconnect drill sign-off still open**
+- [x] Signaling decision executed (N0): npm-pinned `peerjs`, no runtime CDN; resync requires session proof
+- [x] Core inbound payloads schema-parsed (N4 hot types); **`protocolVersion` + TTL/LRU dedup + size caps still open**
+- [x] `resyncMatch()` covered by chaos/deep drills (sim); **two-device D1–D4 still open**
+- [x] Connection badge states (N5) in UI
 
 ### Quality
 
-- [ ] Lint + typecheck + engine tests + properties green on main
-- [ ] Telemetry: crash-free sessions measured; play funnel visible (lobby → end)
-- [ ] Hop frame budget met on a low-end reference device **or** canvas escalation ticket filed with data
-- [ ] Multiplayer harness (Q4) green on main
-- [ ] Recreated smoke doc: `docs/ops/NETCODE_DRILLS.md` signed off; `AGENTS.md:13` + `README.md` pointers updated (both still link the deleted `docs/SMOKE_MULTIPLAYER.md`)
-- [ ] Edge deploys version-tagged with one-command rollback; migration RLS regression green in CI; Realtime load targets met (Q6)
-- [ ] Standing SLOs (Q7) defined with thresholds and dashboards; scrubbing/sampling policy enforced in code
+- [x] Lint + typecheck + engine tests + properties green on main (rules=`error`)
+- [x] Telemetry + play funnel + scrub/sample policy (Q1/Q7); **Sentry DSN + dashboards still open**
+- [ ] Hop frame budget met on a low-end reference device **or** canvas escalation ticket filed with data *(CI hop bench PASS — **phone pass open**)*
+- [x] Multiplayer harness (Q4) green on main
+- [x] Smoke/drill doc `docs/ops/NETCODE_DRILLS.md`; **D1–D4 human sign-off open** · `AGENTS.md` / `README` pointer fix still open
+- [x] Edge deploys version-tagged + RLS static gate in CI + Realtime targets defined (Q6)
+- [x] Standing SLOs + scrubbing/sampling enforced (Q7)
 
 ### Gameplay (this plan’s G set)
 
-- [ ] Receipt/post-mortem usable after a match (G1)
-- [ ] Abandon/AFK grace visible and tested (G3)
-- [ ] Local pass-and-play works offline (G2)
-- [ ] Notice strip live (G4)
+- [x] Receipt/post-mortem usable after a match (G1)
+- [x] Abandon/AFK grace visible and tested (G3)
+- [x] Local pass-and-play works offline (G2)
+- [x] Notice strip live (G4)
 
 ### Explicitly **not** required for stable
 
@@ -359,16 +409,13 @@ Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
 
 ## 11. Immediate next actions
 
-1. **Scope lock agreement** — voice/i18n/ads parked (this doc section 1.2 / section 8).
-2. **Q3** — wire existing ESLint 9 config into `npm run lint` + CI `lint` job so every later PR is honestly gated.
-3. **N0** — signaling spike: self-hosted PeerServer vs Realtime-only; pin `peerjs`, remove the `esm.sh` runtime import.
-4. **Q1** — telemetry + `lib/telemetry.ts` funnels on the play path (with scrubbing/sampling policy, Q7).
-5. **N4** — create `lib/protocol/` Zod schemas (direct dep, pinned) for the five hottest message types; `protocolVersion` + parse-or-drop from day one.
-6. **E1 + E2** — canonical JSON serializer first, then replay JSONL + fast-check properties against `scripts/engine.test.ts` fixtures.
-7. **E5** — draft `lib/matchFsm.ts` state table (implement incrementally).
-8. Solo-dev order: steel thread (instrumented 2P loop) before E4/N3/Q4. Record pre-worker AI calibration (E7) to prove the worker migration is strength-neutral.
-9. Optional C0: M11 spike + TOKEN_PARAMS skeleton (no contracts build).
-10. Un-park meeting only after section 10 checklist is green.
+Superseded by **[section 0b — What’s next](#0b-live-status-checklist--whats-next)** (2026-09-23). Short form:
+
+1. Human un-park gates (phone hop, D1–D4, Sentry DSN) → `UNPARK_DECISION.md`.
+2. Close 🟡 code: N6 spectator, Q5 error copy, Board perf hook, N4 protocolVersion/dedup caps, eslint quarantine removal.
+3. Un-park meeting → one growth slice (voice / i18n / ads seam).
+4. CHIPS: Foundry → Sepolia → claim UI + M11 assert (contracts already scaffolded).
+5. C0 external: Sybil spreadsheet + counsel L1–L6.
 
 ---
 

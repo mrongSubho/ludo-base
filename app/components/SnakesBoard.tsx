@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -88,7 +89,7 @@ function PlayerCard({
 }) {
     const progress = isActive && !player.isAi ? (timeLeft / 15) * 100 : 100;
     const isWarning = isActive && !player.isAi && timeLeft <= 5;
-    const powerEmojis = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
+    const _powerEmojis = { shield: '🛡️', boost: '⚡', bomb: '💣', warp: '🧲' };
 
     return (
         <div className="relative flex items-center justify-center">
@@ -167,7 +168,7 @@ export default function SnakesBoard({
     onOpenProfile?: (address: string) => void;
 }) {
     const { playMove, playCapture, playWin, playTurn, playStrike } = useAudio();
-    const [players, setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
+    const [players, _setPlayers] = useState<Player[]>(() => shufflePlayers(playerCount));
 
     const [gameState, setGameState] = useState({
         positions: { green: 0, red: 0, yellow: 0, blue: 0 } as Record<Player['color'], number>,
@@ -493,7 +494,7 @@ export default function SnakesBoard({
 
                     <div className="grid grid-cols-10 grid-rows-10 w-full h-full" style={{ zIndex: 5 }}>
                         {Array.from({ length: 100 }).map((_, i) => {
-                            const cellNum = 100 - i;
+                            const _cellNum = 100 - i;
                             const r = Math.floor(i / 10) + 1; // 1 to 10 from top
                             const isEven = r % 2 === 0;
                             const physicalNum = isEven ? (r - 1) * 10 + (i % 10) + 1 : (r - 1) * 10 + (10 - (i % 10));

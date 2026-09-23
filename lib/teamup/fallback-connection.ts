@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 // lib/teamup/fallback-connection.ts
 import { EdgeServerClient } from './edge-server-client';
 import { MatchResponse } from '../types/teamup.types';

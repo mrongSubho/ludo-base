@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 /**
  * N3 deepened live-drill simulation — D1–D4 as in-process client pairs.
  * Complements (does not replace) two-phone drills in NETCODE_DRILLS.md.

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- legacy types; tracked burn-down */
+ 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { getGridCellInfo, getBoardCoordinate, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType, SHARED_PATH, SAFE_POSITIONS } from '@/lib/boardLayout';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 // lib/teamup/peerjs-gameplay.ts
 import type { DataConnection } from 'peerjs';
 import { createPeerInstance, type PeerLike } from '../peerFactory';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 /**
  * Fail if Edge engine copy drifted from lib/engine/core.ts.
  * Run: node scripts/check-edge-engine.mjs

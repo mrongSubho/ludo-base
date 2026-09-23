@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useSignMessage, useSignTypedData, useChainId } from 'wagmi';

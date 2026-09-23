@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from "next/server";
 import type { Address, Hex } from "viem";
 import {

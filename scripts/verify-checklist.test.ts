@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildDevicePassReport, formatDevicePassMarkdown } from '../lib/perf/report';
 import { parseSentryDsn, sentryStoreUrl, createSentryTransport } from '../lib/telemetrySentry';
-import { setTelemetryTransport, track, captureException, initTelemetry } from '../lib/telemetry';
+import { setTelemetryTransport, track, captureException, initTelemetry, setTelemetrySampleRate } from '../lib/telemetry';
 import type { HopMetrics } from '../lib/perf/budget';
 
 function hop(ms: number, ok = true): HopMetrics {
@@ -71,6 +71,7 @@ test('Sentry transport binds without breaking track (fetch stubbed)', async () =
             environment: 'test',
         });
         setTelemetryTransport(transport);
+        setTelemetrySampleRate(1);
         track('roll_ok', { dice: 6, signature: 'should-not-matter' });
         captureException(new Error('boom'), { where: 'unit' });
         await new Promise((r) => setTimeout(r, 10));

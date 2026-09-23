@@ -1,6 +1,9 @@
+ 
 "use client";
 
 import React, { useEffect } from 'react';
+import { friendlyErrorFromMessage } from '@/lib/errorCopy';
+import { captureException } from '@/lib/telemetry';
 
 // ─── Route error boundary ────────────────────────────────────────────────────
 // Catches uncaught client exceptions under this route and contains them:
@@ -14,30 +17,30 @@ export default function Error({
     reset: () => void;
 }) {
     useEffect(() => {
-         
         console.error('[ludo-route-error]', error);
+        captureException(error, { where: 'route' });
     }, [error]);
 
     // Chunk-load failures (stale manifest after a deploy, dropped connection)
     // can't heal via reset() — the bundle URL itself is dead. Hard reload
     // refetches a fresh manifest pointing at live chunks.
-    const isChunkError = /loading chunk|ChunkLoadError|dynamically imported module|importing a module script/i.test(
-        error.message || ''
-    );
+    const friendly = friendlyErrorFromMessage(error.message);
+    const isChunkError = friendly.code === 'CHUNK';
 
     return (
         <main className="min-h-[100dvh] flex items-center justify-center px-4 py-10 bg-black">
             <div className="panel-error-card w-full max-w-[420px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 shadow-2xl flex flex-col items-center gap-3 text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">
-                    Something broke
+                    {friendly.title}
                 </p>
                 <h1 className="text-lg font-black text-white uppercase tracking-tight">
                     The arena hit a snag
                 </h1>
                 <p className="text-[12px] font-bold text-white/80 break-words max-w-full">
-                    {isChunkError
-                        ? 'A fresh update just shipped — reloading pulls the latest arena.'
-                        : error.message || 'Unknown client error'}
+                    {friendly.copy}
+                </p>
+                <p className="text-[10px] font-mono text-white/50 break-words max-w-full">
+                    {isChunkError ? 'CHUNK' : error.message || 'Unknown client error'}
                     {!isChunkError && error.digest ? ` · ${error.digest}` : ''}
                 </p>
                 <button

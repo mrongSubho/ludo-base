@@ -1,6 +1,8 @@
 "use client";
 
 import React from 'react';
+import { friendlyErrorFromMessage } from '@/lib/errorCopy';
+import { captureException } from '@/lib/telemetry';
 
 // ─── PanelErrorBoundary ──────────────────────────────────────────────────────
 // Scoped firewall for overlay panels (TeamUp, …): a throwing panel shows an
@@ -25,8 +27,8 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
     }
 
     componentDidCatch(error: Error, info: React.ErrorInfo) {
-         
         console.error(`[ludo-panel-error:${this.props.name}]`, error.message, info.componentStack);
+        captureException(error, { where: `panel:${this.props.name}` });
         this.setState({ stack: info.componentStack || null });
     }
 
@@ -35,6 +37,7 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
     render() {
         const { error } = this.state;
         if (!error) return this.props.children;
+        const friendly = friendlyErrorFromMessage(error.message);
         return (
             <div className="fixed inset-0 z-[130] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
@@ -42,9 +45,12 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
                         style={{ background: 'rgba(20,8,10,0.96)', backdropFilter: 'blur(32px)' }}
                     >
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">
-                            {this.props.name} crashed
+                            {this.props.name} · {friendly.title}
                         </p>
                         <p className="text-[12px] font-bold text-white break-words max-w-full">
+                            {friendly.copy}
+                        </p>
+                        <p className="text-[10px] font-mono text-white/50 break-words max-w-full">
                             {error.message || 'Unknown error'}
                         </p>
                         {this.state.stack && (
@@ -57,7 +63,7 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
                                 onClick={this.retry}
                                 className="flex-1 py-3 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.18em] hover:bg-white/90 active:scale-95 transition-all"
                             >
-                                Retry
+                                {friendly.cta || 'Retry'}
                             </button>
                             {this.props.onClose && (
                                 <button

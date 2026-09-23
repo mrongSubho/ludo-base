@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
@@ -26,6 +27,8 @@ import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
+import { getHopSamples } from '@/lib/perf/budget';
+import { installPerfDebugHook } from '@/lib/perf/report';
 import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
 
 // Modular Hooks
@@ -74,6 +77,11 @@ export default function Board({
         configured: claimConfigured,
     } = usePoolClaim(poolId);
     const [emoteFloats, setEmoteFloats] = React.useState<EmoteEvent[]>([]);
+
+    // Q2 device-pass hook on the live board: `await __ludoPerf.markdown()`
+    React.useEffect(() => {
+        installPerfDebugHook(getHopSamples);
+    }, []);
 
     React.useEffect(() => {
         const onEmote = (ev: Event) => {

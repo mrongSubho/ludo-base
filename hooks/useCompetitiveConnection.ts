@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 // hooks/useCompetitiveConnection.ts
 import { useState, useEffect, useCallback } from 'react';
 import { EdgeServerClient } from '../lib/teamup/edge-server-client';

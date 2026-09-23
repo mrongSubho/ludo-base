@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -33,6 +34,7 @@ import {
 } from '@/lib/types';
 import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
 import { bumpNet } from '@/lib/netcode/counters';
+import { createDedupStore, rememberIntent } from '@/lib/netcode/dedup';
 import { track } from '@/lib/telemetry';
 import { createMatchFsm, type MatchFsmEvent, type MatchPhase } from '@/lib/matchFsm';
 import { ActiveBettingWindow } from './useSpectatorSync';
@@ -206,7 +208,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const peerRef = useRef<Peer | null>(null);
     // Dedup guest intents delivered on both PeerJS and Supabase.
-    const processedIntentIds = useRef<Set<string>>(new Set());
+    // N4 — TTL + LRU-bounded (was an unbounded Set).
+    const processedIntentIds = useRef(createDedupStore({ max: 512, ttlMs: 10 * 60 * 1000 }));
     // Requested seat from an invite link (?seat=N). Consumed by the next
     // SYNC_PROFILE send, then cleared — retries reuse it until first send.
     const desiredSeatRef = useRef<number | undefined>(undefined);
@@ -548,12 +551,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return;
             }
             const intentId = action?.intentId || actionId;
-            if (intentId && processedIntentIds.current.has(intentId)) {
-                bumpNet('net_intent_dup');
+            if (rememberIntent(processedIntentIds.current, intentId) === 'dup') {
                 return;
             }
-            if (intentId) processedIntentIds.current.add(intentId);
-            bumpNet('net_intent_ok');
             console.log('📬 [Host] Intent via Supabase:', action?.type);
             setLastIntent(action);
             return;
@@ -703,12 +703,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (data.type === 'GAME_ACTION') {
             if (isHost) {
                 const intentId = data.action?.intentId as string | undefined;
-                if (intentId && processedIntentIds.current.has(intentId)) {
-                    bumpNet('net_intent_dup');
+                if (rememberIntent(processedIntentIds.current, intentId) === 'dup') {
                     return;
                 }
-                if (intentId) processedIntentIds.current.add(intentId);
-                bumpNet('net_intent_ok');
                 console.log('📬 [Host] Received Intent (PeerJS):', data.action);
                 setLastIntent(data.action);
             }

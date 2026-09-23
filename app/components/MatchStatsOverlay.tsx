@@ -286,7 +286,7 @@ export function MatchStatsOverlay({
                                         <div className="match-stats-avatar" style={{ borderColor: accent }}>
                                             {row.player.avatar &&
                                             (row.player.avatar.startsWith('http') || row.player.avatar.startsWith('/')) ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
+                                                 
                                                 <img src={row.player.avatar} alt="" className="w-full h-full object-cover" />
                                             ) : (
                                                 <span className="text-sm font-black" style={{ color: accent }}>

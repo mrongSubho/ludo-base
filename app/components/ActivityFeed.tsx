@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 "use client";
 
 // Home of the live panels (rendered inside the Live Arena card):
@@ -831,7 +832,7 @@ function useBroadcastData(): BroadcastData {
         return () => {
             supabase.removeChannel(channel);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     // Arena activity: recent backfill + live prepend, capped at 6.
@@ -1399,7 +1400,7 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
         return () => {
             supabase.removeChannel(ch);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     return (

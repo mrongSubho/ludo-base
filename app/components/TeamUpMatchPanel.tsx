@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- legacy types; tracked burn-down */
+ 
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -482,7 +484,7 @@ export const TeamUpMatchPanel = ({
         lastCount.current = joined;
         lastPostAt.current = Date.now();
         postAnnounce(announceContent(joined, total), true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [lobbyState, roomCodeValue, address]);
     // Liveness heartbeat: while this room is announced+open, refresh the
     // row every 60s. Discovery surfaces trust recency (5min cutoff), so a
@@ -496,7 +498,7 @@ export const TeamUpMatchPanel = ({
             lastPostAt.current = Date.now();
         }, 60000);
         return () => clearInterval(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [roomCodeValue, address]);
     // App-kill backstop: beacon a close so the row doesn't ghost.
     useEffect(() => {
@@ -513,7 +515,7 @@ export const TeamUpMatchPanel = ({
         };
         window.addEventListener('beforeunload', onUnload);
         return () => window.removeEventListener('beforeunload', onUnload);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [roomCodeValue, address]);
     // Start/leave marks the row Started/Closed (never deleted). Host-only:
     // a guest closing the panel doesn't kill the room.
@@ -569,7 +571,7 @@ export const TeamUpMatchPanel = ({
         setOnlineHasMore(false);
         fetchOnlinePage(0, false);
         return () => { cancelledRef.current = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [invitePopup, address]);
     const openInvitePopup = (slot: LobbySlot) => {
         playSelect();
@@ -670,7 +672,7 @@ export const TeamUpMatchPanel = ({
 
     // Seats holding a sent invite — rows reflect it back instead of
     // offering a duplicate ping.
-    const invitedIds = new Set(
+    const _invitedIds = new Set(
         (lobbyState?.slots ?? [])
             .filter(s => s.status === 'invited' && s.playerId)
             .map(s => s.playerId!.toLowerCase())

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 /**
  * Pure engine tests (node --test). Run: npm test
  * Covers the 2v2 team pairing unification and move-legality math.

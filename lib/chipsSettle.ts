@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 /**
  * MatchPool EIP-712 helpers — must match contracts/src/MatchPool.sol exactly.
  *

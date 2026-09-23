@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- legacy types; tracked burn-down */
+ 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { 
     LobbyState, 
@@ -51,14 +53,14 @@ function readStoredSessionId(wallet: string): string | null {
 
 export function useLobbyManager({
     myAddress,
-    myProfile,
+    myProfile: _myProfile,
     isHost,
-    setIsHost,
-    setRoomId,
-    setCurrentRoomCode,
-    setIsLobbyConnected,
-    setGameState,
-    peerRef,
+    setIsHost: _setIsHost,
+    setRoomId: _setRoomId,
+    setCurrentRoomCode: _setCurrentRoomCode,
+    setIsLobbyConnected: _setIsLobbyConnected,
+    setGameState: _setGameState,
+    peerRef: _peerRef,
     connectionsRef,
     broadcastToAll,
     getRoomSecret

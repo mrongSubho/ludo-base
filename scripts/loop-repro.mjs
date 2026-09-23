@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 /**
  * loop-repro — headless signing-storm reproduction (Playwright + static state machine).
  *
