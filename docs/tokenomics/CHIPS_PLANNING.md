@@ -390,9 +390,11 @@ Player sees lobby: "Pool 0xabc… · Entry 1,000 CHIPS · Fee 5% · Burn 2% · S
 6. Game starts when seats full OR host calls lockPool
 
 > Wallet-compat note: where the wallet lacks atomic batch support, the client falls back to sequential `approve` → `joinPool` with the same exact-fee + short-deadline parameters (two approvals, same guarantees). Exact-allowance discipline is first-party-UX-only and unenforceable on third-party/Farcaster-frame clients — Phase 3 frames use a signed join-intent binding so a frame relay cannot substitute calldata (e.g. infinite approval).
+
+> **Smart-wallet plan (`docs/planning/SMART_WALLET_PLAN.md`):** this §4.6 join authorization is **authoritative**. CDP spend permissions are **not** the primary join path (optional later only if this section is amended). Player identity and `seat` / claim / host addresses are the **parent Base Account** — never a CDP sub-account (`seat = msg.sender` would strand prizes on a regenerable app-scoped account). Gas sponsorship remains §8.9 (ERC-8168 gas-only); CDP paymaster is interim UX only.
 ```
 
-**Fail-closed:** online paid match **cannot start** until all seats show `funded` on-chain (or host cancels). Guest wallets cannot join paid tables.
+**Fail-closed:** online paid match **cannot start** until all seats show `funded` on-chain (or host cancels). Guest wallets cannot join paid tables. Seats and claims bind to the parent smart-account address (see smart-wallet plan §1.1).
 
 **Free online tables:** **no MatchPool is created.** Free play never calls the pool contract. A pool is created only when `entryFee > 0` or a Phase-2 predict sibling needs a parent poolId. (`entryFee = 0` pools are not a supported product surface.)
 

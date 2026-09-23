@@ -114,6 +114,7 @@ Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIP
 - Session gaps that improve play without new platform dependencies (emotes, local room, notice strip, abandon/AFK honesty, match receipt as a *debug/trust* artifact)
 - CI truthfulness and API boundary typing
 - CHIPS **documentation/freeze** only (narrow lane in section 9)
+- **Smart-wallet auth carve-out (thin):** `docs/planning/SMART_WALLET_PLAN.md` Phase **0a** only — CDP project, OAuth methods, parent-signed SIWE + EIP-712 spike. **No** `@coinbase/cdp-hooks` dependency add, sub-account default, spend-permission UX, or Sepolia value playtest until the stable-build gate (see that plan §5)
 
 ### 1.2 Out of scope (do not open tickets)
 
@@ -339,6 +340,8 @@ These stay in the competitive gap register as *known* gaps. **No implementation,
 | **Ads / mediation / rewarded** | Any ad stack, including “RXP for ads”, including `FreeAdSurface` |
 | Native/store shell | Separate distribution decision |
 | Frames / predict / paymaster funding | Belong to post-stable growth or CHIPS tracks |
+| **CDP Hooks dependency + smart-wallet cutover** | `SMART_WALLET_PLAN` Phases 0b–3: sub-accounts, spend permissions, connect cutover. Phase 0a auth spike is the only carve-out |
+| **Spend-permission join UX** | **Not primary** — CHIPS §4.6 batch exact-fee stays authoritative unless that section is amended in writing |
 
 Record un-park as a dated decision in **`docs/ops/UNPARK_DECISION.md`** (then copy the outcome into this file’s decision table) — do not sneak them into Track G.
 
@@ -361,6 +364,9 @@ Tokenomics remains authoritative (`docs/tokenomics/CHIPS_PLANNING.md`). **Update
 - Settlement signer in production custody
 - Live Sepolia value playtests
 - Any mainnet value path
+- Smart-wallet **0b** spike items (sub-account default, CHIPS spend permission) — `SMART_WALLET_PLAN.md` §5
+
+Wallet/auth cutover sequencing: `docs/planning/SMART_WALLET_PLAN.md` (identity = parent Base Account; join auth defers to CHIPS §4.6).
 
 ---
 
@@ -427,6 +433,7 @@ Superseded by **[section 0b — What’s next](#0b-live-status-checklist--whats-
 | Voice / i18n / ads | **Parked** until after stable build + explicit un-park |
 | CHIPS implementation | **After** stable-build gate; pre-work only during this plan |
 | CHIPS vs gaps first | **Gaps + engine first** (this rev); tokenomics unchanged |
+| Smart-wallet / CDP | `SMART_WALLET_PLAN.md` — Phase 0a auth spike only during stable build; identity = parent Base Account; CHIPS join auth stays §4.6 batch exact-fee |
 | Wire safety | Zod/Valibot schemas + parse-or-drop |
 | Rules testing | fast-check properties + golden replays + existing table tests |
 | Match control | Typed hand-rolled FSM first |
