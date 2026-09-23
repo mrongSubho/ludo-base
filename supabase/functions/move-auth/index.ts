@@ -840,7 +840,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── GET STATE ───────────────────────────────────────────────────────
+    // ── RESYNC (N0): session-proofed snapshot for player resume ────────
+    if (action === 'resync' || path.endsWith('resync-match-state')) {
+      const matchId = body.matchId || url.searchParams.get('matchId');
+      const sessionId = body.sessionId as string | undefined;
+      const actor = String(body.actor || '').toLowerCase();
+      if (!matchId) return json({ error: 'matchId required', code: 'MATCH_NOT_FOUND' }, 400);
+      if (!sessionId || !actor) {
+        return json({ error: 'Resync requires match session proof', code: 'SESSION_EXPIRED' }, 401);
+      }
+      const v = await verifyMatchSession(supabase, sessionId, String(matchId), actor);
+      if (!v.ok) return json({ error: v.error, code: 'SESSION_EXPIRED' }, 401);
+      const row = await loadMatch(supabase, String(matchId));
+      if (!row) return json({ error: 'Not found', code: 'MATCH_NOT_FOUND' }, 404);
+      return json({
+        seq: row.seq,
+        state: stripPowerTypesForWire(row.state as EngineGameState),
+        hostAddress: row.host_address,
+        roomCode: row.room_code,
+      });
+    }
+
+    // ── GET STATE (spectators / cold start — world-readable board) ──────
     if (action === 'get' || path.endsWith('get-match-state')) {
       const matchId = body.matchId || url.searchParams.get('matchId');
       if (!matchId) return json({ error: 'matchId required' }, 400);

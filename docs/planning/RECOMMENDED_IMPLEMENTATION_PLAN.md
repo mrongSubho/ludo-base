@@ -74,7 +74,7 @@ Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIP
 
 ### 1.3 Invariants (never regress)
 
-1. `TEAM_PAIRINGS` single truth (Green+Yellow vs Red+Blue) — `lib/constants.ts`.
+1. `TEAM_PAIRINGS` single truth (Green+Blue vs Red+Yellow) — `lib/constants.ts`.
 2. Engine-math legality only — `calculateNextPosition` / `getLegalTokenIndices`, never `pos + roll`.
 3. Networked rolls/moves via Edge (`roll-dice` / `move-auth`); `match_states.seq` authority.
 4. Dual-path intents (`intentId` dedup) and dual-path seating stay.

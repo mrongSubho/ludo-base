@@ -1,39 +1,35 @@
 // lib/teamup/peerjs-gameplay.ts
-import Peer, { DataConnection } from 'peerjs';
+import type { DataConnection } from 'peerjs';
+import { createPeerInstance, type PeerLike } from '../peerFactory';
 
 export class PeerJSGameplay {
-  private peer: Peer | null = null;
+  private peer: PeerLike | null = null;
   private connections: Map<string, DataConnection> = new Map();
   private onGameStateChange: ((state: any) => void) | null = null;
   private validationToken: string | null = null;
 
   async initialize(validationToken?: string): Promise<string> {
     this.validationToken = validationToken || null;
-    
-    this.peer = new Peer({
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
-        ]
-      }
-    });
-    
+
+    // N0 — shared factory (npm-pinned peerjs; optional self-hosted PeerServer).
+    this.peer = await createPeerInstance();
+
     return new Promise((resolve, reject) => {
       if (!this.peer) return reject(new Error('Peer not initialized'));
-      
-      this.peer.on('open', (id) => {
+
+      this.peer.on('open', (id: string) => {
         console.log('📡 [PeerJS] My Peer ID:', id);
         resolve(id);
       });
 
-      this.peer.on('connection', (conn) => {
-        console.log('📡 [PeerJS] Incoming connection from:', conn.peer);
-        this.connections.set(conn.peer, conn);
-        this.setupConnectionHandlers(conn);
+      this.peer.on('connection', (conn: unknown) => {
+        const c = conn as DataConnection;
+        console.log('📡 [PeerJS] Incoming connection from:', c.peer);
+        this.connections.set(c.peer, c);
+        this.setupConnectionHandlers(c);
       });
 
-      this.peer.on('error', (err) => {
+      this.peer.on('error', (err: unknown) => {
         console.error('❌ [PeerJS] Peer error:', err);
         reject(err);
       });
@@ -42,9 +38,9 @@ export class PeerJSGameplay {
 
   async connectToPeer(peerId: string) {
     if (!this.peer) throw new Error('Peer not initialized');
-    
+
     console.log('📡 [PeerJS] Connecting to peer:', peerId);
-    const conn = this.peer.connect(peerId);
+    const conn = this.peer.connect(peerId) as unknown as DataConnection;
     this.connections.set(peerId, conn);
     this.setupConnectionHandlers(conn);
     

@@ -12,44 +12,57 @@
 
 ## 1. Gate evidence (paste, don’t paraphrase)
 
-**Auto block:** `npm run unpark:evidence` → paste its `### Auto evidence` output below.
+**Auto block:** `npm run unpark:evidence` → paste below.
+
+### Auto evidence — 2026-09-23 (CI)
+
+```text
+tests:            62 pass / 0 fail
+drill:live:       8 pass / 0 fail
+drill:deep:       5 pass / 0 fail   (D1–D4 in-process simulation)
+hop bench:        PASS  p50=3.0ms p95=5.0ms failRate=0%   (node proxy — NOT a phone)
+typecheck:        clean (0 errors)
+```
 
 ### 1.1 Q2 device pass (`docs/ops/DEVICE_PASS.md`)
 
 ```text
-[paste formatDevicePassMarkdown / __ludoPerf.markdown() output]
+[CI proxy only — see DEVICE_PASS.md]
+Verdict (CI): PASS   p50=3.0ms / p95=5.0ms   UA=node-hop-bench
 
-Device: ____________   OS/Browser: ____________
-Verdict: PASS / FAIL
+Physical device: ____________   OS/Browser: ____________
+Verdict (phone): PENDING — paste __ludoPerf.markdown()
 ```
 
-- [ ] Verdict PASS (p95 compose ≤16ms, fail rate ≤10%)  
+- [x] CI hop bench PASS (proxy)  
+- [ ] **Physical** verdict PASS (p95 compose ≤16ms, fail rate ≤10%)  
   _or_ canvas escalation ticket: ____________
 
 ### 1.2 N3 live drills (`docs/ops/NETCODE_DRILLS.md`)
 
 | Drill | Pass? | Notes / counter snapshot |
 | --- | --- | --- |
-| Automated `npm run drill:live` | [ ] | paste tail of run |
-| D1 Drop PeerJS 10s | [ ] | badge → `resync_ok` → timers resume |
-| D2 Drop Supabase Realtime | [ ] | dual-path still seats/moves |
-| D3 Kill host / elect | [ ] | `net_authority_switch`, no double-apply |
-| D4 Airplane 30s | [ ] | abandon grace visible, no early accept |
+| Automated `npm run drill:live` | [x] | 8/8 |
+| Sim `npm run drill:deep` D1–D4 | [x] | dual-path, elect dedup, grace/HIGH-2 |
+| D1 Drop PeerJS 10s *(real devices)* | [ ] | badge → `resync_ok` → timers resume |
+| D2 Drop Supabase Realtime *(real)* | [ ] | dual-path still seats/moves |
+| D3 Kill host / elect *(real)* | [ ] | `net_authority_switch`, no double-apply |
+| D4 Airplane 30s *(real)* | [ ] | abandon grace visible, no early accept |
 
 ```text
-[paste drill:live sign-off sheet + any screenshots/counter lines]
+[paste two-browser/phone drill notes here — simulation is not sign-off]
 ```
 
 ### 1.3 Sentry
 
 - [ ] Project created  
-- [ ] `NEXT_PUBLIC_SENTRY_DSN` set in `.env.local` (value itself **not** committed)  
+- [ ] `NEXT_PUBLIC_SENTRY_DSN` set in `.env.local` (see `.env.example`)  
 - [ ] First `session_start` / error event visible in Sentry  
 
 ```text
 Sentry project: ____________
-DSN configured: yes / no
-First event confirmed: yes / no
+DSN configured: no  (transport ready: lib/telemetrySentry.ts)
+First event confirmed: no
 ```
 
 ---
@@ -59,12 +72,12 @@ First event confirmed: yes / no
 Pick one:
 
 - [ ] **UN-PARK** — stable-build gate is green; growth tracks may start  
-- [ ] **DEFER** — outstanding items: ________________________________  
+- [x] **DEFER** — outstanding items: **physical Q2 phone pass · D1–D4 on real clients · Sentry DSN + first event**  
 - [ ] **PARTIAL** — un-park only: ☐ Voice ☐ i18n ☐ Ads  
 
 **Rationale (3–5 sentences):**
 
-> _e.g. Device pass p95 = 9.2ms on Redmi 9; all four live drills clean; Sentry receiving events. Core is boring — open voice spike first because 4P sessions show chat drop-off._
+> CI evidence is green (62 tests, deep drills, hop bench, typecheck). Un-park stays **DEFER** until the three human gates close: physical device hop pass, two-client live drills, and a live Sentry DSN. Simulation and Node hop bench are useful regressions but are not substitutes for phone/network sign-off per `DEVICE_PASS.md` / `NETCODE_DRILLS.md`.
 
 ---
 

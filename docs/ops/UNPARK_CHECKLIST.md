@@ -43,6 +43,7 @@
 | All inbound payloads schema-parsed | **Done** — `lib/protocol` + intent parse-or-drop |
 | Chaos: drop PeerJS / broadcast / host fail | **Code done** — `scripts/net.chaos.ts`; **live drills pending** |
 | Connection badge (N5) | **Done** — `ConnectionBadge` in `BoardHeaderCompact` |
+| **N0** peerjs pinned (no CDN) + resync session proof | **Done** — `lib/peerFactory.ts`, `lib/netcode/resyncProof.ts`, Edge `resync` · notes `docs/ops/SIGNALING.md` |
 
 ### Quality
 
@@ -51,7 +52,7 @@
 | Lint + typecheck + engine tests + properties | **Done / green** |
 | Telemetry + play funnel | **Done** — `lib/telemetry.ts` (console transport until Sentry DSN) |
 | Hop frame budget (Q2) | **Code done** — `measureHop` on TokenPiece; **device measurement pending** |
-| Multiplayer harness (Q4) | **Partial** — chaos + engine; **no live 4P browser harness yet** |
+| Multiplayer harness (Q4) | **Done** — `scripts/mp.harness.ts` (4P seat→capture→resync→end + 1v1) · `npm run test:mp` |
 | Smoke doc | **Done** — `docs/ops/NETCODE_DRILLS.md` |
 
 ### Gameplay (this plan’s G set)
@@ -72,13 +73,13 @@ Voice · i18n · ads / rewarded · native shell · CHIPS contracts · Sepolia va
 
 ## Remaining before un-park decision
 
-These are **human / device** gates. Code for 1–3 is ready as of 2026-09-22.
+**2026-09-23 update:** CI half of 1–2 is done (`npm run bench:hop`, `npm run drill:deep`). Decision note pre-filled in `UNPARK_DECISION.md` as **DEFER** until physical gates close.
 
-1. **Q2 device pass** — protocol: `docs/ops/DEVICE_PASS.md` · report API: `lib/perf/report.ts` (`__ludoPerf.markdown()`). **Still need:** run once on a low-end Android phone and paste the report.
-2. **N3 live drills** — automated rows in `npm run drill:live` (`scripts/drill.runner.ts`). **Still need:** 4 manual rows (drop PeerJS, drop Realtime, kill host, airplane 30s) from `docs/ops/NETCODE_DRILLS.md`.
-3. **Sentry DSN** — transport implemented (`lib/telemetrySentry.ts`, auto-bind via `NEXT_PUBLIC_SENTRY_DSN`). **Still need:** create the Sentry project and paste the DSN into `.env.local`.
-4. **Optional style burn-down** — 336 lint warnings → 0 before turning rules back to `error`.
-5. **C0 freeze pack** (if CHIPS resumes in parallel) — TOKEN_PARAMS skeleton + Sybil model outline + optional M11 spike.
+1. **Q2 device pass** — CI proxy PASS (p95 5ms). **Still need:** one run on a low-end Android phone (`/token-move-test` + `__ludoPerf.markdown()`) pasted into `DEVICE_PASS.md`.
+2. **N3 live drills** — auto + deep sim green. **Still need:** D1–D4 on **two real browsers/phones** (PeerJS drop, Realtime drop, host kill, airplane).
+3. **Sentry DSN** — transport + `.env.example` ready. **Still need:** create project, set `NEXT_PUBLIC_SENTRY_DSN` in `.env.local`, confirm first event.
+4. **Optional style burn-down** — lint warnings → 0 before turning rules back to `error`.
+5. **C0 freeze pack** — `TOKEN_PARAMS.md` exists; Sybil model + legal issue-spot if CHIPS resumes.
 
 ---
 

@@ -24,21 +24,40 @@ One low-end phone, one Classic match vs AI (or Pass & Play), one report pasted b
 
 ## Results
 
-Paste block (from phone console after ≥6 hops):
+### CI proxy (2026-09-23) — `npm run bench:hop` · **not** a physical phone
+
+```text
+### Device pass — 2026-09-23T19:16:21.849Z
+
+| Field | Value |
+| --- | --- |
+| Verdict | **PASS** |
+| UA | node-hop-bench/nominal |
+| Viewport | 0×0 @1x |
+| Samples | 30 |
+| p50 / p95 compose | 3.0ms / 5.0ms |
+| Budget | compose ≤16ms · longtask ≤50ms |
+| Fail rate | 0% |
+```
+
+### Physical device — **REQUIRED before un-park**
+
+Paste block (from phone console after ≥6 hops on `/token-move-test`):
 
 ```text
 await __ludoPerf.markdown()
 → [paste here]
 ```
 
-Then copy this whole file’s **Results** into `docs/ops/UNPARK_DECISION.md` §1.1.
+Device: ____________   OS/Browser: ____________
 
-_awaiting device pass_
+Then copy into `docs/ops/UNPARK_DECISION.md` §1.1.
 
 ## Sign-off
 
-- [ ] Q2 device pass recorded above
-- [ ] Verdict PASS **or** canvas escalation ticket linked
+- [x] CI hop bench PASS (proxy)
+- [ ] **Physical Q2 device pass recorded above**
+- [ ] Verdict PASS on device **or** canvas escalation ticket linked
 - [ ] Copied into `UNPARK_DECISION.md` §1.1
 
 See also: `docs/ops/UNPARK_CHECKLIST.md` · `docs/ops/UNPARK_DECISION.md` · `lib/perf/budget.ts` · `lib/perf/report.ts`

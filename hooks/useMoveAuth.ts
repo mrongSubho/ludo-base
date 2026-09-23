@@ -384,7 +384,27 @@ export function useMoveAuth(opts: {
     }, [myAddress, signMessageAsync, createMatchSession, clearSession]);
 
     const getMatchState = useCallback(async (matchId: string) => {
-        const r = await callMoveAuth('get', { matchId });
+        // N0 — player resume uses session-proofed `resync` when a match session
+        // exists; spectators / cold start fall back to the public snapshot `get`.
+        const sessionId = sharedMoveSessions.get(matchId);
+        const actor = (myAddress || '').toLowerCase();
+        const useProof = Boolean(sessionId && actor);
+        const r = await callMoveAuth(useProof ? 'resync' : 'get', useProof
+            ? { matchId, sessionId, actor, sinceSeq: undefined }
+            : { matchId });
+        if (r.status === 401 && useProof) {
+            // Session expired mid-match — clear and retry public get so the UI
+            // still renders (moves will re-prompt via createMatchSession).
+            sharedMoveSessions.delete(matchId);
+            const retry = await callMoveAuth('get', { matchId });
+            if (retry.ok && retry.data?.state && Number.isFinite(Number(retry.data.seq))) {
+                return {
+                    ok: true as const,
+                    seq: Number(retry.data.seq),
+                    state: retry.data.state as GameState,
+                };
+            }
+        }
         if (r.ok && r.data?.state && Number.isFinite(Number(r.data.seq))) {
             return {
                 ok: true as const,
@@ -395,9 +415,9 @@ export function useMoveAuth(opts: {
         return {
             ok: false as const,
             error: r.data?.error || `HTTP ${r.status}`,
-            code: (r.data?.code || (r.status === 404 ? 'MATCH_NOT_FOUND' : 'ILLEGAL_ACTION')) as MatchActionErrorCode,
+            code: (r.data?.code || (r.status === 404 ? 'MATCH_NOT_FOUND' : r.status === 401 ? 'SESSION_EXPIRED' : 'ILLEGAL_ACTION')) as MatchActionErrorCode,
         };
-    }, []);
+    }, [myAddress]);
 
     const submitPower = useCallback(async (params: {
         matchId: string;
