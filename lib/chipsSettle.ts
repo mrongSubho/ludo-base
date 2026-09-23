@@ -230,3 +230,76 @@ export function toHex32(s: string): Hex {
     if (/^0x[0-9a-fA-F]{64}$/.test(s)) return s as Hex;
     return keccak256(toBytes(s));
 }
+
+/**
+ * Wallet `signTypedData` payload that hashes to the same digest as
+ * MatchPool.settleStructHash + EIP-712 domain (flat struct, planHash).
+ */
+export function buildSettleTypedData(params: {
+    poolId: Hex;
+    planHash: Hex;
+    nonce: bigint;
+    deadline: bigint;
+    authority: Address;
+    matchPool: Address;
+    chainId: SupportedChainId;
+}) {
+    return {
+        domain: {
+            name: MATCH_POOL_DOMAIN_NAME,
+            version: EIP712_VERSION,
+            chainId: params.chainId,
+            verifyingContract: params.matchPool,
+        },
+        types: {
+            ChipsMatchSettle: [
+                { name: "poolId", type: "bytes32" },
+                { name: "planHash", type: "bytes32" },
+                { name: "nonce", type: "uint256" },
+                { name: "deadline", type: "uint64" },
+                { name: "authority", type: "address" },
+            ],
+        },
+        primaryType: "ChipsMatchSettle",
+        message: {
+            poolId: params.poolId,
+            planHash: params.planHash,
+            nonce: params.nonce,
+            deadline: params.deadline,
+            authority: params.authority,
+        },
+    } as const;
+}
+
+/** Wallet signTypedData payload for lobby tickets (Edge co-signs separately). */
+export function buildLobbyTicketTypedData(t: LobbyTicketFields, matchPool: Address, chainId: SupportedChainId) {
+    return {
+        domain: {
+            name: MATCH_POOL_DOMAIN_NAME,
+            version: EIP712_VERSION,
+            chainId,
+            verifyingContract: matchPool,
+        },
+        types: {
+            LobbyTicket: [
+                { name: "roomCode", type: "bytes32" },
+                { name: "matchId", type: "bytes32" },
+                { name: "host", type: "address" },
+                { name: "seatsHash", type: "bytes32" },
+                { name: "gameMode", type: "uint8" },
+                { name: "maxSeats", type: "uint8" },
+                { name: "issuedAt", type: "uint64" },
+            ],
+        },
+        primaryType: "LobbyTicket",
+        message: {
+            roomCode: t.roomCode,
+            matchId: t.matchId,
+            host: t.host,
+            seatsHash: t.seatsHash,
+            gameMode: t.gameMode,
+            maxSeats: t.maxSeats,
+            issuedAt: t.issuedAt,
+        },
+    } as const;
+}

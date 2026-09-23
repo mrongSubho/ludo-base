@@ -546,12 +546,14 @@ contract MatchPool is ReentrancyGuard {
         }
         if (sum != p.prizeFund) revert SumMismatch();
 
+        // 4-seat, 2 winners: 2v2 teammates (50/50) OR 4P podium (75/25).
+        // Infer mode: TEAM_PAIRINGS pair → equal split; otherwise 4P rank split.
         if (p.maxSeats == 4 && payoutPlan.length == 2) {
-            _checkTeamPair(poolId, payoutPlan[0].addr, payoutPlan[1].addr);
-            uint256 half = uint256(p.prizeFund) / 2;
-            uint256 dust = uint256(p.prizeFund) % 2;
-            address first = payoutPlan[0].addr;
-            address second = payoutPlan[1].addr;
+            address w0 = payoutPlan[0].addr;
+            address w1 = payoutPlan[1].addr;
+            bool isTeam = _isTeamPair(poolId, w0, w1);
+            address first = w0;
+            address second = w1;
             if (seatIndex[poolId][first] > seatIndex[poolId][second]) {
                 (first, second) = (second, first);
             }
@@ -561,7 +563,21 @@ contract MatchPool is ReentrancyGuard {
                 if (payoutPlan[i].addr == first) aAmt = payoutPlan[i].amount;
                 else bAmt = payoutPlan[i].amount;
             }
-            if (aAmt != half + dust || bAmt != half) revert SumMismatch();
+            if (isTeam) {
+                // 2v2: exact 50-50, dust to first winning seat (section 4.5 / M2).
+                uint256 half = uint256(p.prizeFund) / 2;
+                uint256 dust = uint256(p.prizeFund) % 2;
+                if (aAmt != half + dust || bAmt != half) revert SumMismatch();
+            } else {
+                // 4P top-2: 1st 75%, 2nd 25% (remainder to 2nd keeps sum exact).
+                uint256 firstDue = (uint256(p.prizeFund) * 75) / 100;
+                uint256 secondDue = uint256(p.prizeFund) - firstDue;
+                // Rank order: first (lower seatIndex) is 1st place unless payout order says otherwise.
+                // Payout amounts encode rank: larger share = 1st. Enforce either assignment.
+                uint256 hi = aAmt >= bAmt ? aAmt : bAmt;
+                uint256 lo = aAmt >= bAmt ? bAmt : aAmt;
+                if (hi != firstDue || lo != secondDue) revert SumMismatch();
+            }
         }
 
         bool slashBond = modeB && p.hostBond != 0 && !p.bondSlashed;
@@ -666,12 +682,13 @@ contract MatchPool is ReentrancyGuard {
         }
     }
 
-    function _checkTeamPair(bytes32 poolId, address a, address b) private view {
+    function _isTeamPair(bytes32 poolId, address a, address b) private view returns (bool) {
         uint8 ca = _seatColors[poolId][seatIndex[poolId][a] - 1];
         uint8 cb = _seatColors[poolId][seatIndex[poolId][b] - 1];
         bool teamGY = (ca == 1 && cb == 2) || (ca == 2 && cb == 1);
         bool teamRB = (ca == 3 && cb == 4) || (ca == 4 && cb == 3);
-        if (!teamGY && !teamRB) revert TeamPairing();
+        return teamGY || teamRB;
+    }
     }
 
     function _domainSep() private view returns (bytes32) {

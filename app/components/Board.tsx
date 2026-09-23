@@ -402,6 +402,15 @@ export default function Board({
                 }
                 claimBusy={claimBusy}
                 claimError={claimError}
+                isPoolHost={claimConfigured}
+                poolAuthority={(address as `0x${string}` | undefined) ?? null}
+                winnerAddress={
+                    myPlayer?.color &&
+                    (localGameState.winner === myPlayer.color ||
+                        (localGameState.winners ?? []).includes(myPlayer.color))
+                        ? ((address as `0x${string}` | undefined) ?? null)
+                        : null
+                }
             />
 
             <PlayerRow

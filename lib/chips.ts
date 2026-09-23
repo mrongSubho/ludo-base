@@ -38,6 +38,27 @@ export const MATCH_POOL_ABI = [
     },
     {
         type: "function",
+        name: "settlePool",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "poolId", type: "bytes32" },
+            {
+                name: "payoutPlan",
+                type: "tuple[]",
+                components: [
+                    { name: "addr", type: "address" },
+                    { name: "amount", type: "uint256" },
+                ],
+            },
+            { name: "deadline", type: "uint64" },
+            { name: "nonce", type: "uint256" },
+            { name: "hostSig", type: "bytes" },
+            { name: "edgeSig", type: "bytes" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "function",
         name: "getPoolSummary",
         stateMutability: "view",
         inputs: [{ name: "poolId", type: "bytes32" }],

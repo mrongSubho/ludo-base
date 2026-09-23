@@ -1273,7 +1273,7 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 - [~] B20 create script (section 8.1) + initCalls allocation bootstrap + section 8.1b end-state txs — **script stubbed** in `script/CreateChips.s.sol` (needs `base-std` + live `createB20` + asserts)
 - [~] `MatchPool` + `ClaimHub` implemented + tests — **10/10 Foundry tests pass**: ticket binding, fee tier, squat, Mode A settle→claim→double-claim, Mode B + **hostBond slash**, Edge-only abandon **no burn**, dual-abandon **50% burn**, M9 cancelled refund, timeout `unresolvable`. **Still open:** pause-delta extension tests, forbidden-transition table exhaustive, gas benchmarks, **B20+ERC-8021 trailing-suffix Foundry assertion (M11)**, `MissionClaim` unit tests
 - [x] Dual-chain auth: SIWE / match-session / move-auth accept `84532` (`lib/chains.ts`, `lib/sessionProof.ts`, `lib/walletVerify.ts`); builder-code `dataSuffix` wired (`lib/builderCode.ts` + `app/Providers.tsx`)
-- [~] Settlement signer service (EIP-712 `ChipsMatchSettle` Mode A + Mode B Edge-only path, chain-gated, Edge co-signer **threshold/HSM Sepolia+mainnet**, separated custody; 1271/6492 path; lobby-ticket issuer) — **done:** `lib/chipsSettle.ts` + `POST /api/chips/lobby-ticket` + `POST /api/chips/settle/propose` (+ abandon Edge sign). **Still open:** live Edge key custody (HSM), host client sign + `settlePool` submit glue, 1271/6492 host path
+- [~] Settlement signer service (EIP-712 `ChipsMatchSettle` Mode A + Mode B Edge-only path, chain-gated, Edge co-signer **threshold/HSM Sepolia+mainnet**, separated custody; 1271/6492 path; lobby-ticket issuer) — **done:** `lib/chipsSettle.ts` + `POST /api/chips/lobby-ticket` + `POST /api/chips/settle/propose` (+ abandon Edge sign) + **host `useSettlePool` → signTypedData → `settlePool`** + `SettlePoolButton` in MatchStatsOverlay. **Still open:** live Edge key custody (HSM), 1271/6492 host path, multi-winner/team plans beyond single-winner
 - [~] Mission voucher path — **`MissionClaim.sol` implemented** (EIP-712, op-key, ceilings, replay guard); **API + registry deploy + unit tests** still open
 - [ ] Merkle season pipeline (bound leaves, multisig root + leaf window + epoch freeze) + `SeasonClaim`
 - [ ] Indexer (dedicated RPC; reorg handling with numeric confirmations; `(txHash, logIndex-1)` memo join; ε-alerts with freeze action; 100ms polling)
@@ -1292,7 +1292,7 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 These are the only blockers before calling Sepolia foundation **exit-complete** (besides live broadcast):
 
 1. Live `createB20` + `MINT_ROLE == ∅` asserts + `DeployGame.s.sol` broadcast + TOKEN_PARAMS addresses  
-2. Edge settlement signer service + lobby-ticket issuer (threshold/HSM) — **lib + APIs landed; host submit glue + HSM custody open**  
+2. Edge settlement signer service + lobby-ticket issuer (threshold/HSM) — **lib + APIs + host settle submit glue landed; HSM custody + 1271/6492 open**  
 3. Indexer + settle pipeline (Mode A/B)  
 4. Mission voucher API + legacy conversion + Terms copy  
 5. Gas benchmarks + B20+8021 suffix assertion + pause-delta tests  

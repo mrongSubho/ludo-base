@@ -2,6 +2,8 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Hex } from 'viem';
+import { SettlePoolButton } from './SettlePoolButton';
 import { BOARD_FINISH_INDEX, TEAM_ID } from '@/lib/constants';
 import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
@@ -116,6 +118,11 @@ export interface MatchStatsOverlayProps {
     /** Live claim busy / lock from usePoolClaim. */
     claimBusy?: boolean;
     claimError?: string | null;
+    /** Host/authority settle (Edge + host → settlePool). */
+    isPoolHost?: boolean;
+    poolAuthority?: `0x${string}` | null;
+    /** Winner wallet for single-winner prize plan (Phase-1 1v1 / FFA). */
+    winnerAddress?: `0x${string}` | null;
 }
 
 export function MatchStatsOverlay({
@@ -135,6 +142,9 @@ export function MatchStatsOverlay({
     claimUnlocksInMin,
     claimBusy,
     claimError,
+    isPoolHost,
+    poolAuthority,
+    winnerAddress,
 }: MatchStatsOverlayProps) {
     const seats = playerCount === '1v1' ? 2 : 4;
 
@@ -299,6 +309,29 @@ export function MatchStatsOverlay({
                                 );
                             })}
                         </div>
+
+                        {/* Host settle pot — Edge co-sign + host signTypedData + settlePool */}
+                        {showClaimSlot && isPoolHost && poolId && poolAuthority && winnerAddress && (
+                            <div className="match-stats-claim ready" style={{ marginBottom: 8 }}>
+                                <div className="match-stats-claim-head">
+                                    <span className="match-stats-claim-tag">SETTLE</span>
+                                    <span className="match-stats-claim-amount">Host</span>
+                                </div>
+                                <p className="match-stats-claim-note">
+                                    Edge co-sign, sign, then submit MatchPool.settlePool
+                                </p>
+                                <SettlePoolButton
+                                    poolId={poolId as Hex}
+                                    authority={poolAuthority as Hex}
+                                    plan={[
+                                        {
+                                            addr: winnerAddress as Hex,
+                                            amount: BigInt(Math.floor(estClaim * 1e18)),
+                                        },
+                                    ]}
+                                />
+                            </div>
+                        )}
 
                         {/* CHIPS claim slot — MatchPool.claimMatch (pull, section 4.8 Path A) */}
                         {showClaimSlot && (
