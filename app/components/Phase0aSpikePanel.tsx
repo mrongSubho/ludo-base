@@ -64,7 +64,10 @@ export default function Phase0aSpikePanel() {
                 domain,
                 uri,
             });
-            const signature = await baseSigner.signMessageAsync({ account: address, message });
+            const signature = await baseSigner.signMessageAsync({
+                account: address as `0x${string}`,
+                message,
+            });
             const { user } = await verifySiweSignature({ flowId, signature });
             const resolved = resolvePlayerIdentity(user);
             if (resolved.address && resolved.isBaseAccount) {

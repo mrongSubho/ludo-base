@@ -6,7 +6,7 @@
 | **Document type** | Implementation plan — wallet/auth layer |
 | **Decision** | Stay on Coinbase accounts (no custom wallet factory); integrate via CDP frontend stack |
 | **Companion plans** | `docs/tokenomics/CHIPS_PLANNING.md` (§§4.6, 6.1, 8.7, 8.9) · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` |
-| **Status** | Approved direction — **Phase 0a GREEN** (2026-09-24); 0b/CHIPS rails still gated behind stable build |
+| **Status** | Approved direction — **Phase 1 Option A in progress** (Continue with Base; player id = Base Account). 0a GREEN. 0b/CHIPS rails still gated |
 | **Last updated** | 2026-09-24 |
 
 ---
