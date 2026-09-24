@@ -27,6 +27,8 @@
     "bench:ai": "npx --yes tsx scripts/ai.bench.ts"
   },
   "dependencies": {
+    "@coinbase/cdp-core": "^0.0.126",
+    "@coinbase/cdp-hooks": "^0.0.126",
     "@coinbase/onchainkit": "^1.1.2",
     "@farcaster/frame-sdk": "^0.0.64",
     "@farcaster/miniapp-sdk": "^0.2.3",

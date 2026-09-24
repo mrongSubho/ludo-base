@@ -14,6 +14,7 @@ import FrameProvider from "./components/FrameProvider";
 import { TeamUpProvider } from "@/hooks/TeamUpContext";
 import { GameDataProvider } from "@/hooks/GameDataContext";
 import { InviteNotification } from "./components/InviteNotification";
+import { CdpAuthProvider } from "./components/CdpAuthProvider";
 
 const config = createConfig({
     chains: [base, baseSepolia],
@@ -49,6 +50,7 @@ export function Providers({ children }: { children: ReactNode }) {
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
+                <CdpAuthProvider>
                 <OnchainKitProvider
                     apiKey="YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
                     chain={base}
@@ -69,6 +71,7 @@ export function Providers({ children }: { children: ReactNode }) {
                         </GameDataProvider>
                     </FrameProvider>
                 </OnchainKitProvider>
+                </CdpAuthProvider>
             </QueryClientProvider>
         </WagmiProvider>
     );

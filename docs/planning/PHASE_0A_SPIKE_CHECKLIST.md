@@ -52,10 +52,10 @@
 - [x] `lib/walletSigner.ts` — `WalletSigner` interface (`signMessageAsync` / `signTypedDataAsync`)
 - [x] `hooks/useWalletSigner.ts` — wagmi default impl (CDP impl is Phase 1 swap)
 - [x] `NEXT_PUBLIC_CDP_PROJECT_ID` + `NEXT_PUBLIC_CDP_AUTH` in `.env.example`
-- [ ] **Spike-only** dep install when ready to run (flag off by default):
-      `npm i @coinbase/cdp-hooks @coinbase/cdp-core`
-      (+ `@coinbase/cdp-react` / `@base-org/account` only if using `AuthButton` / `siwe:base`)
-- [ ] Optional: feature flag `NEXT_PUBLIC_CDP_AUTH=1` to mount `CDPHooksProvider` beside wagmi — **no** default connect cutover in 0a
+- [x] **Spike-only** deps installed: `@coinbase/cdp-hooks` + `@coinbase/cdp-core` (no `@coinbase/cdp-react` / `siwe:base` in 0a)
+- [x] Feature flag `NEXT_PUBLIC_CDP_AUTH=1` mounts `CDPHooksProvider` beside wagmi via `app/components/CdpAuthProvider.tsx` — **no** default connect cutover
+- [x] Parent signer: `hooks/useCdpParentSigner.ts` (refuses non-parent `account`)
+- [x] Spike console: `/spike/cdp` → `app/components/Phase0aSpikePanel.tsx` (C2 SIWE · C3 EIP-712 · C4 move sign)
 
 ## C. Spike script (parent-signed proofs only)
 
