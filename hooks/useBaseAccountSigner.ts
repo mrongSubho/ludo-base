@@ -5,56 +5,65 @@ import { createBaseAccountSDK, type ProviderInterface } from "@base-org/account"
 import type { WalletSigner } from "@/lib/walletSigner";
 
 /**
- * Base Account (keys.coinbase.com / Base app) signer — Option A identity.
- * Signs personal_sign and EIP-712 as the user's Base Account via
- * `@base-org/account` (same address the Base app shows).
- *
- * Not the CDP embedded wallet. Parent = Base Account (SMART_WALLET_PLAN §1.1).
+ * Base Account signer (Option A) — signs as the user's Base Account via
+ * `@base-org/account` (same keys as Base app / keys.coinbase.com).
+ * Call `connect()` before signing; identity is the connected Base Account.
  */
 
 let sdkSingleton: ReturnType<typeof createBaseAccountSDK> | null = null;
 
-function baseProvider(): ProviderInterface {
+function getProvider(): ProviderInterface {
     if (!sdkSingleton) {
         sdkSingleton = createBaseAccountSDK({
-            appMetadata: {
-                name: "Ludo Base",
-                // logoUrl optional
-            },
+            appName: "Ludo Base",
+            appLogoUrl:
+                typeof window !== "undefined"
+                    ? `${window.location.origin}/favicon.ico`
+                    : null,
         });
     }
     return sdkSingleton.getProvider();
 }
 
+/** Connect (or resume) the Base Account. Returns the Base Account address. */
+export async function connectBaseAccount(): Promise<`0x${string}`> {
+    const provider = getProvider();
+    const accounts = (await provider.request({
+        method: "eth_requestAccounts",
+    })) as string[];
+    const address = accounts?.[0];
+    if (!address) throw new Error("Base Account connect returned no address");
+    return address as `0x${string}`;
+}
+
 export function useBaseAccountSigner(): WalletSigner & {
-    connect: () => Promise<string | undefined>;
-    isBaseAccount: true;
+    connect: () => Promise<`0x${string}`>;
+    connected: boolean;
 } {
-    const addressRef = useRef<string | undefined>(undefined);
+    const addressRef = useRef<`0x${string}` | undefined>(undefined);
+    const connectedRef = useRef(false);
 
     const connect = useCallback(async () => {
-        const provider = baseProvider();
-        const accounts = (await provider.request({
-            method: "eth_requestAccounts",
-        })) as string[];
-        const addr = accounts?.[0]?.toLowerCase();
+        const addr = await connectBaseAccount();
         addressRef.current = addr;
+        connectedRef.current = true;
         return addr;
     }, []);
 
     const signMessageAsync = useCallback(
         async (args: { account: `0x${string}`; message: string }) => {
-            const provider = baseProvider();
-            const account = args.account.toLowerCase();
-            if (addressRef.current && addressRef.current !== account) {
+            const provider = getProvider();
+            if (!addressRef.current) {
+                throw new Error("useBaseAccountSigner: call connect() first");
+            }
+            if (args.account.toLowerCase() !== addressRef.current.toLowerCase()) {
                 throw new Error("useBaseAccountSigner: refusing non-parent account");
             }
-            // personal_sign: [message, address]
-            const sig = await provider.request({
+            const signature = (await provider.request({
                 method: "personal_sign",
                 params: [args.message, args.account],
-            });
-            return sig as string;
+            })) as string;
+            return signature;
         },
         [],
     );
@@ -69,13 +78,14 @@ export function useBaseAccountSigner(): WalletSigner & {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             message: any;
         }) => {
-            const provider = baseProvider();
-            const account = args.account.toLowerCase();
-            if (addressRef.current && addressRef.current !== account) {
+            const provider = getProvider();
+            if (!addressRef.current) {
+                throw new Error("useBaseAccountSigner: call connect() first");
+            }
+            if (args.account.toLowerCase() !== addressRef.current.toLowerCase()) {
                 throw new Error("useBaseAccountSigner: refusing non-parent account");
             }
             const payload = {
-                domain: args.domain,
                 types: {
                     EIP712Domain: [
                         { name: "name", type: "string" },
@@ -85,13 +95,14 @@ export function useBaseAccountSigner(): WalletSigner & {
                     ...args.types,
                 },
                 primaryType: args.primaryType,
+                domain: args.domain,
                 message: args.message,
             };
-            const sig = await provider.request({
+            const signature = (await provider.request({
                 method: "eth_signTypedData_v4",
                 params: [args.account, JSON.stringify(payload)],
-            });
-            return sig as string;
+            })) as string;
+            return signature;
         },
         [],
     );
@@ -99,35 +110,11 @@ export function useBaseAccountSigner(): WalletSigner & {
     return useMemo(
         () => ({
             address: addressRef.current,
+            connected: connectedRef.current,
             connect,
-            isBaseAccount: true as const,
             signMessageAsync,
             signTypedDataAsync,
         }),
         [connect, signMessageAsync, signTypedDataAsync],
     );
-}
-
-/** Non-hook helper for one-shot connect + personal_sign (siwe:base manual flow). */
-export async function connectBaseAccount(): Promise<{
-    address: string;
-    provider: ProviderInterface;
-}> {
-    const provider = baseProvider();
-    const accounts = (await provider.request({ method: "eth_requestAccounts" })) as string[];
-    const address = accounts[0];
-    if (!address) throw new Error("Base Account connect returned no address");
-    return { address, provider };
-}
-
-export async function baseAccountSignMessage(
-    provider: ProviderInterface,
-    address: string,
-    message: string,
-): Promise<string> {
-    const sig = await provider.request({
-        method: "personal_sign",
-        params: [message, address],
-    });
-    return sig as string;
 }

@@ -4,57 +4,52 @@
  * never an owner EOA or sub-account.
  */
 
-export type SiweAuthLike = {
-    type?: string;
-    address?: string | null;
-};
-
-export type AuthMethodsLike = {
-    siwe?: SiweAuthLike | null;
-};
-
 export type CdpUserLike = {
-    authenticationMethods?: AuthMethodsLike | null;
-    evmAccountObjects?: Array<{ address: string }> | null;
-    evmSmartAccountObjects?: Array<{ address: string }> | null;
+    userId?: string;
+    authenticationMethods?: {
+        siwe?: { type?: string; address?: string } | undefined;
+    };
+    evmAccountObjects?: Array<{ address: string }> | undefined;
+    evmSmartAccountObjects?: Array<{ address: string }> | undefined;
 };
 
 export type PlayerIdentity = {
-    /** Canonical `wallet_address` — Base Account (Option A). */
+    /** Sole `wallet_address` — Base Account. Undefined until siwe:base. */
     address: string | undefined;
-    /** True when id comes from siwe:base / Sign in with Ethereum. */
+    /** True when id is the SIWE / Sign-in-with-Base address. */
     isBaseAccount: boolean;
-    /** CDP embedded smart account (email OTP) — display-only diagnostic. */
+    /** Diagnostic only — CDP embedded smart (email OTP). Do not persist. */
     cdpSmartAccount: string | undefined;
-    /** CDP owner EOA — never use as wallet_address. */
+    /** Diagnostic only — CDP owner EOA. Do not persist. */
     cdpOwnerEoa: string | undefined;
+    userId: string | undefined;
 };
 
 /**
- * Resolve the sole player id. Option A: SIWE/Base Account wins.
- * CDP embedded accounts are recorded for diagnostics only and must not be
- * written to `wallet_address` when a SIWE address exists.
+ * Resolve the only address allowed in `wallet_address` (Option A).
+ * Email/OTP-only sessions return `address: undefined` — not a player id.
  */
 export function resolvePlayerIdentity(user: CdpUserLike | null | undefined): PlayerIdentity {
     const siwe = user?.authenticationMethods?.siwe?.address;
     const cdpSmartAccount = user?.evmSmartAccountObjects?.[0]?.address;
     const cdpOwnerEoa = user?.evmAccountObjects?.[0]?.address;
+    const userId = user?.userId;
 
-    if (siwe) {
+    if (siwe && /^0x[a-fA-F0-9]{40}$/.test(siwe)) {
         return {
             address: siwe.toLowerCase(),
             isBaseAccount: true,
             cdpSmartAccount,
             cdpOwnerEoa,
+            userId,
         };
     }
 
-    // Email/OTP-only session: CDP embedded wallet. Not Base-app parity.
-    // Callers must treat this as provisional until siwe:base is linked.
     return {
-        address: cdpSmartAccount?.toLowerCase(),
+        address: undefined,
         isBaseAccount: false,
         cdpSmartAccount,
         cdpOwnerEoa,
+        userId,
     };
 }

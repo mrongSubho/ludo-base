@@ -19,14 +19,13 @@ import {
 } from "@/lib/sessionProof";
 import { parseChainId, DEFAULT_CHAIN_ID } from "@/lib/chains";
 
-const CHAIN_ID = 84532; // Base Sepolia for spike
+const CHAIN_ID = 84532;
 
 type StepResult = { ok: boolean; detail: string };
 
 /**
- * Phase 1 — Option A: Continue with Base (`siwe:base`).
- * Player id = Base Account (`authenticationMethods.siwe.address`) — same as
- * Base app. CDP email/embedded wallets are never `wallet_address`.
+ * Phase 1 — Option A: Continue with Base. Player id = Base Account
+ * (`authenticationMethods.siwe.address`) — same as Base app.
  */
 export default function Phase0aSpikePanel() {
     const { isSignedIn } = useIsSignedIn();
@@ -50,6 +49,7 @@ export default function Phase0aSpikePanel() {
     }, []);
 
     const id = resolvePlayerIdentity(currentUser);
+    const playerId = id.address;
 
     const continueWithBase = useCallback(async () => {
         setBusy(true);
@@ -64,19 +64,16 @@ export default function Phase0aSpikePanel() {
                 domain,
                 uri,
             });
-            const signature = await baseSigner.signMessageAsync({
-                account: address as `0x${string}`,
-                message,
-            });
+            const signature = await baseSigner.signMessageAsync({ account: address, message });
             const { user } = await verifySiweSignature({ flowId, signature });
             const resolved = resolvePlayerIdentity(user);
-            if (resolved.address && resolved.via === "base-siwe") {
+            if (resolved.address && resolved.isBaseAccount) {
                 setAuth({ ok: true, detail: `player=${resolved.address} (Base Account)` });
                 note(`Continue with Base PASS ${resolved.address}`);
             } else {
                 setAuth({
                     ok: false,
-                    detail: "no authenticationMethods.siwe.address — expected Base Account id",
+                    detail: "no authenticationMethods.siwe.address on user",
                 });
                 note("Continue with Base FAIL — no siwe.address");
             }
@@ -89,7 +86,7 @@ export default function Phase0aSpikePanel() {
     }, [signInWithSiwe, verifySiweSignature, baseSigner, note]);
 
     const runSiwe = useCallback(async () => {
-        if (!id.address) {
+        if (!playerId) {
             setSiwe({ ok: false, detail: "no Base Account id" });
             return;
         }
@@ -102,23 +99,23 @@ export default function Phase0aSpikePanel() {
             const chainId = parseChainId(CHAIN_ID) ?? DEFAULT_CHAIN_ID;
             const message = buildSiweMessage({
                 domain,
-                address: id.address,
+                address: playerId,
                 issuedAt,
                 expirationTime,
                 nonce,
                 chainId,
             });
             const signature = await baseSigner.signMessageAsync({
-                account: id.address as `0x${string}`,
+                account: playerId as `0x${string}`,
                 message,
             });
-            note(`Ludo SIWE signed as ${id.address}`);
+            note(`Ludo SIWE signed as ${playerId}`);
             const res = await fetch("/api/siwe/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     domain,
-                    address: id.address,
+                    address: playerId,
                     nonce,
                     issuedAt,
                     expirationTime,
@@ -141,10 +138,10 @@ export default function Phase0aSpikePanel() {
         } finally {
             setBusy(false);
         }
-    }, [id.address, baseSigner, note]);
+    }, [playerId, baseSigner, note]);
 
     const runEip712 = useCallback(async () => {
-        if (!id.address) {
+        if (!playerId) {
             setEip712({ ok: false, detail: "no Base Account id" });
             return;
         }
@@ -152,12 +149,12 @@ export default function Phase0aSpikePanel() {
         try {
             const domain = buildSessionDomain(CHAIN_ID);
             const payload = buildMatchSessionPayload({
-                wallet: id.address,
+                wallet: playerId,
                 matchId: `spike-${Date.now()}`,
                 roomCode: "SPIKE0",
             });
             const signature = await baseSigner.signTypedDataAsync({
-                account: id.address as `0x${string}`,
+                account: playerId as `0x${string}`,
                 domain,
                 types: LUDO_SESSION_TYPES as never,
                 primaryType: "LudoMatchSession",
@@ -169,7 +166,7 @@ export default function Phase0aSpikePanel() {
                     nonce: payload.nonce,
                 },
             });
-            setEip712({ ok: true, detail: `sig=${signature.slice(0, 18)}… as ${id.address}` });
+            setEip712({ ok: true, detail: `sig=${signature.slice(0, 18)}… as ${playerId}` });
             note("C3 LudoMatchSession as Base Account");
         } catch (e) {
             setEip712({ ok: false, detail: e instanceof Error ? e.message : String(e) });
@@ -177,10 +174,10 @@ export default function Phase0aSpikePanel() {
         } finally {
             setBusy(false);
         }
-    }, [id.address, baseSigner, note]);
+    }, [playerId, baseSigner, note]);
 
     const runMoveProof = useCallback(async () => {
-        if (!id.address) {
+        if (!playerId) {
             setMove({ ok: false, detail: "no Base Account id" });
             return;
         }
@@ -189,7 +186,7 @@ export default function Phase0aSpikePanel() {
             const message = [
                 "Ludo Base move",
                 "Phase 1 Option A Base Account spike (no game state).",
-                `actor: ${id.address.toLowerCase()}`,
+                `actor: ${playerId.toLowerCase()}`,
                 "color: green",
                 "token: 0",
                 "roll: spike",
@@ -197,7 +194,7 @@ export default function Phase0aSpikePanel() {
                 `issued: ${new Date().toISOString()}`,
             ].join("\n");
             const signature = await baseSigner.signMessageAsync({
-                account: id.address as `0x${string}`,
+                account: playerId as `0x${string}`,
                 message,
             });
             setMove({ ok: true, detail: `sig=${signature.slice(0, 18)}…` });
@@ -208,9 +205,9 @@ export default function Phase0aSpikePanel() {
         } finally {
             setBusy(false);
         }
-    }, [id.address, baseSigner, note]);
+    }, [playerId, baseSigner, note]);
 
-    const ready = Boolean(isSignedIn && id.address);
+    const ready = Boolean(isSignedIn && playerId);
 
     return (
         <div className="ludo-wallet-scope rounded-2xl border border-white/10 bg-black/40 p-6 max-w-xl space-y-4 text-sm text-white/90">
@@ -225,7 +222,7 @@ export default function Phase0aSpikePanel() {
             </div>
 
             <div className="rounded-lg border border-white/10 p-3 space-y-1 font-mono text-xs">
-                <div>player (Base Account): {id.address ?? "—"}</div>
+                <div>player (Base Account): {playerId ?? "—"}</div>
                 <div>cdp embedded smart (diag only): {id.cdpSmartAccount ?? "—"}</div>
                 <div>cdp owner EOA (never id): {id.cdpOwnerEoa ?? "—"}</div>
                 <div>userId: {id.userId ?? "—"}</div>
