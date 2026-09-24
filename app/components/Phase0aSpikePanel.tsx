@@ -68,7 +68,10 @@ export default function Phase0aSpikePanel() {
                 account: address as `0x${string}`,
                 message,
             });
-            const { user } = await verifySiweSignature({ flowId, signature });
+            const { user } = await verifySiweSignature({
+                flowId,
+                signature: signature as `0x${string}`,
+            });
             const resolved = resolvePlayerIdentity(user);
             if (resolved.address && resolved.isBaseAccount) {
                 setAuth({ ok: true, detail: `player=${resolved.address} (Base Account)` });
