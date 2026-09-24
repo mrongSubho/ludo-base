@@ -14,6 +14,15 @@
 
 **Auto block:** `npm run unpark:evidence` → paste below.
 
+### Explicit gate links (both remaining human gates)
+
+| Gate | Protocol (open this) | Evidence goes here |
+| --- | --- | --- |
+| **Q2 phone hop** | [`docs/ops/DEVICE_PASS.md`](./DEVICE_PASS.md) — steps + `__ludoPerf.markdown()` | This file §1.1 |
+| **N3 live D1–D4** | [`docs/ops/NETCODE_DRILLS.md`](./NETCODE_DRILLS.md) §Manual — two clients | This file §1.2 |
+| **Sentry** | `.env.local` → `NEXT_PUBLIC_SENTRY_DSN` · code: [`lib/telemetrySentry.ts`](../lib/telemetrySentry.ts) | This file §1.3 |
+| Status rollup | [`docs/ops/UNPARK_CHECKLIST.md`](./UNPARK_CHECKLIST.md) | Plan [§0b](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md#0b-live-status-checklist--whats-next) |
+
 ### Auto evidence — 2026-09-23 (CI)
 
 ```text
@@ -55,14 +64,14 @@ Verdict (phone): PENDING — paste __ludoPerf.markdown()
 
 ### 1.3 Sentry
 
-- [ ] Project created  
-- [ ] `NEXT_PUBLIC_SENTRY_DSN` set in `.env.local` (see `.env.example`)  
-- [ ] First `session_start` / error event visible in Sentry  
+- [x] Project created — **JAVASCRIPT-1** (`ludo-base.sentry.io`, project `4512138573053952`)
+- [x] `NEXT_PUBLIC_SENTRY_DSN` set in `.env.local` (verified 2026-09-24; value not committed)
+- [ ] First `session_start` / error event visible in Sentry *(open the app once after `npm run dev` and confirm in Issues — sample TypeError can be resolved/ignored)*
 
 ```text
-Sentry project: ____________
-DSN configured: no  (transport ready: lib/telemetrySentry.ts)
-First event confirmed: no
+Sentry project: JAVASCRIPT-1 / 4512138573053952
+DSN configured: yes
+First event confirmed: pending visual check in Sentry UI
 ```
 
 ---
@@ -72,7 +81,7 @@ First event confirmed: no
 Pick one:
 
 - [ ] **UN-PARK** — stable-build gate is green; growth tracks may start  
-- [x] **DEFER** — outstanding items: **physical Q2 phone pass · D1–D4 on real clients · Sentry DSN + first event**  
+- [x] **DEFER** — outstanding items: **physical Q2 phone pass · D1–D4 on real clients** *(Sentry DSN configured 2026-09-24 — confirm first event in UI)*  
 - [ ] **PARTIAL** — un-park only: ☐ Voice ☐ i18n ☐ Ads  
 
 **Rationale (3–5 sentences):**

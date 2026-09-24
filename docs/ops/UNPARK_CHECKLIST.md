@@ -77,11 +77,15 @@ Voice · i18n · ads / rewarded · native shell · CHIPS contracts · Sepolia va
 
 ## Remaining before un-park decision
 
-**2026-09-23 update:** CI half of 1–2 is done (`npm run bench:hop`, `npm run drill:deep`). Decision note pre-filled in `UNPARK_DECISION.md` as **DEFER** until physical gates close.
+**2026-09-24 update:** Sentry **Done**. Remaining human gates — follow the **explicit protocol links**:
 
-1. **Q2 device pass** — CI proxy PASS (p95 5ms). **Still need:** one run on a low-end Android phone (`/token-move-test` + `__ludoPerf.markdown()`) pasted into `DEVICE_PASS.md`.
-2. **N3 live drills** — auto + deep sim green. **Still need:** D1–D4 on **two real browsers/phones** (PeerJS drop, Realtime drop, host kill, airplane).
-3. **Sentry DSN** — transport + `.env.example` ready. **Still need:** create project, set `NEXT_PUBLIC_SENTRY_DSN` in `.env.local`, confirm first event.
+| # | Gate | Protocol link | Paste into |
+| --- | --- | --- | --- |
+| 1 | Q2 physical phone hop | **[`DEVICE_PASS.md`](./DEVICE_PASS.md)** | [`UNPARK_DECISION.md` §1.1](./UNPARK_DECISION.md) |
+| 2 | N3 live D1–D4 (two clients) | **[`NETCODE_DRILLS.md`](./NETCODE_DRILLS.md)** | [`UNPARK_DECISION.md` §1.2](./UNPARK_DECISION.md) |
+| 3 | Sentry DSN | **Done** — project `4512138573053952` · `NEXT_PUBLIC_SENTRY_DSN` in `.env.local` | [`UNPARK_DECISION.md` §1.3](./UNPARK_DECISION.md) |
+
+Then flip decision in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md) and mirror in the plan [§0b](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md#0b-live-status-checklist--whats-next).
 4. **Optional style burn-down** — lint warnings → 0 before turning rules back to `error`.
 5. **C0 freeze pack** — `TOKEN_PARAMS.md` exists; Sybil model + legal issue-spot if CHIPS resumes.
 

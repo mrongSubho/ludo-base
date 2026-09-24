@@ -2,6 +2,8 @@
 
 Recurring reliability drills for Ludo Base multiplayer. These are **not** a substitute for live smoke tests — they lock the contract of resync, intent dedup, abandon grace, and FSM authority so regressions fail in CI.
 
+**Explicit links:** live D1–D4 results → [`UNPARK_DECISION.md` §1.2](./UNPARK_DECISION.md) · phone hop companion → [`DEVICE_PASS.md`](./DEVICE_PASS.md) · status → [`UNPARK_CHECKLIST.md`](./UNPARK_CHECKLIST.md) · signaling notes → [`SIGNALING.md`](./SIGNALING.md)
+
 ## Run
 
 ```bash

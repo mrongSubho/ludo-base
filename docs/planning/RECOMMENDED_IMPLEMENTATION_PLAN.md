@@ -84,11 +84,11 @@ Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIP
 
 ### What’s next (ordered)
 
-1. **Human un-park gates** (only blockers for growth tracks):
-   - [ ] Q2 **physical phone** hop pass → `docs/ops/DEVICE_PASS.md`
-   - [ ] N3 **D1–D4 on two real clients** (PeerJS drop, Realtime drop, host kill, airplane)
-   - [ ] Sentry project + `NEXT_PUBLIC_SENTRY_DSN` + first event
-   - [ ] Fill `docs/ops/UNPARK_DECISION.md` → UN-PARK (or DEFER)
+1. **Human un-park gates** (only blockers for growth tracks) — both remaining gates have **explicit protocol links**:
+   - [ ] Q2 **physical phone** hop pass → [`docs/ops/DEVICE_PASS.md`](../ops/DEVICE_PASS.md) → paste [`docs/ops/UNPARK_DECISION.md` §1.1](../ops/UNPARK_DECISION.md)
+   - [ ] N3 **D1–D4 on two real clients** (PeerJS drop, Realtime drop, host kill, airplane) → [`docs/ops/NETCODE_DRILLS.md`](../ops/NETCODE_DRILLS.md) → paste [`docs/ops/UNPARK_DECISION.md` §1.2](../ops/UNPARK_DECISION.md)
+   - [x] ~~Sentry project + `NEXT_PUBLIC_SENTRY_DSN` + first event~~ *(DSN set 2026-09-24; confirm `session_start` in UI once)* → [`docs/ops/UNPARK_DECISION.md` §1.3](../ops/UNPARK_DECISION.md)
+   - [ ] Fill [`docs/ops/UNPARK_DECISION.md`](../ops/UNPARK_DECISION.md) → UN-PARK (or DEFER)
 2. **Close remaining code 🟡** (can run in parallel with (1)):
    - [x] ~~N6 spectator parity full (schema + resync + counter)~~
    - [x] ~~Q5 typed error copy everywhere + `PanelErrorBoundary` coverage~~
@@ -417,7 +417,7 @@ Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
 
 Superseded by **[section 0b — What’s next](#0b-live-status-checklist--whats-next)** (2026-09-23). Short form:
 
-1. Human un-park gates (phone hop, D1–D4, Sentry DSN) → `UNPARK_DECISION.md`.
+1. Human un-park gates (phone hop, D1–D4) → `UNPARK_DECISION.md`. *(Sentry DSN done 2026-09-24.)*
 2. Close 🟡 code: N6 spectator, Q5 error copy, Board perf hook, N4 protocolVersion/dedup caps, eslint quarantine removal.
 3. Un-park meeting → one growth slice (voice / i18n / ads seam).
 4. CHIPS: Foundry → Sepolia → claim UI + M11 assert (contracts already scaffolded).

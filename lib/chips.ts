@@ -80,6 +80,13 @@ export const MATCH_POOL_ABI = [
 export const CHIPS_ERC20_ABI = [
     {
         type: "function",
+        name: "totalSupply",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ name: "", type: "uint256" }],
+    },
+    {
+        type: "function",
         name: "approve",
         stateMutability: "nonpayable",
         inputs: [

@@ -1279,17 +1279,17 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 - [x] Dual-chain auth: SIWE / match-session / move-auth accept `84532` (`lib/chains.ts`, `lib/sessionProof.ts`, `lib/walletVerify.ts`); builder-code `dataSuffix` wired (`lib/builderCode.ts` + `app/Providers.tsx`)
 - [~] Settlement signer service (EIP-712 `ChipsMatchSettle` Mode A + Mode B Edge-only path, chain-gated, Edge co-signer **threshold/HSM Sepolia+mainnet**, separated custody; 1271/6492 path; lobby-ticket issuer) — **done:** `lib/chipsSettle.ts` + `POST /api/chips/lobby-ticket` + `POST /api/chips/settle/propose` (+ abandon Edge sign) + **host `useSettlePool` → signTypedData → `settlePool`** + `SettlePoolButton` in MatchStatsOverlay. **Still open:** live Edge key custody (HSM), 1271/6492 host path, multi-winner/team plans beyond single-winner
 - [~] Mission voucher path — **`MissionClaim.sol` implemented** (EIP-712, op-key, ceilings, replay guard); **API + registry deploy + unit tests** still open
-- [ ] Merkle season pipeline (bound leaves, multisig root + leaf window + epoch freeze) + `SeasonClaim`
-- [ ] Indexer (dedicated RPC; reorg handling with numeric confirmations; `(txHash, logIndex-1)` memo join; ε-alerts with freeze action; 100ms polling)
+- [~] Merkle season pipeline — **`SeasonClaim.sol` + `LegacyClaim.sol` + `lib/merkleClaims.ts` + Foundry tests**. Still open: full-season leaf builder + deploy
+- [~] Indexer — **`lib/chipsIndexer.ts`** (idempotent ingest, pool cache, burn total). Still open: RPC worker + Supabase `chips_*` persistence + ε-alerts
 - [~] Lobby paid join UX — **wired** via `PaidPoolJoinButton` + `usePoolJoin` (approve → `joinPool`); EIP-5792 `useSendCalls` batch + EOA permit fallback **not** yet (sequential two-tx today)
 - [~] Claim UX — **wired** via `usePoolClaim` into `MatchStatsOverlay` (`Claim CHIPS` / busy / locked / pool-pending); still open: gross/gas/net estimate, dispute countdown timer, paginated `claimAll` via `ClaimHub`
-- [ ] Legacy conversion pool (100:1, 50M cap, 90-day window) + writer freeze + snapshot root
-- [ ] Onboarding voucher set (section 7.7 core + extended) + referral_links table + dashboard + 60M sub-ceiling + Galxe credentials
-- [ ] Explorer links + burn dashboard page (bytes32 tags)
-- [ ] 8130 session-key prototype on vibenet (track `wevm/viem#5004`; never ship fork); paymaster interface (section 8.9)
-- [ ] Watcher runbook (dispute-window monitoring, Edge co-sign retry queue latency alerts, timeout-refund triggers using **effective** `settleBy + pauseDelta`, ε-breach response, pause incident checklist)
-- [~] Smoke — **engine tests green** (`npm test` 58/58); still open: RLS still denies client coin writes; legacy coin writers frozen behind flag
-- [ ] Rewrite Terms section 1 economic language for CHIPS (utility on Base; testnet disclaimers; age/geo)
+- [~] Legacy conversion — **`LegacyClaim.sol` (100:1, 50M cap, 90d) + tests**. Still open: snapshot job + writer freeze + root publish
+- [~] Onboarding / Galxe — **SQL `referral_links` + `onboarding_progress` + `mission_vouchers`**. Still open: API + Galxe + claim UI
+- [~] Explorer + burn dashboard — **`app/burn/page.tsx`**. Still open: full memo event feed
+- [~] 8130 / paymaster — **`lib/paymaster.ts`** (gas-only sponsor + ActorScope). Still open: vibenet prototype + funding
+- [x] Watcher runbook — **`docs/ops/CHIPS_WATCHER_RUNBOOK.md`**
+- [~] Smoke — **engine tests green** (`npm test` 62/62; Foundry 16/16). Still open: RLS still denies client coin writes; legacy coin writers frozen behind flag
+- [x] Rewrite Terms section 1 economic language for CHIPS — **`app/terms/page.tsx` updated**
 
 ### 12.1 Phase-1 exit remaining (from section 10)
 

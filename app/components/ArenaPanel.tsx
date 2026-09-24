@@ -3,6 +3,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMissionVoucherClaim } from '@/hooks/useMissionVoucher';
+import { missionClaimAddress } from '@/lib/missionVoucher';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
@@ -86,6 +88,10 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
     const [missions, setMissions] = useState<Mission[]>([]);
     const [isLoadingMissions, setIsLoadingMissions] = useState(false);
     const [claimingId, setClaimingId] = useState<string | null>(null);
+    const {
+        claim: claimVoucher,
+        error: voucherError,
+    } = useMissionVoucherClaim();
     // True when the wallet is connected but SIWE hasn't produced a session:
     // missions are session-gated server-side, so show a sign-in prompt
     // instead of a misleading empty list.
@@ -135,6 +141,20 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
         if (!guard('arena-claim')) return;
         setClaimingId(missionId);
         try {
+            // Prefer on-chain CHIPS voucher + MissionClaim when configured.
+            if (missionClaimAddress()) {
+                const tx = await claimVoucher(missionId);
+                if (tx) {
+                    window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
+                    window.dispatchEvent(new CustomEvent('ludo-chips-refresh'));
+                    await fetchMissions();
+                } else if (voucherError) {
+                    alert(voucherError);
+                }
+                return;
+            }
+
+            // Fallback: legacy soft-coin claim (pre-deploy / free track).
             const sessionId = await ensureAppSession();
             if (!sessionId) {
                 alert('Sign-in required to claim');

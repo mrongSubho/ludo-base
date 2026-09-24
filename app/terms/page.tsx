@@ -26,7 +26,10 @@ export default function TermsPage() {
                         <h2 className="text-sm font-black text-white uppercase tracking-widest">1. The game</h2>
                         <p className="mt-1">
                             Ludo Base is a skill-and-chance board arena. Matches run on provably-fair
-                            dice, and entry fees are paid in virtual Coins. Where onchain settlement
+                            dice. Free and offline/AI tables have no stake. Paid online tables use{' '}
+                            <strong>CHIPS</strong> — a utility token on Base (B20) — locked into a
+                            visible Match Pool and claimed after settlement. CHIPS is not money, not
+                            an investment, and not a promise of profit. Where onchain settlement
                             applies, results are recorded on the connected network and are final.
                         </p>
                     </section>

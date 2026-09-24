@@ -2,6 +2,8 @@
 
 One low-end phone, one Classic match vs AI (or Pass & Play), one report pasted below.
 
+**Explicit links:** results → [`UNPARK_DECISION.md` §1.1](./UNPARK_DECISION.md) · status → [`UNPARK_CHECKLIST.md`](./UNPARK_CHECKLIST.md) · companion drill gate → [`NETCODE_DRILLS.md`](./NETCODE_DRILLS.md)
+
 ## Target device (fill in)
 
 | Field | Value |
