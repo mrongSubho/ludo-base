@@ -59,7 +59,7 @@ export default function Phase0aSpikePanel() {
             const domain = window.location.hostname;
             const uri = window.location.origin;
             const { message, flowId } = await signInWithSiwe({
-                address,
+                address: address as `0x${string}`,
                 chainId: CHAIN_ID,
                 domain,
                 uri,
