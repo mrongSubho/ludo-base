@@ -6,51 +6,77 @@ import {
     useSignEvmMessage,
     useSignEvmTypedData,
 } from "@coinbase/cdp-hooks";
+import { toViemAccount } from "@coinbase/cdp-core";
+import { toCoinbaseSmartAccount } from "viem/account-abstraction";
+import { createPublicClient, http, type Address, type TypedDataDefinition } from "viem";
+import { base, baseSepolia } from "viem/chains";
 import type { WalletSigner } from "@/lib/walletSigner";
 
 /**
- * CDP implementation of `WalletSigner` for the Phase 0a spike.
- * Must render under `CdpAuthProvider` (CDPHooksProvider).
+ * CDP parent-signer (Phase 0a). Identity = parent Smart Account (§1.1).
  *
- * Identity (SMART_WALLET_PLAN §1.1): `address` is always the parent Smart
- * Account (`evmSmartAccountObjects[0]`). Never the owner EOA, never a sub.
+ * Spike findings (2026-09-24):
+ * 1. `signEvmMessage` / `signEvmTypedData` reject the smart address
+ *    ("EVM account not found") — `evmAccount` must be an EOA.
+ * 2. A raw owner-EOA personal_sign claimed as the smart account 401s
+ *    `signer-mismatch` — counterfactual CBSW needs an ERC-6492 wrap.
  *
- * Spike finding (2026-09-24): `signEvmMessage` / `signEvmTypedData` reject the
- * smart-account address with "EVM account not found" — `evmAccount` must be an
- * EOA from `evmAccountObjects`. We therefore **sign with the owner EOA** and
- * claim the **parent Smart Account** as the player id. Server verification
- * (`lib/walletVerify.ts`) must accept the owner signature via ERC-1271/6492
- * against the smart account (owner `isValidSignature`). If that verify fails,
- * the spike must wrap for 6492 — do not switch identity to the EOA.
+ * Path: `toCoinbaseSmartAccount` (viem, same as scripts/siwe-matrix.ts case c)
+ * signs a replay-safe typed hash as the owner EOA via CDP, wraps as
+ * SignatureWrapper, then 6492 (factory createAccount). Server
+ * `lib/walletVerify.ts` accepts that via the universal validator.
  */
-export function useCdpParentSigner(): WalletSigner & {
+function chainFor(chainId: number) {
+    return chainId === base.id ? base : baseSepolia;
+}
+
+async function parentSmartAccount(params: {
+    parent: Address;
+    ownerEoa: Address;
+    chainId: number;
+}) {
+    const chain = chainFor(params.chainId);
+    const client = createPublicClient({ chain, transport: http() });
+    const owner = toViemAccount(params.ownerEoa);
+    // Pin the CDP-issued parent address; do not trust local derivation alone.
+    return toCoinbaseSmartAccount({
+        client,
+        owners: [owner],
+        version: "1",
+        address: params.parent,
+    });
+}
+
+export function useCdpParentSigner(defaultChainId = 84532): WalletSigner & {
     ownerEoa: string | undefined;
     signWithEoa: string | undefined;
     isSignedIn: boolean;
 } {
     const { currentUser } = useCurrentUser();
+    // Kept for fallback diagnostics only — primary path is toCoinbaseSmartAccount.
     const { signEvmMessage } = useSignEvmMessage();
     const { signEvmTypedData } = useSignEvmTypedData();
 
-    const smart = currentUser?.evmSmartAccountObjects?.[0]?.address;
-    const ownerEoa = currentUser?.evmAccountObjects?.[0]?.address;
+    const smart = currentUser?.evmSmartAccountObjects?.[0]?.address as Address | undefined;
+    const ownerEoa = currentUser?.evmAccountObjects?.[0]?.address as Address | undefined;
     const address = smart as `0x${string}` | undefined;
-    /** CDP can only sign as this EOA; identity remains `address` (smart). */
-    const signWithEoa = (ownerEoa ?? smart) as `0x${string}` | undefined;
+    const signWithEoa = ownerEoa as `0x${string}` | undefined;
 
     const signMessageAsync = useCallback(
         async (args: { account: `0x${string}`; message: string }) => {
-            if (!address || args.account.toLowerCase() !== address.toLowerCase()) {
+            if (!address || !ownerEoa) throw new Error("useCdpParentSigner: no parent/owner");
+            if (args.account.toLowerCase() !== address.toLowerCase()) {
                 throw new Error("useCdpParentSigner: refusing non-parent account");
             }
-            if (!signWithEoa) throw new Error("useCdpParentSigner: no EOA signer");
-            const { signature } = await signEvmMessage({
-                evmAccount: signWithEoa,
-                message: args.message,
+            const account = await parentSmartAccount({
+                parent: address as Address,
+                ownerEoa,
+                chainId: defaultChainId,
             });
+            const signature = await account.signMessage({ message: args.message });
             return signature as string;
         },
-        [address, signWithEoa, signEvmMessage],
+        [address, ownerEoa, defaultChainId],
     );
 
     const signTypedDataAsync = useCallback(
@@ -63,26 +89,24 @@ export function useCdpParentSigner(): WalletSigner & {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             message: any;
         }) => {
-            if (!address || args.account.toLowerCase() !== address.toLowerCase()) {
+            if (!address || !ownerEoa) throw new Error("useCdpParentSigner: no parent/owner");
+            if (args.account.toLowerCase() !== address.toLowerCase()) {
                 throw new Error("useCdpParentSigner: refusing non-parent account");
             }
-            if (!signWithEoa) throw new Error("useCdpParentSigner: no EOA signer");
-            const { signature } = await signEvmTypedData({
-                evmAccount: signWithEoa,
-                typedData: {
-                    domain: {
-                        name: args.domain.name,
-                        version: args.domain.version,
-                        chainId: args.domain.chainId,
-                    },
-                    types: args.types,
-                    primaryType: args.primaryType,
-                    message: args.message,
-                },
+            const account = await parentSmartAccount({
+                parent: address as Address,
+                ownerEoa,
+                chainId: args.domain.chainId || defaultChainId,
             });
+            const signature = await account.signTypedData({
+                domain: args.domain,
+                types: args.types,
+                primaryType: args.primaryType,
+                message: args.message,
+            } as TypedDataDefinition);
             return signature as string;
         },
-        [address, signWithEoa, signEvmTypedData],
+        [address, ownerEoa, defaultChainId],
     );
 
     return useMemo(
@@ -96,4 +120,11 @@ export function useCdpParentSigner(): WalletSigner & {
         }),
         [address, ownerEoa, signWithEoa, currentUser, signMessageAsync, signTypedDataAsync],
     );
+}
+
+/** Exposed for spike diagnostics if the wrap path needs a raw owner fallback. */
+export function useCdpRawOwnerSigners() {
+    const { signEvmMessage } = useSignEvmMessage();
+    const { signEvmTypedData } = useSignEvmTypedData();
+    return { signEvmMessage, signEvmTypedData };
 }

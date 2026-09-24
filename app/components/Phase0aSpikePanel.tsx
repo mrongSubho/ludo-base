@@ -224,7 +224,7 @@ export default function Phase0aSpikePanel() {
                 <div>signer EOA (CDP sign only): {parent.signWithEoa ?? parent.ownerEoa ?? "—"}</div>
                 <div>userId: {currentUser?.userId ?? "—"}</div>
                 <div className="text-white/40">
-                    note: CDP signEvm* requires EOA; identity stays parent smart (1271/6492 verify)
+                    note: personal_sign / EIP-712 → toCoinbaseSmartAccount 6492 wrap (owner EOA via CDP)
                 </div>
             </div>
 

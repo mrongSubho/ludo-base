@@ -132,14 +132,19 @@ useSignEvmTypedData args: { evmAccount, typedData: { domain, types, primaryType,
 BLOCKER (first run, 01:13): all of C2/C3/C4 failed with "EVM account not found"
 when evmAccount = parent Smart Account 0x221Aef….
 CDP signEvmMessage / signEvmTypedData only accept EOA (evmAccountObjects).
-Fix: sign with owner EOA, claim parent smart as identity; verify via 1271/6492.
-Retry pending after useCdpParentSigner update.
 
-/api/siwe/verify: pending retry
+RETRY 2 (01:34): signed with owner EOA raw ECDSA → C2 `/api/siwe/verify` 401
+signer-mismatch (expected: counterfactual CBSW needs ERC-6492 wrap).
+C4 produced a signature (raw) but would also fail 1271 verify as parent.
+
+FIX (applied): use viem `toCoinbaseSmartAccount` (pin parent address, version "1")
+→ replay-safe typed hash signed as owner via CDP → SignatureWrapper → 6492
+(same construction as scripts/siwe-matrix.ts case (c), proven 200 live).
+
+/api/siwe/verify: pending retry 3 (6492 wrap)
 move-auth provisional-session: pending
 Builder-code dataSuffix on sendUserOperation (if any tx): n/a in 0a
-Blockers: owner-EOA sig vs smart-account 1271 verify — if /api/siwe/verify
-returns signer-mismatch, need 6492 wrap or CDP smart-account sign path.
+Blockers: none if C2 returns sessionId after 6492 wrap
 ```
 
 ---
