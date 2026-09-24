@@ -39,14 +39,17 @@
 
 ### 1.1 Identity (locked)
 
+**Product decision (2026-09-24): Option A — Base Account via Sign in with Base (`siwe:base`) is the player id.** Rejected: B (CDP-embedded only — never matches Base app); C (both + explicit linking — dual address class, claim/seat risk, more than “zero” server work).
+
 | Rule | Detail |
 | --- | --- |
-| **Player id = parent Base Account or CDP Smart Account** | The only value allowed in `wallet_address`. For **Base-app parity**, prefer **Sign in with Base** so id = Base Account. Email/OTP = CDP Smart Account (different address). |
-| **Sub-account = authorization convenience only** | May send gameplay txs with fewer popups; **must never** be recorded as the player, seat owner, host, claimer, or ECDH publisher |
-| **Sign identity-bearing proofs as parent** | SIWE app session, match session EIP-712, move/pass/power/seed, match record, bet-resolve host proof, settle EIP-712, ECDH pubkey publish. CDP path = owner EOA + **CBSW 1.1 / factory `0xba5ed110…` 6492 wrap** (`hooks/useCdpParentSigner.ts`) |
-| **Sub-account re-register every session** | Ownership can change across devices/browsers; regenerating a sub is safe **only because** identity is not the sub |
-| **CHIPS `seat = msg.sender`** | Join/claim txs must be parent-signed (or an explicitly parent-bound spend path). A sub-account seat would strand prizes on a regenerable account — loss bug |
-| **One display address in UI** | Always show the **parent Smart Account / Base Account**, never the owner EOA (`0x6e1156…` class) |
+| **Player id = Base Account** (`siwe:base` / passkey) | The only value in `wallet_address`, seats, claims, host, ECDH. Same address in Ludo Base, `keys.coinbase.com`, and the Base app. |
+| **Email / SMS / Google / Apple / X** | Optional **auth methods on the same CDP user** only after Base Account is linked, or secondary sign-in that must resolve to the **linked Base Account** — never a second `wallet_address`. Phase 1 signup primary CTA: **Continue with Base**. |
+| **Sub-account = authorization convenience only** | Never `wallet_address` / seat / host / claimer / ECDH publisher |
+| **Sign identity-bearing proofs as the Base Account** | SIWE app session, match session EIP-712, move/pass/power/seed, match record, bet-resolve, settle EIP-712, ECDH. CDP-embedded path (if used for a linked user) still wraps CBSW 1.1 / `0xba5ed110…` 6492 (`hooks/useCdpParentSigner.ts`). |
+| **Sub-account re-register every session** | Safe **only because** identity is not the sub |
+| **CHIPS `seat = msg.sender`** | Parent/Base Account only — never a sub |
+| **One display address** | Base Account only; never owner EOA |
 
 If CDP's `defaultAccount: 'sub'` cannot sign as parent for personal_sign / EIP-712, **do not ship the sub default**. Phase 0a must prove "sign as parent" before any sub-account default is enabled.
 
