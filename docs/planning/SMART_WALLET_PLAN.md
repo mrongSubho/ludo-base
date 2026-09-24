@@ -76,7 +76,7 @@ CDP auto-linking merges Google ↔ same-email OTP **at Coinbase**. It does **not
 | Email OTP / SMS OTP | ✅ | 6-digit, 10/5-min expiry, rate-limited, up to 5 devices |
 | Passkey (Sign in with Base) | ✅ | One passkey across every Base-enabled app |
 
-Signup screen: **Continue with Google / Apple / Email / Passkey** (X optional at signup; Facebook only when CDP supports it). After first login, prompt a backup linked method.
+Signup screen: **Continue with Base** (primary CTA — `siwe:base` / passkey). Google / Apple / Email / X are **linkable recovery** on the same Base Account (never a second `wallet_address`). Facebook only if CDP adds it. After first login, prompt a backup linked method.
 
 **OAuth presentation (all social methods):** provider sign-in runs in the **user's default browser** (system browser / the tab that opened us) — never an in-app webview or our own captive browser. Flow: if the provider session cookie already exists in that browser → one-tap / silent confirm; if not → provider's login page in the same browser → return to app. **App handoff first (Google/Facebook/X/Apple app) is not a web-app control** — on web we use standard popup/redirect OAuth in the current default browser. Do not add deep-link-to-app wrappers. If a native shell is ever built, OAuth must use ASWebAuthenticationSession (iOS) / Chrome Custom Tabs or the default browser (Android), still not a WKWebView we own. Phase 0 spike verifies CDP's actual popup vs redirect behavior per provider.
 
