@@ -4,12 +4,12 @@ import { useCallback, useState } from "react";
 import {
     useCurrentUser,
     useIsSignedIn,
-    useSignInWithEmail,
-    useSignInWithOAuth,
+    useSignInWithSiwe,
     useSignOut,
-    useVerifyEmailOTP,
+    useVerifySiweSignature,
 } from "@coinbase/cdp-hooks";
-import { useCdpParentSigner } from "@/hooks/useCdpParentSigner";
+import { connectBaseAccount, useBaseAccountSigner } from "@/hooks/useBaseAccountSigner";
+import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import {
     APP_SESSION_TTL_MS,
     buildMatchSessionPayload,
@@ -19,71 +19,78 @@ import {
 } from "@/lib/sessionProof";
 import { parseChainId, DEFAULT_CHAIN_ID } from "@/lib/chains";
 
-const CHAIN_ID = 84532; // Base Sepolia for Phase 0a
+const CHAIN_ID = 84532; // Base Sepolia for spike
 
 type StepResult = { ok: boolean; detail: string };
 
 /**
- * Phase 0a spike console — parent-signed Ludo SIWE + match-session EIP-712.
- * No sub-accounts, no spend permissions, no value transfers.
- * Checklist: docs/planning/PHASE_0A_SPIKE_CHECKLIST.md §C.
+ * Phase 1 — Option A: Continue with Base (`siwe:base`).
+ * Player id = Base Account (`authenticationMethods.siwe.address`) — same as
+ * Base app. CDP email/embedded wallets are never `wallet_address`.
  */
 export default function Phase0aSpikePanel() {
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
-    const { signInWithEmail } = useSignInWithEmail();
-    const { verifyEmailOTP } = useVerifyEmailOTP();
-    const { signInWithOAuth } = useSignInWithOAuth();
+    const { signInWithSiwe } = useSignInWithSiwe();
+    const { verifySiweSignature } = useVerifySiweSignature();
     const { signOut } = useSignOut();
-    const parent = useCdpParentSigner();
+    const baseSigner = useBaseAccountSigner();
 
-    const [email, setEmail] = useState("");
-    const [otp, setOtp] = useState("");
-    const [flowId, setFlowId] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [auth, setAuth] = useState<StepResult | null>(null);
     const [siwe, setSiwe] = useState<StepResult | null>(null);
     const [eip712, setEip712] = useState<StepResult | null>(null);
     const [move, setMove] = useState<StepResult | null>(null);
     const [log, setLog] = useState<string[]>([]);
 
     const note = useCallback((line: string) => {
-        setLog((prev) => [`${new Date().toISOString().slice(11, 19)} ${line}`, ...prev].slice(0, 40));
+        setLog((prev) =>
+            [`${new Date().toISOString().slice(11, 19)} ${line}`, ...prev].slice(0, 40),
+        );
     }, []);
 
-    const sendOtp = useCallback(async () => {
-        if (!email) return;
-        setBusy(true);
-        try {
-            const r = await signInWithEmail({ email });
-            setFlowId(r.flowId);
-            note("OTP sent — check email (10 min expiry)");
-        } catch (e) {
-            note(`OTP send failed: ${e instanceof Error ? e.message : String(e)}`);
-        } finally {
-            setBusy(false);
-        }
-    }, [email, signInWithEmail, note]);
+    const id = resolvePlayerIdentity(currentUser);
 
-    const confirmOtp = useCallback(async () => {
-        if (!flowId || !otp) return;
+    const continueWithBase = useCallback(async () => {
         setBusy(true);
         try {
-            const r = await verifyEmailOTP({ flowId, otp });
-            note(
-                `signed in userId=${r.user.userId} smart=${r.user.evmSmartAccountObjects?.[0]?.address ?? "none"} eoa=${r.user.evmAccountObjects?.[0]?.address ?? "none"}`,
-            );
-            setFlowId(null);
-            setOtp("");
+            const address = await connectBaseAccount();
+            note(`Base Account connected ${address}`);
+            const domain = window.location.hostname;
+            const uri = window.location.origin;
+            const { message, flowId } = await signInWithSiwe({
+                address,
+                chainId: CHAIN_ID,
+                domain,
+                uri,
+            });
+            const signature = await baseSigner.signMessageAsync({
+                account: address as `0x${string}`,
+                message,
+            });
+            const { user } = await verifySiweSignature({ flowId, signature });
+            const resolved = resolvePlayerIdentity(user);
+            if (resolved.address && resolved.via === "base-siwe") {
+                setAuth({ ok: true, detail: `player=${resolved.address} (Base Account)` });
+                note(`Continue with Base PASS ${resolved.address}`);
+            } else {
+                setAuth({
+                    ok: false,
+                    detail: "no authenticationMethods.siwe.address — expected Base Account id",
+                });
+                note("Continue with Base FAIL — no siwe.address");
+            }
         } catch (e) {
-            note(`OTP verify failed: ${e instanceof Error ? e.message : String(e)}`);
+            setAuth({ ok: false, detail: e instanceof Error ? e.message : String(e) });
+            note("Continue with Base FAIL");
         } finally {
             setBusy(false);
         }
-    }, [flowId, otp, verifyEmailOTP, note]);
+    }, [signInWithSiwe, verifySiweSignature, baseSigner, note]);
 
     const runSiwe = useCallback(async () => {
-        if (!parent.address) {
-            setSiwe({ ok: false, detail: "no parent smart account" });
+        if (!id.address) {
+            setSiwe({ ok: false, detail: "no Base Account id" });
             return;
         }
         setBusy(true);
@@ -95,23 +102,23 @@ export default function Phase0aSpikePanel() {
             const chainId = parseChainId(CHAIN_ID) ?? DEFAULT_CHAIN_ID;
             const message = buildSiweMessage({
                 domain,
-                address: parent.address,
+                address: id.address,
                 issuedAt,
                 expirationTime,
                 nonce,
                 chainId,
             });
-            const signature = await parent.signMessageAsync({
-                account: parent.address as `0x${string}`,
+            const signature = await baseSigner.signMessageAsync({
+                account: id.address as `0x${string}`,
                 message,
             });
-            note(`SIWE signed as parent ${parent.address}`);
+            note(`Ludo SIWE signed as ${id.address}`);
             const res = await fetch("/api/siwe/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     domain,
-                    address: parent.address,
+                    address: id.address,
                     nonce,
                     issuedAt,
                     expirationTime,
@@ -125,10 +132,7 @@ export default function Phase0aSpikePanel() {
                 setSiwe({ ok: true, detail: `sessionId=${data.sessionId}` });
                 note("C2 PASS — /api/siwe/verify 200");
             } else {
-                setSiwe({
-                    ok: false,
-                    detail: `HTTP ${res.status} code=${data.code ?? "?"} ${JSON.stringify(data).slice(0, 120)}`,
-                });
+                setSiwe({ ok: false, detail: `HTTP ${res.status} code=${data.code ?? "?"}` });
                 note(`C2 FAIL — ${res.status}`);
             }
         } catch (e) {
@@ -137,23 +141,23 @@ export default function Phase0aSpikePanel() {
         } finally {
             setBusy(false);
         }
-    }, [parent, note]);
+    }, [id.address, baseSigner, note]);
 
     const runEip712 = useCallback(async () => {
-        if (!parent.address) {
-            setEip712({ ok: false, detail: "no parent smart account" });
+        if (!id.address) {
+            setEip712({ ok: false, detail: "no Base Account id" });
             return;
         }
         setBusy(true);
         try {
             const domain = buildSessionDomain(CHAIN_ID);
             const payload = buildMatchSessionPayload({
-                wallet: parent.address,
+                wallet: id.address,
                 matchId: `spike-${Date.now()}`,
                 roomCode: "SPIKE0",
             });
-            const signature = await parent.signTypedDataAsync({
-                account: parent.address as `0x${string}`,
+            const signature = await baseSigner.signTypedDataAsync({
+                account: id.address as `0x${string}`,
                 domain,
                 types: LUDO_SESSION_TYPES as never,
                 primaryType: "LudoMatchSession",
@@ -165,136 +169,105 @@ export default function Phase0aSpikePanel() {
                     nonce: payload.nonce,
                 },
             });
-            setEip712({
-                ok: true,
-                detail: `sig=${signature.slice(0, 20)}… (parent ${parent.address})`,
-            });
-            note("C3 signed LudoMatchSession EIP-712 as parent (verify via Edge move-auth next)");
+            setEip712({ ok: true, detail: `sig=${signature.slice(0, 18)}… as ${id.address}` });
+            note("C3 LudoMatchSession as Base Account");
         } catch (e) {
             setEip712({ ok: false, detail: e instanceof Error ? e.message : String(e) });
-            note("C3 FAIL — typed-data sign/reject");
+            note("C3 FAIL");
         } finally {
             setBusy(false);
         }
-    }, [parent, note]);
+    }, [id.address, baseSigner, note]);
 
     const runMoveProof = useCallback(async () => {
-        if (!parent.address) {
-            setMove({ ok: false, detail: "no parent smart account" });
+        if (!id.address) {
+            setMove({ ok: false, detail: "no Base Account id" });
             return;
         }
         setBusy(true);
         try {
             const message = [
                 "Ludo Base move",
-                "Phase 0a parent-sign spike (no game state).",
-                `actor: ${parent.address.toLowerCase()}`,
-                `color: green`,
-                `token: 0`,
-                `roll: spike`,
-                `seq: 0`,
+                "Phase 1 Option A Base Account spike (no game state).",
+                `actor: ${id.address.toLowerCase()}`,
+                "color: green",
+                "token: 0",
+                "roll: spike",
+                "seq: 0",
                 `issued: ${new Date().toISOString()}`,
             ].join("\n");
-            const signature = await parent.signMessageAsync({
-                account: parent.address as `0x${string}`,
+            const signature = await baseSigner.signMessageAsync({
+                account: id.address as `0x${string}`,
                 message,
             });
-            setMove({ ok: true, detail: `sig=${signature.slice(0, 20)}…` });
-            note("C4 parent personal_sign move-proof OK (server verify optional)");
+            setMove({ ok: true, detail: `sig=${signature.slice(0, 18)}…` });
+            note("C4 Base Account personal_sign OK");
         } catch (e) {
             setMove({ ok: false, detail: e instanceof Error ? e.message : String(e) });
             note("C4 FAIL");
         } finally {
             setBusy(false);
         }
-    }, [parent, note]);
+    }, [id.address, baseSigner, note]);
+
+    const ready = Boolean(isSignedIn && id.address);
 
     return (
         <div className="ludo-wallet-scope rounded-2xl border border-white/10 bg-black/40 p-6 max-w-xl space-y-4 text-sm text-white/90">
             <div>
-                <h2 className="text-base font-bold uppercase tracking-wider">Phase 0a — CDP parent-sign spike</h2>
+                <h2 className="text-base font-bold uppercase tracking-wider">
+                    Phase 1 — Continue with Base
+                </h2>
                 <p className="text-white/50 text-xs mt-1">
-                    Identity = parent Smart Account only. No sub-accounts · no spend permissions · no value.
+                    Option A: player id = Base Account (Base app address). Email/CDP embedded is never
+                    wallet_address.
                 </p>
             </div>
 
             <div className="rounded-lg border border-white/10 p-3 space-y-1 font-mono text-xs">
-                <div>projectId: {(process.env.NEXT_PUBLIC_CDP_PROJECT_ID || "").slice(0, 8)}…</div>
-                <div>parent (smart / id): {parent.address ?? "—"}</div>
-                <div>signer EOA (CDP sign only): {parent.signWithEoa ?? parent.ownerEoa ?? "—"}</div>
-                <div>userId: {currentUser?.userId ?? "—"}</div>
+                <div>player (Base Account): {id.address ?? "—"}</div>
+                <div>cdp embedded smart (diag only): {id.cdpSmartAccount ?? "—"}</div>
+                <div>cdp owner EOA (never id): {id.cdpOwnerEoa ?? "—"}</div>
+                <div>userId: {id.userId ?? "—"}</div>
                 <div className="text-white/40">
-                    note: personal_sign / EIP-712 → toCoinbaseSmartAccount 6492 wrap (owner EOA via CDP)
+                    proofs via @base-org/account personal_sign / eth_signTypedData_v4
                 </div>
             </div>
 
-            {!isSignedIn ? (
+            {!ready ? (
                 <div className="space-y-2">
-                    <div className="flex gap-2">
-                        <input
-                            className="flex-1 rounded border border-white/20 bg-black/30 px-2 py-1"
-                            placeholder="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                        <button
-                            className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
-                            disabled={busy || !email}
-                            onClick={sendOtp}
-                        >
-                            OTP
-                        </button>
-                    </div>
-                    {flowId && (
-                        <div className="flex gap-2">
-                            <input
-                                className="flex-1 rounded border border-white/20 bg-black/30 px-2 py-1"
-                                placeholder="6-digit code"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                            />
-                            <button
-                                className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
-                                disabled={busy || otp.length < 6}
-                                onClick={confirmOtp}
-                            >
-                                Verify
-                            </button>
-                        </div>
-                    )}
-                    <div className="flex gap-2">
-                        {(["google", "apple"] as const).map((p) => (
-                            <button
-                                key={p}
-                                className="rounded border border-white/20 px-3 py-1 uppercase"
-                                disabled={busy}
-                                onClick={() => signInWithOAuth(p)}
-                            >
-                                {p}
-                            </button>
-                        ))}
-                    </div>
+                    <button
+                        className="rounded bg-cyan-500/20 border border-cyan-400/40 px-4 py-2 uppercase font-bold"
+                        disabled={busy}
+                        onClick={continueWithBase}
+                    >
+                        Continue with Base
+                    </button>
+                    <p className="text-white/40 text-xs">
+                        Signs in with your Base Account (keys.coinbase.com / Base app). Same address in
+                        Ludo Base and the Base app.
+                    </p>
                 </div>
             ) : (
                 <div className="space-y-3">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <button
                             className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
-                            disabled={busy || !parent.address}
+                            disabled={busy}
                             onClick={runSiwe}
                         >
                             C2 · Ludo SIWE
                         </button>
                         <button
                             className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
-                            disabled={busy || !parent.address}
+                            disabled={busy}
                             onClick={runEip712}
                         >
                             C3 · Match EIP-712
                         </button>
                         <button
                             className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
-                            disabled={busy || !parent.address}
+                            disabled={busy}
                             onClick={runMoveProof}
                         >
                             C4 · Move sign
@@ -308,6 +281,11 @@ export default function Phase0aSpikePanel() {
                         </button>
                     </div>
                     <div className="space-y-1 text-xs">
+                        {auth && (
+                            <div className={auth.ok ? "text-emerald-300" : "text-red-300"}>
+                                Base: {auth.ok ? "PASS" : "FAIL"} — {auth.detail}
+                            </div>
+                        )}
                         {siwe && (
                             <div className={siwe.ok ? "text-emerald-300" : "text-red-300"}>
                                 SIWE: {siwe.ok ? "PASS" : "FAIL"} — {siwe.detail}

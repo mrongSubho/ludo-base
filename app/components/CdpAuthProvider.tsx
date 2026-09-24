@@ -21,9 +21,9 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
                       projectId,
                       appName: "Ludo Base",
                       disableAnalytics: true,
-                      ethereum: {
-                          createOnLogin: "smart" as const,
-                      },
+                      // Option A: do NOT mint a competing CDP embedded wallet.
+                      // Player id = Base Account from siwe:base (see playerIdentity.ts).
+                      // createOnLogin omitted on purpose.
                   }
                 : null,
         [enabled, projectId],
