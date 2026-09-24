@@ -137,11 +137,18 @@ RETRY 2 (01:34): signed with owner EOA raw ECDSA → C2 `/api/siwe/verify` 401
 signer-mismatch (expected: counterfactual CBSW needs ERC-6492 wrap).
 C4 produced a signature (raw) but would also fail 1271 verify as parent.
 
-FIX (applied): use viem `toCoinbaseSmartAccount` (pin parent address, version "1")
-→ replay-safe typed hash signed as owner via CDP → SignatureWrapper → 6492
-(same construction as scripts/siwe-matrix.ts case (c), proven 200 live).
+FIX (applied): use viem `toCoinbaseSmartAccount` (pin parent address) →
+replay-safe typed hash signed as owner via CDP → SignatureWrapper → 6492.
 
-/api/siwe/verify: pending retry 3 (6492 wrap)
+RETRY 3 (01:46): C2 = 401 `ecrecover-invalid`. C3/C4 returned bytes starting
+`0x0000…` (SignatureWrapper ownerIndex=0 — shape OK). Root cause: viem
+`version: "1"` uses factory `0x0ba5ed0c…`; CDP uses `0xba5ed110…` = viem
+**`version: "1.1"`**. 6492 factory/calldata therefore could not deploy the
+claimed parent → universal validator rejected.
+
+FIX 2: `toCoinbaseSmartAccount({ version: "1.1", address: parent, owners: [ownerEoa] })`.
+
+/api/siwe/verify: pending retry 4 (CBSW 1.1 factory)
 move-auth provisional-session: pending
 Builder-code dataSuffix on sendUserOperation (if any tx): n/a in 0a
 Blockers: none if C2 returns sessionId after 6492 wrap

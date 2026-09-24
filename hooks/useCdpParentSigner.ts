@@ -38,11 +38,12 @@ async function parentSmartAccount(params: {
     const chain = chainFor(params.chainId);
     const client = createPublicClient({ chain, transport: http() });
     const owner = toViemAccount(params.ownerEoa);
+    // CDP factory = 0xba5ed110… → viem `version: "1.1"` (NOT "1").
     // Pin the CDP-issued parent address; do not trust local derivation alone.
     return toCoinbaseSmartAccount({
         client,
         owners: [owner],
-        version: "1",
+        version: "1.1",
         address: params.parent,
     });
 }
