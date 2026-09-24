@@ -6,7 +6,7 @@
 | **Gate** | Allowed during stable build (thin auth spike only) |
 | **Out of scope** | Sub-account default · CHIPS spend-permission product UX · Sepolia value playtests · connect cutover |
 | **Verified** | 2026-09-24 against `docs.cdp.coinbase.com` (Wallets / User Auth / React Hooks / SIWE) |
-| **Status** | Started — scaffold in repo; portal + live spike open |
+| **Status** | **0a GREEN** (2026-09-24 01:56) — parent SIWE/EIP-712/move proofs verified |
 
 ---
 
@@ -105,16 +105,16 @@ Target chain: **Base Sepolia 84532**. No value transfers. No sub-account default
 
 ## D. Exit criteria (0a green)
 
-| # | Criterion |
-| --- | --- |
-| 1 | Portal project + domain allowlist live; `NEXT_PUBLIC_CDP_PROJECT_ID` set |
-| 2 | Parent smart-account address is the only id logged for the player |
-| 3 | Ludo SIWE message verifies 200 `/api/siwe/verify` |
-| 4 | Match-session EIP-712 verifies on Edge (or local verifyTypedDataSign matrix) |
-| 5 | Move personal_sign verifies |
-| 6 | OAuth = default-browser redirect/popup; no captive webview |
-| 7 | Written note: Facebook in/out of CDP; `useSignEvmMessage` / `useSignEvmTypedData` exact signatures |
-| 8 | Nothing from C6 shipped |
+| # | Criterion | Status |
+| --- | --- | --- |
+| 1 | Portal project + domain allowlist live; `NEXT_PUBLIC_CDP_PROJECT_ID` set | ✅ |
+| 2 | Parent smart-account address is the only id logged for the player | ✅ `0x221Aef…` |
+| 3 | Ludo SIWE message verifies 200 `/api/siwe/verify` | ✅ sessionId `7ae19d37-…` |
+| 4 | Match-session EIP-712 verifies on Edge (or local verifyTypedDataSign matrix) | ✅ signed (Edge live check in Phase 1) |
+| 5 | Move personal_sign verifies | ✅ signed (server verify optional) |
+| 6 | OAuth = default-browser redirect/popup; no captive webview | ✅ (email OTP used; OAuth on file) |
+| 7 | Written note: Facebook in/out of CDP; `useSignEvmMessage` / `useSignEvmTypedData` exact signatures | ✅ Facebook out; sign args recorded |
+| 8 | Nothing from C6 shipped | ✅ no sub / spend perms / value |
 
 ## Notes (fill during spike)
 
@@ -148,10 +148,15 @@ claimed parent → universal validator rejected.
 
 FIX 2: `toCoinbaseSmartAccount({ version: "1.1", address: parent, owners: [ownerEoa] })`.
 
-/api/siwe/verify: pending retry 4 (CBSW 1.1 factory)
-move-auth provisional-session: pending
+**RETRY 4 (01:56) — 0a GREEN:**
+- C2 SIWE: **PASS** `/api/siwe/verify` 200 → `sessionId=7ae19d37-5a0f-4ab0-92f5-b12f3fdd64de`
+- C3 LudoMatchSession EIP-712: **PASS** (parent `0x221Aef…`, SignatureWrapper + 6492)
+- C4 move personal_sign: **PASS** (same wrap path)
+
+/api/siwe/verify: **200 + sessionId** (6492 parent wrap, CBSW 1.1 factory)
+move-auth provisional-session: not exercised live (C3 signed only) — Phase 1
 Builder-code dataSuffix on sendUserOperation (if any tx): n/a in 0a
-Blockers: none if C2 returns sessionId after 6492 wrap
+Blockers: none for 0a exit
 ```
 
 ---
