@@ -23,21 +23,30 @@
 
 ## 1. Why this works (same-account mechanics)
 
-- A Base Account is deterministic from its owners: **same credentials → same account** everywhere. Nothing to sync, bridge, or export.
-- Passkeys sync through the user's own cloud (iCloud Keychain / Google Password Manager) — the passkey created during our onboarding is the one the Base app sees.
-- New user creating a wallet in our app = a real Smart Account on Base, visible in their Base app on next sign-in with the same method.
-- Server **signature verification** needs zero changes: `lib/walletVerify.ts` / Edge `_shared/walletVerify.ts` already verify ERC-1271/6492 smart-contract signatures (`scripts/siwe-matrix.ts` proved real CBSW counterfactual sigs). SIWE text, EIP-712 grants, and match-record/host-proof formats are unchanged.
-- Server **identity / linking** may still need work — see §1.2. "Zero changes" applies only to how signatures are checked.
+**Correction (2026-09-24, spike):** “Same credentials → same address in Base app” is **only** true for **Base Account** credentials (passkey / **Sign in with Base** `siwe:base`). CDP **email / SMS / Google / Apple / X OTP-OAuth** create a **project-scoped CDP embedded wallet** (own EOA + Smart Account). That address is **not** the user’s keys.coinbase.com / Base app wallet unless they **link** it (`useLinkSiwe` / `siwe:base`).
+
+| Sign-in method | Address you get | Same as Base app? |
+| --- | --- | --- |
+| Email / SMS OTP, Google / Apple / X / Telegram | CDP embedded Smart Account (e.g. spike `0x221Aef…`) | **No** — different account system |
+| **Sign in with Base** (`siwe:base`) / passkey Base Account | User’s Base Account | **Yes** |
+| Email first, then link SIWE / Base | CDP user + linked Base address | Linked; pick **one** as `wallet_address` (see §1.1) |
+
+- A Base Account is deterministic from its owners: **same Base credentials → same account** in our app, on web (`keys.coinbase.com`), and in the Base app.
+- Passkeys sync through the user's own cloud — the passkey is the one the Base app sees (**Base Account path only**).
+- CDP embedded email wallet ≠ Base app wallet. Do not copy that promise onto OTP/OAuth logins.
+- Server **signature verification** still needs zero changes: `lib/walletVerify.ts` / Edge `_shared/walletVerify.ts` already verify ERC-1271/6492 (`scripts/siwe-matrix.ts` + Phase 0a C2 200). Message formats unchanged.
+- Server **identity / linking** work is required if we support both CDP-embedded and Base Account players — see §1.2.
 
 ### 1.1 Identity (locked)
 
 | Rule | Detail |
 | --- | --- |
-| **Player id = parent Base Account address** | The only value allowed in `wallet_address`, `players`, friendships, `messages` / `players.ecdh_pubkey`, LXP/RXP, match seats, `live_matches.host_address`, claim/seat allowlists |
+| **Player id = parent Base Account or CDP Smart Account** | The only value allowed in `wallet_address`. For **Base-app parity**, prefer **Sign in with Base** so id = Base Account. Email/OTP = CDP Smart Account (different address). |
 | **Sub-account = authorization convenience only** | May send gameplay txs with fewer popups; **must never** be recorded as the player, seat owner, host, claimer, or ECDH publisher |
-| **Sign identity-bearing proofs as parent** | SIWE app session, match session EIP-712, move/pass/power/seed, match record, bet-resolve host proof, settle EIP-712, ECDH pubkey publish |
+| **Sign identity-bearing proofs as parent** | SIWE app session, match session EIP-712, move/pass/power/seed, match record, bet-resolve host proof, settle EIP-712, ECDH pubkey publish. CDP path = owner EOA + **CBSW 1.1 / factory `0xba5ed110…` 6492 wrap** (`hooks/useCdpParentSigner.ts`) |
 | **Sub-account re-register every session** | Ownership can change across devices/browsers; regenerating a sub is safe **only because** identity is not the sub |
 | **CHIPS `seat = msg.sender`** | Join/claim txs must be parent-signed (or an explicitly parent-bound spend path). A sub-account seat would strand prizes on a regenerable account — loss bug |
+| **One display address in UI** | Always show the **parent Smart Account / Base Account**, never the owner EOA (`0x6e1156…` class) |
 
 If CDP's `defaultAccount: 'sub'` cannot sign as parent for personal_sign / EIP-712, **do not ship the sub default**. Phase 0a must prove "sign as parent" before any sub-account default is enabled.
 

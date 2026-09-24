@@ -125,6 +125,9 @@ Parent smart account 0x…: 0x221Aef4752C1C3890B2a18aF5e781dfa9260F5f8
 Owner EOA 0x… (never use as wallet_address): 0x6e1156c1502a66D685339724320475F6a99a16E1
 userId: 6a67ed0-7782-4fc7-b0b5-7f1ba6ee088a
 Email OTP: pass (session created)
+**Identity note:** this parent is a **CDP embedded** Smart Account (email OTP).
+It is **NOT** the user's Base app / keys.coinbase.com address. Matching Base app
+requires **Sign in with Base** (`siwe:base`) or `useLinkSiwe` — see plan §1.
 Google or Apple OAuth: (not run yet)
 useSignEvmMessage args: { evmAccount, message } → { signature }
 useSignEvmTypedData args: { evmAccount, typedData: { domain, types, primaryType, message } } → { signature }
