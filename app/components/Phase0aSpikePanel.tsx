@@ -220,9 +220,12 @@ export default function Phase0aSpikePanel() {
 
             <div className="rounded-lg border border-white/10 p-3 space-y-1 font-mono text-xs">
                 <div>projectId: {(process.env.NEXT_PUBLIC_CDP_PROJECT_ID || "").slice(0, 8)}…</div>
-                <div>parent (smart): {parent.address ?? "—"}</div>
-                <div>owner EOA (do not use as id): {parent.ownerEoa ?? "—"}</div>
+                <div>parent (smart / id): {parent.address ?? "—"}</div>
+                <div>signer EOA (CDP sign only): {parent.signWithEoa ?? parent.ownerEoa ?? "—"}</div>
                 <div>userId: {currentUser?.userId ?? "—"}</div>
+                <div className="text-white/40">
+                    note: CDP signEvm* requires EOA; identity stays parent smart (1271/6492 verify)
+                </div>
             </div>
 
             {!isSignedIn ? (

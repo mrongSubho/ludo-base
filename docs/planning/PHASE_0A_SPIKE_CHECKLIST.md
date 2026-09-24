@@ -34,6 +34,8 @@
 
 **Not found / rename risks (confirm live):** `useCdpPaymaster` (docs show `useCdpPaymaster: true` **boolean on send**, not a hook) · `wallet_addSubAccount` (0b) · `createOnLogin: "smart"` creates **EOA + Smart Account** — identity parent = the smart account, not the EOA.
 
+**Spike finding (2026-09-24):** `signEvmMessage` / `signEvmTypedData` return **"EVM account not found"** when `evmAccount` is the Smart Account address. `evmAccount` must be an **EOA** (`evmAccountObjects[0]`). Message signing as the parent therefore = owner-EOA signature + ERC-1271/6492 verify against the smart account. Do **not** promote the EOA to player id.
+
 ---
 
 ## A. CDP Portal (human — no code)
@@ -117,18 +119,27 @@ Target chain: **Base Sepolia 84532**. No value transfers. No sub-account default
 ## Notes (fill during spike)
 
 ```
-Date:
-CDP project id (prefix only):
-Parent smart account 0x…:
-Owner EOA 0x… (never use as wallet_address):
-Email OTP: pass/fail
-Google or Apple OAuth: presentation (popup/redirect):
-useSignEvmMessage args (paste signature):
-useSignEvmTypedData args (paste signature):
-/ api/siwe/verify: status
-move-auth provisional-session: status
+Date: 2026-09-24
+CDP project id (prefix only): 364b3239
+Parent smart account 0x…: 0x221Aef4752C1C3890B2a18aF5e781dfa9260F5f8
+Owner EOA 0x… (never use as wallet_address): 0x6e1156c1502a66D685339724320475F6a99a16E1
+userId: 6a67ed0-7782-4fc7-b0b5-7f1ba6ee088a
+Email OTP: pass (session created)
+Google or Apple OAuth: (not run yet)
+useSignEvmMessage args: { evmAccount, message } → { signature }
+useSignEvmTypedData args: { evmAccount, typedData: { domain, types, primaryType, message } } → { signature }
+
+BLOCKER (first run, 01:13): all of C2/C3/C4 failed with "EVM account not found"
+when evmAccount = parent Smart Account 0x221Aef….
+CDP signEvmMessage / signEvmTypedData only accept EOA (evmAccountObjects).
+Fix: sign with owner EOA, claim parent smart as identity; verify via 1271/6492.
+Retry pending after useCdpParentSigner update.
+
+/api/siwe/verify: pending retry
+move-auth provisional-session: pending
 Builder-code dataSuffix on sendUserOperation (if any tx): n/a in 0a
-Blockers:
+Blockers: owner-EOA sig vs smart-account 1271 verify — if /api/siwe/verify
+returns signer-mismatch, need 6492 wrap or CDP smart-account sign path.
 ```
 
 ---
