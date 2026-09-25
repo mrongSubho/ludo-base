@@ -125,6 +125,10 @@ export interface MatchStatsOverlayProps {
     /** Live claim busy / lock from usePoolClaim. */
     claimBusy?: boolean;
     claimError?: string | null;
+    /** Dispute countdown from chain (seconds / display). */
+    claimSecondsLeft?: number;
+    claimMmss?: string;
+    gasEth?: string | null;
     /** Host/authority settle (Edge + host → settlePool). */
     isPoolHost?: boolean;
     poolAuthority?: `0x${string}` | null;
@@ -149,6 +153,9 @@ export function MatchStatsOverlay({
     claimUnlocksInMin,
     claimBusy,
     claimError,
+    claimSecondsLeft,
+    claimMmss,
+    gasEth,
     isPoolHost,
     poolAuthority,
     winnerAddress,
@@ -178,7 +185,9 @@ export function MatchStatsOverlay({
     const isPaid = wager > 0;
     const showClaimSlot = open && isPaid;
     const poolLive = typeof onClaimChips === 'function' && !!poolId;
-    const claimReady = poolLive && estClaim > 0 && !!iWon && !claimBusy;
+    const secondsLeft = claimSecondsLeft ?? 0;
+    const mmss = claimMmss ?? '0:00';
+    const claimReady = poolLive && estClaim > 0 && !!iWon && !claimBusy && secondsLeft === 0;
 
     // Locked splits: 2v2 50/50 · 4P top-2 75/25 (lib/payoutPlan + MatchPool).
     const shape = matchShapeOf(playerCount);
@@ -379,7 +388,9 @@ export function MatchStatsOverlay({
                                         ? claimUnlocksInMin != null
                                             ? `Pull-based claim · unlocks in ${claimUnlocksInMin} min`
                                             : poolLive
-                                              ? 'Pull-based prize claim · MatchPool'
+                                              ? secondsLeft > 0
+                                                ? `Claim unlocks in ${mmss} · dispute window`
+                                                : `Pull-based prize · gas ~${gasEth ?? "…"} ETH`
                                               : 'Prize needs on-chain pool (pending deploy)'
                                         : 'No pool credit for this seat'}
                                 </p>
@@ -396,18 +407,22 @@ export function MatchStatsOverlay({
                                                 ? undefined
                                                 : claimBusy
                                                   ? 'Claim in flight…'
-                                                  : poolLive
-                                                    ? 'Claim unlocks after dispute window'
-                                                    : 'Set NEXT_PUBLIC_MATCH_POOL_ADDRESS + poolId'
+                                                  : secondsLeft > 0
+                                                    ? `Dispute window ${mmss}`
+                                                    : poolLive
+                                                      ? 'Claim unlocks after dispute window'
+                                                      : 'Set NEXT_PUBLIC_MATCH_POOL_ADDRESS + poolId'
                                         }
                                     >
                                         {claimBusy
                                             ? 'Claiming…'
-                                            : claimReady
-                                              ? 'Claim CHIPS'
-                                              : poolLive
-                                                ? 'Claim · locked'
-                                                : 'Claim · pool pending'}
+                                            : secondsLeft > 0
+                                              ? `Claim in ${mmss}`
+                                              : claimReady
+                                                ? 'Claim CHIPS'
+                                                : poolLive
+                                                  ? 'Claim · locked'
+                                                  : 'Claim · pool pending'}
                                     </button>
                                 )}
                                 {claimError && (

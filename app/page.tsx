@@ -48,7 +48,7 @@ import { calculateLevel, getProgression } from '@/lib/progression';
 import { GuestWallProvider } from '@/hooks/GuestWallContext';
 import { enterGuest } from '@/lib/guest';
 import { hasOnboarded } from '@/lib/onboarding';
-import { OnboardingPanel } from './components/OnboardingPanel';
+import { FirstRunSetupPanel } from './components/FirstRunSetupPanel';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import { buildStreamMessage } from '@/lib/matchProof';
@@ -540,7 +540,7 @@ export default function Page() {
           <WalletConnectCard onGuest={() => enterGuest()} />
         </div>
       ) : !onboarded ? (
-        <OnboardingPanel onDone={() => setOnboarded(true)} />
+        <FirstRunSetupPanel onDone={() => setOnboarded(true)} />
       ) : (
         <GuestWallProvider>
         <div className="app-shell dashboard-shell no-scrollbar">

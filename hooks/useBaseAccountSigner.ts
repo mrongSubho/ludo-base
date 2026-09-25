@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef } from "react";
 import { createBaseAccountSDK, type ProviderInterface } from "@base-org/account";
+import { stringToHex } from "viem";
 import type { WalletSigner } from "@/lib/walletSigner";
 
 /**
@@ -59,9 +60,12 @@ export function useBaseAccountSigner(): WalletSigner & {
             if (args.account.toLowerCase() !== addressRef.current.toLowerCase()) {
                 throw new Error("useBaseAccountSigner: refusing non-parent account");
             }
+            // EIP-191 personal_sign requires a hex payload — raw UTF-8 strings
+            // are hashed differently and CDP verify returns "Invalid signature".
+            const messageHex = stringToHex(args.message);
             const signature = (await provider.request({
                 method: "personal_sign",
-                params: [args.message, args.account],
+                params: [messageHex, args.account],
             })) as string;
             return signature;
         },

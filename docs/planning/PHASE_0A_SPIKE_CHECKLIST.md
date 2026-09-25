@@ -6,7 +6,7 @@
 | **Gate** | Allowed during stable build (thin auth spike only) |
 | **Out of scope** | Sub-account default · CHIPS spend-permission product UX · Sepolia value playtests · connect cutover |
 | **Verified** | 2026-09-24 against `docs.cdp.coinbase.com` (Wallets / User Auth / React Hooks / SIWE) |
-| **Status** | **0a GREEN** (2026-09-24 01:56) — parent SIWE/EIP-712/move proofs verified |
+| **Status** | **0a GREEN scaffold + Option A pivot (2026-09-25)** — player id = Base Account (`@base-org/account`); CDP project id live in `.env.local`; `NEXT_PUBLIC_CDP_AUTH=1` (must be exact `1`, not `1.1`). Live spike console: `/spike/cdp`. Remaining: portal domain allowlist confirmation + live C1–C4 click-through + D re-login. |
 
 ---
 
@@ -41,7 +41,7 @@
 ## A. CDP Portal (human — no code)
 
 - [ ] Create free CDP Portal account + project at https://portal.cdp.coinbase.com (business verification **not** required for non-custodial wallets)
-- [ ] Copy **Project ID** → set `NEXT_PUBLIC_CDP_PROJECT_ID` in `.env.local` (never commit)
+- [x] Copy **Project ID** → set `NEXT_PUBLIC_CDP_PROJECT_ID` in `.env.local` (never commit) — **done 2026-09-25** (`364b3239…`)
 - [ ] **Wallets → Non-custodial → Clients → Add domain:** `http://localhost:3000` for dev
 - [ ] Production CDP project: **only** the real production origin (never `localhost`)
 - [ ] Enable auth methods: Email OTP, SMS OTP, Google, Apple, X, Telegram (passkey / SIWE Base as available)
@@ -63,13 +63,18 @@
 
 Target chain: **Base Sepolia 84532**. No value transfers. No sub-account default.
 
-### C1. Sign-in + parent address
+### C1. Sign-in + parent address (Option A — Base Account)
 
-- [ ] Mount `CDPHooksProvider` with `projectId`, `ethereum: { createOnLogin: "smart" }`
-- [ ] Email OTP sign-in (and one social: Google **or** Apple)
-- [ ] Log `user.evmSmartAccountObjects[0].address` **and** `user.evmAccountObjects[0].address`
-- [ ] **Assert identity parent = smart account** (`evmSmartAccountObjects[0]`). Record which the EOA is (owner) and never bind EOA or a sub to `wallet_address`
-- [ ] Note OAuth presentation: popup vs full redirect; browser is the user’s default browser (no in-app webview)
+> Product pivot: **no CDP embedded wallet minted**. Player id = Base Account
+> (`authenticationMethods.siwe.address`) via `@base-org/account`. Email/OTP CDP
+> smart + owner EOA are diagnostics only (`playerIdentity.ts`).
+
+- [x] Mount `CDPHooksProvider` with `projectId` (`CdpAuthProvider` — `createOnLogin` omitted on purpose)
+- [x] **Continue with Base** (`connectBaseAccount` + CDP `signInWithSiwe` + `verifySiweSignature`) in `/spike/cdp`
+- [x] Log Base Account id + CDP embedded smart + owner EOA (panel identity block)
+- [x] **Assert identity parent = Base Account** (`resolvePlayerIdentity` → `isBaseAccount`); never bind CDP EOA/sub to `wallet_address`
+- [ ] Live click-through: one social login if CDP portal has it (optional under Option A)
+- [ ] Note OAuth presentation if any CDP social path is used (default browser, no webview)
 
 ### C2. Ludo app session (parent personal_sign)
 
@@ -93,8 +98,8 @@ Target chain: **Base Sepolia 84532**. No value transfers. No sub-account default
 ### C5. Negative / identity guards
 
 - [ ] If a second EOA+Smart pair is present, confirm app **does not** treat the EOA as `wallet_address`
-- [ ] Regenerate / leave CDP session → re-login same method → **same parent address**
-- [ ] Guest stash migration path documented (first CDP login → `migrateGuestStash` to parent) — manual check optional in 0a
+- [ ] Regenerate / leave session → re-login **Continue with Base** → **same Base Account id** (C1 assert again)
+- [x] Guest stash migration wired on Base Account connect (`Phase0aSpikePanel` → `migrateGuestStash`) + wagmi path in `useCurrentUser`ck optional in 0a
 
 ### C6. Explicitly skipped in 0a
 

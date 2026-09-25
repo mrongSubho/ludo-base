@@ -232,6 +232,17 @@ export async function POST(request: Request) {
             await updateMissionProgress(addr, 'daily_play_3', 1);
         }
 
+        // Onboarding tracks (server-owned progress; claims stay pull-based).
+        try {
+            const { recordMatchOnboarding } = await import('@/lib/onboardingProgressWriter');
+            await recordMatchOnboarding(supabase as never, {
+                participants: lowerParts,
+                gameMode: gameMode || 'classic',
+            });
+        } catch (onbErr) {
+            console.error('[onboarding] match writers failed:', onbErr);
+        }
+
         return NextResponse.json({ success: true });
     } catch (err: any) {
         console.error('❌ [API] Unexpected error:', err);

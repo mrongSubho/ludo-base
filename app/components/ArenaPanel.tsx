@@ -11,6 +11,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelTabs, PanelChildTabs, TabCount } from './PanelTabs';
 import { LiveArenaContent, LiveTile } from './LiveArenaDirectory';
+import { OnboardingPanel } from './OnboardingPanel';
 import { LuTrophy, LuX, LuShieldCheck } from 'react-icons/lu';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -22,7 +23,7 @@ import { LuTrophy, LuX, LuShieldCheck } from 'react-icons/lu';
 // reset zeroes Tailwind spacing utilities).
 
 type ArenaTab = 'live' | 'missions';
-type MissionTab = 'daily' | 'weekly';
+type MissionTab = 'daily' | 'weekly' | 'onboard';
 
 // Icon tile: cyan glow square shared with the other synced panels.
 const TrophyTile = () => (
@@ -221,7 +222,9 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
         }
     };
 
-    const visibleMissions = missions.filter(m => activeMissionTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily'));
+    const visibleMissions = activeMissionTab === 'onboard'
+        ? []
+        : missions.filter(m => activeMissionTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily'));
     const dailyLeft = missions.filter(m => m.id.startsWith('daily') && !(m as any).is_claimed).length;
     const weeklyLeft = missions.filter(m => !m.id.startsWith('daily') && !(m as any).is_claimed).length;
 
@@ -329,10 +332,15 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                                 options={[
                                                     { value: 'daily', label: 'daily', pill: <TabCount active={activeMissionTab === 'daily'}>{dailyLeft}</TabCount> },
                                                     { value: 'weekly', label: 'weekly', pill: <TabCount active={activeMissionTab === 'weekly'}>{weeklyLeft}</TabCount> },
+                                                    { value: 'onboard', label: 'onboard' },
                                                 ]}
                                             />
                                         </div>
                                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative">
+                                            {activeMissionTab === 'onboard' ? (
+                                                <OnboardingPanel />
+                                            ) : (
+                                            <>
                                             <SectionLabel>
                                                 {visibleMissions.length} mission{visibleMissions.length === 1 ? '' : 's'} left
                                             </SectionLabel>
@@ -462,6 +470,8 @@ export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch 
                                                         })}
                                                     </AnimatePresence>
                                                 </div>
+                                            )}
+                                            </>
                                             )}
                                         </div>
                                     </div>

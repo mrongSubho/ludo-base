@@ -75,6 +75,7 @@ export default function Board({
         isPending: claimBusy,
         error: claimError,
         configured: claimConfigured,
+        secondsLeft,
     } = usePoolClaim(poolId);
     const [emoteFloats, setEmoteFloats] = React.useState<EmoteEvent[]>([]);
 
@@ -410,6 +411,7 @@ export default function Board({
                 }
                 claimBusy={claimBusy}
                 claimError={claimError}
+                claimUnlocksInMin={secondsLeft > 0 ? Math.ceil(secondsLeft / 60) : undefined}
                 isPoolHost={claimConfigured}
                 poolAuthority={(address as `0x${string}` | undefined) ?? null}
                 winnerAddress={

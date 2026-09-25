@@ -114,6 +114,13 @@ export async function POST(request: Request) {
                     .eq('id', mission.id);
             }
 
+            try {
+                const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
+                await recordSocialOnboarding(supabase as never, s, 'social', 1);
+                await recordSocialOnboarding(supabase as never, r, 'social', 1);
+            } catch (onbErr) {
+                console.error('[onboarding] social writer failed:', onbErr);
+            }
             return NextResponse.json({ success: true, type: 'poke_back', reward: 100 });
         }
 
@@ -142,6 +149,12 @@ export async function POST(request: Request) {
                 status: 'sent'
             });
 
+        try {
+            const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
+            await recordSocialOnboarding(supabase as never, s, 'social', 1);
+        } catch (onbErr) {
+            console.error('[onboarding] social writer failed:', onbErr);
+        }
         return NextResponse.json({ success: true, type: 'poke_sent' });
 
     } catch (err: any) {

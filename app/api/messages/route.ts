@@ -44,6 +44,13 @@ export async function POST(request: Request) {
                 sender_id: wallet, receiver_id: receiver, content: String(content),
             }).select().single();
             if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            try {
+                const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
+                await recordSocialOnboarding(db as never, wallet, 'friend_dm', 1);
+                await recordSocialOnboarding(db as never, receiver, 'friend_dm', 1);
+            } catch (onbErr) {
+                console.error('[onboarding] friend_dm writer failed:', onbErr);
+            }
             return NextResponse.json(data);
         }
         if (action === 'read') {

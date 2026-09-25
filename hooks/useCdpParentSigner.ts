@@ -54,9 +54,7 @@ export function useCdpParentSigner(defaultChainId = 84532): WalletSigner & {
     isSignedIn: boolean;
 } {
     const { currentUser } = useCurrentUser();
-    // Kept for fallback diagnostics only — primary path is toCoinbaseSmartAccount.
-    const { signEvmMessage } = useSignEvmMessage();
-    const { signEvmTypedData } = useSignEvmTypedData();
+    // Fallback signers are created in the helper below.
 
     const smart = currentUser?.evmSmartAccountObjects?.[0]?.address as Address | undefined;
     const ownerEoa = currentUser?.evmAccountObjects?.[0]?.address as Address | undefined;

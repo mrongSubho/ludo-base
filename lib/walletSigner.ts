@@ -16,7 +16,7 @@ export type SignTypedDataArgs = {
     account: `0x${string}`;
     /** Widened for dual-chain (84532/8453) grants — matches useMoveAuth. */
     domain: { name: string; version: string; chainId: number };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     types: Record<string, Array<{ name: string; type: string }>>;
     primaryType: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
