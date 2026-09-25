@@ -6,11 +6,11 @@ Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wag
 
 - `npm run dev` — dev server (Turbopack) at `http://localhost:3000`. This is the only reliable dev command.
 - `npm run build` && `npm start` — production. TypeScript errors **fail the build** (`ignoreBuildErrors: false`).
-- `npm run lint` — **BROKEN**. `next lint` was removed in Next 16; it errors with "no such directory: .../lint". Do not rely on lint.
-- `npm test` — engine unit tests via `npx tsx --test scripts/engine.test.ts` (2v2 teams, gate-crossing legality, three sixes, capture). Run this after any `lib/gameLogic` / `lib/boardLayout` / `lib/constants` change.
+- `npm run lint` — **ESLint 9** (`eslint.config.mjs`). Rules for unused-vars / prefer-const / no-explicit-any are `error`; a few legacy modules keep file-level disables. Do not reintroduce `next lint`.
+- `npm test` — engine + foundation + netcode + MP harness tests via `npx tsx --test` (2v2 teams, gate-crossing legality, three sixes, capture, properties, chaos). Run this after any `lib/gameLogic` / `lib/boardLayout` / `lib/constants` change.
 - `npx tsc -p tsconfig.json --noEmit` — **must be 0 errors**. Deno edge functions excluded (`supabase/functions` in tsconfig). Do not reintroduce broad `any` on the game surface without a burn-down.
-- **CI** (`.github/workflows/ci.yml`): `engine-tests` + `typecheck-core`. Keep gated files clean.
-- Smoke tests: `docs/SMOKE_MULTIPLAYER.md` (invite secret, hybrid fill, matchmaking, Edge RNG, dual-path intents, ECDH DMs).
+- **CI** (`.github/workflows/ci.yml`): `engine-tests` (incl. RLS static gate) + `typecheck` + `lint` + `auth-gate`. Keep gated files clean.
+- Smoke / netcode drills: `docs/ops/NETCODE_DRILLS.md` (invite secret, hybrid fill, matchmaking, Edge RNG, dual-path intents, ECDH DMs, D1–D4). Un-park evidence: `docs/ops/UNPARK_CHECKLIST.md`.
 
 ## Environment
 

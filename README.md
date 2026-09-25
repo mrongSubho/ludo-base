@@ -9,7 +9,8 @@ states of the single-page shell in `app/page.tsx`.
 
 - [Engine and rules reference](./ENGINE_LOGIC.md)
 - [Game Design Document](./docs/gdd/GAME_DESIGN_DOCUMENT.md)
-- [Multiplayer smoke checklist](./docs/SMOKE_MULTIPLAYER.md)
+- [Netcode drills + multiplayer smoke](./docs/ops/NETCODE_DRILLS.md)
+- [Un-park checklist](./docs/ops/UNPARK_CHECKLIST.md) · [Implementation plan](./docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md)
 - [Betting-window protocol ADR](./docs/architecture/adr-001-betting-window-protocol.md)
 - [GDD visual asset guide](./docs/gdd/README.md)
 
@@ -80,5 +81,5 @@ and (when enabled) the Edge Server URL. Never commit credentials or keys.
   `lib/wireSanitize.ts` before state is sent to guests.
 - New migrations belong in `supabase/migrations/`; older root-level
   `migrations/` files are retained for historical compatibility.
-- Run the [multiplayer smoke checklist](./docs/SMOKE_MULTIPLAYER.md) after
+- Run the [netcode drills / multiplayer smoke checklist](./docs/ops/NETCODE_DRILLS.md) after
   changing networking, settlement, encryption, or server-authority code.

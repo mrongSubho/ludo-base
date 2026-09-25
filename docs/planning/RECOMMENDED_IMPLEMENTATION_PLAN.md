@@ -58,7 +58,7 @@ Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIP
 
 | ID | Item | Status | Artifact |
 | --- | --- | --- | --- |
-| E1 | Replay log + golden hash | ✅ | `lib/replay/` · `npm run replay` |
+| E1 | Replay log + golden hash | ✅ | `lib/replay/` · `npm run replay` · `npm run test:golden` (≥50 corpus) |
 | E2 | fast-check properties | ✅ | `scripts/engine.props.test.ts` |
 | E3 | Replay CLI | ✅ | `scripts/replay.ts` |
 | E4 | AI Web Worker + fallback | ✅ | `lib/ai/worker.ts` · `lib/ai/client.ts` |
@@ -376,7 +376,7 @@ All must be true (checkbox list for the un-park meeting). Live snapshot: `docs/o
 
 ### Engine
 
-- [x] Replay log records and replays to identical `hashGameState` (canonical serializer + CLI; extend to ≥50 golden CI sample)
+- [x] Replay log records and replays to identical `hashGameState` (canonical serializer + CLI + **≥50 golden CI corpus** `scripts/golden-replay.test.ts`)
 - [x] fast-check properties green in CI (E2 invariant list)
 - [x] Match FSM is the only transition authority; illegal transitions metered (soak week still open)
 - [x] AI Master runs in a worker; main-thread long tasks during bot turns &lt; 50ms (timeout → sync fallback)
@@ -396,7 +396,7 @@ All must be true (checkbox list for the un-park meeting). Live snapshot: `docs/o
 - [x] Telemetry + play funnel + scrub/sample policy (Q1/Q7); **Sentry DSN + dashboards still open**
 - [ ] Hop frame budget met on a low-end reference device **or** canvas escalation ticket filed with data *(CI hop bench PASS — **phone pass open**)*
 - [x] Multiplayer harness (Q4) green on main
-- [x] Smoke/drill doc `docs/ops/NETCODE_DRILLS.md`; **D1–D4 human sign-off open** · `AGENTS.md` / `README` pointer fix still open
+- [x] Smoke/drill doc `docs/ops/NETCODE_DRILLS.md`; **D1–D4 human sign-off open** · `AGENTS.md` / `README` pointers **fixed 2026-09-24** (→ NETCODE_DRILLS)
 - [x] Edge deploys version-tagged + RLS static gate in CI + Realtime targets defined (Q6)
 - [x] Standing SLOs + scrubbing/sampling enforced (Q7)
 
