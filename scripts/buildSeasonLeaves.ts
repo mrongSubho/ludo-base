@@ -74,7 +74,7 @@ function main() {
     const chainId = parseChainId(Number(process.env.CHAIN_ID ?? 84532));
     if (chainId == null) throw new Error("bad CHAIN_ID");
     const claim = (process.env.SEASON_CLAIM_ADDRESS ??
-        "0x0000000000000000000000000000000000000001") as Address;
+        "0x83ae874e85c94920540f43fc6706ee485be44cbe") as Address;
     const epoch = BigInt(process.env.SEASON_EPOCH ?? "1");
     const leaves = rows.map((r) => leaf(chainId, claim, epoch, r.wallet, r.amount));
     const { root, proofs } = merkle(leaves);

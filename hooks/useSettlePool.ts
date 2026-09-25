@@ -8,6 +8,7 @@ import {
     payoutPlanHash,
     type PayoutEntry,
 } from "@/lib/chipsSettle";
+import { buildPayoutPlan, type MatchShape, type RankedWinner } from "@/lib/payoutPlan";
 import { MATCH_POOL_ABI, isChipsConfigured, matchPoolAddress } from "@/lib/chips";
 import { parseChainId, type SupportedChainId } from "@/lib/chains";
 import { useAppSession } from "@/hooks/useAppSession";
@@ -96,6 +97,8 @@ export function useSettlePool() {
 
                 setStep("sign");
                 // Mode B: host signature unused by contract — skip wallet pop when possible.
+                // Host may be EOA (ECDSA) or a deployed smart wallet (ERC-1271 on-chain).
+                // Counterfactual ERC-6492 wrappers are not unwrapped in MatchPool — deploy the wallet first.
                 let hostSig: Hex = "0x";
                 if (!args.modeB) {
                     const typed = buildSettleTypedData({
@@ -148,7 +151,39 @@ export function useSettlePool() {
         ],
     );
 
-    return { settle, step, isPending, error, lastTx, configured };
+    /** Multi-winner helper: 2v2 50/50 · 4P top-2 75/25 · 1v1 100% (lib/payoutPlan). */
+    const settleFromWinners = useCallback(
+        async (args: {
+            poolId: Hex;
+            shape: MatchShape;
+            prizeFund: bigint;
+            winners: RankedWinner[];
+            authority: Address;
+            participants?: Address[];
+            nonce?: bigint;
+            deadline?: bigint;
+            modeB?: boolean;
+        }) => {
+            const plan = buildPayoutPlan({
+                shape: args.shape,
+                prizeFund: args.prizeFund,
+                winners: args.winners,
+            });
+            return settle({
+                poolId: args.poolId,
+                plan,
+                authority: args.authority,
+                participants: args.participants,
+                winnerAddresses: args.winners.map((w) => w.addr),
+                nonce: args.nonce,
+                deadline: args.deadline,
+                modeB: args.modeB,
+            });
+        },
+        [settle],
+    );
+
+    return { settle, settleFromWinners, step, isPending, error, lastTx, configured };
 }
 
 export default useSettlePool;

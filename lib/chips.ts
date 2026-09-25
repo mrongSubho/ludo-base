@@ -176,3 +176,100 @@ export function formatChips(raw: bigint | number | undefined | null): string {
 }
 
 export { toHex };
+
+export function claimHubAddress(): `0x${string}` | undefined {
+    const a = process.env.NEXT_PUBLIC_CLAIM_HUB_ADDRESS;
+    return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
+}
+
+export const CLAIM_HUB_ABI = [
+    {
+        type: "function",
+        name: "claimMany",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "poolIds", type: "bytes32[]" }],
+        outputs: [],
+    },
+    {
+        type: "function",
+        name: "claimMatch",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "poolId", type: "bytes32" }],
+        outputs: [],
+    },
+] as const;
+
+export function legacyClaimAddress(): `0x${string}` | undefined {
+    const a = process.env.NEXT_PUBLIC_LEGACY_CLAIM_ADDRESS;
+    return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
+}
+
+export function seasonClaimAddress(): `0x${string}` | undefined {
+    const a = process.env.NEXT_PUBLIC_SEASON_CLAIM_ADDRESS;
+    return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
+}
+
+export const LEGACY_CLAIM_ABI = [
+    {
+        type: "function",
+        name: "claim",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "chipsAmount", type: "uint256" },
+            { name: "proof", type: "bytes32[]" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "function",
+        name: "claimed",
+        stateMutability: "view",
+        inputs: [{ name: "wallet", type: "address" }],
+        outputs: [{ type: "bool" }],
+    },
+    {
+        type: "function",
+        name: "snapshotRoot",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ type: "bytes32" }],
+    },
+    {
+        type: "function",
+        name: "windowEndsAt",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ type: "uint64" }],
+    },
+] as const;
+
+export const SEASON_CLAIM_ABI = [
+    {
+        type: "function",
+        name: "claim",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "epoch", type: "uint256" },
+            { name: "amount", type: "uint256" },
+            { name: "proof", type: "bytes32[]" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "function",
+        name: "claimed",
+        stateMutability: "view",
+        inputs: [
+            { name: "epoch", type: "uint256" },
+            { name: "wallet", type: "address" },
+        ],
+        outputs: [{ type: "bool" }],
+    },
+    {
+        type: "function",
+        name: "epochRoot",
+        stateMutability: "view",
+        inputs: [{ name: "epoch", type: "uint256" }],
+        outputs: [{ type: "bytes32" }],
+    },
+] as const;

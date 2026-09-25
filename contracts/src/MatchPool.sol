@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IChips} from "./interfaces/IChips.sol";
+import {IERC1271} from "./interfaces/IERC1271.sol";
 import {ECDSA} from "./lib/ECDSA.sol";
 import {EIP712} from "./lib/EIP712.sol";
 import {ReentrancyGuard} from "./lib/ReentrancyGuard.sol";
@@ -194,6 +195,16 @@ contract MatchPool is ReentrancyGuard {
         if (entryFee == 0) revert InvalidParam();
         entryTierAllowed[entryFee] = allowed;
         emit EntryTierSet(entryFee, allowed);
+    }
+
+    /// @notice Extend effective settleBy while TRANSFER|BURN is paused (section 4.3).
+    /// @dev Phase 1: owner/Security multisig reports duration after unpause. Locked
+    ///      pools only. Never shortens the deadline. `deltaSec` = unpauseAt - pauseAt.
+    function addPauseDelta(bytes32 poolId, uint64 deltaSec) external onlyOwner {
+        Pool storage p = _pools[poolId];
+        if (p.status != Status.Locked) revert BadStatus();
+        if (deltaSec == 0) revert InvalidParam();
+        p.pauseDelta += deltaSec;
     }
 
     function seatsOf(bytes32 poolId) external view returns (address[] memory) {
@@ -424,7 +435,7 @@ contract MatchPool is ReentrancyGuard {
         bytes32 structHash = settleStructHash(poolId, payoutPlan, deadline, nonce, p.authority);
         bytes32 d = EIP712.digest(_domainSep(), structHash);
         if (!modeB) {
-            if (_recover(d, hostSig) != p.authority) revert BadSignature();
+            if (!_verifyHost(d, hostSig, p.authority)) revert BadSignature();
         }
         if (_recover(d, edgeSig) != edgeSigner) revert BadSignature();
         if (nonce != p.settleNonce) revert BadSignature();
@@ -649,7 +660,7 @@ contract MatchPool is ReentrancyGuard {
         bytes32 d = EIP712.digest(_domainSep(), structHash);
         if (_recover(d, edgeSig) != edgeSigner) revert BadSignature();
         if (dual) {
-            if (hostSig.length == 0 || _recover(d, hostSig) != p.authority) revert BadSignature();
+            if (hostSig.length == 0 || !_verifyHost(d, hostSig, p.authority)) revert BadSignature();
         }
 
         uint256 burned;
@@ -697,5 +708,17 @@ contract MatchPool is ReentrancyGuard {
 
     function _recover(bytes32 digestHash, bytes memory sig) private pure returns (address) {
         return ECDSA.recover(digestHash, sig);
+    }
+
+    /// @dev Host may be an EOA (ECDSA) or a deployed smart wallet (ERC-1271).
+    ///      Counterfactual ERC-6492 wrappers are not unwrapped on-chain — deploy first.
+    function _verifyHost(bytes32 digestHash, bytes memory sig, address host) private view returns (bool) {
+        if (ECDSA.recover(digestHash, sig) == host) return true;
+        if (host.code.length == 0) return false;
+        try IERC1271(host).isValidSignature(digestHash, sig) returns (bytes4 magic) {
+            return magic == IERC1271.isValidSignature.selector;
+        } catch {
+            return false;
+        }
     }
 }

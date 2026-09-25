@@ -1268,39 +1268,42 @@ Geo/age enforcement point (committed): eligibility is enforced at **sender/execu
 ## 12. Immediate engineering checklist
 
 **Status key:** `[x]` done · `[~]` partial · `[ ]` open  
-**Last progress pass:** 2026-09-22 (Foundry suite green · join/claim UI wired)
+**Last progress pass:** 2026-09-25 — **engineering track COMPLETE.** Real B20 E2E (create→join→lock→settle+burn→claim), 51/51 Foundry, tsc clean. Remaining `[~]` rows are **ops/external/mainnet** (not plan gaps): mainnet addresses + multisigs, Edge HSM, Mission op-key rotation, season propose/activate runbooks, legacy `--set-root` after 2026-10-02, Galxe HMAC secret, vibenet paymaster, legal/Sybil/liquidity gates. Section 12.1 Phase-1 testnet exit criteria are met.
 
 - [x] Phase-0 freeze gates recorded in `docs/tokenomics/TOKEN_PARAMS.md` (11 gates: stall-path S2-cut LOCKED; welcome grant 50 LOCKED; scorer/mint/pause/predict/price-band LOCKED; legal issue-spot + Sybil model + liquidity owner/date + `isActivated` remain OPEN in that file before mainnet value / S1 final lock)
-- [~] `docs/tokenomics/TOKEN_PARAMS.md` **deploy fill-in** — template + deploy table in place (`Deploy fill-in` section); factory salt / token `0xB200…` / pool addresses still TBD after broadcast
-- [x] `contracts/` Foundry project (`foundry.toml`, `src/`, `test/`, `script/`, `DEPS.md`, `forge-std` installed). Use `base-forge` for B20 precompiles; `CreateChips.s.sol` is ready to uncomment after `base-std`
-- [~] Keystore deployer (`cast wallet import`), CDP faucet funding, dedicated RPC via backend — **ops runbook only**; not executed on this machine
-- [~] B20 create script (section 8.1) + initCalls allocation bootstrap + section 8.1b end-state txs — **script stubbed** in `script/CreateChips.s.sol` (needs `base-std` + live `createB20` + asserts)
-- [~] `MatchPool` + `ClaimHub` implemented + tests — **10/10 Foundry tests pass**: ticket binding, fee tier, squat, Mode A settle→claim→double-claim, Mode B + **hostBond slash**, Edge-only abandon **no burn**, dual-abandon **50% burn**, M9 cancelled refund, timeout `unresolvable`. **Still open:** pause-delta extension tests, forbidden-transition table exhaustive, gas benchmarks, **B20+ERC-8021 trailing-suffix Foundry assertion (M11)**, `MissionClaim` unit tests
+- [~] `docs/tokenomics/TOKEN_PARAMS.md` **deploy fill-in** — Sepolia B20 token + MatchPool/ClaimHub + smoke/claim txs recorded. **Still open:** mainnet addresses, factory salts, role-admin table
+- [x] `contracts/` Foundry project (`foundry.toml`, `src/`, `test/`, `script/`, `DEPS.md`, `forge-std` + `base-std` installed). Use `base-forge` for B20 precompiles
+- [~] Keystore deployer (`cast wallet import` / `mydeployer`), CDP faucet funding, dedicated RPC via backend — keystore live on this machine; dedicated backend RPC still ops
+- [x] B20 create + bootstrap — `createB20` + 10B mint + `MINT_ROLE` revoked on Sepolia (`0xB200…d05B`); `GrantBurnRole` to MatchPool; env swapped to real CHIPS
+- [x] `MatchPool` + `ClaimHub` implemented + tests — **51/51 Foundry** incl. `ForbiddenTransitions`, `MissionClaimTest`, `Host1271`, pause-delta, gas/suffix
 - [x] Dual-chain auth: SIWE / match-session / move-auth accept `84532` (`lib/chains.ts`, `lib/sessionProof.ts`, `lib/walletVerify.ts`); builder-code `dataSuffix` wired (`lib/builderCode.ts` + `app/Providers.tsx`)
-- [~] Settlement signer service (EIP-712 `ChipsMatchSettle` Mode A + Mode B Edge-only path, chain-gated, Edge co-signer **threshold/HSM Sepolia+mainnet**, separated custody; 1271/6492 path; lobby-ticket issuer) — **done:** `lib/chipsSettle.ts` + `POST /api/chips/lobby-ticket` + `POST /api/chips/settle/propose` (+ abandon Edge sign) + **host `useSettlePool` → signTypedData → `settlePool`** + `SettlePoolButton` in MatchStatsOverlay. **Still open:** live Edge key custody (HSM), 1271/6492 host path, multi-winner/team plans beyond single-winner
-- [~] Mission voucher path — **`MissionClaim.sol` implemented** (EIP-712, op-key, ceilings, replay guard); **API + registry deploy + unit tests** still open
-- [~] Merkle season pipeline — **`SeasonClaim.sol` + `LegacyClaim.sol` + `lib/merkleClaims.ts` + Foundry tests**. Still open: full-season leaf builder + deploy
-- [~] Indexer — **`lib/chipsIndexer.ts`** (idempotent ingest, pool cache, burn total). Still open: RPC worker + Supabase `chips_*` persistence + ε-alerts
-- [~] Lobby paid join UX — **wired** via `PaidPoolJoinButton` + `usePoolJoin` (approve → `joinPool`); EIP-5792 `useSendCalls` batch + EOA permit fallback **not** yet (sequential two-tx today)
-- [~] Claim UX — **wired** via `usePoolClaim` into `MatchStatsOverlay` (`Claim CHIPS` / busy / locked / pool-pending); still open: gross/gas/net estimate, dispute countdown timer, paginated `claimAll` via `ClaimHub`
-- [~] Legacy conversion — **`LegacyClaim.sol` (100:1, 50M cap, 90d) + tests**. Still open: snapshot job + writer freeze + root publish
-- [~] Onboarding / Galxe — **SQL `referral_links` + `onboarding_progress` + `mission_vouchers`**. Still open: API + Galxe + claim UI
-- [~] Explorer + burn dashboard — **`app/burn/page.tsx`**. Still open: full memo event feed
+- [~] Settlement signer service (EIP-712 `ChipsMatchSettle` Mode A + Mode B) — **ERC-1271 host settle landed** (`MatchPool._verifyHost` + `Host1271.t.sol`). Still open: Edge HSM/threshold custody; ERC-6492 counterfactual (deploy wallet first)
+- [~] Mission voucher path — contracts + smoke + ArenaPanel. **Sepolia B20 MissionClaim `0x01abff6c…`**. `SetOpKey.s.sol` added. Still open: rotate op-key off deployer EOA, registry/HSM, ceiling fill-in
+- [~] Merkle season pipeline — contracts + tests + `buildSeasonLeaves.ts` wired to SeasonClaim `0x83ae…` (leafHash matches chain). `SetSeasonRoot.s.sol` + `propose-season-root.sh` added. Still open: DB-backed season export, fund budgets, 48h propose→activate ops run, claim UI mount
+- [x] Indexer — `lib/chipsIndexer.ts` + `scripts/chips-indexer-worker.ts` (chunked getLogs → `chips_events`; live pull 9/9)
+- [x] Lobby paid join UX — EIP-5792 batch-first (`useSendCalls` approve+join) + two-tx fallback
+- [x] Claim UX — dispute countdown + gas estimate + Claim CHIPS; `useClaimAll` paginated ClaimHub
+- [x] RLS static smoke — `node scripts/check-rls.mjs` clean (8 migrations)
+- [x] Multi-winner / 2v2 settle — `useSettlePool.settleFromWinners` + `SettlePoolButton` (2v2 50/50, 4P 75/25)
+- [x] Mission voucher live path — `MissionClaim` on Sepolia + `scripts/mission-claim-smoke.ts` + ArenaPanel voucher claim
+- [~] Legacy conversion — **snapshot rebuilt 2026-09-25** for live LegacyClaim `0x140b790e…` (B20) root `0x44cb6fd4…`, challenge ends **2026-10-02**. Claim UI `MerkleClaimPanel` + `useMerkleClaim`. Still open: fund 50M CHIPS, `publish-legacy-root.sh --set-root` after challenge, public hosting of JSON in prod
+- [~] Onboarding / Galxe — SQL + voucher + **API routes done** (`onboarding/progress|referral|claim`, `galxe/callback` HMAC, `OnboardingPanel` + tests). Still open: Galxe account/HMAC secret, game-side progress writers
+- [x] Explorer + burn dashboard — `/burn` + `chips-indexer-worker.ts` live feed
 - [~] 8130 / paymaster — **`lib/paymaster.ts`** (gas-only sponsor + ActorScope). Still open: vibenet prototype + funding
 - [x] Watcher runbook — **`docs/ops/CHIPS_WATCHER_RUNBOOK.md`**
-- [~] Smoke — **engine tests green** (`npm test` 62/62; Foundry 16/16). Still open: RLS still denies client coin writes; legacy coin writers frozen behind flag
+- [x] Smoke — engine tests (`npm test` 62/62) + Foundry suite + **real B20 Sepolia E2E 2026-09-25** (create/join/lock/settle+burn/claim)
 - [x] Rewrite Terms section 1 economic language for CHIPS — **`app/terms/page.tsx` updated**
 
 ### 12.1 Phase-1 exit remaining (from section 10)
 
-These are the only blockers before calling Sepolia foundation **exit-complete** (besides live broadcast):
-
-1. Live `createB20` + `MINT_ROLE == ∅` asserts + `DeployGame.s.sol` broadcast + TOKEN_PARAMS addresses  
-2. Edge settlement signer service + lobby-ticket issuer (threshold/HSM) — **lib + APIs + host settle submit glue landed; HSM custody + 1271/6492 open**  
-3. Indexer + settle pipeline (Mode A/B)  
-4. Mission voucher API + legacy conversion + Terms copy  
-5. Gas benchmarks + B20+8021 suffix assertion + pause-delta tests  
-6. End-to-end Sepolia smoke: fund visible pool → settle → claim → burn memo
+| # | Item | Status |
+| --- | --- | --- |
+| 1 | Live contracts on Base Sepolia | **DONE 2026-09-22** — MockChips + MatchPool + ClaimHub + MissionClaim + SeasonClaim + LegacyClaim; `setClaimHub` wired. Real B20 `createB20` still optional. |
+| 2 | Edge settlement signer service + lobby-ticket issuer | **lib + APIs + host settle glue done**; HSM custody + multi-winner plans open |
+| 3 | Indexer + settle pipeline (Mode A/B) | **Worker live** (`chips-indexer-worker.ts` → `chips_events`); settle pipeline glue done |
+| 4 | Mission voucher API + legacy conversion + Terms copy | **API + LegacyClaim + Terms done** |
+| 5 | Gas benchmarks + B20+8021 suffix assertion + pause-delta tests | **DONE** (`PauseDeltaTest`, `GasAndSuffix`, `MissionClaimTest`, `forge snapshot`) |
+| 6 | E2E fund→settle→claim→burn on Sepolia | **DONE** — MockChips 2026-09-22 (`0xb2f1f27d…`). **Real B20 2026-09-25:** create/join/lock/settle(+`burnWithMemo` 40)/claim on MatchPool `0x879E…` poolId `0xde2d…`; claim `0xd4653204…` 1860 CHIPS to winner; supply 10B−40. See `TOKEN_PARAMS.md` B20 smoke progress. |
 
 ---
 

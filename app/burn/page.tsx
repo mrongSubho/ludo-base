@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useChainId, useReadContract, useAccount } from "wagmi";
-import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex, MATCH_POOL_ABI } from "@/lib/chips";
+import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex } from "@/lib/chips";
 import { parseChainId, viemChainFor } from "@/lib/chains";
 
 /** Simple explorer + burn / supply dashboard (checklist: explorer + burn dashboard). */
@@ -83,6 +83,10 @@ export default function BurnDashboardPage() {
                 Burn tags (pre-images of memo bytes32): match:burn · market:burn · forge:burn · vanity:burn ·
                 pass:burn · tour:forfeit · match:abandon · boost:burn · treasury:bb. Indexer joins Memo via
                 (txHash, logIndex − 1). See docs/ops/CHIPS_WATCHER_RUNBOOK.md.
+            </p>
+            <p className="mt-3 text-[11px] text-white/35 leading-relaxed">
+                Live events: run <code>scripts/chips-indexer-worker.ts</code> to upsert logs into{' '}
+                <code>chips_events</code> (Supabase). Then this page can list recent burns from the cache.
             </p>
         </main>
     );

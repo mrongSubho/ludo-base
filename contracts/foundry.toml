@@ -1,5 +1,5 @@
-# Ludo Base CHIPS contracts — prefer base-forge (B20-aware Foundry).
-# Standard `forge` cannot simulate B20 precompile calls; use base-forge/base-anvil for those.
+# Ludo Base CHIPS contracts — prefer base-forge (B20-aware Foundry) for B20 precompiles.
+# Vanilla forge is enough for MatchPool/ClaimHub/MissionClaim + MockChips.
 
 [profile.default]
 src = "src"
@@ -15,10 +15,14 @@ evm_version = "cancun"
 ffi = false
 verbosity = 2
 
-# Fill after acquiring a BaseScan key (never commit secrets).
-# [etherscan]
-# base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
-# base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.basescan.org/api" }
+[rpc_endpoints]
+base_sepolia = "${SEPOLIA_RPC}"
+base = "${BASE_RPC}"
+anvil = "http://127.0.0.1:8545"
+
+[etherscan]
+base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
+base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.basescan.org/api" }
 
 [fmt]
 line_length = 100
