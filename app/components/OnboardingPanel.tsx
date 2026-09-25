@@ -1,130 +1,351 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import { usePreferences } from '@/hooks/usePreferences';
-import { completeOnboarding } from '@/lib/onboarding';
-import { PanelTabs } from './PanelTabs';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useWriteContract } from 'wagmi';
+import type { Address, Hex } from 'viem';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
+import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
-// First-run setup shown once per device before the lobby. Chrome matches
-// Settings → Appearance (same card shell + PanelTabs segmented controls).
-// Fresh devices default to Retro + Orbs; stored prefs are always respected.
-// Selections apply live so the user sees the arena change.
+// CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
+// Content block — mounts inside Arena missions or standalone. Terminal-glass
+// vocabulary (white-ink + cyan). No emoji.
 
-const BoltIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-);
+interface TrackRow {
+    track: string;
+    label: string;
+    core: boolean;
+    progress: number;
+    target: number;
+    reward: number;
+    is_claimed: boolean;
+    claimable: boolean;
+    voucher_id: string | null;
+}
 
-const SunIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-    </svg>
-);
+interface ProgressResponse {
+    tracks: TrackRow[];
+    welcomeGrant: { reward: number; claimed: boolean };
+}
 
-const PawnIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <circle cx="12" cy="7" r="3" />
-        <path d="M12 10v7M8.5 21h7M9.5 17h5" />
-    </svg>
-);
+interface ReferralResponse {
+    code: string;
+    referrer: string | null;
+    successful: number;
+    unsuccessful: number;
+    pending: number;
+    slotsUsed: number;
+    slotsRemaining: number;
+}
 
-const OrbIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-        <circle cx="12" cy="12" r="8" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
+interface ClaimResponse {
+    success?: boolean;
+    pending?: boolean;
+    reward?: number;
+    missionClaim?: Address;
+    voucher?: {
+        wallet: Address;
+        missionId: Hex;
+        amount: string;
+        periodId: Hex;
+        deadline: string;
+        nonce: string;
+    };
+    signature?: Hex;
+    error?: string;
+}
 
-export const OnboardingPanel = ({ onDone }: { onDone: () => void }) => {
-    const { preferences, updatePreference } = usePreferences();
-    const theme = preferences.theme === 'light' ? 'light' : 'retro';
-    const tokenStyle = preferences.tokenStyle === 'orb' ? 'orb' : 'pawn';
-    const defaulted = useRef(false);
+const WELCOME_ID = 'welcome_grant';
 
-    useEffect(() => {
-        if (defaulted.current) return;
-        defaulted.current = true;
+export const OnboardingPanel = () => {
+    const { address, isGuest } = useCurrentUser();
+    const { ensureAppSession } = useAppSession();
+    const { writeContractAsync } = useWriteContract();
+
+    const [tracks, setTracks] = useState<TrackRow[]>([]);
+    const [welcomeClaimed, setWelcomeClaimed] = useState(false);
+    const [referral, setReferral] = useState<ReferralResponse | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [locked, setLocked] = useState(false);
+    const [claimingId, setClaimingId] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
+    const [referralCodeInput, setReferralCodeInput] = useState('');
+    const [bindState, setBindState] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const load = useCallback(async () => {
+        if (!address || isGuest) {
+            setLocked(true);
+            return;
+        }
+        setLoading(true);
+        setLocked(false);
         try {
-            // Fresh device → Retro (product default). Stored choices win.
-            if (localStorage.getItem('ludo-theme') === null) {
-                updatePreference('ludo-theme', 'retro');
+            const sessionId = await ensureAppSession();
+            if (!sessionId) {
+                setLocked(true);
+                setTracks([]);
+                return;
             }
-            if (localStorage.getItem('token-style') === null) {
-                updatePreference('token-style', 'orb');
+            const qs = `walletAddress=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sessionId)}`;
+            const [progRes, refRes] = await Promise.all([
+                fetch(`/api/onboarding/progress?${qs}`),
+                fetch(`/api/onboarding/referral?${qs}`),
+            ]);
+            const progData: ProgressResponse & { error?: string } = await progRes.json();
+            if (!progRes.ok) throw new Error(progData?.error || 'progress failed');
+            setTracks(progData.tracks || []);
+            setWelcomeClaimed(!!progData.welcomeGrant?.claimed);
+            if (refRes.ok) {
+                setReferral((await refRes.json()) as ReferralResponse);
             }
         } catch {
-            /* storage unavailable — hook fallbacks stand */
+            setTracks([]);
+        } finally {
+            setLoading(false);
         }
-         
-    }, []);
+    }, [address, isGuest, ensureAppSession]);
 
-    const finish = () => {
-        completeOnboarding();
-        onDone();
+    useEffect(() => {
+        void load();
+    }, [load]);
+
+    const handleClaim = async (id: string) => {
+        if (!address || claimingId) return;
+        setNotice(null);
+        setClaimingId(id);
+        try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) {
+                setNotice('Sign in to claim');
+                return;
+            }
+            const res = await fetch('/api/onboarding/claim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress: address, sessionId, track: id }),
+            });
+            const data = (await res.json()) as ClaimResponse;
+            if (!res.ok) throw new Error(data?.error || 'claim failed');
+
+            if (data.pending) {
+                setNotice(id === WELCOME_ID ? 'Welcome grant marked pending' : 'Marked pending');
+            } else if (data.voucher && data.signature && data.missionClaim) {
+                setNotice('Voucher issued — confirm in wallet');
+                try {
+                    await writeContractAsync({
+                        address: data.missionClaim,
+                        abi: MISSION_CLAIM_ABI,
+                        functionName: 'claim',
+                        args: [
+                            data.voucher.wallet,
+                            data.voucher.missionId,
+                            BigInt(data.voucher.amount),
+                            data.voucher.periodId,
+                            BigInt(data.voucher.deadline),
+                            BigInt(data.voucher.nonce),
+                            data.signature,
+                        ],
+                    });
+                    setNotice('Claim submitted on-chain');
+                } catch {
+                    setNotice('Voucher issued — claim on-chain later');
+                }
+            } else {
+                setNotice(`Claimed +${data.reward ?? 0} CHIPS`);
+            }
+            await load();
+        } catch (e) {
+            setNotice(e instanceof Error ? e.message : 'Claim failed');
+        } finally {
+            setClaimingId(null);
+        }
     };
 
-    return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center px-4 bg-black/70 backdrop-blur-md">
-            <div
-                className="ludo-onboard-scope w-full max-w-[360px] rounded-[26px] border border-white/10 px-5 pt-5 pb-5 flex flex-col gap-4 shadow-2xl"
-                style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
-            >
-                <div className="text-center flex flex-col gap-1">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-300">
-                        First time setup
-                    </p>
-                    <h2 className="text-lg font-black text-white uppercase tracking-tight">
-                        Shape your arena
-                    </h2>
-                </div>
+    const bindReferral = async () => {
+        if (!address || !referralCodeInput.trim()) return;
+        setBindState(null);
+        try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) {
+                setBindState('Sign in first');
+                return;
+            }
+            const res = await fetch('/api/onboarding/referral', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    sessionId,
+                    code: referralCodeInput.trim(),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'bind failed');
+            setBindState('Referral bound');
+            setReferralCodeInput('');
+            await load();
+        } catch (e) {
+            setBindState(e instanceof Error ? e.message : 'Bind failed');
+        }
+    };
 
-                {/* Appearance — same card shell + segmented controls as Settings */}
-                <section>
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-                            Appearance
-                        </span>
-                        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-                    </div>
-                    <div className="onboard-appearance rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                        <div className="onboard-appearance-row">
-                            <div className="onboard-row-label">Theme</div>
-                            <PanelTabs
-                                value={theme}
-                                onPick={(v) => updatePreference('ludo-theme', v)}
-                                options={[
-                                    { value: 'retro', label: 'Retro', icon: BoltIcon },
-                                    { value: 'light', label: 'Daybreak', icon: SunIcon },
-                                ]}
-                            />
-                        </div>
-                        <div className="onboard-appearance-row">
-                            <div className="onboard-row-label">Token style</div>
-                            <PanelTabs
-                                value={tokenStyle}
-                                onPick={(v) => updatePreference('token-style', v)}
-                                options={[
-                                    { value: 'pawn', label: 'Chess', icon: PawnIcon },
-                                    { value: 'orb', label: 'Orbs', icon: OrbIcon },
-                                ]}
-                            />
-                        </div>
-                    </div>
-                </section>
+    const copyCode = async () => {
+        if (!referral?.code) return;
+        try {
+            await navigator.clipboard.writeText(referral.code);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            /* clipboard unavailable */
+        }
+    };
 
-                <button
-                    onClick={finish}
-                    className="onboard-cta w-full min-h-[56px] py-4 rounded-2xl bg-cyan-400 text-black text-[15px] sm:text-base font-black uppercase tracking-[0.22em] shadow-[0_0_28px_rgba(34,211,238,0.4)] hover:bg-cyan-300 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                >
-                    Enter the lobby
-                </button>
-                <p className="text-center text-[9px] font-bold text-white/35 -mt-2">
-                    Change anytime in Settings
+    if (isGuest || locked) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center py-12 px-6">
+                <h3 className="text-white font-black text-sm mb-1 uppercase tracking-wider">Sign in for onboarding</h3>
+                <p className="text-white/40 text-xs max-w-[220px]">
+                    Connect a wallet to track onboarding rewards and referrals.
                 </p>
             </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-2 pb-2">
+            {/* Welcome grant */}
+            <div className="flex items-center gap-3 bg-white/[0.04] border border-white/10 p-3 rounded-2xl">
+                <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-bold text-white uppercase tracking-wide">Welcome grant</div>
+                    <div className="text-[11px] text-white/50 mt-0.5">One-time 50 CHIPS on first wallet link</div>
+                </div>
+                {welcomeClaimed ? (
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/30">
+                        Claimed
+                    </span>
+                ) : (
+                    <button
+                        onClick={() => handleClaim(WELCOME_ID)}
+                        disabled={claimingId !== null}
+                        className="px-3 py-2 rounded-xl bg-cyan-400 text-black text-[11px] font-black uppercase tracking-[0.18em] hover:bg-cyan-300 active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                        {claimingId === WELCOME_ID ? '...' : 'Claim'}
+                    </button>
+                )}
+            </div>
+
+            {/* Referral */}
+            <div className="bg-white/[0.04] border border-white/10 p-3 rounded-2xl flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">Referral</div>
+                    {referral && (
+                        <div className="text-[10px] font-black text-white/50 tabular-nums uppercase tracking-wide">
+                            {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
+                        </div>
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                    <div
+                        onClick={copyCode}
+                        className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-cyan-400/30 font-mono text-cyan-300 text-sm cursor-pointer select-all"
+                    >
+                        {referral?.code || '—'}
+                    </div>
+                    <button
+                        onClick={copyCode}
+                        className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all"
+                    >
+                        {copied ? 'Copied' : 'Copy'}
+                    </button>
+                </div>
+                {referral?.referrer ? (
+                    <div className="text-[10px] text-white/40 font-mono">Referred by {referral.referrer.slice(0, 10)}…</div>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <input
+                            value={referralCodeInput}
+                            onChange={(e) => setReferralCodeInput(e.target.value)}
+                            placeholder="REFERRAL CODE"
+                            className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
+                        />
+                        <button
+                            onClick={bindReferral}
+                            disabled={!referralCodeInput.trim()}
+                            className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all disabled:opacity-40"
+                        >
+                            Bind
+                        </button>
+                    </div>
+                )}
+                {bindState && <div className="text-[10px] text-cyan-300/80">{bindState}</div>}
+            </div>
+
+            {/* Tracks */}
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50 mt-1">Onboarding tracks</div>
+            {loading && tracks.length === 0 ? (
+                <div className="flex items-center justify-center py-10">
+                    <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                </div>
+            ) : tracks.length === 0 ? (
+                <div className="text-white/40 text-xs text-center py-8">No tracks yet — play a match to begin.</div>
+            ) : (
+                tracks.map((t) => {
+                    const pct = Math.min(((t.progress || 0) / Math.max(t.target, 1)) * 100, 100);
+                    return (
+                        <div
+                            key={t.track}
+                            className="flex flex-col gap-2 bg-white/[0.04] border border-white/10 p-3 rounded-2xl"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[13px] font-bold truncate ${t.is_claimed ? 'text-cyan-300' : 'text-white'}`}>
+                                            {t.label}
+                                        </span>
+                                        {!t.core && (
+                                            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-white/40 border border-white/10 rounded px-1.5 py-0.5">
+                                                Extended
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-[10px] text-white/45 mt-0.5 tabular-nums">
+                                        {t.progress}/{t.target} · {t.reward} CHIPS
+                                    </div>
+                                </div>
+                                {t.is_claimed ? (
+                                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/30">
+                                        Claimed
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => handleClaim(t.track)}
+                                        disabled={!t.claimable || claimingId !== null}
+                                        className={`px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-[0.18em] transition-all ${
+                                            t.claimable
+                                                ? 'bg-cyan-400 text-black hover:bg-cyan-300 active:scale-[0.98] shadow-[0_0_16px_rgba(34,211,238,0.35)]'
+                                                : 'bg-white/5 text-white/30 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        {claimingId === t.track ? '...' : 'Claim'}
+                                    </button>
+                                )}
+                            </div>
+                            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-cyan-400 transition-all"
+                                    style={{ width: `${pct}%` }}
+                                />
+                            </div>
+                        </div>
+                    );
+                })
+            )}
+
+            {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-1">{notice}</div>}
         </div>
     );
 };
+
+export default OnboardingPanel;

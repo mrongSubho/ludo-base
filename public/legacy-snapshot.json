@@ -1,0 +1,58 @@
+{
+  "chainId": 84532,
+  "claim": "0x140b790ea880ca7da31f88db75058964699e7ebd",
+  "rate": 100,
+  "root": "0x44cb6fd4d75a1cafe92263523a9e814ebad6b15525170efd1e07e18dd584857b",
+  "publishedAt": "2026-09-25T05:03:46.622Z",
+  "challengeEndsAt": "2026-10-02T05:03:46.624Z",
+  "entries": [
+    {
+      "wallet": "0x66d26adcf615d0838499cc68d4aa5d06766bcb86",
+      "legacyCoins": "1000",
+      "amount": "10000000000000000000",
+      "proof": [
+        "0xdd2ce934b7f0c59ce10220ad4f19c231fd6aa0b83cd3b6cbc6853b7cbdf3110e",
+        "0x40b792e7aae874ee481dd8142579db9f7b9fefd2afb4dcce8311f3986b506ebf",
+        "0xd73e3332a092ea529f587af573ed1d8fdcb9375c402bcbc953b0c6f012b189d2"
+      ]
+    },
+    {
+      "wallet": "0xaf15c9522e15f3369bfb13d50e6a842ce2a9e413",
+      "legacyCoins": "1000",
+      "amount": "10000000000000000000",
+      "proof": [
+        "0xc5699bc04253142c7abc5e108a1c9537a2d872cc96b281bafda0f29b22a981f3",
+        "0x40b792e7aae874ee481dd8142579db9f7b9fefd2afb4dcce8311f3986b506ebf",
+        "0xd73e3332a092ea529f587af573ed1d8fdcb9375c402bcbc953b0c6f012b189d2"
+      ]
+    },
+    {
+      "wallet": "0xbcca5dcbf293d98a627fd3814d5ae8249bb1dfaf",
+      "legacyCoins": "200000",
+      "amount": "2000000000000000000000",
+      "proof": [
+        "0xc2937c4792a91956c844335fe0d00957b6b7ba12cce6421a7b7a494442689bac",
+        "0xbc5cf5370aa72f926e8f32eae4b6b184d937da50e94c4351bcc4820949f57a64",
+        "0xd73e3332a092ea529f587af573ed1d8fdcb9375c402bcbc953b0c6f012b189d2"
+      ]
+    },
+    {
+      "wallet": "0x221aef4752c1c3890b2a18af5e781dfa9260f5f8",
+      "legacyCoins": "1000",
+      "amount": "10000000000000000000",
+      "proof": [
+        "0x36751d5f257a18d2c8c5e606cf7106f64935d083341bf22d928e4b21f5ea1b27",
+        "0xbc5cf5370aa72f926e8f32eae4b6b184d937da50e94c4351bcc4820949f57a64",
+        "0xd73e3332a092ea529f587af573ed1d8fdcb9375c402bcbc953b0c6f012b189d2"
+      ]
+    },
+    {
+      "wallet": "0x491f1ebbbdf333a6605fe812b3f8780b319f93cf",
+      "legacyCoins": "100000",
+      "amount": "1000000000000000000000",
+      "proof": [
+        "0x3b2c3033f2f3bfa43210cb45f5a293247bcacf2bffa07e53425d35faa74995de"
+      ]
+    }
+  ]
+}

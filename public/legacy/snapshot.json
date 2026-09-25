@@ -1,0 +1,56 @@
+{
+  "chainId": 84532,
+  "claim": "0xCEd4f0D76527Aa6D2d2713186a1D0A924C70Eb83",
+  "rate": 100,
+  "root": "0xede9cb6deb53ce657f4b9e229845e79d193d7f4e9bb3655bc312c18720870d7b",
+  "entries": [
+    {
+      "wallet": "0x66d26adcf615d0838499cc68d4aa5d06766bcb86",
+      "legacyCoins": "1000",
+      "amount": "10000000000000000000",
+      "proof": [
+        "0x5ce4e8cf3feedc5fdd86e344eb263bdb8c545093a84c4b3069e801d7a91afac3",
+        "0x4881b0919008617b3f9ec52eb30ae6cdc30752be6a118a49cefae0b827b8ee34",
+        "0x9790c0a6f40f6db23ea0c19cfd62f5acf7e7475db5b1b1badc2743381b2bbdba"
+      ]
+    },
+    {
+      "wallet": "0xaf15c9522e15f3369bfb13d50e6a842ce2a9e413",
+      "legacyCoins": "1000",
+      "amount": "10000000000000000000",
+      "proof": [
+        "0x46c011ebed1c253a58d41d400e2abace347a35d34bbe7a340aac75498af04949",
+        "0x4881b0919008617b3f9ec52eb30ae6cdc30752be6a118a49cefae0b827b8ee34",
+        "0x9790c0a6f40f6db23ea0c19cfd62f5acf7e7475db5b1b1badc2743381b2bbdba"
+      ]
+    },
+    {
+      "wallet": "0xbcca5dcbf293d98a627fd3814d5ae8249bb1dfaf",
+      "legacyCoins": "200000",
+      "amount": "2000000000000000000000",
+      "proof": [
+        "0xc7e93d817d8239978919c70d1e9001bd519c9ef34e4ff984a54f2e391c5875cc",
+        "0x22bc8fd80f274869f531aa506125dafec548e1fd5dca9a58aecffdfb3eb2bf0f",
+        "0x9790c0a6f40f6db23ea0c19cfd62f5acf7e7475db5b1b1badc2743381b2bbdba"
+      ]
+    },
+    {
+      "wallet": "0x221aef4752c1c3890b2a18af5e781dfa9260f5f8",
+      "legacyCoins": "1000",
+      "amount": "10000000000000000000",
+      "proof": [
+        "0x0e49946730f2f02ab90248ea8995500559fcecb97f34ee03be9edd9fbff2f61a",
+        "0x22bc8fd80f274869f531aa506125dafec548e1fd5dca9a58aecffdfb3eb2bf0f",
+        "0x9790c0a6f40f6db23ea0c19cfd62f5acf7e7475db5b1b1badc2743381b2bbdba"
+      ]
+    },
+    {
+      "wallet": "0x491f1ebbbdf333a6605fe812b3f8780b319f93cf",
+      "legacyCoins": "100000",
+      "amount": "1000000000000000000000",
+      "proof": [
+        "0xcb29d93392aae7f84876dd585a2f6a990c6ff49682034ceb60456bd573ecc234"
+      ]
+    }
+  ]
+}

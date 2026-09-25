@@ -8,8 +8,9 @@ import {
     useSignOut,
     useVerifySiweSignature,
 } from "@coinbase/cdp-hooks";
-import { connectBaseAccount, useBaseAccountSigner } from "@/hooks/useBaseAccountSigner";
+import { useBaseAccountSigner } from "@/hooks/useBaseAccountSigner";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
+import { getGuestId, migrateGuestStash } from "@/lib/guest";
 import {
     APP_SESSION_TTL_MS,
     buildMatchSessionPayload,
@@ -28,7 +29,7 @@ type StepResult = { ok: boolean; detail: string };
  * (`authenticationMethods.siwe.address`) — same as Base app.
  */
 export default function Phase0aSpikePanel() {
-    const { isSignedIn } = useIsSignedIn();
+    useIsSignedIn();
     const { currentUser } = useCurrentUser();
     const { signInWithSiwe } = useSignInWithSiwe();
     const { verifySiweSignature } = useVerifySiweSignature();
@@ -36,6 +37,7 @@ export default function Phase0aSpikePanel() {
     const baseSigner = useBaseAccountSigner();
 
     const [busy, setBusy] = useState(false);
+    const [baseId, setBaseId] = useState<string | null>(null);
     const [auth, setAuth] = useState<StepResult | null>(null);
     const [siwe, setSiwe] = useState<StepResult | null>(null);
     const [eip712, setEip712] = useState<StepResult | null>(null);
@@ -49,43 +51,75 @@ export default function Phase0aSpikePanel() {
     }, []);
 
     const id = resolvePlayerIdentity(currentUser);
-    const playerId = id.address;
+    // Option A: Base Account from @base-org/account is the player id.
+    // CDP user.siwe.address is optional (CDP verify wants ERC-191; smart wallets wrap 1271).
+    const playerId = baseId ?? id.address ?? undefined;
 
     const continueWithBase = useCallback(async () => {
         setBusy(true);
         try {
-            const address = await connectBaseAccount();
+            // Must use hook connect() so signMessageAsync's parent guard is armed.
+            const address = await baseSigner.connect();
+            setBaseId(address);
             note(`Base Account connected ${address}`);
-            const domain = window.location.hostname;
-            const uri = window.location.origin;
-            const { message, flowId } = await signInWithSiwe({
-                address: address as `0x${string}`,
-                chainId: CHAIN_ID,
-                domain,
-                uri,
-            });
-            const signature = await baseSigner.signMessageAsync({
-                account: address as `0x${string}`,
-                message,
-            });
-            const { user } = await verifySiweSignature({
-                flowId,
-                signature: signature as `0x${string}`,
-            });
-            const resolved = resolvePlayerIdentity(user);
-            if (resolved.address && resolved.isBaseAccount) {
-                setAuth({ ok: true, detail: `player=${resolved.address} (Base Account)` });
-                note(`Continue with Base PASS ${resolved.address}`);
-            } else {
-                setAuth({
-                    ok: false,
-                    detail: "no authenticationMethods.siwe.address on user",
-                });
-                note("Continue with Base FAIL — no siwe.address");
+            const guest = getGuestId();
+            if (guest && migrateGuestStash(guest, address)) {
+                note(`guest stash migrated ${guest} -> ${address}`);
             }
+
+            // Optional CDP session (diagnostic only). Smart-wallet personal_sign
+            // returns an ERC-1271 wrap (~4k bytes); CDP verifySiweSignature expects
+            // ERC-191 ECDSA and will report "Invalid signature". That must not
+            // block Option A — Ludo SIWE (C2) verifies 1271/6492 server-side.
+            try {
+                const domain = window.location.host;
+                const uri = `${window.location.origin}/`;
+                note(`SIWE domain=${domain} uri=${uri}`);
+                const { message, flowId } = await signInWithSiwe({
+                    address: address as `0x${string}`,
+                    chainId: CHAIN_ID,
+                    domain,
+                    uri,
+                });
+                const signature = await baseSigner.signMessageAsync({
+                    account: address as `0x${string}`,
+                    message,
+                });
+                note(`signed msg len=${message.length} sigLen=${signature.length}`);
+                const { user } = await verifySiweSignature({
+                    flowId,
+                    signature: signature as `0x${string}`,
+                });
+                const resolved = resolvePlayerIdentity(user);
+                note(
+                    resolved.address
+                        ? `CDP SIWE OK ${resolved.address}`
+                        : "CDP SIWE user without siwe.address",
+                );
+            } catch (cdpErr) {
+                const msg =
+                    cdpErr instanceof Error
+                        ? cdpErr.message
+                        : typeof cdpErr === "object"
+                          ? JSON.stringify(cdpErr)
+                          : String(cdpErr);
+                note(`CDP SIWE skipped (smart-wallet wrap) — ${msg}`);
+            }
+
+            setAuth({
+                ok: true,
+                detail: `player=${address} (Base Account) · ready for C2–C4`,
+            });
+            note(`Continue with Base PASS ${address}`);
         } catch (e) {
-            setAuth({ ok: false, detail: e instanceof Error ? e.message : String(e) });
-            note("Continue with Base FAIL");
+            const msg =
+                e instanceof Error
+                    ? e.message
+                    : typeof e === "object"
+                      ? JSON.stringify(e)
+                      : String(e);
+            setAuth({ ok: false, detail: msg });
+            note(`Continue with Base FAIL — ${msg}`);
         } finally {
             setBusy(false);
         }
@@ -213,7 +247,8 @@ export default function Phase0aSpikePanel() {
         }
     }, [playerId, baseSigner, note]);
 
-    const ready = Boolean(isSignedIn && playerId);
+    // C2–C4 need a Base Account id only. CDP session is optional (smart-wallet wrap).
+    const ready = Boolean(playerId);
 
     return (
         <div className="ludo-wallet-scope rounded-2xl border border-white/10 bg-black/40 p-6 max-w-xl space-y-4 text-sm text-white/90">
