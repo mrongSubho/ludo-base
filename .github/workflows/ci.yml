@@ -18,6 +18,8 @@ jobs:
         run: npm ci
       - name: Engine unit tests
         run: npm test
+      - name: Golden replay corpus (≥50 deterministic matches)
+        run: npm run test:golden
       - name: Edge engine sync
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate
