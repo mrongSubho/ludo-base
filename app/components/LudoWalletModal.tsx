@@ -41,6 +41,17 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
         setMounted(true);
     }, []);
 
+    /** Must run synchronously in onClick — no await before connect(). */
+    const handleSignInWithBase = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const baseConn =
+            connectors.find((c) => c.id === 'baseAccount' || c.type === 'baseAccount') ||
+            connectors.find((c) => c.name.toLowerCase().includes('coinbase'));
+        if (baseConn) {
+            connect({ connector: baseConn });
+        }
+    };
+
     const handleConnect = (connector: Connector) => {
         connect({ connector });
     };
@@ -125,7 +136,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
 
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <button
-                                onClick={() => coinbaseConnector && handleConnect(coinbaseConnector)}
+                                onClick={handleSignInWithBase}
                                 className="bg-white/[0.06] hover:bg-white/10 transition-colors"
                                 style={{
                                     width: '100%',
@@ -139,7 +150,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     cursor: 'pointer'
                                 }}
                             >
-                                <span style={{ color: 'var(--modal-ink, #ffffff)', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>Sign in with Base</span>
+                                <span style={{ color: 'var(--modal-ink, #ffffff)', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>Continue with Base</span>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     {WALLET_ICONS.base}
                                 </div>

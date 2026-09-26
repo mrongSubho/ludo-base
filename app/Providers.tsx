@@ -4,7 +4,7 @@ import "@coinbase/onchainkit/styles.css";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
-import { coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
+import { baseAccount, coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode, useEffect } from "react";
 import { DATA_SUFFIX } from "@/lib/builderCode";
@@ -15,13 +15,27 @@ import { TeamUpProvider } from "@/hooks/TeamUpContext";
 import { GameDataProvider } from "@/hooks/GameDataContext";
 import { InviteNotification } from "./components/InviteNotification";
 import { CdpAuthProvider } from "./components/CdpAuthProvider";
+import { prefetchSiweNonce } from "@/hooks/useBaseAccountSigner";
 
 const config = createConfig({
     chains: [base, baseSepolia],
     connectors: [
+        // Primary — Sign in with Base (keys.coinbase.com popup).
+        // appName + appLogoUrl show on connect, sign, and tx approve screens.
+        baseAccount({
+            appName: "Ludo Base",
+            appLogoUrl:
+                typeof window !== "undefined"
+                    ? `${window.location.origin}/ludo-base-logo.svg`
+                    : "/ludo-base-logo.svg",
+        }),
         coinbaseWallet({
             appName: "Ludo Base",
             preference: "smartWalletOnly",
+            appLogoUrl:
+                typeof window !== "undefined"
+                    ? `${window.location.origin}/ludo-base-logo.svg`
+                    : "/ludo-base-logo.svg",
         }),
         injected(),
         walletConnect({
@@ -46,6 +60,8 @@ const queryClient = new QueryClient();
 export function Providers({ children }: { children: ReactNode }) {
     useEffect(() => {
         initTelemetry();
+        // Warm Base SIWE nonce so "Continue with Base" can open the popup on click.
+        prefetchSiweNonce();
     }, []);
     return (
         <WagmiProvider config={config}>
