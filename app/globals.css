@@ -6863,3 +6863,55 @@ body.theme-daybreak .arena-screen-side {
     animation: none;
   }
 }
+
+/* ── Daybreak contrast pass: header + wallet (washed-out fix) ── */
+body.theme-daybreak .ludo-header-scope :is(.text-white\/40, .text-white\/45, .text-white\/50, .text-white\/55, .text-white\/60) {
+  color: rgba(10, 11, 13, 0.72);
+}
+body.theme-daybreak .ludo-header-scope :is(.text-white\/80, .text-white\/85, .text-white\/90, .text-white\/95, .text-white) {
+  color: #0A0B0D;
+}
+body.theme-daybreak .ludo-header-scope :is(.text-cyan-300, .text-cyan-400) {
+  color: #0E7490;
+}
+body.theme-daybreak .ludo-header-scope :is(.border-cyan-500\/50, .border-cyan-400\/60, .border-cyan-500\/30) {
+  border-color: rgba(10, 11, 13, 0.28);
+}
+body.theme-daybreak .ludo-header-scope :is(.text-yellow-400, .text-yellow-300) {
+  color: #B45309;
+}
+body.theme-daybreak .ludo-header-scope :is(.shadow-\[0_4px_20px_rgba\(0\,0\,0\,0\.4\)\], .shadow-\[0_4px_25px_rgba\(0\,0\,0\,0\.45\)\], .shadow-\[0_4px_20px_rgba\(0\,0\,0\,0\.9\)\]) {
+  box-shadow: 0 4px 16px rgba(10, 11, 13, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+body.theme-daybreak .ludo-wallet-scope,
+body.theme-daybreak .ludo-burn-scope {
+  background-color: #F4F6FA !important;
+  background-image: none !important;
+}
+body.theme-daybreak .ludo-wallet-scope :is(.text-white\/35, .text-white\/40, .text-white\/45, .text-white\/50, .text-white\/55, .text-white\/60) {
+  color: rgba(10, 11, 13, 0.72);
+}
+body.theme-daybreak .ludo-wallet-scope :is(.text-white\/70, .text-white\/75, .text-white\/80, .text-white\/85, .text-white\/90, .text-white) {
+  color: #0A0B0D;
+}
+body.theme-daybreak .ludo-wallet-scope :is(.text-cyan-50, .text-cyan-100, .text-cyan-200, .text-cyan-300) {
+  color: #0E7490;
+}
+body.theme-daybreak .ludo-wallet-scope :is(.bg-cyan-500\/20, .bg-cyan-500\/15, .bg-cyan-500\/30, .bg-cyan-400\/30) {
+  background-color: rgba(14, 116, 144, 0.14);
+}
+body.theme-daybreak .ludo-wallet-scope :is(.border-cyan-400\/50, .border-cyan-400\/40, .border-cyan-500\/50) {
+  border-color: rgba(14, 116, 144, 0.45);
+}
+body.theme-daybreak .ludo-wallet-scope :is(.bg-white\/5, .bg-white\/10) {
+  background-color: #FFFFFF;
+  box-shadow: 0 10px 28px -12px rgba(10, 11, 13, 0.16), inset 0 0 0 1px rgba(10, 11, 13, 0.08);
+}
+body.theme-daybreak .ludo-wallet-scope :is(.text-amber-100) {
+  color: #92400E;
+}
+body.theme-daybreak .ludo-wallet-scope :is(.bg-amber-400\/10, .border-amber-400\/30) {
+  background-color: rgba(180, 83, 9, 0.10);
+  border-color: rgba(180, 83, 9, 0.35);
+}

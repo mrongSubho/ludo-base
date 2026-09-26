@@ -9,6 +9,7 @@ export function BurnPanel({ onClose }: { onClose: () => void }) {
     return (
         <GamePanelShell
             scopeClass="ludo-burn-scope"
+            hideOrbs
             title={<>Feed · Burn & Explorer</>}
             subtitle={
                 <>

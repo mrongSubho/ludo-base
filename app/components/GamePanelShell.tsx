@@ -8,18 +8,22 @@ type Props = {
     subtitle?: ReactNode;
     onClose: () => void;
     children: ReactNode;
+    /** Wrapper width — wallet is narrower than full panels. */
+    maxWClass?: string;
+    /** Soft orbs wash out daybreak; wallet/burn can opt out. */
+    hideOrbs?: boolean;
 };
 
 /**
  * Unified global panel layout used by Settings / Messages / Market, etc.
  * top-64 · bottom-80 · max-w-500 · rounded-32 · panel-bg-image.
  */
-export function GamePanelShell({ scopeClass, title, subtitle, onClose, children }: Props) {
+export function GamePanelShell({ scopeClass, title, subtitle, onClose, children, maxWClass = "max-w-[500px]", hideOrbs = false }: Props) {
     return (
         <>
             <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
             <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                <div className="w-full max-w-[500px] relative h-full">
+                <div className={`w-full ${maxWClass} relative h-full`}>
                     <div
                         className={`${scopeClass} pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden`}
                         style={{
@@ -28,8 +32,12 @@ export function GamePanelShell({ scopeClass, title, subtitle, onClose, children 
                             backdropFilter: "blur(32px)",
                         }}
                     >
-                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                        {!hideOrbs && (
+                            <>
+                                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
+                                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                            </>
+                        )}
 
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
                             <div className="w-12 h-1.5 bg-white/20 rounded-full" />

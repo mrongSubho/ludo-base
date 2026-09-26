@@ -87,6 +87,8 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                 >
                     <GamePanelShell
                         scopeClass="ludo-wallet-scope"
+                        maxWClass="max-w-[360px]"
+                        hideOrbs
                         title={
                             <>
                                 <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
