@@ -71,7 +71,7 @@ export const useDataActions = ({
     setupConnectionListeners
 }: ActionProps) => {
     const { signMessageAsync } = useSignMessage();
-    const { ensureAppSession } = useAppSession();
+    const { ensureAppSession, peekAppSession } = useAppSession();
 
     const updateMyProfileOptimistic = useCallback((updates: Partial<UserProfile>) => {
         if (!address) return;
@@ -99,7 +99,8 @@ export const useDataActions = ({
         if (updates.avatar_url !== undefined) persistedUpdates.avatar_url = updates.avatar_url;
         if (updates.peer_id !== undefined) persistedUpdates.peer_id = updates.peer_id;
         if (Object.keys(persistedUpdates).length > 0) {
-            void ensureAppSession().then(sessionId => {
+            // Profile save — never open wallet from a background update.
+            void Promise.resolve(peekAppSession()).then(sessionId => {
                 if (!sessionId) return;
                 return fetch('/api/profile', {
                     method: 'POST',
@@ -114,7 +115,7 @@ export const useDataActions = ({
                 });
             });
         }
-    }, [address, ensureAppSession, setMyProfile]);
+    }, [address, peekAppSession, setMyProfile]);
 
     const sendMessage = useCallback(async (receiverId: string, content: string) => {
         if (!address) return;
@@ -266,14 +267,13 @@ export const useDataActions = ({
         });
     }, [address, setMessages, ensureAppSession]);
 
-    /** Publish our static ECDH pubkey iff the server lacks it. Called when
-     * entering messaging surfaces (not at boot — boot prompts are hostile).
-     * No-ops silently when there is no session or the key already matches. */
+    /** Publish ECDH key only when a session is already cached (DM open must
+     * not popup). User gesture (first send) uses ensureAppSession instead. */
     const ensureEcdhPublished = useCallback(async () => {
         if (!address) return;
         const lowerAddr = address.toLowerCase();
         try {
-            const dmSession = await ensureAppSession();
+            const dmSession = peekAppSession();
             if (!dmSession) return;
             await getOrCreateIdentityKey(lowerAddr);
             const jwk = await exportPublicKeyJwk(lowerAddr);
@@ -283,7 +283,7 @@ export const useDataActions = ({
         } catch (err) {
             console.warn('ECDH publish check failed', err);
         }
-    }, [address, ensureAppSession, signMessageAsync]);
+    }, [address, peekAppSession, signMessageAsync]);
 
     return {
         updateMyProfileOptimistic,

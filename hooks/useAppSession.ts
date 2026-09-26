@@ -140,10 +140,20 @@ export function useAppSession() {
         guard.clear(address || '');
     }, [address]);
 
+    /**
+     * Cached session only — **never** opens a wallet popup.
+     * Background pollers (presence, inbox poll, notifications) must use this.
+     * `ensureAppSession` is for explicit user gestures only (click send / match).
+     */
+    const peekAppSession = useCallback((): string | null => {
+        return guard.getSnapshot(address).sessionId;
+    }, [address]);
+
     return {
         sessionId,
         ready,
         ensureAppSession,
+        peekAppSession,
         clearAppSession,
         verifyFailed: snap.verifyFailed,
         lastError: snap.lastError,

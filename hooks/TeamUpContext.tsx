@@ -122,7 +122,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const chainId = useChainId();
     const { signMessageAsync } = useSignMessage();
     const { signTypedDataAsync } = useSignTypedData();
-    const { sessionId: appSessionId, ensureAppSession } = useAppSession();
+    const { sessionId: appSessionId, ensureAppSession, peekAppSession } = useAppSession();
     const { myProfile } = useGameData();
     const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync, chainId });
     const createProvisionalSession = useCallback((authorizationKey: string, roomCode?: string) =>
@@ -371,13 +371,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 
                 // ☁️ Update host status and room code in DB
                 if (isHost && myAddress) {
-                    void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {
+                    void Promise.resolve(appSessionId || peekAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ walletAddress: myAddress, sessionId, status: 'In Match', currentRoomCode })
                     }) : null);
                     
                     // Activity writes are authenticated and deduplicated server-side.
-                    void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/social/moderation', {
+                    void Promise.resolve(appSessionId || peekAppSession()).then(sessionId => sessionId ? fetch('/api/social/moderation', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             walletAddress: myAddress, sessionId, action: 'activity',
@@ -622,7 +622,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     ? data.matchId
                     : gameStateRef.current.matchId;
                 if (matchId) {
-                    void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/live-matches/window', {
+                    void Promise.resolve(appSessionId || peekAppSession()).then(sessionId => sessionId ? fetch('/api/live-matches/window', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ matchId, hostAddress: myAddress, sessionId, status: 'register' })
                     }) : null);
@@ -1009,7 +1009,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setServerSeq(0);
 
         if (myAddress) {
-            void Promise.resolve(appSessionId || ensureAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {
+            void Promise.resolve(appSessionId || peekAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ walletAddress: myAddress, sessionId, status: 'Online' })
             }) : null);

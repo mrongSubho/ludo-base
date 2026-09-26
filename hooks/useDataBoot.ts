@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppSession } from './useAppSession';
 
 export const useDataBoot = (address: string | undefined) => {
-    const { ensureAppSession } = useAppSession();
+    const { peekAppSession } = useAppSession();
     const [isBooting, setIsBooting] = useState(false);
     const [isBootComplete, setIsBootComplete] = useState(false);
     const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
@@ -29,7 +29,8 @@ export const useDataBoot = (address: string | undefined) => {
 
         console.log("🚀 [GameData] Initiating Boot Sequence Payload...");
         try {
-            const sessionId = await ensureAppSession();
+            // Boot must never open a wallet popup — cached session only.
+            const sessionId = peekAppSession();
             const privateData = sessionId
                 ? fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`).then(async res => {
                     if (!res.ok) throw new Error(`Messages API failed: ${res.status}`);
@@ -134,7 +135,7 @@ export const useDataBoot = (address: string | undefined) => {
         } finally {
             setIsBooting(false);
         }
-    }, [address, ensureAppSession]);
+    }, [address, peekAppSession]);
 
     // Initial Hydration
     useEffect(() => {

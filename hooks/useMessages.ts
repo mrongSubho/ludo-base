@@ -27,7 +27,7 @@ export interface Conversation {
 }
 
 export function useMessages(currentUserAddress: string | undefined | null, selectedChatId?: string | null) {
-    const { ensureAppSession } = useAppSession();
+    const { ensureAppSession, peekAppSession } = useAppSession();
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [rawConversations, setRawConversations] = useState<any[]>([]);
@@ -50,7 +50,8 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
 
         const fetchInitialData = async () => {
             setIsLoading(true);
-            const sessionId = await ensureAppSession();
+            // Inbox poll — cached session only (no wallet popup on open).
+            const sessionId = peekAppSession();
             if (sessionId) {
                 const response = await fetch(`/api/messages?walletAddress=${encodeURIComponent(currentAddrLower)}&sessionId=${encodeURIComponent(sessionId)}`);
                 if (response.ok) {
@@ -70,7 +71,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         fetchInitialData();
         const refresh = window.setInterval(fetchInitialData, 15000);
         return () => window.clearInterval(refresh);
-    }, [currentUserAddress, isVisibleToMe, ensureAppSession]);
+    }, [currentUserAddress, isVisibleToMe, peekAppSession]);
 
     // 5. Real-time Profile/Status Updates
     useEffect(() => {

@@ -63,7 +63,7 @@ function readSeen(me: string): SeenState {
 }
 
 export function useNotifications() {
-    const { ensureAppSession } = useAppSession();
+    const { peekAppSession, ensureAppSession } = useAppSession();
     const { address } = useCurrentUser();
     const me = (address || '').toLowerCase();
 
@@ -92,7 +92,8 @@ export function useNotifications() {
             setPokes([]);
             return;
         }
-        const sessionId = await ensureAppSession();
+        // Poll only — never open the wallet from a timer.
+        const sessionId = peekAppSession();
         if (!sessionId) return;
         const requestsPromise = fetch(`/api/friendships?walletAddress=${encodeURIComponent(me)}&sessionId=${encodeURIComponent(sessionId)}`);
         const pokesPromise = fetch(`/api/social/poke?wallet=${encodeURIComponent(me)}&sessionId=${encodeURIComponent(sessionId)}`);
