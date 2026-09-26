@@ -8,7 +8,6 @@ import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import NoticeStrip from './components/NoticeStrip';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
-import { ChipsBalanceBar } from './components/ChipsBalanceBar';
 import { BoardHeaderCompact } from './components/BoardHeaderCompact';
 import { FooterNavPanel } from './components/FooterNavPanel';
 
@@ -563,9 +562,6 @@ export default function Page() {
                     onMessagesClick={() => toggle('messages')}
                     onSettingsClick={() => toggle('settings')}
                 />
-
-              {/* Persistent CHIPS balance + claim actions (lib/chips + claim hooks) */}
-              <ChipsBalanceBar className="mx-3 sm:mx-4 mb-2" />
 
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
               <main className="dash-main pb-safe-footer px-safe">
