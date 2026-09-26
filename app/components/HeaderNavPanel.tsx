@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ChatIcon, SlidersIcon } from './icons';
+import { useChipsBalance } from '@/hooks/useChipsBalance';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -37,19 +38,24 @@ export const HeaderNavPanel = ({
     onMessagesClick,
     onSettingsClick
 }: HeaderNavPanelProps) => {
+    const chips = useChipsBalance();
+    const showChips = chips.configured && chips.isConnected;
     return (
         <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[200]">
             {/* [x] Header Redesign (3 Pills) */}
             {/* [x] Header Refinement (Compact Symmetrical Spaced Pills) */}
             {/* [x] Verify changes (Fixed widths and "free space" gaps) */}
-            {/* Pill 1: Left - Coin Balance */}
+            {/* Pill 1: Left - Coin / CHIPS Balance */}
             <div className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-start bg-transparent border border-cyan-500/50 rounded-r-full rounded-l-none shadow-[0_4px_20px_rgba(0,0,0,0.4)] shimmer-effect relative overflow-hidden">
                 <div className="flex items-center gap-2 z-10 px-2 sm:px-3 w-full justify-start">
-                    <div className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.7)] flex-shrink-0">
+                    <div className={`w-5 h-5 ${showChips ? 'text-cyan-300' : 'text-yellow-400'} drop-shadow-[0_0_10px_rgba(34,211,238,0.55)] flex-shrink-0`}>
                         <TokenIcon />
                     </div>
-                    <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate max-w-[52px] sm:max-w-[80px]">
-                        {coins.toLocaleString()}
+                    <span
+                        className="text-xs sm:text-sm font-black text-white tracking-tight truncate max-w-[52px] sm:max-w-[80px]"
+                        title={showChips ? `CHIPS ${chips.human}` : `Coins ${coins.toLocaleString()}`}
+                    >
+                        {showChips ? chips.human : coins.toLocaleString()}
                     </span>
                 </div>
             </div>
