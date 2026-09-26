@@ -2,7 +2,6 @@
 
 import React, { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import Link from "next/link";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
 import { useClaimAll } from "@/hooks/useChipsPool";
 import { chipsAddress, shortHex } from "@/lib/chips";
@@ -11,6 +10,8 @@ interface ChipsWalletPanelProps {
     isOpen: boolean;
     onClose: () => void;
     claimablePoolIds?: `0x${string}`[];
+    /** In-app feed panel (not a full-page route). */
+    onFeed?: () => void;
 }
 
 /* Coinbase Wallet language: white sheet, blue primary, account row, action grid.
@@ -18,13 +19,17 @@ interface ChipsWalletPanelProps {
 const CW_CSS = `
 .cw-root {
   --cw-blue: #0052FF;
-  --cw-blue-soft: rgba(0, 82, 255, 0.12);
-  --cw-bg: #FFFFFF;
-  --cw-ink: #0A0B0D;
-  --cw-muted: #5B616E;
-  --cw-line: rgba(10, 11, 13, 0.08);
-  --cw-chip: #F5F7FA;
-  --cw-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  --cw-blue-soft: rgba(0, 82, 255, 0.18);
+  --cw-bg: #0B0D12;
+  --cw-ink: #F5F7FA;
+  --cw-muted: #9AA3B2;
+  --cw-line: rgba(255, 255, 255, 0.1);
+  --cw-chip: #151A22;
+  --cw-icon-bg: rgba(255, 255, 255, 0.1);
+  --cw-icon-ink: #F5F7FA;
+  --cw-primary-ink: #FFFFFF;
+  --cw-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   color: var(--cw-ink);
   background: var(--cw-bg);
@@ -33,6 +38,20 @@ const CW_CSS = `
   overflow: hidden;
   width: 100%;
   max-width: 400px;
+}
+body.theme-daybreak .cw-root {
+  --cw-blue: #0052FF;
+  --cw-blue-soft: rgba(0, 82, 255, 0.12);
+  --cw-bg: #FFFFFF;
+  --cw-ink: #0A0B0D;
+  --cw-muted: #5B616E;
+  --cw-line: rgba(10, 11, 13, 0.08);
+  --cw-chip: #F5F7FA;
+  --cw-icon-bg: rgba(0, 82, 255, 0.1);
+  --cw-icon-ink: #0052FF;
+  --cw-primary-ink: #FFFFFF;
+  --cw-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  color-scheme: light;
 }
 .cw-root * { box-sizing: border-box; }
 .cw-sheet-top {
@@ -117,10 +136,13 @@ const CW_CSS = `
 .cw-action-icon {
   width: 40px; height: 40px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 82, 255, 0.1); color: var(--cw-blue);
+  background: var(--cw-icon-bg); color: var(--cw-icon-ink);
 }
 .cw-action-primary .cw-action-icon {
-  background: rgba(255, 255, 255, 0.2); color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.22); color: var(--cw-primary-ink);
+}
+.cw-action-primary:disabled .cw-action-icon {
+  background: var(--cw-icon-bg); color: var(--cw-icon-ink);
 }
 .cw-foot {
   margin: 8px 16px 18px; padding: 12px 14px;
@@ -191,7 +213,7 @@ function IconClose() {
 }
 
 /** In-game web3 wallet sheet (Coinbase Wallet language). Theme-proof via .cw-root. */
-export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds }: ChipsWalletPanelProps) {
+export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: ChipsWalletPanelProps) {
     const bal = useChipsBalance();
     const { claimMany, isPending: claiming, error: claimError, configured: claimConfigured } =
         useClaimAll();
@@ -300,10 +322,17 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds }: ChipsWal
                                     <span className="cw-action-icon"><IconClaim /></span>
                                     {claiming ? "Claiming" : "Claim"}
                                 </button>
-                                <Link href="/burn" onClick={onClose} className="cw-action">
+                                <button
+                                    type="button"
+                                    className="cw-action"
+                                    onClick={() => {
+                                        onClose();
+                                        onFeed?.();
+                                    }}
+                                >
                                     <span className="cw-action-icon"><IconFeed /></span>
                                     Feed
-                                </Link>
+                                </button>
                             </div>
 
                             <div className="cw-network">
@@ -311,6 +340,21 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds }: ChipsWal
                                 Base Sepolia
                                 {chipsAddress() ? ` · ${shortHex(chipsAddress() ?? "")}` : ""}
                             </div>
+
+                            {bal.chainMismatch && (
+                                <div className="cw-warn">
+                                    Wallet is on the wrong network. CHIPS reads Base Sepolia.
+                                    <button
+                                        type="button"
+                                        className="cw-copy"
+                                        style={{ marginLeft: 8 }}
+                                        onClick={() => bal.switchToChipsChain()}
+                                        disabled={bal.switching}
+                                    >
+                                        {bal.switching ? "Switching" : "Switch to Base Sepolia"}
+                                    </button>
+                                </div>
+                            )}
 
                             {!bal.configured ? (
                                 <div className="cw-warn">

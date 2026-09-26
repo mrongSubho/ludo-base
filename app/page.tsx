@@ -8,6 +8,7 @@ import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import NoticeStrip from './components/NoticeStrip';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
+import { BurnPanel } from './components/BurnPanel';
 import { BoardHeaderCompact } from './components/BoardHeaderCompact';
 import { FooterNavPanel } from './components/FooterNavPanel';
 
@@ -337,6 +338,7 @@ export default function Page() {
   }, [gameState?.isStarted, gameState?.isBotMatch, lobbyState?.status, appState, isHost]);
 
   const closeTab = () => setActiveTab(null);
+  const [burnOpen, setBurnOpen] = useState(false);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
   // First-run setup: re-check whenever identity flips (fresh connect / guest).
@@ -561,6 +563,7 @@ export default function Page() {
                     hasNotifications={notifCount > 0}
                     onMessagesClick={() => toggle('messages')}
                     onSettingsClick={() => toggle('settings')}
+                    onFeedClick={() => { closeTab(); setBurnOpen(true); }}
                 />
 
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
@@ -638,6 +641,9 @@ export default function Page() {
                 )}
                 {activeTab === 'settings' && (
                   <SettingsPanel key="settings" onClose={closeTab} />
+                )}
+                {burnOpen && (
+                  <BurnPanel key="burn" onClose={() => setBurnOpen(false)} />
                 )}
               </>
 

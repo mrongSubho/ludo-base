@@ -26,6 +26,7 @@ interface HeaderNavPanelProps {
     hasNotifications: boolean;
     onMessagesClick: () => void;
     onSettingsClick: () => void;
+    onFeedClick?: () => void;
 }
 
 export const HeaderNavPanel = ({
@@ -37,7 +38,8 @@ export const HeaderNavPanel = ({
     unreadCount,
     hasNotifications,
     onMessagesClick,
-    onSettingsClick
+    onSettingsClick,
+    onFeedClick
 }: HeaderNavPanelProps) => {
     const chips = useChipsBalance();
     const showChips = chips.configured && chips.isConnected;
@@ -132,7 +134,7 @@ export const HeaderNavPanel = ({
                 </div>
             </div>
 
-            <ChipsWalletPanel isOpen={walletOpen} onClose={() => setWalletOpen(false)} />
+            <ChipsWalletPanel isOpen={walletOpen} onClose={() => setWalletOpen(false)} onFeed={onFeedClick} />
         </header>
     );
 };
