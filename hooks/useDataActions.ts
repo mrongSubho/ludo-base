@@ -20,7 +20,8 @@ interface ActionProps {
     setupConnectionListeners: (conn: DataConnection) => void;
 }
 
-/** Ensure our static ECDH pubkey is on the players row. */
+/** Ensure our static ECDH pubkey is on the players row.
+ * Signs only from an explicit user action (Send). Never from panel open. */
 async function publishMyEcdhPubkey(
     walletAddress: string,
     signMessageAsync: (args: { account: `0x${string}`; message: string }) => Promise<`0x${string}`>,
@@ -33,13 +34,26 @@ async function publishMyEcdhPubkey(
         // Explicit account (matches the SIWE call): without it some
         // connectors resolve the active account ambiguously and reprompt.
         const signature = await signMessageAsync({ account: walletAddress as `0x${string}`, message });
-        await fetch('/api/profile/ecdh', {
+        const res = await fetch('/api/profile/ecdh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ walletAddress, publicKey: jwk, issuedAt, message, signature }),
         });
+        if (res.ok) {
+            try {
+                localStorage.setItem(`ludo-ecdh-published-${walletAddress.toLowerCase()}`, '1');
+            } catch { /* best-effort */ }
+        }
     } catch (err) {
         console.warn('Failed to publish ECDH pubkey', err);
+    }
+}
+
+function ecdhAlreadyPublished(walletAddress: string): boolean {
+    try {
+        return localStorage.getItem(`ludo-ecdh-published-${walletAddress.toLowerCase()}`) === '1';
+    } catch {
+        return false;
     }
 }
 
@@ -145,10 +159,12 @@ export const useDataActions = ({
             const dmSession = await ensureAppSession();
             if (dmSession) {
                 await getOrCreateIdentityKey(lowerAddr);
-                const localJwk = await exportPublicKeyJwk(lowerAddr);
-                const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
-                if (!serverJwk || JSON.stringify(serverJwk) !== JSON.stringify(localJwk)) {
-                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                if (!ecdhAlreadyPublished(lowerAddr)) {
+                    const localJwk = await exportPublicKeyJwk(lowerAddr);
+                    const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
+                    if (!serverJwk || JSON.stringify(serverJwk) !== JSON.stringify(localJwk)) {
+                        await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                    }
                 }
             }
             let peerJwk = await fetchPeerEcdhPubkey(targetId, dmSession, lowerAddr);
@@ -267,23 +283,11 @@ export const useDataActions = ({
         });
     }, [address, setMessages, ensureAppSession]);
 
-    /** Publish ECDH key only when a session is already cached (DM open must
-     * not popup). User gesture (first send) uses ensureAppSession instead. */
+    /** Never signs. DM open / boot use this only to warm caches if needed.
+     * Actual ECDH publish happens on first Send (user gesture). */
     const ensureEcdhPublished = useCallback(async () => {
-        if (!address) return;
-        const lowerAddr = address.toLowerCase();
-        try {
-            const dmSession = peekAppSession();
-            if (!dmSession) return;
-            await getOrCreateIdentityKey(lowerAddr);
-            const jwk = await exportPublicKeyJwk(lowerAddr);
-            const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
-            if (serverJwk && JSON.stringify(serverJwk) === JSON.stringify(jwk)) return;
-            await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
-        } catch (err) {
-            console.warn('ECDH publish check failed', err);
-        }
-    }, [address, peekAppSession, signMessageAsync]);
+        /* no-op: open-panel must not popup. See sendMessage(). */
+    }, []);
 
     return {
         updateMyProfileOptimistic,

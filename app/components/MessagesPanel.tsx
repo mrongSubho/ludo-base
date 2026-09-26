@@ -246,11 +246,8 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         }
     }, [initialChatId]);
 
-    // Publish our ECDH pubkey on entering messaging (iff the server lacks
-    // it) so idle recipients stay sealable. Never at boot. Silent on reject.
-    useEffect(() => {
-        if (address) ensureEcdhPublished().catch(() => undefined);
-    }, [address, ensureEcdhPublished]);
+    // ECDH publish moved to first Send (user gesture) only — opening the
+    // panel must never open a wallet popup (see useDataActions.sendMessage).
 
     // Reset selection if account changes
     useEffect(() => {
