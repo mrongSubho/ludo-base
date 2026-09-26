@@ -34,7 +34,7 @@ export function useChipsBalance() {
         short: shortHex(address),
         token,
         balance,
-        human: formatChips(balance),
+        human: balance != null ? formatChips(balance) : isConnected ? "—" : "0",
         configured: isChipsConfigured(),
         isConnected,
         refresh: () => refetch(),

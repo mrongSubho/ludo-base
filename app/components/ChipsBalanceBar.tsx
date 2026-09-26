@@ -49,9 +49,10 @@ export function ChipsBalanceBar({ claimablePoolIds, compact = false, className =
     if (!bal.configured) {
         return (
             <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 bg-black/30 text-[10px] uppercase tracking-wider text-white/40 ${className}`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-amber-500/30 bg-black/30 text-[10px] uppercase tracking-wider text-amber-200/80 ${className}`}
             >
-                CHIPS · env pending
+                CHIPS env not in client bundle — restart <code className="mx-1">npm run dev</code>
+                (NEXT_PUBLIC_CHIPS_ADDRESS + NEXT_PUBLIC_MATCH_POOL_ADDRESS)
             </div>
         );
     }
