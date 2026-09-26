@@ -69,7 +69,8 @@ test('G4 notices filter expiry and parse-or-drop', () => {
     });
     assert.ok(ok);
     assert.equal(ok!.notices.length, 1);
-    assert.ok(defaultSeedNotices().length >= 1);
+    // Fallback seed is empty — lobby never auto-loads internal ops drills.
+    assert.equal(defaultSeedNotices().length, 0);
 });
 
 test('G5 emotes are preset-only and parse-or-drop on the wire', () => {

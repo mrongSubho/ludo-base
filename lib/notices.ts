@@ -74,16 +74,11 @@ export function parseNoticeBundle(raw: unknown): SignedNoticeBundle | null {
     };
 }
 
-/** Local/dev seed when `/api/notices` is empty. Never includes product marketing. */
+/**
+ * Fallback when `/api/notices` is unreachable. Empty on purpose: lobby must
+ * never show internal ops drills / docs links. Real player-facing copy ships
+ * only via `NOTICE_BUNDLE_JSON` (maintenance, freezes, rules).
+ */
 export function defaultSeedNotices(): OpsNotice[] {
-    return [
-        {
-            id: 'netcode-drills',
-            level: 'info',
-            title: 'Netcode drills live',
-            body: 'Reconnect and resync drills run against every multiplayer build. See docs/ops/NETCODE_DRILLS.md.',
-            href: 'docs/ops/NETCODE_DRILLS.md',
-            issuedAt: '2026-09-22T00:00:00.000Z',
-        },
-    ];
+    return [];
 }

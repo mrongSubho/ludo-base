@@ -7,22 +7,12 @@ import {
 } from '@/lib/notices';
 
 /**
- * G4 live-ops notices. Static seed for now; swap `NOTICE_BUNDLE_JSON` env
- * for production drops. Signature covers the canonical message (content hash).
+ * G4 live-ops notices. Empty by default (no lobby noise). Production drops
+ * come from `NOTICE_BUNDLE_JSON`. Signature covers the canonical message.
  */
 export async function GET() {
-    const seed: OpsNotice[] = [
-        {
-            id: 'netcode-drills',
-            level: 'info',
-            title: 'Netcode drills live',
-            body: 'Reconnect and resync drills run against every multiplayer build.',
-            href: '/docs/ops/NETCODE_DRILLS.md',
-            issuedAt: '2026-09-22T00:00:00.000Z',
-        },
-    ];
-
-    let notices = filterActiveNotices(seed);
+    // No baked-in seed: internal drills/docs never belong on the player lobby.
+    let notices: OpsNotice[] = [];
 
     const raw = process.env.NOTICE_BUNDLE_JSON;
     if (raw) {
@@ -30,7 +20,7 @@ export async function GET() {
             const parsed = JSON.parse(raw) as SignedNoticeBundle;
             if (Array.isArray(parsed.notices)) notices = filterActiveNotices(parsed.notices);
         } catch {
-            /* keep seed */
+            /* stay empty */
         }
     }
 
