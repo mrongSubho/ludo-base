@@ -288,16 +288,16 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 
 ## 8. Phase plan
 
-### W0 — Decision & contracts (docs only) ✅ this document
+### W0 — Decision & contracts (docs only) ✅ **DONE** 2026-09-25
 
 - [ ] Product sign-off on §0 / §3 (one active wallet; no auto-merge)  
 - [ ] Update `SMART_WALLET_PLAN.md` status pointer to this file  
 
 ### W1 — In-game wallet vertical slice (frontend)
 
-- [ ] Gate: **Create in-game wallet** CTA (`NEXT_PUBLIC_WALLET_INGAME=1`)  
-- [ ] CDP email OTP + Google → `evmSmartAccountObjects[0]` as `wallet_address`  
-- [ ] `usePlayerSigner()` switch External / In-game  
+- [x] Gate: **Create in-game wallet** CTA (`NEXT_PUBLIC_WALLET_INGAME=1`) — `InGameWalletPanel` in `LudoWalletModal`  
+- [x] CDP email OTP + Google → `evmSmartAccountObjects[0]` via `resolvePlayerIdentity` (InGameWalletPanel)  
+- [x] `usePlayerSigner()` switch External / In-game — `hooks/usePlayerSigner.ts` + `lib/walletMode.ts`  
 - [ ] Ludo SIWE + one match EIP-712 **silent** (CDP)  
 - [ ] DM ECDH publish on first Send only (existing flag)  
 - [ ] No CHIPS value; no sub-accounts  

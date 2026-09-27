@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useConnect, Connector } from 'wagmi';
 import { IoClose } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
+import InGameWalletPanel from './InGameWalletPanel';
+import { isInGameWalletEnabled, writeWalletMode } from '@/lib/walletMode';
 
 interface LudoWalletModalProps {
     isOpen: boolean;
@@ -36,6 +38,7 @@ const WALLET_ICONS: Record<string, React.ReactNode> = {
 export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProps) {
     const { connect, connectors } = useConnect();
     const [mounted, setMounted] = useState(false);
+    const [showInGame, setShowInGame] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -44,6 +47,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
     /** Must run synchronously in onClick — no await before connect(). */
     const handleSignInWithBase = (e: React.MouseEvent) => {
         e.preventDefault();
+        writeWalletMode('external');
         const baseConn =
             connectors.find((c) => c.id === 'baseAccount' || c.type === 'baseAccount') ||
             connectors.find((c) => c.name.toLowerCase().includes('coinbase'));
@@ -53,6 +57,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
     };
 
     const handleConnect = (connector: Connector) => {
+        writeWalletMode('external');
         connect({ connector });
     };
 
@@ -155,6 +160,40 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     {WALLET_ICONS.base}
                                 </div>
                             </button>
+
+                            {isInGameWalletEnabled() && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowInGame((v) => !v)}
+                                        className="bg-white/[0.06] hover:bg-white/10 transition-colors"
+                                        style={{
+                                            width: '100%',
+                                            height: '50px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '0 16px',
+                                            borderRadius: '16px',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <span style={{ color: 'var(--modal-ink, #ffffff)', fontSize: '15px', fontWeight: 600, textTransform: 'none' }}>
+                                            Create in-game wallet
+                                        </span>
+                                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>email</span>
+                                    </button>
+                                    {showInGame && (
+                                        <InGameWalletPanel
+                                            onDone={() => {
+                                                setShowInGame(false);
+                                                onClose();
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            )}
 
                             <div style={{ padding: '12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                                 <div style={{ height: '1px', flex: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
