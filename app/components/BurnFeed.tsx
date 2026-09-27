@@ -5,7 +5,51 @@ import { useChainId, useReadContract, useAccount } from "wagmi";
 import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex } from "@/lib/chips";
 import { parseChainId, viemChainFor } from "@/lib/chains";
 
-/** Burn / supply explorer content (used by /burn and in-app Burn panel). */
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex items-center gap-2.5 mb-2">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+            {children}
+        </span>
+        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
+    </div>
+);
+
+function MetricRow({
+    label,
+    value,
+    hint,
+    tint = "bg-cyan-500/15 text-cyan-300",
+    icon,
+    last = false,
+}: {
+    label: string;
+    value: string;
+    hint?: string;
+    tint?: string;
+    icon?: React.ReactNode;
+    last?: boolean;
+}) {
+    return (
+        <div className={`flex items-center justify-between gap-3 p-3.5 ${last ? "" : "border-b border-white/5"}`}>
+            <div className="flex items-center gap-3 min-w-0">
+                {icon != null && (
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
+                        {icon}
+                    </div>
+                )}
+                <div className="flex flex-col min-w-0">
+                    <span className="text-[13px] font-bold text-white truncate">{label}</span>
+                    {hint && (
+                        <span className="text-[10px] font-bold text-white/35 truncate font-mono">{hint}</span>
+                    )}
+                </div>
+            </div>
+            <span className="text-[15px] font-black tabular-nums text-white shrink-0">{value}</span>
+        </div>
+    );
+}
+
+/** Burn / supply explorer — Settings-panel layout (section labels + divided cards). */
 export function BurnFeed() {
     const chainIdRaw = useChainId();
     const chainId = parseChainId(chainIdRaw) ?? 84532;
@@ -59,43 +103,77 @@ export function BurnFeed() {
     }, [chainId]);
 
     return (
-        <div className="text-white">
-            <h1 className="text-xl font-black uppercase tracking-widest mb-1">CHIPS · Burn & Explorer</h1>
-            <p className="text-xs text-white/40 mb-6 font-mono">
-                chain {chainId} · {chain.name}
-            </p>
+        <div className="flex flex-col gap-4">
+            <section>
+                <SectionLabel>Supply</SectionLabel>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                    <MetricRow
+                        icon={<span className="text-cyan-300 text-sm">Σ</span>}
+                        label="Total supply"
+                        value={totalSupply != null ? formatChips(totalSupply as bigint) : "—"}
+                        hint="B20 CHIPS"
+                    />
+                    <MetricRow
+                        icon={<span className="text-cyan-300 text-sm">◎</span>}
+                        label="Your balance"
+                        value={myBal != null ? formatChips(myBal as bigint) : "—"}
+                        hint={address ? shortHex(address) : "not connected"}
+                        last
+                    />
+                </div>
+            </section>
+
+            <section>
+                <SectionLabel>Sinks</SectionLabel>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                    <MetricRow
+                        tint="bg-rose-500/15 text-rose-300"
+                        icon={<span className="text-sm">↓</span>}
+                        label="Burned (MatchPool)"
+                        value={burned != null ? formatChips(burned) : "—"}
+                        hint="memo match:burn · market:burn"
+                    />
+                    <MetricRow
+                        tint="bg-amber-500/15 text-amber-300"
+                        icon={<span className="text-sm">⇄</span>}
+                        label="Protocol fees routed"
+                        value={fees != null ? formatChips(fees) : "—"}
+                        hint="memo match:fee"
+                        last
+                    />
+                </div>
+            </section>
+
+            <section>
+                <SectionLabel>Contracts</SectionLabel>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                    <MetricRow
+                        icon={<span className="text-cyan-300 text-sm">◆</span>}
+                        label="Token"
+                        value={shortHex(chips)}
+                        hint={`${explorer}/token/${chips ?? ""}`}
+                    />
+                    <MetricRow
+                        icon={<span className="text-cyan-300 text-sm">◆</span>}
+                        label="MatchPool"
+                        value={shortHex(pool)}
+                        hint={`${explorer}/address/${pool ?? ""}`}
+                        last
+                    />
+                </div>
+            </section>
 
             {!chips && (
-                <p className="text-sm text-amber-300">Set NEXT_PUBLIC_CHIPS_ADDRESS to load live data.</p>
+                <p className="text-[11px] font-bold text-amber-300/90 px-1">
+                    Set NEXT_PUBLIC_CHIPS_ADDRESS to load live data.
+                </p>
             )}
 
-            <div className="grid gap-3">
-                <Card label="Total supply" value={totalSupply != null ? formatChips(totalSupply as bigint) : "—"} />
-                <Card label="Your balance" value={myBal != null ? formatChips(myBal as bigint) : "—"} />
-                <Card
-                    label="Burned (MatchPool cumulative)"
-                    value={burned != null ? formatChips(burned) : "—"}
-                    hint="bytes32 memos: match:burn, market:burn, …"
-                />
-                <Card label="Protocol fees routed" value={fees != null ? formatChips(fees) : "—"} hint="memo match:fee" />
-                <Card label="Token" value={shortHex(chips)} hint={`${explorer}/token/${chips ?? ""}`} />
-                <Card label="MatchPool" value={shortHex(pool)} hint={`${explorer}/address/${pool ?? ""}`} />
-            </div>
-
-            <p className="mt-8 text-[11px] text-white/35 leading-relaxed">
-                Burn tags (pre-images of memo bytes32): match:burn · market:burn · forge:burn · vanity:burn ·
-                pass:burn · tour:forfeit · match:abandon · boost:burn · treasury:bb.
+            <p className="text-[10px] font-bold text-white/30 leading-relaxed px-1">
+                Burn tags: match:burn · market:burn · forge:burn · vanity:burn · pass:burn ·
+                tour:forfeit · match:abandon · boost:burn · treasury:bb. Live events land in
+                chips_events via the indexer worker.
             </p>
-        </div>
-    );
-}
-
-function Card({ label, value, hint }: { label: string; value: string; hint?: string }) {
-    return (
-        <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-            <div className="text-[10px] uppercase tracking-widest text-white/40">{label}</div>
-            <div className="text-lg font-black tabular-nums mt-1">{value}</div>
-            {hint && <div className="text-[10px] text-white/30 font-mono mt-1 break-all">{hint}</div>}
         </div>
     );
 }
