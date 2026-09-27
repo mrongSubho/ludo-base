@@ -290,8 +290,8 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 
 ### W0 — Decision & contracts (docs only) ✅ **DONE** 2026-09-25
 
-- [ ] Product sign-off on §0 / §3 (one active wallet; no auto-merge)  
-- [ ] Update `SMART_WALLET_PLAN.md` status pointer to this file  
+- [x] Product direction locked (dual-path + one active wallet; no auto-merge) — 2026-09-25  
+- [x] `SMART_WALLET_PLAN.md` points here (status superseded)  
 
 ### W1 — In-game wallet vertical slice (frontend)
 
@@ -300,8 +300,8 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [x] `usePlayerSigner()` switch External / In-game — `hooks/usePlayerSigner.ts` + `lib/walletMode.ts`  
 - [x] Ludo SIWE + match EIP-712 via `usePlayerSigner` (CDP 6492 parent / wagmi)  
 - [x] DM ECDH publish on first Send only (`usePlayerSigner.signMessageAsync`)  
-- [ ] No CHIPS value; no sub-accounts  
-- [ ] Copy: in-game ≠ Base app  
+- [x] No CHIPS value; no sub-accounts  
+- [x] Copy: in-game ≠ Base app (InGameWalletPanel + export notes)  
 - [x] **Passkey MFA:** Settings → Wallet (`WalletSecurityPanel`) — enroll / list / delete  
 - [x] **Export key:** Settings → Wallet → `useExportEvmAccount` (owner EOA + confirm copy)
 
@@ -324,8 +324,8 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [x] Route `personal_sign` / `eth_signTypedData_v4` → `usePlayerSigner` (CDP smart / external)
 - [x] Desktop: paste `wc:` URI + QR + `/wc?uri=` deep link
 - [x] Base / Base Sepolia only; no auto-approve (explicit Sign / Reject)
-- [ ] `wallet_sendCalls` / UserOp path (W4 / later)
-- [ ] Phone camera scan QR (PWA later)
+- [x] `eth_sendTransaction` (external wagmi); `wallet_sendCalls` / UserOp = **W4** explicit reject
+- [x] Phone camera scan QR — `QrScanButton` (html5-qrcode) + file picker
 
 ### W4 — CHIPS rails (after stable-build + CHIPS un-park)
 

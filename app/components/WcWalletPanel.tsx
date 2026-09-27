@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import QRCode from "qrcode";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { useSendTransaction } from "wagmi";
+import QrScanButton from "./QrScanButton";
 import {
     buildApproveSession,
     getWalletKit,
@@ -19,6 +21,7 @@ import {
  */
 export default function WcWalletPanel() {
     const player = usePlayerSigner();
+    const { sendTransactionAsync } = useSendTransaction();
     const [uri, setUri] = useState("");
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
@@ -193,6 +196,23 @@ export default function WcWalletPanel() {
                             primaryType: parsed.primaryType,
                             message: parsed.message,
                         });
+                    } else if (req.method === "eth_sendTransaction") {
+                        if (player.mode !== "external") {
+                            throw new Error(
+                                "eth_sendTransaction for in-game wallet ships with CHIPS W4 (UserOp)",
+                            );
+                        }
+                        const tx = Array.isArray(req.params) ? req.params[0] : req.params;
+                        result = await sendTransactionAsync({
+                            account: address as `0x${string}`,
+                            to: tx.to as `0x${string}`,
+                            value: tx.value ? BigInt(tx.value) : undefined,
+                            data: tx.data as `0x${string}` | undefined,
+                        });
+                    } else if (req.method === "wallet_sendCalls" || req.method === "wallet_sendCalls") {
+                        throw new Error(
+                            `${req.method} (batch / UserOp) ships with CHIPS W4 — use personal_sign / typed data / eth_sendTransaction for now`,
+                        );
                     } else {
                         throw new Error(`Method ${req.method} not supported in W5 v1`);
                     }
@@ -254,6 +274,14 @@ export default function WcWalletPanel() {
                     >
                         Pair
                     </button>
+                </div>
+                <div className="mt-2">
+                    <QrScanButton
+                        onScan={(u) => {
+                            setUri(u);
+                            void showQrFor(u);
+                        }}
+                    />
                 </div>
                 {qrData && (
                     <img src={qrData} alt="WalletConnect URI QR" className="mt-2 rounded-lg bg-white p-1" width={140} height={140} />
