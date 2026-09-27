@@ -74,7 +74,6 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
 
     if (!mounted) return null;
 
-    const coinbaseConnector = connectors.find(c => c.name.toLowerCase().includes('coinbase'));
     const metamaskConnector = connectors.find(c => c.name.toLowerCase().includes('metamask'));
     const phantomConnector = connectors.find(c => c.name.toLowerCase().includes('phantom'));
 
@@ -203,9 +202,9 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {[
-                                    { connector: coinbaseConnector, name: 'Coinbase Wallet' },
+                                    // W2 gate: Base is primary (above). Secondary = MM + Phantom only.
                                     { connector: metamaskConnector, name: 'MetaMask' },
-                                    { connector: phantomConnector, name: 'Phantom' }
+                                    { connector: phantomConnector, name: 'Phantom' },
                                 ].map((item) => (
                                     item.connector && (
                                         <button

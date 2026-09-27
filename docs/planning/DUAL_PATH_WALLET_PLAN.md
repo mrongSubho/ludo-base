@@ -305,11 +305,11 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [x] **Passkey MFA:** Settings → Wallet (`WalletSecurityPanel`) — enroll / list / delete  
 - [x] **Export key:** Settings → Wallet → `useExportEvmAccount` (owner EOA + confirm copy)
 
-### W2 — External polish (parallel)
+### W2 — External polish
 
-- [ ] `baseAccount` + MM/Phantom only in gate (hide unused WC if desired)  
-- [ ] `wallet_connect` on click; nonce prefetch (done)  
-- [ ] Popup storm regression: DM / Quick Match / boot = no sign  
+- [x] `baseAccount` + MM/Phantom only in gate (Coinbase Wallet row hidden — Base CTA covers it; WC/safe not in gate)  
+- [x] `wallet_connect` on click; nonce prefetch (done)  
+- [x] Popup storm regression: DM / Quick Match / boot = no sign (`peekAppSession` on boot/inbox/presence)
 
 ### W3 — Optional link + switcher
 
