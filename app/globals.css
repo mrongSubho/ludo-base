@@ -382,7 +382,7 @@ body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rg
 body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 165, 183, 0.20); }
 
 /* ─── Daybreak chrome: header pills ─── */
-body.theme-daybreak .ludo-header-scope > div { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
 body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
 body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0e7490; }
@@ -6921,7 +6921,7 @@ body.theme-daybreak .ludo-header-scope {
   position: relative;
   z-index: 300;
 }
-body.theme-daybreak .ludo-header-scope > div {
+body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) {
   background: #FFFFFF !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;

@@ -6,57 +6,104 @@ import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex 
 import { parseChainId, viemChainFor } from "@/lib/chains";
 import { useIsDaybreak } from "./GamePanelShell";
 
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] cw-muted font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-    </div>
-);
+function useBurnPaint() {
+    const daybreak = useIsDaybreak();
+    return {
+        daybreak,
+        ink: daybreak ? "#0A0B0D" : "#F5F7FA",
+        muted: daybreak ? "#5B616E" : "#9AA3B2",
+        faint: daybreak ? "rgba(10,11,13,0.45)" : "rgba(245,247,250,0.38)",
+        card: daybreak ? "#FFFFFF" : "#161B24",
+        line: daybreak ? "rgba(10,11,13,0.10)" : "rgba(255,255,255,0.10)",
+        blue: daybreak ? "#0052FF" : "#3B82F6",
+        blueSoft: daybreak ? "rgba(0,82,255,0.10)" : "rgba(59,130,246,0.14)",
+        red: daybreak ? "#C62828" : "#F87171",
+        redSoft: daybreak ? "rgba(198,40,40,0.10)" : "rgba(248,113,113,0.12)",
+        amber: daybreak ? "#B45309" : "#FBBF24",
+        amberSoft: daybreak ? "rgba(180,83,9,0.10)" : "rgba(251,191,36,0.12)",
+    };
+}
+
+function SectionLabel({ children, p }: { children: React.ReactNode; p: ReturnType<typeof useBurnPaint> }) {
+    return (
+        <div className="flex items-center gap-2.5 mb-2">
+            <span
+                className="px-2 py-0.5 rounded-md text-[10px] font-black tracking-[0.18em] font-mono uppercase"
+                style={{ background: p.blueSoft, color: p.blue, border: `1px solid ${p.line}` }}
+            >
+                {children}
+            </span>
+            <div className="flex-1 h-px" style={{ background: p.line }} />
+        </div>
+    );
+}
 
 function MetricRow({
     label,
     value,
     hint,
-    tint = "bg-cyan-500/15 cw-accent",
     icon,
-    last = false,
+    iconBg,
+    iconColor,
+    p,
+    last,
 }: {
     label: string;
     value: string;
     hint?: string;
-    tint?: string;
     icon?: React.ReactNode;
+    iconBg?: string;
+    iconColor?: string;
+    p: ReturnType<typeof useBurnPaint>;
     last?: boolean;
 }) {
     return (
-        <div className={`flex items-center justify-between gap-3 p-3.5 ${last ? "" : "border-b border-white/5"}`}>
-            <div className="flex items-center gap-3 min-w-0">
-                {icon != null && (
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-                        {icon}
+        <div
+            className="flex items-center gap-3 p-3.5"
+            style={{ borderBottom: last ? "none" : `1px solid ${p.line}` }}
+        >
+            {icon != null && (
+                <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold"
+                    style={{ background: iconBg ?? p.blueSoft, color: iconColor ?? p.blue }}
+                >
+                    {icon}
+                </div>
+            )}
+            <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-bold truncate" style={{ color: p.ink }}>
+                    {label}
+                </div>
+                {hint && (
+                    <div className="text-[10px] font-bold font-mono truncate mt-0.5" style={{ color: p.faint }}>
+                        {hint}
                     </div>
                 )}
-                <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-bold cw-ink truncate">{label}</span>
-                    {hint && (
-                        <span className="text-[10px] font-bold cw-faint truncate font-mono">{hint}</span>
-                    )}
-                </div>
             </div>
-            <span className="text-[15px] font-black tabular-nums cw-ink shrink-0">{value}</span>
+            <div
+                className="text-[14px] font-black tabular-nums shrink-0 text-right"
+                style={{ color: p.ink, maxWidth: "42%" }}
+            >
+                <span className="block truncate">{value}</span>
+            </div>
         </div>
     );
 }
 
-/** Burn / supply explorer — Settings-panel layout (section labels + divided cards). */
+function Card({ children, p }: { children: React.ReactNode; p: ReturnType<typeof useBurnPaint> }) {
+    return (
+        <div
+            className="rounded-2xl overflow-hidden"
+            style={{ background: p.card, border: `1px solid ${p.line}` }}
+        >
+            {children}
+        </div>
+    );
+}
+
+/** Burn / supply explorer — dual-theme (daybreak porcelain / retro night). */
 export function BurnFeed() {
-    const daybreak = useIsDaybreak();
-    const ink = daybreak ? "#0A0B0D" : "#F5F7FA";
-    const muted = daybreak ? "rgba(10,11,13,0.55)" : "rgba(245,247,250,0.5)";
-    const cardBg = daybreak ? "#FFFFFF" : "rgba(255,255,255,0.05)";
-    const cardBorder = daybreak ? "rgba(10,11,13,0.10)" : "rgba(255,255,255,0.10)";
+    const p = useBurnPaint();
     const chainIdRaw = useChainId();
     const chainId = parseChainId(chainIdRaw) ?? 84532;
     const chain = viemChainFor(chainId);
@@ -109,76 +156,83 @@ export function BurnFeed() {
     }, [chainId]);
 
     return (
-        <div className="flex flex-col gap-4" style={{ color: ink }}>
+        <div className="flex flex-col gap-4">
             <section>
-                <SectionLabel>Supply</SectionLabel>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                <SectionLabel p={p}>Supply</SectionLabel>
+                <Card p={p}>
                     <MetricRow
-                        icon={<span className="cw-accent text-sm">Σ</span>}
+                        p={p}
+                        icon="Σ"
                         label="Total supply"
                         value={totalSupply != null ? formatChips(totalSupply as bigint) : "—"}
                         hint="B20 CHIPS"
                     />
                     <MetricRow
-                        icon={<span className="cw-accent text-sm">◎</span>}
+                        p={p}
+                        last
+                        icon="◎"
                         label="Your balance"
                         value={myBal != null ? formatChips(myBal as bigint) : "—"}
                         hint={address ? shortHex(address) : "not connected"}
-                        last
                     />
-                </div>
+                </Card>
             </section>
 
             <section>
-                <SectionLabel>Sinks</SectionLabel>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                <SectionLabel p={p}>Sinks</SectionLabel>
+                <Card p={p}>
                     <MetricRow
-                        tint="bg-rose-500/15 text-rose-300"
-                        icon={<span className="text-sm">↓</span>}
+                        p={p}
+                        icon="↓"
+                        iconBg={p.redSoft}
+                        iconColor={p.red}
                         label="Burned (MatchPool)"
                         value={burned != null ? formatChips(burned) : "—"}
-                        hint="memo match:burn · market:burn"
+                        hint="match:burn · market:burn"
                     />
                     <MetricRow
-                        tint="bg-amber-500/15 text-amber-300"
-                        icon={<span className="text-sm">⇄</span>}
+                        p={p}
+                        last
+                        icon="⇄"
+                        iconBg={p.amberSoft}
+                        iconColor={p.amber}
                         label="Protocol fees routed"
                         value={fees != null ? formatChips(fees) : "—"}
-                        hint="memo match:fee"
-                        last
+                        hint="match:fee"
                     />
-                </div>
+                </Card>
             </section>
 
             <section>
-                <SectionLabel>Contracts</SectionLabel>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                <SectionLabel p={p}>Contracts</SectionLabel>
+                <Card p={p}>
                     <MetricRow
-                        icon={<span className="cw-accent text-sm">◆</span>}
+                        p={p}
+                        icon="◆"
                         label="Token"
                         value={shortHex(chips)}
                         hint={`${explorer}/token/${chips ?? ""}`}
                     />
                     <MetricRow
-                        icon={<span className="cw-accent text-sm">◆</span>}
+                        p={p}
+                        last
+                        icon="◆"
                         label="MatchPool"
                         value={shortHex(pool)}
                         hint={`${explorer}/address/${pool ?? ""}`}
-                        last
                     />
-                </div>
+                </Card>
             </section>
 
             {!chips && (
-                <p className="text-[11px] font-bold text-amber-300/90 px-1">
+                <p className="text-[11px] font-bold px-1" style={{ color: p.amber }}>
                     Set NEXT_PUBLIC_CHIPS_ADDRESS to load live data.
                 </p>
             )}
 
-            <p className="text-[10px] font-bold cw-faint leading-relaxed px-1">
+            <p className="text-[10px] font-bold leading-relaxed px-1" style={{ color: p.faint }}>
                 Burn tags: match:burn · market:burn · forge:burn · vanity:burn · pass:burn ·
-                tour:forfeit · match:abandon · boost:burn · treasury:bb. Live events land in
-                chips_events via the indexer worker.
+                tour:forfeit · match:abandon · boost:burn · treasury:bb.
             </p>
         </div>
     );
