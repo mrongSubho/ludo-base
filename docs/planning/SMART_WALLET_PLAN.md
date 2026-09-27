@@ -4,20 +4,23 @@
 | --- | --- |
 | **Project** | Ludo Base |
 | **Document type** | Implementation plan — wallet/auth layer |
-| **Decision** | Stay on Coinbase accounts (no custom wallet factory); integrate via CDP frontend stack |
-| **Companion plans** | `docs/tokenomics/CHIPS_PLANNING.md` (§§4.6, 6.1, 8.7, 8.9) · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` |
-| **Status** | Approved direction — **Phase 1 Option A in progress** (Continue with Base; player id = Base Account). 0a GREEN. 0b/CHIPS rails still gated |
-| **Last updated** | 2026-09-24 |
+| **Decision** | Stay on Coinbase accounts (no custom factory). **Dual-path:** External wallet **or** in-game CDP wallet — see `docs/planning/DUAL_PATH_WALLET_PLAN.md` |
+| **Companion plans** | **`docs/planning/DUAL_PATH_WALLET_PLAN.md` (primary product)** · `docs/tokenomics/CHIPS_PLANNING.md` (§§4.6, 6.1, 8.7, 8.9) · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` |
+| **Status** | Superseded for identity UX by **DUAL_PATH_WALLET_PLAN** (2026-09-25). 0a GREEN. Technical notes below remain valid |
+| **Last updated** | 2026-09-25 |
 
 ---
 
 ## 0. Decision (locked)
 
-- **No custom smart-wallet factory.** Accounts stay Coinbase Smart Wallets (Base Accounts): same address in our app, on web (`keys.coinbase.com`), and in the Base app.
-- **One auth stack:** `@coinbase/cdp-hooks` (`CDPHooksProvider`, `createOnLogin: "smart"`, `enableSpendPermissions: true`). Do **not** run Base Account SDK + CDP embedded wallets as parallel account systems — users would end up with two different smart wallets. CDP supports "Sign in with Base" (`siwe:base`) linking, so Base-app users land in the same wallet.
-- **Recovery stays Coinbase's** (passkey managers, email OTP, recovery phrase, linked backup methods). We never touch keys, seeds, or recovery flows.
-- **Player identity is the parent Base Account.** See §1.1. Sub-accounts never appear as `wallet_address`.
-- **CHIPS join authorization stays CHIPS_PLANNING §4.6.** Spend permissions are not the primary join path. See §3.
+**2026-09-25 — dual-path (see `DUAL_PATH_WALLET_PLAN.md`):** users choose **External wallet** (Base Account / MetaMask / Phantom — their popups) **or** **In-game CDP wallet** (email/Google — our UI). One active `wallet_address` per session; no factory.
+
+- **No custom smart-wallet factory.**
+- **External:** Base Account via `baseAccount` connector (`wallet_connect`, branded `appName`/`appLogoUrl`); MM/Phantom via injected/WC.
+- **In-game:** `CDPHooksProvider` (`createOnLogin: "smart"`) — project-scoped smart account; **not** the Base app address (say so in copy).
+- **Recovery stays Coinbase's** (passkeys, email OTP, linked methods, export iframe). We never touch seeds.
+- **Never** persist owner EOA or sub-account as `wallet_address`.
+- **CHIPS join stays CHIPS_PLANNING §4.6** (exact-fee batch). Spend permissions are not the default join path.
 
 > **API surface note (2026-09-24, verified against docs.cdp.coinbase.com):** Packages `@coinbase/cdp-hooks` / `@coinbase/cdp-core` / `@coinbase/cdp-react`. Providers: `CDPHooksProvider` **and** `CDPReactProvider` both exist. Config: `projectId`, `ethereum.createOnLogin: "eoa" | "smart"` (smart creates **EOA + Smart Account**). Signing: `useSignEvmMessage` / `useSignEvmTypedData`. SIWE login: `useSignInWithSiwe` / `useVerifySiweSignature` / `siwe:base` (+ peer `@base-org/account`). OAuth: `signInWithOAuth("google"|"apple"|"x"|"telegram")` — **Facebook is not in CDP social login** (keep off the auth table until portal/docs confirm). Spend perms: `useCreateSpendPermission` / `useListSpendPermissions` / `useRevokeSpendPermission` (0b+). `useCdpPaymaster` is a **boolean on send**, not a hook. `wallet_addSubAccount` still 0b. Spike checklist: `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md`.
 
@@ -39,17 +42,20 @@
 
 ### 1.1 Identity (locked)
 
-**Product decision (2026-09-24): Option A — Base Account via Sign in with Base (`siwe:base`) is the player id.** Rejected: B (CDP-embedded only — never matches Base app); C (both + explicit linking — dual address class, claim/seat risk, more than “zero” server work).
+**Product decision (2026-09-25 — superseded by `DUAL_PATH_WALLET_PLAN.md`):** two modes, **one active wallet per session**.
+
+| Mode | `wallet_address` | Sign UX |
+| --- | --- | --- |
+| **External** | Base Account / MM / Phantom | Their wallet popups |
+| **In-game** | CDP embedded Smart Account | Our Ludo UI (silent / one sheet) |
 
 | Rule | Detail |
 | --- | --- |
-| **Player id = Base Account** (`siwe:base` / passkey) | The only value in `wallet_address`, seats, claims, host, ECDH. Same address in Ludo Base, `keys.coinbase.com`, and the Base app. |
-| **Email / SMS / Google / Apple / X** | Optional **auth methods on the same CDP user** only after Base Account is linked, or secondary sign-in that must resolve to the **linked Base Account** — never a second `wallet_address`. Phase 1 signup primary CTA: **Continue with Base**. |
-| **Sub-account = authorization convenience only** | Never `wallet_address` / seat / host / claimer / ECDH publisher |
-| **Sign identity-bearing proofs as the Base Account** | SIWE app session, match session EIP-712, move/pass/power/seed, match record, bet-resolve, settle EIP-712, ECDH. CDP-embedded path (if used for a linked user) still wraps CBSW 1.1 / `0xba5ed110…` 6492 (`hooks/useCdpParentSigner.ts`). |
-| **Sub-account re-register every session** | Safe **only because** identity is not the sub |
-| **CHIPS `seat = msg.sender`** | Parent/Base Account only — never a sub |
-| **One display address** | Base Account only; never owner EOA |
+| **One active id per session** | `session.wallet_address` = External connected **or** CDP smart — never both on one row without explicit link (W3) |
+| **In-game ≠ Base app** | Copy must say so; no fake “same as Base app” |
+| **Sub-account** | Never `wallet_address` / seat / host / claim / ECDH |
+| **Sign proofs as active parent/smart** | SIWE, match EIP-712, moves, record, ECDH — via `usePlayerSigner()` seam |
+| **CHIPS `seat = msg.sender`** | Must equal active `wallet_address` |
 
 If CDP's `defaultAccount: 'sub'` cannot sign as parent for personal_sign / EIP-712, **do not ship the sub default**. Phase 0a must prove "sign as parent" before any sub-account default is enabled.
 
