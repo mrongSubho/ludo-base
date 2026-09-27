@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { useChainId, useReadContract, useAccount } from "wagmi";
 import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex } from "@/lib/chips";
 import { parseChainId, viemChainFor } from "@/lib/chains";
+import { useIsDaybreak } from "./GamePanelShell";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
@@ -51,6 +52,11 @@ function MetricRow({
 
 /** Burn / supply explorer — Settings-panel layout (section labels + divided cards). */
 export function BurnFeed() {
+    const daybreak = useIsDaybreak();
+    const ink = daybreak ? "#0A0B0D" : "#F5F7FA";
+    const muted = daybreak ? "rgba(10,11,13,0.55)" : "rgba(245,247,250,0.5)";
+    const cardBg = daybreak ? "#FFFFFF" : "rgba(255,255,255,0.05)";
+    const cardBorder = daybreak ? "rgba(10,11,13,0.10)" : "rgba(255,255,255,0.10)";
     const chainIdRaw = useChainId();
     const chainId = parseChainId(chainIdRaw) ?? 84532;
     const chain = viemChainFor(chainId);
@@ -103,7 +109,7 @@ export function BurnFeed() {
     }, [chainId]);
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4" style={{ color: ink }}>
             <section>
                 <SectionLabel>Supply</SectionLabel>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">

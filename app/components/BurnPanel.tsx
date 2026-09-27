@@ -1,14 +1,17 @@
 "use client";
 
 import React from "react";
-import { GamePanelShell } from "./GamePanelShell";
+import { GamePanelShell, useIsDaybreak } from "./GamePanelShell";
 import { BurnFeed } from "./BurnFeed";
 
 /** In-app burn / explorer panel — same GamePanelShell as other game panels. */
 export function BurnPanel({ onClose }: { onClose: () => void }) {
+    const daybreak = useIsDaybreak();
+    const ink = daybreak ? "#0A0B0D" : "#F5F7FA";
     return (
         <GamePanelShell
             scopeClass="chips-burn-panel"
+            maxWidthPx={500}
             hideOrbs
             title={<>Feed · Burn & Explorer</>}
             subtitle={

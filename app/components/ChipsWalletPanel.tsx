@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { GamePanelShell } from "./GamePanelShell";
+import { GamePanelShell, useIsDaybreak } from "./GamePanelShell";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
 import { useClaimAll } from "@/hooks/useChipsPool";
 import { chipsAddress, shortHex } from "@/lib/chips";
@@ -14,14 +14,43 @@ interface ChipsWalletPanelProps {
     onFeed?: () => void;
 }
 
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] cw-muted font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-    </div>
-);
+function useWalletPaint() {
+    const daybreak = useIsDaybreak();
+    return {
+        daybreak,
+        ink: daybreak ? "#0A0B0D" : "#F5F7FA",
+        muted: daybreak ? "rgba(10,11,13,0.62)" : "rgba(245,247,250,0.55)",
+        faint: daybreak ? "rgba(10,11,13,0.45)" : "rgba(245,247,250,0.38)",
+        accent: daybreak ? "#0E7490" : "#5CE1FF",
+        cardBg: daybreak ? "#FFFFFF" : "rgba(255,255,255,0.06)",
+        cardBorder: daybreak ? "rgba(10,11,13,0.10)" : "rgba(255,255,255,0.12)",
+        btnBg: daybreak ? "#FFFFFF" : "rgba(255,255,255,0.08)",
+        primaryBg: daybreak ? "rgba(14,116,144,0.12)" : "rgba(34,211,238,0.18)",
+        primaryBorder: daybreak ? "rgba(14,116,144,0.4)" : "rgba(34,211,238,0.5)",
+        primaryInk: daybreak ? "#0E7490" : "#E8FFFB",
+    };
+}
+
+function SectionLabel({ children, paint }: { children: React.ReactNode; paint: ReturnType<typeof useWalletPaint> }) {
+    return (
+        <div className="flex items-center gap-2.5 mb-2">
+            <span
+                className="px-2 py-0.5 rounded-md text-[10px] font-black tracking-[0.18em] font-mono uppercase"
+                style={{
+                    background: paint.cardBg,
+                    border: `1px solid ${paint.cardBorder}`,
+                    color: paint.muted,
+                }}
+            >
+                {children}
+            </span>
+            <div
+                className="flex-1 h-px"
+                style={{ background: `linear-gradient(to right, ${paint.cardBorder}, transparent)` }}
+            />
+        </div>
+    );
+}
 
 function IconRefresh() {
     return (
@@ -50,49 +79,8 @@ function IconFeed() {
     );
 }
 
-function ActionTile({
-    icon,
-    label,
-    primary,
-    disabled,
-    onClick,
-    title,
-}: {
-    icon: React.ReactNode;
-    label: string;
-    primary?: boolean;
-    disabled?: boolean;
-    onClick: () => void;
-    title?: string;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            title={title}
-            className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-all ${
-                primary
-                    ? "bg-cyan-500/20 border border-cyan-400/50 cw-accent hover:bg-cyan-500/30 disabled:opacity-45 disabled:hover:bg-cyan-500/20"
-                    : "bg-white/[0.04] border border-white/10 cw-ink hover:bg-white/[0.08] disabled:opacity-50"
-            }`}
-        >
-            <span
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    primary
-                        ? "bg-cyan-400/30 cw-accent shadow-[0_0_16px_rgba(34,211,238,0.35)]"
-                        : "bg-white/10 cw-accent"
-                }`}
-            >
-                {icon}
-            </span>
-            <span className="text-[11px] font-black uppercase tracking-[0.12em]">{label}</span>
-        </button>
-    );
-}
-
-/** In-game CHIPS wallet — GamePanelShell + Settings-style sections. */
 export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: ChipsWalletPanelProps) {
+    const paint = useWalletPaint();
     const bal = useChipsBalance();
     const { claimMany, isPending: claiming, error: claimError, configured: claimConfigured } =
         useClaimAll();
@@ -122,6 +110,14 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
 
     const claimReady = Boolean(claimablePoolIds?.length);
 
+    const tile = (primary?: boolean): React.CSSProperties => ({
+        background: primary ? paint.primaryBg : paint.cardBg,
+        border: `1px solid ${primary ? paint.primaryBorder : paint.cardBorder}`,
+        color: primary ? paint.primaryInk : paint.ink,
+        borderRadius: 12,
+        opacity: 1,
+    });
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -134,63 +130,66 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                 >
                     <GamePanelShell
                         scopeClass="chips-wallet-panel"
-                        maxWClass="max-w-[420px]"
                         maxWidthPx={420}
                         hideOrbs
                         title={
                             <>
-                                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]" />
-                                CHIPS Wallet
+                                <span
+                                    className="w-2.5 h-2.5 rounded-full"
+                                    style={{ background: paint.accent, boxShadow: `0 0 10px ${paint.accent}` }}
+                                />
+                                <span style={{ color: paint.ink }}>CHIPS Wallet</span>
                             </>
                         }
                         subtitle={
                             <>
-                                <span className="text-[11px] font-black cw-accent tracking-wide uppercase">
+                                <span className="text-[11px] font-black tracking-wide uppercase" style={{ color: paint.accent }}>
                                     Pull-based prizes
                                 </span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-[11px] font-black cw-muted tracking-wide uppercase">
+                                <span className="w-0.5 h-0.5 rounded-full" style={{ background: paint.faint }} />
+                                <span className="text-[11px] font-black tracking-wide uppercase" style={{ color: paint.muted }}>
                                     Base Sepolia
                                 </span>
                             </>
                         }
                         onClose={onClose}
                     >
-                        {/* Balance */}
                         <section>
-                            <SectionLabel>Balance</SectionLabel>
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5">
-                                <div className="text-[10px] font-black uppercase tracking-widest cw-faint">
+                            <SectionLabel paint={paint}>Balance</SectionLabel>
+                            <div
+                                className="rounded-2xl p-3.5"
+                                style={{ background: paint.cardBg, border: `1px solid ${paint.cardBorder}` }}
+                            >
+                                <div className="text-[10px] font-black uppercase tracking-widest" style={{ color: paint.muted }}>
                                     Total balance
                                 </div>
                                 <div className="mt-1 flex items-baseline gap-2">
-                                    <span className="text-[36px] leading-none font-black cw-ink tabular-nums">
+                                    <span className="text-[36px] leading-none font-black tabular-nums" style={{ color: paint.ink }}>
                                         {bal.configured ? bal.human : "—"}
                                     </span>
-                                    <span className="text-[11px] font-black uppercase tracking-[0.14em] cw-accent">
+                                    <span className="text-[11px] font-black uppercase tracking-[0.14em]" style={{ color: paint.accent }}>
                                         CHIPS
                                     </span>
                                 </div>
                             </div>
                         </section>
 
-                        {/* Account */}
                         <section>
-                            <SectionLabel>Account</SectionLabel>
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                <div className="flex items-center gap-3 p-3.5">
+                            <SectionLabel paint={paint}>Account</SectionLabel>
+                            <div
+                                className="rounded-2xl overflow-hidden"
+                                style={{ background: paint.cardBg, border: `1px solid ${paint.cardBorder}` }}
+                            >
+                                <div className="flex items-center gap-3 p-3.5" style={{ borderBottom: `1px solid ${paint.cardBorder}` }}>
                                     <div
                                         className="w-9 h-9 rounded-xl flex-shrink-0"
-                                        style={{
-                                            background:
-                                                "linear-gradient(135deg, #0052FF 0%, #6B8CFF 55%, #A8C0FF 100%)",
-                                        }}
+                                        style={{ background: "linear-gradient(135deg, #0052FF 0%, #6B8CFF 55%, #A8C0FF 100%)" }}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-[13px] font-bold cw-ink truncate">
+                                        <div className="text-[13px] font-bold truncate" style={{ color: paint.ink }}>
                                             {bal.address ? shortHex(bal.address) : "Not connected"}
                                         </div>
-                                        <div className="text-[10px] font-bold cw-faint truncate">
+                                        <div className="text-[10px] font-bold truncate" style={{ color: paint.faint }}>
                                             {copied ? "Copied to clipboard" : "Tap copy for full address"}
                                         </div>
                                     </div>
@@ -198,19 +197,24 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                         type="button"
                                         onClick={copyAddress}
                                         disabled={!bal.address}
-                                        className="px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/10 cw-ink text-[10px] font-black uppercase tracking-wider ring-1 ring-white/10 disabled:opacity-40 shrink-0"
+                                        className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shrink-0"
+                                        style={{
+                                            background: paint.btnBg,
+                                            color: paint.ink,
+                                            border: `1px solid ${paint.cardBorder}`,
+                                        }}
                                     >
                                         Copy
                                     </button>
                                 </div>
                                 <div className="flex items-center justify-between gap-3 p-3.5">
                                     <div className="min-w-0">
-                                        <div className="text-[13px] font-bold cw-ink">Token</div>
-                                        <div className="text-[10px] font-bold cw-faint font-mono truncate">
+                                        <div className="text-[13px] font-bold" style={{ color: paint.ink }}>Token</div>
+                                        <div className="text-[10px] font-bold font-mono truncate" style={{ color: paint.faint }}>
                                             {chipsAddress() ? shortHex(chipsAddress() ?? "") : "—"}
                                         </div>
                                     </div>
-                                    <span className="text-[12px] font-black tabular-nums cw-ink shrink-0">
+                                    <span className="text-[12px] font-black tabular-nums shrink-0" style={{ color: paint.ink }}>
                                         B20
                                     </span>
                                 </div>
@@ -219,13 +223,19 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
 
                         {bal.chainMismatch && (
                             <section>
-                                <SectionLabel>Network</SectionLabel>
-                                <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3.5 flex items-center justify-between gap-3">
+                                <SectionLabel paint={paint}>Network</SectionLabel>
+                                <div
+                                    className="rounded-2xl p-3.5 flex items-center justify-between gap-3"
+                                    style={{
+                                        background: paint.daybreak ? "rgba(180,83,9,0.10)" : "rgba(251,191,36,0.12)",
+                                        border: `1px solid ${paint.daybreak ? "rgba(180,83,9,0.35)" : "rgba(251,191,36,0.35)"}`,
+                                    }}
+                                >
                                     <div className="min-w-0">
-                                        <div className="text-[13px] font-bold text-amber-100">
+                                        <div className="text-[13px] font-bold" style={{ color: paint.daybreak ? "#92400E" : "#FDE68A" }}>
                                             Wrong network
                                         </div>
-                                        <div className="text-[10px] font-bold text-amber-100/70">
+                                        <div className="text-[10px] font-bold" style={{ color: paint.daybreak ? "rgba(146,64,14,0.8)" : "rgba(253,230,138,0.75)" }}>
                                             CHIPS reads Base Sepolia
                                         </div>
                                     </div>
@@ -233,7 +243,11 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                         type="button"
                                         onClick={() => bal.switchToChipsChain()}
                                         disabled={bal.switching}
-                                        className="px-3 py-2 rounded-xl bg-amber-300/20 text-amber-50 font-black uppercase text-[10px] tracking-wider shrink-0"
+                                        className="px-3 py-2 rounded-xl font-black uppercase text-[10px] tracking-wider shrink-0"
+                                        style={{
+                                            background: paint.daybreak ? "rgba(180,83,9,0.15)" : "rgba(251,191,36,0.2)",
+                                            color: paint.daybreak ? "#92400E" : "#FEF3C7",
+                                        }}
                                     >
                                         {bal.switching ? "Switching" : "Switch"}
                                     </button>
@@ -243,65 +257,109 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
 
                         {!bal.configured ? (
                             <section>
-                                <SectionLabel>Setup</SectionLabel>
-                                <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3.5 text-[12px] font-medium text-amber-100">
-                                    Wallet env missing — restart <code className="font-bold">npm run dev</code>{" "}
-                                    with NEXT_PUBLIC_CHIPS_ADDRESS and NEXT_PUBLIC_MATCH_POOL_ADDRESS.
+                                <SectionLabel paint={paint}>Setup</SectionLabel>
+                                <div
+                                    className="rounded-2xl p-3.5 text-[12px] font-medium"
+                                    style={{
+                                        background: paint.daybreak ? "rgba(180,83,9,0.10)" : "rgba(251,191,36,0.12)",
+                                        border: `1px solid ${paint.daybreak ? "rgba(180,83,9,0.35)" : "rgba(251,191,36,0.35)"}`,
+                                        color: paint.daybreak ? "#92400E" : "#FDE68A",
+                                    }}
+                                >
+                                    Wallet env missing — restart <code className="font-bold">npm run dev</code> with
+                                    NEXT_PUBLIC_CHIPS_ADDRESS and NEXT_PUBLIC_MATCH_POOL_ADDRESS.
                                 </div>
                             </section>
                         ) : (
                             <>
                                 <section>
-                                    <SectionLabel>Actions</SectionLabel>
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 grid grid-cols-3 gap-3">
-                                        <ActionTile
-                                            icon={<IconRefresh />}
-                                            label={bal.refreshing ? "Sync" : "Refresh"}
-                                            disabled={bal.refreshing}
+                                    <SectionLabel paint={paint}>Actions</SectionLabel>
+                                    <div
+                                        className="rounded-2xl p-3 grid grid-cols-3 gap-3"
+                                        style={{ background: paint.cardBg, border: `1px solid ${paint.cardBorder}` }}
+                                    >
+                                        <button
+                                            type="button"
                                             onClick={() => void bal.refresh()}
-                                        />
-                                        <ActionTile
-                                            icon={<IconClaim />}
-                                            label={claiming ? "Claiming" : "Claim"}
-                                            primary
-                                            disabled={claiming || !claimConfigured || !claimReady}
-                                            title={
-                                                claimReady
-                                                    ? "Claim settled match prizes"
-                                                    : "No settled prize in this session"
-                                            }
+                                            disabled={bal.refreshing}
+                                            className="flex flex-col items-center gap-2 py-4"
+                                            style={{ ...tile(false), opacity: bal.refreshing ? 0.5 : 1 }}
+                                        >
+                                            <span
+                                                className="w-10 h-10 rounded-full flex items-center justify-center"
+                                                style={{ background: paint.btnBg, color: paint.accent }}
+                                            >
+                                                <IconRefresh />
+                                            </span>
+                                            <span className="text-[11px] font-black uppercase tracking-[0.12em]">
+                                                {bal.refreshing ? "Sync" : "Refresh"}
+                                            </span>
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={() => void onClaimAll()}
-                                        />
-                                        <ActionTile
-                                            icon={<IconFeed />}
-                                            label="Feed"
+                                            disabled={claiming || !claimConfigured || !claimReady}
+                                            title={claimReady ? "Claim settled match prizes" : "No settled prize in this session"}
+                                            className="flex flex-col items-center gap-2 py-4"
+                                            style={{
+                                                ...tile(true),
+                                                opacity: claiming || !claimConfigured || !claimReady ? 0.45 : 1,
+                                            }}
+                                        >
+                                            <span
+                                                className="w-10 h-10 rounded-full flex items-center justify-center"
+                                                style={{ background: paint.primaryBorder, color: paint.primaryInk }}
+                                            >
+                                                <IconClaim />
+                                            </span>
+                                            <span className="text-[11px] font-black uppercase tracking-[0.12em]">
+                                                {claiming ? "Claiming" : "Claim"}
+                                            </span>
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={() => {
                                                 onClose();
                                                 onFeed?.();
                                             }}
-                                        />
+                                            className="flex flex-col items-center gap-2 py-4"
+                                            style={tile(false)}
+                                        >
+                                            <span
+                                                className="w-10 h-10 rounded-full flex items-center justify-center"
+                                                style={{ background: paint.btnBg, color: paint.accent }}
+                                            >
+                                                <IconFeed />
+                                            </span>
+                                            <span className="text-[11px] font-black uppercase tracking-[0.12em]">Feed</span>
+                                        </button>
                                     </div>
                                 </section>
 
                                 <section>
-                                    <SectionLabel>Status</SectionLabel>
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                                    <SectionLabel paint={paint}>Status</SectionLabel>
+                                    <div
+                                        className="rounded-2xl overflow-hidden"
+                                        style={{ background: paint.cardBg, border: `1px solid ${paint.cardBorder}` }}
+                                    >
                                         <div className="flex items-start justify-between gap-3 p-3.5">
                                             <div className="min-w-0">
-                                                <div className="text-[13px] font-bold cw-ink">
+                                                <div className="text-[13px] font-bold" style={{ color: paint.ink }}>
                                                     Prize settlement
                                                 </div>
-                                                <div className="text-[10px] font-bold cw-faint leading-relaxed mt-0.5">
-                                                    Claim unlocks after the match dispute window.
-                                                    Offline games earn no CHIPS.
+                                                <div className="text-[10px] font-bold leading-relaxed mt-0.5" style={{ color: paint.faint }}>
+                                                    Claim unlocks after the match dispute window. Offline games earn no CHIPS.
                                                 </div>
                                             </div>
                                             <span
-                                                className={`shrink-0 text-[10px] font-black uppercase tracking-[0.14em] px-2.5 py-1 rounded-full border ${
-                                                    claimReady
-                                                        ? "border-emerald-400/50 text-emerald-200 bg-emerald-400/10"
-                                                        : "border-white/15 cw-faint bg-white/5"
-                                                }`}
+                                                className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] px-2.5 py-1 rounded-full"
+                                                style={{
+                                                    background: claimReady
+                                                        ? paint.daybreak ? "rgba(21,128,61,0.12)" : "rgba(52,211,153,0.12)"
+                                                        : paint.btnBg,
+                                                    border: `1px solid ${claimReady ? "#15803D" : paint.cardBorder}`,
+                                                    color: claimReady ? (paint.daybreak ? "#15803D" : "#6EE7B7") : paint.muted,
+                                                }}
                                             >
                                                 {claimReady ? "Prize ready" : "Idle"}
                                             </span>
@@ -310,7 +368,7 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                 </section>
 
                                 {(note || claimError || bal.error) && (
-                                    <div className="text-[11px] font-bold text-red-300/90 px-1">
+                                    <div className="text-[11px] font-bold px-1" style={{ color: "#F87171" }}>
                                         {note || claimError || bal.error}
                                     </div>
                                 )}
