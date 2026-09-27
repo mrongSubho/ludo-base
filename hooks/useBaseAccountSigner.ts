@@ -148,7 +148,7 @@ export function useBaseAccountSigner(): WalletSigner & {
                 method: "personal_sign",
                 params: [messageHex, args.account],
             })) as string;
-            return signature;
+            return signature as `0x${string}`;
         },
         [],
     );
@@ -187,7 +187,7 @@ export function useBaseAccountSigner(): WalletSigner & {
                 method: "eth_signTypedData_v4",
                 params: [args.account, JSON.stringify(payload)],
             })) as string;
-            return signature;
+            return signature as `0x${string}`;
         },
         [],
     );

@@ -73,7 +73,7 @@ export function useCdpParentSigner(defaultChainId = 84532): WalletSigner & {
                 chainId: defaultChainId,
             });
             const signature = await account.signMessage({ message: args.message });
-            return signature as string;
+            return signature as `0x${string}`;
         },
         [address, ownerEoa, defaultChainId],
     );
@@ -103,7 +103,7 @@ export function useCdpParentSigner(defaultChainId = 84532): WalletSigner & {
                 primaryType: args.primaryType,
                 message: args.message,
             } as TypedDataDefinition);
-            return signature as string;
+            return signature as `0x${string}`;
         },
         [address, ownerEoa, defaultChainId],
     );
