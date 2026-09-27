@@ -7,7 +7,7 @@
 | **Decision** | **Two first-class modes:** (1) **External wallet** (Base Account / MetaMask / Phantom) for users who want their own wallet; (2) **In-game CDP wallet** (email/Google/Apple/X) — fully themed, Coinbase-custodied keys, no extension required |
 | **Supersedes** | Identity-only-Base-Account lock in `SMART_WALLET_PLAN.md` §1.1 (Option A alone). Recovery of “Option C dual-id risk” is solved by **mode = one wallet per session** (see §3) |
 | **Companion** | `SMART_WALLET_PLAN.md` · `PHASE_0A_SPIKE_CHECKLIST.md` · `CHIPS_PLANNING.md` §4.6 |
-| **Status** | Draft — product OK to implement Phase W0–W1 |
+| **Status** | **Approved** — Mode B = **CDP Smart Account** + **Ludo = WalletConnect wallet** (portability). Implement W1 → W5 |
 | **Last updated** | 2026-09-25 |
 
 ---
@@ -19,7 +19,7 @@ Users pick **how they play**, not “which chain address class”:
 | Mode | Who it’s for | Identity (`wallet_address`) | Sign UX | Popups |
 | --- | --- | --- | --- | --- |
 | **A · External wallet** | Base app / MetaMask / Phantom users | Connected EOA or Base Smart Account | **Their** wallet (keys.coinbase.com, MM, Phantom) | Their popups + our `appName`/`appLogoUrl` on Base |
-| **B · In-game wallet** | “Just let me play” / mobile web / no extension | **CDP embedded Smart Account** (project-scoped) | **Our** Ludo UI (usually no Coinbase popup) | Almost none; Coinbase only for OTP mail + key export iframe |
+| **B · In-game wallet** | “Just let me play” / no extension | **CDP Smart Account** `0x221A…` (project-scoped CBSW) | **Our** Ludo UI + **Ludo as WalletConnect wallet** for third-party dapps | Almost none in-game; WC QR/URI for other dapps |
 
 **Not a fork of player progression unless the user links (optional, later).**  
 Default: **one active wallet per session** = the only `wallet_address` we write.
@@ -214,19 +214,48 @@ Enroll UI: our Ludo sheet → `enrollPasskey()` (or `@coinbase/cdp-react` `Enrol
 | Item | Spec |
 | --- | --- |
 | **API** | `useExportEvmAccount` → `createEvmKeyExportIframe` / `exportEvmAccount({ evmAccount })` |
-| **UI chrome** | **Coinbase secure iframe only** — we cannot re-skin the export surface |
-| **Entry** | Settings → Wallet → **Export private key** (danger zone; confirm copy) |
-| **MFA** | If passkey/TOTP MFA enrolled, export is **MFA-protected** (good) |
-| **Result** | User gets **private key** of the CDP **EOA owner** (export returns `privateKey`); they can import into MetaMask etc. |
-| **Not** | Seed phrase import into CDP · silent export · our own hex display of the key |
-| **Copy** | “This reveals a private key. Anyone with it controls this in-game wallet. Prefer keeping it here.” |
-| **Smart account** | Export is the **owner EOA** key that controls the smart account — document that; funds may live on the smart address |
+| **UI chrome** | **Coinbase secure iframe only** |
+| **Entry** | Settings → Wallet → **Export private key** (danger zone) |
+| **MFA** | If passkey/TOTP MFA enrolled, export is **MFA-protected** |
+| **Result** | **Owner EOA** private key — MetaMask import shows **`0x6e11…`**, **not** smart `0x221A…` |
+| **Not** | Seed import · MM parity for smart address |
 
-No seed/private-key **import** in CDP — existing MetaMask/Phantom seeds stay **Mode A (External)**.
+**Portability (2026-09-25):** do **not** require MetaMask to “show” `0x221A…`. Third-party dapps use **Ludo as WalletConnect wallet** (§5.7 / W5). Export remains a raw-key escape hatch only.
 
 ### 5.6 What stays Coinbase
 
-OTP delivery, TEE keys, **key-export iframe**, MFA (passkey/TOTP/SMS) ceremony, device limits (~5), recovery.
+OTP delivery, TEE keys, **key-export iframe**, MFA ceremony, device limits (~5), recovery.
+
+### 5.7 Ludo as WalletConnect **wallet** (portability — locked)
+
+```text
+Third-party dapp (Uniswap, etc.)
+        │  WalletConnect QR / wc: URI
+        ▼
+Ludo Base (we are the WALLET — WalletKit / web3wallet)
+        │  approve session → sign / sendUserOperation
+        ▼
+CDP Smart Account 0x221A… (createOnLogin: "smart")
+```
+
+| Item | Spec |
+| --- | --- |
+| **Protocol** | Reown **WalletKit** / WalletConnect **web3wallet** (wallet role, not dapp) |
+| **Chains (v1)** | Base / Base Sepolia only |
+| **Sign path** | CDP: `signEvmMessage` / `signEvmTypedData` / `sendUserOperation` as **smart** `0x221A…` |
+| **Desktop UX** | Show QR + copy `wc:` link; open `https://…/wc?uri=` |
+| **Phone UX** | PWA / later RN: scan QR or open deep link |
+| **Security** | Never auto-approve; show dapp origin, chain, method, value; rate-limit; user gesture for approve |
+| **Batch** | Prefer EIP-5792 / UserOp batch when dapp supports |
+| **Out of scope v1** | Solana WC · multi-chain · browser extension |
+
+**What this replaces:** “export to MetaMask to use Uniswap.” Users keep `0x221A…` and **use it** on other dapps **through Ludo**.
+
+| Portability | Path |
+| --- | --- |
+| Third-party dapps | **WalletConnect wallet (W5)** — primary |
+| Raw key / cold exit | Export owner EOA (MM shows EOA only) |
+| External-native users | Mode A (their own MM / Base / Phantom) |
 
 ---
 
@@ -288,6 +317,15 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [ ] Profile switcher: In-game ↔ External (session-scoped `wallet_address`)  
 - [ ] Progression merge policy (product)  
 
+### W5 — Ludo = WalletConnect wallet (portability)
+
+- [ ] Reown WalletKit / web3wallet in Ludo (wallet role)  
+- [ ] Session approve UI (origin · chain · method · value)  
+- [ ] Route `personal_sign` / `eth_signTypedData_v4` / `wallet_sendCalls` → CDP smart `0x221A…`  
+- [ ] Desktop: QR + copy `wc:` URI + `/wc?uri=` deep link  
+- [ ] Base / Base Sepolia only; no auto-approve  
+- [ ] Post-W1 (needs Mode B live first)
+
 ### W4 — CHIPS rails (after stable-build + CHIPS un-park)
 
 - [ ] Mode-aware join/claim  
@@ -341,6 +379,7 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 | 2026-09-24 | Email OTP ≠ Base app address; CDP embedded is a different wallet |
 | **2026-09-25** | **Dual-path:** External (A + MM + Phantom) **and** In-game CDP wallet; one active `wallet_address` per session; optional link later |
 | **2026-09-25** | In-game security: **passkey = MFA after** email/Google/Apple (not primary login); **export key** via Coinbase secure iframe; **no** seed/private-key import |
+| **2026-09-25** | **Mode B locked = CDP Smart Account** (not EOA-only). MetaMask need not show `0x221A…` — third-party use = **Ludo as WalletConnect wallet (W5)**. Export = owner-key escape only |
 
 ---
 
