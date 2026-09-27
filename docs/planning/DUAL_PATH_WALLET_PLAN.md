@@ -313,9 +313,9 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 
 ### W3 — Optional link + switcher
 
-- [ ] Settings: link wallets (2-sig) + `wallet_links`  
-- [ ] Profile switcher: In-game ↔ External (session-scoped `wallet_address`)  
-- [ ] Progression merge policy (product)  
+- [x] Settings: link wallets (2-sig) + `wallet_links` — `WalletLinkPanel` + `app/api/wallet-links` + migration `202609250001_wallet_links.sql`
+- [x] Profile switcher: In-game ↔ External (session-scoped `wallet_mode`)
+- [x] Progression merge policy: **do not merge** at launch (API returns `progressionMerged: false`)
 
 ### W5 — Ludo = WalletConnect wallet (portability)
 

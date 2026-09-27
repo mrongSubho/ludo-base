@@ -10,6 +10,7 @@ import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
 import WalletSecurityPanel from './WalletSecurityPanel';
+import WalletLinkPanel from './WalletLinkPanel';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -506,6 +507,9 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                     <SectionLabel>Wallet</SectionLabel>
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                                         <WalletSecurityPanel />
+                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                            <WalletLinkPanel />
+                                        </div>
                                     </div>
                                 </section>
                             )}
