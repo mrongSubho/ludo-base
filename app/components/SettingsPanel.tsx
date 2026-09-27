@@ -12,6 +12,7 @@ import { PanelTabs } from './PanelTabs';
 import WalletSecurityPanel from './WalletSecurityPanel';
 import WalletLinkPanel from './WalletLinkPanel';
 import WcWalletPanel from './WcWalletPanel';
+import WalletShell from './WalletShell';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -502,17 +503,14 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 </p>
                             </section>
 
-                            {/* Wallet security (in-game CDP) — passkey MFA + export */}
+                            {/* R0 Wallet shell — home / send / receive / apps / security */}
                             {!inGame && !isGuest && (
                                 <section>
                                     <SectionLabel>Wallet</SectionLabel>
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                                        <WalletSecurityPanel />
+                                        <WalletShell />
                                         <div className="mt-4 pt-4 border-t border-white/10">
                                             <WalletLinkPanel />
-                                        </div>
-                                        <div className="mt-4 pt-4 border-t border-white/10">
-                                            <WcWalletPanel />
                                         </div>
                                     </div>
                                 </section>
