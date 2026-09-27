@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useSendTransaction } from "wagmi";
+import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import QrScanButton from "./QrScanButton";
 import {
     buildApproveSession,
@@ -21,6 +22,7 @@ import {
  */
 export default function WcWalletPanel() {
     const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
     const { sendTransactionAsync } = useSendTransaction();
     const [uri, setUri] = useState("");
     const [busy, setBusy] = useState(false);
@@ -196,6 +198,23 @@ export default function WcWalletPanel() {
                             primaryType: parsed.primaryType,
                             message: parsed.message,
                         });
+                    } else if (req.method === "wallet_sendCalls") {
+                        if (player.mode !== "ingame") {
+                            throw new Error("wallet_sendCalls for external wallet: use dapp with your extension");
+                        }
+                        const payload = Array.isArray(req.params) ? req.params[0] : req.params;
+                        const calls = (payload?.calls ?? payload) as Array<{
+                            to: `0x${string}`;
+                            data?: `0x${string}`;
+                            value?: string | bigint;
+                        }>;
+                        result = await cdpUserOp.sendCalls(
+                            calls.map((c) => ({
+                                to: c.to,
+                                data: c.data ?? "0x",
+                                value: c.value != null ? BigInt(c.value) : undefined,
+                            })),
+                        );
                     } else if (req.method === "eth_sendTransaction") {
                         if (player.mode !== "external") {
                             throw new Error(
@@ -209,10 +228,6 @@ export default function WcWalletPanel() {
                             value: tx.value ? BigInt(tx.value) : undefined,
                             data: tx.data as `0x${string}` | undefined,
                         });
-                    } else if (req.method === "wallet_sendCalls" || req.method === "wallet_sendCalls") {
-                        throw new Error(
-                            `${req.method} (batch / UserOp) ships with CHIPS W4 — use personal_sign / typed data / eth_sendTransaction for now`,
-                        );
                     } else {
                         throw new Error(`Method ${req.method} not supported in W5 v1`);
                     }

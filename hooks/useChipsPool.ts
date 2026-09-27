@@ -18,6 +18,8 @@ import {
     isChipsConfigured,
     matchPoolAddress,
 } from "@/lib/chips";
+import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 
 function useClaimClock(claimUnlockAt: bigint | undefined) {
     const [now, setNow] = useState(() => BigInt(Math.floor(Date.now() / 1000)));
@@ -42,7 +44,10 @@ function formatMmSs(s: number) {
  * Builder-code dataSuffix is applied globally in Providers.tsx.
  */
 export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHuman: string) {
-    const { address } = useAccount();
+    const { address: wagmiAddress } = useAccount();
+    const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
+    const address = player.address ?? wagmiAddress;
     const chips = chipsAddress();
     const pool = matchPoolAddress();
     const configured = isChipsConfigured() && Boolean(poolId);
@@ -72,7 +77,19 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
                 args: [poolId],
             });
 
-            // Primary: one EIP-5792 batch (smart wallets / capable EOAs).
+            // In-game CDP: one UserOp batch + dataSuffix (W4).
+            if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                setStep("approve");
+                await cdpUserOp.sendCalls([
+                    { to: chips, data: approveData },
+                    { to: pool, data: joinData },
+                ]);
+                setBatched(true);
+                setStep("done");
+                return;
+            }
+
+            // External: EIP-5792 batch when available, else two txs.
             try {
                 setStep("approve");
                 await sendCallsAsync({
@@ -107,14 +124,17 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
             setError(e instanceof Error ? e.message : "Join failed");
             setStep("error");
         }
-    }, [address, chips, pool, poolId, entryFeeHuman, writeContractAsync, sendCallsAsync]);
+    }, [address, chips, pool, poolId, entryFeeHuman, writeContractAsync, sendCallsAsync, player.mode, cdpUserOp]);
 
     return { join, step, isPending: isPending || batchPending, error, configured, batched };
 }
 
 /** Post-match prize claim (pull) with dispute countdown + gas/net. */
 export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
-    const { address } = useAccount();
+    const { address: wagmiAddress } = useAccount();
+    const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
+    const address = player.address ?? wagmiAddress;
     const pool = matchPoolAddress();
     const client = usePublicClient();
     const configured = isChipsConfigured() && Boolean(poolId);
@@ -126,7 +146,7 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
         address: pool,
         abi: MATCH_POOL_ABI,
         functionName: "claimable",
-        args: address && poolId ? [poolId, address] : undefined,
+        args: address && poolId ? [poolId, address as `0x${string}`] : undefined,
         query: { enabled: Boolean(address && pool && poolId) },
     });
 
@@ -161,7 +181,7 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
                     abi: MATCH_POOL_ABI,
                     functionName: "claimMatch",
                     args: [poolId],
-                    account: address,
+                    account: address as `0x${string}`,
                 });
                 if (!cancelled) setGasEst(gas);
             } catch {
@@ -183,17 +203,26 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
         if (!pool || !poolId) return;
         setError(null);
         try {
-            await writeContractAsync({
-                address: pool,
+            const claimData = encodeFunctionData({
                 abi: MATCH_POOL_ABI,
                 functionName: "claimMatch",
                 args: [poolId],
             });
+            if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                await cdpUserOp.sendCalls([{ to: pool, data: claimData }]);
+            } else {
+                await writeContractAsync({
+                    address: pool,
+                    abi: MATCH_POOL_ABI,
+                    functionName: "claimMatch",
+                    args: [poolId],
+                });
+            }
             void refetchClaimable();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Claim failed");
         }
-    }, [pool, poolId, writeContractAsync, refetchClaimable]);
+    }, [pool, poolId, writeContractAsync, refetchClaimable, player.mode, cdpUserOp]);
 
     return {
         claim,

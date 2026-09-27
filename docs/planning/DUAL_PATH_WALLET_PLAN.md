@@ -327,11 +327,12 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [x] `eth_sendTransaction` (external wagmi); `wallet_sendCalls` / UserOp = **W4** explicit reject
 - [x] Phone camera scan QR — `QrScanButton` (html5-qrcode) + file picker
 
-### W4 — CHIPS rails (after stable-build + CHIPS un-park)
+### W4 — CHIPS rails (CHIPS already implemented in-repo)
 
-- [ ] Mode-aware join/claim  
-- [ ] In-game `sendUserOperation` + `dataSuffix`  
-- [ ] Paymaster / 8168 per CHIPS §8.9  
+- [x] Mode-aware join/claim — `useChipsPool` (ingame → `useCdpUserOp`; external → wagmi batch/writeContract)
+- [x] In-game `sendUserOperation` + `dataSuffix` — `hooks/useCdpUserOp.ts` (ERC-8021 + `useCdpPaymaster: true`)
+- [x] `wallet_sendCalls` in W5 → CDP UserOp (in-game)
+- [ ] Own ERC-8168 paymaster / 8130 session keys — still **CHIPS §8.9 Phase 3** (CDP paymaster interim)
 
 ---
 
