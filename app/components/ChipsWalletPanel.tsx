@@ -16,7 +16,7 @@ interface ChipsWalletPanelProps {
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] cw-muted font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -73,15 +73,15 @@ function ActionTile({
             title={title}
             className={`flex flex-col items-center gap-2 py-4 rounded-xl transition-all ${
                 primary
-                    ? "bg-cyan-500/20 border border-cyan-400/50 text-cyan-50 hover:bg-cyan-500/30 disabled:opacity-45 disabled:hover:bg-cyan-500/20"
-                    : "bg-white/[0.04] border border-white/10 text-white/85 hover:bg-white/[0.08] disabled:opacity-50"
+                    ? "bg-cyan-500/20 border border-cyan-400/50 cw-accent hover:bg-cyan-500/30 disabled:opacity-45 disabled:hover:bg-cyan-500/20"
+                    : "bg-white/[0.04] border border-white/10 cw-ink hover:bg-white/[0.08] disabled:opacity-50"
             }`}
         >
             <span
                 className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     primary
-                        ? "bg-cyan-400/30 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.35)]"
-                        : "bg-white/10 text-cyan-200"
+                        ? "bg-cyan-400/30 cw-accent shadow-[0_0_16px_rgba(34,211,238,0.35)]"
+                        : "bg-white/10 cw-accent"
                 }`}
             >
                 {icon}
@@ -133,8 +133,9 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                     className="fixed inset-0 z-[115] pointer-events-none"
                 >
                     <GamePanelShell
-                        scopeClass="ludo-wallet-scope"
+                        scopeClass="chips-wallet-panel"
                         maxWClass="max-w-[420px]"
+                        maxWidthPx={420}
                         hideOrbs
                         title={
                             <>
@@ -144,11 +145,11 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                         }
                         subtitle={
                             <>
-                                <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">
+                                <span className="text-[11px] font-black cw-accent tracking-wide uppercase">
                                     Pull-based prizes
                                 </span>
                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-[11px] font-black text-white/50 tracking-wide uppercase">
+                                <span className="text-[11px] font-black cw-muted tracking-wide uppercase">
                                     Base Sepolia
                                 </span>
                             </>
@@ -159,14 +160,14 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                         <section>
                             <SectionLabel>Balance</SectionLabel>
                             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5">
-                                <div className="text-[10px] font-black uppercase tracking-widest text-white/35">
+                                <div className="text-[10px] font-black uppercase tracking-widest cw-faint">
                                     Total balance
                                 </div>
                                 <div className="mt-1 flex items-baseline gap-2">
-                                    <span className="text-[36px] leading-none font-black text-white tabular-nums">
+                                    <span className="text-[36px] leading-none font-black cw-ink tabular-nums">
                                         {bal.configured ? bal.human : "—"}
                                     </span>
-                                    <span className="text-[11px] font-black uppercase tracking-[0.14em] text-cyan-300">
+                                    <span className="text-[11px] font-black uppercase tracking-[0.14em] cw-accent">
                                         CHIPS
                                     </span>
                                 </div>
@@ -186,10 +187,10 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                         }}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-[13px] font-bold text-white truncate">
+                                        <div className="text-[13px] font-bold cw-ink truncate">
                                             {bal.address ? shortHex(bal.address) : "Not connected"}
                                         </div>
-                                        <div className="text-[10px] font-bold text-white/35 truncate">
+                                        <div className="text-[10px] font-bold cw-faint truncate">
                                             {copied ? "Copied to clipboard" : "Tap copy for full address"}
                                         </div>
                                     </div>
@@ -197,19 +198,19 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                         type="button"
                                         onClick={copyAddress}
                                         disabled={!bal.address}
-                                        className="px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white/85 text-[10px] font-black uppercase tracking-wider ring-1 ring-white/10 disabled:opacity-40 shrink-0"
+                                        className="px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/10 cw-ink text-[10px] font-black uppercase tracking-wider ring-1 ring-white/10 disabled:opacity-40 shrink-0"
                                     >
                                         Copy
                                     </button>
                                 </div>
                                 <div className="flex items-center justify-between gap-3 p-3.5">
                                     <div className="min-w-0">
-                                        <div className="text-[13px] font-bold text-white">Token</div>
-                                        <div className="text-[10px] font-bold text-white/35 font-mono truncate">
+                                        <div className="text-[13px] font-bold cw-ink">Token</div>
+                                        <div className="text-[10px] font-bold cw-faint font-mono truncate">
                                             {chipsAddress() ? shortHex(chipsAddress() ?? "") : "—"}
                                         </div>
                                     </div>
-                                    <span className="text-[12px] font-black tabular-nums text-white/80 shrink-0">
+                                    <span className="text-[12px] font-black tabular-nums cw-ink shrink-0">
                                         B20
                                     </span>
                                 </div>
@@ -287,10 +288,10 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                                         <div className="flex items-start justify-between gap-3 p-3.5">
                                             <div className="min-w-0">
-                                                <div className="text-[13px] font-bold text-white">
+                                                <div className="text-[13px] font-bold cw-ink">
                                                     Prize settlement
                                                 </div>
-                                                <div className="text-[10px] font-bold text-white/35 leading-relaxed mt-0.5">
+                                                <div className="text-[10px] font-bold cw-faint leading-relaxed mt-0.5">
                                                     Claim unlocks after the match dispute window.
                                                     Offline games earn no CHIPS.
                                                 </div>
@@ -299,7 +300,7 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                                 className={`shrink-0 text-[10px] font-black uppercase tracking-[0.14em] px-2.5 py-1 rounded-full border ${
                                                     claimReady
                                                         ? "border-emerald-400/50 text-emerald-200 bg-emerald-400/10"
-                                                        : "border-white/15 text-white/45 bg-white/5"
+                                                        : "border-white/15 cw-faint bg-white/5"
                                                 }`}
                                             >
                                                 {claimReady ? "Prize ready" : "Idle"}

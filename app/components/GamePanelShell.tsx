@@ -11,6 +11,8 @@ type Props = {
     children: ReactNode;
     /** Wrapper width — wallet is narrower than full panels. */
     maxWClass?: string;
+    /** Hard cap — survives Tailwind class scanning misses. */
+    maxWidthPx?: number;
     /** Soft orbs wash out daybreak; wallet/burn can opt out. */
     hideOrbs?: boolean;
 };
@@ -19,7 +21,7 @@ type Props = {
  * Unified global panel layout used by Settings / Messages / Market, etc.
  * top-64 · bottom-80 · max-w-500 · rounded-32 · panel-bg-image.
  */
-export function GamePanelShell({ scopeClass, title, subtitle, onClose, children, maxWClass = "max-w-[500px]", hideOrbs = false }: Props) {
+export function GamePanelShell({ scopeClass, title, subtitle, onClose, children, maxWClass = "max-w-[500px]", maxWidthPx = 500, hideOrbs = false }: Props) {
     const [mounted, setMounted] = React.useState(false);
     React.useEffect(() => setMounted(true), []);
     if (!mounted) return null;
@@ -28,7 +30,7 @@ export function GamePanelShell({ scopeClass, title, subtitle, onClose, children,
         <>
             <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
             <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                <div className={`w-full ${maxWClass} relative h-full`}>
+                <div className={`w-full ${maxWClass} relative h-full`} style={{ maxWidth: maxWidthPx }}>
                     <div
                         className={`${scopeClass} pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden`}
                         style={{

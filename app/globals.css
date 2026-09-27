@@ -6928,3 +6928,83 @@ body.theme-daybreak .ludo-header-scope > div {
   border-color: rgba(10, 11, 13, 0.18);
   box-shadow: 0 4px 14px rgba(10, 11, 13, 0.10);
 }
+
+/* ── CHIPS wallet / burn panel ink (theme-proof; daybreak cannot wash to white) ── */
+.chips-wallet-panel,
+.chips-burn-panel {
+  color: #E8EEF7;
+}
+.chips-wallet-panel .cw-ink,
+.chips-burn-panel .cw-ink {
+  color: #E8EEF7;
+}
+.chips-wallet-panel .cw-muted,
+.chips-burn-panel .cw-muted {
+  color: rgba(232, 238, 247, 0.62);
+}
+.chips-wallet-panel .cw-faint,
+.chips-burn-panel .cw-faint {
+  color: rgba(232, 238, 247, 0.42);
+}
+.chips-wallet-panel .cw-accent,
+.chips-burn-panel .cw-accent {
+  color: #5CE1FF;
+}
+.chips-wallet-panel .cw-card,
+.chips-burn-panel .cw-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.chips-wallet-panel .cw-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #E8EEF7;
+}
+.chips-wallet-panel .cw-btn-primary {
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(34, 211, 238, 0.5);
+  color: #E8FFFB;
+}
+
+body.theme-daybreak .chips-wallet-panel,
+body.theme-daybreak .chips-burn-panel {
+  background: #F7F8FC !important;
+  background-image: none !important;
+  color: #0A0B0D;
+}
+body.theme-daybreak .chips-wallet-panel .cw-ink,
+body.theme-daybreak .chips-burn-panel .cw-ink {
+  color: #0A0B0D;
+}
+body.theme-daybreak .chips-wallet-panel .cw-muted,
+body.theme-daybreak .chips-burn-panel .cw-muted {
+  color: rgba(10, 11, 13, 0.68);
+}
+body.theme-daybreak .chips-wallet-panel .cw-faint,
+body.theme-daybreak .chips-burn-panel .cw-faint {
+  color: rgba(10, 11, 13, 0.48);
+}
+body.theme-daybreak .chips-wallet-panel .cw-accent,
+body.theme-daybreak .chips-burn-panel .cw-accent {
+  color: #0E7490;
+}
+body.theme-daybreak .chips-wallet-panel .cw-card,
+body.theme-daybreak .chips-burn-panel .cw-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(10, 11, 13, 0.1);
+}
+body.theme-daybreak .chips-wallet-panel .cw-btn {
+  background: #FFFFFF;
+  border: 1px solid rgba(10, 11, 13, 0.12);
+  color: #0A0B0D;
+}
+body.theme-daybreak .chips-wallet-panel .cw-btn-primary {
+  background: rgba(14, 116, 144, 0.12);
+  border-color: rgba(14, 116, 144, 0.4);
+  color: #0E7490;
+}
+/* Belt-and-suspenders: any residual white-text utility inside these panels */
+body.theme-daybreak .chips-wallet-panel [class*="text-white"]:not([class*="text-cyan"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-red"]):not([class*="text-rose"]),
+body.theme-daybreak .chips-burn-panel [class*="text-white"]:not([class*="text-cyan"]):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-red"]):not([class*="text-rose"]) {
+  color: #0A0B0D !important;
+}

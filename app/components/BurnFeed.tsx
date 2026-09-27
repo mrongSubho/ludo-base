@@ -7,7 +7,7 @@ import { parseChainId, viemChainFor } from "@/lib/chains";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] cw-muted font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -18,7 +18,7 @@ function MetricRow({
     label,
     value,
     hint,
-    tint = "bg-cyan-500/15 text-cyan-300",
+    tint = "bg-cyan-500/15 cw-accent",
     icon,
     last = false,
 }: {
@@ -38,13 +38,13 @@ function MetricRow({
                     </div>
                 )}
                 <div className="flex flex-col min-w-0">
-                    <span className="text-[13px] font-bold text-white truncate">{label}</span>
+                    <span className="text-[13px] font-bold cw-ink truncate">{label}</span>
                     {hint && (
-                        <span className="text-[10px] font-bold text-white/35 truncate font-mono">{hint}</span>
+                        <span className="text-[10px] font-bold cw-faint truncate font-mono">{hint}</span>
                     )}
                 </div>
             </div>
-            <span className="text-[15px] font-black tabular-nums text-white shrink-0">{value}</span>
+            <span className="text-[15px] font-black tabular-nums cw-ink shrink-0">{value}</span>
         </div>
     );
 }
@@ -108,13 +108,13 @@ export function BurnFeed() {
                 <SectionLabel>Supply</SectionLabel>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                     <MetricRow
-                        icon={<span className="text-cyan-300 text-sm">Σ</span>}
+                        icon={<span className="cw-accent text-sm">Σ</span>}
                         label="Total supply"
                         value={totalSupply != null ? formatChips(totalSupply as bigint) : "—"}
                         hint="B20 CHIPS"
                     />
                     <MetricRow
-                        icon={<span className="text-cyan-300 text-sm">◎</span>}
+                        icon={<span className="cw-accent text-sm">◎</span>}
                         label="Your balance"
                         value={myBal != null ? formatChips(myBal as bigint) : "—"}
                         hint={address ? shortHex(address) : "not connected"}
@@ -148,13 +148,13 @@ export function BurnFeed() {
                 <SectionLabel>Contracts</SectionLabel>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                     <MetricRow
-                        icon={<span className="text-cyan-300 text-sm">◆</span>}
+                        icon={<span className="cw-accent text-sm">◆</span>}
                         label="Token"
                         value={shortHex(chips)}
                         hint={`${explorer}/token/${chips ?? ""}`}
                     />
                     <MetricRow
-                        icon={<span className="text-cyan-300 text-sm">◆</span>}
+                        icon={<span className="cw-accent text-sm">◆</span>}
                         label="MatchPool"
                         value={shortHex(pool)}
                         hint={`${explorer}/address/${pool ?? ""}`}
@@ -169,7 +169,7 @@ export function BurnFeed() {
                 </p>
             )}
 
-            <p className="text-[10px] font-bold text-white/30 leading-relaxed px-1">
+            <p className="text-[10px] font-bold cw-faint leading-relaxed px-1">
                 Burn tags: match:burn · market:burn · forge:burn · vanity:burn · pass:burn ·
                 tour:forfeit · match:abandon · boost:burn · treasury:bb. Live events land in
                 chips_events via the indexer worker.
