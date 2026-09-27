@@ -6,7 +6,7 @@
 | **Document type** | Product + implementation plan — wallet modes |
 | **Decision** | **Two first-class modes:** (1) **External wallet** (Base Account / MetaMask / Phantom) for users who want their own wallet; (2) **In-game CDP wallet** (email/Google/Apple/X) — fully themed, Coinbase-custodied keys, no extension required |
 | **Supersedes** | Identity-only-Base-Account lock in `SMART_WALLET_PLAN.md` §1.1 (Option A alone). Recovery of “Option C dual-id risk” is solved by **mode = one wallet per session** (see §3) |
-| **Companion** | `SMART_WALLET_PLAN.md` · `PHASE_0A_SPIKE_CHECKLIST.md` · `CHIPS_PLANNING.md` §4.6 |
+| **Companion** | `SMART_WALLET_PLAN.md` · `PHASE_0A_SPIKE_CHECKLIST.md` · `CHIPS_PLANNING.md` §4.6 · **`REAL_WALLET_PLAN.md`** (full wallet product) |
 | **Status** | **Approved** — Mode B = **CDP Smart Account** + **Ludo = WalletConnect wallet** (portability). Implement W1 → W5 |
 | **Last updated** | 2026-09-25 |
 
