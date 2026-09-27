@@ -65,3 +65,25 @@ export function useChipsBalance() {
 }
 
 export default useChipsBalance;
+
+/** CHIPS balance for any address (public profiles). Pinned to Base Sepolia. */
+export function useChipsBalanceFor(address: string | null | undefined) {
+    const token = chipsAddress();
+    const enabled = Boolean(address) && Boolean(token) && /^0x[a-fA-F0-9]{40}$/.test(address || "");
+    const { data, isFetching, error } = useReadContract({
+        address: token,
+        abi: CHIPS_ERC20_ABI,
+        functionName: "balanceOf",
+        args: enabled ? [(address as `0x${string}`)] : undefined,
+        chainId: CHIPS_CHAIN_ID,
+        query: { enabled, staleTime: 30_000, retry: 1 },
+    });
+    const balance = typeof data === "bigint" ? data : undefined;
+    return {
+        balance,
+        human: balance != null ? formatChips(balance) : "—",
+        loading: isFetching,
+        error: error instanceof Error ? error.message : null,
+        configured: isChipsConfigured(),
+    };
+}

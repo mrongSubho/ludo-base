@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
+import { useChipsBalance } from '@/hooks/useChipsBalance';
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProgression, getRankProgress } from '@/lib/progression';
 import { supabase } from '@/lib/supabase';
 import { RANGES, FormChart, rangeCutoff } from './FormChart';
+import { ModeBreakdown, winGame, lastNForm } from './ModeBreakdown';
 import { getShowcased } from '@/lib/showcase';
 import { exitGuest } from '@/lib/guest';
 import { useGuestWall } from '@/hooks/GuestWallContext';
@@ -122,6 +124,7 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
     const games = profile?.total_games || 0;
     const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
     const coins = profile?.coins || 0;
+    const chipsBal = useChipsBalance();
 
     // ── Identity editor (name + avatar library) ───
     const [editing, setEditing] = useState(false);
@@ -177,7 +180,7 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
     };
 
     const [range, setRange] = useState<string>('All');
-    const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string | null }[]>([]);
+    const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string | null; game_mode?: string | null }[]>([]);
 
     // Recent matches power both the live streak and the form chart (single query)
     useEffect(() => {
@@ -187,7 +190,7 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
             try {
                 const { data } = await supabase
                     .from('matches')
-                    .select('winner_address, created_at')
+                    .select('winner_address, created_at, game_mode')
                     .overlaps('participants', [address.toLowerCase(), address])
                     .order('created_at', { ascending: false })
                     .limit(100);
@@ -237,11 +240,26 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
     const [isPublic, setIsPublic] = useState(true);
     const [allowRequests, setAllowRequests] = useState(true);
 
+    const meLc = (address || '').toLowerCase();
+    const modeForm = {
+        classic: winGame(
+            recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic' && (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(0, recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic').length),
+        ),
+        power: winGame(
+            recentMatches.filter((m) => m.game_mode === 'power' && (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(0, recentMatches.filter((m) => m.game_mode === 'power').length),
+        ),
+        ai: String((profile as any)?.ai_played || 0),
+        form: lastNForm(recentMatches, address, 3),
+    };
+
     const stats = [
         { v: wins.toLocaleString(), l: 'Wins', c: 'text-white' },
         { v: `${winRate}%`, l: 'Win rate', c: 'text-cyan-400' },
         { v: games.toLocaleString(), l: 'Matches', c: 'text-white' },
         { v: `${streak}`, l: 'Streak', c: 'text-orange-500' },
+        { v: chipsBal.human, l: 'CHIPS', c: 'text-cyan-300' },
     ];
 
     return (
@@ -360,9 +378,16 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
                                 <span className="text-[10px] text-white/70 font-bold">Lv. {progression.level}</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full border border-white/10 shrink-0">
-                            <span className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
-                            <span className="text-xs font-black text-white tabular-nums">{coins.toLocaleString()}</span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full border border-cyan-400/30">
+                                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                <span className="text-xs font-black text-white tabular-nums">{chipsBal.human}</span>
+                                <span className="text-[9px] font-black text-cyan-300/80 uppercase">CHIPS</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10">
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
+                                <span className="text-[10px] font-bold text-white/70 tabular-nums">{coins.toLocaleString()}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -532,10 +557,16 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
                         </div>
                     </section>
 
+                    {/* Mode form — Classic · Power · vs AI · Form */}
+                    <section>
+                        <SectionLabel>Mode form</SectionLabel>
+                        <ModeBreakdown stats={modeForm} />
+                    </section>
+
                     {/* Stat grid */}
                     <section>
                         <SectionLabel>Stats</SectionLabel>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-5 gap-2">
                             {stats.map((s) => (
                                 <div key={s.l} className="rounded-xl bg-white/[0.04] border border-white/10 p-2 flex flex-col items-center justify-center">
                                     <span className={`text-base font-black tabular-nums ${s.c}`}>{s.v}</span>

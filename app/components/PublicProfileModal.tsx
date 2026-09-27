@@ -5,9 +5,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useChipsBalanceFor } from '@/hooks/useChipsBalance';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { getProgression } from '@/lib/progression';
 import { FormChart } from './FormChart';
+import { ModeBreakdown, winGame, lastNForm } from './ModeBreakdown';
 import { ChatIcon } from './icons';
 import { useAppSession } from '@/hooks/useAppSession';
 
@@ -164,7 +166,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             try {
                 const { data } = await supabase
                     .from('matches')
-                    .select('winner_address, created_at')
+                    .select('winner_address, created_at, game_mode')
                     .overlaps('participants', [userAddress.toLowerCase(), userAddress])
                     .order('created_at', { ascending: false })
                     .limit(100);
@@ -179,6 +181,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     // Derived Display Values
     const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
+    const chipsBal = useChipsBalanceFor(userAddress);
 
     const displayName = profile?.username && !profile.username.startsWith('0x')
         ? profile.username
@@ -191,6 +194,20 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const classicPlayed = profile?.classic_played || 0;
     const powerPlayed = profile?.power_played || 0;
     const aiPlayed = profile?.ai_played || 0;
+    const meLc = (userAddress || '').toLowerCase();
+    const modeForm = {
+        classic: winGame(
+            targetMatches.filter((m: any) => (m.game_mode || 'classic') === 'classic' && (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(classicPlayed, targetMatches.filter((m: any) => (m.game_mode || 'classic') === 'classic').length),
+        ),
+        power: winGame(
+            targetMatches.filter((m: any) => m.game_mode === 'power' && (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(powerPlayed, targetMatches.filter((m: any) => m.game_mode === 'power').length),
+        ),
+        // Offline AI games are not in `matches` — show play count.
+        ai: String(aiPlayed),
+        form: lastNForm(targetMatches as any, userAddress, 3),
+    };
 
     // Live 30-day activity buckets (10 x 3-day buckets, match counts)
     const activityBuckets = useMemo(() => {
@@ -376,22 +393,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     // Shared blocks across self / friend / stranger views
     const renderBreakdown = () => (
-        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex justify-between items-center">
-            <div className="flex flex-col items-center flex-1">
-                <span className="text-sm font-bold text-white">{classicPlayed}</span>
-                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Classic</span>
-            </div>
-            <div className="w-px h-6 bg-white/10" />
-            <div className="flex flex-col items-center flex-1">
-                <span className="text-sm font-bold text-white">{powerPlayed}</span>
-                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">Power</span>
-            </div>
-            <div className="w-px h-6 bg-white/10" />
-            <div className="flex flex-col items-center flex-1">
-                <span className="text-sm font-bold text-white">{aiPlayed}</span>
-                <span className="text-[8px] uppercase tracking-widest text-white/30 font-bold">vs AI</span>
-            </div>
-        </div>
+        <ModeBreakdown stats={modeForm} />
     );
 
     const renderActivity = () => (
@@ -546,14 +548,18 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     </div>
 
                                     {/* Stats Grid */}
-                                    <div className="grid grid-cols-2 gap-2 w-full">
+                                    <div className="grid grid-cols-3 gap-2 w-full">
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
                                             <span className="text-xl font-black text-cyan-400">{displayWins}</span>
-                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Total Wins</span>
+                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Wins</span>
                                         </div>
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
                                             <span className="text-xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
+                                        </div>
+                                        <div className="bg-white/[0.04] border border-cyan-400/25 rounded-2xl p-3 flex flex-col items-center justify-center">
+                                            <span className="text-xl font-black text-cyan-300 tabular-nums">{chipsBal.human}</span>
+                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">CHIPS</span>
                                         </div>
                                     </div>
                                 </div>
