@@ -182,9 +182,51 @@ NEXT_PUBLIC_WALLET_INGAME=1     # show “Create in-game wallet” CTA
 4. Builder Code `dataSuffix` on every `sendUserOperation` (CHIPS §8.7).  
 5. Spend permissions / paymaster **not** in W1 (gated like CHIPS plan).
 
-### 5.4 What stays Coinbase
+### 5.4 Passkey MFA (after first login) — **required product**
 
-OTP delivery, TEE keys, export iframe, device limits (~5), recovery.
+Passkey is **not** a primary CDP sign-in. Flow:
+
+```text
+Sign in (email OTP / Google / Apple / X)
+        ↓
+“Add passkey for extra security”   ← our Settings / post-signup sheet
+        ↓
+CDP MFA: WebAuthn (Face ID / Touch ID / security key)
+        ↓
+Protected ops re-prompt passkey when MFA is on
+```
+
+| Item | Spec |
+| --- | --- |
+| **When** | After successful CDP login (post-signup nudge + Settings → Security) |
+| **Hooks** | `useEnrollPasskey` / `useVerifyPasskey` / `useListPasskeys` / `useDeletePasskey` |
+| **Portal** | Enable **Passkey** under MFA in CDP Portal (`wallets/non-custodial/authentication`); origin must be in CORS allowlist |
+| **Optional but recommended** | Not required to play free; **recommended before CHIPS / export** |
+| **MFA-protected ops** | `signEvmMessage` / `signEvmTypedData` / `signEvmTransaction` / `sendUserOperation` / `createEvmKeyExportIframe` when enrolled |
+| **Session** | Default CDP **session** scope (per access token / device) |
+| **Copy** | “Passkey unlocks sensitive actions — same Face ID / Touch ID as your phone” |
+| **Not** | Seed import · passkey-only login · Base Account passkey (that is Mode A) |
+
+Enroll UI: our Ludo sheet → `enrollPasskey()` (or `@coinbase/cdp-react` `EnrollMfaModal` if we adopt it). Show enrolled passkeys + **Remove** (`useDeletePasskey`).
+
+### 5.5 Export key (escape hatch) — **required product**
+
+| Item | Spec |
+| --- | --- |
+| **API** | `useExportEvmAccount` → `createEvmKeyExportIframe` / `exportEvmAccount({ evmAccount })` |
+| **UI chrome** | **Coinbase secure iframe only** — we cannot re-skin the export surface |
+| **Entry** | Settings → Wallet → **Export private key** (danger zone; confirm copy) |
+| **MFA** | If passkey/TOTP MFA enrolled, export is **MFA-protected** (good) |
+| **Result** | User gets **private key** of the CDP **EOA owner** (export returns `privateKey`); they can import into MetaMask etc. |
+| **Not** | Seed phrase import into CDP · silent export · our own hex display of the key |
+| **Copy** | “This reveals a private key. Anyone with it controls this in-game wallet. Prefer keeping it here.” |
+| **Smart account** | Export is the **owner EOA** key that controls the smart account — document that; funds may live on the smart address |
+
+No seed/private-key **import** in CDP — existing MetaMask/Phantom seeds stay **Mode A (External)**.
+
+### 5.6 What stays Coinbase
+
+OTP delivery, TEE keys, **key-export iframe**, MFA (passkey/TOTP/SMS) ceremony, device limits (~5), recovery.
 
 ---
 
@@ -231,6 +273,8 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [ ] DM ECDH publish on first Send only (existing flag)  
 - [ ] No CHIPS value; no sub-accounts  
 - [ ] Copy: in-game ≠ Base app  
+- [ ] **Passkey MFA:** post-signup + Settings nudge; `useEnrollPasskey` / `useListPasskeys` / `useDeletePasskey`; Portal passkey MFA ON  
+- [ ] **Export key:** Settings → `useExportEvmAccount` (Coinbase secure iframe); MFA-gated when enrolled
 
 ### W2 — External polish (parallel)
 
@@ -283,7 +327,9 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 2. Same user can pick **Continue with Base** and use Base Account popups.  
 3. DM open / site load never opens a wallet.  
 4. One address in UI per session; server verify green for both modes (1271/6492 + EOA).  
-5. Typecheck 0; no `wallet_address` writes to owner EOA / sub.
+5. Typecheck 0; no `wallet_address` writes to owner EOA / sub.  
+6. **Passkey MFA** enrollable after in-game login; protected ops prompt when enrolled.  
+7. **Export key** opens Coinbase secure iframe from Settings (not our plaintext key UI).
 
 ---
 
@@ -294,6 +340,7 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 | 2026-09-24 | Option A only (Base Account) — spike proved parent-sign + 6492 |
 | 2026-09-24 | Email OTP ≠ Base app address; CDP embedded is a different wallet |
 | **2026-09-25** | **Dual-path:** External (A + MM + Phantom) **and** In-game CDP wallet; one active `wallet_address` per session; optional link later |
+| **2026-09-25** | In-game security: **passkey = MFA after** email/Google/Apple (not primary login); **export key** via Coinbase secure iframe; **no** seed/private-key import |
 
 ---
 
