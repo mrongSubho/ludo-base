@@ -11,6 +11,7 @@ import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
 import WalletSecurityPanel from './WalletSecurityPanel';
 import WalletLinkPanel from './WalletLinkPanel';
+import WcWalletPanel from './WcWalletPanel';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -509,6 +510,9 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                         <WalletSecurityPanel />
                                         <div className="mt-4 pt-4 border-t border-white/10">
                                             <WalletLinkPanel />
+                                        </div>
+                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                            <WcWalletPanel />
                                         </div>
                                     </div>
                                 </section>

@@ -319,12 +319,13 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 
 ### W5 — Ludo = WalletConnect wallet (portability)
 
-- [ ] Reown WalletKit / web3wallet in Ludo (wallet role)  
-- [ ] Session approve UI (origin · chain · method · value)  
-- [ ] Route `personal_sign` / `eth_signTypedData_v4` / `wallet_sendCalls` → CDP smart `0x221A…`  
-- [ ] Desktop: QR + copy `wc:` URI + `/wc?uri=` deep link  
-- [ ] Base / Base Sepolia only; no auto-approve  
-- [ ] Post-W1 (needs Mode B live first)
+- [x] Reown WalletKit in Ludo (wallet role) — `lib/wcWallet.ts` + `@reown/walletkit`
+- [x] Session approve UI (origin · chains · methods) — `WcWalletPanel` (Settings → Wallet)
+- [x] Route `personal_sign` / `eth_signTypedData_v4` → `usePlayerSigner` (CDP smart / external)
+- [x] Desktop: paste `wc:` URI + QR + `/wc?uri=` deep link
+- [x] Base / Base Sepolia only; no auto-approve (explicit Sign / Reject)
+- [ ] `wallet_sendCalls` / UserOp path (W4 / later)
+- [ ] Phone camera scan QR (PWA later)
 
 ### W4 — CHIPS rails (after stable-build + CHIPS un-park)
 
