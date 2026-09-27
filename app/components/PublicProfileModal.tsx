@@ -195,6 +195,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const powerPlayed = profile?.power_played || 0;
     const aiPlayed = profile?.ai_played || 0;
     const meLc = (userAddress || '').toLowerCase();
+    // Each cell is totalWins / totalPlayed for that mode (e.g. 12/14).
     const modeForm = {
         classic: winGame(
             targetMatches.filter((m: any) => (m.game_mode || 'classic') === 'classic' && (m.winner_address || '').toLowerCase() === meLc).length,
@@ -204,9 +205,13 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             targetMatches.filter((m: any) => m.game_mode === 'power' && (m.winner_address || '').toLowerCase() === meLc).length,
             Math.max(powerPlayed, targetMatches.filter((m: any) => m.game_mode === 'power').length),
         ),
-        // Offline AI games are not in `matches` — show play count.
-        ai: String(aiPlayed),
-        form: lastNForm(targetMatches as any, userAddress, 3),
+        // vs AI: wins/played — AI games live in ai_played; wins only if match rows exist
+        ai: winGame(
+            targetMatches.filter((m: any) => (m.game_mode === 'ai' || m.game_mode === 'offline') && (m.winner_address || '').toLowerCase() === meLc).length,
+            aiPlayed,
+        ),
+        // Overall record
+        form: winGame(displayWins, displayGames),
     };
 
     // Live 30-day activity buckets (10 x 3-day buckets, match counts)
@@ -393,7 +398,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
     // Shared blocks across self / friend / stranger views
     const renderBreakdown = () => (
-        <ModeBreakdown stats={modeForm} />
+        <ModeBreakdown stats={modeForm} labels={["Classic", "Power", "vs AI", "Overall"]} />
     );
 
     const renderActivity = () => (

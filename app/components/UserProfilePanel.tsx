@@ -241,17 +241,21 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
     const [allowRequests, setAllowRequests] = useState(true);
 
     const meLc = (address || '').toLowerCase();
+    // total wins / total played per mode (e.g. 12/14)
     const modeForm = {
         classic: winGame(
             recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic' && (m.winner_address || '').toLowerCase() === meLc).length,
-            Math.max(0, recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic').length),
+            Math.max(profile?.total_games ? recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic').length : 0, recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic').length),
         ),
         power: winGame(
             recentMatches.filter((m) => m.game_mode === 'power' && (m.winner_address || '').toLowerCase() === meLc).length,
             Math.max(0, recentMatches.filter((m) => m.game_mode === 'power').length),
         ),
-        ai: String((profile as any)?.ai_played || 0),
-        form: lastNForm(recentMatches, address, 3),
+        ai: winGame(
+            recentMatches.filter((m) => (m.game_mode === 'ai' || m.game_mode === 'offline') && (m.winner_address || '').toLowerCase() === meLc).length,
+            (profile as any)?.ai_played || 0,
+        ),
+        form: winGame(wins, games),
     };
 
     const stats = [
@@ -560,7 +564,7 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
                     {/* Mode form — Classic · Power · vs AI · Form */}
                     <section>
                         <SectionLabel>Mode form</SectionLabel>
-                        <ModeBreakdown stats={modeForm} />
+                        <ModeBreakdown stats={modeForm} labels={["Classic", "Power", "vs AI", "Overall"]} />
                     </section>
 
                     {/* Stat grid */}
