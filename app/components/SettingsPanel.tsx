@@ -9,6 +9,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
+import WalletSecurityPanel from './WalletSecurityPanel';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -498,6 +499,16 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                     Dice skins live in the Marketplace — anything you own can be equipped from your Loadout.
                                 </p>
                             </section>
+
+                            {/* Wallet security (in-game CDP) — passkey MFA + export */}
+                            {!inGame && !isGuest && (
+                                <section>
+                                    <SectionLabel>Wallet</SectionLabel>
+                                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                                        <WalletSecurityPanel />
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Support + About: lobby only — hidden mid-match */}
                             {!inGame && (

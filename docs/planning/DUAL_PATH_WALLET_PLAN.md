@@ -298,12 +298,12 @@ Paid tables: **guest wallets** still blocked. In-game users can play free/offlin
 - [x] Gate: **Create in-game wallet** CTA (`NEXT_PUBLIC_WALLET_INGAME=1`) — `InGameWalletPanel` in `LudoWalletModal`  
 - [x] CDP email OTP + Google → `evmSmartAccountObjects[0]` via `resolvePlayerIdentity` (InGameWalletPanel)  
 - [x] `usePlayerSigner()` switch External / In-game — `hooks/usePlayerSigner.ts` + `lib/walletMode.ts`  
-- [ ] Ludo SIWE + one match EIP-712 **silent** (CDP)  
-- [ ] DM ECDH publish on first Send only (existing flag)  
+- [x] Ludo SIWE + match EIP-712 via `usePlayerSigner` (CDP 6492 parent / wagmi)  
+- [x] DM ECDH publish on first Send only (`usePlayerSigner.signMessageAsync`)  
 - [ ] No CHIPS value; no sub-accounts  
 - [ ] Copy: in-game ≠ Base app  
-- [ ] **Passkey MFA:** post-signup + Settings nudge; `useEnrollPasskey` / `useListPasskeys` / `useDeletePasskey`; Portal passkey MFA ON  
-- [ ] **Export key:** Settings → `useExportEvmAccount` (Coinbase secure iframe); MFA-gated when enrolled
+- [x] **Passkey MFA:** Settings → Wallet (`WalletSecurityPanel`) — enroll / list / delete  
+- [x] **Export key:** Settings → Wallet → `useExportEvmAccount` (owner EOA + confirm copy)
 
 ### W2 — External polish (parallel)
 

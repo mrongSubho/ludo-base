@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useSignMessage, useSignTypedData, useChainId } from 'wagmi';
+import { useChainId } from 'wagmi';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
@@ -70,8 +71,9 @@ export function useGameEngine({
     // Effective identity (wallet or guest id) — guests must resolve as the
     // human seat, never as bots.
     const { address, isGuest } = useCurrentUser();
-    const { signMessageAsync } = useSignMessage();
-    const { signTypedDataAsync } = useSignTypedData();
+    const player = usePlayerSigner();
+    const signAccount = (player.address ?? address) as `0x${string}`;
+    const { signMessageAsync, signTypedDataAsync } = player;
     const hasRecordedWin = useRef<boolean>(false);
     const preAuthMatchRef = useRef<string | null>(null);
     const autoMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -185,13 +187,13 @@ export function useGameEngine({
                     gameMode,
                     humans,
                     localGameState.matchId,
-                    (msg) => signMessageAsync({ account: address as `0x${string}`, message: msg })
+                    (msg) => signMessageAsync({ account: signAccount, message: msg })
                 );
             } catch (err) {
                 console.error('❌ [Engine] Match record signing failed', err);
             }
         }
-    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch, signMessageAsync]);
+    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch, signMessageAsync, signAccount]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;
@@ -213,7 +215,7 @@ export function useGameEngine({
     const serverSeqRef = useRef(0);
     const lastRollIdRef = useRef<string | null>(null);
     const chainId = useChainId();
-    const moveAuth = useMoveAuth({ myAddress: address, signMessageAsync, signTypedDataAsync, chainId });
+    const moveAuth = useMoveAuth({ myAddress: player.address ?? address, signMessageAsync, signTypedDataAsync, chainId });
 
     const {
         moveToken,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { useAccount, useChainId, useSignMessage } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { AppSessionGuard } from '@/lib/appSessionGuard';
@@ -49,9 +50,11 @@ function readStored(address: string | undefined): Stored | null {
 }
 
 export function useAppSession() {
-    const { address } = useAccount();
+    const { address: accountAddress } = useAccount();
+    const player = usePlayerSigner();
+    const address = player.address ?? accountAddress;
     const walletChainId = useChainId();
-    const { signMessageAsync } = useSignMessage();
+    const signMessageAsync = player.signMessageAsync;
     const [ready, setReady] = useState(false);
 
     // Re-render this instance whenever the shared guard state changes.

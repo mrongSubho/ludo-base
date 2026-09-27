@@ -2,7 +2,8 @@
 "use client";
 
 import { useCallback } from 'react';
-import { useSignMessage } from 'wagmi';
+import { useAccount } from 'wagmi';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { UserProfile, MessageData } from './GameDataContext';
 import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
 import { DataConnection, Peer } from 'peerjs';
@@ -84,7 +85,8 @@ export const useDataActions = ({
     setRawConversations,
     setupConnectionListeners
 }: ActionProps) => {
-    const { signMessageAsync } = useSignMessage();
+    const player = usePlayerSigner();
+    const signMessageAsync = player.signMessageAsync;
     const { ensureAppSession, peekAppSession } = useAppSession();
 
     const updateMyProfileOptimistic = useCallback((updates: Partial<UserProfile>) => {

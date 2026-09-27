@@ -4,7 +4,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Peer, { DataConnection } from 'peerjs';
 import { supabase } from '@/lib/supabase';
-import { useAccount, useChainId, useSignMessage, useSignTypedData } from 'wagmi';
+import { useAccount, useChainId, useSignTypedData } from 'wagmi';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
@@ -118,13 +119,19 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [gameState, setGameState] = useState<GameState>(INITIAL_GAME_STATE);
     const [validationToken, setValidationToken] = useState<string | undefined>(undefined);
 
-    const { address: myAddress } = useAccount();
+    const { address: wagmiAddress } = useAccount();
     const chainId = useChainId();
-    const { signMessageAsync } = useSignMessage();
+    const player = usePlayerSigner();
+    const myAddress = player.address ?? wagmiAddress;
     const { signTypedDataAsync } = useSignTypedData();
     const { sessionId: appSessionId, ensureAppSession, peekAppSession } = useAppSession();
     const { myProfile } = useGameData();
-    const moveAuth = useMoveAuth({ myAddress, signMessageAsync, signTypedDataAsync, chainId });
+    const moveAuth = useMoveAuth({
+        myAddress,
+        signMessageAsync: player.signMessageAsync,
+        signTypedDataAsync: player.signTypedDataAsync,
+        chainId,
+    });
     const createProvisionalSession = useCallback((authorizationKey: string, roomCode?: string) =>
         moveAuth.createProvisionalSession({ authorizationKey, roomCode }), [moveAuth]);
     const bindProvisionalSession = useCallback((provisionalId: string, matchId: string, roomCode?: string) =>
@@ -433,7 +440,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const resolveBet = useSignedResolveBet({
         isHost,
         myAddress,
-        signMessageAsync: (args) => signMessageAsync(args),
+        signMessageAsync: (args) => player.signMessageAsync(args),
     });
 
     const {

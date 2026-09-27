@@ -1,10 +1,7 @@
 /**
- * Single signer seam for identity-bearing proofs (parent Base Account only).
- * wagmi is the default impl today; CDP `useSignEvmMessage` / `useSignEvmTypedData`
- * will implement the same interface in Phase 1 — do not rewrite call sites.
- *
- * Identity rule (SMART_WALLET_PLAN §1.1): `account` is always the parent
- * smart-account address used as `wallet_address`. Never a sub-account.
+ * Single signer seam for identity-bearing proofs (parent / smart account).
+ * External = wagmi; In-game = CDP (usePlayerSigner picks one).
+ * Never a sub-account or owner EOA as `wallet_address`.
  */
 
 export type SignMessageArgs = {
@@ -14,18 +11,17 @@ export type SignMessageArgs = {
 
 export type SignTypedDataArgs = {
     account: `0x${string}`;
-    /** Widened for dual-chain (84532/8453) grants — matches useMoveAuth. */
     domain: { name: string; version: string; chainId: number };
-     
-    types: Record<string, Array<{ name: string; type: string }>>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    types: any;
     primaryType: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    message: Record<string, any>;
+    message: any;
 };
 
 export type WalletSigner = {
-    /** Parent address used as player id, or undefined when disconnected. */
+    /** Player id (parent / smart), or undefined when disconnected. */
     address: string | undefined;
-    signMessageAsync: (args: SignMessageArgs) => Promise<string>;
-    signTypedDataAsync: (args: SignTypedDataArgs) => Promise<string>;
+    signMessageAsync: (args: SignMessageArgs) => Promise<`0x${string}`>;
+    signTypedDataAsync: (args: SignTypedDataArgs) => Promise<`0x${string}`>;
 };
