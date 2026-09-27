@@ -83,11 +83,11 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 12 }}
                     transition={{ duration: 0.18 }}
-                    className="fixed inset-0 z-[120] pointer-events-none"
+                    className="fixed inset-0 z-[115] pointer-events-none"
                 >
                     <GamePanelShell
                         scopeClass="ludo-wallet-scope"
-                        maxWClass="max-w-[360px]"
+                        maxWClass="max-w-[420px]"
                         hideOrbs
                         title={
                             <>

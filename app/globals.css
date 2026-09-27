@@ -6915,3 +6915,16 @@ body.theme-daybreak .ludo-wallet-scope :is(.bg-amber-400\/10, .border-amber-400\
   background-color: rgba(180, 83, 9, 0.10);
   border-color: rgba(180, 83, 9, 0.35);
 }
+
+/* ── Daybreak: solid header above open panels (wallet) ── */
+body.theme-daybreak .ludo-header-scope {
+  position: relative;
+  z-index: 300;
+}
+body.theme-daybreak .ludo-header-scope > div {
+  background: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: rgba(10, 11, 13, 0.18);
+  box-shadow: 0 4px 14px rgba(10, 11, 13, 0.10);
+}

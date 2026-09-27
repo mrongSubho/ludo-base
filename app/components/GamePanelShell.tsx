@@ -1,6 +1,7 @@
 "use client";
 
 import React, { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
     scopeClass: string;
@@ -19,7 +20,11 @@ type Props = {
  * top-64 · bottom-80 · max-w-500 · rounded-32 · panel-bg-image.
  */
 export function GamePanelShell({ scopeClass, title, subtitle, onClose, children, maxWClass = "max-w-[500px]", hideOrbs = false }: Props) {
-    return (
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => setMounted(true), []);
+    if (!mounted) return null;
+
+    return createPortal(
         <>
             <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
             <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
@@ -70,7 +75,8 @@ export function GamePanelShell({ scopeClass, title, subtitle, onClose, children,
                     </div>
                 </div>
             </div>
-        </>
+        </>,
+        document.body,
     );
 }
 
