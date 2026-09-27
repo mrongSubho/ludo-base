@@ -35,7 +35,7 @@ Ludo Wallet should feel like a **wallet that also plays Ludo**, not a game HUD w
 
 | Area | Capability | Ludo today | Target |
 | --- | --- | --- | --- |
-| **Home** | Total value + token list | CHIPS bar only | ETH · USDC · CHIPS (+ later NFT) |
+| **Home** | Total value + token list | CHIPS bar only | ETH · USDC · CHIPS (**CHIPS unpriced badge**, excluded from USD total until a real market) |
 | **Receive** | Address + QR + copy + ENS-less label | Partial (address chip) | Full receive sheet |
 | **Send** | To address, amount, token, gas preview, confirm | ❌ / CHIPS only | Native + ERC-20 send |
 | **Swap** | Token ↔ token | ❌ | Optional R4 (0x/Uniswap API) |
@@ -56,7 +56,7 @@ Ludo Wallet should feel like a **wallet that also plays Ludo**, not a game HUD w
 Wallet (primary tab / panel)
 ├── Home
 │     ├── Mode chip: In-game · External
-│     ├── Total value (USD estimate)
+│     ├── Total value (USD — priced tokens only; CHIPS badge “unpriced”)
 │     ├── Token list: ETH · USDC · CHIPS
 │     └── Actions: Send · Receive · Buy (later) · Connect dapp
 ├── Activity
@@ -93,7 +93,7 @@ Wallet (primary tab / panel)
 
 | Step | Detail |
 | --- | --- |
-| 1 | Pick token + amount (max = balance − gas for native) |
+| 1 | Pick token + amount (**max branches by gas path**: self-pay EOA = balance − gas; paymaster-sponsored smart = full balance) |
 | 2 | Paste / QR / address-book / “send to friend” (wallet link) |
 | 3 | Preview: amount, token, to, **gas**, total |
 | 4 | **Passkey step-up** if MFA enrolled (W1 hooks) |
@@ -177,6 +177,8 @@ UI: WalletShell (home · activity · apps · security · settings)
 
 ### R0 — IA + Receive + Send ETH (smallest real wallet)
 
+**Must:** max-send gas-path branch (M); CHIPS not in totals (H2) if tokens shown early; identity `needsReconnect` state (M).
+
 - [ ] `WalletShell` route or panel (Home / Activity / Apps / Security)  
 - [ ] Receive sheet (QR + copy + mode warning)  
 - [ ] Send **native ETH** (Base) with gas preview + confirm  
@@ -196,11 +198,13 @@ UI: WalletShell (home · activity · apps · security · settings)
 - [ ] Wallet-details sheet (smart vs owner EOA copy)  
 - [ ] Session restore / switcher (from W3) surfaced in Wallet home  
 
-### R3 — Apps / WalletConnect home
+### R3 — Apps / WalletConnect home **(blocked on H1)**
 
 - [ ] Move W5 panel into Wallet → Apps  
-- [ ] Request **inbox** (session + method + payload) as first-class modal  
-- [ ] `wallet_sendCalls` / UserOp from apps (W4)  
+- [ ] Request **inbox** with **decoded summaries + unlimited-approve warning + value-at-risk** (H1)  
+- [ ] Session expiry · chain scope · **Disconnect all**  
+- [ ] `wallet_sendCalls` / UserOp from apps (W4) + UserOp status mapping (M)  
+- [ ] **Do not ship** R3 without H1 consent UI
 
 ### R4 — Nice-to-have wallet
 
@@ -230,6 +234,41 @@ UI: WalletShell (home · activity · apps · security · settings)
 
 ---
 
+## 7b. Security hard requirements (review 2026-09-25)
+
+### H1 — Request inbox must not enable blind value movement (block R3 until these exist)
+
+| Requirement | Spec |
+| --- | --- |
+| **Decoded call summary** | `to`, `value`, function name, token amount for known ABIs (`transfer`, `approve`, `joinPool`, …) |
+| **Unlimited approve** | If `approve` amount ≥ threshold / maxUint → **red banner** + “edit allowance” (we cannot edit dapp calldata; link to “reject and set exact allowance on dapp” copy) |
+| **Value-at-risk** | Sum of native `value` + decoded token transfers in batch |
+| **Simulation** | `eth_call` / tenderly-style sim when RPC allows; on failure show “could not simulate — treat as high risk” |
+| **Session method scope** | `buildApproveSession` allowlist only; **denylist**: `eth_sign`, `eth_signTransaction`, `wallet_addEthereumChain`, `wallet_switchEthereumChain`, arbitrary `wallet_*` |
+| **Phishing** | Show **peer origin domain** prominently (metadata is self-asserted); warn on lookalikes |
+
+Related code: `lib/wcWallet.ts` (`buildApproveSession`, `isAllowedChain`, `parsePersonalSignParams`, `isUnlimitedOrHighRiskCalldata`) + `WcWalletPanel` risk banner.
+
+### H2 — Total value must not price CHIPS
+Unpriced assets → balance + badge only. See open question #1.
+
+### M — Lifecycle & identity
+| Item | Spec |
+| --- | --- |
+| **UserOp status** | `submitted → bundled → confirmed / failed` (map CDP statuses); never show UserOp hash as a BaseScan tx hash without “user operation” label |
+| **Paymaster reject** | If CDP paymaster refuses, **fall back to self-pay** or surface explicit “gas sponsorship unavailable”; never opaque fail |
+| **Identity switch** | In-game session lapse → **“session expired — reconnect”** UI (`needsReconnect`); **never** quiet swap to external address |
+| **Chain gate** | `isAllowedChain` **fails closed** on missing `chainId` |
+| **personal_sign params** | Support `[message, address]` and `[address, message]` |
+| **Max send** | Branch by gas path (see Send step 1) |
+| **CHIPS multi-chain** | CHIPS contract is **Base-only**; token lists **structurally omit** CHIPS on other chains |
+| **R3 sessions** | Session expiry display, per-session chain scope, **Disconnect all** |
+
+### L — Notes
+- **Onramp (R4):** CDP domain allowlist when scoped.  
+- **Deep link** `ludo://pay?`: strict address/token validation.  
+- **WC peer metadata:** self-asserted — inbox must lead with origin + warning.
+
 ## 8. Risks
 
 | Risk | Mitigation |
@@ -238,13 +277,16 @@ UI: WalletShell (home · activity · apps · security · settings)
 | Send UX bugs (gas / max) | Preview + tests + fail-closed chain gate |
 | Explorer API rate limits | Cache; fallback client `getLogs` |
 | Scope creep to full exchange | R4 swap optional; no CEX features |
+| Blind WC approve / unlimited approve | H1 inbox decode + denylist + risk banner |
+| CHIPS mispriced in totals | H2 unpriced badge |
+| WC peer phishing (self-asserted metadata) | Show origin domain + lookalike warning |
 | Security | Passkey step-up; no key in plaintext UI |
 
 ---
 
 ## 9. Open product questions
 
-1. **USD pricing** source (CoinGecko vs on-chain oracle) — default CoinGecko cache.  
+1. **USD pricing** source — default CoinGecko cache for ETH/USDC. **CHIPS is unpriced until a real market exists:** show balance-only + “unpriced / utility” badge; **never** invent a price or include CHIPS in total value (legal + honesty).  
 2. **Buy crypto** — deep link Coinbase Onramp vs none in R0.  
 3. **ENS / Basenames** — R4+.  
 4. **NFTs** — out of R0–R2 unless needed for marketplace.

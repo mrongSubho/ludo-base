@@ -9,8 +9,11 @@ import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import QrScanButton from "./QrScanButton";
 import {
     buildApproveSession,
+    decodeSignMessage,
     getWalletKit,
     isAllowedChain,
+    isUnlimitedOrHighRiskCalldata,
+    parsePersonalSignParams,
     summarizeProposal,
     type PendingProposal,
     type PendingRequest,
@@ -125,7 +128,7 @@ export default function WcWalletPanel() {
                     setProposals((p) => p.filter((x) => x.id !== id));
                     return;
                 }
-                const approve = buildApproveSession(proposal, [address]);
+                const approve = buildApproveSession(proposal, [address], player.mode);
                 await kit.approveSession(approve as never);
                 setProposals((p) => p.filter((x) => x.id !== id));
                 setMsg("Session approved");
@@ -170,25 +173,13 @@ export default function WcWalletPanel() {
                     }
                     let result: unknown;
                     if (req.method === "personal_sign") {
-                        const params = req.params as string[];
-                        const messageHex = params[0];
-                        // Decode hex → string if possible for signer message API
-                        const message =
-                            messageHex?.startsWith("0x")
-                                ? new TextDecoder().decode(
-                                      Uint8Array.from(
-                                          messageHex
-                                              .slice(2)
-                                              .match(/.{1,2}/g)!
-                                              .map((b) => parseInt(b, 16)),
-                                      ),
-                                  )
-                                : String(messageHex);
+                        const parsed = parsePersonalSignParams(req.params);
+                        const message = decodeSignMessage(parsed.message);
                         result = await player.signMessageAsync({
                             account: address as `0x${string}`,
                             message,
                         });
-                    } else if (req.method === "eth_signTypedData_v4") {
+                    } else if (req.method === "eth_signTypedData_v4" || req.method === "eth_signTypedData") {
                         const params = req.params as [string, string];
                         const parsed = JSON.parse(params[1]);
                         result = await player.signTypedDataAsync({
@@ -345,34 +336,51 @@ export default function WcWalletPanel() {
                     <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
                         Requests
                     </h4>
-                    {requests.map((r) => (
-                        <div key={r.id} className="mt-2 rounded-xl border border-white/10 p-3 text-[11px]">
-                            <div className="font-bold">
-                                {r.method} · {r.peerName}
+                    {requests.map((r) => {
+                        const risk =
+                            r.method === "eth_sendTransaction" || r.method === "wallet_sendCalls"
+                                ? isUnlimitedOrHighRiskCalldata(
+                                      Array.isArray(r.params)
+                                          ? ((r.params[0] as { data?: string })?.data ??
+                                                (r.params as { data?: string })?.data)
+                                          : undefined,
+                                  )
+                                : { unlimitedApprove: false };
+                        return (
+                            <div key={r.id} className="mt-2 rounded-xl border border-white/10 p-3 text-[11px]">
+                                <div className="font-bold">
+                                    {r.method} · {r.peerName}
+                                </div>
+                                <div className="text-white/50 font-mono break-all">
+                                    {r.chainId} · {JSON.stringify(r.params).slice(0, 160)}…
+                                </div>
+                                {risk.unlimitedApprove && (
+                                    <div className="mt-1 rounded border border-red-400/40 bg-red-500/10 p-2 text-red-200">
+                                        ⚠️ Looks like an <strong>unlimited token approval</strong>. Only continue if
+                                        you trust this dapp. Prefer exact allowances.
+                                    </div>
+                                )}
+                                <div className="flex gap-2 mt-2">
+                                    <button
+                                        type="button"
+                                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-1.5 uppercase font-bold"
+                                        disabled={busy}
+                                        onClick={() => onRespondRequest(r, true)}
+                                    >
+                                        Sign
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="rounded-lg border border-white/15 px-3 py-1.5 uppercase"
+                                        disabled={busy}
+                                        onClick={() => onRespondRequest(r, false)}
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
                             </div>
-                            <div className="text-white/50 font-mono break-all">
-                                {r.chainId} · {JSON.stringify(r.params).slice(0, 120)}…
-                            </div>
-                            <div className="flex gap-2 mt-2">
-                                <button
-                                    type="button"
-                                    className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-1.5 uppercase font-bold"
-                                    disabled={busy}
-                                    onClick={() => onRespondRequest(r, true)}
-                                >
-                                    Sign
-                                </button>
-                                <button
-                                    type="button"
-                                    className="rounded-lg border border-white/15 px-3 py-1.5 uppercase"
-                                    disabled={busy}
-                                    onClick={() => onRespondRequest(r, false)}
-                                >
-                                    Reject
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 

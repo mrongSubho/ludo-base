@@ -23,15 +23,19 @@ export function usePlayerSigner() {
     const setMode = useCallback((m: WalletMode | null) => writeWalletMode(m), []);
 
     return useMemo(() => {
-        const ingameReady = mode === "ingame" && Boolean(cdp.address);
-        const active = ingameReady ? cdp : external;
+        // Never silently switch identity. If mode is ingame but CDP is not ready,
+        // report `needsReconnect` instead of falling back to external address.
+        const wantsInGame = mode === "ingame";
+        const ingameReady = wantsInGame && Boolean(cdp.address);
+        const externalReady = !wantsInGame && Boolean(external.address);
+        const active = ingameReady ? cdp : wantsInGame ? cdp : external;
         return {
-            mode: (ingameReady ? "ingame" : "external") as WalletMode,
+            mode: (wantsInGame ? "ingame" : "external") as WalletMode,
             address: active.address,
+            needsReconnect: wantsInGame && !cdp.address,
             signMessageAsync: active.signMessageAsync,
             signTypedDataAsync: active.signTypedDataAsync,
             setMode,
-            /** CDP diagnostics (in-game only). */
             ownerEoa: cdp.ownerEoa,
             isSignedInCdp: cdp.isSignedIn,
         };
