@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+/**
+ * W1 — Create in-game wallet (CDP Smart Account) sign-in page.
+ * Full-page flow: socials + email → OTP (no password).
+ * Copy: this is NOT the Base app / MetaMask address (SMART_WALLET_PLANNING §3).
+ */
+
+import { useCallback, useState, type ReactNode } from "react";
 import {
     useCurrentUser,
     useIsSignedIn,
@@ -12,12 +18,45 @@ import {
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { writeWalletMode } from "@/lib/walletMode";
 
-/**
- * W1 — Create in-game wallet (CDP Smart Account).
- * Copy: this is NOT the Base app / MetaMask address (DUAL_PATH §5).
- * No CHIPS value in W1. Passkey MFA + export live in Settings later (W1 checklist).
- */
-export default function InGameWalletPanel({ onDone }: { onDone?: () => void }) {
+type SocialId = "google" | "apple" | "x";
+
+const SOCIALS: { id: SocialId; label: string; icon: ReactNode }[] = [
+    {
+        id: "google",
+        label: "Google",
+        icon: (
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+                <path fill="#EA4335" d="M12 10.2v3.6h5.1c-.2 1.2-1.5 3.5-5.1 3.5-3.1 0-5.6-2.5-5.6-5.6S8.9 6.1 12 6.1c1.8 0 2.9.7 3.6 1.4l2.4-2.4C16.7 3.8 14.6 3 12 3 6.9 3 2.8 7.1 2.8 12S6.9 21 12 21c5.4 0 9-3.8 9-9.1 0-.6-.1-1.1-.2-1.7H12z" />
+            </svg>
+        ),
+    },
+    {
+        id: "apple",
+        label: "Apple",
+        icon: (
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden>
+                <path d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.7 2.2-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.7 2.3 2.9 2.2 1.2 0 1.6-.7 3-.7s1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.2 1.2-2.4 1.2-2.5-.1 0-2.4-.9-2.7-3.6zM14.5 5.9c.6-.8 1-1.8.9-2.9-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.8-.9 2.8 1 .1 2-.5 2.6-1.3z" />
+            </svg>
+        ),
+    },
+    {
+        id: "x",
+        label: "X",
+        icon: (
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
+                <path d="M17.5 3h3l-6.6 7.5L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7-8L2 3h6.3l4.4 5.8L17.5 3zm-1.1 16.2h1.7L7.7 4.7H5.9l10.5 14.5z" />
+            </svg>
+        ),
+    },
+];
+
+export default function InGameWalletPanel({
+    onDone,
+    onBack,
+}: {
+    onDone?: () => void;
+    onBack?: () => void;
+}) {
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
     const { signInWithEmail } = useSignInWithEmail();
@@ -34,19 +73,19 @@ export default function InGameWalletPanel({ onDone }: { onDone?: () => void }) {
     const id = resolvePlayerIdentity(currentUser);
 
     const finish = useCallback(() => {
-        if (id.address) {
-            writeWalletMode("ingame");
-            onDone?.();
-        }
-    }, [id.address, onDone]);
+        writeWalletMode("ingame");
+        onDone?.();
+    }, [onDone]);
 
     const sendOtp = useCallback(async () => {
-        if (!email) return;
+        const clean = email.trim();
+        if (!clean) return;
         setBusy(true);
         setErr(null);
         try {
-            const r = await signInWithEmail({ email });
+            const r = await signInWithEmail({ email: clean });
             setFlowId(r.flowId);
+            setOtp("");
         } catch (e) {
             setErr(e instanceof Error ? e.message : String(e));
         } finally {
@@ -55,15 +94,14 @@ export default function InGameWalletPanel({ onDone }: { onDone?: () => void }) {
     }, [email, signInWithEmail]);
 
     const confirmOtp = useCallback(async () => {
-        if (!flowId || !otp) return;
+        if (!flowId || otp.trim().length < 6) return;
         setBusy(true);
         setErr(null);
         try {
-            await verifyEmailOTP({ flowId, otp });
+            await verifyEmailOTP({ flowId, otp: otp.trim() });
             setFlowId(null);
             setOtp("");
-            // identity resolves after re-render from useCurrentUser
-            setTimeout(finish, 50);
+            setTimeout(finish, 80);
         } catch (e) {
             setErr(e instanceof Error ? e.message : String(e));
         } finally {
@@ -71,95 +109,151 @@ export default function InGameWalletPanel({ onDone }: { onDone?: () => void }) {
         }
     }, [flowId, otp, verifyEmailOTP, finish]);
 
-    if (isSignedIn && id.address) {
+    // Signed-in success card
+    if ((isSignedIn && id.address) || (id.address && !flowId && isSignedIn)) {
         return (
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-2 text-xs text-white/85">
-                <div className="font-bold uppercase tracking-wider text-[11px]">In-game wallet</div>
-                <div className="font-mono break-all">{id.address}</div>
-                <p className="text-white/45 text-[11px] leading-relaxed">
-                    Smart Account for Ludo only — not your Base app or MetaMask address.
-                    CHIPS / assets stay on this address.
-                </p>
-                <div className="flex gap-2">
-                    <button
-                        type="button"
-                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-1.5 uppercase font-bold"
-                        onClick={finish}
-                    >
-                        Use this wallet
+            <div className="ingame-signin">
+                {onBack && (
+                    <button type="button" className="ingame-back" onClick={onBack} aria-label="Back">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15 18l-6-6 6-6" />
+                        </svg>
                     </button>
-                    <button
-                        type="button"
-                        className="rounded-lg border border-white/15 px-3 py-1.5 uppercase"
-                        onClick={() => signOut()}
-                    >
-                        Sign out
-                    </button>
+                )}
+                <h2 className="ingame-title">You&apos;re in</h2>
+                <p className="ingame-sub">In-game wallet ready</p>
+                <div className="ingame-card">
+                    <div className="ingame-card-label">Address</div>
+                    <div className="ingame-card-addr font-mono">{id.address}</div>
+                    <p className="ingame-note">
+                        Smart wallet for Ludo only — not your Base app or MetaMask address.
+                    </p>
                 </div>
+                <button type="button" className="ingame-cta" onClick={finish}>
+                    Continue
+                </button>
+                <button type="button" className="ingame-ghost" onClick={() => signOut()}>
+                    Use a different account
+                </button>
             </div>
         );
     }
 
+    const otpStage = Boolean(flowId);
+
     return (
-        <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-3 text-xs text-white/85">
-            <div className="font-bold uppercase tracking-wider text-[11px]">
-                Create in-game wallet
+        <div className="ingame-signin">
+            {onBack && (
+                <button type="button" className="ingame-back" onClick={onBack} aria-label="Back">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+            )}
+
+            <h2 className="ingame-title">Sign In</h2>
+            <p className="ingame-sub">Create your in-game wallet</p>
+
+            {/* Socials */}
+            <div className="ingame-socials" role="group" aria-label="Social sign in">
+                {SOCIALS.map((s) => (
+                    <button
+                        key={s.id}
+                        type="button"
+                        className="ingame-social"
+                        title={s.label}
+                        aria-label={`Continue with ${s.label}`}
+                        disabled={busy}
+                        onClick={() => {
+                            writeWalletMode("ingame");
+                            void signInWithOAuth(s.id);
+                        }}
+                    >
+                        {s.icon}
+                    </button>
+                ))}
             </div>
-            <p className="text-white/45 text-[11px] leading-relaxed">
-                Email or Google · no extension · not your Base app wallet.
-            </p>
-            {!flowId ? (
-                <>
-                    <div className="flex gap-2">
-                        <input
-                            className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2"
-                            type="email"
-                            placeholder="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                        <button
-                            type="button"
-                            className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 uppercase font-bold"
-                            disabled={busy || !email}
-                            onClick={sendOtp}
-                        >
-                            Continue
-                        </button>
-                    </div>
-                    <div className="flex gap-2">
-                        {(["google", "apple"] as const).map((p) => (
-                            <button
-                                key={p}
-                                type="button"
-                                className="flex-1 rounded-lg border border-white/15 py-2 uppercase"
-                                disabled={busy}
-                                onClick={() => signInWithOAuth(p)}
-                            >
-                                {p}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            ) : (
-                <div className="flex gap-2">
+
+            <div className="ingame-divider">
+                <span>or use your email</span>
+            </div>
+
+            {/* Email → OTP field (same slot) */}
+            <label className="ingame-field">
+                <span className="ingame-field-label">{otpStage ? "Verification code" : "Email"}</span>
+                {otpStage ? (
                     <input
-                        className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2"
+                        className="ingame-input"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
                         placeholder="6-digit code"
                         value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        maxLength={6}
+                        autoFocus
                     />
+                ) : (
+                    <input
+                        className="ingame-input"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="Email address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") void sendOtp();
+                        }}
+                    />
+                )}
+            </label>
+
+            {otpStage && (
+                <div className="ingame-row">
+                    <span className="ingame-hint">Code sent to {email}</span>
                     <button
                         type="button"
-                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 uppercase font-bold"
-                        disabled={busy || otp.length < 6}
-                        onClick={confirmOtp}
+                        className="ingame-link"
+                        disabled={busy}
+                        onClick={() => {
+                            setFlowId(null);
+                            setOtp("");
+                            setErr(null);
+                        }}
                     >
-                        Verify
+                        Change email
                     </button>
                 </div>
             )}
-            {err && <div className="text-red-300 text-[11px]">{err}</div>}
+
+            {err && <p className="ingame-err">{err}</p>}
+
+            <button
+                type="button"
+                className="ingame-cta"
+                disabled={busy || (otpStage ? otp.length < 6 : !email.trim())}
+                onClick={otpStage ? confirmOtp : sendOtp}
+            >
+                {busy
+                    ? "Please wait…"
+                    : otpStage
+                      ? "Create in-game wallet"
+                      : "Send code"}
+            </button>
+
+            {otpStage && (
+                <button
+                    type="button"
+                    className="ingame-ghost"
+                    disabled={busy}
+                    onClick={sendOtp}
+                >
+                    Resend code
+                </button>
+            )}
+
+            <p className="ingame-fine">
+                Email or Google · no extension · not your Base app wallet.
+            </p>
         </div>
     );
 }

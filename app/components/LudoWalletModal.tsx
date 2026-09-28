@@ -141,8 +141,8 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                             overflow: 'hidden',
                         }}
                     >
-                        {/* Header */}
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }}>
+                        {/* Header — hidden on the in-game sign-in page */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }} hidden={showInGame}>
                             <div>
                                 <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--modal-muted, rgba(255,255,255,0.45))' }}>
                                     Sign in
@@ -172,31 +172,28 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                             </button>
                         </div>
 
-                        {/* 1 · In-game wallet (primary) */}
-                        {isInGameWalletEnabled() && (
-                            <>
-                                <WalletRow
-                                    primary
-                                    label="Create in-game wallet"
-                                    hint="Email · Google · Apple · X"
-                                    icon={WALLET_ICONS.email}
-                                    onClick={() => setShowInGame((v) => !v)}
-                                />
-                                {showInGame && (
-                                    <div style={{ marginTop: '10px' }}>
-                                        <InGameWalletPanel
-                                            onDone={() => {
-                                                setShowInGame(false);
-                                                onClose();
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </>
+                        {/* 1 · In-game wallet (primary) — opens its own sign-in page */}
+                        {isInGameWalletEnabled() && !showInGame && (
+                            <WalletRow
+                                primary
+                                label="Create in-game wallet"
+                                hint="Email · Google · Apple · X"
+                                icon={WALLET_ICONS.email}
+                                onClick={() => setShowInGame(true)}
+                            />
+                        )}
+                        {isInGameWalletEnabled() && showInGame && (
+                            <InGameWalletPanel
+                                onBack={() => setShowInGame(false)}
+                                onDone={() => {
+                                    setShowInGame(false);
+                                    onClose();
+                                }}
+                            />
                         )}
 
-                        {/* Divider */}
-                        <div style={{ padding: '16px 0 12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {/* Divider — hidden on the in-game sign-in page */}
+                        <div style={{ padding: '16px 0 12px', display: 'flex', alignItems: 'center', gap: '12px' }} hidden={showInGame}>
                             <div style={{ height: '1px', flex: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
                             <span style={{ color: 'var(--modal-muted, rgba(255,255,255,0.45))', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                                 or connect wallet
@@ -205,7 +202,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                         </div>
 
                         {/* 2–4 · External wallets */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }} hidden={showInGame}>
                             <WalletRow
                                 label="Continue with Base"
                                 hint="Base app · passkey"
@@ -229,7 +226,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                         </div>
 
                         {/* Footer */}
-                        <div style={{ marginTop: '18px', textAlign: 'center', padding: '0 8px' }}>
+                        <div style={{ marginTop: '18px', textAlign: 'center', padding: '0 8px' }} hidden={showInGame}>
                             <p style={{ margin: 0, fontSize: '11px', color: 'var(--modal-muted, rgba(255,255,255,0.45))', fontWeight: 500, lineHeight: 1.5, textTransform: 'none' }}>
                                 By connecting a wallet, you agree to our{' '}
                                 <a href="/terms" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>Terms</a>
