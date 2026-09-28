@@ -5,11 +5,13 @@ import { useWalletAssets } from "@/hooks/useWalletAssets";
 import ReceiveSheet from "./ReceiveSheet";
 import SendNativeSheet from "./SendNativeSheet";
 import SendTokenSheet from "./SendTokenSheet";
+import SwapSheet from "./SwapSheet";
+import BuyCryptoButton from "./BuyCryptoButton";
 import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
 
-type Tab = "home" | "send" | "token" | "receive" | "activity" | "apps" | "security";
+type Tab = "home" | "send" | "token" | "receive" | "swap" | "activity" | "apps" | "security";
 
 /**
  * R0 — Wallet shell (REAL_WALLET_PLAN §2).
@@ -72,14 +74,14 @@ export default function WalletShell() {
                             className="flex-1 rounded-xl bg-cyan-500/20 border border-cyan-400/40 py-3 text-[11px] font-black uppercase tracking-wider"
                             onClick={() => setTab("send")}
                         >
-                            Send ETH
+                            Send
                         </button>
                         <button
                             type="button"
                             className="flex-1 rounded-xl border border-white/15 py-3 text-[11px] font-black uppercase tracking-wider"
-                            onClick={() => setTab("token")}
+                            onClick={() => setTab("swap")}
                         >
-                            Send token
+                            Swap
                         </button>
                         <button
                             type="button"
@@ -89,23 +91,29 @@ export default function WalletShell() {
                             Receive
                         </button>
                     </div>
+                    <BuyCryptoButton />
+                    <p className="text-[10px] text-white/40">
+                        NFTs live in the Marketplace tab — not duplicated in Wallet. Chain: <strong>Base</strong> only.
+                    </p>
                 </div>
             )}
 
             {tab === "send" && <SendNativeSheet />}
             {tab === "token" && <SendTokenSheet />}
             {tab === "receive" && <ReceiveSheet />}
+            {tab === "swap" && <SwapSheet />}
             {tab === "activity" && <WalletActivityList />}
             {tab === "apps" && <WcWalletPanel />}
             {tab === "security" && <WalletSecurityPanel />}
 
-            <div className="flex gap-1 border-t border-white/10 pt-2">
+            <div className="flex gap-1 border-t border-white/10 pt-2 overflow-x-auto">
                 {(
                     [
                         ["home", "Home"],
-                        ["send", "ETH"],
+                        ["send", "Send"],
                         ["token", "Token"],
                         ["receive", "Receive"],
+                        ["swap", "Swap"],
                         ["activity", "Activity"],
                         ["apps", "Apps"],
                         ["security", "Security"],

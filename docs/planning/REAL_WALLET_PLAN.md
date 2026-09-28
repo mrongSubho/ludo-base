@@ -207,12 +207,14 @@ UI: WalletShell (home · activity · apps · security · settings)
 - [ ] Full ABI decode for all contracts (v1: transfer / approve / joinPool / claimMatch)  
 - [ ] Session expiry timer UI (disconnect still available)
 
-### R4 — Nice-to-have wallet
+### R4 — Nice-to-have wallet **(scoped 2026-09-25)**
 
-- [ ] Swap (0x / Uniswap quote)  
-- [ ] Buy (onramp deep link)  
-- [ ] NFT tab (optional)  
-- [ ] Multi-chain (Ethereum / OP)  
+**How Coinbase / Base app swap:** they use **Coinbase’s own swap engine** (CDP `useGetSwapPrice` + `useSwap`) — not a raw Uniswap widget. We ship the **same** API (in-game CDP path).
+
+- [x] Swap — `SwapSheet` via CDP `useGetSwapPrice` / `useSwap` (Base only)  
+- [x] Buy — Coinbase **Onramp** deep link (`BuyCryptoButton`); CDP domain allowlist when going live  
+- [x] **No NFT tab** — Marketplace already owns NFTs; Wallet only notes the link  
+- [x] **Base only** — no Ethereum / OP multi-chain in Wallet (CHIPS is Base-only anyway)  
 
 ### R5 — Mobile PWA
 
