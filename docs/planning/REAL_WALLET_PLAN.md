@@ -194,9 +194,9 @@ UI: WalletShell (home · activity · apps · security · settings)
 
 ### R2 — Security polish
 
-- [ ] Passkey step-up on Send / Export  
-- [ ] Wallet-details sheet (smart vs owner EOA copy)  
-- [ ] Session restore / switcher (from W3) surfaced in Wallet home  
+- [x] Passkey step-up on Send / Export — `useMfaStepUp` (in-game CDP + passkey enrolled)
+- [x] Wallet-details sheet (smart vs owner EOA vs Base app) — `WalletDetailsSheet`
+- [x] Session switcher / link (W3) already in Wallet / Activity tabs  
 
 ### R3 — Apps / WalletConnect home **(blocked on H1)**
 

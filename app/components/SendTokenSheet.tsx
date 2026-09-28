@@ -11,6 +11,7 @@ import { useSendNative } from "@/hooks/useSendNative";
 import { useSendToken, type SendTokenKey } from "@/hooks/useSendToken";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { recordWalletActivity } from "@/hooks/useWalletActivity";
+import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 
 export type SendAsset = "eth" | SendTokenKey;
 
@@ -24,6 +25,7 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
     const { tokens, eth, refresh, needsReconnect, address } = useWalletAssets();
     const native = useSendNative();
     const erc20 = useSendToken();
+    const mfa = useMfaStepUp();
     const [asset, setAsset] = useState<SendAsset>("eth");
     const [to, setTo] = useState("");
     const [amount, setAmount] = useState("");
@@ -125,6 +127,8 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                             type="button"
                             className="rounded-lg bg-cyan-500/25 border border-cyan-400/50 px-3 py-1.5 uppercase font-bold"
                             onClick={async () => {
+                                const ok = await mfa.stepUp();
+                                if (!ok) return;
                                 const hash =
                                     asset === "eth"
                                         ? await native.send({ to, amountEth: amount })

@@ -4,11 +4,13 @@ import { useState } from "react";
 import { formatUnits } from "viem";
 import { useSendNative } from "@/hooks/useSendNative";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
+import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 
 /** R0 — Send ETH (REAL_WALLET_PLAN §3.2). Max branches by gas path. */
 export default function SendNativeSheet() {
     const { eth, loading, refresh, needsReconnect } = useWalletAssets();
     const { send, status, error, txHash, maxSelfPay, mode } = useSendNative();
+    const mfa = useMfaStepUp();
     const [to, setTo] = useState("");
     const [amount, setAmount] = useState("");
     const [confirming, setConfirming] = useState(false);
@@ -85,6 +87,8 @@ export default function SendNativeSheet() {
                             type="button"
                             className="rounded-lg bg-cyan-500/25 border border-cyan-400/50 px-3 py-1.5 uppercase font-bold"
                             onClick={async () => {
+                                const ok = await mfa.stepUp();
+                                if (!ok) return;
                                 await send({ to, amountEth: amount });
                                 setConfirming(false);
                                 void refresh();

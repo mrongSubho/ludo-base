@@ -10,6 +10,8 @@ import {
     useListPasskeys,
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
+import { useMfaStepUp } from "@/hooks/useMfaStepUp";
+import WalletDetailsSheet from "./WalletDetailsSheet";
 
 /**
  * W1 — In-game wallet security (DUAL_PATH_WALLET_PLAN §5.4–5.5).
@@ -30,6 +32,7 @@ export default function WalletSecurityPanel() {
     const [busy, setBusy] = useState(false);
     const [exportErr, setExportErr] = useState<string | null>(null);
     const [exportStatus, setExportStatus] = useState<"idle" | "pending" | "error">("idle");
+    const mfa = useMfaStepUp();
 
     const onEnroll = useCallback(async () => {
         setBusy(true);
@@ -64,6 +67,13 @@ export default function WalletSecurityPanel() {
         setExportStatus("pending");
         setExportErr(null);
         try {
+            // R2: passkey / Touch ID step-up before revealing a key
+            const ok = await mfa.stepUp();
+            if (!ok) {
+                setExportErr(mfa.mfaError || "MFA verification failed");
+                setExportStatus("error");
+                return;
+            }
             const result = await exportEvmAccount({ evmAccount: ownerEoa });
             if (result?.privateKey) setPrivateKey(result.privateKey);
             setExportStatus("idle");
@@ -74,7 +84,7 @@ export default function WalletSecurityPanel() {
             setBusy(false);
             setShowExportConfirm(false);
         }
-    }, [exportEvmAccount, ownerEoa]);
+    }, [exportEvmAccount, ownerEoa, mfa]);
 
     return (
         <div className="space-y-4">
@@ -168,6 +178,10 @@ export default function WalletSecurityPanel() {
                         {privateKey}
                     </pre>
                 )}
+            </div>
+
+            <div className="border-t border-white/10 pt-3">
+                <WalletDetailsSheet />
             </div>
         </div>
     );
