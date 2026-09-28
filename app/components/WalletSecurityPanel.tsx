@@ -16,8 +16,9 @@ import { useAppSession } from "@/hooks/useAppSession";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 
 /**
- * Security — passkey MFA, key export, push, wallet details
- * (SMART_WALLET_PLANNING §5 · §9). App Settings live in the header gear only.
+ * Security — passkey, notifications, export, details.
+ * Short labels only; copy lives in tooltips/subtext one-liners
+ * (SMART_WALLET_PLANNING §5 · §9).
  */
 export default function WalletSecurityPanel() {
     const { currentUser } = useCurrentUser();
@@ -32,17 +33,21 @@ export default function WalletSecurityPanel() {
     const [showExportConfirm, setShowExportConfirm] = useState(false);
     const [busy, setBusy] = useState(false);
     const [exportErr, setExportErr] = useState<string | null>(null);
-    const [exportStatus, setExportStatus] = useState<"idle" | "pending" | "error">("idle");
     const mfa = useMfaStepUp();
     const push = usePushReady();
     const appSession = useAppSession();
-    const [pushMsg, setPushMsg] = useState<string | null>(null);
+    const [note, setNote] = useState<string | null>(null);
+
+    const passkeyCount = (passkeys || []).length;
+    const passkeyTag = !supported.data ? "Unavailable" : passkeyCount > 0 ? `${passkeyCount} active` : "Off";
 
     const onEnroll = useCallback(async () => {
         setBusy(true);
+        setNote(null);
         try {
             await enrollPasskey();
             await refetch();
+            setNote("Passkey added.");
         } catch {
             /* surfaced via enrollErr */
         } finally {
@@ -68,21 +73,18 @@ export default function WalletSecurityPanel() {
     const onExport = useCallback(async () => {
         if (!ownerEoa) return;
         setBusy(true);
-        setExportStatus("pending");
         setExportErr(null);
+        setNote(null);
         try {
             const ok = await mfa.stepUp();
             if (!ok) {
                 setExportErr(mfa.mfaError || "MFA verification failed");
-                setExportStatus("error");
                 return;
             }
             const result = await exportEvmAccount({ evmAccount: ownerEoa });
             if (result?.privateKey) setPrivateKey(result.privateKey);
-            setExportStatus("idle");
         } catch (e) {
             setExportErr(e instanceof Error ? e.message : String(e));
-            setExportStatus("error");
         } finally {
             setBusy(false);
             setShowExportConfirm(false);
@@ -90,40 +92,47 @@ export default function WalletSecurityPanel() {
     }, [exportEvmAccount, ownerEoa, mfa]);
 
     return (
-        <div className="cb-screen space-y-4">
+        <div className="sec-sheet">
             {/* Passkey */}
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Passkey (MFA)</span>
-                    <span className="cb-section-tag">
-                        {supported.data ? (passkeys?.length ? "Enrolled" : "Optional") : "Unavailable"}
-                    </span>
+            <div className="sec-block">
+                <div className="sec-head">
+                    <span>Passkey</span>
+                    <span className="sec-tag">{passkeyTag}</span>
                 </div>
-                <div className="cb-card cb-pad">
-                    <p className="cb-copy">
-                        Extra lock after email or Google. Not a login password — it protects sign, send, and key
-                        export.
-                    </p>
-                    {!supported.data && (
-                        <p className="cb-warn">Passkey is not available in this browser.</p>
-                    )}
-                    <button
-                        type="button"
-                        className="cb-btn primary"
-                        disabled={busy || !supported.data || enrollStatus === "pending"}
-                        onClick={onEnroll}
-                    >
-                        {enrollStatus === "pending" ? "Waiting for biometric…" : "Add passkey"}
-                    </button>
-                    {enrollErr && <p className="cb-error">{String(enrollErr.message || enrollErr)}</p>}
-                    {(passkeys || []).length > 0 && (
-                        <ul className="cb-list">
+                <div className="sec-card">
+                    <div className="sec-row">
+                        <div className="sec-icon" aria-hidden>
+                            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 3l8 4v5c0 5-3.5 8.2-8 9-4.5-.8-8-4-8-9V7l8-4z" />
+                                <path d="M9.5 12l1.8 1.8L15 10" />
+                            </svg>
+                        </div>
+                        <div className="sec-text">
+                            <div className="sec-title">Device unlock</div>
+                            <div className="sec-sub">Protects sign · send · export</div>
+                        </div>
+                        <button
+                            type="button"
+                            className="btn-mini primary"
+                            disabled={busy || !supported.data || enrollStatus === "pending"}
+                            onClick={onEnroll}
+                        >
+                            {enrollStatus === "pending" ? "Wait…" : passkeyCount > 0 ? "Add" : "Enable"}
+                        </button>
+                    </div>
+                    {!supported.data && <p className="sec-sub pad">Not available in this browser</p>}
+                    {enrollErr && <p className="err-text pad">{String(enrollErr.message || enrollErr)}</p>}
+                    {passkeyCount > 0 && (
+                        <ul className="sec-list">
                             {(passkeys || []).map((p: { credentialId: string }) => (
-                                <li key={p.credentialId} className="cb-list-row">
-                                    <span className="cb-list-main font-mono">{p.credentialId.slice(0, 18)}…</span>
+                                <li key={p.credentialId} className="sec-row">
+                                    <div className="sec-text">
+                                        <div className="sec-title font-mono">{p.credentialId.slice(0, 14)}…</div>
+                                        <div className="sec-sub">Passkey</div>
+                                    </div>
                                     <button
                                         type="button"
-                                        className="cb-btn danger-ghost sm"
+                                        className="btn-mini danger-ghost"
                                         disabled={busy}
                                         onClick={() => onDelete(p.credentialId)}
                                     >
@@ -134,109 +143,122 @@ export default function WalletSecurityPanel() {
                         </ul>
                     )}
                 </div>
-            </section>
+            </div>
 
             {/* Notifications */}
-            <section className="cb-section">
-                <div className="cb-section-head">
+            <div className="sec-block">
+                <div className="sec-head">
                     <span>Notifications</span>
-                    <span className="cb-section-tag">
-                        {push.permission === "granted" ? (push.remote === "subscribed" ? "Remote on" : "Local only") : push.permission}
+                    <span className="sec-tag">
+                        {push.remote === "subscribed"
+                            ? "Remote"
+                            : push.permission === "granted"
+                              ? "Local"
+                              : "Off"}
                     </span>
                 </div>
-                <div className="cb-card cb-pad">
-                    <p className="cb-copy">
-                        Remote push for turn nudges, claim reminders, and wallet events. Permission and a saved
-                        server subscription are separate.
-                    </p>
-                    <div className="cb-btn-row">
+                <div className="sec-card">
+                    <div className="sec-row">
+                        <div className="sec-icon" aria-hidden>
+                            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 9a6 6 0 1 1 12 0c0 4 2 5 2 5H4s2-1 2-5" />
+                                <path d="M10 19a2 2 0 0 0 4 0" />
+                            </svg>
+                        </div>
+                        <div className="sec-text">
+                            <div className="sec-title">Turn & claim nudges</div>
+                            <div className="sec-sub">Push on this device</div>
+                        </div>
+                    </div>
+                    <div className="sec-actions">
                         <button
                             type="button"
-                            className="cb-btn primary"
+                            className="btn-mini primary"
                             disabled={!id.address}
                             onClick={async () => {
-                                setPushMsg(null);
+                                setNote(null);
                                 const r = await push.enableRemotePush({
                                     walletAddress: id.address || "",
                                     sessionId: appSession.peekAppSession(),
                                 });
-                                setPushMsg(
-                                    r.ok
-                                        ? "Remote push enabled on this device."
-                                        : push.error || "Could not enable remote push",
-                                );
+                                setNote(r.ok ? "Remote push on." : push.error || "Could not enable push");
                             }}
                         >
-                            Enable remote push
+                            Enable
                         </button>
                         <button
                             type="button"
-                            className="cb-btn"
+                            className="btn-mini"
                             disabled={!id.address}
                             onClick={async () => {
-                                setPushMsg(null);
+                                setNote(null);
                                 const err = await push.sendTestPush({
                                     walletAddress: id.address || "",
                                     sessionId: appSession.peekAppSession(),
                                 });
-                                setPushMsg(err || "Test push sent.");
+                                setNote(err || "Test sent.");
                             }}
                         >
-                            Send test
+                            Test
                         </button>
                         <button
                             type="button"
-                            className="cb-btn ghost"
+                            className="btn-mini ghost"
                             disabled={!id.address}
                             onClick={async () => {
-                                setPushMsg(null);
+                                setNote(null);
                                 await push.disableRemotePush({
                                     walletAddress: id.address || "",
                                     sessionId: appSession.peekAppSession(),
                                 });
-                                setPushMsg("Remote push disabled on this device.");
+                                setNote("Push off.");
                             }}
                         >
-                            Disable
+                            Off
                         </button>
                     </div>
-                    {pushMsg && <p className="cb-copy ok">{pushMsg}</p>}
-                    {push.error && <p className="cb-error">{push.error}</p>}
                 </div>
-            </section>
+            </div>
 
-            {/* Export key — danger zone */}
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Export private key</span>
-                    <span className="cb-section-tag danger">Danger zone</span>
+            {/* Export */}
+            <div className="sec-block">
+                <div className="sec-head">
+                    <span>Export key</span>
+                    <span className="sec-tag danger">Danger</span>
                 </div>
-                <div className="cb-card cb-pad danger-card">
-                    <p className="cb-copy">
-                        Reveals the <strong>owner key</strong> of your in-game smart wallet (Coinbase secure
-                        window). MetaMask will show the owner address — not the in-game profile address.
-                    </p>
-                    {!showExportConfirm ? (
-                        <button
-                            type="button"
-                            className="cb-btn danger"
-                            disabled={busy || exportStatus === "pending"}
-                            onClick={() => setShowExportConfirm(true)}
-                        >
-                            Export private key…
-                        </button>
-                    ) : (
-                        <div className="cb-confirm">
-                            <p className="cb-warn">
-                                Anyone with this key controls the in-game wallet. Prefer leaving it here.
-                            </p>
-                            <div className="cb-btn-row">
-                                <button type="button" className="cb-btn danger" disabled={busy} onClick={onExport}>
-                                    I understand — export
+                <div className="sec-card danger">
+                    <div className="sec-row">
+                        <div className="sec-icon danger" aria-hidden>
+                            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="5" y="10" width="14" height="10" rx="2" />
+                                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                            </svg>
+                        </div>
+                        <div className="sec-text">
+                            <div className="sec-title">Owner private key</div>
+                            <div className="sec-sub">Owner EOA · not profile address</div>
+                        </div>
+                        {!showExportConfirm ? (
+                            <button
+                                type="button"
+                                className="btn-mini danger"
+                                disabled={busy}
+                                onClick={() => setShowExportConfirm(true)}
+                            >
+                                Export
+                            </button>
+                        ) : null}
+                    </div>
+                    {showExportConfirm && (
+                        <div className="sec-confirm">
+                            <p className="sec-sub">Anyone with this key controls the wallet.</p>
+                            <div className="sec-actions">
+                                <button type="button" className="btn-mini danger" disabled={busy} onClick={onExport}>
+                                    Confirm
                                 </button>
                                 <button
                                     type="button"
-                                    className="cb-btn ghost"
+                                    className="btn-mini ghost"
                                     onClick={() => setShowExportConfirm(false)}
                                 >
                                     Cancel
@@ -244,22 +266,22 @@ export default function WalletSecurityPanel() {
                             </div>
                         </div>
                     )}
-                    {exportErr && <p className="cb-error">{exportErr}</p>}
-                    {privateKey && (
-                        <pre className="cb-secret">{privateKey}</pre>
-                    )}
+                    {exportErr && <p className="err-text pad">{exportErr}</p>}
+                    {privateKey && <pre className="sec-secret">{privateKey}</pre>}
                 </div>
-            </section>
+            </div>
 
-            {/* Identity details */}
-            <section className="cb-section">
-                <div className="cb-section-head">
+            {/* Details */}
+            <div className="sec-block">
+                <div className="sec-head">
                     <span>Wallet details</span>
                 </div>
-                <div className="cb-card">
+                <div className="sec-card">
                     <WalletDetailsSheet />
                 </div>
-            </section>
+            </div>
+
+            {note && <p className="ok-inline">{note}</p>}
         </div>
     );
 }

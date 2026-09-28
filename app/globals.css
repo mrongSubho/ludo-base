@@ -7047,13 +7047,14 @@ body.theme-daybreak .chips-burn-panel [class*="text-white"]:not([class*="text-cy
 
 .cb-wallet-root {
   position: fixed;
-  /* Stretch exactly between header and game footer — never covers either */
-  top: calc(64px + env(safe-area-inset-top, 0px));
-  bottom: calc(var(--footer-h, 76px) + var(--vv-dead-bottom, 0px));
+  /* Inset from the band edges so lobby/scrim is visible around the card
+     (full-bleed card looked like “just white” on Daybreak). */
+  top: calc(64px + env(safe-area-inset-top, 0px) + 12px);
+  bottom: calc(var(--footer-h, 76px) + var(--vv-dead-bottom, 0px) + 12px);
   left: 50%;
   transform: translateX(-50%) translateZ(0);
   z-index: 250 !important;
-  width: min(400px, calc(100vw - 16px));
+  width: min(380px, calc(100vw - 36px));
   height: auto;
   max-height: none;
   display: flex;
@@ -7069,7 +7070,7 @@ body.theme-daybreak .chips-burn-panel [class*="text-white"]:not([class*="text-cy
     0 2px 8px rgba(0, 0, 0, 0.25);
   contain: paint;
   overflow: hidden;
-  margin: 6px 0;
+  margin: 0;
 }
 
 /* Daybreak — light porcelain card */
@@ -7082,9 +7083,8 @@ body.theme-daybreak .cb-wallet-root {
     0 2px 8px rgba(15, 23, 42, 0.08);
 }
 body.theme-daybreak .cb-wallet-backdrop {
-  /* Stronger scrim so the porcelain lobby stays visible around the card
-     (a near-white wash made the game disappear outside the wallet). */
-  background: rgba(15, 23, 42, 0.42);
+  /* Dark enough that porcelain lobby UI reads through — not a white wash */
+  background: rgba(15, 23, 42, 0.55);
 }
 
 /* Header stays readable on Daybreak (white-on-white fix) */
@@ -8745,6 +8745,322 @@ body.theme-daybreak .tkpick-item-name { color: rgba(10, 11, 13, 0.45); }
   color: rgba(243, 245, 249, 0.45);
 }
 
+
+/* ── Security + Dapps sheets ─────────────────────────────────────────── */
+.sec-sheet,
+.dapp-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+.sec-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+.sec-head > span:first-child {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgba(243, 245, 249, 0.5);
+}
+body.theme-daybreak .sec-head > span:first-child {
+  color: rgba(10, 11, 13, 0.5);
+}
+.sec-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(243, 245, 249, 0.6);
+}
+.sec-tag.danger {
+  background: rgba(248, 113, 113, 0.14);
+  color: #f87171;
+}
+body.theme-daybreak .sec-tag {
+  background: rgba(10, 11, 13, 0.06);
+  color: rgba(10, 11, 13, 0.55);
+}
+body.theme-daybreak .sec-tag.danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.sec-card {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sec-card.danger {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(248, 113, 113, 0.05);
+}
+body.theme-daybreak .sec-card {
+  border-color: rgba(10, 11, 13, 0.08);
+  background: rgba(10, 11, 13, 0.03);
+}
+body.theme-daybreak .sec-card.danger {
+  border-color: rgba(220, 38, 38, 0.18);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.sec-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sec-list .sec-row {
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+body.theme-daybreak .sec-list .sec-row {
+  border-top-color: rgba(10, 11, 13, 0.06);
+}
+.sec-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(0, 82, 255, 0.16);
+  color: #8EB6FF;
+}
+.sec-icon.danger {
+  background: rgba(248, 113, 113, 0.14);
+  color: #f87171;
+}
+body.theme-daybreak .sec-icon {
+  background: rgba(0, 82, 255, 0.1);
+  color: #0052FF;
+}
+body.theme-daybreak .sec-icon.danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+.sec-text { flex: 1; min-width: 0; }
+.sec-title {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sec-sub {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(243, 245, 249, 0.48);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sec-sub.mono,
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+  white-space: normal;
+}
+.sec-sub.pad { padding: 0 2px; }
+body.theme-daybreak .sec-sub { color: rgba(10, 11, 13, 0.48); }
+
+.sec-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sec-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+body.theme-daybreak .sec-confirm { background: rgba(10, 11, 13, 0.04); }
+.sec-secret {
+  margin: 0;
+  max-height: 88px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fbbf24;
+  font-size: 10px;
+  line-height: 1.45;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+body.theme-daybreak .sec-secret {
+  background: rgba(10, 11, 13, 0.06);
+  color: #b45309;
+}
+
+.btn-mini {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.btn-mini:disabled { opacity: 0.4; cursor: default; }
+.btn-mini.primary {
+  background: #0052FF;
+  border-color: #0052FF;
+  color: #fff;
+}
+.btn-mini.danger {
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f87171;
+}
+.btn-mini.danger-ghost {
+  background: transparent;
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #f87171;
+}
+.btn-mini.ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+body.theme-daybreak .btn-mini {
+  background: rgba(10, 11, 13, 0.05);
+  border-color: rgba(10, 11, 13, 0.12);
+}
+body.theme-daybreak .btn-mini.primary {
+  background: #0052FF;
+  border-color: #0052FF;
+  color: #fff;
+}
+body.theme-daybreak .btn-mini.danger {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+body.theme-daybreak .btn-mini.danger-ghost {
+  border-color: rgba(220, 38, 38, 0.28);
+  color: #dc2626;
+}
+
+.lnk.danger {
+  color: #f87171;
+}
+body.theme-daybreak .lnk.danger { color: #dc2626; }
+
+/* Dapps specifics */
+.dapp-pair {
+  display: flex;
+  gap: 8px;
+}
+.dapp-pair .fld-text { flex: 1; min-width: 0; }
+.dapp-pair .btn-main {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+.dapp-qr {
+  display: block;
+  width: 132px;
+  height: 132px;
+  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+  margin: 0 auto;
+}
+.dapp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dapp-chip {
+  font-size: 10px;
+  font-weight: 650;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 82, 255, 0.14);
+  color: #8EB6FF;
+}
+.dapp-chip.soft {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(243, 245, 249, 0.55);
+}
+body.theme-daybreak .dapp-chip {
+  background: rgba(0, 82, 255, 0.1);
+  color: #0052FF;
+}
+body.theme-daybreak .dapp-chip.soft {
+  background: rgba(10, 11, 13, 0.06);
+  color: rgba(10, 11, 13, 0.55);
+}
+.dapp-calls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dapp-calls li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+body.theme-daybreak .dapp-calls li { background: rgba(10, 11, 13, 0.04); }
+.dapp-calls .mono {
+  font-size: 10px;
+  color: rgba(243, 245, 249, 0.45);
+}
+body.theme-daybreak .dapp-calls .mono { color: rgba(10, 11, 13, 0.45); }
+.dapp-risk {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  font-size: 11px;
+  font-weight: 650;
+}
+body.theme-daybreak .dapp-risk {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
 .cb-empty {
   margin: 0;
   padding: 14px;
@@ -8931,8 +9247,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
     -webkit-backdrop-filter: none !important;
   }
   .cb-wallet-root {
-    width: min(400px, calc(100vw - 12px));
+    width: min(380px, calc(100vw - 28px));
     border-radius: 18px;
-    margin: 4px 0;
   }
 }

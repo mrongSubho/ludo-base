@@ -19,7 +19,7 @@ import {
     type PendingRequest,
 } from "@/lib/wcWallet";
 import { decodeCallsList, extractCalls } from "@/lib/wcDecode";
-import { formatExpiryClock, sessionExpiryParts } from "@/lib/wcExpiry";
+import { sessionExpiryParts } from "@/lib/wcExpiry";
 
 /**
  * W5 UI — Ludo as WalletConnect wallet.
@@ -269,66 +269,74 @@ export default function WcWalletPanel() {
     }, [showQrFor]);
 
     return (
-        <div className="cb-screen space-y-4">
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Connect a dapp</span>
-                    <span className="cb-section-tag">WalletConnect</span>
+        <div className="dapp-sheet">
+            {/* Pair */}
+            <div className="sec-block">
+                <div className="sec-head">
+                    <span>Connect</span>
+                    <span className="sec-tag">WalletConnect</span>
                 </div>
-                <div className="cb-card cb-pad">
-                <p className="cb-copy">
-                    Paste the <code>wc:</code> link from Uniswap or another app. You approve every session
-                    and request — nothing is auto-signed. Base chains only.
-                </p>
-                <div className="cb-btn-row">
-                    <input
-                        className="cb-input"
-                        placeholder="wc:..."
-                        value={uri}
-                        onChange={(e) => setUri(e.target.value)}
-                    />
-                    <button
-                        type="button"
-                        className="cb-btn primary"
-                        disabled={busy}
-                        onClick={onPair}
-                    >
-                        Pair
-                    </button>
+                <div className="sec-card">
+                    <div className="dapp-pair">
+                        <input
+                            className="fld-text"
+                            placeholder="Paste wc: link"
+                            value={uri}
+                            onChange={(e) => setUri(e.target.value)}
+                            spellCheck={false}
+                            autoComplete="off"
+                        />
+                        <button type="button" className="btn-main" disabled={busy} onClick={onPair}>
+                            Pair
+                        </button>
+                    </div>
+                    <div className="sec-actions">
+                        <QrScanButton
+                            onScan={(u) => {
+                                setUri(u);
+                                void showQrFor(u);
+                            }}
+                        />
+                    </div>
+                    {qrData && (
+                        <img
+                            src={qrData}
+                            alt="WalletConnect URI QR"
+                            className="dapp-qr"
+                            width={132}
+                            height={132}
+                        />
+                    )}
                 </div>
-                <div>
-                    <QrScanButton
-                        onScan={(u) => {
-                            setUri(u);
-                            void showQrFor(u);
-                        }}
-                    />
-                </div>
-                {qrData && (
-                    <img src={qrData} alt="WalletConnect URI QR" className="rounded-lg bg-white p-1" width={140} height={140} />
-                )}
-                </div>
-            </section>
+            </div>
 
+            {/* Proposals */}
             {proposals.length > 0 && (
-                <section className="cb-section">
-                    <div className="cb-section-head">
-                        <span>Session proposals</span>
-                        <span className="cb-section-tag">{proposals.length}</span>
+                <div className="sec-block">
+                    <div className="sec-head">
+                        <span>Session requests</span>
+                        <span className="sec-tag">{proposals.length}</span>
                     </div>
                     {proposals.map((p) => (
-                        <div key={p.id} className="cb-card cb-pad">
-                            <div className="font-bold">{p.proposerName}</div>
-                            <div className="text-white/50 break-all">{p.proposerUrl}</div>
-                            <div className="text-white/45 mt-1">
-                                chains: {[...p.requiredChains, ...p.optionalChains].join(", ") || "eip155"}
-                                <br />
-                                methods: {[...p.requiredMethods, ...p.optionalMethods].join(", ")}
+                        <div key={p.id} className="sec-card">
+                            <div className="sec-row">
+                                <div className="sec-text">
+                                    <div className="sec-title">{p.proposerName}</div>
+                                    <div className="sec-sub mono">{p.proposerUrl}</div>
+                                </div>
                             </div>
-                            <div className="flex gap-2 mt-2">
+                            <div className="dapp-chips">
+                                {[...p.requiredChains, ...p.optionalChains].map((c) => (
+                                    <span key={c} className="dapp-chip">{c}</span>
+                                ))}
+                                {[...p.requiredMethods, ...p.optionalMethods].slice(0, 6).map((m) => (
+                                    <span key={m} className="dapp-chip soft">{m}</span>
+                                ))}
+                            </div>
+                            <div className="sec-actions">
                                 <button
                                     type="button"
-                                    className="cb-btn primary sm"
+                                    className="btn-mini primary"
                                     disabled={busy}
                                     onClick={() => onApproveProposal(p.id)}
                                 >
@@ -336,7 +344,7 @@ export default function WcWalletPanel() {
                                 </button>
                                 <button
                                     type="button"
-                                    className="cb-btn ghost sm"
+                                    className="btn-mini ghost"
                                     disabled={busy}
                                     onClick={() => onRejectProposal(p.id)}
                                 >
@@ -345,21 +353,20 @@ export default function WcWalletPanel() {
                             </div>
                         </div>
                     ))}
-                </section>
+                </div>
             )}
 
+            {/* Requests */}
             {requests.length > 0 && (
-                <section className="cb-section">
-                    <div className="cb-section-head">
+                <div className="sec-block">
+                    <div className="sec-head">
                         <span>Requests</span>
-                        <span className="cb-section-tag">{requests.length}</span>
+                        <span className="sec-tag">{requests.length}</span>
                     </div>
                     {requests.map((r) => {
                         const isValue =
                             r.method === "eth_sendTransaction" || r.method === "wallet_sendCalls";
-                        const callPack = isValue
-                            ? decodeCallsList(extractCalls(r.params))
-                            : null;
+                        const callPack = isValue ? decodeCallsList(extractCalls(r.params)) : null;
                         const risk = isValue
                             ? {
                                   unlimitedApprove:
@@ -373,43 +380,47 @@ export default function WcWalletPanel() {
                               }
                             : { unlimitedApprove: false };
                         return (
-                            <div key={r.id} className="mt-2 rounded-xl border border-white/10 p-3 text-[11px]">
-                                <div className="font-bold">
-                                    {r.method} · {r.peerName}
-                                </div>
-                                <div className="text-white/50 font-mono break-all">
-                                    {r.chainId}
+                            <div key={r.id} className="sec-card">
+                                <div className="sec-row">
+                                    <div className="sec-text">
+                                        <div className="sec-title">
+                                            {r.method}
+                                            {risk.unlimitedApprove ? " · risky" : ""}
+                                        </div>
+                                        <div className="sec-sub">
+                                            {r.peerName} · {r.chainId}
+                                        </div>
+                                    </div>
+                                    {callPack && (
+                                        <span className={`sec-tag ${risk.unlimitedApprove ? "danger" : ""}`}>
+                                            {callPack.valueAtRiskEth} ETH
+                                        </span>
+                                    )}
                                 </div>
                                 {callPack && (
-                                    <div className="mt-2 space-y-1 rounded-lg bg-black/30 p-2">
-                                        <div className="text-white/70">
-                                            <span className="text-white/40">Value at risk:</span>{" "}
-                                            <strong>{callPack.valueAtRiskEth} ETH</strong>
-                                        </div>
+                                    <ul className="dapp-calls">
                                         {callPack.decoded.map((c, i) => (
-                                            <div key={i} className="text-white/75">
-                                                <div className="font-mono text-[10px] text-white/45">{c.to}</div>
-                                                <div>{c.summary}</div>
-                                            </div>
+                                            <li key={i}>
+                                                <span className="mono">{c.to}</span>
+                                                <span>{c.summary}</span>
+                                            </li>
                                         ))}
-                                    </div>
+                                    </ul>
                                 )}
                                 {!callPack && (
-                                    <div className="text-white/50 font-mono break-all">
-                                        {JSON.stringify(r.params).slice(0, 160)}…
-                                    </div>
+                                    <p className="sec-sub mono">
+                                        {JSON.stringify(r.params).slice(0, 120)}…
+                                    </p>
                                 )}
                                 {risk.unlimitedApprove && (
-                                    <div className="mt-1 rounded border border-red-400/40 bg-red-500/10 p-2 text-red-200">
-                                        ⚠️ <strong>Unlimited token approval</strong> — dapp can move your full
-                                        balance. Reject unless you fully trust this origin. Prefer exact
-                                        allowances on the dapp.
+                                    <div className="dapp-risk">
+                                        Unlimited approve — dapp can move full balance
                                     </div>
                                 )}
-                                <div className="flex gap-2 mt-2">
+                                <div className="sec-actions">
                                     <button
                                         type="button"
-                                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-1.5 uppercase font-bold"
+                                        className="btn-mini primary"
                                         disabled={busy}
                                         onClick={() => onRespondRequest(r, true)}
                                     >
@@ -417,7 +428,7 @@ export default function WcWalletPanel() {
                                     </button>
                                     <button
                                         type="button"
-                                        className="rounded-lg border border-white/15 px-3 py-1.5 uppercase"
+                                        className="btn-mini ghost"
                                         disabled={busy}
                                         onClick={() => onRespondRequest(r, false)}
                                     >
@@ -427,18 +438,17 @@ export default function WcWalletPanel() {
                             </div>
                         );
                     })}
-                </section>
+                </div>
             )}
 
+            {/* Sessions */}
             {sessions.length > 0 && (
-                <section className="cb-section">
-                    <div className="cb-section-head">
-                        <h4 className="cb-page-label">
-                            Active sessions
-                        </h4>
+                <div className="sec-block">
+                    <div className="sec-head">
+                        <span>Active</span>
                         <button
                             type="button"
-                            className="text-[10px] uppercase text-red-300 underline"
+                            className="lnk danger"
                             disabled={busy}
                             onClick={async () => {
                                 try {
@@ -461,60 +471,49 @@ export default function WcWalletPanel() {
                             Disconnect all
                         </button>
                     </div>
-                    <ul className="mt-1 space-y-1">
-                        {sessions.map((s) => {
-                            const exp = sessionExpiryParts(s.expiry, nowMs);
-                            return (
-                            <li key={s.topic} className="text-[11px] text-white/70 flex justify-between gap-2">
-                                <span className="truncate">
-                                    {s.peer} · {s.chains.join(", ")}
-                                    {exp && (
-                                        <span
-                                            className={
-                                                exp.expired
-                                                    ? "text-red-300/90"
-                                                    : exp.urgent
-                                                      ? "text-amber-200/90"
-                                                      : "text-white/40"
-                                            }
+                    <div className="sec-card">
+                        <ul className="sec-list">
+                            {sessions.map((s) => {
+                                const exp = sessionExpiryParts(s.expiry, nowMs);
+                                return (
+                                    <li key={s.topic} className="sec-row">
+                                        <div className="sec-text">
+                                            <div className="sec-title">{s.peer}</div>
+                                            <div className="sec-sub">
+                                                {s.chains.join(", ")}
+                                                {exp ? ` · ${exp.expired ? "expired" : exp.label}` : ""}
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn-mini danger-ghost"
+                                            disabled={busy}
+                                            onClick={async () => {
+                                                try {
+                                                    const kit = await getWalletKit();
+                                                    await kit.disconnectSession({
+                                                        topic: s.topic,
+                                                        reason: { code: 6000, message: "User disconnected" },
+                                                    });
+                                                    await refresh();
+                                                } catch {
+                                                    /* ignore */
+                                                }
+                                            }}
                                         >
-                                            {" "}
-                                            · {exp.expired ? "expired" : `expires in ${exp.label}`}
-                                            {s.expiry != null && (
-                                                <span className="text-white/30"> ({formatExpiryClock(s.expiry)})</span>
-                                            )}
-                                        </span>
-                                    )}
-                                </span>
-                                <button
-                                    type="button"
-                                    className="text-red-300/80 uppercase text-[10px]"
-                                    disabled={busy}
-                                    onClick={async () => {
-                                        try {
-                                            const kit = await getWalletKit();
-                                            await kit.disconnectSession({
-                                                topic: s.topic,
-                                                reason: { code: 6000, message: "User disconnected" },
-                                            });
-                                            await refresh();
-                                        } catch {
-                                            /* ignore */
-                                        }
-                                    }}
-                                >
-                                    Disconnect
-                                </button>
-                            </li>
-                            );
-                        })}
-                    </ul>
-                </section>
+                                            End
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                </div>
             )}
 
-            {msg && <p className="text-[11px] text-white/60">{msg}</p>}
+            {msg && <p className="ok-inline">{msg}</p>}
             {!address && (
-                <p className="text-[11px] text-amber-200/80">Sign in first so we know which address to expose.</p>
+                <p className="sec-sub pad">Sign in to expose an address to dapps.</p>
             )}
         </div>
     );
