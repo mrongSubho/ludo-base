@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ChatIcon, SlidersIcon } from './icons';
 import { useChipsBalance } from '@/hooks/useChipsBalance';
-import WalletPanel from './WalletPanel';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -27,6 +26,10 @@ interface HeaderNavPanelProps {
     onMessagesClick: () => void;
     onSettingsClick: () => void;
     onFeedClick?: () => void;
+    /** Open wallet at page shell — never render it inside this header. */
+    onOpenWallet?: () => void;
+    /** Open the signed-in user's profile panel. */
+    onOpenProfile?: () => void;
 }
 
 export const HeaderNavPanel = ({
@@ -39,11 +42,12 @@ export const HeaderNavPanel = ({
     hasNotifications,
     onMessagesClick,
     onSettingsClick,
-    onFeedClick: _onFeedClick
+    onFeedClick: _onFeedClick,
+    onOpenWallet,
+    onOpenProfile,
 }: HeaderNavPanelProps) => {
     const chips = useChipsBalance();
     const showChips = chips.configured && chips.isConnected;
-    const [walletOpen, setWalletOpen] = useState(false);
     return (
         <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[300]">
             {/* [x] Header Redesign (3 Pills) */}
@@ -52,7 +56,7 @@ export const HeaderNavPanel = ({
             {/* Pill 1: Left - Coin / CHIPS Balance — click opens wallet panel */}
             <button
                 type="button"
-                onClick={() => setWalletOpen(true)}
+                onClick={() => onOpenWallet?.()}
                 title={showChips ? 'Open CHIPS wallet' : 'Coins / CHIPS wallet'}
                 className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-start bg-transparent border border-cyan-500/50 rounded-r-full rounded-l-none shadow-[0_4px_20px_rgba(0,0,0,0.4)] shimmer-effect relative overflow-hidden cursor-pointer hover:border-cyan-300/70 transition-colors text-left"
             >
@@ -69,8 +73,14 @@ export const HeaderNavPanel = ({
                 </div>
             </button>
 
-            {/* Pill 2: Center - User Profile */}
-            <div className="w-[128px] sm:w-[150px] flex-none h-[40px] sm:h-[44px] flex items-center justify-center bg-transparent border border-cyan-500/50 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.45)] shimmer-effect relative overflow-hidden">
+            {/* Pill 2: Center - User Profile (tap name/avatar → profile panel) */}
+            <button
+                type="button"
+                onClick={() => onOpenProfile?.()}
+                title="Open profile"
+                aria-label="Open profile"
+                className="w-[128px] sm:w-[150px] flex-none h-[40px] sm:h-[44px] flex items-center justify-center bg-transparent border border-cyan-500/50 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.45)] shimmer-effect relative overflow-hidden cursor-pointer hover:border-cyan-300/70 transition-colors text-left"
+            >
                 <div className="flex items-center gap-2.5 w-full justify-center z-10 px-1">
                     <div className="relative flex-shrink-0">
                         <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1a1c29] shadow-[0_0_15px_rgba(34,211,238,0.4)]">
@@ -100,7 +110,7 @@ export const HeaderNavPanel = ({
                         </span>
                     </div>
                 </div>
-            </div>
+            </button>
 
             {/* Pill 3: Right - Actions */}
             <div className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-end bg-transparent border border-cyan-500/50 rounded-l-full rounded-r-none shadow-[0_4px_20px_rgba(0,0,0,0.9)] shimmer-effect relative overflow-hidden">
@@ -133,9 +143,6 @@ export const HeaderNavPanel = ({
                     </button>
                 </div>
             </div>
-
-            {/* Real wallet (R0–R1) — full home / send / receive / activity */}
-            {walletOpen && <WalletPanel onClose={() => setWalletOpen(false)} />}
         </header>
     );
 };

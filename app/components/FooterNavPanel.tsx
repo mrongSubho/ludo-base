@@ -9,7 +9,7 @@ import { useGameData } from '@/hooks/GameDataContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 
 // Tab Type
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
+type Tab = 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | 'profile' | null;
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -39,6 +39,13 @@ const TournamentIcon = () => (
     <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
         <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+);
+
+const MissionIcon = () => (
+    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
 );
 
@@ -96,9 +103,9 @@ export const FooterNavPanel = ({
         <>
             <nav className="footer-nav ludo-footer-scope overflow-hidden">
                 {[
-                    { id: 'profile', icon: ProfileIcon, label: 'Profile' },
                     { id: 'friends', icon: UsersIcon, label: 'Friends' },
                     { id: 'leaderboard', icon: TrophyIcon, label: 'Leaderboard' },
+                    { id: 'mission', icon: MissionIcon, label: 'Mission' },
                     { id: 'arena', icon: TournamentIcon, label: 'Arena' },
                     { id: 'marketplace', icon: ShopIcon, label: 'Market' }
                 ].map((tab) => {

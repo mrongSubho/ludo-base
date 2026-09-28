@@ -60,16 +60,18 @@ interface ArenaPanelProps {
     onClose: () => void;
     onSwitchTab?: (tab: any) => void;
     onWatchMatch?: (roomCode: string) => void;
+    /** Open on Live or Missions (footer Mission tab → missions). */
+    defaultTab?: ArenaTab;
 }
 
-export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch }: ArenaPanelProps) {
+export default function ArenaPanel({ isOpen, onClose, onSwitchTab, onWatchMatch, defaultTab = 'live' }: ArenaPanelProps) {
     const { address, isGuest } = useCurrentUser();
     const { ensureAppSession } = useAppSession();
     // Guests can view missions, but claiming pays onchain — walled.
     const { guard } = useGuestWall();
     // Mobile: instant shell — motion enter/exit ghosts the previous panel.
     const isMobile = useIsMobileView();
-    const [arenaTab, setArenaTab] = useState<ArenaTab>('live');
+    const [arenaTab, setArenaTab] = useState<ArenaTab>(defaultTab);
 
     // Live header stats, reported up by the live tab content.
     const [liveStats, setLiveStats] = useState({ live: 0, watching: 0, vol: 0 });

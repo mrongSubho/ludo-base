@@ -3,7 +3,7 @@
 import "@coinbase/onchainkit/styles.css";
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { base, baseSepolia } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 import { baseAccount, coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ReactNode, useEffect } from "react";
@@ -18,7 +18,7 @@ import { CdpAuthProvider } from "./components/CdpAuthProvider";
 import { prefetchSiweNonce } from "@/hooks/useBaseAccountSigner";
 
 const config = createConfig({
-    chains: [base, baseSepolia],
+    chains: [baseSepolia],
     connectors: [
         // Primary — Sign in with Base (keys.coinbase.com popup).
         // appName + appLogoUrl show on connect, sign, and tx approve screens.
@@ -45,7 +45,6 @@ const config = createConfig({
         safe(),
     ],
     transports: {
-        [base.id]: http(),
         [baseSepolia.id]: http(),
     },
     ssr: true,
@@ -69,7 +68,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 <CdpAuthProvider>
                 <OnchainKitProvider
                     apiKey="YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
-                    chain={base}
+                    chain={baseSepolia}
                     config={{
                         analytics: false,
                         wallet: {

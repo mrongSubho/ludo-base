@@ -58,7 +58,7 @@ import { buildStreamMessage } from '@/lib/matchProof';
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
 type AppState = 'dashboard' | 'game' | 'spectating';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
 
 // Mock user data has been removed
 
@@ -565,6 +565,8 @@ export default function Page() {
                     onMessagesClick={() => toggle('messages')}
                     onSettingsClick={() => toggle('settings')}
                     onFeedClick={() => { closeTab(); setBurnOpen(true); }}
+                    onOpenWallet={() => toggle('wallet')}
+                    onOpenProfile={() => toggle('profile')}
                 />
 
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
@@ -626,6 +628,16 @@ export default function Page() {
                     isOpen={true}
                     onClose={closeTab}
                     onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                  />
+                )}
+                {activeTab === 'mission' && (
+                  <ArenaPanel
+                    key="mission"
+                    isOpen={true}
+                    onClose={closeTab}
+                    onSwitchTab={toggle}
+                    onWatchMatch={handleWatchMatch}
+                    defaultTab="missions"
                   />
                 )}
                 {activeTab === 'arena' && (
