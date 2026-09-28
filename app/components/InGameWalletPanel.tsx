@@ -18,7 +18,7 @@ import {
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { writeWalletMode } from "@/lib/walletMode";
 
-type SocialId = "google" | "apple" | "x";
+type SocialId = "google" | "apple" | "x" | "telegram";
 
 const SOCIALS: { id: SocialId; label: string; icon: ReactNode }[] = [
     {
@@ -45,6 +45,15 @@ const SOCIALS: { id: SocialId; label: string; icon: ReactNode }[] = [
         icon: (
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
                 <path d="M17.5 3h3l-6.6 7.5L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7-8L2 3h6.3l4.4 5.8L17.5 3zm-1.1 16.2h1.7L7.7 4.7H5.9l10.5 14.5z" />
+            </svg>
+        ),
+    },
+    {
+        id: "telegram",
+        label: "Telegram",
+        icon: (
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#229ED9" aria-hidden>
+                <path d="M21.7 4.2 3.9 10.9c-1.2.5-1.2 1.1-.2 1.4l4.5 1.4 1.7 5.2c.2.6.1.8.7.8.5 0 .7-.2 1-.5l2.2-2.1 4.5 3.3c.8.5 1.4.2 1.6-.8l2.9-13.5c.3-1.2-.4-1.7-1.2-1.4zM8.7 13.7l9.2-5.8c.4-.3.8-.1.5.2l-7.6 6.9-.3 3-1.8-4.3z" />
             </svg>
         ),
     },
@@ -152,7 +161,7 @@ export default function InGameWalletPanel({
             )}
 
             <h2 className="ingame-title">Sign In</h2>
-            <p className="ingame-sub">Create your in-game wallet</p>
+            <p className="ingame-sub">Your in-game wallet</p>
 
             {/* Socials */}
             <div className="ingame-socials" role="group" aria-label="Social sign in">
@@ -175,7 +184,7 @@ export default function InGameWalletPanel({
             </div>
 
             <div className="ingame-divider">
-                <span>or use your email</span>
+                <span>or create in-game wallet using your email</span>
             </div>
 
             {/* Email → OTP field (same slot) */}

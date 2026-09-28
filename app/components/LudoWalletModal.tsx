@@ -176,8 +176,8 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                         {isInGameWalletEnabled() && !showInGame && (
                             <WalletRow
                                 primary
-                                label="Create in-game wallet"
-                                hint="Email · Google · Apple · X"
+                                label="Continue with in-game wallet"
+                                hint="Email · Google · Apple · X · Telegram"
                                 icon={WALLET_ICONS.email}
                                 onClick={() => setShowInGame(true)}
                             />
