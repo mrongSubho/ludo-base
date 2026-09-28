@@ -4,7 +4,7 @@ import { ReactNode, useMemo } from "react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 
 /**
- * Phase 0a spike mount for CDP non-custodial auth (WALLET_PLAN).
+ * Phase 0a spike mount for CDP non-custodial auth (SMART_WALLET_PLANNING).
  * Enabled only when NEXT_PUBLIC_CDP_AUTH=1 and NEXT_PUBLIC_CDP_PROJECT_ID is set.
  * createOnLogin "smart" provisions EOA + Smart Account — player identity is the
  * Smart Account (parent), never the EOA and never a sub-account (§1.1).

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * R0/R1 — wallet asset balances (WALLET_PLAN).
+ * R0/R1 — wallet asset balances (SMART_WALLET_PLANNING).
  * CHIPS is **unpriced** — excluded from USD total (H2).
  */
 

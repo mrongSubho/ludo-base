@@ -1,6 +1,6 @@
 /**
  * R3 / H1 — decode WalletConnect call payloads for informed consent.
- * WALLET_PLAN §7b H1. Never auto-approve; show value-at-risk + risk flags.
+ * SMART_WALLET_PLANNING §7b H1. Never auto-approve; show value-at-risk + risk flags.
  */
 
 import { formatUnits, getAddress, type Hex } from "viem";

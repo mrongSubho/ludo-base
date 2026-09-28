@@ -2,7 +2,7 @@
 
 /**
  * W4 — in-game CHIPS path: CDP `sendUserOperation` + ERC-8021 `dataSuffix`.
- * WALLET_PLAN §7 · CHIPS_PLANNING §8.7.
+ * SMART_WALLET_PLANNING §7 · CHIPS_PLANNING §8.7.
  * External mode keeps wagmi `useSendCalls` / `writeContract` in useChipsPool.
  */
 

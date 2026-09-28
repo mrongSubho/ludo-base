@@ -16,7 +16,7 @@ import { useAppSession } from "@/hooks/useAppSession";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 
 /**
- * W1 — In-game wallet security (WALLET_PLAN §5.4–5.5).
+ * W1 — In-game wallet security (SMART_WALLET_PLANNING §5.4–5.5).
  * Passkey = MFA after CDP login (not primary sign-in).
  * Export = Coinbase secure iframe (owner EOA key).
  */

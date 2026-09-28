@@ -1,5 +1,5 @@
 /**
- * W3 — optional wallet linking (two signatures). WALLET_PLAN §3.3.
+ * W3 — optional wallet linking (two signatures). SMART_WALLET_PLANNING §3.3.
  * Progression is NOT merged on link. CHIPS funds do not move.
  */
 

@@ -7,7 +7,7 @@ function rowLabel(i: WalletActivityItem) {
     return `${sign}${i.amount} ${i.token}`;
 }
 
-/** R1 — unified activity list (WALLET_PLAN §3.3). */
+/** R1 — unified activity list (SMART_WALLET_PLANNING §3.3). */
 export default function WalletActivityList() {
     const { items, loading, refresh, needsReconnect, explorerBase } = useWalletActivity();
 

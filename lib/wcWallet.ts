@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- WalletKit wire types; typed burn-down */
 
 /**
- * W5 — Ludo as WalletConnect **wallet** (WALLET_PLAN §5.7).
+ * W5 — Ludo as WalletConnect **wallet** (SMART_WALLET_PLANNING §5.7).
  * Pair with wc: URI from a third-party dapp; approve session + requests
  * (no auto-approve). Sign via usePlayerSigner (player / CDP smart).
  */

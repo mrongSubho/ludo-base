@@ -2,7 +2,7 @@
 
 /**
  * R2 — passkey / Touch ID step-up before sensitive ops (Send / Export).
- * WALLET_PLAN §3.5. In-game CDP only; External uses the wallet's own UI.
+ * SMART_WALLET_PLANNING §3.5. In-game CDP only; External uses the wallet's own UI.
  */
 
 import { useCallback, useState } from "react";

@@ -1,4 +1,4 @@
-# Ludo Wallet Plan — one wallet, one document
+# Smart Wallet Planning — one wallet, one document
 
 | Field | Value |
 | --- | --- |

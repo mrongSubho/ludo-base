@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * R1 — unified wallet activity (WALLET_PLAN §3.3).
+ * R1 — unified wallet activity (SMART_WALLET_PLANNING §3.3).
  * v1: local confirmed sends + viem native history when available + explorer link.
  * CHIPS game rows join from existing feeds later; do not invent fake prices.
  */
@@ -60,7 +60,7 @@ export function useWalletActivity() {
         setLoading(true);
         try {
             const local = readLocal(address);
-            // On-chain history needs an indexer / explorer API (WALLET_PLAN §3.3).
+            // On-chain history needs an indexer / explorer API (SMART_WALLET_PLANNING §3.3).
             // Until that lands, local confirms + BaseScan links are the source of truth.
             const merged = [...local].sort((a, b) => b.at - a.at);
             // de-dupe by hash/id
