@@ -11,7 +11,7 @@ import {
 } from "@/lib/walletMode";
 
 /**
- * Active-mode signer (DUAL_PATH_WALLET_PLAN §4).
+ * Active-mode signer (WALLET_PLAN §4).
  * External = wagmi (Base/MM/Phantom). In-game = CDP parent Smart Account.
  * Identity = parent/smart only — never owner EOA / sub.
  */

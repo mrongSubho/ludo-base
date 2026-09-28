@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Plan** | `docs/planning/SMART_WALLET_PLAN.md` §5 Phase **0a** |
+| **Plan** | `docs/planning/WALLET_PLAN.md` §11 Phase **0a** (see also `PHASE_0A_SPIKE_CHECKLIST.md`) |
 | **Gate** | Allowed during stable build (thin auth spike only) |
 | **Out of scope** | Sub-account default · CHIPS spend-permission product UX · Sepolia value playtests · connect cutover |
 | **Verified** | 2026-09-24 against `docs.cdp.coinbase.com` (Wallets / User Auth / React Hooks / SIWE) |
@@ -169,4 +169,4 @@ Blockers: none for 0a exit
 
 ---
 
-*Parent identity + CHIPS join-auth rules live in `SMART_WALLET_PLAN.md` §1.1 / §3.2. Do not expand 0a scope into 0b (sub-accounts, spend permissions, value).*
+*Parent identity + CHIPS join-auth rules live in `WALLET_PLAN.md` §3 / §7. Do not expand 0a scope into 0b (sub-accounts, spend permissions, value).*

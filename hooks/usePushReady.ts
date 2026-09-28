@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * R5 — push readiness for tx / WC session (REAL_WALLET_PLAN).
+ * R5 — push readiness for tx / WC session (WALLET_PLAN).
  * Local Notification + service worker + VAPID remote push (app-session gated).
  */
 

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * R0/R1 — Send ETH · USDC · CHIPS (REAL_WALLET_PLAN §3.2).
+ * R0/R1 — Send ETH · USDC · CHIPS (WALLET_PLAN §3.2).
  * Max branches by gas path (M). CHIPS is Base-only + unpriced (H2).
  */
 

@@ -1,5 +1,5 @@
 /**
- * Option A identity (SMART_WALLET_PLAN §1.1): player id is the **Base Account**
+ * Option A identity (WALLET_PLAN §1.1): player id is the **Base Account**
  * from Sign in with Base / SIWE — never a CDP email-OTP embedded wallet and
  * never an owner EOA or sub-account.
  */

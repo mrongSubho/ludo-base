@@ -5,7 +5,7 @@ import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useCurrentUser } from "@coinbase/cdp-hooks";
 
 /**
- * R2 — wallet-details sheet (REAL_WALLET_PLAN).
+ * R2 — wallet-details sheet (WALLET_PLAN).
  * Explains in-game smart vs owner EOA vs Base app so users never confuse ids.
  */
 export default function WalletDetailsSheet() {

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * R1 — ERC-20 send (USDC / CHIPS). REAL_WALLET_PLAN §3.2.
+ * R1 — ERC-20 send (USDC / CHIPS). WALLET_PLAN §3.2.
  * CHIPS stays Base-only (structurally). External: wagmi writeContract;
  * In-game: CDP UserOp with dataSuffix.
  */

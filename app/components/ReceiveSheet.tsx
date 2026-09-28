@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import QRCode from "qrcode";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 
-/** R0 — Receive sheet (REAL_WALLET_PLAN §3.1). */
+/** R0 — Receive sheet (WALLET_PLAN §3.1). */
 export default function ReceiveSheet() {
     const { address, needsReconnect } = useWalletAssets();
     const [qr, setQr] = useState<string | null>(null);

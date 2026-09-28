@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * R0 — native ETH send (REAL_WALLET_PLAN §3.2).
+ * R0 — native ETH send (WALLET_PLAN §3.2).
  * Max branches by gas path (M): self-pay = balance − gas; paymaster smart = full.
  * External mode: wagmi sendTransaction. In-game: CDP UserOp (value transfer).
  */

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-/** R5 — PWA manifest (REAL_WALLET_PLAN). Base-only wallet + game shell. */
+/** R5 — PWA manifest (WALLET_PLAN). Base-only wallet + game shell. */
 export default function manifest(): MetadataRoute.Manifest {
     return {
         name: "Ludo Base — The Onchain Arena",

@@ -17,7 +17,7 @@ import { useAppSession } from "@/hooks/useAppSession";
 type Tab = "home" | "send" | "token" | "receive" | "swap" | "activity" | "apps" | "security";
 
 /**
- * R0 — Wallet shell (REAL_WALLET_PLAN §2).
+ * R0 — Wallet shell (WALLET_PLAN §2).
  * Home: tokens + Send/Receive. CHIPS = unpriced badge (H2).
  */
 export default function WalletShell() {
