@@ -10,6 +10,8 @@ import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
 import WalletLinkPanel from './WalletLinkPanel';
+import { useWalletMode } from '@/hooks/useWalletMode';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -384,6 +386,9 @@ export function SettingsPanel({
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
     const { isGuest } = useCurrentUser();
+    const walletMode = useWalletMode();
+    const player = usePlayerSigner();
+    const isInGameWallet = walletMode === 'ingame';
     // In-game (Leave Match is offered) the panel is scoped: Preferences,
     // Appearance, Leave Match only. No Support/About, and no Sign Out —
     // signing out mid-match is forbidden; leave the match first.
@@ -530,9 +535,12 @@ export function SettingsPanel({
                                                 onOpenWallet?.();
                                             }}
                                         />
-                                        <div className="p-3.5">
-                                            <WalletLinkPanel />
-                                        </div>
+                                        {/* Link wallets is CDP/in-game only (external owns its keys). */}
+                                        {isInGameWallet && (
+                                            <div className="p-3.5">
+                                                <WalletLinkPanel />
+                                            </div>
+                                        )}
                                     </div>
                                 </section>
                             )}
@@ -558,9 +566,6 @@ export function SettingsPanel({
                                     <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
                                     <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
                                 </div>
-                                <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mt-3">
-                                    Ludo Base · Onchain Arena
-                                </p>
                             </section>
 
                             </>
@@ -583,7 +588,7 @@ export function SettingsPanel({
                             {/* Sign out: lobby only — mid-match exits go via Leave Match */}
                             {!inGame && (
                             <button
-                                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 active:scale-[0.99] transition-all text-red-400 text-xs font-black uppercase tracking-[0.18em]"
+                                className="w-full flex flex-col items-center justify-center gap-1 py-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 active:scale-[0.99] transition-all text-red-400"
                                 onClick={() => {
                                     // Guests hold no wallet: dropping the guest flag
                                     // flips isConnected false → sign-in wall.
@@ -592,8 +597,15 @@ export function SettingsPanel({
                                     onClose();
                                 }}
                             >
-                                <LogOutIcon />
-                                <span>{isGuest ? 'Sign In' : 'Sign Out'}</span>
+                                <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em]">
+                                    <LogOutIcon />
+                                    {isGuest ? 'Sign In' : 'Sign Out'}
+                                </span>
+                                {!isGuest && player.address && (
+                                    <span className="max-w-full px-3 text-[9px] font-mono leading-tight text-red-300/70 break-all">
+                                        {player.address}
+                                    </span>
+                                )}
                             </button>
                             )}
 
