@@ -29,6 +29,10 @@ export default function WalletShell() {
 
     useEffect(() => {
         bio.checkSupport();
+        // R5: register service worker for push / cache (safe no-op if unsupported)
+        if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+            void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+        }
     }, [bio]);
 
     return (

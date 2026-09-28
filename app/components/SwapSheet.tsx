@@ -1,34 +1,31 @@
 "use client";
 
 /**
- * R4 — Swap via CDP `useSwap` / `useGetSwapPrice` (same engine Coinbase
- * Wallet / Base app uses). **Base only.** No Uniswap-direct integration.
- * REAL_WALLET_PLAN §R4.
+ * R4 — Swap via CDP `useSwap` / `useGetSwapPrice` (Coinbase swap engine).
+ * Base-only token list (lib/swapTokens). CHIPS is not a swap asset (H2).
  */
 
 import { useState } from "react";
 import { useGetSwapPrice, useSwap } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
-
-/** Base mainnet WETH / USDC (Coinbase swap defaults). */
-const WETH = "0x4200000000000000000000000000000000000006";
-const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+import { BASE_SWAP_TOKENS, type SwapToken } from "@/lib/swapTokens";
 
 export default function SwapSheet() {
     const player = usePlayerSigner();
     const mfa = useMfaStepUp();
+    const [fromSymbol, setFromSymbol] = useState("ETH");
+    const [toSymbol, setToSymbol] = useState("USDC");
     const [fromAmount, setFromAmount] = useState("");
-    const [direction, setDirection] = useState<"eth2usdc" | "usdc2eth">("eth2usdc");
     const [slippageBps, setSlippageBps] = useState(100);
 
-    const fromToken = direction === "eth2usdc" ? WETH : USDC;
-    const toToken = direction === "eth2usdc" ? USDC : WETH;
+    const fromMeta = BASE_SWAP_TOKENS.find((t) => t.symbol === fromSymbol) ?? BASE_SWAP_TOKENS[0];
+    const toMeta = BASE_SWAP_TOKENS.find((t) => t.symbol === toSymbol) ?? BASE_SWAP_TOKENS[1];
 
     const quote = useGetSwapPrice({
         network: "base",
-        fromToken,
-        toToken,
+        fromToken: fromMeta.address,
+        toToken: toMeta.address,
         fromAmount,
         slippageBps,
     });
@@ -41,31 +38,55 @@ export default function SwapSheet() {
             ? (quote.data as { issues?: unknown }).issues
             : undefined;
 
+    const flip = () => {
+        setFromSymbol(toSymbol);
+        setToSymbol(fromSymbol);
+    };
+
     return (
         <div className="space-y-3">
             <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">Swap</h4>
             <p className="text-[11px] text-white/45">
-                Powered by Coinbase swap (same engine as Base / Coinbase Wallet). <strong>Base only.</strong>
+                Coinbase swap engine · <strong>Base only</strong> · CHIPS not listed (unpriced).
             </p>
-            <div className="flex gap-2">
-                <button
-                    type="button"
-                    className="rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase border border-white/15"
-                    onClick={() => setDirection((d) => (d === "eth2usdc" ? "usdc2eth" : "eth2usdc"))}
+            <div className="flex items-center gap-2">
+                <select
+                    className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px]"
+                    value={fromSymbol}
+                    onChange={(e) => {
+                        const v = e.target.value;
+                        setFromSymbol(v);
+                        if (v === toSymbol) setToSymbol(BASE_SWAP_TOKENS.find((t) => t.symbol !== v)!.symbol);
+                    }}
                 >
-                    {direction === "eth2usdc" ? "ETH → USDC" : "USDC → ETH"} ↺
+                    {BASE_SWAP_TOKENS.map((t: SwapToken) => (
+                        <option key={t.symbol} value={t.symbol}>
+                            {t.symbol}
+                        </option>
+                    ))}
+                </select>
+                <button type="button" className="text-white/50 text-[11px]" onClick={flip}>
+                    ↺
                 </button>
+                <select
+                    className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px]"
+                    value={toSymbol}
+                    onChange={(e) => setToSymbol(e.target.value)}
+                >
+                    {BASE_SWAP_TOKENS.filter((t) => t.symbol !== fromSymbol).map((t) => (
+                        <option key={t.symbol} value={t.symbol}>
+                            {t.symbol}
+                        </option>
+                    ))}
+                </select>
             </div>
-            <label className="block text-[10px] text-white/50 uppercase tracking-wider">
-                Amount
-                <input
-                    className="mt-1 w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 font-mono text-[11px]"
-                    inputMode="decimal"
-                    placeholder="0.01"
-                    value={fromAmount}
-                    onChange={(e) => setFromAmount(e.target.value)}
-                />
-            </label>
+            <input
+                className="w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 font-mono text-[11px]"
+                inputMode="decimal"
+                placeholder={`Amount (${fromSymbol})`}
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+            />
             <label className="block text-[10px] text-white/50 uppercase tracking-wider">
                 Slippage (bps)
                 <input
@@ -78,7 +99,7 @@ export default function SwapSheet() {
             {quote.status === "pending" && <p className="text-[11px] text-white/50">Fetching quote…</p>}
             {price && (
                 <div className="rounded-xl border border-white/10 p-3 text-[11px]">
-                    Expected out: <span className="font-mono">{price}</span>
+                    Expected out: <span className="font-mono">{price}</span> {toSymbol}
                 </div>
             )}
             {issues != null && (
@@ -95,14 +116,14 @@ export default function SwapSheet() {
                     if (!ok) return;
                     await swap({
                         network: "base",
-                        fromToken,
-                        toToken,
+                        fromToken: fromMeta.address,
+                        toToken: toMeta.address,
                         fromAmount,
                         slippageBps,
                     } as Parameters<typeof swap>[0]);
                 }}
             >
-                {status === "pending" ? "Swapping…" : "Swap"}
+                {status === "pending" ? "Swapping…" : `Swap ${fromSymbol} → ${toSymbol}`}
             </button>
             {error && <p className="text-[11px] text-red-300">{error.message}</p>}
             {status === "success" && <p className="text-[11px] text-emerald-300">Swap confirmed.</p>}

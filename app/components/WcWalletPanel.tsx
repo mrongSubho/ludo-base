@@ -33,7 +33,9 @@ export default function WcWalletPanel() {
     const [msg, setMsg] = useState<string | null>(null);
     const [proposals, setProposals] = useState<PendingProposal[]>([]);
     const [requests, setRequests] = useState<PendingRequest[]>([]);
-    const [sessions, setSessions] = useState<{ topic: string; peer: string; chains: string[] }[]>([]);
+    const [sessions, setSessions] = useState<
+        { topic: string; peer: string; chains: string[]; expiry?: number }[]
+    >([]);
     const [qrData, setQrData] = useState<string | null>(null);
 
     const address = player.address;
@@ -47,6 +49,8 @@ export default function WcWalletPanel() {
                     topic: s.topic,
                     peer: s.peer?.metadata?.name || "dapp",
                     chains: Object.values(s.namespaces ?? {}).flatMap((n: any) => n?.chains ?? []),
+                    // WalletConnect session expiry (unix seconds)
+                    expiry: typeof s.expiry === "number" ? s.expiry : undefined,
                 })),
             );
         } catch {
@@ -449,6 +453,12 @@ export default function WcWalletPanel() {
                             <li key={s.topic} className="text-[11px] text-white/70 flex justify-between gap-2">
                                 <span className="truncate">
                                     {s.peer} · {s.chains.join(", ")}
+                                    {s.expiry != null && (
+                                        <span className="text-white/40">
+                                            {" "}
+                                            · expires {new Date(s.expiry * 1000).toLocaleString()}
+                                        </span>
+                                    )}
                                 </span>
                                 <button
                                     type="button"
