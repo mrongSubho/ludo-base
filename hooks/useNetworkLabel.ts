@@ -10,9 +10,9 @@ import { parseChainId } from "@/lib/chains";
 
 export type NetworkLabel = {
     chainId: number;
-    /** Short chip text: "Base Sepolia" | "Base" | "Unknown" */
+    /** Chip text: "Base Sepolia" | "Base Mainnet" | "Unknown" */
     label: string;
-    /** Longer copy: "Base Sepolia testnet" */
+    /** Longer copy */
     long: string;
     isTestnet: boolean;
 };
@@ -25,7 +25,7 @@ export function useNetworkLabel(): NetworkLabel {
         return { chainId: 84532, label: "Base Sepolia", long: "Base Sepolia testnet", isTestnet: true };
     }
     if (chainId === 8453) {
-        return { chainId: 8453, label: "Base", long: "Base mainnet", isTestnet: false };
+        return { chainId: 8453, label: "Base Mainnet", long: "Base mainnet", isTestnet: false };
     }
     return {
         chainId: typeof chainId === "number" ? chainId : 0,

@@ -212,9 +212,9 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                     )}
                     {isHome && (
                         <span className={`cb-mode-pill ${network.isTestnet ? "testnet" : ""}`}>
-                            {network.label}
-                            {network.isTestnet ? " · Testnet" : ""}
-                            {` · ${mode === "ingame" ? "Smart" : "External"}`}
+                            {mode === "ingame"
+                                ? network.label
+                                : `${network.label} · External`}
                         </span>
                     )}
                     {!isHome && <h1 className="cb-nav-title">{title}</h1>}
