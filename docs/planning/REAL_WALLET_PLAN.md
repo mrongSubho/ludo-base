@@ -187,10 +187,10 @@ UI: WalletShell (home · activity · apps · security · settings)
 
 ### R1 — Tokens + Activity
 
-- [ ] Token list: ETH · USDC · CHIPS  
-- [ ] Send ERC-20 (USDC/CHIPS)  
-- [ ] Activity: unified list + filter + BaseScan  
-- [ ] Address book (recent / linked wallets)  
+- [x] Token list: ETH · USDC · CHIPS (unpriced badge) — `useWalletAssets`
+- [x] Send ERC-20 (USDC/CHIPS) — `useSendToken` + `SendTokenSheet` (CDP UserOp / wagmi)
+- [x] Activity: unified list + BaseScan — `useWalletActivity` + `WalletActivityList`
+- [x] Linked wallets panel (W3) in Activity tab; full address book = localStorage later
 
 ### R2 — Security polish
 

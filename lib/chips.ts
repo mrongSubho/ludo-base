@@ -112,6 +112,23 @@ export const CHIPS_ERC20_ABI = [
         inputs: [{ name: "account", type: "address" }],
         outputs: [{ name: "", type: "uint256" }],
     },
+    {
+        type: "function",
+        name: "transfer",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "to", type: "address" },
+            { name: "amount", type: "uint256" },
+        ],
+        outputs: [{ name: "", type: "bool" }],
+    },
+    {
+        type: "function",
+        name: "decimals",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ name: "", type: "uint8" }],
+    },
 ] as const;
 
 export function matchPoolAddress(): `0x${string}` | undefined {

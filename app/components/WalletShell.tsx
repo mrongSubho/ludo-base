@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import ReceiveSheet from "./ReceiveSheet";
 import SendNativeSheet from "./SendNativeSheet";
+import SendTokenSheet from "./SendTokenSheet";
+import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
 
-type Tab = "home" | "send" | "receive" | "apps" | "security";
+type Tab = "home" | "send" | "token" | "receive" | "activity" | "apps" | "security";
 
 /**
  * R0 — Wallet shell (REAL_WALLET_PLAN §2).
@@ -70,7 +72,14 @@ export default function WalletShell() {
                             className="flex-1 rounded-xl bg-cyan-500/20 border border-cyan-400/40 py-3 text-[11px] font-black uppercase tracking-wider"
                             onClick={() => setTab("send")}
                         >
-                            Send
+                            Send ETH
+                        </button>
+                        <button
+                            type="button"
+                            className="flex-1 rounded-xl border border-white/15 py-3 text-[11px] font-black uppercase tracking-wider"
+                            onClick={() => setTab("token")}
+                        >
+                            Send token
                         </button>
                         <button
                             type="button"
@@ -84,7 +93,9 @@ export default function WalletShell() {
             )}
 
             {tab === "send" && <SendNativeSheet />}
+            {tab === "token" && <SendTokenSheet />}
             {tab === "receive" && <ReceiveSheet />}
+            {tab === "activity" && <WalletActivityList />}
             {tab === "apps" && <WcWalletPanel />}
             {tab === "security" && <WalletSecurityPanel />}
 
@@ -92,8 +103,10 @@ export default function WalletShell() {
                 {(
                     [
                         ["home", "Home"],
-                        ["send", "Send"],
+                        ["send", "ETH"],
+                        ["token", "Token"],
                         ["receive", "Receive"],
+                        ["activity", "Activity"],
                         ["apps", "Apps"],
                         ["security", "Security"],
                     ] as const
