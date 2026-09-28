@@ -73,5 +73,11 @@ export function useSendNative() {
         return max > BigInt(0) ? max : BigInt(0);
     }, []);
 
-    return { send, status, error, txHash, maxSelfPay, mode: player.mode, needsReconnect: player.needsReconnect };
+    const reset = useCallback(() => {
+        setStatus("idle");
+        setError(null);
+        setTxHash(null);
+    }, []);
+
+    return { send, status, error, txHash, maxSelfPay, reset, mode: player.mode, needsReconnect: player.needsReconnect };
 }
