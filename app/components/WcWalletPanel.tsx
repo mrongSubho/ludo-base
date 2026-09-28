@@ -269,32 +269,34 @@ export default function WcWalletPanel() {
     }, [showQrFor]);
 
     return (
-        <div className="space-y-4">
-            <div>
-                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                    Connect to a dapp (WalletConnect)
-                </h4>
-                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
-                    Paste the <code>wc:</code> link from Uniswap / another dapp. You approve every session
+        <div className="cb-screen space-y-4">
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Connect a dapp</span>
+                    <span className="cb-section-tag">WalletConnect</span>
+                </div>
+                <div className="cb-card cb-pad">
+                <p className="cb-copy">
+                    Paste the <code>wc:</code> link from Uniswap or another app. You approve every session
                     and request — nothing is auto-signed. Base chains only.
                 </p>
-                <div className="flex gap-2 mt-2">
+                <div className="cb-btn-row">
                     <input
-                        className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[10px] font-mono"
+                        className="cb-input"
                         placeholder="wc:..."
                         value={uri}
                         onChange={(e) => setUri(e.target.value)}
                     />
                     <button
                         type="button"
-                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-[11px] font-bold uppercase"
+                        className="cb-btn primary"
                         disabled={busy}
                         onClick={onPair}
                     >
                         Pair
                     </button>
                 </div>
-                <div className="mt-2">
+                <div>
                     <QrScanButton
                         onScan={(u) => {
                             setUri(u);
@@ -303,17 +305,19 @@ export default function WcWalletPanel() {
                     />
                 </div>
                 {qrData && (
-                    <img src={qrData} alt="WalletConnect URI QR" className="mt-2 rounded-lg bg-white p-1" width={140} height={140} />
+                    <img src={qrData} alt="WalletConnect URI QR" className="rounded-lg bg-white p-1" width={140} height={140} />
                 )}
-            </div>
+                </div>
+            </section>
 
             {proposals.length > 0 && (
-                <div>
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                        Session proposals
-                    </h4>
+                <section className="cb-section">
+                    <div className="cb-section-head">
+                        <span>Session proposals</span>
+                        <span className="cb-section-tag">{proposals.length}</span>
+                    </div>
                     {proposals.map((p) => (
-                        <div key={p.id} className="mt-2 rounded-xl border border-white/10 p-3 text-[11px]">
+                        <div key={p.id} className="cb-card cb-pad">
                             <div className="font-bold">{p.proposerName}</div>
                             <div className="text-white/50 break-all">{p.proposerUrl}</div>
                             <div className="text-white/45 mt-1">
@@ -324,7 +328,7 @@ export default function WcWalletPanel() {
                             <div className="flex gap-2 mt-2">
                                 <button
                                     type="button"
-                                    className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-1.5 uppercase font-bold"
+                                    className="cb-btn primary sm"
                                     disabled={busy}
                                     onClick={() => onApproveProposal(p.id)}
                                 >
@@ -332,7 +336,7 @@ export default function WcWalletPanel() {
                                 </button>
                                 <button
                                     type="button"
-                                    className="rounded-lg border border-white/15 px-3 py-1.5 uppercase"
+                                    className="cb-btn ghost sm"
                                     disabled={busy}
                                     onClick={() => onRejectProposal(p.id)}
                                 >
@@ -341,14 +345,15 @@ export default function WcWalletPanel() {
                             </div>
                         </div>
                     ))}
-                </div>
+                </section>
             )}
 
             {requests.length > 0 && (
-                <div>
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                        Requests
-                    </h4>
+                <section className="cb-section">
+                    <div className="cb-section-head">
+                        <span>Requests</span>
+                        <span className="cb-section-tag">{requests.length}</span>
+                    </div>
                     {requests.map((r) => {
                         const isValue =
                             r.method === "eth_sendTransaction" || r.method === "wallet_sendCalls";
@@ -422,13 +427,13 @@ export default function WcWalletPanel() {
                             </div>
                         );
                     })}
-                </div>
+                </section>
             )}
 
             {sessions.length > 0 && (
-                <div>
-                    <div className="flex items-center justify-between">
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
+                <section className="cb-section">
+                    <div className="cb-section-head">
+                        <h4 className="cb-page-label">
                             Active sessions
                         </h4>
                         <button
@@ -504,7 +509,7 @@ export default function WcWalletPanel() {
                             );
                         })}
                     </ul>
-                </div>
+                </section>
             )}
 
             {msg && <p className="text-[11px] text-white/60">{msg}</p>}

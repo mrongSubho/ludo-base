@@ -16,9 +16,8 @@ import { useAppSession } from "@/hooks/useAppSession";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 
 /**
- * W1 — In-game wallet security (SMART_WALLET_PLANNING §5.4–5.5).
- * Passkey = MFA after CDP login (not primary sign-in).
- * Export = Coinbase secure iframe (owner EOA key).
+ * Security — passkey MFA, key export, push, wallet details
+ * (SMART_WALLET_PLANNING §5 · §9). App Settings live in the header gear only.
  */
 export default function WalletSecurityPanel() {
     const { currentUser } = useCurrentUser();
@@ -72,7 +71,6 @@ export default function WalletSecurityPanel() {
         setExportStatus("pending");
         setExportErr(null);
         try {
-            // R2: passkey / Touch ID step-up before revealing a key
             const ok = await mfa.stepUp();
             if (!ok) {
                 setExportErr(mfa.mfaError || "MFA verification failed");
@@ -92,168 +90,176 @@ export default function WalletSecurityPanel() {
     }, [exportEvmAccount, ownerEoa, mfa]);
 
     return (
-        <div className="space-y-4">
-            <div>
-                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                    Passkey (MFA)
-                </h4>
-                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
-                    Extra lock after email/Google. Not a login password. Protects sign, send, and key export.
-                </p>
-                {!supported.data && (
-                    <p className="text-[11px] text-amber-300/80 mt-1">Passkey not available in this browser.</p>
-                )}
-                <button
-                    type="button"
-                    className="mt-2 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-2 text-[11px] font-bold uppercase tracking-wider disabled:opacity-40"
-                    disabled={busy || !supported.data || enrollStatus === "pending"}
-                    onClick={onEnroll}
-                >
-                    {enrollStatus === "pending" ? "Waiting for biometric…" : "Add passkey"}
-                </button>
-                {enrollErr && (
-                    <p className="text-red-300 text-[11px] mt-1">{String(enrollErr.message || enrollErr)}</p>
-                )}
-                <ul className="mt-2 space-y-1">
-                    {(passkeys || []).map((p: { credentialId: string }) => (
-                        <li
-                            key={p.credentialId}
-                            className="flex items-center justify-between gap-2 text-[11px] text-white/70 font-mono"
-                        >
-                            <span className="truncate">{p.credentialId.slice(0, 18)}…</span>
-                            <button
-                                type="button"
-                                className="text-red-300/80 uppercase text-[10px]"
-                                disabled={busy}
-                                onClick={() => onDelete(p.credentialId)}
-                            >
-                                Remove
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
-            <div className="border-t border-white/10 pt-3">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                    Export private key
-                </h4>
-                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
-                    Reveals the <strong>owner key</strong> of your in-game smart wallet (Coinbase secure window).
-                    MetaMask will show the owner address — not necessarily the in-game profile address.
-                </p>
-                {!showExportConfirm ? (
-                    <button
-                        type="button"
-                        className="mt-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-red-200"
-                        disabled={busy || exportStatus === "pending"}
-                        onClick={() => setShowExportConfirm(true)}
-                    >
-                        Export private key…
-                    </button>
-                ) : (
-                    <div className="mt-2 space-y-2">
-                        <p className="text-[11px] text-red-200">
-                            Anyone with this key controls the in-game wallet. Prefer leaving it here.
-                        </p>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                className="rounded-lg bg-red-500/20 border border-red-400/40 px-3 py-2 text-[11px] font-bold uppercase"
-                                disabled={busy}
-                                onClick={onExport}
-                            >
-                                I understand — export
-                            </button>
-                            <button
-                                type="button"
-                                className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase"
-                                onClick={() => setShowExportConfirm(false)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
-                {exportErr && (
-                    <p className="text-red-300 text-[11px] mt-1">{exportErr}</p>
-                )}
-                {privateKey && (
-                    <pre className="mt-2 max-h-24 overflow-auto rounded-lg bg-black/50 p-2 text-[10px] text-amber-200 font-mono break-all">
-                        {privateKey}
-                    </pre>
-                )}
-            </div>
-
-            <div className="border-t border-white/10 pt-3">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                    Notifications
-                </h4>
-                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
-                    Remote push (VAPID) for turn nudges, claim reminders, and wallet events.
-                    Local notification permission is separate from a saved server subscription.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                    <button
-                        type="button"
-                        className="rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-2 text-[11px] font-bold uppercase tracking-wider disabled:opacity-40"
-                        disabled={!id.address}
-                        onClick={async () => {
-                            setPushMsg(null);
-                            const r = await push.enableRemotePush({
-                                walletAddress: id.address || "",
-                                sessionId: appSession.peekAppSession(),
-                            });
-                            setPushMsg(
-                                r.ok
-                                    ? "Remote push enabled on this device."
-                                    : push.error || "Could not enable remote push",
-                            );
-                        }}
-                    >
-                        Enable remote push
-                    </button>
-                    <button
-                        type="button"
-                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase disabled:opacity-40"
-                        disabled={!id.address}
-                        onClick={async () => {
-                            setPushMsg(null);
-                            const err = await push.sendTestPush({
-                                walletAddress: id.address || "",
-                                sessionId: appSession.peekAppSession(),
-                            });
-                            setPushMsg(err || "Test push sent.");
-                        }}
-                    >
-                        Send test push
-                    </button>
-                    <button
-                        type="button"
-                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase disabled:opacity-40"
-                        disabled={!id.address}
-                        onClick={async () => {
-                            setPushMsg(null);
-                            await push.disableRemotePush({
-                                walletAddress: id.address || "",
-                                sessionId: appSession.peekAppSession(),
-                            });
-                            setPushMsg("Remote push disabled on this device.");
-                        }}
-                    >
-                        Disable
-                    </button>
+        <div className="cb-screen space-y-4">
+            {/* Passkey */}
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Passkey (MFA)</span>
+                    <span className="cb-section-tag">
+                        {supported.data ? (passkeys?.length ? "Enrolled" : "Optional") : "Unavailable"}
+                    </span>
                 </div>
-                <p className="mt-1 text-[10px] text-white/40">
-                    Permission: {push.permission} · Remote: {push.remote}
-                </p>
-                {pushMsg && <p className="text-[11px] text-white/60 mt-1">{pushMsg}</p>}
-                {push.error && <p className="text-red-300 text-[11px] mt-1">{push.error}</p>}
-            </div>
+                <div className="cb-card cb-pad">
+                    <p className="cb-copy">
+                        Extra lock after email or Google. Not a login password — it protects sign, send, and key
+                        export.
+                    </p>
+                    {!supported.data && (
+                        <p className="cb-warn">Passkey is not available in this browser.</p>
+                    )}
+                    <button
+                        type="button"
+                        className="cb-btn primary"
+                        disabled={busy || !supported.data || enrollStatus === "pending"}
+                        onClick={onEnroll}
+                    >
+                        {enrollStatus === "pending" ? "Waiting for biometric…" : "Add passkey"}
+                    </button>
+                    {enrollErr && <p className="cb-error">{String(enrollErr.message || enrollErr)}</p>}
+                    {(passkeys || []).length > 0 && (
+                        <ul className="cb-list">
+                            {(passkeys || []).map((p: { credentialId: string }) => (
+                                <li key={p.credentialId} className="cb-list-row">
+                                    <span className="cb-list-main font-mono">{p.credentialId.slice(0, 18)}…</span>
+                                    <button
+                                        type="button"
+                                        className="cb-btn danger-ghost sm"
+                                        disabled={busy}
+                                        onClick={() => onDelete(p.credentialId)}
+                                    >
+                                        Remove
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </section>
 
-            <div className="border-t border-white/10 pt-3">
-                <WalletDetailsSheet />
-            </div>
+            {/* Notifications */}
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Notifications</span>
+                    <span className="cb-section-tag">
+                        {push.permission === "granted" ? (push.remote === "subscribed" ? "Remote on" : "Local only") : push.permission}
+                    </span>
+                </div>
+                <div className="cb-card cb-pad">
+                    <p className="cb-copy">
+                        Remote push for turn nudges, claim reminders, and wallet events. Permission and a saved
+                        server subscription are separate.
+                    </p>
+                    <div className="cb-btn-row">
+                        <button
+                            type="button"
+                            className="cb-btn primary"
+                            disabled={!id.address}
+                            onClick={async () => {
+                                setPushMsg(null);
+                                const r = await push.enableRemotePush({
+                                    walletAddress: id.address || "",
+                                    sessionId: appSession.peekAppSession(),
+                                });
+                                setPushMsg(
+                                    r.ok
+                                        ? "Remote push enabled on this device."
+                                        : push.error || "Could not enable remote push",
+                                );
+                            }}
+                        >
+                            Enable remote push
+                        </button>
+                        <button
+                            type="button"
+                            className="cb-btn"
+                            disabled={!id.address}
+                            onClick={async () => {
+                                setPushMsg(null);
+                                const err = await push.sendTestPush({
+                                    walletAddress: id.address || "",
+                                    sessionId: appSession.peekAppSession(),
+                                });
+                                setPushMsg(err || "Test push sent.");
+                            }}
+                        >
+                            Send test
+                        </button>
+                        <button
+                            type="button"
+                            className="cb-btn ghost"
+                            disabled={!id.address}
+                            onClick={async () => {
+                                setPushMsg(null);
+                                await push.disableRemotePush({
+                                    walletAddress: id.address || "",
+                                    sessionId: appSession.peekAppSession(),
+                                });
+                                setPushMsg("Remote push disabled on this device.");
+                            }}
+                        >
+                            Disable
+                        </button>
+                    </div>
+                    {pushMsg && <p className="cb-copy ok">{pushMsg}</p>}
+                    {push.error && <p className="cb-error">{push.error}</p>}
+                </div>
+            </section>
+
+            {/* Export key — danger zone */}
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Export private key</span>
+                    <span className="cb-section-tag danger">Danger zone</span>
+                </div>
+                <div className="cb-card cb-pad danger-card">
+                    <p className="cb-copy">
+                        Reveals the <strong>owner key</strong> of your in-game smart wallet (Coinbase secure
+                        window). MetaMask will show the owner address — not the in-game profile address.
+                    </p>
+                    {!showExportConfirm ? (
+                        <button
+                            type="button"
+                            className="cb-btn danger"
+                            disabled={busy || exportStatus === "pending"}
+                            onClick={() => setShowExportConfirm(true)}
+                        >
+                            Export private key…
+                        </button>
+                    ) : (
+                        <div className="cb-confirm">
+                            <p className="cb-warn">
+                                Anyone with this key controls the in-game wallet. Prefer leaving it here.
+                            </p>
+                            <div className="cb-btn-row">
+                                <button type="button" className="cb-btn danger" disabled={busy} onClick={onExport}>
+                                    I understand — export
+                                </button>
+                                <button
+                                    type="button"
+                                    className="cb-btn ghost"
+                                    onClick={() => setShowExportConfirm(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {exportErr && <p className="cb-error">{exportErr}</p>}
+                    {privateKey && (
+                        <pre className="cb-secret">{privateKey}</pre>
+                    )}
+                </div>
+            </section>
+
+            {/* Identity details */}
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Wallet details</span>
+                </div>
+                <div className="cb-card">
+                    <WalletDetailsSheet />
+                </div>
+            </section>
         </div>
     );
 }

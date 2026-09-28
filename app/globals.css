@@ -7037,8 +7037,12 @@ body.theme-daybreak .chips-burn-panel [class*="text-white"]:not([class*="text-cy
   left: 0;
   right: 0;
   z-index: 140 !important;
-  background: rgba(8, 10, 16, 0.45);
+  /* Unified dark scrim — game chrome stays readable through it on both themes */
+  background: rgba(6, 8, 14, 0.52);
   cursor: pointer;
+  /* No blur: keep lobby paint crisp behind the scrim */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .cb-wallet-root {
@@ -7074,11 +7078,13 @@ body.theme-daybreak .cb-wallet-root {
   color: #0A0B0D;
   border-color: rgba(10, 11, 13, 0.08);
   box-shadow:
-    0 24px 48px rgba(15, 23, 42, 0.14),
+    0 16px 36px rgba(15, 23, 42, 0.18),
     0 2px 8px rgba(15, 23, 42, 0.08);
 }
 body.theme-daybreak .cb-wallet-backdrop {
-  background: rgba(15, 23, 42, 0.18);
+  /* Stronger scrim so the porcelain lobby stays visible around the card
+     (a near-white wash made the game disappear outside the wallet). */
+  background: rgba(15, 23, 42, 0.42);
 }
 
 /* Header stays readable on Daybreak (white-on-white fix) */
@@ -7435,6 +7441,445 @@ body.theme-daybreak .cb-badge {
 body.theme-daybreak .cb-asset-fiat.status-confirmed { color: #059669; }
 body.theme-daybreak .cb-asset-fiat.status-pending { color: #d97706; }
 body.theme-daybreak .cb-asset-fiat.status-failed { color: #dc2626; }
+
+
+/* ── Wallet sub-screens: More · Activity · Security · Dapps ───────────── */
+.cb-page-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: inherit;
+}
+.cb-more-lead {
+  margin: 2px 2px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(243, 245, 249, 0.55);
+}
+body.theme-daybreak .cb-more-lead { color: rgba(10, 11, 13, 0.5); }
+
+.cb-more-card { padding: 4px 0; }
+.cb-more-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.cb-more-row + .cb-more-row,
+.cb-more-row.last + .cb-more-row { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.cb-more-row:active { background: rgba(255, 255, 255, 0.04); }
+body.theme-daybreak .cb-more-row + .cb-more-row { border-top-color: rgba(10, 11, 13, 0.06); }
+.cb-more-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(0, 82, 255, 0.16);
+  color: #5B9CFF;
+}
+body.theme-daybreak .cb-more-icon {
+  background: rgba(0, 82, 255, 0.1);
+  color: #0052FF;
+}
+.cb-more-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cb-more-title { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.cb-more-hint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(243, 245, 249, 0.5);
+}
+body.theme-daybreak .cb-more-hint { color: rgba(10, 11, 13, 0.48); }
+.cb-more-chevron {
+  width: 16px;
+  height: 16px;
+  color: rgba(243, 245, 249, 0.35);
+  flex-shrink: 0;
+}
+body.theme-daybreak .cb-more-chevron { color: rgba(10, 11, 13, 0.3); }
+
+/* Filter chips */
+.cb-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cb-filter-chip {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(243, 245, 249, 0.65);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.cb-filter-chip.active {
+  background: rgba(0, 82, 255, 0.22);
+  border-color: rgba(0, 82, 255, 0.45);
+  color: #8EB6FF;
+}
+body.theme-daybreak .cb-filter-chip {
+  background: rgba(10, 11, 13, 0.04);
+  border-color: rgba(10, 11, 13, 0.1);
+  color: rgba(10, 11, 13, 0.65);
+}
+body.theme-daybreak .cb-filter-chip.active {
+  background: rgba(0, 82, 255, 0.1);
+  border-color: rgba(0, 82, 255, 0.35);
+  color: #0052FF;
+}
+
+/* Empty state */
+.cb-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 28px 18px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+body.theme-daybreak .cb-empty-state { border-color: rgba(10, 11, 13, 0.12); }
+.cb-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(243, 245, 249, 0.45);
+}
+body.theme-daybreak .cb-empty-icon {
+  background: rgba(10, 11, 13, 0.05);
+  color: rgba(10, 11, 13, 0.4);
+}
+.cb-empty-title { margin: 0; font-size: 13px; font-weight: 650; color: inherit; }
+.cb-empty-hint {
+  margin: 0;
+  max-width: 240px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(243, 245, 249, 0.48);
+}
+body.theme-daybreak .cb-empty-hint { color: rgba(10, 11, 13, 0.45); }
+
+/* Activity rows */
+.cb-activity-list { padding: 4px 0; list-style: none; margin: 0; }
+.cb-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.cb-activity-row + .cb-activity-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+body.theme-daybreak .cb-activity-row + .cb-activity-row {
+  border-top-color: rgba(10, 11, 13, 0.06);
+}
+.cb-activity-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cb-activity-icon.in {
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+}
+.cb-activity-icon.out {
+  background: rgba(0, 82, 255, 0.16);
+  color: #5B9CFF;
+}
+.cb-activity-icon.game {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+}
+body.theme-daybreak .cb-activity-icon.in {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
+}
+body.theme-daybreak .cb-activity-icon.out {
+  background: rgba(0, 82, 255, 0.1);
+  color: #0052FF;
+}
+body.theme-daybreak .cb-activity-icon.game {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+.cb-activity-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cb-activity-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.cb-activity-amt {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+.cb-activity-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 11px;
+}
+.cb-activity-party {
+  color: rgba(243, 245, 249, 0.48);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.theme-daybreak .cb-activity-party { color: rgba(10, 11, 13, 0.45); }
+.cb-activity-link {
+  color: #5B9CFF;
+  text-decoration: none;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+body.theme-daybreak .cb-activity-link { color: #0052FF; }
+
+.cb-status-pill {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+.cb-status-pill.confirmed {
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+}
+.cb-status-pill.pending {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+}
+.cb-status-pill.failed {
+  background: rgba(248, 113, 113, 0.14);
+  color: #f87171;
+}
+body.theme-daybreak .cb-status-pill.confirmed {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
+}
+body.theme-daybreak .cb-status-pill.pending {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+body.theme-daybreak .cb-status-pill.failed {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+}
+
+/* Section tag + compact controls used by Security */
+.cb-section-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(243, 245, 249, 0.55);
+}
+.cb-section-tag.danger {
+  background: rgba(248, 113, 113, 0.14);
+  color: #f87171;
+}
+body.theme-daybreak .cb-section-tag {
+  background: rgba(10, 11, 13, 0.06);
+  color: rgba(10, 11, 13, 0.55);
+}
+body.theme-daybreak .cb-section-tag.danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.cb-pad { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.cb-copy {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(243, 245, 249, 0.62);
+}
+.cb-copy.ok { color: #34d399; }
+body.theme-daybreak .cb-copy { color: rgba(10, 11, 13, 0.58); }
+body.theme-daybreak .cb-copy.ok { color: #059669; }
+.cb-warn {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #fbbf24;
+}
+body.theme-daybreak .cb-warn { color: #b45309; }
+.cb-error {
+  margin: 0;
+  font-size: 12px;
+  color: #f87171;
+}
+body.theme-daybreak .cb-error { color: #dc2626; }
+
+.cb-input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 10px 12px;
+}
+body.theme-daybreak .cb-input {
+  background: rgba(10, 11, 13, 0.04);
+  border-color: rgba(10, 11, 13, 0.12);
+}
+.cb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.cb-btn:disabled { opacity: 0.45; cursor: default; }
+.cb-btn.primary {
+  background: rgba(0, 82, 255, 0.22);
+  border-color: rgba(0, 82, 255, 0.4);
+  color: #8EB6FF;
+}
+.cb-btn.danger {
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f87171;
+}
+.cb-btn.danger-ghost {
+  background: transparent;
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+.cb-btn.ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.cb-btn.sm { padding: 6px 10px; font-size: 11px; border-radius: 10px; }
+.cb-btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+body.theme-daybreak .cb-btn {
+  background: rgba(10, 11, 13, 0.05);
+  border-color: rgba(10, 11, 13, 0.12);
+}
+body.theme-daybreak .cb-btn.primary {
+  background: rgba(0, 82, 255, 0.12);
+  border-color: rgba(0, 82, 255, 0.35);
+  color: #0052FF;
+}
+body.theme-daybreak .cb-btn.danger {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+body.theme-daybreak .cb-btn.danger-ghost {
+  border-color: rgba(220, 38, 38, 0.28);
+  color: #dc2626;
+}
+
+.cb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cb-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+body.theme-daybreak .cb-list-row { border-top-color: rgba(10, 11, 13, 0.06); }
+.cb-list-main {
+  font-size: 12px;
+  color: rgba(243, 245, 249, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.theme-daybreak .cb-list-main { color: rgba(10, 11, 13, 0.65); }
+
+.cb-danger-card {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(248, 113, 113, 0.06);
+}
+body.theme-daybreak .cb-danger-card {
+  border-color: rgba(220, 38, 38, 0.18);
+  background: rgba(220, 38, 38, 0.04);
+}
+.cb-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+body.theme-daybreak .cb-confirm { background: rgba(10, 11, 13, 0.04); }
+.cb-secret {
+  margin: 0;
+  max-height: 96px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fbbf24;
+  font-size: 10px;
+  line-height: 1.45;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+body.theme-daybreak .cb-secret {
+  background: rgba(10, 11, 13, 0.06);
+  color: #b45309;
+}
+
+/* Footer tabs: icon + label */
+.cb-tab svg { width: 20px; height: 20px; opacity: 0.9; }
+.cb-tab.active svg { opacity: 1; }
 
 .cb-empty {
   margin: 0;
