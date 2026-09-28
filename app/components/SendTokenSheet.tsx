@@ -5,7 +5,7 @@
  * Max branches by gas path (M). CHIPS is Base-only + unpriced (H2).
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatUnits, isAddress } from "viem";
 import { useSendNative } from "@/hooks/useSendNative";
 import { useSendToken, type SendTokenKey } from "@/hooks/useSendToken";
@@ -15,10 +15,17 @@ import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 
 export type SendAsset = "eth" | SendTokenKey;
 
-const ASSETS: { key: SendAsset; label: string; decimals: number; unpriced?: boolean; tint: string }[] = [
-    { key: "eth", label: "ETH", decimals: 18, tint: "#627EEA" },
-    { key: "usdc", label: "USDC", decimals: 6, tint: "#2775CA" },
-    { key: "chips", label: "CHIPS", decimals: 18, unpriced: true, tint: "#0052FF" },
+const ASSETS: { key: SendAsset; label: string; name: string; decimals: number; unpriced?: boolean; tint: string }[] = [
+    { key: "eth", label: "ETH", name: "Ethereum", decimals: 18, tint: "#627EEA" },
+    { key: "usdc", label: "USDC", name: "USD Coin", decimals: 6, tint: "#2775CA" },
+    { key: "chips", label: "CHIPS", name: "Game token", decimals: 18, unpriced: true, tint: "#0052FF" },
+];
+
+const PCTS = [
+    { pct: 25, label: "25%" },
+    { pct: 50, label: "50%" },
+    { pct: 75, label: "75%" },
+    { pct: 100, label: "100%" },
 ];
 
 function shortAddr(a: string) {
@@ -41,12 +48,12 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
             ? eth ?? BigInt(0)
             : (tokens.find((t) => t.key === asset)?.raw ?? BigInt(0));
     const mode = native.mode;
-    const maxAmt =
-        asset !== "eth"
-            ? formatUnits(bal, meta.decimals)
-            : mode === "ingame"
-              ? formatUnits(bal, meta.decimals)
-              : formatUnits(native.maxSelfPay(eth ?? BigInt(0)), meta.decimals);
+
+    /** Gas-safe max (self-pay leaves a buffer). */
+    const spendable = useMemo(() => {
+        if (asset !== "eth") return bal;
+        return mode === "ingame" ? bal : native.maxSelfPay(eth ?? BigInt(0));
+    }, [asset, bal, eth, mode, native]);
 
     const status = asset === "eth" ? native.status : erc20.status;
     const error = asset === "eth" ? native.error : erc20.error;
@@ -54,6 +61,12 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
     const toOk = isAddress(to.trim());
     const amountOk = amount !== "" && Number(amount) > 0;
     const canReview = toOk && amountOk && status !== "pending";
+
+    const setPct = (pct: number) => {
+        const raw = (spendable * BigInt(pct)) / BigInt(100);
+        setAmount(formatUnits(raw, meta.decimals));
+        setConfirming(false);
+    };
 
     if (needsReconnect) {
         return (
@@ -64,174 +77,164 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
     }
 
     return (
-        <div className="cb-screen space-y-4">
-            {/* Asset picker */}
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Asset</span>
-                    <span className="cb-section-tag">
+        <div className="cb-screen send-sheet">
+            {/* Asset chips */}
+            <div className="tk-row" role="tablist" aria-label="Asset">
+                {ASSETS.map((a) => (
+                    <button
+                        key={a.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={asset === a.key}
+                        className={`tk-chip ${asset === a.key ? "on" : ""}`}
+                        onClick={() => {
+                            setAsset(a.key);
+                            setConfirming(false);
+                            setAmount("");
+                            native.reset();
+                            erc20.reset();
+                        }}
+                    >
+                        <span className="tk-dot" style={{ background: a.tint }} />
+                        <span className="tk-sym">{a.label}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Amount card */}
+            <div className="fld-card">
+                <div className="fld-top">
+                    <span className="fld-label">Amount</span>
+                    <span className="fld-bal">
                         {formatUnits(bal, meta.decimals)} {meta.label}
                     </span>
                 </div>
-                <div className="cb-asset-pills" role="tablist" aria-label="Asset">
-                    {ASSETS.map((a) => (
-                        <button
-                            key={a.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={asset === a.key}
-                            className={`cb-asset-pill ${asset === a.key ? "active" : ""}`}
-                            onClick={() => {
-                                setAsset(a.key);
-                                setConfirming(false);
-                                native.reset();
-                                erc20.reset();
-                            }}
-                        >
-                            <span className="cb-asset-dot" style={{ background: a.tint }} />
-                            {a.label}
-                            {a.unpriced && <span className="cb-asset-pill-tag">unpriced</span>}
+                <div className="fld-amt">
+                    <input
+                        className="fld-amt-input"
+                        inputMode="decimal"
+                        placeholder="0.0"
+                        value={amount}
+                        onChange={(e) => {
+                            setAmount(e.target.value);
+                            setConfirming(false);
+                        }}
+                        aria-label="Amount"
+                    />
+                    <span className="fld-ccy">{meta.label}</span>
+                </div>
+                <div className="pct-row">
+                    {PCTS.map((p) => (
+                        <button key={p.pct} type="button" className="pct-btn" onClick={() => setPct(p.pct)}>
+                            {p.label}
                         </button>
                     ))}
                 </div>
-            </section>
+                {meta.unpriced && <p className="fld-note">CHIPS · unpriced · Base only</p>}
+            </div>
 
-            {/* Recipient */}
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>To</span>
-                    {to && (
-                        <span className={`cb-section-tag ${toOk ? "" : "danger"}`}>
-                            {toOk ? shortAddr(to.trim()) : "Invalid address"}
+            {/* Recipient card */}
+            <div className="fld-card">
+                <div className="fld-top">
+                    <span className="fld-label">To</span>
+                    {to.trim() && (
+                        <span className={`fld-status ${toOk ? "ok" : "bad"}`}>
+                            {toOk ? shortAddr(to.trim()) : "Invalid"}
                         </span>
                     )}
                 </div>
-                <div className="cb-card cb-pad">
-                    <input
-                        className={`cb-input ${to && !toOk ? "invalid" : ""}`}
-                        placeholder="0x recipient address"
-                        value={to}
-                        onChange={(e) => setTo(e.target.value)}
-                        autoComplete="off"
-                        spellCheck={false}
-                    />
-                </div>
-            </section>
+                <input
+                    className={`fld-text ${to.trim() && !toOk ? "bad" : ""}`}
+                    placeholder="0x recipient address"
+                    value={to}
+                    onChange={(e) => {
+                        setTo(e.target.value);
+                        setConfirming(false);
+                    }}
+                    autoComplete="off"
+                    spellCheck={false}
+                />
+            </div>
 
-            {/* Amount */}
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Amount</span>
-                    <button type="button" className="cb-link" onClick={() => setAmount(maxAmt)}>
-                        Max {formatUnits(bal, meta.decimals)} {meta.label}
-                    </button>
-                </div>
-                <div className="cb-card cb-pad">
-                    <div className="cb-amount-row">
-                        <input
-                            className="cb-amount-input"
-                            inputMode="decimal"
-                            placeholder="0.0"
-                            value={amount}
-                            onChange={(e) => {
-                                setAmount(e.target.value);
-                                setConfirming(false);
-                            }}
-                        />
-                        <span className="cb-amount-ccy">{meta.label}</span>
-                    </div>
-                    {meta.unpriced && (
-                        <p className="cb-warn">CHIPS is unpriced and Base-only — not in USD totals.</p>
-                    )}
-                </div>
-            </section>
-
-            {/* Review / confirm */}
+            {/* Review panel */}
             {confirming && status === "idle" && (
-                <section className="cb-section">
-                    <div className="cb-section-head">
-                        <span>Review</span>
-                        <span className="cb-section-tag">{mode === "ingame" ? "Smart wallet" : "External"}</span>
+                <div className="rev-card">
+                    <div className="rev-row">
+                        <span>Amount</span>
+                        <strong>
+                            {amount} {meta.label}
+                        </strong>
                     </div>
-                    <div className="cb-card cb-pad">
-                        <dl className="cb-review">
-                            <div>
-                                <dt>Amount</dt>
-                                <dd>
-                                    {amount} {meta.label}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>To</dt>
-                                <dd className="font-mono">{shortAddr(to.trim())}</dd>
-                            </div>
-                            <div>
-                                <dt>Network</dt>
-                                <dd>Base</dd>
-                            </div>
-                        </dl>
-                        <p className="cb-copy">This moves real value. You will sign in your wallet.</p>
-                        <div className="cb-btn-row">
-                            <button
-                                type="button"
-                                className="cb-btn primary"
-                                onClick={async () => {
-                                    const ok = await mfa.stepUp();
-                                    if (!ok) return;
-                                    const hash =
-                                        asset === "eth"
-                                            ? await native.send({ to, amountEth: amount })
-                                            : await erc20.send({ token: asset, to, amount });
-                                    if (address) {
-                                        recordWalletActivity(address, {
-                                            id: hash || `local-${Date.now()}`,
-                                            kind: "send",
-                                            status: "pending",
-                                            token: meta.label as "ETH" | "USDC" | "CHIPS",
-                                            amount,
-                                            counterparty: to,
-                                            hash: hash ?? undefined,
-                                            at: Date.now(),
-                                        });
-                                    }
-                                    setConfirming(false);
-                                    void refresh();
-                                }}
-                            >
-                                Confirm send
-                            </button>
-                            <button type="button" className="cb-btn ghost" onClick={() => setConfirming(false)}>
-                                Cancel
-                            </button>
-                        </div>
+                    <div className="rev-row">
+                        <span>To</span>
+                        <strong className="font-mono">{shortAddr(to.trim())}</strong>
                     </div>
-                </section>
+                    <div className="rev-row">
+                        <span>Route</span>
+                        <strong>{mode === "ingame" ? "Smart wallet" : "Your wallet"}</strong>
+                    </div>
+                    <p className="rev-note">This moves real value. You will sign in your wallet.</p>
+                    <div className="rev-btns">
+                        <button
+                            type="button"
+                            className="btn-main"
+                            onClick={async () => {
+                                const ok = await mfa.stepUp();
+                                if (!ok) return;
+                                const hash =
+                                    asset === "eth"
+                                        ? await native.send({ to, amountEth: amount })
+                                        : await erc20.send({ token: asset, to, amount });
+                                if (address) {
+                                    recordWalletActivity(address, {
+                                        id: hash || `local-${Date.now()}`,
+                                        kind: "send",
+                                        status: "pending",
+                                        token: meta.label as "ETH" | "USDC" | "CHIPS",
+                                        amount,
+                                        counterparty: to,
+                                        hash: hash ?? undefined,
+                                        at: Date.now(),
+                                    });
+                                }
+                                setConfirming(false);
+                                void refresh();
+                            }}
+                        >
+                            Confirm send
+                        </button>
+                        <button type="button" className="btn-ghost" onClick={() => setConfirming(false)}>
+                            Back
+                        </button>
+                    </div>
+                </div>
             )}
 
-            <button
-                type="button"
-                className="cb-btn primary block"
-                disabled={!canReview}
-                onClick={() => setConfirming(true)}
-            >
-                {status === "pending" ? "Sending…" : "Review"}
-            </button>
-
-            {status === "pending" && (
-                <p className="cb-copy">Sending with {mode === "ingame" ? "smart wallet" : "your wallet"}…</p>
+            {/* Primary CTA pinned after fields */}
+            {!confirming && (
+                <button
+                    type="button"
+                    className="btn-main block"
+                    disabled={!canReview}
+                    onClick={() => setConfirming(true)}
+                >
+                    {status === "pending" ? "Sending…" : "Review"}
+                </button>
             )}
+
+            {status === "pending" && <p className="fld-note">Waiting for wallet confirmation…</p>}
             {status === "success" && (
-                <div className="cb-card cb-pad">
-                    <p className="cb-copy ok">Sent.</p>
-                    {txHash && <p className="cb-hash font-mono">{txHash}</p>}
+                <div className="ok-card">
+                    <p className="ok-title">Sent</p>
+                    {txHash && <p className="ok-hash font-mono">{txHash}</p>}
                     {onDone && (
-                        <button type="button" className="cb-link" onClick={onDone}>
-                            View activity →
+                        <button type="button" className="lnk" onClick={onDone}>
+                            View activity
                         </button>
                     )}
                 </div>
             )}
-            {error && <p className="cb-error">{error}</p>}
+            {error && <p className="err-text">{error}</p>}
         </div>
     );
 }

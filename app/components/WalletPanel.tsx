@@ -254,7 +254,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 <div className="cb-balance-sub">Priced assets only · CHIPS not included</div>
                             </div>
 
-                            <div className="cb-actions two">
+                            <div className="cb-actions duo">
                                 <ActionButton
                                     label="Send"
                                     primary

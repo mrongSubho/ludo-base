@@ -5,7 +5,7 @@
  * Base-only token list (lib/swapTokens). CHIPS is not a swap asset (H2).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGetSwapPrice, useSwap } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
@@ -15,64 +15,78 @@ import {
     type SwapToken,
 } from "@/lib/swapTokens";
 
-function TokenSelect({
-    label,
-    symbol,
-    query,
-    onQuery,
-    onPick,
+function TokenPicker({
+    value,
+    onChange,
     exclude,
+    id,
 }: {
-    label: string;
-    symbol: string;
-    query: string;
-    onQuery: (v: string) => void;
-    onPick: (s: string) => void;
+    value: string;
+    onChange: (s: string) => void;
     exclude?: string;
+    id: string;
 }) {
-    const options = useMemo(() => searchSwapTokens(query, exclude), [query, exclude]);
+    const [open, setOpen] = useState(false);
+    const [q, setQ] = useState("");
+    const boxRef = useRef<HTMLDivElement | null>(null);
+    const meta = BASE_SWAP_TOKENS.find((t) => t.symbol === value) ?? BASE_SWAP_TOKENS[0];
+    const options = useMemo(() => searchSwapTokens(q, exclude), [q, exclude]);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => {
+            if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+    }, [open]);
+
     return (
-        <div className="cb-swap-leg">
-            <div className="cb-swap-leg-head">
-                <span>{label}</span>
-                <span className="cb-section-tag">{symbol}</span>
-            </div>
-            <select
-                className="cb-input"
-                value={symbol}
-                onChange={(e) => onPick(e.target.value)}
-                aria-label={`${label} token`}
+        <div className="tkpick" ref={boxRef}>
+            <button
+                type="button"
+                id={id}
+                className="tkpick-btn"
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={() => {
+                    setOpen((v) => !v);
+                    setQ("");
+                }}
             >
-                {(exclude ? searchSwapTokens("", exclude) : BASE_SWAP_TOKENS).map((t: SwapToken) => (
-                    <option key={t.symbol} value={t.symbol}>
-                        {t.symbol} · {t.name}
-                    </option>
-                ))}
-            </select>
-            <input
-                className="cb-input"
-                placeholder="Search symbol / name"
-                value={query}
-                onChange={(e) => onQuery(e.target.value)}
-                aria-label={`Search ${label} tokens`}
-            />
-            {query && (
-                <div className="cb-swap-results">
-                    {options.slice(0, 6).map((t) => (
-                        <button
-                            key={t.symbol}
-                            type="button"
-                            className="cb-swap-result"
-                            onClick={() => {
-                                onPick(t.symbol);
-                                onQuery("");
-                            }}
-                        >
-                            <span className="cb-swap-result-sym">{t.symbol}</span>
-                            <span className="cb-swap-result-name">{t.name}</span>
-                        </button>
-                    ))}
-                    {options.length === 0 && <p className="cb-empty">No tokens match.</p>}
+                <span className="tkpick-sym">{meta.symbol}</span>
+                <svg viewBox="0 0 24 24" className="tkpick-chev" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+            {open && (
+                <div className="tkpick-menu" role="listbox" aria-labelledby={id}>
+                    <input
+                        className="tkpick-search"
+                        placeholder="Search"
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        autoFocus
+                    />
+                    <div className="tkpick-list">
+                        {options.map((t: SwapToken) => (
+                            <button
+                                key={t.symbol}
+                                type="button"
+                                role="option"
+                                aria-selected={t.symbol === value}
+                                className={`tkpick-item ${t.symbol === value ? "on" : ""}`}
+                                onClick={() => {
+                                    onChange(t.symbol);
+                                    setOpen(false);
+                                }}
+                            >
+                                <span className="tkpick-item-sym">{t.symbol}</span>
+                                <span className="tkpick-item-name">{t.name}</span>
+                            </button>
+                        ))}
+                        {options.length === 0 && <p className="tkpick-empty">No matches</p>}
+                    </div>
                 </div>
             )}
         </div>
@@ -86,8 +100,6 @@ export default function SwapSheet() {
     const [toSymbol, setToSymbol] = useState("USDC");
     const [fromAmount, setFromAmount] = useState("");
     const [slippageBps, setSlippageBps] = useState(100);
-    const [fromQuery, setFromQuery] = useState("");
-    const [toQuery, setToQuery] = useState("");
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const fromMeta = BASE_SWAP_TOKENS.find((t) => t.symbol === fromSymbol) ?? BASE_SWAP_TOKENS[0];
@@ -112,8 +124,6 @@ export default function SwapSheet() {
     const flip = () => {
         setFromSymbol(toSymbol);
         setToSymbol(fromSymbol);
-        setFromQuery("");
-        setToQuery("");
     };
 
     const setFrom = (v: string) => {
@@ -125,95 +135,83 @@ export default function SwapSheet() {
     };
 
     return (
-        <div className="cb-screen space-y-4">
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Swap</span>
-                    <span className="cb-section-tag">Base · {BASE_SWAP_TOKENS.length} tokens</span>
+        <div className="cb-screen swap-sheet">
+            {/* Sell */}
+            <div className="sw-card">
+                <div className="sw-top">
+                    <span className="sw-label">Sell</span>
+                    <TokenPicker id="sw-from" value={fromSymbol} onChange={setFrom} />
                 </div>
-
-                <div className="cb-swap-stack">
-                    <div className="cb-card cb-pad">
-                        <div className="cb-amount-row">
-                            <input
-                                className="cb-amount-input"
-                                inputMode="decimal"
-                                placeholder="0.0"
-                                value={fromAmount}
-                                onChange={(e) => setFromAmount(e.target.value)}
-                                aria-label="From amount"
-                            />
-                            <span className="cb-amount-ccy">{fromSymbol}</span>
-                        </div>
-                        <TokenSelect
-                            label="From"
-                            symbol={fromSymbol}
-                            query={fromQuery}
-                            onQuery={setFromQuery}
-                            onPick={setFrom}
-                        />
-                    </div>
-
-                    <button type="button" className="cb-swap-flip" onClick={flip} aria-label="Flip tokens">
-                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M7 7h11l-3-3M17 17H6l3 3" />
-                        </svg>
-                    </button>
-
-                    <div className="cb-card cb-pad">
-                        <TokenSelect
-                            label="To"
-                            symbol={toSymbol}
-                            query={toQuery}
-                            onQuery={setToQuery}
-                            onPick={setToSymbol}
-                            exclude={fromSymbol}
-                        />
-                        {quote.status === "pending" && <p className="cb-copy">Fetching quote…</p>}
-                        {price && (
-                            <div className="cb-quote">
-                                <span>Expected out</span>
-                                <strong>
-                                    {price} {toSymbol}
-                                </strong>
-                            </div>
-                        )}
-                    </div>
+                <div className="sw-amt">
+                    <input
+                        className="sw-amt-input"
+                        inputMode="decimal"
+                        placeholder="0.0"
+                        value={fromAmount}
+                        onChange={(e) => setFromAmount(e.target.value)}
+                        aria-label="Sell amount"
+                    />
                 </div>
-            </section>
+            </div>
 
-            {issues != null && (
-                <div className="cb-banner">Quote issues: {JSON.stringify(issues).slice(0, 160)}</div>
-            )}
-
-            <button
-                type="button"
-                className="cb-link"
-                onClick={() => setShowAdvanced((v) => !v)}
-                aria-expanded={showAdvanced}
-            >
-                {showAdvanced ? "Hide advanced" : "Advanced · slippage"}
+            <button type="button" className="sw-flip" onClick={flip} aria-label="Flip tokens">
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 4v16M8 20l-3-3M8 20l3-3M16 20V4M16 4l-3 3M16 4l3 3" />
+                </svg>
             </button>
-            {showAdvanced && (
-                <section className="cb-section">
-                    <div className="cb-card cb-pad">
-                        <label className="cb-label" htmlFor="slippage">
-                            Slippage (bps)
-                        </label>
+
+            {/* Buy */}
+            <div className="sw-card">
+                <div className="sw-top">
+                    <span className="sw-label">Buy</span>
+                    <TokenPicker
+                        id="sw-to"
+                        value={toSymbol}
+                        onChange={setToSymbol}
+                        exclude={fromSymbol}
+                    />
+                </div>
+                <div className="sw-amt">
+                    <span className={`sw-out ${price ? "has" : ""}`} aria-live="polite">
+                        {quote.status === "pending" ? "…" : price || "0.0"}
+                    </span>
+                </div>
+            </div>
+
+            {/* Quote strip */}
+            <div className="sw-meta">
+                <div className="sw-meta-row">
+                    <span>Expected</span>
+                    <span>
+                        {price ? `${price} ${toSymbol}` : quote.status === "pending" ? "Fetching…" : "—"}
+                    </span>
+                </div>
+                <div className="sw-meta-row">
+                    <span>Slippage</span>
+                    <button type="button" className="lnk" onClick={() => setShowAdvanced((v) => !v)}>
+                        {(slippageBps / 100).toFixed(2)}%
+                    </button>
+                </div>
+                {showAdvanced && (
+                    <div className="sw-meta-row">
+                        <span>Max slippage (bps)</span>
                         <input
-                            id="slippage"
-                            className="cb-input"
+                            className="sw-slip"
                             inputMode="numeric"
                             value={String(slippageBps)}
                             onChange={(e) => setSlippageBps(Number(e.target.value) || 100)}
                         />
                     </div>
-                </section>
+                )}
+            </div>
+
+            {issues != null && (
+                <div className="cb-banner">Quote issues: {JSON.stringify(issues).slice(0, 140)}</div>
             )}
 
             <button
                 type="button"
-                className="cb-btn primary block"
+                className="btn-main block"
                 disabled={status === "pending" || !fromAmount || !player.address || fromSymbol === toSymbol}
                 onClick={async () => {
                     const ok = await mfa.stepUp();
@@ -230,9 +228,9 @@ export default function SwapSheet() {
                 {status === "pending" ? "Swapping…" : `Swap ${fromSymbol} → ${toSymbol}`}
             </button>
 
-            {error && <p className="cb-error">{error.message}</p>}
-            {status === "success" && <p className="cb-copy ok">Swap confirmed.</p>}
-            <p className="cb-more-lead">Coinbase swap engine · CHIPS not listed (unpriced).</p>
+            {error && <p className="err-text">{error.message}</p>}
+            {status === "success" && <p className="ok-inline">Swap confirmed</p>}
+            <p className="sw-foot">Coinbase swap engine · Base only · CHIPS not listed</p>
         </div>
     );
 }
