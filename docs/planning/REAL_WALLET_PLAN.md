@@ -198,13 +198,14 @@ UI: WalletShell (home · activity · apps · security · settings)
 - [x] Wallet-details sheet (smart vs owner EOA vs Base app) — `WalletDetailsSheet`
 - [x] Session switcher / link (W3) already in Wallet / Activity tabs  
 
-### R3 — Apps / WalletConnect home **(blocked on H1)**
+### R3 — Apps / WalletConnect home (H1 inbox)
 
-- [ ] Move W5 panel into Wallet → Apps  
-- [ ] Request **inbox** with **decoded summaries + unlimited-approve warning + value-at-risk** (H1)  
-- [ ] Session expiry · chain scope · **Disconnect all**  
-- [ ] `wallet_sendCalls` / UserOp from apps (W4) + UserOp status mapping (M)  
-- [ ] **Do not ship** R3 without H1 consent UI
+- [x] W5 panel in Wallet → Apps tab  
+- [x] Request **inbox** decoded summaries + value-at-risk + unlimited-approve warning — `lib/wcDecode.ts`  
+- [x] **Disconnect all** + per-session disconnect (chain scope already WC_ALLOWED_CHAINS)  
+- [x] `wallet_sendCalls` / UserOp from apps (W4) wired; UserOp status label in send sheets  
+- [ ] Full ABI decode for all contracts (v1: transfer / approve / joinPool / claimMatch)  
+- [ ] Session expiry timer UI (disconnect still available)
 
 ### R4 — Nice-to-have wallet
 

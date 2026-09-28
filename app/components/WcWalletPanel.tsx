@@ -18,6 +18,7 @@ import {
     type PendingProposal,
     type PendingRequest,
 } from "@/lib/wcWallet";
+import { decodeCallsList, extractCalls } from "@/lib/wcDecode";
 
 /**
  * W5 UI — Ludo as WalletConnect wallet.
@@ -337,27 +338,55 @@ export default function WcWalletPanel() {
                         Requests
                     </h4>
                     {requests.map((r) => {
-                        const risk =
-                            r.method === "eth_sendTransaction" || r.method === "wallet_sendCalls"
-                                ? isUnlimitedOrHighRiskCalldata(
-                                      Array.isArray(r.params)
-                                          ? ((r.params[0] as { data?: string })?.data ??
-                                                (r.params as { data?: string })?.data)
-                                          : undefined,
-                                  )
-                                : { unlimitedApprove: false };
+                        const isValue =
+                            r.method === "eth_sendTransaction" || r.method === "wallet_sendCalls";
+                        const callPack = isValue
+                            ? decodeCallsList(extractCalls(r.params))
+                            : null;
+                        const risk = isValue
+                            ? {
+                                  unlimitedApprove:
+                                      callPack?.unlimited ||
+                                      isUnlimitedOrHighRiskCalldata(
+                                          Array.isArray(r.params)
+                                              ? ((r.params[0] as { data?: string })?.data ??
+                                                    (r.params as { data?: string })?.data)
+                                              : undefined,
+                                      ).unlimitedApprove,
+                              }
+                            : { unlimitedApprove: false };
                         return (
                             <div key={r.id} className="mt-2 rounded-xl border border-white/10 p-3 text-[11px]">
                                 <div className="font-bold">
                                     {r.method} · {r.peerName}
                                 </div>
                                 <div className="text-white/50 font-mono break-all">
-                                    {r.chainId} · {JSON.stringify(r.params).slice(0, 160)}…
+                                    {r.chainId}
                                 </div>
+                                {callPack && (
+                                    <div className="mt-2 space-y-1 rounded-lg bg-black/30 p-2">
+                                        <div className="text-white/70">
+                                            <span className="text-white/40">Value at risk:</span>{" "}
+                                            <strong>{callPack.valueAtRiskEth} ETH</strong>
+                                        </div>
+                                        {callPack.decoded.map((c, i) => (
+                                            <div key={i} className="text-white/75">
+                                                <div className="font-mono text-[10px] text-white/45">{c.to}</div>
+                                                <div>{c.summary}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {!callPack && (
+                                    <div className="text-white/50 font-mono break-all">
+                                        {JSON.stringify(r.params).slice(0, 160)}…
+                                    </div>
+                                )}
                                 {risk.unlimitedApprove && (
                                     <div className="mt-1 rounded border border-red-400/40 bg-red-500/10 p-2 text-red-200">
-                                        ⚠️ Looks like an <strong>unlimited token approval</strong>. Only continue if
-                                        you trust this dapp. Prefer exact allowances.
+                                        ⚠️ <strong>Unlimited token approval</strong> — dapp can move your full
+                                        balance. Reject unless you fully trust this origin. Prefer exact
+                                        allowances on the dapp.
                                     </div>
                                 )}
                                 <div className="flex gap-2 mt-2">
@@ -386,9 +415,35 @@ export default function WcWalletPanel() {
 
             {sessions.length > 0 && (
                 <div>
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                        Active sessions
-                    </h4>
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
+                            Active sessions
+                        </h4>
+                        <button
+                            type="button"
+                            className="text-[10px] uppercase text-red-300 underline"
+                            disabled={busy}
+                            onClick={async () => {
+                                try {
+                                    const kit = await getWalletKit();
+                                    await Promise.all(
+                                        sessions.map((s) =>
+                                            kit.disconnectSession({
+                                                topic: s.topic,
+                                                reason: { code: 6000, message: "Disconnect all" },
+                                            }),
+                                        ),
+                                    );
+                                    await refresh();
+                                    setMsg("Disconnected all sessions");
+                                } catch (e) {
+                                    setMsg(e instanceof Error ? e.message : String(e));
+                                }
+                            }}
+                        >
+                            Disconnect all
+                        </button>
+                    </div>
                     <ul className="mt-1 space-y-1">
                         {sessions.map((s) => (
                             <li key={s.topic} className="text-[11px] text-white/70 flex justify-between gap-2">
