@@ -9061,6 +9061,16 @@ body.theme-daybreak .dapp-risk {
   color: #dc2626;
 }
 
+
+/* Sign-out wallet address — readable on both themes (was red-300/70,
+   invisible on Daybreak’s light red button). */
+.settings-signout-addr {
+  color: rgba(254, 202, 202, 0.85);
+}
+body.theme-daybreak .settings-signout-addr {
+  color: color-mix(in srgb, #b91c1c 78%, transparent);
+}
+
 .cb-empty {
   margin: 0;
   padding: 14px;
