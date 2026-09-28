@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import ReceiveSheet from "./ReceiveSheet";
 import SendNativeSheet from "./SendNativeSheet";
@@ -10,6 +10,8 @@ import BuyCryptoButton from "./BuyCryptoButton";
 import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
+import { useBiometricGate } from "@/hooks/useBiometricGate";
+import { usePushReady } from "@/hooks/usePushReady";
 
 type Tab = "home" | "send" | "token" | "receive" | "swap" | "activity" | "apps" | "security";
 
@@ -20,19 +22,65 @@ type Tab = "home" | "send" | "token" | "receive" | "swap" | "activity" | "apps" 
 export default function WalletShell() {
     const { tokens, loading, refresh, needsReconnect, address } = useWalletAssets();
     const [tab, setTab] = useState<Tab>("home");
+    const bio = useBiometricGate();
+    const push = usePushReady();
+    const [bioSkipped, setBioSkipped] = useState(false);
+    const showGate = bio.supported === true && !bio.unlocked && !bioSkipped;
+
+    useEffect(() => {
+        bio.checkSupport();
+    }, [bio]);
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">Wallet</h3>
-                <button
-                    type="button"
-                    className="text-[10px] uppercase text-white/50 underline"
-                    onClick={() => void refresh()}
-                >
-                    Refresh
-                </button>
+                <div className="flex gap-2">
+                    {push.permission !== "granted" && push.permission !== "unsupported" && (
+                        <button
+                            type="button"
+                            className="text-[10px] uppercase text-white/50 underline"
+                            onClick={() => void push.requestPermission()}
+                        >
+                            Enable push
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className="text-[10px] uppercase text-white/50 underline"
+                        onClick={() => void refresh()}
+                    >
+                        Refresh
+                    </button>
+                </div>
             </div>
+
+            {showGate && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-2">
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
+                        Unlock wallet
+                    </h4>
+                    <p className="text-[11px] text-white/45">
+                        Face ID / Touch ID / device passcode (local lock — not on-chain).
+                    </p>
+                    <button
+                        type="button"
+                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-[11px] font-bold uppercase"
+                        disabled={bio.busy}
+                        onClick={() => void bio.unlock()}
+                    >
+                        {bio.busy ? "Waiting for biometric…" : "Unlock with biometrics"}
+                    </button>
+                    {bio.error && <p className="text-[11px] text-red-300">{bio.error}</p>}
+                    <button
+                        type="button"
+                        className="text-[10px] text-white/40 underline"
+                        onClick={() => setBioSkipped(true)}
+                    >
+                        Continue without lock
+                    </button>
+                </div>
+            )}
 
             {needsReconnect && (
                 <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-[11px] text-amber-100">
@@ -41,7 +89,7 @@ export default function WalletShell() {
                 </div>
             )}
 
-            {tab === "home" && (
+            {!showGate && tab === "home" && (
                 <div className="space-y-3">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                         <div className="text-[10px] text-white/40 uppercase tracking-wider">Address</div>
@@ -98,15 +146,15 @@ export default function WalletShell() {
                 </div>
             )}
 
-            {tab === "send" && <SendNativeSheet />}
-            {tab === "token" && <SendTokenSheet />}
-            {tab === "receive" && <ReceiveSheet />}
-            {tab === "swap" && <SwapSheet />}
-            {tab === "activity" && <WalletActivityList />}
-            {tab === "apps" && <WcWalletPanel />}
-            {tab === "security" && <WalletSecurityPanel />}
+            {!showGate && tab === "send" && <SendNativeSheet />}
+            {!showGate && tab === "token" && <SendTokenSheet />}
+            {!showGate && tab === "receive" && <ReceiveSheet />}
+            {!showGate && tab === "swap" && <SwapSheet />}
+            {!showGate && tab === "activity" && <WalletActivityList />}
+            {!showGate && tab === "apps" && <WcWalletPanel />}
+            {!showGate && tab === "security" && <WalletSecurityPanel />}
 
-            <div className="flex gap-1 border-t border-white/10 pt-2 overflow-x-auto">
+            <div className={`flex gap-1 border-t border-white/10 pt-2 overflow-x-auto ${showGate ? "hidden" : ""}`}>
                 {(
                     [
                         ["home", "Home"],

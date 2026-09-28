@@ -218,9 +218,10 @@ UI: WalletShell (home · activity · apps · security · settings)
 
 ### R5 — Mobile PWA
 
-- [ ] Camera QR (partially done)  
-- [ ] Push for tx / session  
-- [ ] Biometrics gate before wallet  
+- [x] Camera QR — `QrScanButton` (html5-qrcode) + file picker (W5)  
+- [x] Push-ready — `usePushReady` (permission + local Notification; VAPID/SW later)  
+- [x] Biometrics gate before wallet — `useBiometricGate` (WebAuthn, local only) + skip  
+- [x] PWA manifest — `app/manifest.ts` (standalone, Ludo logo)  
 
 ---
 
