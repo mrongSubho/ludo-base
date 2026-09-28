@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
+import { useCdpParentSigner } from '@/hooks/useCdpParentSigner';
 import { supabase } from '@/lib/supabase';
 import { GUEST_EVENT, getGuestId, isGuestActive, migrateGuestStash } from '@/lib/guest';
 import { useAppSession } from './useAppSession';
 
 export function useCurrentUser() {
     const { address: wagmiAddress, isConnected: isWalletConnected } = useAccount();
+    // In-game CDP smart account (dual-path). Never the owner EOA.
+    const cdp = useCdpParentSigner();
     const { sessionId: appSessionId } = useAppSession();
     const [guestTick, setGuestTick] = useState(0);
     const [profile, setProfile] = useState<{
@@ -29,22 +32,24 @@ export function useCurrentUser() {
     // Active guest only counts while no wallet is connected — a wallet always wins.
     const guestId = !wagmiAddress && isGuestActive() ? getGuestId() : null;
     void guestTick;
-    const address = wagmiAddress ?? guestId ?? undefined;
-    const isGuest = !wagmiAddress && !!guestId;
-    const isConnected = isWalletConnected || isGuest;
+    const cdpAddress = cdp.address;
+    const address = wagmiAddress ?? cdpAddress ?? guestId ?? undefined;
+    const isGuest = !wagmiAddress && !cdpAddress && !!guestId;
+    const isConnected = isWalletConnected || Boolean(cdpAddress) || isGuest;
 
     useEffect(() => {
         async function fetchProfile() {
-            if (isWalletConnected && wagmiAddress) {
+            const walletForProfile = wagmiAddress ?? cdpAddress;
+            if (walletForProfile) {
                 // Stash migration: a previous guest session's local finds move
                 // to the wallet once, then guest state is dropped.
                 const pendingGuest = getGuestId();
-                if (pendingGuest) migrateGuestStash(pendingGuest, wagmiAddress);
+                if (pendingGuest && wagmiAddress) migrateGuestStash(pendingGuest, wagmiAddress);
 
                 const { data, error } = await supabase
                     .from('players')
                     .select('username, avatar_url, lxp, rxp, total_wins, total_games')
-                    .or(`wallet_address.ilike.${wagmiAddress},wallet_address.eq.${wagmiAddress.toLowerCase()},wallet_address.eq.${wagmiAddress}`)
+                    .or(`wallet_address.ilike.${walletForProfile},wallet_address.eq.${walletForProfile.toLowerCase()},wallet_address.eq.${walletForProfile}`)
                     .limit(1);
 
                 if (data && data.length > 0) {
@@ -56,7 +61,7 @@ export function useCurrentUser() {
                         rxp: player.rxp ?? undefined,
                         total_wins: player.total_wins,
                         total_games: player.total_games,
-                        displayName: (player.username && !player.username.startsWith('0x')) ? player.username : "User " + wagmiAddress.slice(-4).toUpperCase()
+                        displayName: (player.username && !player.username.startsWith('0x')) ? player.username : "User " + walletForProfile.slice(-4).toUpperCase()
                     });
                 } else if (error) {
                     console.error('Profile fetch error:', error);
@@ -81,7 +86,7 @@ export function useCurrentUser() {
 
         fetchProfile();
 
-        if (isWalletConnected && wagmiAddress) {
+        if ((isWalletConnected && wagmiAddress) || cdpAddress) {
             // Set up a Realtime listener to catch immediate updates from ProfileSyncer
             const channel = supabase
                 .channel('user-profile-sync')
@@ -91,7 +96,7 @@ export function useCurrentUser() {
                         event: 'UPDATE',
                         schema: 'public',
                         table: 'players',
-                        filter: `wallet_address=eq.${wagmiAddress.toLowerCase()}`
+                        filter: `wallet_address=eq.${(wagmiAddress ?? cdpAddress ?? '').toLowerCase()}`
                     },
                     (payload) => {
                         setProfile(prev => ({
@@ -105,7 +110,7 @@ export function useCurrentUser() {
                             coins: typeof payload.new.coins === 'number' ? payload.new.coins : prev?.coins,
                             total_wins: payload.new.total_wins,
                             total_games: payload.new.total_games,
-                            displayName: (payload.new.username && !payload.new.username.startsWith('0x')) ? payload.new.username : "User " + wagmiAddress.slice(-4).toUpperCase()
+                            displayName: (payload.new.username && !payload.new.username.startsWith('0x')) ? payload.new.username : "User " + (wagmiAddress ?? cdpAddress ?? "").slice(-4).toUpperCase()
                         }));
                     }
                 )
@@ -115,7 +120,7 @@ export function useCurrentUser() {
                 supabase.removeChannel(channel);
             };
         }
-    }, [wagmiAddress, isWalletConnected, isGuest, guestId]);
+    }, [wagmiAddress, cdpAddress, isWalletConnected, isGuest, guestId]);
 
     // Coins path: the baseline players grant excludes `coins`, so the anon
     // select above can never see the balance. Merge it from the session-gated

@@ -9408,6 +9408,114 @@ body.theme-daybreak .ingame-card {
   color: var(--modal-muted, rgba(255, 255, 255, 0.45));
 }
 
+
+/* ── Wallet-ready + security ladder ──────────────────────────────────── */
+.ingame-ready-badge {
+  width: 56px;
+  height: 56px;
+  margin: 4px auto 0;
+  border-radius: 18px;
+  background: rgba(34, 211, 153, 0.16);
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.theme-daybreak .ingame-ready-badge {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
+}
+.ingame-ladder {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0;
+}
+.ingame-ladder-step {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--modal-muted, rgba(255, 255, 255, 0.4));
+}
+.ingame-ladder-step.done {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+}
+.ingame-ladder-step.now {
+  color: #8EB6FF;
+  border-color: rgba(0, 82, 255, 0.45);
+  background: rgba(0, 82, 255, 0.16);
+}
+body.theme-daybreak .ingame-ladder-step.done {
+  color: #059669;
+  border-color: rgba(5, 150, 105, 0.3);
+  background: rgba(5, 150, 105, 0.1);
+}
+body.theme-daybreak .ingame-ladder-step.now {
+  color: #0052FF;
+  border-color: rgba(0, 82, 255, 0.35);
+  background: rgba(0, 82, 255, 0.1);
+}
+.ingame-nudge {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 82, 255, 0.28);
+  background: rgba(0, 82, 255, 0.1);
+}
+.ingame-nudge-title {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--modal-ink, #fff);
+}
+.ingame-nudge-copy {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--modal-muted, rgba(255, 255, 255, 0.55));
+}
+
+/* Lobby security ladder chip */
+.security-ladder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.security-ladder .sep {
+  opacity: 0.35;
+  font-weight: 600;
+}
+.security-ladder .done {
+  color: #34d399;
+}
+.security-ladder .now {
+  color: #8EB6FF;
+}
+.security-ladder .todo {
+  color: rgba(255, 255, 255, 0.4);
+}
+body.theme-daybreak .security-ladder {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(23, 23, 23, 0.1);
+}
+body.theme-daybreak .security-ladder .done { color: #059669; }
+body.theme-daybreak .security-ladder .now { color: #0052FF; }
+body.theme-daybreak .security-ladder .todo { color: rgba(23, 23, 23, 0.4); }
+
 .cb-empty {
   margin: 0;
   padding: 14px;

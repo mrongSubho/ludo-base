@@ -162,6 +162,15 @@ App-session TTL is **7 days** (`APP_SESSION_TTL_MS`). SIWE app session is for ch
 
 External wallets own their security (extension / Base app). We never re-skin that as passkey/export.
 
+### Post-create flow (in-game)
+
+| Case | UX |
+| --- | --- |
+| **First create** (email OTP / social) | Wallet ready → security ladder → passkey nudge (skippable) → arena. **No private key at create** (export = Security only). |
+| **Returning · live CDP session** | Silent restore — no picker sheet |
+| **Returning · seen ready before** | “Welcome back · 0x…” → Continue to arena |
+| **Lobby** | `Wallet · Protect · Play` ladder chip |
+
 ## 5. Wallet product (IA)
 
 ```text

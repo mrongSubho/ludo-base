@@ -17,6 +17,7 @@ import { useAccount } from 'wagmi';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { PaidPoolJoinButton } from './PaidPoolJoinButton';
+import SecurityLadderChip from './SecurityLadderChip';
 import { derivePoolId, isChipsConfigured } from '@/lib/chips';
 import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
 
@@ -352,7 +353,10 @@ export default function GameLobby({
                     <div className="w-full space-y-3 flex flex-col">
                         {/* Mode Section */}
                         <div className="flex flex-col items-center w-full">
-                            <div className="flex justify-center w-full mb-3 mt-1">
+                            <div className="flex justify-center w-full mb-2 mt-1">
+                                <SecurityLadderChip />
+                            </div>
+                            <div className="flex justify-center w-full mb-3">
                                 <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
                                     <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
                                 </div>

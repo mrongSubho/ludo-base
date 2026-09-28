@@ -5,7 +5,9 @@ import { useConnect, Connector } from 'wagmi';
 import { IoClose } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import InGameWalletPanel from './InGameWalletPanel';
-import { isInGameWalletEnabled, writeWalletMode } from '@/lib/walletMode';
+import { isInGameWalletEnabled, writeWalletMode, readWalletMode } from '@/lib/walletMode';
+import { useIsSignedIn, useCurrentUser } from '@coinbase/cdp-hooks';
+import { resolvePlayerIdentity } from '@/lib/playerIdentity';
 
 interface LudoWalletModalProps {
     isOpen: boolean;
@@ -68,12 +70,23 @@ function WalletRow({
 
 export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProps) {
     const { connect, connectors } = useConnect();
+    const { isSignedIn } = useIsSignedIn();
+    const { currentUser } = useCurrentUser();
     const [mounted, setMounted] = useState(false);
     const [showInGame, setShowInGame] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Silent restore: live CDP session → hand off without showing the picker.
+    useEffect(() => {
+        if (!isOpen) return;
+        const id = resolvePlayerIdentity(currentUser);
+        if (isSignedIn && id.address && readWalletMode() === 'ingame') {
+            onClose();
+        }
+    }, [isOpen, isSignedIn, currentUser, onClose]);
 
     /** Must run synchronously in onClick — no await before connect(). */
     const handleSignInWithBase = (e: React.MouseEvent) => {

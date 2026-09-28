@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * W1 — Create in-game wallet (CDP Smart Account) sign-in page.
- * Full-page flow: socials + email → OTP (no password).
- * Copy: this is NOT the Base app / MetaMask address (SMART_WALLET_PLANNING §3).
+ * W1 — Create in-game wallet (CDP Smart Account).
+ * Stages: auth (socials + email OTP) → ready (passkey nudge) → done.
+ * No private key at create. Returning users: welcome-back / silent handoff.
  */
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
     useCurrentUser,
+    useEnrollPasskey,
+    useIsPasskeySupported,
     useIsSignedIn,
+    useListPasskeys,
     useSignInWithEmail,
     useSignInWithOAuth,
     useSignOut,
@@ -17,8 +20,14 @@ import {
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { writeWalletMode } from "@/lib/walletMode";
+import {
+    hasSeenWalletReady,
+    markProtectNudged,
+    markWalletCreated,
+} from "@/lib/walletOnboarding";
 
 type SocialId = "google" | "apple" | "x" | "telegram";
+type Stage = "auth" | "ready" | "welcome";
 
 const SOCIALS: { id: SocialId; label: string; icon: ReactNode }[] = [
     {
@@ -59,6 +68,10 @@ const SOCIALS: { id: SocialId; label: string; icon: ReactNode }[] = [
     },
 ];
 
+function shortAddr(a: string) {
+    return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
 export default function InGameWalletPanel({
     onDone,
     onBack,
@@ -72,19 +85,35 @@ export default function InGameWalletPanel({
     const { verifyEmailOTP } = useVerifyEmailOTP();
     const { signInWithOAuth } = useSignInWithOAuth();
     const { signOut } = useSignOut();
+    const passkeySupported = useIsPasskeySupported();
+    const { enrollPasskey, status: enrollStatus } = useEnrollPasskey();
+    const { data: passkeys } = useListPasskeys();
 
     const [email, setEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [flowId, setFlowId] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState<string | null>(null);
+    const [stage, setStage] = useState<Stage>("auth");
 
     const id = resolvePlayerIdentity(currentUser);
+    const address = id.address;
+    const hasPasskey = Boolean((passkeys || []).length || currentUser?.mfaMethods?.passkey?.length);
 
-    const finish = useCallback(() => {
+    // Route a live session to ready / welcome (first time vs returning).
+    useEffect(() => {
+        if (!isSignedIn || !address) return;
+        if (stage === "auth") {
+            if (hasSeenWalletReady(address)) setStage("welcome");
+            else setStage("ready");
+        }
+    }, [isSignedIn, address, stage]);
+
+    const enterArena = useCallback(() => {
+        if (address) markWalletCreated(address);
         writeWalletMode("ingame");
         onDone?.();
-    }, [onDone]);
+    }, [address, onDone]);
 
     const sendOtp = useCallback(async () => {
         const clean = email.trim();
@@ -110,16 +139,42 @@ export default function InGameWalletPanel({
             await verifyEmailOTP({ flowId, otp: otp.trim() });
             setFlowId(null);
             setOtp("");
-            setTimeout(finish, 80);
+            // stage flips via effect once CDP user lands
         } catch (e) {
             setErr(e instanceof Error ? e.message : String(e));
         } finally {
             setBusy(false);
         }
-    }, [flowId, otp, verifyEmailOTP, finish]);
+    }, [flowId, otp, verifyEmailOTP]);
 
-    // Signed-in success card
-    if ((isSignedIn && id.address) || (id.address && !flowId && isSignedIn)) {
+    const onEnrollPasskey = useCallback(async () => {
+        if (!address) return;
+        setBusy(true);
+        setErr(null);
+        try {
+            await enrollPasskey();
+            markProtectNudged(address);
+            markWalletCreated(address);
+            writeWalletMode("ingame");
+            onDone?.();
+        } catch (e) {
+            setErr(e instanceof Error ? e.message : String(e));
+        } finally {
+            setBusy(false);
+        }
+    }, [address, enrollPasskey, onDone]);
+
+    const skipProtect = useCallback(() => {
+        if (address) {
+            markProtectNudged(address);
+            markWalletCreated(address);
+        }
+        writeWalletMode("ingame");
+        onDone?.();
+    }, [address, onDone]);
+
+    // ── Returning user (seen ready before) ──
+    if (stage === "welcome" && address) {
         return (
             <div className="ingame-signin">
                 {onBack && (
@@ -129,25 +184,92 @@ export default function InGameWalletPanel({
                         </svg>
                     </button>
                 )}
-                <h2 className="ingame-title">You&apos;re in</h2>
-                <p className="ingame-sub">In-game wallet ready</p>
+                <h2 className="ingame-title">Welcome back</h2>
+                <p className="ingame-sub">You&apos;re signed in as</p>
                 <div className="ingame-card">
-                    <div className="ingame-card-label">Address</div>
-                    <div className="ingame-card-addr font-mono">{id.address}</div>
-                    <p className="ingame-note">
-                        Smart wallet for Ludo only — not your Base app or MetaMask address.
-                    </p>
+                    <div className="ingame-card-label">In-game wallet</div>
+                    <div className="ingame-card-addr font-mono">{shortAddr(address)}</div>
+                    <p className="ingame-note">Not your Base app or MetaMask address.</p>
                 </div>
-                <button type="button" className="ingame-cta" onClick={finish}>
-                    Continue
+                <button type="button" className="ingame-cta" onClick={enterArena}>
+                    Continue to arena
                 </button>
-                <button type="button" className="ingame-ghost" onClick={() => signOut()}>
+                <button
+                    type="button"
+                    className="ingame-ghost"
+                    onClick={() => {
+                        void signOut();
+                        setStage("auth");
+                    }}
+                >
                     Use a different account
                 </button>
             </div>
         );
     }
 
+    // ── First-time wallet ready + passkey ladder ──
+    if (stage === "ready" && address) {
+        const showProtect = !hasPasskey && passkeySupported.data !== false;
+        return (
+            <div className="ingame-signin">
+                <div className="ingame-ready-badge" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                </div>
+                <h2 className="ingame-title">Wallet ready</h2>
+                <p className="ingame-sub">Your in-game wallet is live on Base Sepolia</p>
+                <div className="ingame-card">
+                    <div className="ingame-card-label">Address</div>
+                    <div className="ingame-card-addr font-mono">{shortAddr(address)}</div>
+                    <p className="ingame-note">
+                        Smart wallet for Ludo only — not your Base app or MetaMask address.
+                    </p>
+                </div>
+
+                {/* Security ladder */}
+                <div className="ingame-ladder" aria-label="Setup progress">
+                    <span className="ingame-ladder-step done">✓ Wallet</span>
+                    <span className={`ingame-ladder-step ${showProtect ? "now" : "done"}`}>
+                        {showProtect ? "→ Protect" : "✓ Protect"}
+                    </span>
+                    <span className="ingame-ladder-step">Play</span>
+                </div>
+
+                {showProtect ? (
+                    <>
+                        <div className="ingame-nudge">
+                            <div className="ingame-nudge-title">Add Face ID / Touch ID</div>
+                            <p className="ingame-nudge-copy">
+                                Confirm sends with your face or fingerprint. One tap — not another password.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className="ingame-cta"
+                            disabled={busy || enrollStatus === "pending"}
+                            onClick={onEnrollPasskey}
+                        >
+                            {enrollStatus === "pending" ? "Waiting for biometric…" : "Protect my wallet"}
+                        </button>
+                        <button type="button" className="ingame-ghost" onClick={skipProtect}>
+                            Skip — I&apos;ll do this later
+                        </button>
+                    </>
+                ) : (
+                    <button type="button" className="ingame-cta" onClick={enterArena}>
+                        Continue to arena
+                    </button>
+                )}
+
+                {err && <p className="ingame-err">{err}</p>}
+                <p className="ingame-fine">Export key stays in Wallet → Security. We never show it here.</p>
+            </div>
+        );
+    }
+
+    // ── Auth: socials + email → OTP ──
     const otpStage = Boolean(flowId);
 
     return (
@@ -163,7 +285,6 @@ export default function InGameWalletPanel({
             <h2 className="ingame-title">Sign In</h2>
             <p className="ingame-sub">Your in-game wallet</p>
 
-            {/* Socials */}
             <div className="ingame-socials" role="group" aria-label="Social sign in">
                 {SOCIALS.map((s) => (
                     <button
@@ -187,7 +308,6 @@ export default function InGameWalletPanel({
                 <span>or create in-game wallet using your email</span>
             </div>
 
-            {/* Email → OTP field (same slot) */}
             <label className="ingame-field">
                 <span className="ingame-field-label">{otpStage ? "Verification code" : "Email"}</span>
                 {otpStage ? (
@@ -242,27 +362,16 @@ export default function InGameWalletPanel({
                 disabled={busy || (otpStage ? otp.length < 6 : !email.trim())}
                 onClick={otpStage ? confirmOtp : sendOtp}
             >
-                {busy
-                    ? "Please wait…"
-                    : otpStage
-                      ? "Create in-game wallet"
-                      : "Send code"}
+                {busy ? "Please wait…" : otpStage ? "Create in-game wallet" : "Send code"}
             </button>
 
             {otpStage && (
-                <button
-                    type="button"
-                    className="ingame-ghost"
-                    disabled={busy}
-                    onClick={sendOtp}
-                >
+                <button type="button" className="ingame-ghost" disabled={busy} onClick={sendOtp}>
                     Resend code
                 </button>
             )}
 
-            <p className="ingame-fine">
-                Email or Google · no extension · not your Base app wallet.
-            </p>
+            <p className="ingame-fine">Email or Google · no extension · not your Base app wallet.</p>
         </div>
     );
 }
