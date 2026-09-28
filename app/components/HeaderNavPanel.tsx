@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ChatIcon, SlidersIcon } from './icons';
 import { useChipsBalance } from '@/hooks/useChipsBalance';
-import { ChipsWalletPanel } from './ChipsWalletPanel';
+import WalletPanel from './WalletPanel';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ export const HeaderNavPanel = ({
     hasNotifications,
     onMessagesClick,
     onSettingsClick,
-    onFeedClick
+    onFeedClick: _onFeedClick
 }: HeaderNavPanelProps) => {
     const chips = useChipsBalance();
     const showChips = chips.configured && chips.isConnected;
@@ -134,7 +134,8 @@ export const HeaderNavPanel = ({
                 </div>
             </div>
 
-            <ChipsWalletPanel isOpen={walletOpen} onClose={() => setWalletOpen(false)} onFeed={onFeedClick} />
+            {/* Real wallet (R0–R1) — full home / send / receive / activity */}
+            {walletOpen && <WalletPanel onClose={() => setWalletOpen(false)} />}
         </header>
     );
 };

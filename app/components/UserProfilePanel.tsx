@@ -8,7 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProgression, getRankProgress } from '@/lib/progression';
 import { supabase } from '@/lib/supabase';
 import { RANGES, FormChart, rangeCutoff } from './FormChart';
-import { ModeBreakdown, winGame, lastNForm } from './ModeBreakdown';
+import { ModeBreakdown, winGame } from './ModeBreakdown';
 import { getShowcased } from '@/lib/showcase';
 import { exitGuest } from '@/lib/guest';
 import { useGuestWall } from '@/hooks/GuestWallContext';
@@ -95,7 +95,15 @@ const AvatarFace = ({ def, letter, box = 'w-14 h-14' }: {
     return null;
 };
 
-export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClose: () => void; onOpenMarketplace?: () => void }) {
+export default function UserProfilePanel({
+    onClose,
+    onOpenMarketplace,
+    onOpenWallet,
+}: {
+    onClose: () => void;
+    onOpenMarketplace?: () => void;
+    onOpenWallet?: () => void;
+}) {
     const { profile, address, displayName: finalName, isGuest } = useCurrentUser();
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
@@ -383,17 +391,32 @@ export default function UserProfilePanel({ onClose, onOpenMarketplace }: { onClo
                             </div>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                            <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full border border-cyan-400/30">
+                            <button
+                                type="button"
+                                onClick={onOpenWallet}
+                                title={onOpenWallet ? 'Open wallet' : undefined}
+                                className={`flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full border border-cyan-400/30 transition-colors ${onOpenWallet ? 'cursor-pointer hover:border-cyan-300/60' : ''}`}
+                            >
                                 <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                                 <span className="text-xs font-black text-white tabular-nums">{chipsBal.human}</span>
                                 <span className="text-[9px] font-black text-cyan-300/80 uppercase">CHIPS</span>
-                            </div>
+                            </button>
                             <div className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10">
                                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
                                 <span className="text-[10px] font-bold text-white/70 tabular-nums">{coins.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
+
+                    {onOpenWallet && (
+                        <button
+                            type="button"
+                            onClick={onOpenWallet}
+                            className="w-full rounded-2xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100 hover:bg-cyan-500/25 transition-colors"
+                        >
+                            Open wallet · assets & activity
+                        </button>
+                    )}
 
                     {/* Identity editor */}
                     {editing && (

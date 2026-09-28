@@ -29,6 +29,7 @@ const SnakesBoard = dynamic(() => import('./components/SnakesBoard'), {
     loading: () => <BoardLoader />,
 });
 const SettingsPanel = dynamic(() => import('./components/SettingsPanel').then(m => m.SettingsPanel));
+const WalletPanel = dynamic(() => import('./components/WalletPanel'));
 const UserProfilePanel = dynamic(() => import('./components/UserProfilePanel'));
 const FriendsPanel = dynamic(() => import('./components/FriendsPanel'));
 const _Leaderboard = dynamic(() => import('./components/Leaderboard'));
@@ -57,7 +58,7 @@ import { buildStreamMessage } from '@/lib/matchProof';
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
 type AppState = 'dashboard' | 'game' | 'spectating';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
 
 // Mock user data has been removed
 
@@ -596,7 +597,12 @@ export default function Page() {
               {/* Universal Panel Layer (Sandwich Layout) */}
               <>
                 {activeTab === 'profile' && (
-                  <UserProfilePanel key="profile" onClose={closeTab} onOpenMarketplace={() => toggle('marketplace')} />
+                  <UserProfilePanel
+                    key="profile"
+                    onClose={closeTab}
+                    onOpenMarketplace={() => toggle('marketplace')}
+                    onOpenWallet={() => toggle('wallet')}
+                  />
                 )}
                 {activeTab === 'friends' && (
                   <FriendsPanel
@@ -640,7 +646,10 @@ export default function Page() {
                   />
                 )}
                 {activeTab === 'settings' && (
-                  <SettingsPanel key="settings" onClose={closeTab} />
+                  <SettingsPanel key="settings" onClose={closeTab} onOpenWallet={() => toggle('wallet')} />
+                )}
+                {activeTab === 'wallet' && (
+                  <WalletPanel key="wallet" onClose={closeTab} />
                 )}
                 {burnOpen && (
                   <BurnPanel key="burn" onClose={() => setBurnOpen(false)} />
@@ -716,7 +725,10 @@ export default function Page() {
                 />
               )}
               {activeTab === 'settings' && (
-                <SettingsPanel key="settings-spectate" onClose={closeTab} />
+                <SettingsPanel key="settings-spectate" onClose={closeTab} onOpenWallet={() => toggle('wallet')} />
+              )}
+              {activeTab === 'wallet' && (
+                <WalletPanel key="wallet-spectate" onClose={closeTab} />
               )}
             </>
           )}
@@ -791,7 +803,10 @@ export default function Page() {
                 />
               )}
               {activeTab === 'settings' && (
-                <SettingsPanel key="settings-game" onClose={closeTab} onLeaveMatch={() => setShowQuitWarning(true)} />
+                <SettingsPanel key="settings-game" onClose={closeTab} onLeaveMatch={() => setShowQuitWarning(true)} onOpenWallet={() => toggle('wallet')} />
+              )}
+              {activeTab === 'wallet' && (
+                <WalletPanel key="wallet-game" onClose={closeTab} />
               )}
 
               {/* ── Quit Match Warning Overlay ── */}

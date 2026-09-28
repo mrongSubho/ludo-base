@@ -9,10 +9,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
-import WalletSecurityPanel from './WalletSecurityPanel';
 import WalletLinkPanel from './WalletLinkPanel';
-import WcWalletPanel from './WcWalletPanel';
-import WalletShell from './WalletShell';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -177,6 +174,14 @@ const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
         </div>
         <Switch on={on} onToggle={onToggle} label={label} />
     </div>
+);
+
+const WalletGlyph = () => (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="6" width="20" height="14" rx="3" />
+        <path d="M2 10h20" />
+        <circle cx="17" cy="15" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
 );
 
 const NavRow = ({ icon, tint, label, hint, last = false, onClick }: {
@@ -367,7 +372,15 @@ function AboutView() {
     );
 }
 
-export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; onLeaveMatch?: () => void }) {
+export function SettingsPanel({
+    onClose,
+    onLeaveMatch,
+    onOpenWallet,
+}: {
+    onClose: () => void;
+    onLeaveMatch?: () => void;
+    onOpenWallet?: () => void;
+}) {
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
     const { isGuest } = useCurrentUser();
@@ -503,13 +516,21 @@ export function SettingsPanel({ onClose, onLeaveMatch }: { onClose: () => void; 
                                 </p>
                             </section>
 
-                            {/* R0 Wallet shell — home / send / receive / apps / security */}
+                            {/* Wallet lives in the real wallet panel (R0–R1) — shortcut only here */}
                             {!inGame && !isGuest && (
                                 <section>
                                     <SectionLabel>Wallet</SectionLabel>
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                                        <WalletShell />
-                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                                        <NavRow
+                                            icon={<WalletGlyph />}
+                                            tint="bg-cyan-500/15 text-cyan-300"
+                                            label="Open wallet"
+                                            hint="Assets · send / receive · activity"
+                                            onClick={() => {
+                                                onOpenWallet?.();
+                                            }}
+                                        />
+                                        <div className="p-3.5">
                                             <WalletLinkPanel />
                                         </div>
                                     </div>

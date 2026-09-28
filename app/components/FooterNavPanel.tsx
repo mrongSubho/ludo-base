@@ -9,7 +9,7 @@ import { useGameData } from '@/hooks/GameDataContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 
 // Tab Type
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 

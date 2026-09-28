@@ -14,7 +14,7 @@ import { buildMatchReceipt, renderReceiptMarkdown, type MatchReceipt } from '@/l
 // ─── Post-match stats sheet ──────────────────────────────────────────────────
 // Terminal-glass treatment of the classic win sheet: result banner, XP strip,
 // per-player home/finish table, CHIPS claim slot (UI only — contracts wire
-// later per docs/tokenomics/CHIPS_PLANNING.md section 4.8 Path A), then Back/Rematch.
+// later per docs/tokenomics/CHIPS_PLANNING.md section 4.8 Path A), then Back/Restart.
 
 const COLOR_ACCENT: Record<string, string> = {
     green: '#10b981',
@@ -259,7 +259,7 @@ export function MatchStatsOverlay({
                                 )}
                             </div>
                             <h2 className="match-stats-title">
-                                {iWon ? 'Victory' : 'Defeat'}
+                                {iWon ? 'Win' : 'Defeat'}
                             </h2>
                             <p className="match-stats-sub">
                                 {gameMode.toUpperCase()} · {playerCount} ·{' '}
@@ -493,7 +493,7 @@ export function MatchStatsOverlay({
                                 Back
                             </button>
                             <button type="button" className="match-stats-cta primary" onClick={onRematch}>
-                                Rematch
+                                Restart
                             </button>
                             <button
                                 type="button"
