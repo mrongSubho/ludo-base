@@ -144,6 +144,22 @@ App-session TTL is **7 days** (`APP_SESSION_TTL_MS`). SIWE app session is for ch
 
 ---
 
+
+### Mode gates (wallet surfaces)
+
+| Surface | External | In-game |
+| --- | --- | --- |
+| Send / Receive / Activity / Dapps (WC) | ✅ | ✅ |
+| Notifications (push) | ✅ | ✅ |
+| Buy (Onramp) | ✅ | ✅ |
+| **Passkey MFA** | ❌ hidden | ✅ CDP MFA |
+| **Export private key** | ❌ hidden | ✅ owner EOA iframe |
+| **Link wallets** | ❌ hidden | ✅ |
+| **Swap (CDP engine)** | ❌ empty-state hint | ✅ |
+| Send step-up MFA | no-op (wallet owns auth) | ✅ passkey if enrolled |
+
+External wallets own their security (extension / Base app). We never re-skin that as passkey/export.
+
 ## 5. Wallet product (IA)
 
 ```text

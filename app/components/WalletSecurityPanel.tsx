@@ -13,6 +13,7 @@ import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 import { usePushReady } from "@/hooks/usePushReady";
 import { useAppSession } from "@/hooks/useAppSession";
+import { useWalletMode } from "@/hooks/useWalletMode";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 
 /**
@@ -36,6 +37,8 @@ export default function WalletSecurityPanel() {
     const mfa = useMfaStepUp();
     const push = usePushReady();
     const appSession = useAppSession();
+    const mode = useWalletMode();
+    const isInGame = mode === "ingame";
     const [note, setNote] = useState<string | null>(null);
 
     const passkeyCount = (passkeys || []).length;
@@ -93,7 +96,8 @@ export default function WalletSecurityPanel() {
 
     return (
         <div className="sec-sheet">
-            {/* Passkey */}
+            {/* Passkey — CDP MFA, in-game only */}
+            {isInGame && (
             <div className="sec-block">
                 <div className="sec-head">
                     <span>Passkey</span>
@@ -145,7 +149,8 @@ export default function WalletSecurityPanel() {
                 </div>
             </div>
 
-            {/* Notifications */}
+            )}
+            {/* Notifications — both modes (app session push) */}
             <div className="sec-block">
                 <div className="sec-head">
                     <span>Notifications</span>
@@ -220,7 +225,8 @@ export default function WalletSecurityPanel() {
                 </div>
             </div>
 
-            {/* Export */}
+            {/* Export — CDP owner key, in-game only */}
+            {isInGame && (
             <div className="sec-block">
                 <div className="sec-head">
                     <span>Export key</span>
@@ -271,6 +277,7 @@ export default function WalletSecurityPanel() {
                 </div>
             </div>
 
+            )}
             {/* Details */}
             <div className="sec-block">
                 <div className="sec-head">

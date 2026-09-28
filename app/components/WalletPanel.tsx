@@ -361,7 +361,17 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                     )}
                     {screen === "swap" && (
                         <div className="cb-screen">
-                            <SwapSheet />
+                            {mode === "ingame" ? (
+                                <SwapSheet />
+                            ) : (
+                                <div className="cb-empty-state">
+                                    <p className="cb-empty-title">Swap needs the in-game wallet</p>
+                                    <p className="cb-empty-hint">
+                                        Coinbase swap runs on the in-game wallet. Use your external app
+                                        (Uniswap, Coinbase Wallet) to swap there.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                     {screen === "activity" && (
@@ -392,7 +402,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                         </svg>
                                     }
                                     title="Security"
-                                    hint="Passkey MFA · export key · notifications"
+                                    hint={mode === "ingame" ? "Passkey · export · notifications" : "Notifications · wallet details"}
                                     onClick={() => setScreen("security")}
                                     last
                                 />
@@ -408,14 +418,16 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                     {screen === "security" && (
                         <div className="cb-screen space-y-4">
                             <WalletSecurityPanel />
-                            <section className="cb-section">
-                                <div className="cb-section-head">
-                                    <span>Linked wallets</span>
-                                </div>
-                                <div className="cb-card cb-pad">
-                                    <WalletLinkPanel />
-                                </div>
-                            </section>
+                            {mode === "ingame" && (
+                                <section className="cb-section">
+                                    <div className="cb-section-head">
+                                        <span>Linked wallets</span>
+                                    </div>
+                                    <div className="cb-card cb-pad">
+                                        <WalletLinkPanel />
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     )}
                 </main>
