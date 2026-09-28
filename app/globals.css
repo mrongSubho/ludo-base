@@ -9071,6 +9071,97 @@ body.theme-daybreak .settings-signout-addr {
   color: color-mix(in srgb, #b91c1c 78%, transparent);
 }
 
+
+/* ── Sign-in wallet rows (LudoWalletModal) ───────────────────────────── */
+.ludo-wallet-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--modal-ink, #ffffff);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.ludo-wallet-row:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.ludo-wallet-row:active {
+  transform: scale(0.99);
+}
+.ludo-wallet-row.primary {
+  background: rgba(0, 82, 255, 0.18);
+  border-color: rgba(0, 82, 255, 0.4);
+}
+.ludo-wallet-row.primary:hover {
+  background: rgba(0, 82, 255, 0.26);
+  border-color: rgba(0, 82, 255, 0.55);
+}
+.ludo-wallet-row-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--modal-ink, #ffffff);
+}
+.ludo-wallet-row.primary .ludo-wallet-row-icon {
+  background: rgba(0, 82, 255, 0.28);
+}
+.ludo-wallet-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ludo-wallet-row-label {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.ludo-wallet-row-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--modal-muted, rgba(255, 255, 255, 0.48));
+  line-height: 1.2;
+}
+
+body.theme-daybreak .ludo-wallet-row {
+  background: rgba(23, 23, 23, 0.04);
+  border-color: rgba(23, 23, 23, 0.1);
+  color: var(--modal-ink, #171717);
+}
+body.theme-daybreak .ludo-wallet-row:hover {
+  background: rgba(23, 23, 23, 0.08);
+  border-color: rgba(23, 23, 23, 0.16);
+}
+body.theme-daybreak .ludo-wallet-row.primary {
+  background: rgba(0, 82, 255, 0.12);
+  border-color: rgba(0, 82, 255, 0.35);
+}
+body.theme-daybreak .ludo-wallet-row.primary:hover {
+  background: rgba(0, 82, 255, 0.18);
+}
+body.theme-daybreak .ludo-wallet-row-icon {
+  background: rgba(23, 23, 23, 0.06);
+}
+body.theme-daybreak .ludo-wallet-row.primary .ludo-wallet-row-icon {
+  background: rgba(0, 82, 255, 0.16);
+}
+body.theme-daybreak .ludo-wallet-row-hint {
+  color: color-mix(in srgb, #171717 55%, transparent);
+}
+
 .cb-empty {
   margin: 0;
   padding: 14px;
