@@ -34,7 +34,7 @@ export function buildSessionDomain(chainId: number = DEFAULT_CHAIN_ID): {
 export const LUDO_SESSION_DOMAIN = {
     name: 'Ludo Base',
     version: '1',
-    chainId: 8453,
+    chainId: 84532,
     // NOTE: no verifyingContract by design — there is no onchain verifier
     // contract, and a 0x0 placeholder renders as a scam signal in wallets
     // (Coinbase flags the Review screen). EIP-712 treats it as optional.
@@ -94,7 +94,7 @@ export function buildSiweMessage(params: {
     issuedAt: string;
     expirationTime: string;
     nonce: string;
-    /** Signing chain. Defaults to mainnet (8453); Sepolia flows pass 84532. */
+    /** Signing chain. Defaults to Base Sepolia (84532) until mainnet launch. */
     chainId?: number;
 }): string {
     const parsed = parseChainId(params.chainId ?? DEFAULT_CHAIN_ID);

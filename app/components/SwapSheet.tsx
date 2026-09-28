@@ -2,7 +2,8 @@
 
 /**
  * R4 — Swap via CDP `useSwap` / `useGetSwapPrice` (Coinbase swap engine).
- * Base-only token list (lib/swapTokens). CHIPS is not a swap asset (H2).
+ * CDP swap is **Base mainnet** only — parked while the app runs on Base Sepolia.
+ * CHIPS is not a swap asset (H2).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";

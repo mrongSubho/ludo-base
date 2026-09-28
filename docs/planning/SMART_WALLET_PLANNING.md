@@ -9,6 +9,8 @@
 | **Companions** | `docs/tokenomics/CHIPS_PLANNING.md` §4.6 / §8.7 / §8.9 · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` · `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md` · `docs/tokenomics/CHIPS_PLANNING.md` |
 | **Last updated** | 2026-09-28 |
 
+> **Network (2026-09-28):** app runs on **Base Sepolia (84532) only** until mainnet launch. Wagmi / OnchainKit / WC / SIWE / match sessions all pin 84532. CDP swap (mainnet-only) is parked behind a “ships with Base mainnet” empty state.
+
 One goal: **a real Web3 wallet that also plays Ludo** — see assets → send/receive → activity → connect dapps → stay in control (passkey / export), under dual-path auth (External **or** In-game).
 
 ---

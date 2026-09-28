@@ -2,7 +2,7 @@
 
 /**
  * Live wallet network label for UI (SMART_WALLET_PLANNING §5).
- * Phase 1 default is **Base Sepolia** (84532); mainnet is 8453.
+ * App is **Base Sepolia only** until mainnet launch.
  */
 
 import { useChainId } from "wagmi";

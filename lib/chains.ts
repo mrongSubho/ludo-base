@@ -1,10 +1,10 @@
 /**
  * Dual-chain source of truth (Base mainnet + Base Sepolia).
  *
- * Phase 1 runs on Base Sepolia (84532); mainnet (8453) is the later value
- * network. Every signature path (SIWE, match session, move/power, settle,
- * vouchers) validates `chainId` explicitly against this allowlist — a
- * Sepolia signature must never verify as mainnet and vice versa.
+ * App runs on **Base Sepolia only** (84532) until mainnet launch.
+ * Mainnet (8453) stays in the type for a future cutover but is **not**
+ * accepted until then. Every signature path (SIWE, match session, move/power,
+ * settle, vouchers) validates `chainId` against this allowlist.
  *
  * RPC discipline (Base skill): production reads go through a dedicated
  * provider proxied by backend env vars — never public endpoints in prod,
@@ -14,12 +14,12 @@
 import { base, baseSepolia } from 'viem/chains';
 
 /** Chain IDs wallet signatures are accepted on. No others, ever. */
-export const SUPPORTED_CHAIN_IDS = [84532, 8453] as const;
+export const SUPPORTED_CHAIN_IDS = [84532] as const;
 
 export type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
-/** Default signing chain (Base mainnet). Sepolia flows pass 84532 explicitly. */
-export const DEFAULT_CHAIN_ID: SupportedChainId = 8453;
+/** Default / only signing chain until mainnet launch (Base Sepolia). */
+export const DEFAULT_CHAIN_ID: SupportedChainId = 84532;
 
 /** Strict allowlist check. Accepts numbers and numeric strings; rejects all else. */
 export function parseChainId(input: unknown): SupportedChainId | null {
@@ -29,7 +29,7 @@ export function parseChainId(input: unknown): SupportedChainId | null {
             : typeof input === 'string' && input.trim() !== ''
               ? Number(input.trim())
               : NaN;
-    if (n === 84532 || n === 8453) return n;
+    if (n === 84532) return n;
     return null;
 }
 

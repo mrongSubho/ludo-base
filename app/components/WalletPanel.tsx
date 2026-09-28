@@ -8,7 +8,6 @@ import { useNetworkLabel } from "@/hooks/useNetworkLabel";
 import { useWalletActivity } from "@/hooks/useWalletActivity";
 import SendTokenSheet from "./SendTokenSheet";
 import ReceiveSheet from "./ReceiveSheet";
-import SwapSheet from "./SwapSheet";
 import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
@@ -198,7 +197,13 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
 
     return (
         <>
-            <div className="cb-wallet-backdrop" aria-hidden onClick={onClose} />
+            {/* Dim layer — inline fill so theme CSS cannot turn this white */}
+            <div
+                className="cb-wallet-backdrop"
+                aria-hidden
+                onClick={onClose}
+                style={{ background: 'rgba(6, 8, 14, 0.55)' }}
+            />
             <div className="cb-wallet-root" role="dialog" aria-modal="true" aria-label="Wallet">
                 <header className="cb-nav">
                     {!isHome ? (
@@ -361,17 +366,13 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                     )}
                     {screen === "swap" && (
                         <div className="cb-screen">
-                            {mode === "ingame" ? (
-                                <SwapSheet />
-                            ) : (
-                                <div className="cb-empty-state">
-                                    <p className="cb-empty-title">Swap needs the in-game wallet</p>
-                                    <p className="cb-empty-hint">
-                                        Coinbase swap runs on the in-game wallet. Use your external app
-                                        (Uniswap, Coinbase Wallet) to swap there.
-                                    </p>
-                                </div>
-                            )}
+                            <div className="cb-empty-state">
+                                <p className="cb-empty-title">Swap ships with Base mainnet</p>
+                                <p className="cb-empty-hint">
+                                    The app is on Base Sepolia. Coinbase swap is mainnet-only — it unlocks
+                                    when we launch on Base.
+                                </p>
+                            </div>
                         </div>
                     )}
                     {screen === "activity" && (

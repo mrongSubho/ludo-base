@@ -18,7 +18,7 @@ export const WC_WALLET_METADATA = {
 };
 
 /** Base / Base Sepolia only for v1 */
-export const WC_ALLOWED_CHAINS = ["eip155:8453", "eip155:84532"];
+export const WC_ALLOWED_CHAINS = ["eip155:84532"];
 
 let kitPromise: Promise<any> | null = null;
 

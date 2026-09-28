@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useChainId, useReadContract, useAccount } from "wagmi";
+import { useReadContract, useAccount } from "wagmi";
 import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex } from "@/lib/chips";
-import { parseChainId } from "@/lib/chains";
 import { useIsDaybreak } from "./GamePanelShell";
 
 function useBurnPaint() {
@@ -104,8 +103,6 @@ function Card({ children, p }: { children: React.ReactNode; p: ReturnType<typeof
 /** Burn / supply explorer — dual-theme (daybreak porcelain / retro night). */
 export function BurnFeed() {
     const p = useBurnPaint();
-    const chainIdRaw = useChainId();
-    const chainId = parseChainId(chainIdRaw) ?? 84532;
     const { address } = useAccount();
     const chips = chipsAddress();
     const pool = matchPoolAddress();
@@ -149,10 +146,7 @@ export function BurnFeed() {
     const burned = burnInputs?.[0];
     const fees = burnInputs?.[1];
 
-    const explorer = useMemo(() => {
-        if (chainId === 8453) return "https://basescan.org";
-        return "https://sepolia.basescan.org";
-    }, [chainId]);
+    const explorer = useMemo(() => "https://sepolia.basescan.org", []);
 
     return (
         <div className="flex flex-col gap-4">
