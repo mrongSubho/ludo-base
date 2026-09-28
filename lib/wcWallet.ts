@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any -- WalletKit wire types; typed burn-down */
 
 /**
  * W5 — Ludo as WalletConnect **wallet** (DUAL_PATH_WALLET_PLAN §5.7).
@@ -19,7 +20,6 @@ export const WC_WALLET_METADATA = {
 /** Base / Base Sepolia only for v1 */
 export const WC_ALLOWED_CHAINS = ["eip155:8453", "eip155:84532"];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let kitPromise: Promise<any> | null = null;
 
 export function getWalletConnectProjectId(): string {
@@ -34,7 +34,6 @@ export async function getWalletKit(): Promise<any> {
             throw new Error("NEXT_PUBLIC_WC_PROJECT_ID is not set");
         }
         kitPromise = (async () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const core = new (Core as any)({ projectId });
             return WalletKit.init({
                 core,
@@ -59,13 +58,11 @@ export type PendingRequest = {
     id: number;
     topic: string;
     method: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params: any;
     chainId: string;
     peerName: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function summarizeProposal(proposal: any): PendingProposal {
     const { id, params } = proposal;
     const proposer = params?.proposer?.metadata ?? {};
@@ -114,12 +111,9 @@ export const WC_BASE_METHODS = [
 ];
 
 /** Build approve args: Base chains only; methods intersection + allowlist; no denied methods. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildApproveSession(proposal: any, accounts: string[], mode: "external" | "ingame" = "external") {
     const { id, params } = proposal;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const required = (params?.requiredNamespaces?.eip155 ?? {}) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const optional = (params?.optionalNamespaces?.eip155 ?? {}) as any;
 
     const chainCandidates = [

@@ -11,6 +11,8 @@ import {
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
+import { usePushReady } from "@/hooks/usePushReady";
+import { useAppSession } from "@/hooks/useAppSession";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 
 /**
@@ -33,6 +35,9 @@ export default function WalletSecurityPanel() {
     const [exportErr, setExportErr] = useState<string | null>(null);
     const [exportStatus, setExportStatus] = useState<"idle" | "pending" | "error">("idle");
     const mfa = useMfaStepUp();
+    const push = usePushReady();
+    const appSession = useAppSession();
+    const [pushMsg, setPushMsg] = useState<string | null>(null);
 
     const onEnroll = useCallback(async () => {
         setBusy(true);
@@ -178,6 +183,72 @@ export default function WalletSecurityPanel() {
                         {privateKey}
                     </pre>
                 )}
+            </div>
+
+            <div className="border-t border-white/10 pt-3">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
+                    Notifications
+                </h4>
+                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
+                    Remote push (VAPID) for turn nudges, claim reminders, and wallet events.
+                    Local notification permission is separate from a saved server subscription.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        className="rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-2 text-[11px] font-bold uppercase tracking-wider disabled:opacity-40"
+                        disabled={!id.address}
+                        onClick={async () => {
+                            setPushMsg(null);
+                            const r = await push.enableRemotePush({
+                                walletAddress: id.address || "",
+                                sessionId: appSession.peekAppSession(),
+                            });
+                            setPushMsg(
+                                r.ok
+                                    ? "Remote push enabled on this device."
+                                    : push.error || "Could not enable remote push",
+                            );
+                        }}
+                    >
+                        Enable remote push
+                    </button>
+                    <button
+                        type="button"
+                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase disabled:opacity-40"
+                        disabled={!id.address}
+                        onClick={async () => {
+                            setPushMsg(null);
+                            const err = await push.sendTestPush({
+                                walletAddress: id.address || "",
+                                sessionId: appSession.peekAppSession(),
+                            });
+                            setPushMsg(err || "Test push sent.");
+                        }}
+                    >
+                        Send test push
+                    </button>
+                    <button
+                        type="button"
+                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase disabled:opacity-40"
+                        disabled={!id.address}
+                        onClick={async () => {
+                            setPushMsg(null);
+                            await push.disableRemotePush({
+                                walletAddress: id.address || "",
+                                sessionId: appSession.peekAppSession(),
+                            });
+                            setPushMsg("Remote push disabled on this device.");
+                        }}
+                    >
+                        Disable
+                    </button>
+                </div>
+                <p className="mt-1 text-[10px] text-white/40">
+                    Permission: {push.permission} · Remote: {push.remote}
+                </p>
+                {pushMsg && <p className="text-[11px] text-white/60 mt-1">{pushMsg}</p>}
+                {push.error && <p className="text-red-300 text-[11px] mt-1">{push.error}</p>}
             </div>
 
             <div className="border-t border-white/10 pt-3">

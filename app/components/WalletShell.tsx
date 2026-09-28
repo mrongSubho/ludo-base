@@ -12,6 +12,7 @@ import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
 import { useBiometricGate } from "@/hooks/useBiometricGate";
 import { usePushReady } from "@/hooks/usePushReady";
+import { useAppSession } from "@/hooks/useAppSession";
 
 type Tab = "home" | "send" | "token" | "receive" | "swap" | "activity" | "apps" | "security";
 
@@ -24,6 +25,7 @@ export default function WalletShell() {
     const [tab, setTab] = useState<Tab>("home");
     const bio = useBiometricGate();
     const push = usePushReady();
+    const appSession = useAppSession();
     const [bioSkipped, setBioSkipped] = useState(false);
     const showGate = bio.supported === true && !bio.unlocked && !bioSkipped;
 
@@ -44,9 +46,29 @@ export default function WalletShell() {
                         <button
                             type="button"
                             className="text-[10px] uppercase text-white/50 underline"
-                            onClick={() => void push.requestPermission()}
+                            onClick={() => {
+                                // User gesture: enable push end-to-end (permission → VAPID → save).
+                                void push.enableRemotePush({
+                                    walletAddress: address || "",
+                                    sessionId: appSession.peekAppSession(),
+                                });
+                            }}
                         >
                             Enable push
+                        </button>
+                    )}
+                    {push.permission === "granted" && push.remote !== "subscribed" && (
+                        <button
+                            type="button"
+                            className="text-[10px] uppercase text-white/50 underline"
+                            onClick={() => {
+                                void push.enableRemotePush({
+                                    walletAddress: address || "",
+                                    sessionId: appSession.peekAppSession(),
+                                });
+                            }}
+                        >
+                            {push.remote === "error" ? "Retry remote push" : "Enable remote push"}
                         </button>
                     )}
                     <button

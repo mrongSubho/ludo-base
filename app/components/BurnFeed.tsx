@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { useChainId, useReadContract, useAccount } from "wagmi";
 import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex } from "@/lib/chips";
-import { parseChainId, viemChainFor } from "@/lib/chains";
+import { parseChainId } from "@/lib/chains";
 import { useIsDaybreak } from "./GamePanelShell";
 
 function useBurnPaint() {
@@ -106,7 +106,6 @@ export function BurnFeed() {
     const p = useBurnPaint();
     const chainIdRaw = useChainId();
     const chainId = parseChainId(chainIdRaw) ?? 84532;
-    const chain = viemChainFor(chainId);
     const { address } = useAccount();
     const chips = chipsAddress();
     const pool = matchPoolAddress();

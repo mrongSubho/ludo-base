@@ -1,4 +1,4 @@
-/* R5 — minimal service worker: cache shell + push display. VAPID remote push later. */
+/* R5 — service worker: shell cache + Web Push display (VAPID remote push). */
 const CACHE = "ludo-wallet-v1";
 
 self.addEventListener("install", (event) => {
@@ -11,7 +11,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-    let data = { title: "Ludo Base", body: "" };
+    let data = { title: "Ludo Base", body: "", url: "/", tag: undefined };
     try {
         if (event.data) data = { ...data, ...event.data.json() };
     } catch {
@@ -21,11 +21,38 @@ self.addEventListener("push", (event) => {
         self.registration.showNotification(data.title, {
             body: data.body,
             icon: "/ludo-base-logo.svg",
+            tag: data.tag,
+            data: { url: data.url || "/" },
         }),
     );
 });
 
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
-    event.waitUntil(self.clients.openWindow("/"));
+    const url = (event.notification.data && event.notification.data.url) || "/";
+    event.waitUntil(
+        (async () => {
+            const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+            for (const client of all) {
+                if ("focus" in client) {
+                    await client.focus();
+                    if ("navigate" in client) await client.navigate(url);
+                    return;
+                }
+            }
+            await self.clients.openWindow(url);
+        })(),
+    );
+});
+
+// Browser may rotate the push endpoint; ask the page to re-register.
+self.addEventListener("pushsubscriptionchange", (event) => {
+    event.waitUntil(
+        (async () => {
+            const clientsList = await self.clients.matchAll({ type: "window" });
+            for (const client of clientsList) {
+                client.postMessage({ type: "pushsubscriptionchange" });
+            }
+        })(),
+    );
 });

@@ -1,7 +1,7 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any -- WalletKit wire types; typed burn-down */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useSendTransaction } from "wagmi";
@@ -19,6 +19,7 @@ import {
     type PendingRequest,
 } from "@/lib/wcWallet";
 import { decodeCallsList, extractCalls } from "@/lib/wcDecode";
+import { formatExpiryClock, sessionExpiryParts } from "@/lib/wcExpiry";
 
 /**
  * W5 UI — Ludo as WalletConnect wallet.
@@ -37,6 +38,8 @@ export default function WcWalletPanel() {
         { topic: string; peer: string; chains: string[]; expiry?: number }[]
     >([]);
     const [qrData, setQrData] = useState<string | null>(null);
+    /** Tick for WC session expiry countdown (R3). */
+    const [nowMs, setNowMs] = useState(() => Date.now());
 
     const address = player.address;
 
@@ -61,6 +64,11 @@ export default function WcWalletPanel() {
     useEffect(() => {
         void refresh();
     }, [refresh]);
+
+    useEffect(() => {
+        const t = window.setInterval(() => setNowMs(Date.now()), 1000);
+        return () => window.clearInterval(t);
+    }, []);
 
     useEffect(() => {
         let mounted = true;
@@ -449,14 +457,27 @@ export default function WcWalletPanel() {
                         </button>
                     </div>
                     <ul className="mt-1 space-y-1">
-                        {sessions.map((s) => (
+                        {sessions.map((s) => {
+                            const exp = sessionExpiryParts(s.expiry, nowMs);
+                            return (
                             <li key={s.topic} className="text-[11px] text-white/70 flex justify-between gap-2">
                                 <span className="truncate">
                                     {s.peer} · {s.chains.join(", ")}
-                                    {s.expiry != null && (
-                                        <span className="text-white/40">
+                                    {exp && (
+                                        <span
+                                            className={
+                                                exp.expired
+                                                    ? "text-red-300/90"
+                                                    : exp.urgent
+                                                      ? "text-amber-200/90"
+                                                      : "text-white/40"
+                                            }
+                                        >
                                             {" "}
-                                            · expires {new Date(s.expiry * 1000).toLocaleString()}
+                                            · {exp.expired ? "expired" : `expires in ${exp.label}`}
+                                            {s.expiry != null && (
+                                                <span className="text-white/30"> ({formatExpiryClock(s.expiry)})</span>
+                                            )}
                                         </span>
                                     )}
                                 </span>
@@ -480,7 +501,8 @@ export default function WcWalletPanel() {
                                     Disconnect
                                 </button>
                             </li>
-                        ))}
+                            );
+                        })}
                     </ul>
                 </div>
             )}

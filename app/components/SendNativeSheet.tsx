@@ -8,7 +8,7 @@ import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 
 /** R0 — Send ETH (REAL_WALLET_PLAN §3.2). Max branches by gas path. */
 export default function SendNativeSheet() {
-    const { eth, loading, refresh, needsReconnect } = useWalletAssets();
+    const { eth, refresh, needsReconnect } = useWalletAssets();
     const { send, status, error, txHash, maxSelfPay, mode } = useSendNative();
     const mfa = useMfaStepUp();
     const [to, setTo] = useState("");

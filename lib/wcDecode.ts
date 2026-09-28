@@ -3,7 +3,7 @@
  * REAL_WALLET_PLAN §7b H1. Never auto-approve; show value-at-risk + risk flags.
  */
 
-import { formatUnits, getAddress, isAddress, type Hex } from "viem";
+import { formatUnits, getAddress, type Hex } from "viem";
 import { isUnlimitedOrHighRiskCalldata } from "./wcWallet";
 
 export type DecodedCall = {

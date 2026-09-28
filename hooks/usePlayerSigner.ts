@@ -27,7 +27,6 @@ export function usePlayerSigner() {
         // report `needsReconnect` instead of falling back to external address.
         const wantsInGame = mode === "ingame";
         const ingameReady = wantsInGame && Boolean(cdp.address);
-        const externalReady = !wantsInGame && Boolean(external.address);
         const active = ingameReady ? cdp : wantsInGame ? cdp : external;
         return {
             mode: (wantsInGame ? "ingame" : "external") as WalletMode,

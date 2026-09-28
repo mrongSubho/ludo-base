@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
 import { useClaimAll } from "@/hooks/useChipsPool";
-import { chipsAddress, shortHex } from "@/lib/chips";
+import { shortHex } from "@/lib/chips";
 
 type Props = {
     /** Optional pool ids already known to the caller (MatchStats / session). */

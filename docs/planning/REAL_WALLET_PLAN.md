@@ -205,13 +205,13 @@ UI: WalletShell (home · activity · apps · security · settings)
 - [x] **Disconnect all** + per-session disconnect (chain scope already WC_ALLOWED_CHAINS)  
 - [x] `wallet_sendCalls` / UserOp from apps (W4) wired; UserOp status label in send sheets  
 - [ ] Full ABI decode for all contracts (v1: transfer / approve / joinPool / claimMatch)  
-- [ ] Session expiry timer UI (disconnect still available)
+- [x] Session expiry countdown UI — `lib/wcExpiry` + live tick in `WcWalletPanel` (disconnect still available)
 
 ### R4 — Nice-to-have wallet **(scoped 2026-09-25)**
 
 **How Coinbase / Base app swap:** they use **Coinbase’s own swap engine** (CDP `useGetSwapPrice` + `useSwap`) — not a raw Uniswap widget. We ship the **same** API (in-game CDP path).
 
-- [x] Swap — `SwapSheet` via CDP `useGetSwapPrice` / `useSwap` (Base only)  
+- [x] Swap — `SwapSheet` via CDP `useGetSwapPrice` / `useSwap` (Base only, searchable token list in `lib/swapTokens`)  
 - [x] Buy — Coinbase **Onramp** deep link (`BuyCryptoButton`); CDP domain allowlist when going live  
 - [x] **No NFT tab** — Marketplace already owns NFTs; Wallet only notes the link  
 - [x] **Base only** — no Ethereum / OP multi-chain in Wallet (CHIPS is Base-only anyway)  
@@ -219,7 +219,7 @@ UI: WalletShell (home · activity · apps · security · settings)
 ### R5 — Mobile PWA
 
 - [x] Camera QR — `QrScanButton` (html5-qrcode) + file picker (W5)  
-- [x] Push-ready — `usePushReady` (permission + local Notification; VAPID/SW later)  
+- [x] Remote push — VAPID + SW (`usePushReady.enableRemotePush`, `/api/push/subscribe|test`, `push_subscriptions`)  
 - [x] Biometrics gate before wallet — `useBiometricGate` (WebAuthn, local only) + skip  
 - [x] PWA manifest — `app/manifest.ts` (standalone, Ludo logo)  
 
@@ -307,3 +307,29 @@ Unpriced assets → balance + badge only. See open question #1.
 ---
 
 *Invariants: SIWE never authorizes moves; Edge RNG; builder-code on every tx; pull-only CHIPS; one `wallet_address` per session.*
+
+---
+
+## 9. Hard QA (2026-09-28)
+
+| Area | Result |
+| --- | --- |
+| `npx tsc --noEmit` | clean |
+| `npx eslint app hooks lib` | clean (wallet surface burn-down applied) |
+| `npm test` | 91/91 pass |
+| `npm run check:engine` | Edge engine in sync |
+| `npm run build` | ok — `/api/push/subscribe`, `/api/push/test` registered |
+| **Identity** | `wallet_address` = SIWE/Base or CDP smart only; owner EOA is diagnostic (`WalletDetailsSheet` / spike panel) |
+| **CHIPS H2** | `unpriced` badge; excluded from USD total; not in `BASE_SWAP_TOKENS` |
+| **WC H1** | denylist (`eth_sign*`, chain switch/add), `isAllowedChain` fail-closed, unlimited-approve red banner, value-at-risk, peer origin shown |
+| **Signing storm** | pollers use `peekAppSession` (messages / notifications / boot / presence); `ensureAppSession` only on user gesture (send, accept, poke, mark-read) |
+| **Push** | `requireAppSession` on subscribe/test; RLS service-only; `VAPID_PRIVATE_KEY` server-only |
+| **Swap addresses** | 12/14 matched CoinGecko Base list at QA time; VIRTUAL/ZORA corrected; wstETH pinned to Lido canonical `0xc1CBa3fEA344f73F911E4546C687288E5F2636A1` |
+| **WC expiry** | live countdown (`lib/wcExpiry`), amber <1h, red expired |
+
+### Residual (not blocking)
+
+1. Full ABI decode beyond transfer/approve/joinPool/claimMatch still open (R3 checkbox).
+2. Remote push needs production VAPID keys + `push_subscriptions` migration applied (SQL file is in `supabase/migrations/`).
+3. CDP Portal: passkey MFA ON + CORS origin still a manual step.
+4. Device QA (phone biometrics, WC→Uniswap, Sepolia join/claim) not run in this pass.

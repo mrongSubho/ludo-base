@@ -5,11 +5,15 @@
  * Base-only token list (lib/swapTokens). CHIPS is not a swap asset (H2).
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useGetSwapPrice, useSwap } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
-import { BASE_SWAP_TOKENS, type SwapToken } from "@/lib/swapTokens";
+import {
+    BASE_SWAP_TOKENS,
+    searchSwapTokens,
+    type SwapToken,
+} from "@/lib/swapTokens";
 
 export default function SwapSheet() {
     const player = usePlayerSigner();
@@ -18,9 +22,14 @@ export default function SwapSheet() {
     const [toSymbol, setToSymbol] = useState("USDC");
     const [fromAmount, setFromAmount] = useState("");
     const [slippageBps, setSlippageBps] = useState(100);
+    const [fromQuery, setFromQuery] = useState("");
+    const [toQuery, setToQuery] = useState("");
 
     const fromMeta = BASE_SWAP_TOKENS.find((t) => t.symbol === fromSymbol) ?? BASE_SWAP_TOKENS[0];
     const toMeta = BASE_SWAP_TOKENS.find((t) => t.symbol === toSymbol) ?? BASE_SWAP_TOKENS[1];
+
+    const fromOptions = useMemo(() => searchSwapTokens(fromQuery), [fromQuery]);
+    const toOptions = useMemo(() => searchSwapTokens(toQuery, fromSymbol), [toQuery, fromSymbol]);
 
     const quote = useGetSwapPrice({
         network: "base",
@@ -41,52 +50,83 @@ export default function SwapSheet() {
     const flip = () => {
         setFromSymbol(toSymbol);
         setToSymbol(fromSymbol);
+        setFromQuery("");
+        setToQuery("");
     };
+
+    const tokenLabel = (t: SwapToken) => `${t.symbol} · ${t.name}`;
 
     return (
         <div className="space-y-3">
             <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">Swap</h4>
             <p className="text-[11px] text-white/45">
-                Coinbase swap engine · <strong>Base only</strong> · CHIPS not listed (unpriced).
+                Coinbase swap engine · <strong>Base only</strong> · {BASE_SWAP_TOKENS.length} tokens ·
+                CHIPS not listed (unpriced).
             </p>
-            <div className="flex items-center gap-2">
+
+            <div className="rounded-xl border border-white/10 p-2 space-y-2">
+                <div className="text-[10px] uppercase tracking-wider text-white/40">From</div>
+                <input
+                    className="w-full rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-[11px]"
+                    placeholder="Search symbol / name"
+                    value={fromQuery}
+                    onChange={(e) => setFromQuery(e.target.value)}
+                />
                 <select
-                    className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px]"
+                    className="w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px]"
                     value={fromSymbol}
                     onChange={(e) => {
                         const v = e.target.value;
                         setFromSymbol(v);
-                        if (v === toSymbol) setToSymbol(BASE_SWAP_TOKENS.find((t) => t.symbol !== v)!.symbol);
+                        if (v === toSymbol) {
+                            const alt = BASE_SWAP_TOKENS.find((t) => t.symbol !== v);
+                            if (alt) setToSymbol(alt.symbol);
+                        }
                     }}
                 >
-                    {BASE_SWAP_TOKENS.map((t: SwapToken) => (
+                    {fromOptions.map((t: SwapToken) => (
                         <option key={t.symbol} value={t.symbol}>
-                            {t.symbol}
+                            {tokenLabel(t)}
                         </option>
                     ))}
                 </select>
-                <button type="button" className="text-white/50 text-[11px]" onClick={flip}>
-                    ↺
+                <input
+                    className="w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 font-mono text-[11px]"
+                    inputMode="decimal"
+                    placeholder={`Amount (${fromSymbol})`}
+                    value={fromAmount}
+                    onChange={(e) => setFromAmount(e.target.value)}
+                />
+            </div>
+
+            <div className="flex items-center gap-2">
+                <button type="button" className="text-white/50 text-[11px] uppercase" onClick={flip}>
+                    ↺ Flip
                 </button>
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] text-white/40">To</span>
+            </div>
+
+            <div className="rounded-xl border border-white/10 p-2 space-y-2">
+                <input
+                    className="w-full rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-[11px]"
+                    placeholder="Search symbol / name"
+                    value={toQuery}
+                    onChange={(e) => setToQuery(e.target.value)}
+                />
                 <select
-                    className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px]"
+                    className="w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px]"
                     value={toSymbol}
                     onChange={(e) => setToSymbol(e.target.value)}
                 >
-                    {BASE_SWAP_TOKENS.filter((t) => t.symbol !== fromSymbol).map((t) => (
+                    {toOptions.map((t) => (
                         <option key={t.symbol} value={t.symbol}>
-                            {t.symbol}
+                            {tokenLabel(t)}
                         </option>
                     ))}
                 </select>
             </div>
-            <input
-                className="w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 font-mono text-[11px]"
-                inputMode="decimal"
-                placeholder={`Amount (${fromSymbol})`}
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-            />
+
             <label className="block text-[10px] text-white/50 uppercase tracking-wider">
                 Slippage (bps)
                 <input
@@ -110,7 +150,7 @@ export default function SwapSheet() {
             <button
                 type="button"
                 className="w-full rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-[11px] font-bold uppercase"
-                disabled={status === "pending" || !fromAmount || !player.address}
+                disabled={status === "pending" || !fromAmount || !player.address || fromSymbol === toSymbol}
                 onClick={async () => {
                     const ok = await mfa.stepUp();
                     if (!ok) return;

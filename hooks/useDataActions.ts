@@ -2,7 +2,6 @@
 "use client";
 
 import { useCallback } from 'react';
-import { useAccount } from 'wagmi';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { UserProfile, MessageData } from './GameDataContext';
 import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';

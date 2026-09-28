@@ -102,7 +102,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     // Guests read threads free; sending needs a wallet (wall, not a failure).
     const { guard } = useGuestWall();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, ensureEcdhPublished } = useGameData();
+    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [cooldownTime, setCooldownTime] = useState(0);
