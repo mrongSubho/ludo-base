@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { formatUnits } from "viem";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useWalletMode } from "@/hooks/useWalletMode";
+import { useNetworkLabel } from "@/hooks/useNetworkLabel";
 import { useWalletActivity } from "@/hooks/useWalletActivity";
 import SendTokenSheet from "./SendTokenSheet";
 import ReceiveSheet from "./ReceiveSheet";
@@ -124,6 +125,7 @@ const TITLES: Record<Screen, string> = {
 export default function WalletPanel({ onClose }: { onClose: () => void }) {
     const { tokens, loading, refresh, needsReconnect, address, usdc } = useWalletAssets();
     const mode = useWalletMode();
+    const network = useNetworkLabel();
     const { items: activity } = useWalletActivity();
     const [screen, setScreen] = useState<Screen>("home");
     const [copied, setCopied] = useState(false);
@@ -209,7 +211,11 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                         <span className="cb-nav-title">Wallet</span>
                     )}
                     {isHome && (
-                        <span className="cb-mode-pill">{mode === "ingame" ? "Smart wallet" : "Connected"}</span>
+                        <span className={`cb-mode-pill ${network.isTestnet ? "testnet" : ""}`}>
+                            {network.label}
+                            {network.isTestnet ? " · Testnet" : ""}
+                            {` · ${mode === "ingame" ? "Smart" : "External"}`}
+                        </span>
                     )}
                     {!isHome && <h1 className="cb-nav-title">{title}</h1>}
                     <button type="button" className="cb-icon-btn" aria-label="Close wallet" onClick={onClose}>
@@ -248,7 +254,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 <div className="cb-balance-sub">Priced assets only · CHIPS not included</div>
                             </div>
 
-                            <div className="cb-actions">
+                            <div className="cb-actions two">
                                 <ActionButton
                                     label="Send"
                                     primary
@@ -265,26 +271,6 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                     icon={
                                         <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M12 5v14M6 13l6 6 6-6" />
-                                        </svg>
-                                    }
-                                />
-                                <ActionButton
-                                    label="Swap"
-                                    onClick={() => setScreen("swap")}
-                                    icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M7 7h11l-3-3M17 17H6l3 3" />
-                                        </svg>
-                                    }
-                                />
-                                <ActionButton
-                                    label="More"
-                                    onClick={() => setScreen("more")}
-                                    icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                            <circle cx="6" cy="12" r="1.6" fill="currentColor" />
-                                            <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-                                            <circle cx="18" cy="12" r="1.6" fill="currentColor" />
                                         </svg>
                                     }
                                 />

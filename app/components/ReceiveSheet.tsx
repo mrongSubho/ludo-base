@@ -1,63 +1,92 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
+import { useNetworkLabel } from "@/hooks/useNetworkLabel";
 
-/** R0 — Receive sheet (SMART_WALLET_PLANNING §3.1). */
+/** R0 — Receive sheet (SMART_WALLET_PLANNING §5). */
 export default function ReceiveSheet() {
     const { address, needsReconnect } = useWalletAssets();
+    const network = useNetworkLabel();
     const [qr, setQr] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
     const ensureQr = useCallback(async () => {
         if (!address || qr) return;
         try {
-            setQr(await QRCode.toDataURL(address, { margin: 1, width: 200 }));
+            setQr(await QRCode.toDataURL(address, { margin: 1, width: 220 }));
         } catch {
             /* ignore */
         }
     }, [address, qr]);
 
+    useEffect(() => {
+        void ensureQr();
+    }, [ensureQr]);
+
     if (needsReconnect) {
         return (
-            <p className="text-[11px] text-amber-200">Session expired — reconnect your wallet.</p>
+            <div className="cb-screen">
+                <div className="cb-banner">Session expired — reconnect your wallet.</div>
+            </div>
         );
     }
     if (!address) {
-        return <p className="text-[11px] text-white/50">Sign in to see your receive address.</p>;
+        return (
+            <div className="cb-screen">
+                <div className="cb-empty-state">
+                    <p className="cb-empty-title">No address yet</p>
+                    <p className="cb-empty-hint">Sign in to see your receive address.</p>
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-3">
-            <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">Receive</h4>
-            <p className="text-[11px] text-white/45 leading-relaxed">
-                Base / Base Sepolia address. In-game smart wallets are <strong>not</strong> your Base app
-                address.
-            </p>
-            <button type="button" onClick={() => void ensureQr()} className="text-[11px] text-cyan-300 underline">
-                Show QR
-            </button>
-            {qr && <img src={qr} alt="Receive QR" width={160} height={160} className="rounded-xl bg-white p-1" />}
-            <div className="rounded-xl border border-white/10 bg-black/30 p-3">
-                <div className="text-[10px] text-white/40 uppercase tracking-wider">Address</div>
-                <div className="font-mono text-[11px] break-all text-white/85 mt-1">{address}</div>
+        <div className="cb-screen space-y-4">
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Your address</span>
+                    <span className="cb-section-tag">{network.label}</span>
+                </div>
+                <div className="cb-card cb-receive">
+                    <div className="cb-qr-wrap">
+                        {qr ? (
+                            <img src={qr} alt="Receive QR code" width={200} height={200} className="cb-qr" />
+                        ) : (
+                            <button type="button" className="cb-qr-placeholder" onClick={() => void ensureQr()}>
+                                Show QR
+                            </button>
+                        )}
+                    </div>
+                    <p className="cb-copy center">{network.label} · only send assets on this network</p>
+                    <div className="cb-addr-block">
+                        <div className="cb-addr-label">Address</div>
+                        <div className="cb-addr-value font-mono">{address}</div>
+                    </div>
+                    <button
+                        type="button"
+                        className="cb-btn primary block"
+                        onClick={async () => {
+                            try {
+                                await navigator.clipboard.writeText(address);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 1600);
+                            } catch {
+                                /* clipboard blocked */
+                            }
+                        }}
+                    >
+                        {copied ? "Copied" : "Copy address"}
+                    </button>
+                </div>
+            </section>
+
+            <div className="cb-banner">
+                In-game smart wallets are <strong>not</strong> your Base app address. Check the network before
+                sending.
             </div>
-            <button
-                type="button"
-                className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-[11px] font-bold uppercase"
-                onClick={async () => {
-                    try {
-                        await navigator.clipboard.writeText(address);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 1500);
-                    } catch {
-                        /* ignore */
-                    }
-                }}
-            >
-                {copied ? "Copied" : "Copy address"}
-            </button>
         </div>
     );
 }
