@@ -18,7 +18,6 @@ import {
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
-import { hasSeenWalletReady } from "@/lib/walletOnboarding";
 
 /** Reset on every full navigation / refresh — one unlock per boot. */
 let unlockedThisLoad = false;
@@ -69,12 +68,12 @@ export default function BootLock() {
     const left = Math.max(0, MAX_ATTEMPTS - attempts);
     const lockedOut = attempts >= MAX_ATTEMPTS;
 
-    // Returning sessions with an enrolled passkey only: first-time create
-    // finishes ready → passkey and calls markBootUnlocked — never gate a
-    // brand-new account or someone who has not set up a passkey yet.
-    const returning = id.address ? hasSeenWalletReady(id.address) : true;
+    // Security gate is **server-side only**: CDP reports an enrolled passkey.
+    // Never trust localStorage (clearing site data must not skip the lock).
+    // markBootUnlocked() only covers the create → ready → passkey handoff
+    // in this same document; the next reload always locks.
     const required =
-        bootLock && isSignedIn && Boolean(id.address) && returning && hasPasskey && !unlocked;
+        bootLock && isSignedIn && Boolean(id.address) && hasPasskey && !unlocked;
 
     const signOutNow = useCallback(async () => {
         try {

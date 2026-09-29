@@ -204,12 +204,14 @@ App-session TTL is **7 days**. Match path is EIP-712 `LudoMatchSession` (not SIW
 
 | Pref | Default | Behavior |
 | --- | --- | --- |
-| **Unlock every launch** | on | `BootLock` only when a **passkey is enrolled** (skip if none) |
+| **Unlock every launch** | on | `BootLock` when a **CDP passkey is enrolled** (server state — never localStorage) |
 | **Auto-approve sign-in** | on | CDP signs match/DM messages without extra prompts; **off** requires device bio before that sign |
 | **Confirm txs without passkey** | off | Opt-in **CDP auto-approve** for tx: Ludo Confirm only |
 | **Strict tx (default)** | — | Send/swap require **passkey or device Face ID/Touch ID**; otherwise refuse |
 
 Code: `hooks/useSecurityPrefs.ts` · `useMfaStepUp` · `BootLock` · `useAppSession` (autoSign gate).
+
+**Boot lock security:** gate on **CDP-enrolled passkey** (server) only. Clearing cookies/localStorage must not disable the lock; `markBootUnlocked()` only skips the create → ready handoff in the same document.
 
 ## 5. Wallet product (IA)
 
