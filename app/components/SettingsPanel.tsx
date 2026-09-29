@@ -11,8 +11,6 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
-import WalletLinkPanel from './WalletLinkPanel';
-import { useWalletMode } from '@/hooks/useWalletMode';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -397,9 +395,6 @@ export function SettingsPanel({
     const { disconnect } = useDisconnect();
     const { signOut: cdpSignOut } = useSignOut();
     const { isGuest } = useCurrentUser();
-    const walletMode = useWalletMode();
-    const player = usePlayerSigner();
-    const isInGameWallet = walletMode === 'ingame';
     // In-game (Leave Match is offered) the panel is scoped: Preferences,
     // Appearance, Leave Match only. No Support/About, and no Sign Out —
     // signing out mid-match is forbidden; leave the match first.
@@ -500,43 +495,6 @@ export function SettingsPanel({
                                 </div>
                             </section>
 
-                            {/* Security — signing / approval policy */}
-                            <section>
-                                <SectionLabel>Security</SectionLabel>
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <PrefRow
-                                        icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
-                                        label="Unlock every launch"
-                                        hint="Passkey / Face ID on boot (if enrolled)"
-                                        on={security.bootLock}
-                                        onToggle={() => security.setBootLock(!security.bootLock)}
-                                    />
-                                    <PrefRow
-                                        icon={<WalletGlyph />} tint="bg-cyan-500/15 text-cyan-300"
-                                        label="Auto-approve sign-in"
-                                        hint="CDP signs match / DM messages without extra prompts"
-                                        on={security.autoSign}
-                                        onToggle={() => security.setAutoSign(!security.autoSign)}
-                                    />
-                                    <PrefRow
-                                        icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
-                                        label="Confirm txs without passkey"
-                                        hint={security.txStepUp === "confirm"
-                                            ? "Send / swap only need Confirm in Ludo"
-                                            : "Passkey / device Face ID required for send & swap"}
-                                        on={security.txStepUp === "confirm"}
-                                        onToggle={() =>
-                                            security.setTxStepUp(
-                                                security.txStepUp === "confirm" ? "strict" : "confirm",
-                                            )
-                                        }
-                                        last
-                                    />
-                                </div>
-                                <p className="text-[10px] font-bold text-white/30 mt-2 px-1">
-                                    Strict mode (default): a transaction is blocked without passkey or device biometrics.
-                                </p>
-                            </section>
 
                             {/* Appearance */}
                             <section>
@@ -570,10 +528,10 @@ export function SettingsPanel({
                                 </p>
                             </section>
 
-                            {/* Wallet lives in the real wallet panel (R0–R1) — shortcut only here */}
+                            {/* Security — wallet + signing policy (no Play as / link wallet) */}
                             {!inGame && !isGuest && (
                                 <section>
-                                    <SectionLabel>Wallet</SectionLabel>
+                                    <SectionLabel>Security</SectionLabel>
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                                         <NavRow
                                             icon={<WalletGlyph />}
@@ -584,12 +542,34 @@ export function SettingsPanel({
                                                 onOpenWallet?.();
                                             }}
                                         />
-                                        {/* Link wallets is CDP/in-game only (external owns its keys). */}
-                                        {isInGameWallet && (
-                                            <div className="p-3.5">
-                                                <WalletLinkPanel />
-                                            </div>
-                                        )}
+                                        <PrefRow
+                                            icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
+                                            label="Unlock every launch"
+                                            hint="Passkey / Face ID on boot (if enrolled)"
+                                            on={security.bootLock}
+                                            onToggle={() => security.setBootLock(!security.bootLock)}
+                                        />
+                                        <PrefRow
+                                            icon={<LockIcon />} tint="bg-cyan-500/15 text-cyan-300"
+                                            label="Auto-approve sign-in"
+                                            hint="CDP signs match / DM messages without extra prompts"
+                                            on={security.autoSign}
+                                            onToggle={() => security.setAutoSign(!security.autoSign)}
+                                        />
+                                        <PrefRow
+                                            icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
+                                            label="Confirm txs without passkey"
+                                            hint={security.txStepUp === "confirm"
+                                                ? "Send / swap only need Confirm in Ludo"
+                                                : "Device Face ID / fingerprint required for send & swap"}
+                                            on={security.txStepUp === "confirm"}
+                                            onToggle={() =>
+                                                security.setTxStepUp(
+                                                    security.txStepUp === "confirm" ? "strict" : "confirm",
+                                                )
+                                            }
+                                            last
+                                        />
                                     </div>
                                 </section>
                             )}
