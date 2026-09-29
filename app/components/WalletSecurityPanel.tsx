@@ -8,10 +8,11 @@ import { usePushReady } from "@/hooks/usePushReady";
 import { useAppSession } from "@/hooks/useAppSession";
 import { useWalletMode } from "@/hooks/useWalletMode";
 import WalletDetailsSheet from "./WalletDetailsSheet";
+import WalletLinkPanel from "./WalletLinkPanel";
 
 /**
  * Wallet → Security (Settings-style cards).
- * Notifications · Export Private Key (bio → confirm page → reveal + copy) · details.
+ * Notifications · Export · Linked wallets (Play as / link) · details.
  * Passkey lives in Settings → Passkey (SMART_WALLET_PLANNING §5).
  */
 
@@ -50,6 +51,13 @@ const KeyIcon = () => (
     </svg>
 );
 
+const LinkIcon = () => (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1" />
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1" />
+    </svg>
+);
+
 const InfoIcon = () => (
     <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
         <circle cx="12" cy="12" r="9" />
@@ -83,6 +91,7 @@ export default function WalletSecurityPanel() {
     const [err, setErr] = useState<string | null>(null);
     const [note, setNote] = useState<string | null>(null);
     const [showDetails, setShowDetails] = useState(false);
+    const [showLinks, setShowLinks] = useState(false);
 
     /** Reveal: device bio first, then confirm page. */
     const startExport = useCallback(async () => {
@@ -328,6 +337,44 @@ export default function WalletSecurityPanel() {
                                 Reveal
                             </span>
                         </button>
+                    </div>
+                </section>
+            )}
+
+            {isInGame && (
+                <section>
+                    <SectionLabel>Linked wallets</SectionLabel>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                        <button
+                            type="button"
+                            className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-white/5 transition-colors"
+                            onClick={() => setShowLinks((v) => !v)}
+                            aria-expanded={showLinks}
+                        >
+                            <IconTile>
+                                <LinkIcon />
+                            </IconTile>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[13px] font-bold text-white truncate">Play as & link</div>
+                                <div className="text-[10px] font-bold text-white/35 truncate">
+                                    Switch session wallet · link another address
+                                </div>
+                            </div>
+                            <svg
+                                viewBox="0 0 24 24"
+                                className={`w-3.5 h-3.5 text-white/45 transition-transform ${showLinks ? "rotate-180" : ""}`}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                            >
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </button>
+                        {showLinks && (
+                            <div className="px-3.5 pb-3.5 pt-3 border-t border-white/5">
+                                <WalletLinkPanel />
+                            </div>
+                        )}
                     </div>
                 </section>
             )}
