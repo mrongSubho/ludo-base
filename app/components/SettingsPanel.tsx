@@ -643,23 +643,26 @@ export function SettingsPanel({
                                                 <>
                                                     <button
                                                         type="button"
-                                                        className="w-full flex items-center justify-between px-3.5 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-white/45 hover:text-white/70"
+                                                        className="mx-3.5 mb-1 w-[calc(100%-1.75rem)] flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.08] transition-colors"
                                                         onClick={() => setShowPasskeys((v) => !v)}
                                                         aria-expanded={showPasskeys}
                                                     >
-                                                        <span>{showPasskeys ? 'Hide' : 'Show'} enrolled passkeys</span>
+                                                        <span className="text-[11px] font-semibold text-white/65">
+                                                            {showPasskeys ? 'Hide passkeys' : `View passkeys (${passkeyCount})`}
+                                                        </span>
                                                         <svg
                                                             viewBox="0 0 24 24"
-                                                            className={`w-3.5 h-3.5 transition-transform ${showPasskeys ? 'rotate-180' : ''}`}
+                                                            className={`w-3.5 h-3.5 text-white/45 transition-transform ${showPasskeys ? 'rotate-180' : ''}`}
                                                             fill="none"
                                                             stroke="currentColor"
-                                                            strokeWidth="2"
+                                                            strokeWidth="2.2"
+                                                            strokeLinecap="round"
                                                         >
                                                             <path d="M6 9l6 6 6-6" />
                                                         </svg>
                                                     </button>
                                                     {showPasskeys && (
-                                                        <ul className="px-3.5 pb-2.5 flex flex-wrap gap-2">
+                                                        <ul className="mx-3.5 mb-2.5 flex flex-wrap gap-2">
                                                             {(passkeys || []).map((pk: { credentialId: string }) => (
                                                                 <li
                                                                     key={pk.credentialId}
