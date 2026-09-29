@@ -47,7 +47,7 @@ export const HeaderNavPanel = ({
     onOpenProfile,
 }: HeaderNavPanelProps) => {
     const chips = useChipsBalance();
-    const showChips = chips.configured && chips.isConnected;
+    const showChips = Boolean(chips.configured && chips.address);
     return (
         <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[300]">
             {/* [x] Header Redesign (3 Pills) */}

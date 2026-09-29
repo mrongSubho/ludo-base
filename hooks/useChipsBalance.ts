@@ -2,6 +2,7 @@
 
 import { useAccount, useReadContract, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
+import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import {
     CHIPS_ERC20_ABI,
     chipsAddress,
@@ -14,7 +15,11 @@ import {
 const CHIPS_CHAIN_ID = baseSepolia.id;
 
 export function useChipsBalance() {
-    const { address, isConnected, chainId } = useAccount();
+    const { address: wagmiAddress, isConnected: isWalletConnected, chainId } = useAccount();
+    // Active wallet = external (wagmi) or in-game CDP smart (same as wallet assets).
+    const player = usePlayerSigner();
+    const address = wagmiAddress ?? (player.address as `0x${string}` | undefined);
+    const isConnected = isWalletConnected || Boolean(player.address);
     const token = chipsAddress();
     const enabled = Boolean(address) && Boolean(token);
     const chainMismatch = isConnected && chainId != null && chainId !== CHIPS_CHAIN_ID;
