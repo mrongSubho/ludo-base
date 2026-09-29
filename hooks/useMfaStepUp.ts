@@ -11,11 +11,7 @@
  */
 
 import { useCallback, useState } from "react";
-import {
-    useCurrentUser,
-    useInitiateMfaVerification,
-    useSubmitMfaVerification,
-} from "@coinbase/cdp-hooks";
+import { useCurrentUser } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
 import { useBiometricGate } from "@/hooks/useBiometricGate";
@@ -23,8 +19,6 @@ import { useBiometricGate } from "@/hooks/useBiometricGate";
 export function useMfaStepUp() {
     const player = usePlayerSigner();
     const { currentUser } = useCurrentUser();
-    const { initiateMfaVerification } = useInitiateMfaVerification();
-    const { submitMfaVerification } = useSubmitMfaVerification();
     const bio = useBiometricGate();
     const { txStepUp } = useSecurityPrefs();
     const [mfaBusy, setMfaBusy] = useState(false);
@@ -45,20 +39,11 @@ export function useMfaStepUp() {
         setMfaBusy(true);
         setMfaError(null);
         try {
-            // CDP MFA is source of truth for enrolled passkeys (iCloud/Google sync).
-            // Device WebAuthn is the fallback. Fail closed if neither completes.
-            if (hasPasskeyMfa) {
-                try {
-                    await initiateMfaVerification({ mfaMethod: "passkey" });
-                    await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
-                    return true;
-                } catch {
-                    /* fall through to device bio */
-                }
-            }
+            // Tx = **device unlock** (fingerprint / Face ID / device PIN / pattern).
+            // CDP passkey is the boot lock, not the per-tx prompt.
             const ok = await bio.unlock();
             if (!ok) {
-                setMfaError(bio.error || "Face ID / Touch ID required to approve this transaction");
+                setMfaError(bio.error || "Device fingerprint / Face ID / PIN required to approve this transaction");
             }
             return ok;
         } catch (e) {
@@ -67,14 +52,7 @@ export function useMfaStepUp() {
         } finally {
             setMfaBusy(false);
         }
-    }, [
-        player.mode,
-        txStepUp,
-        hasPasskeyMfa,
-        initiateMfaVerification,
-        submitMfaVerification,
-        bio,
-    ]);
+    }, [player.mode, txStepUp, bio]);
 
     return {
         stepUp,

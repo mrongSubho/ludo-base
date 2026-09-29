@@ -209,6 +209,14 @@ App-session TTL is **7 days**. Match path is EIP-712 `LudoMatchSession` (not SIW
 | **Confirm txs without passkey** | off | Opt-in **CDP auto-approve** for tx: Ludo Confirm only |
 | **Strict tx (default)** | — | Send/swap require **passkey or device Face ID/Touch ID**; otherwise refuse |
 
+### Device gates (product lock)
+
+| Gate | Credential |
+| --- | --- |
+| **Boot** | CDP **passkey** (enrolled) |
+| **Tx approval** | **Device unlock** — fingerprint · Face ID · device PIN · pattern |
+| **Login** | Rare (session restore; only when expired or signed out) |
+
 ### Passkey model (security)
 
 | Layer | What is stored |
