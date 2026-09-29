@@ -9,7 +9,6 @@
 
 import { useEffect, useRef } from "react";
 import {
-    useCancelMfaVerification,
     useInitiateMfaVerification,
     useRegisterMfaListener,
     useSubmitMfaVerification,
@@ -18,7 +17,6 @@ import {
 export default function CdpMfaBridge() {
     const { initiateMfaVerification } = useInitiateMfaVerification();
     const { submitMfaVerification } = useSubmitMfaVerification();
-    const { cancelMfaVerification } = useCancelMfaVerification();
     const busy = useRef(false);
 
     useRegisterMfaListener((_context) => {
@@ -26,15 +24,12 @@ export default function CdpMfaBridge() {
             if (busy.current) return;
             busy.current = true;
             try {
-                // Prefer passkey (Face ID / Touch ID / security key).
+                // Prefer passkey (Face ID / Touch ID). Do NOT cancel on error —
+                // cancelMfaVerification surfaces as "MFA verification was cancelled".
                 await initiateMfaVerification({ mfaMethod: "passkey" });
                 await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
             } catch {
-                try {
-                    await cancelMfaVerification();
-                } catch {
-                    /* ignore */
-                }
+                /* leave pending; caller UI can retry */
             } finally {
                 busy.current = false;
             }

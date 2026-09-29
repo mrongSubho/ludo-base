@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useCurrentUser, useExportEvmAccount } from "@coinbase/cdp-hooks";
+import {
+    useCurrentUser,
+    useExportEvmAccount,
+    useInitiateMfaVerification,
+    useSubmitMfaVerification,
+} from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 import { usePushReady } from "@/hooks/usePushReady";
@@ -69,6 +74,8 @@ export default function WalletSecurityPanel() {
     const id = resolvePlayerIdentity(currentUser);
     const ownerEoa = id.cdpOwnerEoa as `0x${string}` | undefined;
     const { exportEvmAccount } = useExportEvmAccount();
+    const { initiateMfaVerification } = useInitiateMfaVerification();
+    const { submitMfaVerification } = useSubmitMfaVerification();
     const mfa = useMfaStepUp();
     const push = usePushReady();
     const appSession = useAppSession();
@@ -104,6 +111,9 @@ export default function WalletSecurityPanel() {
         setBusy(true);
         setErr(null);
         try {
+            // CDP MFA must run **inside this click** (browser gesture for passkey).
+            await initiateMfaVerification({ mfaMethod: "passkey" });
+            await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
             const result = await exportEvmAccount({ evmAccount: ownerEoa });
             if (result?.privateKey) {
                 setPrivateKey(result.privateKey);
@@ -116,7 +126,7 @@ export default function WalletSecurityPanel() {
         } finally {
             setBusy(false);
         }
-    }, [exportEvmAccount, ownerEoa]);
+    }, [exportEvmAccount, ownerEoa, initiateMfaVerification, submitMfaVerification]);
 
     const copyKey = useCallback(async () => {
         if (!privateKey) return;
