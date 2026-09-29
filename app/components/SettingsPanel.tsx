@@ -712,10 +712,10 @@ export function SettingsPanel({
                                         />
                                         <PrefRow
                                             icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
-                                            label="Verify before sending"
+                                            label="Transaction approval"
                                             hint={security.txStepUp === "strict"
-                                                ? "Face ID / fingerprint on send & swap"
-                                                : "Confirm in Ludo only"}
+                                                ? "Face ID / fingerprint required for send & swap"
+                                                : "Confirm in Ludo only · no biometric"}
                                             on={security.txStepUp === "strict"}
                                             onToggle={() =>
                                                 security.setTxStepUp(
