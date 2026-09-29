@@ -11,7 +11,6 @@ import ReceiveSheet from "./ReceiveSheet";
 import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
-import WalletLinkPanel from "./WalletLinkPanel";
 
 /**
  * Wallet — Coinbase-style card.
