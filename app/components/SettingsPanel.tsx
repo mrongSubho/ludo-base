@@ -214,6 +214,56 @@ const NavRow = ({ icon, tint, label, hint, last = false, onClick }: {
     </button>
 );
 
+const ActionRow = ({
+    icon,
+    tint,
+    label,
+    hint,
+    action,
+    onAction,
+    disabled,
+    last = false,
+    children,
+}: {
+    icon: React.ReactNode;
+    tint: string;
+    label: string;
+    hint?: string;
+    action: string;
+    onAction: () => void;
+    disabled?: boolean;
+    last?: boolean;
+    children?: React.ReactNode;
+}) => (
+    <div className={`${last ? '' : 'border-b border-white/5'}`}>
+        <div className="flex items-center gap-3 p-3.5">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
+                {icon}
+            </div>
+            <div className="flex-1 flex flex-col min-w-0">
+                <span className="text-[13px] font-bold text-white truncate">{label}</span>
+                {hint && <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>}
+            </div>
+            <button
+                type="button"
+                className="shrink-0 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-40"
+                disabled={disabled}
+                onClick={onAction}
+            >
+                {action}
+            </button>
+        </div>
+        {children}
+    </div>
+);
+
+const KeyIcon = () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="8" cy="12" r="3.5" />
+        <path d="M11.5 12H21M18 12v3M15 12v2" />
+    </svg>
+);
+
 // ─── Help Center (in-panel FAQ) ─────────────────────────────────────────────
 const HELP_FAQ: { q: string; a: string }[] = [
     {
@@ -556,42 +606,39 @@ export function SettingsPanel({
                                                 onOpenWallet?.();
                                             }}
                                         />
-                                        <div className="p-3.5">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <div className="text-[13px] font-bold text-white truncate">Device unlock</div>
-                                                    <div className="text-[10px] font-bold text-white/35">
-                                                        Passkey · Face ID / Touch ID
-                                                        {passkeyCount > 0 ? ` · ${passkeyCount} active` : ''}
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    className="shrink-0 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider disabled:opacity-40"
-                                                    disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
-                                                    onClick={async () => {
-                                                        setPasskeyBusy(true);
-                                                        setPasskeyMsg(null);
-                                                        try {
-                                                            await enrollPasskey();
-                                                            await refetchPasskeys();
-                                                            setPasskeyMsg('Device unlock added.');
-                                                        } catch {
-                                                            setPasskeyMsg('Could not add device unlock.');
-                                                        } finally {
-                                                            setPasskeyBusy(false);
-                                                        }
-                                                    }}
-                                                >
-                                                    {enrollStatus === 'pending' ? 'Wait…' : passkeyCount > 0 ? 'Add' : 'Enable'}
-                                                </button>
-                                            </div>
+                                        <ActionRow
+                                            icon={<KeyIcon />}
+                                            tint="bg-cyan-500/15 text-cyan-300"
+                                            label="Add Passkey"
+                                            hint={
+                                                passkeyCount > 0
+                                                    ? `Face ID / Touch ID · ${passkeyCount} active`
+                                                    : 'Face ID / Touch ID · security key'
+                                            }
+                                            action={enrollStatus === 'pending' ? 'Wait…' : passkeyCount > 0 ? 'Add' : 'Enable'}
+                                            disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
+                                            onAction={async () => {
+                                                setPasskeyBusy(true);
+                                                setPasskeyMsg(null);
+                                                try {
+                                                    await enrollPasskey();
+                                                    await refetchPasskeys();
+                                                    setPasskeyMsg('Passkey added.');
+                                                } catch {
+                                                    setPasskeyMsg('Could not add passkey.');
+                                                } finally {
+                                                    setPasskeyBusy(false);
+                                                }
+                                            }}
+                                        >
                                             {!passkeySupported.data && (
-                                                <p className="mt-1 text-[10px] text-amber-300/80">Not available in this browser</p>
+                                                <p className="px-3.5 pb-2 text-[10px] text-amber-300/80">Not available in this browser</p>
                                             )}
-                                            {passkeyMsg && <p className="mt-1 text-[10px] text-white/50">{passkeyMsg}</p>}
+                                            {passkeyMsg && (
+                                                <p className="px-3.5 pb-2 text-[10px] text-white/50">{passkeyMsg}</p>
+                                            )}
                                             {passkeyCount > 0 && (
-                                                <ul className="mt-2 space-y-1">
+                                                <ul className="px-3.5 pb-2 space-y-1">
                                                     {(passkeys || []).map((pk: { credentialId: string }) => (
                                                         <li key={pk.credentialId} className="flex items-center justify-between gap-2">
                                                             <span className="text-[11px] font-mono text-white/60 truncate">
@@ -619,7 +666,7 @@ export function SettingsPanel({
                                                     ))}
                                                 </ul>
                                             )}
-                                        </div>
+                                        </ActionRow>
                                         <PrefRow
                                             icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
                                             label="Unlock every launch"
