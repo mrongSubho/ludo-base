@@ -37,7 +37,14 @@ export function subscribeWalletMode(fn: () => void): () => void {
     return () => window.removeEventListener(EVENT, fn);
 }
 
-/** Gate CTA visibility — in-game only when explicitly enabled. */
+/**
+ * Gate CTA visibility for the in-game wallet.
+ * On when explicitly `=1`, or when CDP is configured and the flag is not `=0`.
+ * (Vercel often ships without NEXT_PUBLIC_WALLET_INGAME — don’t hide the row.)
+ */
 export function isInGameWalletEnabled(): boolean {
-    return process.env.NEXT_PUBLIC_WALLET_INGAME === "1";
+    const flag = process.env.NEXT_PUBLIC_WALLET_INGAME;
+    if (flag === "1") return true;
+    if (flag === "0") return false;
+    return Boolean(process.env.NEXT_PUBLIC_CDP_PROJECT_ID);
 }

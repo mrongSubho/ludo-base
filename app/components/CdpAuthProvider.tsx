@@ -5,14 +5,22 @@ import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 
 /**
  * Phase 0a spike mount for CDP non-custodial auth (SMART_WALLET_PLANNING).
- * Enabled only when NEXT_PUBLIC_CDP_AUTH=1 and NEXT_PUBLIC_CDP_PROJECT_ID is set.
+ * Enabled when NEXT_PUBLIC_CDP_PROJECT_ID is set and NEXT_PUBLIC_CDP_AUTH is
+ * not explicitly "0". (Deployments often omit the auth flag — don't hide CDP.)
  * createOnLogin "smart" provisions EOA + Smart Account — player identity is the
  * Smart Account (parent), never the EOA and never a sub-account (§1.1).
  * enableSpendPermissions stays OFF in 0a (0b/2 only).
  */
+function cdpEnabled(): boolean {
+    const projectId = process.env.NEXT_PUBLIC_CDP_PROJECT_ID || "";
+    if (!projectId) return false;
+    const flag = process.env.NEXT_PUBLIC_CDP_AUTH;
+    return flag !== "0";
+}
+
 export function CdpAuthProvider({ children }: { children: ReactNode }) {
     const projectId = process.env.NEXT_PUBLIC_CDP_PROJECT_ID || "";
-    const enabled = process.env.NEXT_PUBLIC_CDP_AUTH === "1" && projectId.length > 0;
+    const enabled = cdpEnabled();
 
     const config = useMemo(
         () =>
@@ -34,8 +42,5 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function isCdpAuthEnabled(): boolean {
-    return (
-        process.env.NEXT_PUBLIC_CDP_AUTH === "1" &&
-        Boolean(process.env.NEXT_PUBLIC_CDP_PROJECT_ID)
-    );
+    return cdpEnabled();
 }
