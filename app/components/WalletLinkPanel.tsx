@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { readWalletMode, writeWalletMode, type WalletMode } from "@/lib/walletMode";
 import { buildWalletLinkMessage } from "@/lib/walletLink";
@@ -21,17 +21,21 @@ const ModeChip = ({
     label,
     hint,
     onClick,
+    disabled,
 }: {
     active: boolean;
     label: string;
     hint: string;
     onClick: () => void;
+    disabled?: boolean;
 }) => (
     <button
         type="button"
         onClick={onClick}
-        className={`flex-1 rounded-2xl border px-3 py-3 text-left transition-all ${
-            active
+        disabled={disabled}
+        aria-disabled={disabled}
+        className={`flex-1 rounded-2xl border px-3 py-3 text-left transition-all disabled:opacity-45 disabled:cursor-not-allowed ${
+            active && !disabled
                 ? "border-cyan-400/50 bg-cyan-500/15 shadow-[0_0_18px_rgba(34,211,238,0.12)]"
                 : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
         }`}
@@ -55,8 +59,29 @@ export default function WalletLinkPanel() {
     const [msg, setMsg] = useState<string | null>(null);
     const [ok, setOk] = useState(false);
     const [linkedAddr, setLinkedAddr] = useState("");
+    const [hasLinked, setHasLinked] = useState(false);
 
     const mode = readWalletMode();
+
+    // External is only playable after a successful two-sig link.
+    const refreshLinks = useCallback(async () => {
+        const wallet = player.address?.toLowerCase();
+        if (!wallet) {
+            setHasLinked(false);
+            return;
+        }
+        try {
+            const res = await fetch(`/api/wallet-links?wallet=${wallet}`);
+            const data = await res.json().catch(() => ({}));
+            setHasLinked(Array.isArray(data?.links) && data.links.length > 0);
+        } catch {
+            setHasLinked(false);
+        }
+    }, [player.address]);
+
+    useEffect(() => {
+        void refreshLinks();
+    }, [refreshLinks]);
 
     const switchMode = useCallback((m: WalletMode) => {
         writeWalletMode(m);
@@ -109,6 +134,7 @@ export default function WalletLinkPanel() {
                 return;
             }
             setOk(true);
+            setHasLinked(true);
             setMsg("Wallets linked. Stats stay separate — switch above to play as either.");
         } catch (e) {
             setMsg(e instanceof Error ? e.message : String(e));
@@ -130,10 +156,14 @@ export default function WalletLinkPanel() {
                         onClick={() => switchMode("ingame")}
                     />
                     <ModeChip
-                        active={mode === "external" || !mode}
+                        active={(mode === "external" || !mode) && hasLinked}
                         label="External"
-                        hint="Base · MetaMask · Phantom"
-                        onClick={() => switchMode("external")}
+                        hint={hasLinked ? "Base · MetaMask · Phantom" : "Link a wallet to unlock"}
+                        disabled={!hasLinked}
+                        onClick={() => {
+                            if (!hasLinked) return;
+                            switchMode("external");
+                        }}
                     />
                 </div>
                 <div className="wl-addr-chip">
