@@ -110,13 +110,16 @@ export default function InGameWalletPanel({
         }
     }, [oauthState]);
 
-    // Route a live session to ready / welcome (first time vs returning).
+    // Route a live session off the auth form (first time vs returning).
     useEffect(() => {
-        if (!isSignedIn || !address) return;
-        if (stage === "auth") {
+        if (!isSignedIn) return;
+        if (stage !== "auth") return;
+        if (address) {
             if (hasSeenWalletReady(address)) setStage("welcome");
             else setStage("ready");
         }
+        // Signed in without an address yet: keep waiting on auth stage but
+        // block the form below (CDP is still provisioning the smart account).
     }, [isSignedIn, address, stage]);
 
     const enterArena = useCallback(() => {
@@ -135,11 +138,17 @@ export default function InGameWalletPanel({
             setFlowId(r.flowId);
             setOtp("");
         } catch (e) {
-            setErr(e instanceof Error ? e.message : String(e));
+            const msg = e instanceof Error ? e.message : String(e);
+            if (/already authenticated/i.test(msg)) {
+                if (address) setStage(hasSeenWalletReady(address) ? "welcome" : "ready");
+                else setErr("Already signed in — finishing wallet setup. Try Continue in a moment.");
+            } else {
+                setErr(msg);
+            }
         } finally {
             setBusy(false);
         }
-    }, [email, signInWithEmail]);
+    }, [email, signInWithEmail, address]);
 
     const confirmOtp = useCallback(async () => {
         if (!flowId || otp.trim().length < 6) return;
@@ -279,6 +288,42 @@ export default function InGameWalletPanel({
         );
     }
 
+    // ── Signed in but wallet address still landing ──
+    if (isSignedIn && !address) {
+        return (
+            <div className="ingame-signin">
+                <h2 className="ingame-title">Finishing setup</h2>
+                <p className="ingame-sub">Your in-game wallet is being prepared…</p>
+                {err && <p className="ingame-err">{err}</p>}
+                <button
+                    type="button"
+                    className="ingame-cta"
+                    disabled={busy}
+                    onClick={() => {
+                        if (id.cdpSmartAccount || id.cdpOwnerEoa) {
+                            setStage("ready");
+                        } else {
+                            setErr("Wallet not ready yet. Try again in a second.");
+                        }
+                    }}
+                >
+                    Continue
+                </button>
+                <button
+                    type="button"
+                    className="ingame-ghost"
+                    onClick={() => {
+                        void signOut();
+                        setStage("auth");
+                        setErr(null);
+                    }}
+                >
+                    Sign out
+                </button>
+            </div>
+        );
+    }
+
     // ── Auth: socials + email → OTP ──
     const otpStage = Boolean(flowId);
 
@@ -317,7 +362,16 @@ export default function InGameWalletPanel({
                                     await signInWithOAuth(s.id);
                                     // Redirect / popup path — success flips stage via effect on return.
                                 } catch (e) {
-                                    setErr(e instanceof Error ? e.message : String(e));
+                                    const msg = e instanceof Error ? e.message : String(e);
+                                    if (/already authenticated/i.test(msg)) {
+                                        if (id.address) {
+                                            setStage(hasSeenWalletReady(id.address) ? "welcome" : "ready");
+                                        } else {
+                                            setErr("Already signed in — finishing wallet setup.");
+                                        }
+                                    } else {
+                                        setErr(msg);
+                                    }
                                 } finally {
                                     setBusy(false);
                                 }
