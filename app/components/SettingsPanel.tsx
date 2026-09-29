@@ -18,6 +18,7 @@ import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
+import { useBiometricGate } from '@/hooks/useBiometricGate';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // 1. This panel always renders on the shared dark-glass sandwich shell, so it
@@ -457,6 +458,19 @@ export function SettingsPanel({
     const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
     const [showPasskeys, setShowPasskeys] = useState(false);
     const passkeyCount = (passkeys || []).length;
+    const bio = useBiometricGate();
+
+    /** Security toggles: device unlock when a passkey is already enrolled. */
+    const guardSecurityToggle = async (apply: () => void) => {
+        if (passkeyCount > 0) {
+            const ok = await bio.unlock();
+            if (!ok) {
+                setPasskeyMsg(bio.error || 'Device unlock required to change security settings');
+                return;
+            }
+        }
+        apply();
+    };
     const { disconnect } = useDisconnect();
     const { signOut: cdpSignOut } = useSignOut();
     const { isGuest } = useCurrentUser();
@@ -704,14 +718,14 @@ export function SettingsPanel({
                                             label="App lock"
                                             hint="Face ID / passkey required when Ludo opens"
                                             on={security.bootLock}
-                                            onToggle={() => security.setBootLock(!security.bootLock)}
+                                            onToggle={() => void guardSecurityToggle(() => security.setBootLock(!security.bootLock))}
                                         />
                                         <PrefRow
                                             icon={<LockIcon />} tint="bg-cyan-500/15 text-cyan-300"
                                             label="Auto-approve messages"
                                             hint="Match & DM sign without extra prompts"
                                             on={security.autoSign}
-                                            onToggle={() => security.setAutoSign(!security.autoSign)}
+                                            onToggle={() => void guardSecurityToggle(() => security.setAutoSign(!security.autoSign))}
                                         />
                                         <PrefRow
                                             icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
@@ -721,8 +735,10 @@ export function SettingsPanel({
                                                 : "Confirm in Ludo only · no biometric"}
                                             on={security.txStepUp === "strict"}
                                             onToggle={() =>
-                                                security.setTxStepUp(
-                                                    security.txStepUp === "strict" ? "confirm" : "strict",
+                                                void guardSecurityToggle(() =>
+                                                    security.setTxStepUp(
+                                                        security.txStepUp === "strict" ? "confirm" : "strict",
+                                                    ),
                                                 )
                                             }
                                             last
