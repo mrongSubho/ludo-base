@@ -455,6 +455,7 @@ export function SettingsPanel({
     const { deletePasskeyAsync } = useDeletePasskey();
     const [passkeyBusy, setPasskeyBusy] = useState(false);
     const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
+    const [showPasskeys, setShowPasskeys] = useState(false);
     const passkeyCount = (passkeys || []).length;
     const { disconnect } = useDisconnect();
     const { signOut: cdpSignOut } = useSignOut();
@@ -609,10 +610,10 @@ export function SettingsPanel({
                                         <ActionRow
                                             icon={<KeyIcon />}
                                             tint="bg-cyan-500/15 text-cyan-300"
-                                            label="Add Passkey"
+                                            label="Passkey"
                                             hint={
                                                 passkeyCount > 0
-                                                    ? `Face ID / Touch ID · ${passkeyCount} active`
+                                                    ? `Face ID / Touch ID · ${passkeyCount} enrolled`
                                                     : 'Face ID / Touch ID · security key'
                                             }
                                             action={enrollStatus === 'pending' ? 'Wait…' : passkeyCount > 0 ? 'Add' : 'Enable'}
@@ -624,6 +625,7 @@ export function SettingsPanel({
                                                     await enrollPasskey();
                                                     await refetchPasskeys();
                                                     setPasskeyMsg('Passkey added.');
+                                                    setShowPasskeys(true);
                                                 } catch {
                                                     setPasskeyMsg('Could not add passkey.');
                                                 } finally {
@@ -638,59 +640,86 @@ export function SettingsPanel({
                                                 <p className="px-3.5 pb-2 text-[10px] text-white/50">{passkeyMsg}</p>
                                             )}
                                             {passkeyCount > 0 && (
-                                                <ul className="px-3.5 pb-2 space-y-1">
-                                                    {(passkeys || []).map((pk: { credentialId: string }) => (
-                                                        <li key={pk.credentialId} className="flex items-center justify-between gap-2">
-                                                            <span className="text-[11px] font-mono text-white/60 truncate">
-                                                                {pk.credentialId.slice(0, 14)}…
-                                                            </span>
-                                                            <button
-                                                                type="button"
-                                                                className="text-[10px] uppercase text-red-300/80"
-                                                                disabled={passkeyBusy}
-                                                                onClick={async () => {
-                                                                    setPasskeyBusy(true);
-                                                                    try {
-                                                                        await deletePasskeyAsync(pk.credentialId);
-                                                                        await refetchPasskeys();
-                                                                    } catch {
-                                                                        /* ignore */
-                                                                    } finally {
-                                                                        setPasskeyBusy(false);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className="w-full flex items-center justify-between px-3.5 pb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-white/45 hover:text-white/70"
+                                                        onClick={() => setShowPasskeys((v) => !v)}
+                                                        aria-expanded={showPasskeys}
+                                                    >
+                                                        <span>{showPasskeys ? 'Hide' : 'Show'} enrolled passkeys</span>
+                                                        <svg
+                                                            viewBox="0 0 24 24"
+                                                            className={`w-3.5 h-3.5 transition-transform ${showPasskeys ? 'rotate-180' : ''}`}
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                        >
+                                                            <path d="M6 9l6 6 6-6" />
+                                                        </svg>
+                                                    </button>
+                                                    {showPasskeys && (
+                                                        <ul className="px-3.5 pb-2.5 flex flex-wrap gap-2">
+                                                            {(passkeys || []).map((pk: { credentialId: string }) => (
+                                                                <li
+                                                                    key={pk.credentialId}
+                                                                    className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5"
+                                                                >
+                                                                    <span className="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+                                                                        <KeyIcon />
+                                                                    </span>
+                                                                    <span className="text-[11px] font-mono text-white/75 break-all">
+                                                                        {pk.credentialId.slice(0, 8)}…{pk.credentialId.slice(-4)}
+                                                                    </span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="text-[10px] font-bold uppercase text-red-300/80"
+                                                                        disabled={passkeyBusy}
+                                                                        onClick={async () => {
+                                                                            setPasskeyBusy(true);
+                                                                            try {
+                                                                                await deletePasskeyAsync(pk.credentialId);
+                                                                                await refetchPasskeys();
+                                                                            } catch {
+                                                                                /* ignore */
+                                                                            } finally {
+                                                                                setPasskeyBusy(false);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </>
                                             )}
                                         </ActionRow>
                                         <PrefRow
                                             icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
-                                            label="Unlock every launch"
-                                            hint="Passkey / Face ID on boot (if enrolled)"
+                                            label="App lock"
+                                            hint="Face ID / passkey required when Ludo opens"
                                             on={security.bootLock}
                                             onToggle={() => security.setBootLock(!security.bootLock)}
                                         />
                                         <PrefRow
                                             icon={<LockIcon />} tint="bg-cyan-500/15 text-cyan-300"
-                                            label="Auto-approve sign-in"
-                                            hint="CDP signs match / DM messages without extra prompts"
+                                            label="Auto-approve messages"
+                                            hint="Match & DM sign without extra prompts"
                                             on={security.autoSign}
                                             onToggle={() => security.setAutoSign(!security.autoSign)}
                                         />
                                         <PrefRow
                                             icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
-                                            label="Confirm txs without passkey"
-                                            hint={security.txStepUp === "confirm"
-                                                ? "Send / swap only need Confirm in Ludo"
-                                                : "Device Face ID / fingerprint required for send & swap"}
-                                            on={security.txStepUp === "confirm"}
+                                            label="Verify before sending"
+                                            hint={security.txStepUp === "strict"
+                                                ? "Face ID / fingerprint on send & swap"
+                                                : "Confirm in Ludo only"}
+                                            on={security.txStepUp === "strict"}
                                             onToggle={() =>
                                                 security.setTxStepUp(
-                                                    security.txStepUp === "confirm" ? "strict" : "confirm",
+                                                    security.txStepUp === "strict" ? "confirm" : "strict",
                                                 )
                                             }
                                             last
