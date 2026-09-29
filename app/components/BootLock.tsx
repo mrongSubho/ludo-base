@@ -41,22 +41,34 @@ export default function BootLock() {
         setBusy(true);
         setError(null);
         try {
-            if (hasPasskey) {
-                await initiateMfaVerification({ mfaMethod: "passkey" });
-                await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" }).catch(() => undefined);
-            } else if (typeof window !== "undefined" && window.PublicKeyCredential) {
-                const challenge = crypto.getRandomValues(new Uint8Array(32));
-                await navigator.credentials.get({
-                    publicKey: {
-                        challenge,
-                        rpId: window.location.hostname,
-                        userVerification: "required",
-                        timeout: 60_000,
-                    },
-                });
-            } else {
+            // Device WebAuthn is the real gate — it always opens the OS
+            // passkey / Face ID sheet. CDP MFA alone can no-op when the
+            // project has no enrolled passkey ceremony for this client.
+            if (typeof window === "undefined" || !window.PublicKeyCredential || !navigator.credentials) {
                 setError("Passkey / device biometrics not available");
                 return;
+            }
+            const challenge = crypto.getRandomValues(new Uint8Array(32));
+            const cred = await navigator.credentials.get({
+                publicKey: {
+                    challenge,
+                    rpId: window.location.hostname,
+                    userVerification: "required",
+                    timeout: 60_000,
+                },
+            });
+            if (!cred) {
+                setError("Unlock failed — try again");
+                return;
+            }
+            // Optional CDP MFA ack when a project passkey exists (best-effort).
+            if (hasPasskey) {
+                try {
+                    await initiateMfaVerification({ mfaMethod: "passkey" });
+                    await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
+                } catch {
+                    /* device proof already done */
+                }
             }
             unlockedThisLoad = true;
             setUnlocked(true);
