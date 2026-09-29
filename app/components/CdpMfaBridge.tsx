@@ -21,7 +21,7 @@ export default function CdpMfaBridge() {
     const { cancelMfaVerification } = useCancelMfaVerification();
     const busy = useRef(false);
 
-    useRegisterMfaListener((context) => {
+    useRegisterMfaListener((_context) => {
         void (async () => {
             if (busy.current) return;
             busy.current = true;
