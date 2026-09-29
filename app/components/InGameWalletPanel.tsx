@@ -20,6 +20,7 @@ import {
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { writeWalletMode } from "@/lib/walletMode";
+import { isCdpAuthEnabled } from "./CdpAuthProvider";
 import {
     hasSeenWalletReady,
     markProtectNudged,
@@ -295,14 +296,30 @@ export default function InGameWalletPanel({
                         aria-label={`Continue with ${s.label}`}
                         disabled={busy}
                         onClick={() => {
-                            writeWalletMode("ingame");
-                            void signInWithOAuth(s.id);
+                            void (async () => {
+                                if (!isCdpAuthEnabled()) {
+                                    setErr("Sign-in is not configured (missing CDP project id on this deploy).");
+                                    return;
+                                }
+                                setBusy(true);
+                                setErr(null);
+                                writeWalletMode("ingame");
+                                try {
+                                    await signInWithOAuth(s.id);
+                                    // Redirect / popup path — success flips stage via effect on return.
+                                } catch (e) {
+                                    setErr(e instanceof Error ? e.message : String(e));
+                                } finally {
+                                    setBusy(false);
+                                }
+                            })();
                         }}
                     >
                         {s.icon}
                     </button>
                 ))}
             </div>
+            {busy && <p className="ingame-hint" style={{ textAlign: "center" }}>Opening provider…</p>}
 
             <div className="ingame-divider">
                 <span>or create in-game wallet using your email</span>
