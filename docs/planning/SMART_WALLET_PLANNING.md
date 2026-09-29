@@ -30,6 +30,7 @@ One goal: **a real Web3 wallet that also plays Ludo** — see assets → send/re
 | **2026-09-25** | Swap = CDP `useGetSwapPrice` / `useSwap` (Coinbase engine, Base only). Buy = Onramp deep link. **No NFT tab** (Marketplace owns NFTs). |
 | **2026-09-25** | Safety: `peekAppSession` for pollers; sign only on user gesture; WC denylist + inbox decode; unlimited-approve banners. |
 | **2026-09-28** | Remote push (VAPID + SW) shipped; WC session expiry countdown; searchable Base swap list. |
+| **2026-09-29** | Boot unlock = WebAuthn passkey MFA (not social re-login). Strict tx = passkey/device bio required. Settings: auto-approve sign-in · confirm-tx-without-passkey. |
 
 **API surface (verified 2026-09-24):** `@coinbase/cdp-hooks` / `cdp-core` / `cdp-react`. `CDPHooksProvider` with `ethereum.createOnLogin: "smart"`. SIWE: `useSignInWithSiwe` / `siwe:base` (+ `@base-org/account`). OAuth: Google / Apple / X / Telegram — **Facebook is not in CDP**. Spend perms exist (0b+ only). `useCdpPaymaster` is a send boolean, not a hook.
 
@@ -170,6 +171,45 @@ External wallets own their security (extension / Base app). We never re-skin tha
 | **Returning · live CDP session** | Silent restore — no picker sheet |
 | **Returning · seen ready before** | “Welcome back · 0x…” → Continue to arena |
 | **Lobby** | `Wallet · Protect · Play` ladder chip |
+
+### Boot unlock — what “CDP passkey” means
+
+On launch, if a **passkey is enrolled** on the CDP account (or the user turned on *Unlock every launch*), `BootLock` shows **Welcome back → Unlock**.
+
+| | Meaning |
+| --- | --- |
+| **CDP passkey** | Local **WebAuthn MFA** (Face ID / Touch ID / Windows Hello / security key) enrolled via Security → Passkey after login |
+| **Not** | Re-login with Google / Apple / X / OTP |
+| **Session** | Email/OAuth CDP session stays alive; Unlock is device proof only |
+| **No passkey** | Fallback: platform authenticator (`navigator.credentials.get`) when supported |
+
+Google/Apple/X/OTP appear only if the **CDP login session expired** — that is Arena Entrance sign-in, not Unlock.
+
+### Sign-in vs transaction approval (CDP)
+
+**Consent is always a click.** “Background” = the **crypto sign** (CDP API / TEE), never silent value movement.
+
+| Event | User gesture | What they see | Crypto sign |
+| --- | --- | --- | --- |
+| Match start / app session / first DM | Click Start / Send | Usually nothing extra (or one Confirm line) | CDP API — no wallet popup |
+| Pollers (boot, DM open, presence) | None | Nothing (`peekAppSession` only) | Never |
+| Send / Swap / CHIPS join | Review → **Confirm** | Ludo confirm sheet | CDP API after step-up |
+| Passkey enrolled (strict tx) | Confirm + **Face ID / Touch ID** | OS biometric | Then CDP API |
+| **Strict tx without passkey/bio** | — | **Blocked** | Not sent |
+| External wallet | Same Ludo confirm | **+ their extension / keys.coinbase.com popup** | In the wallet |
+
+App-session TTL is **7 days**. Match path is EIP-712 `LudoMatchSession` (not SIWE-as-move-auth).
+
+### Security preferences (Settings → Security)
+
+| Pref | Default | Behavior |
+| --- | --- | --- |
+| **Unlock every launch** | on | `BootLock` when passkey is enrolled |
+| **Auto-approve sign-in** | on | CDP signs match/DM messages without extra prompts; **off** requires device bio before that sign |
+| **Confirm txs without passkey** | off | Opt-in **CDP auto-approve** for tx: Ludo Confirm only |
+| **Strict tx (default)** | — | Send/swap require **passkey or device Face ID/Touch ID**; otherwise refuse |
+
+Code: `hooks/useSecurityPrefs.ts` · `useMfaStepUp` · `BootLock` · `useAppSession` (autoSign gate).
 
 ## 5. Wallet product (IA)
 
