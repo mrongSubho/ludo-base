@@ -99,38 +99,49 @@ export default function BootLock() {
         [attempts, signOutNow],
     );
 
+    /**
+     * CDP MFA is the **source of truth** for an enrolled passkey (works with
+     * iCloud / Google sync). Local WebAuthn is the device fallback when CDP
+     * MFA is unavailable. Fail closed if neither completes.
+     */
     const unlock = useCallback(async () => {
         if (lockedOut || busy) return;
         setBusy(true);
         setError(null);
         try {
-            // Device WebAuthn is the real gate — it always opens the OS
-            // passkey / Face ID sheet. CDP MFA alone can no-op.
-            if (typeof window === "undefined" || !window.PublicKeyCredential || !navigator.credentials) {
-                fail(new Error("Biometrics not available"));
-                return;
-            }
-            const challenge = crypto.getRandomValues(new Uint8Array(32));
-            const cred = await navigator.credentials.get({
-                publicKey: {
-                    challenge,
-                    rpId: window.location.hostname,
-                    userVerification: "required",
-                    timeout: 60_000,
-                },
-            });
-            if (!cred) {
-                fail(new Error("No credential"));
-                return;
-            }
+            let ok = false;
+
             if (hasPasskey) {
                 try {
                     await initiateMfaVerification({ mfaMethod: "passkey" });
                     await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
+                    ok = true;
                 } catch {
-                    /* device proof already done */
+                    ok = false;
                 }
             }
+
+            if (!ok) {
+                // Device fallback (platform authenticator on this origin).
+                if (typeof window === "undefined" || !window.PublicKeyCredential || !navigator.credentials) {
+                    fail(new Error("Passkey verification unavailable"));
+                    return;
+                }
+                const challenge = crypto.getRandomValues(new Uint8Array(32));
+                const cred = await navigator.credentials.get({
+                    publicKey: {
+                        challenge,
+                        rpId: window.location.hostname,
+                        userVerification: "required",
+                        timeout: 60_000,
+                    },
+                });
+                if (!cred) {
+                    fail(new Error("Passkey verification failed"));
+                    return;
+                }
+            }
+
             unlockedThisLoad = true;
             setUnlocked(true);
         } catch (e) {

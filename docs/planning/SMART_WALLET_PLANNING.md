@@ -209,6 +209,20 @@ App-session TTL is **7 days**. Match path is EIP-712 `LudoMatchSession` (not SIW
 | **Confirm txs without passkey** | off | Opt-in **CDP auto-approve** for tx: Ludo Confirm only |
 | **Strict tx (default)** | — | Send/swap require **passkey or device Face ID/Touch ID**; otherwise refuse |
 
+### Passkey model (security)
+
+| Layer | What is stored |
+| --- | --- |
+| **CDP server** | credential id + **public key** + “MFA enrolled” on the account |
+| **Device / platform** | **private key** (Touch ID / Face ID / security key; Apple/Google sync) |
+| **Never** | seed / private key on Ludo or CDP application servers |
+
+**Multi-device (same Google / Apple / X):** OAuth sign-in works from any device. **Unlock / tx step-up still need a passkey the device can use** (iCloud Keychain, Google Password Manager, or a security key). Stolen cookie alone is not enough.
+
+**Unlock binding:** **CDP MFA is source of truth** when a passkey is enrolled (`initiateMfaVerification` / passkey). Local `navigator.credentials.get` (our origin RP) is the **device fallback**. Fail closed if neither completes.
+
+**Do not** gate on localStorage (`hasSeenWalletReady` is UX only). Clearing site data must not disable the lock.
+
 Code: `hooks/useSecurityPrefs.ts` · `useMfaStepUp` · `BootLock` · `useAppSession` (autoSign gate).
 
 **Boot lock security:** gate on **CDP-enrolled passkey** (server) only. Clearing cookies/localStorage must not disable the lock; `markBootUnlocked()` only skips the create → ready handoff in the same document.

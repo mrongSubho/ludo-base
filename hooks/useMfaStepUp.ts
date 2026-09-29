@@ -45,22 +45,22 @@ export function useMfaStepUp() {
         setMfaBusy(true);
         setMfaError(null);
         try {
-            // Always require a real WebAuthn assertion before value moves.
-            // CDP MFA alone can resolve without a browser sheet.
-            const ok = await bio.unlock();
-            if (!ok) {
-                setMfaError(bio.error || "Face ID / Touch ID required to approve this transaction");
-                return false;
-            }
+            // CDP MFA is source of truth for enrolled passkeys (iCloud/Google sync).
+            // Device WebAuthn is the fallback. Fail closed if neither completes.
             if (hasPasskeyMfa) {
                 try {
                     await initiateMfaVerification({ mfaMethod: "passkey" });
                     await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
+                    return true;
                 } catch {
-                    /* device proof already done */
+                    /* fall through to device bio */
                 }
             }
-            return true;
+            const ok = await bio.unlock();
+            if (!ok) {
+                setMfaError(bio.error || "Face ID / Touch ID required to approve this transaction");
+            }
+            return ok;
         } catch (e) {
             setMfaError(e instanceof Error ? e.message : String(e));
             return false;
