@@ -22,6 +22,7 @@ import {
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { writeWalletMode } from "@/lib/walletMode";
 import { isCdpAuthEnabled } from "./CdpAuthProvider";
+import { markBootUnlocked } from "./BootLock";
 import {
     hasSeenWalletReady,
     markProtectNudged,
@@ -124,6 +125,7 @@ export default function InGameWalletPanel({
 
     const enterArena = useCallback(() => {
         if (address) markWalletCreated(address);
+        markBootUnlocked();
         writeWalletMode("ingame");
         onDone?.();
     }, [address, onDone]);
@@ -174,6 +176,7 @@ export default function InGameWalletPanel({
             await enrollPasskey();
             markProtectNudged(address);
             markWalletCreated(address);
+            markBootUnlocked();
             writeWalletMode("ingame");
             onDone?.();
         } catch (e) {
@@ -188,6 +191,7 @@ export default function InGameWalletPanel({
             markProtectNudged(address);
             markWalletCreated(address);
         }
+        markBootUnlocked();
         writeWalletMode("ingame");
         onDone?.();
     }, [address, onDone]);

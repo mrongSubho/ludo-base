@@ -18,9 +18,18 @@ import {
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
+import { hasSeenWalletReady } from "@/lib/walletOnboarding";
 
 /** Reset on every full navigation / refresh — one unlock per boot. */
 let unlockedThisLoad = false;
+
+/**
+ * Call after a successful sign-in / create in this document so we do not
+ * immediately re-lock a user who just proved themselves.
+ */
+export function markBootUnlocked(): void {
+    unlockedThisLoad = true;
+}
 
 const MAX_ATTEMPTS = 5;
 
