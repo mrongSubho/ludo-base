@@ -417,18 +417,9 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                         </div>
                     )}
                     {screen === "security" && (
-                        <div className="cb-screen space-y-4">
+                        <div className="cb-screen">
+                            {/* Linked wallets lives inside WalletSecurityPanel */}
                             <WalletSecurityPanel />
-                            {mode === "ingame" && (
-                                <section className="cb-section">
-                                    <div className="cb-section-head">
-                                        <span>Linked wallets</span>
-                                    </div>
-                                    <div className="cb-card cb-pad">
-                                        <WalletLinkPanel />
-                                    </div>
-                                </section>
-                            )}
                         </div>
                     )}
                 </main>
