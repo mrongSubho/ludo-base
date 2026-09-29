@@ -2,6 +2,7 @@
 
 import { ReactNode, useMemo } from "react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
+import CdpMfaBridge from "./CdpMfaBridge";
 
 /**
  * Phase 0a spike mount for CDP non-custodial auth (SMART_WALLET_PLANNING).
@@ -42,7 +43,12 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
     );
 
     if (!config) return <>{children}</>;
-    return <CDPHooksProvider config={config}>{children}</CDPHooksProvider>;
+    return (
+        <CDPHooksProvider config={config}>
+            <CdpMfaBridge />
+            {children}
+        </CDPHooksProvider>
+    );
 }
 
 export function isCdpAuthEnabled(): boolean {
