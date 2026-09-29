@@ -4,6 +4,7 @@
  * Boot lock — require passkey / device Face ID on **every page load**
  * when the user is signed in (SMART_WALLET_PLANNING §5).
  * Unlock is per document only (no sessionStorage — reload is a new boot).
+ * After 5 failed tries, sign out so the user can sign in again cleanly.
  */
 
 import { useCallback, useState } from "react";
@@ -12,6 +13,7 @@ import {
     useInitiateMfaVerification,
     useIsSignedIn,
     useListPasskeys,
+    useSignOut,
     useSubmitMfaVerification,
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
@@ -20,32 +22,79 @@ import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
 /** Reset on every full navigation / refresh — one unlock per boot. */
 let unlockedThisLoad = false;
 
+const MAX_ATTEMPTS = 5;
+
+function friendlyError(e: unknown): string {
+    const raw = e instanceof Error ? e.message : String(e);
+    const msg = raw.toLowerCase();
+    if (msg.includes("not allowed") || msg.includes("denied") || msg.includes("security")) {
+        return "Biometric prompt was cancelled or blocked. Try Unlock again.";
+    }
+    if (msg.includes("timeout") || msg.includes("timed out")) {
+        return "No response from Face ID / Touch ID. Tap Unlock when ready.";
+    }
+    if (msg.includes("not available") || msg.includes("not supported")) {
+        return "This device has no Face ID / Touch ID. Use a device with biometrics, or sign out.";
+    }
+    if (msg.includes("already") && msg.includes("pending")) {
+        return "Unlock already in progress — finish the prompt.";
+    }
+    return "Unlock failed. Try again.";
+}
+
 export default function BootLock() {
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
     const { data: passkeys } = useListPasskeys();
     const { initiateMfaVerification } = useInitiateMfaVerification();
     const { submitMfaVerification } = useSubmitMfaVerification();
+    const { signOut } = useSignOut();
     const { bootLock } = useSecurityPrefs();
     const [unlocked, setUnlocked] = useState(unlockedThisLoad);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [attempts, setAttempts] = useState(0);
 
     const id = resolvePlayerIdentity(currentUser);
     const hasPasskey = Boolean((passkeys || []).length || currentUser?.mfaMethods?.passkey?.length);
+    const left = Math.max(0, MAX_ATTEMPTS - attempts);
+    const lockedOut = attempts >= MAX_ATTEMPTS;
 
-    // Any live CDP session (address resolved) requires unlock on this load.
     const required = bootLock && isSignedIn && Boolean(id.address) && !unlocked;
 
+    const signOutNow = useCallback(async () => {
+        try {
+            await signOut();
+        } catch {
+            /* ignore */
+        }
+        unlockedThisLoad = false;
+        setUnlocked(true); // drop the overlay — page shows sign-in gate
+    }, [signOut]);
+
+    const fail = useCallback(
+        (e: unknown) => {
+            const next = attempts + 1;
+            setAttempts(next);
+            if (next >= MAX_ATTEMPTS) {
+                setError("Too many failed attempts. Signing out…");
+                void signOutNow();
+            } else {
+                setError(friendlyError(e));
+            }
+        },
+        [attempts, signOutNow],
+    );
+
     const unlock = useCallback(async () => {
+        if (lockedOut || busy) return;
         setBusy(true);
         setError(null);
         try {
             // Device WebAuthn is the real gate — it always opens the OS
-            // passkey / Face ID sheet. CDP MFA alone can no-op when the
-            // project has no enrolled passkey ceremony for this client.
+            // passkey / Face ID sheet. CDP MFA alone can no-op.
             if (typeof window === "undefined" || !window.PublicKeyCredential || !navigator.credentials) {
-                setError("Passkey / device biometrics not available");
+                fail(new Error("Biometrics not available"));
                 return;
             }
             const challenge = crypto.getRandomValues(new Uint8Array(32));
@@ -58,10 +107,9 @@ export default function BootLock() {
                 },
             });
             if (!cred) {
-                setError("Unlock failed — try again");
+                fail(new Error("No credential"));
                 return;
             }
-            // Optional CDP MFA ack when a project passkey exists (best-effort).
             if (hasPasskey) {
                 try {
                     await initiateMfaVerification({ mfaMethod: "passkey" });
@@ -73,11 +121,11 @@ export default function BootLock() {
             unlockedThisLoad = true;
             setUnlocked(true);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            fail(e);
         } finally {
             setBusy(false);
         }
-    }, [hasPasskey, initiateMfaVerification, submitMfaVerification]);
+    }, [busy, lockedOut, fail, hasPasskey, initiateMfaVerification, submitMfaVerification]);
 
     if (!required) return null;
 
@@ -93,12 +141,41 @@ export default function BootLock() {
                 <h2 className="boot-lock-title">Welcome back</h2>
                 <p className="boot-lock-sub">
                     {hasPasskey
-                        ? "Unlock Ludo with your passkey / Face ID"
-                        : "Unlock Ludo with Face ID / Touch ID"}
+                        ? "Unlock with your passkey or Face ID"
+                        : "Unlock with Face ID / Touch ID"}
                 </p>
-                {error && <p className="boot-lock-err">{error}</p>}
-                <button type="button" className="boot-lock-cta" disabled={busy} onClick={unlock}>
-                    {busy ? "Waiting for biometric…" : "Unlock"}
+
+                {error && (
+                    <div className="boot-lock-alert" role="alert">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M12 8v5M12 16h.01" />
+                        </svg>
+                        <span>{error}</span>
+                    </div>
+                )}
+
+                {!lockedOut && attempts > 0 && (
+                    <p className="boot-lock-tally">
+                        {left} attempt{left === 1 ? "" : "s"} left
+                    </p>
+                )}
+
+                <button
+                    type="button"
+                    className="boot-lock-cta"
+                    disabled={busy || lockedOut}
+                    onClick={unlock}
+                >
+                    {busy ? "Waiting for Face ID…" : lockedOut ? "Signed out" : "Unlock"}
+                </button>
+                <button
+                    type="button"
+                    className="boot-lock-ghost"
+                    disabled={busy}
+                    onClick={() => void signOutNow()}
+                >
+                    Sign out instead
                 </button>
             </div>
         </div>
