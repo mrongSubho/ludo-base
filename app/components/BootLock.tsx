@@ -32,9 +32,18 @@ export function markBootUnlocked(): void {
 
 const MAX_ATTEMPTS = 5;
 
+const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
 function friendlyError(e: unknown): string {
     const raw = e instanceof Error ? e.message : String(e);
     const msg = raw.toLowerCase();
+    if (msg.includes("localhost") || msg.includes("passkey verification failed")) {
+        return isLocalhost
+            ? "This passkey was saved on ludobase.live (not localhost). Use the production site, or skip lock in dev."
+            : "This device has no passkey for this site. Use the device or browser where you enrolled (Google / iCloud sync).";
+    }
     if (msg.includes("not allowed") || msg.includes("denied") || msg.includes("security")) {
         return "Biometric prompt was cancelled or blocked. Try Unlock again.";
     }
@@ -122,6 +131,11 @@ export default function BootLock() {
             }
 
             if (!ok) {
+                // localhost cannot use a passkey registered on ludobase.live (different RP id).
+                if (isLocalhost) {
+                    fail(new Error("Passkey verification failed"));
+                    return;
+                }
                 // Device fallback (platform authenticator on this origin).
                 if (typeof window === "undefined" || !window.PublicKeyCredential || !navigator.credentials) {
                     fail(new Error("Passkey verification unavailable"));
@@ -201,6 +215,20 @@ export default function BootLock() {
                 >
                     Sign out instead
                 </button>
+                {isLocalhost && (
+                    <button
+                        type="button"
+                        className="boot-lock-ghost"
+                        disabled={busy}
+                        onClick={() => {
+                            markBootUnlocked();
+                            unlockedThisLoad = true;
+                            setUnlocked(true);
+                        }}
+                    >
+                        Skip lock (localhost dev)
+                    </button>
+                )}
             </div>
         </div>
     );

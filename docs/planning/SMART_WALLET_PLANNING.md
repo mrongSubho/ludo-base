@@ -221,6 +221,8 @@ App-session TTL is **7 days**. Match path is EIP-712 `LudoMatchSession` (not SIW
 
 **Unlock binding:** **CDP MFA is source of truth** when a passkey is enrolled (`initiateMfaVerification` / passkey). Local `navigator.credentials.get` (our origin RP) is the **device fallback**. Fail closed if neither completes.
 
+**RP / origin:** a passkey is bound to the **RP id** (site origin). A credential saved on `ludobase.live` cannot assert on `localhost` — use production (or skip lock on localhost dev only). Mobile often works via CDP’s hosted ceremony (Coinbase RP + Google/iCloud sync).
+
 **Do not** gate on localStorage (`hasSeenWalletReady` is UX only). Clearing site data must not disable the lock.
 
 Code: `hooks/useSecurityPrefs.ts` · `useMfaStepUp` · `BootLock` · `useAppSession` (autoSign gate).
