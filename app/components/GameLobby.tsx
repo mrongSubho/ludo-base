@@ -18,6 +18,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { PaidPoolJoinButton } from './PaidPoolJoinButton';
 import SecurityLadderChip from './SecurityLadderChip';
+import ThemeNudge from './ThemeNudge';
 import { derivePoolId, isChipsConfigured } from '@/lib/chips';
 import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
 
@@ -355,6 +356,9 @@ export default function GameLobby({
                         <div className="flex flex-col items-center w-full">
                             <div className="flex justify-center w-full mb-2 mt-1">
                                 <SecurityLadderChip />
+                            </div>
+                            <div className="flex justify-center w-full mb-2">
+                                <ThemeNudge />
                             </div>
                             <div className="flex justify-center w-full mb-3">
                                 <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">

@@ -8,6 +8,7 @@
 
 const READY_KEY = "ludo-ingame-onboarded-v1";
 const PROTECT_KEY = "ludo-ingame-protect-nudged-v1";
+const THEME_KEY = "ludo-theme-nudge-v1";
 
 export function markWalletCreated(address: string): void {
     try {
@@ -40,6 +41,22 @@ export function hasSeenProtectNudge(address: string | undefined): boolean {
     if (!address) return false;
     try {
         return localStorage.getItem(PROTECT_KEY) === address.toLowerCase();
+    } catch {
+        return false;
+    }
+}
+
+export function markThemeNudged(): void {
+    try {
+        localStorage.setItem(THEME_KEY, "1");
+    } catch {
+        /* private mode */
+    }
+}
+
+export function hasSeenThemeNudge(): boolean {
+    try {
+        return localStorage.getItem(THEME_KEY) === "1";
     } catch {
         return false;
     }

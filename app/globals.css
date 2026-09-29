@@ -9516,6 +9516,87 @@ body.theme-daybreak .security-ladder .done { color: #059669; }
 body.theme-daybreak .security-ladder .now { color: #0052FF; }
 body.theme-daybreak .security-ladder .todo { color: rgba(23, 23, 23, 0.4); }
 
+
+/* ── Post-arena theme nudge (one-time) ───────────────────────────────── */
+.theme-nudge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  max-width: 420px;
+}
+body.theme-daybreak .theme-nudge {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(23, 23, 23, 0.1);
+}
+.theme-nudge-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.theme-nudge-copy strong {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+.theme-nudge-copy span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
+body.theme-daybreak .theme-nudge-copy strong { color: #171717; }
+body.theme-daybreak .theme-nudge-copy span { color: rgba(23, 23, 23, 0.55); }
+.theme-nudge-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.theme-nudge-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  font-weight: 750;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.theme-nudge-chip.on {
+  background: rgba(0, 82, 255, 0.28);
+  border-color: rgba(0, 82, 255, 0.5);
+  color: #fff;
+}
+body.theme-daybreak .theme-nudge-chip {
+  background: rgba(23, 23, 23, 0.05);
+  border-color: rgba(23, 23, 23, 0.12);
+  color: rgba(23, 23, 23, 0.8);
+}
+body.theme-daybreak .theme-nudge-chip.on {
+  background: rgba(0, 82, 255, 0.14);
+  border-color: rgba(0, 82, 255, 0.4);
+  color: #0052FF;
+}
+.theme-nudge-close {
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  padding: 6px 8px;
+}
+body.theme-daybreak .theme-nudge-close {
+  color: rgba(23, 23, 23, 0.45);
+}
+
 .cb-empty {
   margin: 0;
   padding: 14px;
