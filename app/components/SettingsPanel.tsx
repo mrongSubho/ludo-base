@@ -18,6 +18,7 @@ import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
+import { useWalletMode } from '@/hooks/useWalletMode';
 import { useBiometricGate } from '@/hooks/useBiometricGate';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -450,6 +451,8 @@ export function SettingsPanel({
     const { preferences, updatePreference } = usePreferences();
     const security = useSecurityPrefs();
     const player = usePlayerSigner();
+    const walletMode = useWalletMode();
+    const isCdpWallet = walletMode === 'ingame';
     const passkeySupported = useIsPasskeySupported();
     const { enrollPasskey, status: enrollStatus } = useEnrollPasskey();
     const { data: passkeys, refetch: refetchPasskeys } = useListPasskeys();
@@ -621,6 +624,8 @@ export function SettingsPanel({
                                                 onOpenWallet?.();
                                             }}
                                         />
+                                        {isCdpWallet && (
+                                        <>
                                         <ActionRow
                                             icon={<KeyIcon />}
                                             tint="bg-cyan-500/15 text-cyan-300"
@@ -743,6 +748,8 @@ export function SettingsPanel({
                                             }
                                             last
                                         />
+                                        </>
+                                        )}
                                     </div>
                                 </section>
                             )}
