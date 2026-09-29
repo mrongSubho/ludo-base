@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useDisconnect } from 'wagmi';
+import { useSignOut } from '@coinbase/cdp-hooks';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -385,6 +386,7 @@ export function SettingsPanel({
 }) {
     const { preferences, updatePreference } = usePreferences();
     const { disconnect } = useDisconnect();
+    const { signOut: cdpSignOut } = useSignOut();
     const { isGuest } = useCurrentUser();
     const walletMode = useWalletMode();
     const player = usePlayerSigner();
@@ -592,8 +594,15 @@ export function SettingsPanel({
                                 onClick={() => {
                                     // Guests hold no wallet: dropping the guest flag
                                     // flips isConnected false → sign-in wall.
+                                    // In-game CDP session must be cleared too — wagmi
+                                    // disconnect() does not sign out of CDP.
                                     if (isGuest) exitGuest();
-                                    else disconnect();
+                                    void cdpSignOut().catch(() => undefined);
+                                    try {
+                                        disconnect();
+                                    } catch {
+                                        /* not connected */
+                                    }
                                     onClose();
                                 }}
                             >

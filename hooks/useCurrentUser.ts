@@ -152,14 +152,15 @@ export function useCurrentUser() {
             cancelled = true;
             window.removeEventListener('ludo-profile-refresh', onRefresh);
         };
-    }, [wagmiAddress, isWalletConnected, appSessionId]);
+    }, [wagmiAddress, cdpAddress, isWalletConnected, appSessionId]);
 
+    const walletLabel = wagmiAddress ?? cdpAddress;
     const displayName = (profile?.username && !profile.username.startsWith('0x'))
         ? profile.username
         : isGuest && guestId
             ? `Guest ${guestId.slice(-4).toUpperCase()}`
-            : wagmiAddress
-                ? `User ${wagmiAddress.slice(-4).toUpperCase()}`
+            : walletLabel
+                ? `User ${walletLabel.slice(-4).toUpperCase()}`
                 : 'Guest';
 
     return { profile, address, isConnected, displayName, isGuest };
