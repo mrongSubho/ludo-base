@@ -204,7 +204,7 @@ App-session TTL is **7 days**. Match path is EIP-712 `LudoMatchSession` (not SIW
 
 | Pref | Default | Behavior |
 | --- | --- | --- |
-| **Unlock every launch** | on | `BootLock` when passkey is enrolled |
+| **Unlock every launch** | on | `BootLock` only when a **passkey is enrolled** (skip if none) |
 | **Auto-approve sign-in** | on | CDP signs match/DM messages without extra prompts; **off** requires device bio before that sign |
 | **Confirm txs without passkey** | off | Opt-in **CDP auto-approve** for tx: Ludo Confirm only |
 | **Strict tx (default)** | — | Send/swap require **passkey or device Face ID/Touch ID**; otherwise refuse |

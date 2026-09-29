@@ -69,11 +69,12 @@ export default function BootLock() {
     const left = Math.max(0, MAX_ATTEMPTS - attempts);
     const lockedOut = attempts >= MAX_ATTEMPTS;
 
-    // Returning sessions only: first-time create finishes ready → passkey and
-    // calls markBootUnlocked — never gate a brand-new account.
+    // Returning sessions with an enrolled passkey only: first-time create
+    // finishes ready → passkey and calls markBootUnlocked — never gate a
+    // brand-new account or someone who has not set up a passkey yet.
     const returning = id.address ? hasSeenWalletReady(id.address) : true;
     const required =
-        bootLock && isSignedIn && Boolean(id.address) && returning && !unlocked;
+        bootLock && isSignedIn && Boolean(id.address) && returning && hasPasskey && !unlocked;
 
     const signOutNow = useCallback(async () => {
         try {
