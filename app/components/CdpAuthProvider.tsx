@@ -29,9 +29,13 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
                       projectId,
                       appName: "Ludo Base",
                       disableAnalytics: true,
-                      // Option A: do NOT mint a competing CDP embedded wallet.
-                      // Player id = Base Account from siwe:base (see playerIdentity.ts).
-                      // createOnLogin omitted on purpose.
+                      // Dual-path Mode B (SMART_WALLET_PLANNING §3): OAuth/OTP login
+                      // must mint the in-game Smart Account — without this, social
+                      // return leaves users signed-in with no wallet and they bounce
+                      // back to the sign-in gate.
+                      ethereum: {
+                          createOnLogin: "smart" as const,
+                      },
                   }
                 : null,
         [enabled, projectId],

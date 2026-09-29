@@ -14,6 +14,7 @@ import {
     useIsSignedIn,
     useListPasskeys,
     useSignInWithEmail,
+    useOAuthState,
     useSignInWithOAuth,
     useSignOut,
     useVerifyEmailOTP,
@@ -86,6 +87,7 @@ export default function InGameWalletPanel({
     const { verifyEmailOTP } = useVerifyEmailOTP();
     const { signInWithOAuth } = useSignInWithOAuth();
     const { signOut } = useSignOut();
+    const { oauthState } = useOAuthState();
     const passkeySupported = useIsPasskeySupported();
     const { enrollPasskey, status: enrollStatus } = useEnrollPasskey();
     const { data: passkeys } = useListPasskeys();
@@ -100,6 +102,13 @@ export default function InGameWalletPanel({
     const id = resolvePlayerIdentity(currentUser);
     const address = id.address;
     const hasPasskey = Boolean((passkeys || []).length || currentUser?.mfaMethods?.passkey?.length);
+
+    // OAuth return errors (redirect back without a session).
+    useEffect(() => {
+        if (oauthState?.status === "error" && oauthState.errorDescription) {
+            setErr(oauthState.errorDescription);
+        }
+    }, [oauthState]);
 
     // Route a live session to ready / welcome (first time vs returning).
     useEffect(() => {

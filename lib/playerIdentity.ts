@@ -1,7 +1,10 @@
 /**
- * Option A identity (SMART_WALLET_PLANNING §1.1): player id is the **Base Account**
- * from Sign in with Base / SIWE — never a CDP email-OTP embedded wallet and
- * never an owner EOA or sub-account.
+ * Dual-path identity (SMART_WALLET_PLANNING §3).
+ *
+ * - **External / Base Account:** `siwe:base` address is `wallet_address`.
+ * - **In-game CDP:** the **parent Smart Account** is `wallet_address` (Mode B).
+ *   Never the owner EOA and never a sub-account.
+ * - No SIWE and no smart account → `address: undefined` (not a player id).
  */
 
 export type CdpUserLike = {
@@ -14,20 +17,23 @@ export type CdpUserLike = {
 };
 
 export type PlayerIdentity = {
-    /** Sole `wallet_address` — Base Account. Undefined until siwe:base. */
+    /** Sole `wallet_address` for this session (SIWE/Base or CDP smart). */
     address: string | undefined;
     /** True when id is the SIWE / Sign-in-with-Base address. */
     isBaseAccount: boolean;
-    /** Diagnostic only — CDP embedded smart (email OTP). Do not persist. */
+    /** In-game smart (Mode B). Also `address` when there is no SIWE. */
     cdpSmartAccount: string | undefined;
     /** Diagnostic only — CDP owner EOA. Do not persist. */
     cdpOwnerEoa: string | undefined;
     userId: string | undefined;
 };
 
+const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
+
 /**
- * Resolve the only address allowed in `wallet_address` (Option A).
- * Email/OTP-only sessions return `address: undefined` — not a player id.
+ * Resolve the only address allowed in `wallet_address`.
+ * SIWE wins (external / Base Account). Otherwise the CDP parent smart
+ * account is the in-game player id. Owner EOA is never the id.
  */
 export function resolvePlayerIdentity(user: CdpUserLike | null | undefined): PlayerIdentity {
     const siwe = user?.authenticationMethods?.siwe?.address;
@@ -35,10 +41,21 @@ export function resolvePlayerIdentity(user: CdpUserLike | null | undefined): Pla
     const cdpOwnerEoa = user?.evmAccountObjects?.[0]?.address;
     const userId = user?.userId;
 
-    if (siwe && /^0x[a-fA-F0-9]{40}$/.test(siwe)) {
+    if (siwe && ADDR_RE.test(siwe)) {
         return {
             address: siwe.toLowerCase(),
             isBaseAccount: true,
+            cdpSmartAccount,
+            cdpOwnerEoa,
+            userId,
+        };
+    }
+
+    // Mode B — in-game CDP Smart Account is the player id.
+    if (cdpSmartAccount && ADDR_RE.test(cdpSmartAccount)) {
+        return {
+            address: cdpSmartAccount.toLowerCase(),
+            isBaseAccount: false,
             cdpSmartAccount,
             cdpOwnerEoa,
             userId,

@@ -8,6 +8,7 @@ import InGameWalletPanel from './InGameWalletPanel';
 import { isInGameWalletEnabled, writeWalletMode, readWalletMode } from '@/lib/walletMode';
 import { useIsSignedIn, useCurrentUser } from '@coinbase/cdp-hooks';
 import { resolvePlayerIdentity } from '@/lib/playerIdentity';
+import { hasSeenWalletReady } from '@/lib/walletOnboarding';
 
 interface LudoWalletModalProps {
     isOpen: boolean;
@@ -79,11 +80,26 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
         setMounted(true);
     }, []);
 
-    // Silent restore: live CDP session → hand off without showing the picker.
+    // First-time OAuth return: open the in-game page (ready / welcome stage).
     useEffect(() => {
         if (!isOpen) return;
         const id = resolvePlayerIdentity(currentUser);
-        if (isSignedIn && id.address && readWalletMode() === 'ingame') {
+        if (isSignedIn && id.address && !hasSeenWalletReady(id.address)) {
+            setShowInGame(true);
+        }
+    }, [isOpen, isSignedIn, currentUser]);
+
+    // Silent restore only after the user has completed "wallet ready" once.
+    // First-time OAuth return must land on ready → passkey, not skip the gate.
+    useEffect(() => {
+        if (!isOpen) return;
+        const id = resolvePlayerIdentity(currentUser);
+        if (
+            isSignedIn &&
+            id.address &&
+            readWalletMode() === 'ingame' &&
+            hasSeenWalletReady(id.address)
+        ) {
             onClose();
         }
     }, [isOpen, isSignedIn, currentUser, onClose]);
