@@ -9822,6 +9822,23 @@ body.theme-daybreak .boot-lock-alert {
   border: 1px solid rgba(52, 211, 153, 0.28);
   color: #34d399;
 }
+
+body.theme-daybreak .wl-eyebrow { color: rgba(15, 23, 42, 0.72); }
+body.theme-daybreak .wl-lead { color: rgba(15, 23, 42, 0.68); }
+body.theme-daybreak .wl-addr-label { color: rgba(15, 23, 42, 0.55); }
+body.theme-daybreak .wl-addr { color: #0f172a; }
+body.theme-daybreak .wl-addr-chip {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.1);
+}
+body.theme-daybreak .wl-input {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+}
+body.theme-daybreak .wl-input::placeholder { color: rgba(15, 23, 42, 0.4); }
+body.theme-daybreak .wl-mode-grid button span:last-child { color: rgba(15, 23, 42, 0.65); }
+
 .wl-toast.bad {
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.28);
@@ -9874,10 +9891,13 @@ body.theme-daybreak .cb-tab.active {
 /* ── Sub-screens: ink follows the card (dark Retro / light Daybreak) ── */
 /* Dark (default): map dark-sheet utilities to light ink */
 .cb-wallet-root .text-white,
+.cb-wallet-root .text-white\/95,
 .cb-wallet-root .text-white\/90,
+.cb-wallet-root .text-white\/85,
 .cb-wallet-root .text-white\/80,
 .cb-wallet-root .text-white\/75,
 .cb-wallet-root .text-white\/70,
+.cb-wallet-root .text-white\/65,
 .cb-wallet-root .text-white\/60 {
   color: #F3F5F9 !important;
 }
@@ -9959,10 +9979,13 @@ body.theme-daybreak .cb-tab.active {
 
 /* Daybreak sub-screens: dark ink on light card */
 body.theme-daybreak .cb-wallet-root .text-white,
+body.theme-daybreak .cb-wallet-root .text-white\/95,
 body.theme-daybreak .cb-wallet-root .text-white\/90,
+body.theme-daybreak .cb-wallet-root .text-white\/85,
 body.theme-daybreak .cb-wallet-root .text-white\/80,
 body.theme-daybreak .cb-wallet-root .text-white\/75,
 body.theme-daybreak .cb-wallet-root .text-white\/70,
+body.theme-daybreak .cb-wallet-root .text-white\/65,
 body.theme-daybreak .cb-wallet-root .text-white\/60 {
   color: #0A0B0D !important;
 }
@@ -9972,7 +9995,7 @@ body.theme-daybreak .cb-wallet-root .text-white\/45,
 body.theme-daybreak .cb-wallet-root .text-white\/40,
 body.theme-daybreak .cb-wallet-root .text-white\/35,
 body.theme-daybreak .cb-wallet-root .text-white\/30 {
-  color: rgba(10, 11, 13, 0.55) !important;
+  color: rgba(10, 11, 13, 0.72) !important;
 }
 body.theme-daybreak .cb-wallet-root .bg-black\/30,
 body.theme-daybreak .cb-wallet-root .bg-black\/40,
