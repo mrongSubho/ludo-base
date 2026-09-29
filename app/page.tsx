@@ -35,6 +35,7 @@ const FriendsPanel = dynamic(() => import('./components/FriendsPanel'));
 const _Leaderboard = dynamic(() => import('./components/Leaderboard'));
 const RankingsPanel = dynamic(() => import('./components/RankingsPanel'));
 const ArenaPanel = dynamic(() => import('./components/ArenaPanel'));
+const MissionPanel = dynamic(() => import('./components/MissionPanel'));
 const MarketplacePanel = dynamic(() => import('./components/MarketplacePanel'));
 const MessagesPanel = dynamic(() => import('./components/MessagesPanel'));
 const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal'));
@@ -631,14 +632,7 @@ export default function Page() {
                   />
                 )}
                 {activeTab === 'mission' && (
-                  <ArenaPanel
-                    key="mission"
-                    isOpen={true}
-                    onClose={closeTab}
-                    onSwitchTab={toggle}
-                    onWatchMatch={handleWatchMatch}
-                    defaultTab="missions"
-                  />
+                  <MissionPanel key="mission" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
                 )}
                 {activeTab === 'arena' && (
                   <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} />
