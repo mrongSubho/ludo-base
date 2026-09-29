@@ -11,6 +11,7 @@ import { DATA_SUFFIX } from "@/lib/builderCode";
 import { initTelemetry } from "@/lib/telemetry";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
+import BootLock from "./components/BootLock";
 import { TeamUpProvider } from "@/hooks/TeamUpContext";
 import { GameDataProvider } from "@/hooks/GameDataContext";
 import { InviteNotification } from "./components/InviteNotification";
@@ -81,6 +82,7 @@ export function Providers({ children }: { children: ReactNode }) {
                             <TeamUpProvider>
                                 <ProfileSyncer />
                                 <InviteNotification />
+                                <BootLock />
                                 {children}
                             </TeamUpProvider>
                         </GameDataProvider>
