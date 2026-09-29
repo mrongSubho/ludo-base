@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Boot lock — if the user has passkey / device Face ID set up, require
- * it on every app boot (SMART_WALLET_PLANNING §5 security prefs).
- * Session-scoped: unlocks once per page load / tab session.
+ * Boot lock — require passkey / device Face ID on **every page load**
+ * when the user is signed in (SMART_WALLET_PLANNING §5).
+ * Unlock is per document only (no sessionStorage — reload is a new boot).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
     useCurrentUser,
     useInitiateMfaVerification,
@@ -17,6 +17,9 @@ import {
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
 
+/** Reset on every full navigation / refresh — one unlock per boot. */
+let unlockedThisLoad = false;
+
 export default function BootLock() {
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
@@ -24,24 +27,15 @@ export default function BootLock() {
     const { initiateMfaVerification } = useInitiateMfaVerification();
     const { submitMfaVerification } = useSubmitMfaVerification();
     const { bootLock } = useSecurityPrefs();
-    const [unlocked, setUnlocked] = useState(false);
+    const [unlocked, setUnlocked] = useState(unlockedThisLoad);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [ready, setReady] = useState(false);
 
     const id = resolvePlayerIdentity(currentUser);
     const hasPasskey = Boolean((passkeys || []).length || currentUser?.mfaMethods?.passkey?.length);
 
-    useEffect(() => {
-        try {
-            if (sessionStorage.getItem("ludo-boot-unlocked") === "1") setUnlocked(true);
-        } catch {
-            /* ignore */
-        }
-        setReady(true);
-    }, []);
-
-    const required = ready && bootLock && isSignedIn && Boolean(id.address) && hasPasskey;
+    // Any live CDP session (address resolved) requires unlock on this load.
+    const required = bootLock && isSignedIn && Boolean(id.address) && !unlocked;
 
     const unlock = useCallback(async () => {
         setBusy(true);
@@ -64,11 +58,7 @@ export default function BootLock() {
                 setError("Passkey / device biometrics not available");
                 return;
             }
-            try {
-                sessionStorage.setItem("ludo-boot-unlocked", "1");
-            } catch {
-                /* ignore */
-            }
+            unlockedThisLoad = true;
             setUnlocked(true);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
@@ -77,7 +67,7 @@ export default function BootLock() {
         }
     }, [hasPasskey, initiateMfaVerification, submitMfaVerification]);
 
-    if (!required || unlocked) return null;
+    if (!required) return null;
 
     return (
         <div className="boot-lock" role="dialog" aria-modal="true" aria-label="Unlock">
@@ -89,7 +79,11 @@ export default function BootLock() {
                     </svg>
                 </div>
                 <h2 className="boot-lock-title">Welcome back</h2>
-                <p className="boot-lock-sub">Unlock Ludo with your passkey / Face ID</p>
+                <p className="boot-lock-sub">
+                    {hasPasskey
+                        ? "Unlock Ludo with your passkey / Face ID"
+                        : "Unlock Ludo with Face ID / Touch ID"}
+                </p>
                 {error && <p className="boot-lock-err">{error}</p>}
                 <button type="button" className="boot-lock-cta" disabled={busy} onClick={unlock}>
                     {busy ? "Waiting for biometric…" : "Unlock"}
