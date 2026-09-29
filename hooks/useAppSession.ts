@@ -6,6 +6,7 @@ import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { AppSessionGuard } from '@/lib/appSessionGuard';
+import { readSecurityPrefs } from '@/hooks/useSecurityPrefs';
 
 const STORAGE_KEY = 'ludo-siwe-session';
 
@@ -80,6 +81,23 @@ export function useAppSession() {
         if (!address) return null;
         const result = await guard.ensure(address, {
             sign: async () => {
+                // autoSign off → require device Face ID / Touch ID before
+                // CDP/background message sign (security prefs).
+                if (!readSecurityPrefs().autoSign && typeof window !== "undefined" && window.PublicKeyCredential) {
+                    try {
+                        const ch = crypto.getRandomValues(new Uint8Array(32));
+                        await navigator.credentials.get({
+                            publicKey: {
+                                challenge: ch,
+                                rpId: window.location.hostname,
+                                userVerification: "required",
+                                timeout: 60_000,
+                            },
+                        });
+                    } catch {
+                        return Promise.reject(new Error("Device biometrics required to sign in"));
+                    }
+                }
                 const domain = window.location.hostname;
                 const issuedAt = new Date().toISOString();
                 const expirationTime = new Date(Date.now() + APP_SESSION_TTL_MS).toISOString();

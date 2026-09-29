@@ -9597,6 +9597,86 @@ body.theme-daybreak .theme-nudge-close {
   color: rgba(23, 23, 23, 0.45);
 }
 
+
+/* ── Boot lock ───────────────────────────────────────────────────────── */
+.boot-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(6, 8, 14, 0.72);
+  backdrop-filter: blur(10px);
+}
+body.theme-daybreak .boot-lock {
+  background: rgba(241, 245, 249, 0.82);
+}
+.boot-lock-card {
+  width: min(360px, 100%);
+  padding: 28px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0c0e14;
+  color: #f3f5f9;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+body.theme-daybreak .boot-lock-card {
+  background: #fff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.1);
+}
+.boot-lock-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(0, 82, 255, 0.18);
+  color: #8eb6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.theme-daybreak .boot-lock-badge {
+  background: rgba(0, 82, 255, 0.12);
+  color: #0052ff;
+}
+.boot-lock-title {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.boot-lock-sub {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.65;
+}
+.boot-lock-err {
+  margin: 0;
+  font-size: 12px;
+  color: #f87171;
+}
+.boot-lock-cta {
+  width: 100%;
+  margin-top: 8px;
+  border: none;
+  border-radius: 14px;
+  background: #0052ff;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 750;
+  padding: 14px;
+  cursor: pointer;
+}
+.boot-lock-cta:disabled {
+  opacity: 0.5;
+}
+
 .cb-empty {
   margin: 0;
   padding: 14px;

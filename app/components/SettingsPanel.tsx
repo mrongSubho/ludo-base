@@ -5,6 +5,7 @@ import { useDisconnect } from 'wagmi';
 import { useSignOut } from '@coinbase/cdp-hooks';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useSecurityPrefs } from '@/hooks/useSecurityPrefs';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
@@ -177,6 +178,13 @@ const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
         </div>
         <Switch on={on} onToggle={onToggle} label={label} />
     </div>
+);
+
+const LockIcon = () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="10" width="14" height="10" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
 );
 
 const WalletGlyph = () => (
@@ -385,6 +393,7 @@ export function SettingsPanel({
     onOpenWallet?: () => void;
 }) {
     const { preferences, updatePreference } = usePreferences();
+    const security = useSecurityPrefs();
     const { disconnect } = useDisconnect();
     const { signOut: cdpSignOut } = useSignOut();
     const { isGuest } = useCurrentUser();
@@ -489,6 +498,44 @@ export function SettingsPanel({
                                         on={preferences.haptics} onToggle={() => updatePreference('ludo-haptic', preferences.haptics ? 'off' : 'on')}
                                     />
                                 </div>
+                            </section>
+
+                            {/* Security — signing / approval policy */}
+                            <section>
+                                <SectionLabel>Security</SectionLabel>
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                                    <PrefRow
+                                        icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
+                                        label="Unlock every launch"
+                                        hint="Passkey / Face ID on boot (if enrolled)"
+                                        on={security.bootLock}
+                                        onToggle={() => security.setBootLock(!security.bootLock)}
+                                    />
+                                    <PrefRow
+                                        icon={<WalletGlyph />} tint="bg-cyan-500/15 text-cyan-300"
+                                        label="Auto-approve sign-in"
+                                        hint="CDP signs match / DM messages without extra prompts"
+                                        on={security.autoSign}
+                                        onToggle={() => security.setAutoSign(!security.autoSign)}
+                                    />
+                                    <PrefRow
+                                        icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
+                                        label="Confirm txs without passkey"
+                                        hint={security.txStepUp === "confirm"
+                                            ? "Send / swap only need Confirm in Ludo"
+                                            : "Passkey / device Face ID required for send & swap"}
+                                        on={security.txStepUp === "confirm"}
+                                        onToggle={() =>
+                                            security.setTxStepUp(
+                                                security.txStepUp === "confirm" ? "strict" : "confirm",
+                                            )
+                                        }
+                                        last
+                                    />
+                                </div>
+                                <p className="text-[10px] font-bold text-white/30 mt-2 px-1">
+                                    Strict mode (default): a transaction is blocked without passkey or device biometrics.
+                                </p>
                             </section>
 
                             {/* Appearance */}
