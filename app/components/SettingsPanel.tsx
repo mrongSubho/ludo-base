@@ -2,7 +2,13 @@
 
 import React, { useState } from 'react';
 import { useDisconnect } from 'wagmi';
-import { useSignOut } from '@coinbase/cdp-hooks';
+import {
+    useDeletePasskey,
+    useEnrollPasskey,
+    useIsPasskeySupported,
+    useListPasskeys,
+    useSignOut,
+} from '@coinbase/cdp-hooks';
 import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useSecurityPrefs } from '@/hooks/useSecurityPrefs';
@@ -393,6 +399,13 @@ export function SettingsPanel({
     const { preferences, updatePreference } = usePreferences();
     const security = useSecurityPrefs();
     const player = usePlayerSigner();
+    const passkeySupported = useIsPasskeySupported();
+    const { enrollPasskey, status: enrollStatus } = useEnrollPasskey();
+    const { data: passkeys, refetch: refetchPasskeys } = useListPasskeys();
+    const { deletePasskeyAsync } = useDeletePasskey();
+    const [passkeyBusy, setPasskeyBusy] = useState(false);
+    const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
+    const passkeyCount = (passkeys || []).length;
     const { disconnect } = useDisconnect();
     const { signOut: cdpSignOut } = useSignOut();
     const { isGuest } = useCurrentUser();
@@ -543,6 +556,70 @@ export function SettingsPanel({
                                                 onOpenWallet?.();
                                             }}
                                         />
+                                        <div className="p-3.5">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <div className="text-[13px] font-bold text-white truncate">Device unlock</div>
+                                                    <div className="text-[10px] font-bold text-white/35">
+                                                        Passkey · Face ID / Touch ID
+                                                        {passkeyCount > 0 ? ` · ${passkeyCount} active` : ''}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="shrink-0 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider disabled:opacity-40"
+                                                    disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
+                                                    onClick={async () => {
+                                                        setPasskeyBusy(true);
+                                                        setPasskeyMsg(null);
+                                                        try {
+                                                            await enrollPasskey();
+                                                            await refetchPasskeys();
+                                                            setPasskeyMsg('Device unlock added.');
+                                                        } catch {
+                                                            setPasskeyMsg('Could not add device unlock.');
+                                                        } finally {
+                                                            setPasskeyBusy(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {enrollStatus === 'pending' ? 'Wait…' : passkeyCount > 0 ? 'Add' : 'Enable'}
+                                                </button>
+                                            </div>
+                                            {!passkeySupported.data && (
+                                                <p className="mt-1 text-[10px] text-amber-300/80">Not available in this browser</p>
+                                            )}
+                                            {passkeyMsg && <p className="mt-1 text-[10px] text-white/50">{passkeyMsg}</p>}
+                                            {passkeyCount > 0 && (
+                                                <ul className="mt-2 space-y-1">
+                                                    {(passkeys || []).map((pk: { credentialId: string }) => (
+                                                        <li key={pk.credentialId} className="flex items-center justify-between gap-2">
+                                                            <span className="text-[11px] font-mono text-white/60 truncate">
+                                                                {pk.credentialId.slice(0, 14)}…
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                className="text-[10px] uppercase text-red-300/80"
+                                                                disabled={passkeyBusy}
+                                                                onClick={async () => {
+                                                                    setPasskeyBusy(true);
+                                                                    try {
+                                                                        await deletePasskeyAsync(pk.credentialId);
+                                                                        await refetchPasskeys();
+                                                                    } catch {
+                                                                        /* ignore */
+                                                                    } finally {
+                                                                        setPasskeyBusy(false);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
                                         <PrefRow
                                             icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
                                             label="Unlock every launch"
