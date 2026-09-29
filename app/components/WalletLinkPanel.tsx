@@ -7,46 +7,85 @@ import { buildWalletLinkMessage } from "@/lib/walletLink";
 import { useWalletSigner } from "@/hooks/useWalletSigner";
 
 /**
- * W3 — Profile switcher + optional two-sig wallet link.
- * Session-scoped wallet_address only. Progression is never auto-merged.
+ * W3 — Session wallet switcher + optional two-sig link.
+ * Progression is never auto-merged. No funds move on link.
  */
+
+function shortAddr(a?: string) {
+    if (!a) return "—";
+    return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
+const ModeChip = ({
+    active,
+    label,
+    hint,
+    onClick,
+}: {
+    active: boolean;
+    label: string;
+    hint: string;
+    onClick: () => void;
+}) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={`flex-1 rounded-2xl border px-3 py-3 text-left transition-all ${
+            active
+                ? "border-cyan-400/50 bg-cyan-500/15 shadow-[0_0_18px_rgba(34,211,238,0.12)]"
+                : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+        }`}
+    >
+        <div className="flex items-center gap-2">
+            <span
+                className={`w-2 h-2 rounded-full ${active ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "bg-white/25"}`}
+            />
+            <span className="text-[12px] font-extrabold tracking-[0.06em] uppercase text-white">
+                {label}
+            </span>
+        </div>
+        <div className="mt-1 text-[10px] font-semibold text-white/40 leading-snug">{hint}</div>
+    </button>
+);
+
 export default function WalletLinkPanel() {
     const player = usePlayerSigner();
     const external = useWalletSigner();
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
+    const [ok, setOk] = useState(false);
     const [linkedAddr, setLinkedAddr] = useState("");
 
     const mode = readWalletMode();
 
     const switchMode = useCallback((m: WalletMode) => {
         writeWalletMode(m);
-        setMsg(m === "ingame" ? "Switched to in-game wallet for this session" : "Switched to external wallet");
+        setOk(m === "ingame");
+        setMsg(m === "ingame" ? "Playing as in-game wallet" : "Playing as external wallet");
     }, []);
 
     const linkWallets = useCallback(async () => {
         setBusy(true);
         setMsg(null);
+        setOk(false);
         try {
             const current = player.address;
             const other = linkedAddr.trim().toLowerCase();
             if (!current || !other) {
-                setMsg("Need a current wallet and a second address");
+                setMsg("Enter the second wallet address first.");
                 return;
             }
             if (current.toLowerCase() === other) {
-                setMsg("Cannot link the same address");
+                setMsg("That’s the same wallet — pick a different address.");
                 return;
             }
             const issuedAt = new Date().toISOString();
             const message = buildWalletLinkMessage({ primary: current, linked: other, issuedAt });
 
-            // Sign as active player (primary)
             const primarySignature = await player.signMessageAsync({
                 account: current as `0x${string}`,
                 message,
             });
-            // Sign as the other wallet (must be the other mode's signer when available)
             const otherSigner = external.address?.toLowerCase() === other ? external : player;
             const linkedSignature = await otherSigner.signMessageAsync({
                 account: other as `0x${string}`,
@@ -69,9 +108,8 @@ export default function WalletLinkPanel() {
                 setMsg(data.error || `Link failed (${res.status})`);
                 return;
             }
-            setMsg(
-                "Linked. Profiles stay separate (no LXP/RXP merge). Switch mode above to play as either wallet.",
-            );
+            setOk(true);
+            setMsg("Wallets linked. Stats stay separate — switch above to play as either.");
         } catch (e) {
             setMsg(e instanceof Error ? e.message : String(e));
         } finally {
@@ -80,60 +118,61 @@ export default function WalletLinkPanel() {
     }, [player, external, linkedAddr]);
 
     return (
-        <div className="space-y-3">
-            <div>
-                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                    Play as
-                </h4>
-                <p className="text-[11px] text-white/45 mt-1">
-                    Session only — does not change saved history.
-                </p>
-                <div className="flex gap-2 mt-2">
-                    <button
-                        type="button"
-                        className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase border ${mode === "ingame" ? "bg-cyan-500/25 border-cyan-400/50" : "border-white/15"}`}
+        <div className="wl-root">
+            {/* Play as */}
+            <div className="wl-block">
+                <div className="wl-eyebrow">Active wallet</div>
+                <div className="wl-mode-grid">
+                    <ModeChip
+                        active={mode === "ingame"}
+                        label="In-game"
+                        hint="CDP smart · Ludo UI"
                         onClick={() => switchMode("ingame")}
-                    >
-                        In-game
-                    </button>
-                    <button
-                        type="button"
-                        className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase border ${mode === "external" || !mode ? "bg-cyan-500/25 border-cyan-400/50" : "border-white/15"}`}
+                    />
+                    <ModeChip
+                        active={mode === "external" || !mode}
+                        label="External"
+                        hint="Base · MetaMask · Phantom"
                         onClick={() => switchMode("external")}
-                    >
-                        External
-                    </button>
+                    />
                 </div>
-                <p className="text-[10px] text-white/40 font-mono mt-1 break-all">
-                    {player.address || "—"}
-                </p>
+                <div className="wl-addr-chip">
+                    <span className="wl-addr-label">Now</span>
+                    <span className="wl-addr mono">{shortAddr(player.address)}</span>
+                </div>
             </div>
 
-            <div className="border-t border-white/10 pt-3">
-                <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/70">
-                    Link another wallet
-                </h4>
-                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">
-                    Optional. You sign with both wallets. Stats stay separate. No funds move.
+            {/* Link */}
+            <div className="wl-block">
+                <div className="wl-eyebrow">Link a wallet</div>
+                <p className="wl-lead">
+                    Sign with both wallets once. Scores stay separate. Nothing moves on-chain.
                 </p>
-                <div className="flex gap-2 mt-2">
+                <div className="wl-link-row">
                     <input
-                        className="flex-1 rounded-lg border border-white/20 bg-black/40 px-2 py-2 text-[11px] font-mono"
-                        placeholder="0x other wallet"
+                        className="wl-input"
+                        placeholder="0x…"
                         value={linkedAddr}
                         onChange={(e) => setLinkedAddr(e.target.value)}
+                        spellCheck={false}
+                        autoComplete="off"
                     />
                     <button
                         type="button"
-                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase font-bold"
-                        disabled={busy}
+                        className="wl-btn"
+                        disabled={busy || !linkedAddr.trim()}
                         onClick={linkWallets}
                     >
-                        Link
+                        {busy ? "…" : "Link"}
                     </button>
                 </div>
-                {msg && <p className="text-[11px] text-white/60 mt-2">{msg}</p>}
             </div>
+
+            {msg && (
+                <div className={`wl-toast ${ok ? "ok" : "bad"}`} role="status">
+                    {msg}
+                </div>
+            )}
         </div>
     );
 }
