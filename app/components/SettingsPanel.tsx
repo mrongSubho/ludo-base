@@ -392,6 +392,7 @@ export function SettingsPanel({
 }) {
     const { preferences, updatePreference } = usePreferences();
     const security = useSecurityPrefs();
+    const player = usePlayerSigner();
     const { disconnect } = useDisconnect();
     const { signOut: cdpSignOut } = useSignOut();
     const { isGuest } = useCurrentUser();
