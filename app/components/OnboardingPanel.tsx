@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useWriteContract } from 'wagmi';
 import type { Address, Hex } from 'viem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -215,168 +216,230 @@ export const OnboardingPanel = () => {
 
     return (
         <div className="flex flex-col gap-2 pb-2">
-            {/* Section header helper */}
+            {/* Mission-quality section labels + cards (match MissionPanel) */}
             {(() => {
-                const coreTracks = tracks.filter((t) => t.core);
-                const extTracks = tracks.filter((t) => !t.core);
-                const coreSum = coreTracks.reduce((s, t) => s + (t.reward || 0), 0);
-                const extSum = extTracks.reduce((s, t) => s + (t.reward || 0), 0);
+                const coreTracks = tracks.filter((x) => x.core);
+                const extTracks = tracks.filter((x) => !x.core);
+                const coreSum = coreTracks.reduce((s, x) => s + (x.reward || 0), 0);
+                const extSum = extTracks.reduce((s, x) => s + (x.reward || 0), 0);
 
-                const TrackCard = (t: TrackRow) => {
-                    const pct = Math.min(((t.progress || 0) / Math.max(t.target, 1)) * 100, 100);
+                const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
+                    <div className="flex items-center gap-2.5 mb-2">
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+                            {children}
+                        </span>
+                        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
+                        {right}
+                    </div>
+                );
+
+                const TrackIcon = ({ track }: { track: string }) => {
+                    const map: Record<string, { bg: string; color: string; glyph: string }> = {
+                        tutorial: { bg: 'bg-cyan-500/15', color: 'text-cyan-300', glyph: 'T' },
+                        ai_classic: { bg: 'bg-indigo-500/15', color: 'text-indigo-300', glyph: 'C' },
+                        ai_power: { bg: 'bg-violet-500/15', color: 'text-violet-300', glyph: 'P' },
+                        ai_snakes: { bg: 'bg-emerald-500/15', color: 'text-emerald-300', glyph: 'S' },
+                        pvp: { bg: 'bg-rose-500/15', color: 'text-rose-300', glyph: 'VS' },
+                        playtime: { bg: 'bg-amber-500/15', color: 'text-amber-300', glyph: 'T' },
+                        social: { bg: 'bg-sky-500/15', color: 'text-sky-300', glyph: 'S' },
+                        day2: { bg: 'bg-teal-500/15', color: 'text-teal-300', glyph: '2' },
+                        day3: { bg: 'bg-teal-500/15', color: 'text-teal-300', glyph: '3' },
+                        friend_dm: { bg: 'bg-fuchsia-500/15', color: 'text-fuchsia-300', glyph: 'DM' },
+                        clan: { bg: 'bg-orange-500/15', color: 'text-orange-300', glyph: 'C' },
+                    };
+                    const b = map[track] || { bg: 'bg-white/10', color: 'text-white', glyph: '·' };
                     return (
-                        <div
-                            key={t.track}
-                            className="flex flex-col gap-2 bg-white/[0.04] border border-white/10 p-3 rounded-2xl"
+                        <div className={`w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 ${b.bg} ${b.color} text-sm font-black shadow-inner border border-white/5`}>
+                            {b.glyph}
+                        </div>
+                    );
+                };
+
+                const TrackCard = (x: TrackRow) => {
+                    const isCompleted = (x.progress || 0) >= x.target;
+                    const isClaimed = x.is_claimed;
+                    const progressPercent = Math.min(((x.progress || 0) / Math.max(x.target, 1)) * 100, 100);
+                    return (
+                        <motion.div
+                            layout
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            key={x.track}
+                            className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1 min-w-0">
-                                    <span className={`text-[13px] font-bold truncate ${t.is_claimed ? 'text-cyan-300' : 'text-white'}`}>
-                                        {t.label}
-                                    </span>
-                                    <div className="text-[10px] text-white/45 mt-0.5 tabular-nums">
-                                        {t.progress}/{t.target} · {t.reward} CHIPS
+                            {isCompleted && (
+                                <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
+                            )}
+                            <div className="flex items-start gap-4">
+                                <TrackIcon track={x.track} />
+                                <div className="flex flex-col flex-1 min-w-0 pt-0.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className={`font-bold text-[15px] truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}>
+                                            {x.label}
+                                        </h3>
+                                        <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
+                                                <path d="M6 3h12l4 6-10 13L2 9z" />
+                                                <path d="M11 3 8 9l4 13 4-13-3-6" />
+                                            </svg>
+                                            <span className="text-[11px] font-black leading-none text-cyan-400">{x.reward}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug pr-2">
+                                        {x.progress || 0} / {x.target} · {x.reward} CHIPS
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1">
+                                <div className="flex-1">
+                                    <div className="flex items-end justify-between mb-1.5 px-0.5">
+                                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
+                                        <span className={`text-xs font-black ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                                            {x.progress || 0} <span className="text-white/30 text-[10px]">/ {x.target}</span>
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
+                                            style={{ width: `${progressPercent}%` }}
+                                        />
                                     </div>
                                 </div>
-                                {t.is_claimed ? (
-                                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/30">
-                                        Claimed
-                                    </span>
-                                ) : (
-                                    <button
-                                        onClick={() => handleClaim(t.track)}
-                                        disabled={!t.claimable || claimingId !== null}
-                                        className={`px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-[0.18em] transition-all ${
-                                            t.claimable
-                                                ? 'bg-cyan-400 text-black hover:bg-cyan-300 active:scale-[0.98] shadow-[0_0_16px_rgba(34,211,238,0.35)]'
-                                                : 'bg-white/5 text-white/30 cursor-not-allowed'
+                                <button
+                                    onClick={() => handleClaim(x.track)}
+                                    disabled={isClaimed || !x.claimable || claimingId !== null}
+                                    className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
+                                        ${isClaimed
+                                            ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
+                                            : x.claimable
+                                                ? 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
+                                                : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
                                         }`}
-                                    >
-                                        {claimingId === t.track ? '...' : 'Claim'}
-                                    </button>
-                                )}
+                                >
+                                    {claimingId === x.track ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : isClaimed ? (
+                                        'Claimed'
+                                    ) : x.claimable ? (
+                                        <span className="flex items-center gap-1">
+                                            CLAIM
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        </span>
+                                    ) : (
+                                        'GO'
+                                    )}
+                                </button>
                             </div>
-                            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                                <div
-                                    className="h-full rounded-full bg-cyan-400 transition-all"
-                                    style={{ width: `${pct}%` }}
-                                />
-                            </div>
-                        </div>
+                        </motion.div>
                     );
                 };
 
                 return (
                     <>
-                        {/* ── Welcome grant ── */}
-                        <div className="flex items-center gap-3 bg-white/[0.04] border border-white/10 p-3 rounded-2xl">
-                            <div className="flex-1 min-w-0">
-                                <div className="text-[13px] font-bold text-white uppercase tracking-wide">Welcome grant</div>
-                                <div className="text-[11px] text-white/50 mt-0.5">One-time 50 CHIPS on first wallet link</div>
+                        {/* Welcome — same card language */}
+                        <div className="flex items-center gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl">
+                            <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center flex-shrink-0">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 text-cyan-300">
+                                    <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                                </svg>
                             </div>
-                            {welcomeClaimed ? (
-                                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/30">
-                                    Claimed
-                                </span>
-                            ) : (
-                                <button
-                                    onClick={() => handleClaim(WELCOME_ID)}
-                                    disabled={claimingId !== null}
-                                    className="px-3 py-2 rounded-xl bg-cyan-400 text-black text-[11px] font-black uppercase tracking-[0.18em] hover:bg-cyan-300 active:scale-[0.98] transition-all disabled:opacity-50"
-                                >
-                                    {claimingId === WELCOME_ID ? '...' : 'Claim'}
-                                </button>
-                            )}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                    <h3 className="font-bold text-[15px] text-white">Welcome grant</h3>
+                                    <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
+                                        <span className="text-[11px] font-black leading-none text-cyan-400">50</span>
+                                    </div>
+                                </div>
+                                <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug">One-time 50 CHIPS on first wallet link</p>
+                            </div>
+                            <button
+                                onClick={() => handleClaim(WELCOME_ID)}
+                                disabled={claimingId !== null || welcomeClaimed}
+                                className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95
+                                    ${welcomeClaimed
+                                        ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
+                                        : 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
+                                    }`}
+                            >
+                                {welcomeClaimed ? 'Claimed' : claimingId === WELCOME_ID ? '…' : 'CLAIM'}
+                            </button>
                         </div>
 
-                        {/* ── Core package · 1,000 CHIPS ── */}
-                        <div className="flex items-center justify-between gap-2 mt-2">
-                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
-                                Core package
-                            </div>
-                            <div className="text-[10px] font-black text-cyan-300 tabular-nums uppercase tracking-wide">
-                                {coreSum || 1000} CHIPS
-                            </div>
-                        </div>
-                        <p className="text-[10px] text-white/40 -mt-1 mb-0.5">
-                            Complete these to unlock extended missions.
-                        </p>
+                        <SectionLabel right={<span className="text-[10px] font-black text-cyan-300 tabular-nums">{coreSum || 1000} CHIPS</span>}>
+                            Core package
+                        </SectionLabel>
+                        <p className="text-[11px] text-white/45 mb-2 -mt-1">Finish core missions to unlock extended rewards.</p>
                         {loading && tracks.length === 0 ? (
-                            <div className="flex items-center justify-center py-10">
+                            <div className="flex items-center justify-center py-12">
                                 <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                             </div>
                         ) : coreTracks.length === 0 ? (
-                            <div className="text-white/40 text-xs text-center py-6">No core missions yet — play a match to begin.</div>
+                            <div className="text-white/40 text-xs text-center py-10">No core missions yet — play a match to begin.</div>
                         ) : (
-                            <div className="flex flex-col gap-2">{coreTracks.map(TrackCard)}</div>
+                            <div className="flex flex-col gap-2">
+                                <AnimatePresence mode="popLayout">{coreTracks.map(TrackCard)}</AnimatePresence>
+                            </div>
                         )}
 
-                        {/* ── Extended missions ── */}
-                        <div className="flex items-center justify-between gap-2 mt-3">
-                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
-                                Extended missions
-                            </div>
-                            <div className="text-[10px] font-black text-white/50 tabular-nums uppercase tracking-wide">
-                                {extSum} CHIPS
-                            </div>
-                        </div>
-                        <p className="text-[10px] text-white/40 -mt-1 mb-0.5">
-                            Unlocks after the core package is claimed.
-                        </p>
-                        {extTracks.length === 0 ? (
-                            <div className="text-white/40 text-xs text-center py-6">No extended missions yet.</div>
-                        ) : (
-                            <div className="flex flex-col gap-2">{extTracks.map(TrackCard)}</div>
-                        )}
-
-                        {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-1">{notice}</div>}
-
-                        {/* ── Invite / referral (last) ── */}
                         <div className="mt-3">
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
-                                    Invite
+                            <SectionLabel right={<span className="text-[10px] font-black text-white/50 tabular-nums">{extSum} CHIPS</span>}>
+                                Extended missions
+                            </SectionLabel>
+                            <p className="text-[11px] text-white/45 mb-2 -mt-1">Unlocks after the core package is claimed.</p>
+                            {extTracks.length === 0 ? (
+                                <div className="text-white/40 text-xs text-center py-10">No extended missions yet.</div>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <AnimatePresence mode="popLayout">{extTracks.map(TrackCard)}</AnimatePresence>
                                 </div>
-                                {referral && (
-                                    <div className="text-[10px] font-black text-white/50 tabular-nums uppercase tracking-wide">
-                                        {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
-                                    </div>
-                                )}
-                            </div>
-                            <div className="mt-1 bg-white/[0.04] border border-white/10 p-3 rounded-2xl flex flex-col gap-2">
-                                <div className="text-[11px] text-white/50">
-                                    Share your code. Tiers: 50 CHIPS for early referees, 10 after the top slots fill.
-                                </div>
+                            )}
+                        </div>
+
+                        {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-2">{notice}</div>}
+
+                        {/* Invite — last, same card shell */}
+                        <div className="mt-4">
+                            <SectionLabel right={referral ? (
+                                <span className="text-[10px] font-black text-white/50 tabular-nums">
+                                    {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
+                                </span>
+                            ) : undefined}>
+                                Invite
+                            </SectionLabel>
+                            <div className="bg-white/[0.04] border border-white/10 p-4 rounded-2xl flex flex-col gap-3">
+                                <p className="text-[11px] font-medium text-white/60 leading-snug">
+                                    Share your code. Early referees earn 50 CHIPS, then 10 after top slots fill.
+                                </p>
                                 <div className="flex items-center gap-2">
                                     <div
                                         onClick={copyCode}
-                                        className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-cyan-400/30 font-mono text-cyan-300 text-sm cursor-pointer select-all"
+                                        className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-cyan-400/30 font-mono text-cyan-300 text-sm cursor-pointer select-all"
                                     >
                                         {referral?.code || '—'}
                                     </div>
                                     <button
                                         onClick={copyCode}
-                                        className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all"
+                                        className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10"
                                     >
                                         {copied ? 'Copied' : 'Copy'}
                                     </button>
                                 </div>
                                 {referral?.referrer ? (
-                                    <div className="text-[10px] text-white/40 font-mono">
-                                        Referred by {referral.referrer.slice(0, 10)}…
-                                    </div>
+                                    <div className="text-[10px] text-white/40 font-mono">Referred by {referral.referrer.slice(0, 10)}…</div>
                                 ) : (
                                     <div className="flex items-center gap-2">
                                         <input
                                             value={referralCodeInput}
                                             onChange={(e) => setReferralCodeInput(e.target.value)}
                                             placeholder="REFERRAL CODE"
-                                            className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
+                                            className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
                                         />
                                         <button
                                             onClick={bindReferral}
                                             disabled={!referralCodeInput.trim()}
-                                            className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all disabled:opacity-40"
+                                            className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10 disabled:opacity-40"
                                         >
                                             Bind
                                         </button>
