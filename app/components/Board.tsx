@@ -202,13 +202,16 @@ export default function Board({
     const liveInventory: PowerItem[] = showInventory
         ? ((localGameState.playerPowers?.[ownColor!] || []).filter((p: PowerItem) => p.expiresAt > Date.now()))
         : [];
-    const groupedInventory = (['nuke', 'shield', 'boost', 'teleport'] as PowerType[])
+    // Always list every power type (0-count orbs stay visible — game inventory bar).
+    const groupedInventory = (['boost', 'shield', 'teleport', 'nuke'] as PowerType[])
         .map(t => {
             const items = liveInventory.filter(p => p.type === t);
-            if (items.length === 0) return null;
-            return { type: t, count: items.length, soonest: Math.min(...items.map(p => p.expiresAt)) };
-        })
-        .filter((g): g is { type: PowerType; count: number; soonest: number } => g !== null);
+            return {
+                type: t,
+                count: items.length,
+                soonest: items.length ? Math.min(...items.map(p => p.expiresAt)) : 0,
+            };
+        });
     const canSpend = showInventory && isMyTurn && localGameState.gamePhase === 'rolling' && !localGameState.powerSpentThisTurn;
     useEffect(() => {
         setTargeting(null);
@@ -323,34 +326,33 @@ export default function Board({
                 counterRotationDeg={counterRotationDeg}
             />
 
-            {/* ── Power inventory: bottom-centered tiny badges ── */}
-            {groupedInventory.length > 0 && (
-                <div className="fixed bottom-[88px] left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-md border border-white/10 shadow-xl">
+            {/* ── Power inventory: large game-style orb row (always visible) ── */}
+            {showInventory && (
+                <div className="fixed bottom-[72px] left-1/2 -translate-x-1/2 z-[60] flex items-end gap-3 sm:gap-4 px-2">
                     {targeting && (
-                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-300 animate-pulse">
+                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black uppercase tracking-[0.22em] text-amber-300 animate-pulse whitespace-nowrap">
                             Tap a token
                         </span>
                     )}
                     {groupedInventory.map(g => {
-                        const secsLeft = Math.max(0, Math.round((g.soonest - Date.now()) / 1000));
-                        const expiring = secsLeft < 30;
-                        const mm = Math.floor(secsLeft / 60);
-                        const ss = String(secsLeft % 60).padStart(2, '0');
+                        const has = g.count > 0;
+                        const secsLeft = g.soonest ? Math.max(0, Math.round((g.soonest - Date.now()) / 1000)) : 0;
+                        const expiring = has && secsLeft < 30;
                         return (
                             <button
                                 key={g.type}
                                 onClick={() => spendPower(g.type)}
-                                disabled={!canSpend}
-                                aria-label={`Use ${g.type} power, ${g.count} held, expires in ${mm}:${ss}`}
-                                className={`relative w-9 h-9 rounded-full flex items-center justify-center border transition-all active:scale-90 disabled:opacity-60 ${targeting?.type === g.type ? 'border-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.7)]' : 'border-white/15 bg-white/5 hover:bg-white/10'} ${expiring ? 'animate-pulse border-amber-400/70' : ''}`}
+                                disabled={!canSpend || !has}
+                                aria-label={`Use ${g.type} power, ${g.count} held${has ? `, expires in ${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}` : ''}`}
+                                className={`power-orb power-orb-${g.type} relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-2 transition-all active:scale-90 disabled:opacity-70 ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${expiring ? 'animate-pulse' : ''} ${has ? '' : 'power-orb-empty'}`}
                             >
                                 <PowerGlyph type={g.type} />
-                                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-cyan-500 text-black text-[9px] font-black flex items-center justify-center">
-                                    {g.count}
-                                </span>
-                                <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 text-[7px] font-mono tabular-nums ${expiring ? 'text-amber-300' : 'text-white/40'}`}>
-                                    {mm}:{ss}
-                                </span>
+                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
+                                {has && secsLeft > 0 && (
+                                    <span className={`power-orb-timer ${expiring ? 'warn' : ''}`}>
+                                        {Math.floor(secsLeft / 60)}:{String(secsLeft % 60).padStart(2, '0')}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
@@ -450,24 +452,37 @@ function useBoardLayoutRotation(smoothProgress: any) {
     return useTransform(smoothProgress, [0, 1], [270, -90]);
 }
 
-// Tiny power glyphs (no emoji): shield / boost bolt / nuke rings / teleport swirl.
+// Power glyphs — sized for the large orb row.
 function PowerGlyph({ type }: { type: PowerType }) {
+    const cls = 'w-7 h-7 sm:w-8 sm:h-8';
     if (type === 'shield') {
         return (
-            <svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5l8-3z" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+                <path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5l8-3z" />
+            </svg>
         );
     }
     if (type === 'boost') {
         return (
-            <svg viewBox="0 0 24 24" fill="#facc15" className="w-4 h-4"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+            <svg viewBox="0 0 24 24" fill="#facc15" className={cls}>
+                <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
+            </svg>
         );
     }
     if (type === 'nuke') {
         return (
-            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" className="w-4 h-4"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.5" fill="#f87171" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2" className={cls}>
+                <circle cx="12" cy="12" r="8" />
+                <circle cx="12" cy="12" r="2.5" fill="#f87171" />
+            </svg>
         );
     }
     return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 12a8 8 0 0 1 14-5l2 2" /><path d="M20 4v5h-5" /><path d="M20 12a8 8 0 0 1-14 5l-2-2" /><path d="M4 20v-5h5" /></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+            <path d="M4 12a8 8 0 0 1 14-5l2 2" />
+            <path d="M20 4v5h-5" />
+            <path d="M20 12a8 8 0 0 1-14 5l-2-2" />
+            <path d="M4 20v-5h5" />
+        </svg>
     );
 }
