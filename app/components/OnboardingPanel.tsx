@@ -234,23 +234,72 @@ export const OnboardingPanel = () => {
                 );
 
                 const TrackIcon = ({ track }: { track: string }) => {
-                    const map: Record<string, { bg: string; color: string; glyph: string }> = {
-                        tutorial: { bg: 'bg-cyan-500/15', color: 'text-cyan-300', glyph: 'T' },
-                        ai_classic: { bg: 'bg-indigo-500/15', color: 'text-indigo-300', glyph: 'C' },
-                        ai_power: { bg: 'bg-violet-500/15', color: 'text-violet-300', glyph: 'P' },
-                        ai_snakes: { bg: 'bg-emerald-500/15', color: 'text-emerald-300', glyph: 'S' },
-                        pvp: { bg: 'bg-rose-500/15', color: 'text-rose-300', glyph: 'VS' },
-                        playtime: { bg: 'bg-amber-500/15', color: 'text-amber-300', glyph: 'T' },
-                        social: { bg: 'bg-sky-500/15', color: 'text-sky-300', glyph: 'S' },
-                        day2: { bg: 'bg-teal-500/15', color: 'text-teal-300', glyph: '2' },
-                        day3: { bg: 'bg-teal-500/15', color: 'text-teal-300', glyph: '3' },
-                        friend_dm: { bg: 'bg-fuchsia-500/15', color: 'text-fuchsia-300', glyph: 'DM' },
-                        clan: { bg: 'bg-orange-500/15', color: 'text-orange-300', glyph: 'C' },
+                    // Same SVG language as MissionPanel getTypeBadge (24-view, stroke icons).
+                    const dice = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01" />
+                        </svg>
+                    );
+                    const trophy = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4M3 5h4v4A5 5 0 0 1 3 5M21 5h-4v4a5 5 0 0 0 4-4" />
+                        </svg>
+                    );
+                    const flame = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <path d="M17 10C15 8 13.97 3 13.97 3 10 5.25 10 10 10 10c-3-2-2.5-6.5-2.5-6.5C4 6.5 4 11 4 14a8 8 0 0 0 16 0c0-2.5-1.5-4-3-4z" />
+                        </svg>
+                    );
+                    const users = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                    );
+                    const clock = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                    );
+                    const calendar = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <path d="M16 2v4M8 2v4M3 10h18" />
+                        </svg>
+                    );
+                    const chat = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                    );
+                    const target = (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="6" />
+                            <circle cx="12" cy="12" r="2" />
+                        </svg>
+                    );
+
+                    const map: Record<string, { bg: string; color: string; icon: React.ReactNode }> = {
+                        tutorial: { bg: 'bg-cyan-500/15', color: 'text-cyan-300', icon: target },
+                        ai_classic: { bg: 'bg-indigo-500/15', color: 'text-indigo-300', icon: dice },
+                        ai_power: { bg: 'bg-violet-500/15', color: 'text-violet-300', icon: flame },
+                        ai_snakes: { bg: 'bg-emerald-500/15', color: 'text-emerald-300', icon: dice },
+                        pvp: { bg: 'bg-rose-500/15', color: 'text-rose-300', icon: trophy },
+                        playtime: { bg: 'bg-amber-500/15', color: 'text-amber-300', icon: clock },
+                        social: { bg: 'bg-sky-500/15', color: 'text-sky-300', icon: users },
+                        day2: { bg: 'bg-teal-500/15', color: 'text-teal-300', icon: calendar },
+                        day3: { bg: 'bg-teal-500/15', color: 'text-teal-300', icon: calendar },
+                        friend_dm: { bg: 'bg-fuchsia-500/15', color: 'text-fuchsia-300', icon: chat },
+                        clan: { bg: 'bg-orange-500/15', color: 'text-orange-300', icon: users },
                     };
-                    const b = map[track] || { bg: 'bg-white/10', color: 'text-white', glyph: '·' };
+                    const b = map[track] || { bg: 'bg-white/10', color: 'text-white', icon: dice };
                     return (
-                        <div className={`w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 ${b.bg} ${b.color} text-sm font-black shadow-inner border border-white/5`}>
-                            {b.glyph}
+                        <div className={`w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 ${b.bg} ${b.color} shadow-inner border border-white/5`}>
+                            {b.icon}
                         </div>
                     );
                 };
