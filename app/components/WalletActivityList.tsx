@@ -3,10 +3,20 @@
 import { useMemo, useState } from "react";
 import { useWalletActivity, type WalletActivityItem } from "@/hooks/useWalletActivity";
 
-type Filter = "all" | "send" | "receive" | "other";
+type Filter =
+    | "all"
+    | "pending"
+    | "confirmed"
+    | "failed"
+    | "send"
+    | "receive"
+    | "other";
 
 const FILTERS: { id: Filter; label: string }[] = [
     { id: "all", label: "All" },
+    { id: "pending", label: "Pending" },
+    { id: "confirmed", label: "Successful" },
+    { id: "failed", label: "Failed" },
     { id: "send", label: "Sent" },
     { id: "receive", label: "Received" },
     { id: "other", label: "Game" },
@@ -52,10 +62,13 @@ export default function WalletActivityList() {
     const { items, loading, refresh, needsReconnect, explorerBase } = useWalletActivity();
     const [filter, setFilter] = useState<Filter>("all");
 
-    const visible = useMemo(
-        () => (filter === "all" ? items : items.filter((i) => kindOf(i) === filter)),
-        [items, filter],
-    );
+    const visible = useMemo(() => {
+        if (filter === "all") return items;
+        if (filter === "pending" || filter === "confirmed" || filter === "failed") {
+            return items.filter((i) => i.status === filter);
+        }
+        return items.filter((i) => kindOf(i) === filter);
+    }, [items, filter]);
 
     if (needsReconnect) {
         return (
