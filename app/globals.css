@@ -10173,25 +10173,20 @@ body.theme-daybreak .power-orb {
     0 0 10px var(--orb-glow, rgba(34, 211, 238, 0.15));
 }
 
-/* ─── Emotes FAB (match footer, left slot — same row as power orbs) ─── */
+/* ─── Emotes FAB — the winking face IS the button (footer left) ─── */
 .emote-fab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 64px;
+  height: 64px;
   padding: 0;
+  border: none;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  color: #fff;
   cursor: pointer;
-  background:
-    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), transparent 50%),
-    conic-gradient(from 210deg, #22d3ee, #6366f1 40%, #a78bfa 70%, #22d3ee);
-  box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.32),
-    0 0 16px rgba(99, 102, 241, 0.35);
-  transition: transform 0.12s ease, filter 0.15s ease;
+  background: transparent;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
+  transition: transform 0.12s ease;
 }
 .emote-fab:active:not(:disabled) {
   transform: scale(0.92);
@@ -10200,11 +10195,11 @@ body.theme-daybreak .power-orb {
   opacity: 0.55;
 }
 .emote-fab-icon {
-  width: 28px;
-  height: 28px;
+  width: 64px;
+  height: 64px;
   display: block;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+  overflow: visible;
 }
 body.theme-daybreak .emote-fab {
-  border-color: rgba(15, 23, 42, 0.12);
+  filter: drop-shadow(0 8px 14px rgba(15, 23, 42, 0.22));
 }
