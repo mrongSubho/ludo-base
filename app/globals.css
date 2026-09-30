@@ -10211,3 +10211,100 @@ body.theme-daybreak .emote-fab {
     0 6px 14px rgba(15, 23, 42, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
+
+/* ─── In-match lobby chat: seat bubbles + compact composer ─── */
+.chat-bubble {
+  max-width: min(220px, 70vw);
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: rgba(12, 16, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  word-break: break-word;
+}
+body.theme-daybreak .chat-bubble {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+.chat-bubble-text {
+  min-width: 0;
+}
+.chat-bubble-tail {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(12, 16, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+body.theme-daybreak .chat-bubble-tail {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+.chat-bubble-tail.down {
+  bottom: -5px;
+}
+.chat-bubble-tail.up {
+  top: -5px;
+}
+.chat-composer {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(100% + 8px);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 70;
+}
+.chat-composer-input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 14, 24, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+.chat-composer-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+body.theme-daybreak .chat-composer-input {
+  background: #fff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+body.theme-daybreak .chat-composer-input::placeholder {
+  color: rgba(15, 23, 42, 0.4);
+}
+.chat-composer-send {
+  height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #0A0B0D;
+  background: linear-gradient(180deg, #67e8f9, #22d3ee 55%, #0e9bb8);
+}
+.chat-composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+body.theme-daybreak .chat-composer-send {
+  color: #062a33;
+}

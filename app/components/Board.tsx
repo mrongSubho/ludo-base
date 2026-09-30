@@ -26,6 +26,8 @@ import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import type { EmoteEvent } from '@/lib/emotes';
+import type { ChatEvent } from '@/lib/chat';
+import { parseChatPayload, clampChatText, CHAT_TTL_MS } from '@/lib/chat';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
@@ -49,7 +51,7 @@ export default function Board({
     poolId = null,
     botDifficulty = 'pro',
     onExitMatch,
-    onOpenChat,
+    onOpenChat: _onOpenChat,
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -81,6 +83,10 @@ export default function Board({
         secondsLeft,
     } = usePoolClaim(poolId);
     const [emoteFloats, setEmoteFloats] = React.useState<EmoteEvent[]>([]);
+    // In-match lobby chat: compact composer + seat bubbles
+    const [chatOpen, setChatOpen] = React.useState(false);
+    const [chatDraft, setChatDraft] = React.useState('');
+    const [chatBubbles, setChatBubbles] = React.useState<ChatEvent[]>([]);
 
     // Q2 device-pass hook on the live board: `await __ludoPerf.markdown()`
     React.useEffect(() => {
@@ -96,6 +102,25 @@ export default function Board({
         window.addEventListener('ludo-emote', onEmote);
         return () => window.removeEventListener('ludo-emote', onEmote);
     }, []);
+
+    React.useEffect(() => {
+        const onChat = (ev: Event) => {
+            const parsed = parseChatPayload((ev as CustomEvent).detail);
+            if (!parsed) return;
+            setChatBubbles((b) => [...b.slice(-3), parsed]);
+        };
+        window.addEventListener('ludo-chat', onChat);
+        return () => window.removeEventListener('ludo-chat', onChat);
+    }, []);
+
+    // Expire bubbles after TTL (same cadence as emote floats)
+    React.useEffect(() => {
+        if (chatBubbles.length === 0) return;
+        const t = window.setTimeout(() => {
+            setChatBubbles((b) => b.filter((x) => Date.now() - x.t < CHAT_TTL_MS));
+        }, CHAT_TTL_MS);
+        return () => window.clearTimeout(t);
+    }, [chatBubbles]);
 
     const [boardConfig, setBoardConfig] = useState(() => {
         if (initialPlayers && initialColorCorner) {
@@ -200,6 +225,19 @@ export default function Board({
         : undefined;
     const turnColor = localGameState.currentPlayer as PlayerColor;
     const ownColor = myPlayer?.color;
+    const sendChat = React.useCallback(() => {
+        const text = clampChatText(chatDraft);
+        if (!text || !ownColor) return;
+        const ev: ChatEvent = { text, color: ownColor, t: Date.now() };
+        setChatBubbles((b) => [...b.slice(-3), ev]);
+        broadcastAction('CHAT', {
+            text,
+            color: ownColor,
+            t: ev.t,
+        } as GameActionPayload<'CHAT'>);
+        setChatDraft('');
+        setChatOpen(false);
+    }, [chatDraft, ownColor, broadcastAction]);
     const isMyTurn = !!ownColor && turnColor === ownColor;
     const showInventory = !spectatorMode && !!ownColor && canUsePowers;
     const liveInventory: PowerItem[] = showInventory
@@ -329,6 +367,39 @@ export default function Board({
                 counterRotationDeg={counterRotationDeg}
             />
 
+            {/* Seat chat bubbles — top seats below name, bottom seats above (in-board). */}
+            <div
+                className="chat-bubble-layer"
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    zIndex: 20,
+                    transform: counterRotationDeg ? `rotate(${counterRotationDeg}deg)` : undefined,
+                }}
+            >
+                {(['TL', 'TR', 'BL', 'BR'] as const).map((corner) => {
+                    const color = uiSlots[corner];
+                    const msg = [...chatBubbles].reverse().find((c) => c.color === color);
+                    if (!color || !msg) return null;
+                    const isTop = corner === 'TL' || corner === 'TR';
+                    const pos: React.CSSProperties =
+                        corner === 'TL'
+                            ? { top: 36, left: '20%', transform: 'translateX(-50%)' }
+                            : corner === 'TR'
+                              ? { top: 36, left: '80%', transform: 'translateX(-50%)' }
+                              : corner === 'BL'
+                                ? { bottom: 36, left: '20%', transform: 'translateX(-50%)' }
+                                : { bottom: 36, left: '80%', transform: 'translateX(-50%)' };
+                    return (
+                        <div key={corner} className={`chat-bubble ${isTop ? 'below' : 'above'}`} style={pos}>
+                            <div className="chat-bubble-text">{msg.text}</div>
+                            <div className={`chat-bubble-tail ${isTop ? 'down' : 'up'}`} />
+                        </div>
+                    );
+                })}
+            </div>
+
             {lxpGain !== null && (
                 <motion.div
                     initial={{ opacity: 0, y: 20, scale: 0.8 }}
@@ -433,14 +504,38 @@ export default function Board({
                     <button
                         type="button"
                         className="emote-fab"
-                        onClick={() => onOpenChat?.()}
-                        disabled={!onOpenChat}
+                        onClick={() => setChatOpen((v) => !v)}
                         aria-label="Chat"
+                        aria-expanded={chatOpen}
                     >
                         <span className="emote-fab-label">Chat</span>
                     </button>
                 </div>
             </div>
+
+            {/* Compact in-match chat composer (lobby players only) */}
+            {chatOpen && !spectatorMode && (
+                <div className="chat-composer">
+                    <input
+                        className="chat-composer-input"
+                        value={chatDraft}
+                        maxLength={80}
+                        placeholder="Say something…"
+                        autoFocus
+                        onChange={(e) => setChatDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                sendChat();
+                            }
+                            if (e.key === 'Escape') setChatOpen(false);
+                        }}
+                    />
+                    <button type="button" className="chat-composer-send" onClick={sendChat} disabled={!chatDraft.trim()}>
+                        Send
+                    </button>
+                </div>
+            )}
 
             <Leaderboard isOpen={showLeaderboard} onClose={() => onToggleLeaderboard?.(false)} onOpenProfile={onOpenProfile || (() => { })} />
             {selectedPlayer && (
