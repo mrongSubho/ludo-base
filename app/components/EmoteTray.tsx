@@ -20,6 +20,80 @@ interface EmoteTrayProps {
     disabled?: boolean;
 }
 
+/** Custom winking-face mark (SVG — not emoji). */
+function WinkFaceIcon() {
+    return (
+        <svg viewBox="0 0 64 64" className="emote-fab-icon" aria-hidden="true">
+            <defs>
+                <radialGradient id="ef-face" cx="38%" cy="32%" r="72%">
+                    <stop offset="0%" stopColor="#FFF7D6" />
+                    <stop offset="55%" stopColor="#FFD98A" />
+                    <stop offset="100%" stopColor="#F5B94A" />
+                </radialGradient>
+                <radialGradient id="ef-gloss" cx="32%" cy="28%" r="55%">
+                    <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.55" />
+                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+                </radialGradient>
+            </defs>
+            <circle cx="32" cy="32" r="29" fill="#FFFFFF" opacity="0.12" />
+            <circle cx="32" cy="33" r="24" fill="url(#ef-face)" stroke="#E8A82E" strokeWidth="1.6" />
+            <ellipse cx="30" cy="28" rx="14" ry="11" fill="url(#ef-gloss)" />
+            <ellipse cx="18.5" cy="36.5" rx="5" ry="3.2" fill="#F97A7A" opacity="0.45" />
+            <ellipse cx="45.5" cy="36.5" rx="5" ry="3.2" fill="#F97A7A" opacity="0.45" />
+            <ellipse cx="23.5" cy="30.5" rx="3.2" ry="4.2" fill="#2A1B0A" />
+            <circle cx="22.3" cy="29.1" r="1.15" fill="#FFFFFF" />
+            <circle cx="24.6" cy="31.8" r="0.55" fill="#FFFFFF" opacity="0.75" />
+            <path
+                d="M37 31.2 C38.8 33.1 42.4 33.4 44.4 31.4"
+                stroke="#2A1B0A"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                fill="none"
+            />
+            <path
+                d="M44.2 29.6 L46.4 28 M45.8 32.4 L48.2 32.6"
+                stroke="#2A1B0A"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                opacity="0.85"
+            />
+            <path
+                d="M18.2 24.2 C20.4 22.6 23.4 22.4 25.4 23.6"
+                stroke="#C9891A"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                fill="none"
+            />
+            <path
+                d="M38.2 23.2 C40.4 21.8 43.6 22 45.6 23.6"
+                stroke="#C9891A"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                fill="none"
+            />
+            <path
+                d="M22 39.2 C25.2 44.4 30.2 46.8 34.4 46.4 C38 46 41 43.8 42.8 40.6 C39 43.2 34.6 43.8 31 42.4 C28.2 41.3 25.8 39.6 22 39.2 Z"
+                fill="#7A2E12"
+            />
+            <path
+                d="M25.2 43.8 C27.6 46 31 46.6 33.4 45.6 C34.8 45 35.8 44 36.4 42.8 C33.2 44 29.4 43.6 25.2 43.8 Z"
+                fill="#F06292"
+            />
+            <path
+                d="M22 39.2 C25.2 44.4 30.2 46.8 34.4 46.4 C38 46 41 43.8 42.8 40.6"
+                stroke="#2A1B0A"
+                strokeWidth="2"
+                strokeLinecap="round"
+                fill="none"
+            />
+            <path d="M10 14 L11.1 16.4 L13.5 17.5 L11.1 18.6 L10 21 L8.9 18.6 L6.5 17.5 L8.9 16.4 Z" fill="#FFFFFF" />
+            <path d="M52 48 L52.9 49.9 L54.8 50.8 L52.9 51.7 L52 53.6 L51.1 51.7 L49.2 50.8 L51.1 49.9 Z" fill="#7DD3FC" />
+            <circle cx="53.5" cy="14.5" r="1.6" fill="#FFFFFF" opacity="0.9" />
+            <circle cx="11.5" cy="50.5" r="1.1" fill="#FFFFFF" opacity="0.7" />
+        </svg>
+    );
+}
+
 /**
  * G5 — preset emote tray + floating phrases over seats.
  * No voice. No free-text (keeps moderation trivial).
@@ -40,17 +114,7 @@ export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps
                 aria-label="Emotes"
                 disabled={disabled}
             >
-                {/* Sticker face + spark orbit — one mark, no label */}
-                <svg viewBox="0 0 32 32" className="emote-fab-icon" aria-hidden>
-                    <circle cx="16" cy="16" r="11" fill="rgba(255,255,255,0.16)" stroke="#fff" strokeWidth="1.6" />
-                    <circle cx="12.2" cy="14" r="1.35" fill="#fff" />
-                    <path d="M18.2 12.6c1.2 0 2.1 1 2.1 2.1" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" fill="none" />
-                    <path d="M11.5 18.2c1.3 1.7 3 2.5 4.5 2.5s3.2-.8 4.5-2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-                    <path d="M7.2 9.2l.7 1.5 1.5.7-1.5.7-.7 1.5-.7-1.5-1.5-.7 1.5-.7z" fill="#fbbf24" />
-                    <path d="M24.5 20.8l.55 1.15 1.15.55-1.15.55-.55 1.15-.55-1.15-1.15-.55 1.15-.55z" fill="#7dd3fc" />
-                    <circle cx="24.2" cy="9.4" r="1.1" fill="#fff" opacity=".9" />
-                    <circle cx="8.2" cy="22.2" r="0.9" fill="#fff" opacity=".75" />
-                </svg>
+                <WinkFaceIcon />
             </button>
             {open && (
                 <div className="absolute bottom-full left-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">
@@ -98,15 +162,14 @@ function EmoteFloat({ event }: { event: EmoteEvent }) {
 /** Parse an inbound emote wire payload. */
 export function parseEmotePayload(payload: unknown): EmoteEvent | null {
     if (!payload || typeof payload !== 'object') return null;
-    const p = payload as Partial<EmoteEvent> & { emoteId?: unknown };
+    const p = payload as Record<string, unknown>;
     if (!isEmoteId(p.emoteId)) return null;
     if (typeof p.color !== 'string') return null;
+    if (typeof p.t !== 'number') return null;
     return {
         emoteId: p.emoteId as EmoteId,
-        color: p.color,
+        color: p.color as PlayerColor,
         actor: typeof p.actor === 'string' ? p.actor : undefined,
-        t: typeof p.t === 'number' ? p.t : Date.now(),
+        t: p.t,
     };
 }
-
-export default EmoteTray;
