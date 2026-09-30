@@ -20,20 +20,6 @@ interface EmoteTrayProps {
     disabled?: boolean;
 }
 
-/** Money-eyes mark (provided art) — the face is the button. */
-function EmoteFaceIcon() {
-    return (
-        <img
-            src="/icons/emote-money-eyes.png"
-            alt=""
-            width={64}
-            height={64}
-            className="emote-fab-icon"
-            draggable={false}
-        />
-    );
-}
-
 /**
  * G5 — preset emote tray + floating phrases over seats.
  * No voice. No free-text (keeps moderation trivial).
@@ -54,7 +40,7 @@ export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps
                 aria-label="Emotes"
                 disabled={disabled}
             >
-                <EmoteFaceIcon />
+                <span className="emote-fab-label">Emotes</span>
             </button>
             {open && (
                 <div className="absolute bottom-full left-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">

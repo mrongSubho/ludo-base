@@ -10173,35 +10173,41 @@ body.theme-daybreak .power-orb {
     0 0 10px var(--orb-glow, rgba(34, 211, 238, 0.15));
 }
 
-/* ─── Emotes FAB — the winking face IS the button (footer left) ─── */
+/* ─── Emotes button (match footer, left — text CTA, not a face chip) ─── */
 .emote-fab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  padding: 0;
+  min-width: 96px;
+  height: 44px;
+  padding: 0 18px;
   border: none;
-  border-radius: 999px;
+  border-radius: 14px;
   cursor: pointer;
-  background: transparent;
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
-  transition: transform 0.12s ease;
+  color: #0A0B0D;
+  background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 55%, #0e9bb8 100%);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.28),
+    0 0 12px rgba(34, 211, 238, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.12s ease, filter 0.15s ease;
 }
 .emote-fab:active:not(:disabled) {
-  transform: scale(0.92);
+  transform: scale(0.96);
 }
 .emote-fab:disabled {
   opacity: 0.55;
 }
-.emote-fab-icon {
-  width: 64px;
-  height: 64px;
-  display: block;
-  border-radius: 18px;
-  overflow: hidden;
-  object-fit: cover;
+.emote-fab-label {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
 }
 body.theme-daybreak .emote-fab {
-  filter: drop-shadow(0 8px 14px rgba(15, 23, 42, 0.22));
+  color: #062a33;
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
