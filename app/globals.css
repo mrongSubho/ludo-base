@@ -10178,20 +10178,19 @@ body.theme-daybreak .power-orb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 44px;
-  height: 44px;
-  padding: 0 12px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   color: #fff;
   cursor: pointer;
   background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.32), transparent 48%),
-    linear-gradient(160deg, #22d3ee 0%, #0e7490 72%);
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.35), transparent 50%),
+    conic-gradient(from 210deg, #22d3ee, #6366f1 40%, #a78bfa 70%, #22d3ee);
   box-shadow:
-    0 6px 14px rgba(0, 0, 0, 0.28),
-    0 0 10px rgba(34, 211, 238, 0.25);
+    0 8px 18px rgba(0, 0, 0, 0.32),
+    0 0 16px rgba(99, 102, 241, 0.35);
   transition: transform 0.12s ease, filter 0.15s ease;
 }
 .emote-fab:active:not(:disabled) {
@@ -10200,25 +10199,12 @@ body.theme-daybreak .power-orb {
 .emote-fab:disabled {
   opacity: 0.55;
 }
-.emote-fab-label {
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  line-height: 1;
-  white-space: nowrap;
-}
-@media (max-width: 380px) {
-  .emote-fab-label {
-    display: none;
-  }
-  .emote-fab {
-    padding: 0;
-    width: 44px;
-    border-radius: 999px;
-  }
+.emote-fab-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
 }
 body.theme-daybreak .emote-fab {
   border-color: rgba(15, 23, 42, 0.12);
-  color: #fff;
 }

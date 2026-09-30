@@ -40,12 +40,17 @@ export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps
                 aria-label="Emotes"
                 disabled={disabled}
             >
-                <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M8.5 10h.01M15.5 10h.01" />
-                    <path d="M8 14.5c1.2 1.5 2.7 2.2 4 2.2s2.8-.7 4-2.2" />
+                {/* Sticker face + spark orbit — one mark, no label */}
+                <svg viewBox="0 0 32 32" className="emote-fab-icon" aria-hidden>
+                    <circle cx="16" cy="16" r="11" fill="rgba(255,255,255,0.16)" stroke="#fff" strokeWidth="1.6" />
+                    <circle cx="12.2" cy="14" r="1.35" fill="#fff" />
+                    <path d="M18.2 12.6c1.2 0 2.1 1 2.1 2.1" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" fill="none" />
+                    <path d="M11.5 18.2c1.3 1.7 3 2.5 4.5 2.5s3.2-.8 4.5-2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+                    <path d="M7.2 9.2l.7 1.5 1.5.7-1.5.7-.7 1.5-.7-1.5-1.5-.7 1.5-.7z" fill="#fbbf24" />
+                    <path d="M24.5 20.8l.55 1.15 1.15.55-1.15.55-.55 1.15-.55-1.15-1.15-.55 1.15-.55z" fill="#7dd3fc" />
+                    <circle cx="24.2" cy="9.4" r="1.1" fill="#fff" opacity=".9" />
+                    <circle cx="8.2" cy="22.2" r="0.9" fill="#fff" opacity=".75" />
                 </svg>
-                <span className="emote-fab-label">Emotes</span>
             </button>
             {open && (
                 <div className="absolute bottom-full left-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">
