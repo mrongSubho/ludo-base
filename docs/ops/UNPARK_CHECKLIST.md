@@ -1,11 +1,11 @@
-# Un-park checklist — voice / i18n / ads
+# Stable-build sign-off checklist
 
 | Field | Value |
 | --- | --- |
-| **Status note** | Stable-build verification snapshot |
-| **Scope** | Gate for un-parking **Voice · i18n · ads** (plan `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` section 8) |
-| **Last verified** | 2026-09-22 |
-| **Verdict** | **Code gate largely green** — un-park still needs **device + live-drill** sign-off |
+| **Status note** | Engineering complete — human sign-off remaining |
+| **Scope** | Device perf · live netcode drills · Sentry (plan [`RECOMMENDED_IMPLEMENTATION_PLAN.md` §2](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md)) |
+| **Last verified** | 2026-09-28 |
+| **Verdict** | **Code gate green** — needs **device + live-drill** sign-off |
 
 ---
 
@@ -71,7 +71,7 @@
 
 ### Explicitly not required for stable (still parked)
 
-Voice · i18n · ads / rewarded · native shell · CHIPS contracts · Sepolia value
+CHIPS value traffic (plan §2.3) · predict (own legal gate) · paymaster funding
 
 ---
 
@@ -91,20 +91,7 @@ Then flip decision in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md) and mirror in
 
 ---
 
-## Un-park decision board (when the boxes above close)
+## Sign-off
 
-Use the fill-in note: **`docs/ops/UNPARK_DECISION.md`** (paste evidence → pick UN-PARK / DEFER / PARTIAL → choose one growth slice).
+Record outcome in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md), then tick plan §2.1.
 
-| Track | Un-park when | First slice |
-| --- | --- | --- |
-| **Voice** | Stable gate + session-length data says chat/voice is the drop-off | Push-to-talk spike (LiveKit), not full Agora |
-| **i18n** | Stable gate + a distribution plan that needs locales | Pipeline + 2–4 locales (es, pt-BR), not 110 |
-| **Ads** | Stable gate + free-tier revenue decision | Seam only (`FreeAdSurface` → RXP), never ads→CHIPS |
-
-Record the un-park as a dated row in `RECOMMENDED_IMPLEMENTATION_PLAN.md` decision table — do not sneak work in early.
-
----
-
-## One-line status
-
-**Ship-quality core is in (58/58 soak, typed, lint-clean errors, chaos green, edge engine synced).** Un-park is waiting on one low-end device pass and one live multi-player drill session — not on more features.

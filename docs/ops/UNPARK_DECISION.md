@@ -1,9 +1,9 @@
-# Un-park decision note
+# Stable-build decision note
 
 | Field | Value |
 | --- | --- |
-| **Doc** | Dated decision — un-park **Voice / i18n / ads** (or defer) |
-| **Companion** | `docs/ops/UNPARK_CHECKLIST.md` · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` §8 |
+| **Doc** | Dated decision — **stable-build sign-off** (device + drills + Sentry) |
+| **Companion** | `docs/ops/UNPARK_CHECKLIST.md` · [`RECOMMENDED_IMPLEMENTATION_PLAN.md` §2](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md) |
 | **Status** | **TEMPLATE — fill and flip to DECIDED** |
 | **Decision date** | YYYY-MM-DD |
 | **Decider(s)** | |
@@ -80,9 +80,9 @@ First event confirmed: pending visual check in Sentry UI
 
 Pick one:
 
-- [ ] **UN-PARK** — stable-build gate is green; growth tracks may start  
+- [ ] **DECIDED — stable build signed off** — proceed to plan §2.3 CHIPS + §2.4 C0  
 - [x] **DEFER** — outstanding items: **physical Q2 phone pass · D1–D4 on real clients** *(Sentry DSN configured 2026-09-24 — confirm first event in UI)*  
-- [ ] **PARTIAL** — un-park only: ☐ Voice ☐ i18n ☐ Ads  
+- [ ] **PARTIAL** — sign off subset: ☐ Device ☐ Drills ☐ Sentry  
 
 **Rationale (3–5 sentences):**
 
@@ -90,26 +90,13 @@ Pick one:
 
 ---
 
-## 3. First growth slice (required if UN-PARK or PARTIAL)
+## 3. Next work after DECIDED
 
-Choose **one** primary (plan §8):
-
-| Slice | Chosen? | First deliverable (1–2 weeks) |
+| Priority | Workstream | Plan |
 | --- | --- | --- |
-| **Voice** (push-to-talk spike) | [ ] | LiveKit/WebRTC PTT in 4P lobby only |
-| **i18n** (pipeline + locales) | [ ] | `next-intl` (or equiv) + es + pt-BR strings for lobby/board |
-| **Ads** (seam only) | [ ] | `FreeAdSurface` → RXP/mission progress; **never** ads→CHIPS |
-
-Secondary (optional, after primary ships): ________________________________
-
-**Explicit non-goals in this cycle:**
-
-- [ ] No ads→CHIPS  
-- [ ] No 110-locale vanity freeze  
-- [ ] No opaque settle / push payouts  
-- [ ] Voice only if session-length data still shows the gap (check telemetry)
-
----
+| 1 | **CHIPS value track** — Foundry CI → Sepolia → claim UI → M11 | Plan §2.3 |
+| 2 | **C0 external** — Sybil spreadsheet + counsel L1–L6 | `C0_FREEZE_PACK.md` |
+| 3 | Quality residuals — soak week · `net_*` dashboard | Plan §2.2 |
 
 ## 4. Follow-through
 

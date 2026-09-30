@@ -3,449 +3,162 @@
 | Field | Value |
 | --- | --- |
 | **Project** | Ludo Base |
-| **Document type** | Execution plan — **stable, industry-grade game build first** |
-| **Inputs** | `docs/research/COMPETITIVE_LUDO_WORLD_LUDO_KING.md` section section 5–9 · `AGENTS.md` · `ENGINE_LOGIC.md` · current `hooks/` + `lib/` + `app/` + `supabase/` |
-| **Focus** | Close operational/game-engine gaps with modern industry-grade tech |
-| **Parked (until stable build)** | **Voice · i18n · ads** — and any growth stack that depends on them |
-| **CHIPS posture** | Design + freeze-pack only during this plan; contracts/value UI **after** the stable-build gate |
-| **Status** | Recommended plan (supersedes CHIPS-primary sequencing in v1 of this file) |
-| **Last updated** | 2026-09-23 (review findings applied) |
+| **Document type** | **Completed capabilities + remaining checklist** |
+| **Status** | Stable-build engineering **complete** · residual checklist in §2 |
+| **Companions** | [`docs/planning/SMART_WALLET_PLANNING.md`](./SMART_WALLET_PLANNING.md) (**wrapped / implemented** W0–W5 + R0–R5) · [`docs/ops/UNPARK_CHECKLIST.md`](../ops/UNPARK_CHECKLIST.md) · [`docs/tokenomics/CHIPS_PLANNING.md`](../tokenomics/CHIPS_PLANNING.md) · [`ENGINE_LOGIC.md`](../../ENGINE_LOGIC.md) |
+| **Last updated** | 2026-09-28 |
+
+> **Scope note:** growth/media surfaces are **out of this plan**. Track engine, netcode, quality, gameplay, wallet, and CHIPS progress here only.
 
 ---
 
-## Table of contents
+## 1. Completed functionality
 
-- [0. Verdict](#0-verdict)
-- [0b. Live status checklist + what’s next](#0b-live-status-checklist--whats-next)
-- [1. Scope lock](#1-scope-lock)
-- [2. What “industry-grade engine” means for this repo](#2-what-industry-grade-engine-means-for-this-repo)
-- [3. Existing system map](#3-existing-system-map)
-- [4. Workstreams](#4-workstreams)
-- [5. Modern tech choices (adopt now)](#5-modern-tech-choices-adopt-now)
-- [6. Sequencing — Foundation → Hardening → Stable](#6-sequencing--foundation--hardening--stable)
-- [7. Week-by-week (first 10 weeks)](#7-week-by-week-first-10-weeks)
-- [8. Parked until after stable build](#8-parked-until-after-stable-build)
-- [9. CHIPS during this plan (narrow lane)](#9-chips-during-this-plan-narrow-lane)
-- [10. Stable-build exit criteria](#10-stable-build-exit-criteria)
-- [11. Immediate next actions](#11-immediate-next-actions)
+### 1.1 Game engine (deterministic core)
 
----
-
-## 0. Verdict
-
-**Get to a stable, industry-grade game core first. Do not touch voice, i18n, or ads in this plan.**
-
-| Priority | Track | Goal |
-| --- | --- | --- |
-| **1 (now)** | **E — Engine core** | Deterministic, typed, tested, replayable rules + AI off the render thread |
-| **2 (now)** | **N — Netcode** | Heartbeat/reconnect ladder, schema-safe wire, resync, authority clarity |
-| **3 (now)** | **Q — Quality & observability** | Telemetry, perf budgets, honest CI, chaos/reconnect tests |
-| **4 (now)** | **G — Gameplay gaps** | Session-quality items that need no media/ad/i18n stack |
-| **5 (parallel, thin)** | **C0 — CHIPS pre-work** | Freeze pack + optional M11 spike only — **no** MatchPool/ClaimHub build yet |
-| **Parked** | Voice, i18n, ads, ad-monetization seams | After stable build + explicit un-park decision |
-
-**One-line:** *Harden the engine and the netcode to production standards; when the loop is stable and measurable, then (and only then) re-open growth/monetization tracks.*
-
-Previous mix plan (CHIPS Phase 1 as primary after Spine) is **superseded**. CHIPS remains the long-term thesis (`docs/tokenomics/CHIPS_PLANNING.md`) but is **not** the critical path to a stable build.
-
----
-
-## 0b. Live status checklist + what’s next
-
-**Last updated:** 2026-09-23 · Snapshot of section 10. Full evidence: `docs/ops/UNPARK_CHECKLIST.md` · `docs/ops/UNPARK_DECISION.md`.
-
-### Status checklist (code)
-
-| ID | Item | Status | Artifact |
-| --- | --- | --- | --- |
-| E1 | Replay log + golden hash | ✅ | `lib/replay/` · `npm run replay` · `npm run test:golden` (≥50 corpus) |
-| E2 | fast-check properties | ✅ | `scripts/engine.props.test.ts` |
-| E3 | Replay CLI | ✅ | `scripts/replay.ts` |
-| E4 | AI Web Worker + fallback | ✅ | `lib/ai/worker.ts` · `lib/ai/client.ts` |
-| E5 | Match FSM | ✅ | `lib/matchFsm.ts` + `TeamUpContext` |
-| E6 | `hashGameState` | ✅ | `lib/replay/hash.ts` |
-| E7 | AI calibration bench | ✅ | `npm run bench:ai` |
-| N0 | PeerJS npm pin + resync proof | ✅ | `lib/peerFactory.ts` · `lib/netcode/resyncProof.ts` · Edge `resync` |
-| N1 | `net_*` counters | ✅ | `lib/netcode/counters.ts` |
-| N2 | `resyncMatch()` | ✅ | `lib/netcode/resync.ts` |
-| N3 | Chaos + deep drills | ✅ *(sim)* | `npm run test:chaos` · `npm run drill:deep` |
-| N4 | Zod wire schemas | ✅ | `lib/protocol/` + `protocolVersion` + size cap + TTL/LRU dedup |
-| N5 | Connection badge | ✅ | `ConnectionBadge` |
-| N6 | Spectator schema/resync parity | ✅ | `useSpectatorSync` + `parseSpectatorBroadcast` + `resyncMatch` + `net_*` |
-| Q1 | Telemetry + funnel | ✅ | `lib/telemetry.ts` |
-| Q2 | Hop budget harness | 🟡 | `lib/perf/*` · **phone pass pending** |
-| Q3 | Honest lint/CI | ✅ | `eslint.config.mjs` rules=`error` |
-| Q4 | MP harness | ✅ | `npm run test:mp` |
-| Q5 | Error copy / boundaries | ✅ | `lib/errorCopy.ts` + `PanelErrorBoundary` / `app/error.tsx` |
-| Q6 | Edge version + RLS CI + load targets | ✅ | `lib/edgeOps.ts` · `npm run check:rls` · `docs/ops/DEPLOY_OPS.md` |
-| Q7 | SLOs + scrub/sample policy | ✅ | `docs/ops/SLOS.md` · `lib/telemetryPolicy.ts` |
-| G1–G5 | Receipt · Pass & Play · Abandon/AFK · Notices · Emotes | ✅ | see UNPARK_CHECKLIST |
-| C0 | Sybil + legal freeze pack | 🟡 draft | `docs/tokenomics/C0_FREEZE_PACK.md` |
-
-### What’s next (ordered)
-
-1. **Human un-park gates** (only blockers for growth tracks) — both remaining gates have **explicit protocol links**:
-   - [ ] Q2 **physical phone** hop pass → [`docs/ops/DEVICE_PASS.md`](../ops/DEVICE_PASS.md) → paste [`docs/ops/UNPARK_DECISION.md` §1.1](../ops/UNPARK_DECISION.md)
-   - [ ] N3 **D1–D4 on two real clients** (PeerJS drop, Realtime drop, host kill, airplane) → [`docs/ops/NETCODE_DRILLS.md`](../ops/NETCODE_DRILLS.md) → paste [`docs/ops/UNPARK_DECISION.md` §1.2](../ops/UNPARK_DECISION.md)
-   - [x] ~~Sentry project + `NEXT_PUBLIC_SENTRY_DSN` + first event~~ *(DSN set 2026-09-24; confirm `session_start` in UI once)* → [`docs/ops/UNPARK_DECISION.md` §1.3](../ops/UNPARK_DECISION.md)
-   - [ ] Fill [`docs/ops/UNPARK_DECISION.md`](../ops/UNPARK_DECISION.md) → UN-PARK (or DEFER)
-2. **Close remaining code 🟡** (can run in parallel with (1)):
-   - [x] ~~N6 spectator parity full (schema + resync + counter)~~
-   - [x] ~~Q5 typed error copy everywhere + `PanelErrorBoundary` coverage~~
-   - [x] ~~Q2: wire `installPerfDebugHook` on the main `Board` path~~
-   - [x] ~~N4 `protocolVersion` + TTL/LRU dedup + size caps~~
-   - [x] ~~Remove legacy eslint quarantine file list as types land~~ *(file-level disables only on 8 legacy modules; config quarantine block removed)*
-3. **After UN-PARK** — pick **one** growth slice (section 8): voice PTT **or** i18n es/pt-BR **or** ads seam (never ads→CHIPS).
-4. **CHIPS value track** (parallel or after): contracts already scaffolded (`MatchPool`/`ClaimHub`) — next Foundry suite green → Sepolia deploy → claim UI → **M11 Builder-Code assert** before attribution claims.
-5. **C0 external sign-offs** — Sybil spreadsheet + counsel L1–L6 → unlock S1 final lock / mainnet value.
-
-**Do not start** voice / i18n / ads / predict / paymaster funding until (1) is green.
-
----
-
-## 1. Scope lock
-
-### 1.1 In scope (this plan)
-
-- Game engine correctness, determinism, performance, testability
-- Multiplayer reliability and protocol hygiene
-- Observability (crash, vitals, netcode metrics, funnels for *play* — not ads)
-- Playback/replay/debug tooling
-- Session gaps that improve play without new platform dependencies (emotes, local room, notice strip, abandon/AFK honesty, match receipt as a *debug/trust* artifact)
-- CI truthfulness and API boundary typing
-- CHIPS **documentation/freeze** only (narrow lane in section 9)
-- **Smart-wallet auth carve-out (thin):** `docs/planning/SMART_WALLET_PLANNING.md` Phase **0a** only — CDP project, OAuth methods, parent-signed SIWE + EIP-712 spike. **No** `@coinbase/cdp-hooks` dependency add, sub-account default, spend-permission UX, or Sepolia value playtest until the stable-build gate (see `SMART_WALLET_PLANNING.md` §12)
-
-### 1.2 Out of scope (do not open tickets)
-
-| Parked | Un-park when |
+| Capability | Where |
 | --- | --- |
-| Voice (LiveKit/Agora/WebRTC voice) | Stable-build gate green **and** session-length data says we need it |
-| i18n / locale pipeline / RTL | Stable-build gate green **and** a distribution plan that needs locales |
-| Ads (MAX / rewarded / any mediation) | Stable-build gate green **and** a free-tier revenue decision |
-| Ad-driven RXP / `FreeAdSurface` | Same as ads |
-| Native shell / store packaging | Separate distribution decision |
-| Predict pools, tournaments economy, marketplace CHIPS | After CHIPS value track resumes |
+| Pure rules: gate-crossing, exact-57, 3×six, captures, 2v2 `TEAM_PAIRINGS` | `lib/gameLogic.ts` · `lib/engine/core.ts` · `lib/constants.ts` |
+| Board geometry + corners / safe stars | `lib/boardLayout.ts` |
+| Property tests (fast-check) in CI | `scripts/engine.props.test.ts` |
+| Replay log + canonical `hashGameState` | `lib/replay/` · `npm run replay` |
+| **≥50 golden-match corpus** (double-run hash CI) | `scripts/golden-replay.ts` · `npm run test:golden` |
+| Match lifecycle FSM (illegal transitions metered) | `lib/matchFsm.ts` + `TeamUpContext` |
+| AI off main thread (Web Worker + sync fallback) | `lib/ai/worker.ts` · `lib/ai/client.ts` |
+| Difficulty calibration bench | `npm run bench:ai` |
+| Snakes mode engine | `lib/snakesLogic.ts` |
 
-### 1.3 Invariants (never regress)
+### 1.2 Netcode & multiplayer
 
-1. `TEAM_PAIRINGS` single truth (Green+Blue vs Red+Yellow) — `lib/constants.ts`.
-2. Engine-math legality only — `calculateNextPosition` / `getLegalTokenIndices`, never `pos + roll`.
-3. Networked rolls/moves via Edge (`roll-dice` / `move-auth`); `match_states.seq` authority.
-4. Dual-path intents (`intentId` dedup) and dual-path seating stay.
-5. Power-`type` stripped on the wire (`lib/wireSanitize.ts`); DMs fail-closed (`lib/encryption.ts`).
-6. SIWE app session never authorizes match moves.
-7. Offline/AI remains off-chain, zero CHIPS.
-
----
-
-## 2. What “industry-grade engine” means for this repo
-
-Not a Unity/Cocos rewrite. It means the **web game core** meets the same production bar those engines assume:
-
-| Bar | Today | Target |
-| --- | --- | --- |
-| **Deterministic rules** | Good: pure `lib/gameLogic.ts` + `lib/engine/core.ts` | Same + **replayable action log** and golden replays in CI |
-| **Property safety** | Table tests in `scripts/engine.test.ts` | + **fast-check** properties (no illegal jumps, capture set consistency, 3×six, exact-57, gate crossing) |
-| **Typed wire** | Hand types + `wireSanitize` | **Zod (or Valibot) schemas** on every PeerJS / Supabase / Edge payload; parse-or-drop |
-| **Explicit match lifecycle** | Implicit flags across hooks | **Typed match FSM** (states: lobby → seating → live → ended / reconnecting) — one authority for legal transitions |
-| **AI isolation** | `lib/aiEngine.ts` on main thread | **Web Worker** (or deferred idle) so Master bots never jank GSAP hops |
-| **Render budget** | DOM + GSAP FLIP 1.3s (smooth desktop, weak low-end mobile) | **Frame budget** (≤16ms compose during hop) + composite-only motion; optional canvas token layer only if budget fails |
-| **Net resilience** | Dual-path intents + snapshot refresh | Named **heartbeat / reconnect / seq-gap** ladder, resync protocol, connection SLOs |
-| **Signaling ownership** | Public PeerJS broker + runtime `esm.sh` import (`lib/peerFactory.ts`); rejoin unauthenticated | Self-hosted or Realtime-only decision (**N0**); pinned dep, no runtime CDN, session-proofed resync |
-| **Chaos-tested multiplayer** | Manual smoke (`docs/SMOKE_MULTIPLAYER.md` was deleted — recreate) | Scripted **reconnect / NAT-flap / host-fail** scenarios in CI or a weekly drill script |
-| **Observability** | Console + `console.warn` in TeamUp | Sentry + Web-Vitals + netcode metrics + play funnel |
-| **CI honesty** | `npm test` + `tsc` green; `npm run lint` broken | Lint real; engine tests + property tests + typecheck + multiplayer integration job |
-
-**Non-goals for “modern engine”:** ECS framework cosplay, full rollback netcode (turn-based), custom WebGL engine before a measured budget failure, replacing Supabase/PeerJS wholesale.
-
----
-
-## 3. Existing system map
-
-### 3.1 Build on these (do not rewrite)
-
-| Seam | Files | Role in this plan |
-| --- | --- | --- |
-| Pure rules | `lib/gameLogic.ts`, `lib/engine/core.ts`, `lib/boardLayout.ts`, `lib/constants.ts`, `lib/snakesLogic.ts` | Track E center; wrap with properties + replay |
-| Engine tests | `scripts/engine.test.ts`, `npm run check:engine` / `npm test` | Expand; add `scripts/engine.props.test.ts` |
-| Match orchestration | `hooks/useGameEngine.ts`, `hooks/useGameActions.ts`, `hooks/useMatchStates.ts`, `hooks/useGameTimer.ts` | Feed the match FSM; keep UI dumb |
-| Multiplayer | `hooks/useSupabaseRelay.ts`, `hooks/usePeerManager.ts`, `hooks/usePeerChat.ts`, `hooks/TeamUpContext.tsx`, `hooks/useMatchmaking.ts`, `hooks/useCompetitiveConnection.ts` | Track N; counters + schema + resync |
-| Edge authority | `supabase/functions/roll-dice`, `move-auth`, `_shared/{engine,networkBoundary,walletVerify}` | Shared Zod schemas with client; fail closed |
-| Proof/session split | `lib/matchProof.ts`, `lib/sessionProof.ts`, `hooks/useMoveAuth.ts`, `hooks/useAppSession.ts` | Unchanged trust split |
-| Sanitize / secrets | `lib/wireSanitize.ts`, `lib/encryption.ts` | Keep; extend to full schema parse |
-| Bots | `lib/aiEngine.ts`, `DIFFICULTY_PARAMS` | Worker isolation + strength calibration tests |
-| Presentation | `BoardTokens.tsx`, `Board.tsx`, `LudoDice.tsx`, GSAP FLIP | Perf budget; optional canvas layer |
-| Spectators | `hooks/useSpectatorSync.ts`, `hooks/useSpectatorPresence.ts` | Schema + resync parity with players |
-| Tooling | `lib/teamup/*`, `scripts/*` tests | Reuse for chaos drills |
-
-### 3.2 Gaps this plan closes (from competitive section 10, minus parked)
-
-| Gap class | Closed by |
+| Capability | Where |
 | --- | --- |
-| No client crash/telemetry | **Q1** |
-| No web-vitals / jank budget | **Q2** |
-| No named netcode ops ladder | **N1** |
-| Broken lint / thin CI | **Q3** |
-| No reconnect chaos tests | **N3** / **Q4** |
-| Engine under-specified under fuzz | **E2** |
-| No replay/debug story | **E3** |
-| AI on main thread | **E4** |
-| Implicit match states / flappy authority | **E5** + **N2** |
-| Wire trust is partial | **N4** |
-| Signaling on free public broker + runtime CDN import; resync unauthenticated | **N0** |
-| Local/party play weak | **G2** |
-| Abandon/AFK honesty | **G3** |
-| Live-ops notice | **G4** |
-| Weak in-match connection UX | **N5** |
+| Host authority + dual-path intents/seating (PeerJS + Supabase) | `hooks/TeamUpContext.tsx` · `useSupabaseRelay` · `usePeerManager` |
+| Named `net_*` counters (heartbeat, reconnect, seq-gap, authority, schema) | `lib/netcode/counters.ts` |
+| Single `resyncMatch()` snapshot path | `lib/netcode/resync.ts` |
+| **Session-proofed resync** (no unauthenticated player resume) | `lib/netcode/resyncProof.ts` · Edge `move-auth` `resync` |
+| PeerJS **npm-pinned** (no CDN) + optional self-hosted PeerServer env | `lib/peerFactory.ts` · [`docs/ops/SIGNALING.md`](../ops/SIGNALING.md) |
+| Zod wire schemas + `protocolVersion` + size cap + **TTL/LRU dedup** | `lib/protocol/` · `lib/netcode/dedup.ts` |
+| Spectator listen-only parity (schema + resync + counters) | `hooks/useSpectatorSync.ts` |
+| Connection badge (LIVE / DEGRADED / RESYNC) | `app/components/ConnectionBadge.tsx` |
+| Chaos + deep drills (intent flood, drop Peer/Realtime, host elect, grace) | `npm run test:chaos` · `npm run drill:deep` · [`docs/ops/NETCODE_DRILLS.md`](../ops/NETCODE_DRILLS.md) |
+| **2–4 client MP harness** (seat → capture → resync → end) | `npm run test:mp` |
+| Abandon grace + HIGH-2 classification (burn split flag-gated) | `lib/netcode/abandon.ts` |
 
----
+### 1.3 Quality, ops & observability
 
-## 4. Workstreams
-
-### Track E — Engine core (industry-grade)
-
-| ID | Work | Where | Detail |
-| --- | --- | --- | --- |
-| **E1** | Golden **replay log** format | new `lib/replay/` | Append-only action events (`{ actionId, seq, actor, intent, diceReceipt?, resultHash }`) matching live authority order. Record from `useGameActions` / host apply path; replay into pure `processMove`-style reducer. Prerequisite: a canonical JSON serializer (sorted keys, fixed number encoding) so host and guest hash byte-identical states — prove with a cross-path hash test before the first golden replay. |
-| **E2** | **Property-based tests** | `scripts/engine.props.test.ts` + `fast-check` | Invariants: legal move ⊆ board; `calculateNextPosition` never teleports across gates; capture list ↔ board occupancy; 3×six skip; exact finish 57; home-lane 52–57; 2v2 TEAM_PAIRINGS assist/capture; snakes mode node degree. |
-| **E3** | **Replay debugger** | `scripts/replay.ts` + optional `app/token-move-test` panel | CLI: `replay apply <file>` asserts final `GameState` hash. Dev UI already has `app/token-move-test` — extend to load a replay. |
-| **E4** | **AI in a Web Worker** | new `lib/ai/worker.ts` | Move `aiEngine` + difficulty clocks off main thread; structured message `AiRequest`/`AiResponse` (Zod). Timeout → deterministic fallback move (never freeze turn). |
-| **E5** | **Match FSM** | new `lib/matchFsm.ts` | Explicit states/transitions for lobby/seating/live/ended/reconnecting/compute-host-elect. Replace scattered booleans gradually (`TeamUpContext`, `useMatchStates`, `useGameTimer`). Illegal transition → telemetry, not silent divergence. |
-| **E6** | **Engine hash / snapshot digest** | `lib/engine` helper | `hashGameState(state)` for replay assertions and host/guest diff (debug). Must ignore ephemeral UI fields and serialize via the E1 canonical serializer. |
-| **E7** | **Difficulty calibration suite** | `scripts/ai.bench.ts` | Fixed seeds; Rookie/Pro/Master win-rate and blunder-rate targets from `AI_SCORES` / `DIFFICULTY_PARAMS`. Fail CI on wild drift. |
-
-### Track N — Netcode reliability
-
-| ID | Work | Where | Detail |
-| --- | --- | --- | --- |
-| **N0** | **Signaling ownership + resync auth** | `lib/peerFactory.ts`, `hooks/usePeerChat.ts`, host apply path | Week 1–2 spike: self-hosted PeerServer vs Realtime-only signaling (decide on p95 latency, reconnect success, ops cost). Remove the runtime `esm.sh` import — pin `peerjs`, fix Turbopack bundling, no CDN in prod path. `ResyncRequest` carries match session proof, verified host-side (no unauthenticated snapshot resume). |
-| **N1** | **Heartbeat / reconnect / seq-gap ladder** | `useSupabaseRelay`, `usePeerManager`, `useMatchStates`, `TeamUpContext` | Named counters (TSDK-style): `net_heartbeat_ok/timeout`, `net_reconnect_attempt/success`, `net_seq_gap`, `net_authority_switch`, `net_resync_applied`. Exponential backoff with jitter. |
-| **N2** | **Resync protocol** | host + guest apply path | On seq-gap or reconnect: request `match_states` snapshot → apply → resume timers only after snapshot (already sketched in `ENGINE_LOGIC.md` section 12 — **implement as a single `resyncMatch()`**, don’t leave it tribal). |
-| **N3** | **Chaos drills** | `scripts/net.chaos.ts` + doc `docs/ops/NETCODE_DRILLS.md` | Scripted: drop PeerJS 10s, drop Supabase broadcast, delay intents, duplicate `intentId`, kill host / compute-host elect, clock skew on timers. Record pass/fail + counters. |
-| **N4** | **Zod wire schemas** | new `lib/protocol/` | One schema module shared by client + Deno `_shared` (keep Deno-safe). Every inbound PeerJS/Realtime/Edge payload `parse` → typed or drop+meter. Apply on `GAME_ACTION`, `GAME_INTENT`, `JOIN_REQUEST`, `SYNC_PROFILE`, `match_states`, Edge responses. Every message carries `protocolVersion` (reject unknown-major, tolerate unknown-minor-with-defaults; schema changes ship with a migration note). Dedup stores (`processedIntentIds` / `processedActionIds`) are TTL + LRU-bounded with an eviction counter. Enforce per-peer rate limits and pre-parse size caps (length gate before Zod). Rotate the room secret on compute-host election. Deno side consumes schemas via pinned import or vendored copy + parity gate (extend the `check-edge-engine.mjs` pattern to schemas). |
-| **N5** | **Connection state UX** | board chrome | Visible badge: `live` / `degraded` / `resyncing` / `host-elect`. No silent “frozen” games. |
-| **N6** | **Spectator parity** | `useSpectatorSync` | Same schema + resync path as players (listen-only). |
-
-### Track Q — Quality & observability
-
-| ID | Work | Where | Detail |
-| --- | --- | --- | --- |
-| **Q1** | **Crash + product telemetry** | new `lib/telemetry.ts`, init in `app/layout.tsx` | Sentry (or equiv) + `track()` funnel: `session_start`, `lobby_open`, `seat_confirmed`, `roll_ok`, `move_ok`, `match_end`, `resync_ok`. **Never** log signatures/keys/DM plaintext. |
-| **Q2** | **Perf budget** | `BoardTokens` / dice / GSAP | Document budget: hop compose ≤16ms, long-task ≤50ms during move; measure with Web-Vitals + `performance.measure` around GSAP timelines. Fix regressions before new board skins. |
-| **Q3** | **Honest CI** | `package.json`, `.github/workflows/ci.yml` | Replace broken `next lint` with `eslint` (or Biome). Jobs: `lint`, `typecheck`, `engine-tests`, `engine-props`, `ai-bench` (soft), `net-chaos` (nightly). |
-| **Q4** | **Multiplayer integration tests** | `scripts/mp.it.ts` or Playwright | 2–4 client harness against local/edge stub: seat → roll → move → capture → end. Prefer Node harness before browser E2E. |
-| **Q5** | **Error boundaries + player-facing failure copy** | `app/components` shell | Typed error codes from N4; recoverable vs fatal. |
-| **Q6** | **Deploy + data ops** | Edge functions, `supabase/migrations/`, Realtime | Version-tag Edge deploys (version in response header; previous-version redeploy one command away) + client→function version check (stale client fails closed). Migration review with RLS impact; CI job applies migrations to scratch Postgres and asserts money-column denies. Set Realtime load targets (rooms × players × msg/s) and define the in-match degraded mode. |
-| **Q7** | **Standing SLOs + telemetry policy** | `lib/telemetry.ts`, G4 notice strip | Promote 3–4 exit criteria to SLOs (match-completion rate, resync success, `roll-dice` p95) with alert thresholds; notice strip doubles as status page. Enforce scrubbing in code (`beforeSend` deny-list for signatures/keys/DM plaintext, payload truncation); sample high-volume events, keep 100% of resync/authority-switch/errors. |
-
-### Track G — Gameplay gaps (no voice / i18n / ads)
-
-| ID | Work | Where | Detail |
-| --- | --- | --- | --- |
-| **G1** | **Match receipt / post-mortem** | `MatchStatsOverlay` + optional route | Rolls, `actionId`s, seq history, disconnects, final `hashGameState`. Debug + trust artifact (also future CHIPS receipt spine). |
-| **G2** | **Local pass-and-play** | invite `?s=`, `lib/guest.ts` | One-device hot-seat + QR share-link room. No extra SDKs. |
-| **G3** | **Abandon / AFK honesty UI** | `useAFKManager`, `useCompetitiveConnection` | Grace timer, strike counter, dual-path abandon **without** CHIPS burn logic (feature-flag the burn split for later). |
-| **G4** | **Notice strip (live-ops)** | lobby/footer | Signed server-driven notices (maintenance, rules, drills). No CMS. |
-| **G5** | **Emotes / preset chat expand** | `usePeerChat` | Cheap session warmth **without** voice. Keep ECDH DMs as-is. |
-
-### Track C0 — CHIPS narrow lane (not the critical path)
-
-See section 9. Do not staff MatchPool/ClaimHub/contracts implementation until section 10 is green.
-
----
-
-## 5. Modern tech choices (adopt now)
-
-| Concern | Choice | Why this, now |
-| --- | --- | --- |
-| Schema / wire | **Zod** as a direct dep (v3.25.76 currently hoisted transitively — pin it; Valibot if bundle size matters) | One source of truth client + Edge; parse-or-drop; versioned protocol (N4) |
-| Property tests | **fast-check** + existing `node:test` via `tsx --test` | Stays in current runner; no Jest migration required |
-| Match control | **Hand-rolled typed FSM** (`lib/matchFsm.ts`) first | XState is fine later; a 10-state explicit machine is clearer than a new runtime dependency on day one |
-| AI concurrency | **Web Worker** + structured clone messages | Zero network; isolates Master cost |
-| Replay | JSONL action log + canonical `hashGameState` | Diffable, CI-friendly, no binary formats |
-| Render | **Measure first** (Q2). Default path: keep GSAP FLIP + `transform`/`opacity` only. Escalate to **PixiJS/canvas token layer** only if hop frame budget fails on low-end mobile | Avoid a rewrite while the core is still hardening |
-| Multiplayer transport | Keep **PeerJS + Supabase Realtime dual-path**; optionally prototype WebTransport matchmaking later from `docs/superpowers/specs/2024-03-15-competitive-multiplayer-webtransport-design.md` | Spec exists; do not replace transport during stabilization |
-| Integration tests | Node harness for engine+host protocol; Playwright only for 1 golden 4P path | Fast feedback in PR |
-| Lint | **ESLint 9** (already in devDeps with `eslint-config-next`; `eslint.config.mjs` exists) | Wire into `npm run lint` + CI `lint` job — no new tool decision needed |
-| Telemetry | Sentry + Web-Vitals | Industry default for web games/apps |
-
-**Explicitly rejected for this phase:** Unity/Cocos rewrite · Colyseus/Socket.io migration · full rollback netcode · XState-at-all-costs · i18n frameworks · ad SDKs · voice SFUs.
-
----
-
-## 6. Sequencing — Foundation → Hardening → Stable
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ FOUNDATION (weeks 1–3)                                          │
-│  Q3 CI honest · Q1 telemetry · N4 Zod wire · E1 replay log      │
-│  E5 Match FSM skeleton · N1 counters · E2 property tests        │
-│  N0 signaling spike (week 1–2: own signaling decision)          │
-└────────────────────────────┬────────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ HARDENING (weeks 4–7)                                           │
-│  N2 resync · N3 chaos drills · E4 AI worker · E3 replay CLI     │
-│  E6 state hash · N5 connection UX · G3 abandon/AFK · G1 receipt │
-│  Q2 perf budget · Q4 mp tests · E7 AI calibration               │
-└────────────────────────────┬────────────────────────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ STABLE (weeks 8–10)                                             │
-│  G2 local room · G4 notice · G5 emotes · N6 spectators          │
-│  Bug burn-down · drill sign-off · STABLE-BUILD checklist section 10    │
-└────────────────────────────┬────────────────────────────────────┘
-                             ▼
-              ┌──────────────┴──────────────┐
-              ▼                             ▼
-     Un-park growth?                 Resume CHIPS value track
-     (voice / i18n / ads)            (contracts → Sepolia loop)
-     — separate decision             per CHIPS_PLANNING + old plan
-```
-
-**Parallel thin lane (any time, max ~0.5 FTE):** C0 freeze pack + optional M11 Foundry spike (section 9).
-
----
-
-## 7. Week-by-week (first 10 weeks)
-
-| Week | Engine (E) | Netcode (N) | Quality (Q) | Gameplay (G) | C0 thin |
-| --- | --- | --- | --- | --- | --- |
-| 1 | E1 replay log schema (+ canonical JSON) | N0 signaling spike | Q3 lint/CI + Q1 telemetry init | — | TOKEN_PARAMS skeleton |
-| 2 | E2 fast-check properties | N0 decision + N4 Zod protocol module | Q1 funnel events | — | — |
-| 3 | E5 FSM + E6 hash | N1 counters | — | G1 receipt (debug) | Optional M11 spike |
-| 4 | E4 AI worker | N2 `resyncMatch()` | Q2 budget harness | G3 AFK/abandon UX | Sybil model draft |
-| 5 | E3 replay CLI | N5 connection badge | Q4 mp harness | — | Legal issue-spot brief |
-| 6 | E7 AI bench | N3 chaos script v1 | — | G5 emotes | — |
-| 7 | Property bugfix | N3 + N6 spectators | Perf fixes from Q2 | G1 wire history | — |
-| 8 | FSM cleanup | Chaos v2 (host fail) | Q5 error copy | G2 local room | — |
-| 9 | — | — | Nightly chaos in CI | G4 notice strip | — |
-| 10 | **Stable burn-down** | Drill sign-off | Metrics review | Polish | Un-park decision meeting |
-
-Order is load-bearing: **schemas and CI before large refactors; FSM before more multiplayer features; chaos before calling it stable.**
-
-**Staffing assumption:** the table above assumes parallel bandwidth across tracks. Solo-dev order (steel thread first): **Q3 → N4-minimal (5 hot message types) → Q1-minimal (init + 3 funnel events) → one instrumented 2-player loop** (seat → roll → move → end, schema-parsed, telemetry-emitting, replay-logged) → E5 → N2 → N3 → E4 → rest. Do not start the worker (E4) or chaos harness (N3/Q4) before the steel thread is green. Record pre-worker AI calibration (E7) to prove the worker migration is strength-neutral.
-
----
-
-## 8. Parked until after stable build
-
-These stay in the competitive gap register as *known* gaps. **No implementation, no design spikes, no dependency adds** until the section 10 gate is green and we explicitly un-park.
-
-| Item | Notes when un-parked |
+| Capability | Where |
 | --- | --- |
-| **Voice** | Push-to-talk (LiveKit or WebRTC) only after session-length data demands it |
-| **i18n** | Pipeline + few locales only after a real distribution need |
-| **Ads / mediation / rewarded** | Any ad stack, including “RXP for ads”, including `FreeAdSurface` |
-| Native/store shell | Separate distribution decision |
-| Frames / predict / paymaster funding | Belong to post-stable growth or CHIPS tracks |
-| **CDP Hooks dependency + smart-wallet cutover** | `SMART_WALLET_PLANNING` residual 0b / Phase 3: sub-accounts, spend permissions, connect cutover. Phase 0a auth spike is the only carve-out |
-| **Spend-permission join UX** | **Not primary** — CHIPS §4.6 batch exact-fee stays authoritative unless that section is amended in writing |
+| Telemetry funnel + secret scrub + sampling policy | `lib/telemetry.ts` · `lib/telemetryPolicy.ts` |
+| Sentry transport (DSN auto-bind) | `lib/telemetrySentry.ts` · `NEXT_PUBLIC_SENTRY_DSN` **configured** |
+| Standing SLOs | [`docs/ops/SLOS.md`](../ops/SLOS.md) |
+| Edge calver + `x-ludo-edge-version` + client version check | `lib/edgeOps.ts` · [`docs/ops/DEPLOY_OPS.md`](../ops/DEPLOY_OPS.md) |
+| Realtime load targets + degrade order | `lib/edgeOps.ts` |
+| Migration **RLS static gate** in CI | `npm run check:rls` |
+| Honest lint/CI (ESLint 9, rules=`error`) | `eslint.config.mjs` · CI `lint` + `typecheck` + `auth-gate` |
+| Typed player error copy + error boundaries | `lib/errorCopy.ts` · `PanelErrorBoundary` · `app/error.tsx` |
+| Perf hop budget + `__ludoPerf` hook on Board + `/token-move-test` | `lib/perf/` · `app/token-move-test` |
+| Device-pass / un-park runbooks | [`docs/ops/DEVICE_PASS.md`](../ops/DEVICE_PASS.md) · [`docs/ops/UNPARK_DECISION.md`](../ops/UNPARK_DECISION.md) |
 
-Record un-park as a dated decision in **`docs/ops/UNPARK_DECISION.md`** (then copy the outcome into this file’s decision table) — do not sneak them into Track G.
+### 1.4 Gameplay product surfaces
 
----
-
-## 9. CHIPS during this plan (narrow lane)
-
-Tokenomics remains authoritative (`docs/tokenomics/CHIPS_PLANNING.md`). **Update 2026-09-23:** a parallel CHIPS lane already scaffolded `contracts/` (`MatchPool` / `ClaimHub` / `MissionClaim`) and settle UI helpers — treat that as **pre-Phase-1 scaffolding**. Value-bearing Sepolia paths still wait on section 0b human gates + freeze pack sign-offs.
-
-**Allowed:**
-
-1. `docs/tokenomics/TOKEN_PARAMS.md` skeleton (addresses/TBD, freeze-gate checklist).
-2. Phase-0 freeze pack: Sybil model + legal issue-spot (`docs/tokenomics/C0_FREEZE_PACK.md` — draft done; **sign-offs open**).
-3. **Optional:** M11 Foundry spike (`B20+ERC-8021` trailing suffix on `base-anvil`).
-4. Foundry test suite green + Sepolia **test-only** deploy dry-runs.
-
-**Not allowed until section 0b un-park + freeze sign-offs:**
-
-- Paid join/claim **value** UI in production traffic
-- Settlement signer in production custody
-- Live Sepolia value playtests
-- Any mainnet value path
-- Smart-wallet **0b** spike items (sub-account default, CHIPS spend permission) — `SMART_WALLET_PLANNING.md` §12
-
-Wallet/auth cutover sequencing: `docs/planning/SMART_WALLET_PLANNING.md` (identity = parent/smart per dual-path; join auth defers to CHIPS §4.6).
-
----
-
-## 10. Stable-build exit criteria
-
-All must be true (checkbox list for the un-park meeting). Live snapshot: `docs/ops/UNPARK_CHECKLIST.md`. Rolling status: [section 0b](#0b-live-status-checklist--whats-next).
-
-### Engine
-
-- [x] Replay log records and replays to identical `hashGameState` (canonical serializer + CLI + **≥50 golden CI corpus** `scripts/golden-replay.test.ts`)
-- [x] fast-check properties green in CI (E2 invariant list)
-- [x] Match FSM is the only transition authority; illegal transitions metered (soak week still open)
-- [x] AI Master runs in a worker; main-thread long tasks during bot turns &lt; 50ms (timeout → sync fallback)
-- [x] AI calibration within published bands (E7 — `bench:ai` hard-fails illegal picks)
-
-### Netcode
-
-- [x] Named `net_*` counters implemented (`lib/netcode/counters.ts`); **dashboard + forced reconnect drill sign-off still open**
-- [x] Signaling decision executed (N0): npm-pinned `peerjs`, no runtime CDN; resync requires session proof
-- [x] Core inbound payloads schema-parsed (N4 hot types); **`protocolVersion` + TTL/LRU dedup + size caps still open**
-- [x] `resyncMatch()` covered by chaos/deep drills (sim); **two-device D1–D4 still open**
-- [x] Connection badge states (N5) in UI
-
-### Quality
-
-- [x] Lint + typecheck + engine tests + properties green on main (rules=`error`)
-- [x] Telemetry + play funnel + scrub/sample policy (Q1/Q7); **Sentry DSN + dashboards still open**
-- [ ] Hop frame budget met on a low-end reference device **or** canvas escalation ticket filed with data *(CI hop bench PASS — **phone pass open**)*
-- [x] Multiplayer harness (Q4) green on main
-- [x] Smoke/drill doc `docs/ops/NETCODE_DRILLS.md`; **D1–D4 human sign-off open** · `AGENTS.md` / `README` pointers **fixed 2026-09-24** (→ NETCODE_DRILLS)
-- [x] Edge deploys version-tagged + RLS static gate in CI + Realtime targets defined (Q6)
-- [x] Standing SLOs + scrubbing/sampling enforced (Q7)
-
-### Gameplay (this plan’s G set)
-
-- [x] Receipt/post-mortem usable after a match (G1)
-- [x] Abandon/AFK grace visible and tested (G3)
-- [x] Local pass-and-play works offline (G2)
-- [x] Notice strip live (G4)
-
-### Explicitly **not** required for stable
-
-Voice · i18n · ads · CHIPS contracts · Sepolia value · store listing
-
----
-
-## 11. Immediate next actions
-
-Superseded by **[section 0b — What’s next](#0b-live-status-checklist--whats-next)** (2026-09-23). Short form:
-
-1. Human un-park gates (phone hop, D1–D4) → `UNPARK_DECISION.md`. *(Sentry DSN done 2026-09-24.)*
-2. Close 🟡 code: N6 spectator, Q5 error copy, Board perf hook, N4 protocolVersion/dedup caps, eslint quarantine removal.
-3. Un-park meeting → one growth slice (voice / i18n / ads seam).
-4. CHIPS: Foundry → Sepolia → claim UI + M11 assert (contracts already scaffolded).
-5. C0 external: Sybil spreadsheet + counsel L1–L6.
-
----
-
-## Decision record
-
-| Decision | Choice |
+| Capability | Where |
 | --- | --- |
-| Primary goal of this plan | **Stable, industry-grade engine + gap closure** |
-| Voice / i18n / ads | **Parked** until after stable build + explicit un-park |
-| CHIPS implementation | **After** stable-build gate; pre-work only during this plan |
-| CHIPS vs gaps first | **Gaps + engine first** (this rev); tokenomics unchanged |
-| Smart-wallet / CDP | `SMART_WALLET_PLANNING.md` — Phase 0a auth spike only during stable build; identity = dual-path parent/smart (`wallet_address`); CHIPS join auth stays §4.6 batch exact-fee |
-| Wire safety | Zod/Valibot schemas + parse-or-drop |
-| Rules testing | fast-check properties + golden replays + existing table tests |
-| Match control | Typed hand-rolled FSM first |
-| Render | Measure GSAP budget; canvas/Pixi only on proven failure |
-| Transport | Keep PeerJS + Supabase dual-path during stabilization |
-| Signaling | Self-hosted PeerServer spike week 1–2; no public broker / runtime CDN in prod path; session-proofed resync (N0) |
-| Protocol evolution | `protocolVersion` + compat policy; TTL/LRU-bounded dedup; per-peer rate + pre-parse size caps; secret rotation on host-elect (N4) |
-| State hashing | Canonical JSON serializer proven before golden replays (E1/E6) |
-| Deploys + data | Versioned Edge deploys + rollback; migration RLS regression in CI; Realtime load targets; standing SLOs (Q6/Q7) |
-| Solo-dev order | Steel thread (Q3 → N4-min → Q1-min → instrumented 2P loop) before worker/chaos breadth |
-| Trust model | AGENTS.md invariants unchanged |
+| Match receipt / post-mortem (hash, rolls, net, AFK) | `lib/receipt/` · `MatchStatsOverlay` |
+| Pass & Play (hot-seat) + share-link room | `OfflineMatchPanel` · `lib/localRoom.ts` |
+| Live-ops notice strip (`/api/notices`) | `app/components/NoticeStrip.tsx` |
+| Emotes (preset, no free-text) | `lib/emotes.ts` · `EmoteTray` |
+| Offline vs AI · Classic / Power / Snakes | existing game shell |
+| Themes + token styles | `ThemeSwitcher` · `TokenStyleSwitcher` |
+
+### 1.5 Identity & wallet — **plan wrapped**
+
+See **[`docs/planning/SMART_WALLET_PLANNING.md`](./SMART_WALLET_PLANNING.md)** (status: **Implemented**, residual in its §12) and [`PHASE_0A_SPIKE_CHECKLIST.md`](./PHASE_0A_SPIKE_CHECKLIST.md).
+
+| Capability | Notes |
+| --- | --- |
+| Dual-path auth: External (Base Account / injected) **and** In-game CDP Smart Account | One active `wallet_address` per session |
+| `siwe:base` / Base Account identity (`0x221A…`) | Same account as Base app |
+| SIWE app session + EIP-712 `LudoMatchSession` | Match moves never use SIWE-only session |
+| Passkey MFA · WC as Ludo wallet · send/receive/activity | Real-wallet product path |
+| App on **Base Sepolia (84532)** until mainnet | Network pin |
+| Phase 0a spike | `/spike/cdp` |
+
+### 1.6 CHIPS / on-chain (scaffold + freeze pack)
+
+| Capability | Notes |
+| --- | --- |
+| `MatchPool` / `ClaimHub` / `MissionClaim` / `SeasonClaim` / `LegacyClaim` | `contracts/` + Foundry tests (suffix / pause-delta / host 1271 / transitions) |
+| Deploy / bootstrap / role / smoke scripts | `contracts/script/*` · `scripts/foundry-deploy.sh` · `smoke-sepolia.sh` · `b20-smoke.sh` |
+| Burn / supply dashboard | `app/burn` |
+| Pool join/settle hooks + settle button | `hooks/useChipsPool.ts` · `useSettlePool` · `SettlePoolButton` |
+| Mission vouchers · merkle/legacy claims · Galxe callback | `lib/missionVoucher.ts` · `lib/merkleClaims.ts` · `app/api/onboarding/*` |
+| Indexer worker + watcher runbook | `scripts/chips-indexer-worker.ts` · [`docs/ops/CHIPS_WATCHER_RUNBOOK.md`](../ops/CHIPS_WATCHER_RUNBOOK.md) |
+| TOKEN_PARAMS / PHASE0 gates / SYBIL draft | `docs/tokenomics/` |
+| Builder-code attribution helpers | `lib/builderCode.ts` · `lib/builderCode` wiring |
 
 ---
 
-*Update this file when the un-park decision changes or the stable-build gate flips. Keep `COMPETITIVE_LUDO_WORLD_LUDO_KING.md` gap register in sync as Q/N/E items close. Engine/settle rule changes still require `ENGINE_LOGIC.md`.*
+## 2. Undone checklist
+
+### 2.1 Un-park / stable sign-off (human)
+
+- [ ] **Q2 phone hop pass** — [`DEVICE_PASS.md`](../ops/DEVICE_PASS.md) → [`UNPARK_DECISION.md` §1.1](../ops/UNPARK_DECISION.md)
+- [ ] **N3 live D1–D4** (two real clients) — [`NETCODE_DRILLS.md`](../ops/NETCODE_DRILLS.md) → [`UNPARK_DECISION.md` §1.2](../ops/UNPARK_DECISION.md)
+- [ ] Confirm **Sentry `session_start`** once in UI (DSN already set) → [`UNPARK_DECISION.md` §1.3](../ops/UNPARK_DECISION.md)
+- [ ] Flip **`UNPARK_DECISION.md`** to DECIDED and mirror here
+
+### 2.2 Quality residuals (small)
+
+- [ ] FSM illegal-transition **soak week** recorded (counters already metered)
+- [ ] Live **`net_*` dashboard** (Grafana/Sentry) + forced-reconnect drill sign-off
+- [ ] Optional: remove remaining file-level eslint disables in legacy modules
+
+### 2.3 CHIPS value track
+
+- [ ] Full **Foundry suite green** in CI (`forge test`) + gas snapshot gate
+- [ ] **Sepolia** deploy + `isActivated(ASSET)` recorded in TOKEN_PARAMS
+- [ ] Paid join / claim **value** UI on Sepolia (production-quality paths)
+- [ ] **M11** B20 + ERC-8021 trailing-suffix assertion
+- [ ] Settlement signer custody runbook + timeout-refund watcher live
+
+### 2.4 C0 / economic freeze (external)
+
+- [ ] Sybil spreadsheet **published + signed** ([`C0_FREEZE_PACK.md`](../tokenomics/C0_FREEZE_PACK.md) §1)
+- [ ] Counsel **L1–L6** written issue-spot + geo table
+- [ ] Welcome-grant ship/no-ship + liquidity owner/date in TOKEN_PARAMS
+
+### 2.5 Later product (after checklist 2.1)
+
+- [ ] Tournaments economy · spectator predict (own legal gate) · marketplace CHIPS catalog
+- [ ] Paymaster **funding** (interface only until then)
+
+---
+
+## 3. Invariants (never regress)
+
+1. `TEAM_PAIRINGS` single truth (Green+Yellow vs Red+Blue) — `lib/constants.ts`
+2. Engine-math legality only (`calculateNextPosition` / `getLegalTokenIndices`)
+3. Networked rolls/moves via Edge; `match_states.seq` display + rules authority
+4. Pull-only CHIPS claims; no hot-wallet gameplay push
+5. Scorer on mission/season/partner only — never match prizes/refunds
+6. Power `type` stripped on wire; ECDH DMs fail-closed
+7. SIWE app session never authorizes match moves
+
+---
+
+## 4. Quick commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm test` | Full node suite (engine, netcode, MP, golden, onboarding…) |
+| `npm run test:golden` | ≥50 deterministic golden matches |
+| `npm run test:mp` | Multiplayer harness |
+| `npm run test:chaos` / `drill:deep` | Netcode drills (sim) |
+| `npm run bench:ai` | AI calibration |
+| `npm run check:rls` | Migration RLS static gate |
+| `npm run lint` / `typecheck` | Quality gates |
+| `npm run unpark:evidence` | Auto evidence for un-park note |
+
+---
+
+*Update this file when a §2 checklist item lands. Engine/settle rule changes still require `ENGINE_LOGIC.md`. Tokenomics remain in `docs/tokenomics/CHIPS_PLANNING.md`.*
