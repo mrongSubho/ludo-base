@@ -216,6 +216,18 @@ const NavRow = ({ icon, tint, label, hint, last = false, onClick }: {
     </button>
 );
 
+function passkeyName(credentialId: string, index: number): string {
+    try {
+        const saved = localStorage.getItem(`ludo-passkey-name-${credentialId}`);
+        if (saved) return saved;
+    } catch {
+        /* ignore */
+    }
+    if (index === 0) return 'This device';
+    if (index === 1) return 'Backup device';
+    return `Passkey ${index + 1}`;
+}
+
 const ActionRow = ({
     icon,
     tint,
@@ -643,6 +655,19 @@ export function SettingsPanel({
                                                 try {
                                                     await enrollPasskey();
                                                     await refetchPasskeys();
+                                                    try {
+                                                        const list = (passkeys || []) as { credentialId: string }[];
+                                                        // Name newest as "This device" if none saved yet.
+                                                        const last = list[list.length - 1];
+                                                        if (last?.credentialId) {
+                                                            localStorage.setItem(
+                                                                `ludo-passkey-name-${last.credentialId}`,
+                                                                list.length <= 1 ? 'This device' : `Passkey ${list.length}`,
+                                                            );
+                                                        }
+                                                    } catch {
+                                                        /* ignore */
+                                                    }
                                                     setPasskeyMsg('Passkey added.');
                                                     setShowPasskeys(true);
                                                 } catch {
@@ -662,40 +687,55 @@ export function SettingsPanel({
                                                 <>
                                                     <button
                                                         type="button"
-                                                        className="mx-3.5 mb-1 w-[calc(100%-1.75rem)] flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.08] transition-colors"
+                                                        className="mx-3.5 mb-1 w-[calc(100%-1.75rem)] flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left hover:bg-white/[0.08] transition-colors"
                                                         onClick={() => setShowPasskeys((v) => !v)}
                                                         aria-expanded={showPasskeys}
                                                     >
-                                                        <span className="text-[11px] font-semibold text-white/65">
-                                                            {showPasskeys ? 'Hide passkeys' : `View passkeys (${passkeyCount})`}
+                                                        <span className="flex items-center gap-2 min-w-0">
+                                                            <span className="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shrink-0">
+                                                                <KeyIcon />
+                                                            </span>
+                                                            <span className="text-[12px] font-bold text-white/85 truncate">
+                                                                {passkeyCount === 1 ? '1 passkey' : `${passkeyCount} passkeys`}
+                                                            </span>
                                                         </span>
-                                                        <svg
-                                                            viewBox="0 0 24 24"
-                                                            className={`w-3.5 h-3.5 text-white/45 transition-transform ${showPasskeys ? 'rotate-180' : ''}`}
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2.2"
-                                                            strokeLinecap="round"
-                                                        >
-                                                            <path d="M6 9l6 6 6-6" />
-                                                        </svg>
+                                                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/45 shrink-0">
+                                                            {showPasskeys ? 'Hide' : 'Manage'}
+                                                            <svg
+                                                                viewBox="0 0 24 24"
+                                                                className={`w-3.5 h-3.5 transition-transform ${showPasskeys ? 'rotate-180' : ''}`}
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2.2"
+                                                                strokeLinecap="round"
+                                                            >
+                                                                <path d="M6 9l6 6 6-6" />
+                                                            </svg>
+                                                        </span>
                                                     </button>
                                                     {showPasskeys && (
-                                                        <ul className="mx-3.5 mb-2.5 flex flex-wrap gap-2">
-                                                            {(passkeys || []).map((pk: { credentialId: string }) => (
-                                                                <li
+                                                        <div className="mx-3.5 mb-2.5 overflow-hidden rounded-xl border border-white/10">
+                                                            {(passkeys || []).map((pk: { credentialId: string }, i: number) => (
+                                                                <div
                                                                     key={pk.credentialId}
-                                                                    className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5"
+                                                                    className={`flex items-center gap-3 px-3 py-2.5 ${
+                                                                        i ? 'border-t border-white/8' : ''
+                                                                    }`}
                                                                 >
-                                                                    <span className="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300">
+                                                                    <span className="w-8 h-8 rounded-full bg-cyan-500/12 border border-cyan-400/25 flex items-center justify-center text-cyan-300 shrink-0">
                                                                         <KeyIcon />
                                                                     </span>
-                                                                    <span className="text-[11px] font-mono text-white/75 break-all">
-                                                                        {pk.credentialId.slice(0, 8)}…{pk.credentialId.slice(-4)}
-                                                                    </span>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="text-[12px] font-bold text-white truncate">
+                                                                            {passkeyName(pk.credentialId, i)}
+                                                                        </div>
+                                                                        <div className="text-[10px] font-semibold text-white/40 truncate">
+                                                                            Face ID / Touch ID · security key
+                                                                        </div>
+                                                                    </div>
                                                                     <button
                                                                         type="button"
-                                                                        className="text-[10px] font-bold uppercase text-red-300/80"
+                                                                        className="shrink-0 rounded-lg border border-red-400/25 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-bold uppercase text-red-200"
                                                                         disabled={passkeyBusy}
                                                                         onClick={async () => {
                                                                             setPasskeyBusy(true);
@@ -711,9 +751,9 @@ export function SettingsPanel({
                                                                     >
                                                                         Remove
                                                                     </button>
-                                                                </li>
+                                                                </div>
                                                             ))}
-                                                        </ul>
+                                                        </div>
                                                     )}
                                                 </>
                                             )}
