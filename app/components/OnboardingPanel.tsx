@@ -215,83 +215,14 @@ export const OnboardingPanel = () => {
 
     return (
         <div className="flex flex-col gap-2 pb-2">
-            {/* Welcome grant */}
-            <div className="flex items-center gap-3 bg-white/[0.04] border border-white/10 p-3 rounded-2xl">
-                <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-bold text-white uppercase tracking-wide">Welcome grant</div>
-                    <div className="text-[11px] text-white/50 mt-0.5">One-time 50 CHIPS on first wallet link</div>
-                </div>
-                {welcomeClaimed ? (
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/30">
-                        Claimed
-                    </span>
-                ) : (
-                    <button
-                        onClick={() => handleClaim(WELCOME_ID)}
-                        disabled={claimingId !== null}
-                        className="px-3 py-2 rounded-xl bg-cyan-400 text-black text-[11px] font-black uppercase tracking-[0.18em] hover:bg-cyan-300 active:scale-[0.98] transition-all disabled:opacity-50"
-                    >
-                        {claimingId === WELCOME_ID ? '...' : 'Claim'}
-                    </button>
-                )}
-            </div>
+            {/* Section header helper */}
+            {(() => {
+                const coreTracks = tracks.filter((t) => t.core);
+                const extTracks = tracks.filter((t) => !t.core);
+                const coreSum = coreTracks.reduce((s, t) => s + (t.reward || 0), 0);
+                const extSum = extTracks.reduce((s, t) => s + (t.reward || 0), 0);
 
-            {/* Referral */}
-            <div className="bg-white/[0.04] border border-white/10 p-3 rounded-2xl flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">Referral</div>
-                    {referral && (
-                        <div className="text-[10px] font-black text-white/50 tabular-nums uppercase tracking-wide">
-                            {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <div
-                        onClick={copyCode}
-                        className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-cyan-400/30 font-mono text-cyan-300 text-sm cursor-pointer select-all"
-                    >
-                        {referral?.code || '—'}
-                    </div>
-                    <button
-                        onClick={copyCode}
-                        className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all"
-                    >
-                        {copied ? 'Copied' : 'Copy'}
-                    </button>
-                </div>
-                {referral?.referrer ? (
-                    <div className="text-[10px] text-white/40 font-mono">Referred by {referral.referrer.slice(0, 10)}…</div>
-                ) : (
-                    <div className="flex items-center gap-2">
-                        <input
-                            value={referralCodeInput}
-                            onChange={(e) => setReferralCodeInput(e.target.value)}
-                            placeholder="REFERRAL CODE"
-                            className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
-                        />
-                        <button
-                            onClick={bindReferral}
-                            disabled={!referralCodeInput.trim()}
-                            className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all disabled:opacity-40"
-                        >
-                            Bind
-                        </button>
-                    </div>
-                )}
-                {bindState && <div className="text-[10px] text-cyan-300/80">{bindState}</div>}
-            </div>
-
-            {/* Tracks */}
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50 mt-1">Onboarding tracks</div>
-            {loading && tracks.length === 0 ? (
-                <div className="flex items-center justify-center py-10">
-                    <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                </div>
-            ) : tracks.length === 0 ? (
-                <div className="text-white/40 text-xs text-center py-8">No tracks yet — play a match to begin.</div>
-            ) : (
-                tracks.map((t) => {
+                const TrackCard = (t: TrackRow) => {
                     const pct = Math.min(((t.progress || 0) / Math.max(t.target, 1)) * 100, 100);
                     return (
                         <div
@@ -300,16 +231,9 @@ export const OnboardingPanel = () => {
                         >
                             <div className="flex items-center gap-3">
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-[13px] font-bold truncate ${t.is_claimed ? 'text-cyan-300' : 'text-white'}`}>
-                                            {t.label}
-                                        </span>
-                                        {!t.core && (
-                                            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-white/40 border border-white/10 rounded px-1.5 py-0.5">
-                                                Extended
-                                            </span>
-                                        )}
-                                    </div>
+                                    <span className={`text-[13px] font-bold truncate ${t.is_claimed ? 'text-cyan-300' : 'text-white'}`}>
+                                        {t.label}
+                                    </span>
                                     <div className="text-[10px] text-white/45 mt-0.5 tabular-nums">
                                         {t.progress}/{t.target} · {t.reward} CHIPS
                                     </div>
@@ -340,10 +264,130 @@ export const OnboardingPanel = () => {
                             </div>
                         </div>
                     );
-                })
-            )}
+                };
 
-            {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-1">{notice}</div>}
+                return (
+                    <>
+                        {/* ── Welcome grant ── */}
+                        <div className="flex items-center gap-3 bg-white/[0.04] border border-white/10 p-3 rounded-2xl">
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[13px] font-bold text-white uppercase tracking-wide">Welcome grant</div>
+                                <div className="text-[11px] text-white/50 mt-0.5">One-time 50 CHIPS on first wallet link</div>
+                            </div>
+                            {welcomeClaimed ? (
+                                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-300 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-400/30">
+                                    Claimed
+                                </span>
+                            ) : (
+                                <button
+                                    onClick={() => handleClaim(WELCOME_ID)}
+                                    disabled={claimingId !== null}
+                                    className="px-3 py-2 rounded-xl bg-cyan-400 text-black text-[11px] font-black uppercase tracking-[0.18em] hover:bg-cyan-300 active:scale-[0.98] transition-all disabled:opacity-50"
+                                >
+                                    {claimingId === WELCOME_ID ? '...' : 'Claim'}
+                                </button>
+                            )}
+                        </div>
+
+                        {/* ── Core package · 1,000 CHIPS ── */}
+                        <div className="flex items-center justify-between gap-2 mt-2">
+                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
+                                Core package
+                            </div>
+                            <div className="text-[10px] font-black text-cyan-300 tabular-nums uppercase tracking-wide">
+                                {coreSum || 1000} CHIPS
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-white/40 -mt-1 mb-0.5">
+                            Complete these to unlock extended missions.
+                        </p>
+                        {loading && tracks.length === 0 ? (
+                            <div className="flex items-center justify-center py-10">
+                                <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                            </div>
+                        ) : coreTracks.length === 0 ? (
+                            <div className="text-white/40 text-xs text-center py-6">No core missions yet — play a match to begin.</div>
+                        ) : (
+                            <div className="flex flex-col gap-2">{coreTracks.map(TrackCard)}</div>
+                        )}
+
+                        {/* ── Extended missions ── */}
+                        <div className="flex items-center justify-between gap-2 mt-3">
+                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
+                                Extended missions
+                            </div>
+                            <div className="text-[10px] font-black text-white/50 tabular-nums uppercase tracking-wide">
+                                {extSum} CHIPS
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-white/40 -mt-1 mb-0.5">
+                            Unlocks after the core package is claimed.
+                        </p>
+                        {extTracks.length === 0 ? (
+                            <div className="text-white/40 text-xs text-center py-6">No extended missions yet.</div>
+                        ) : (
+                            <div className="flex flex-col gap-2">{extTracks.map(TrackCard)}</div>
+                        )}
+
+                        {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-1">{notice}</div>}
+
+                        {/* ── Invite / referral (last) ── */}
+                        <div className="mt-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
+                                    Invite
+                                </div>
+                                {referral && (
+                                    <div className="text-[10px] font-black text-white/50 tabular-nums uppercase tracking-wide">
+                                        {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-1 bg-white/[0.04] border border-white/10 p-3 rounded-2xl flex flex-col gap-2">
+                                <div className="text-[11px] text-white/50">
+                                    Share your code. Tiers: 50 CHIPS for early referees, 10 after the top slots fill.
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        onClick={copyCode}
+                                        className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-cyan-400/30 font-mono text-cyan-300 text-sm cursor-pointer select-all"
+                                    >
+                                        {referral?.code || '—'}
+                                    </div>
+                                    <button
+                                        onClick={copyCode}
+                                        className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all"
+                                    >
+                                        {copied ? 'Copied' : 'Copy'}
+                                    </button>
+                                </div>
+                                {referral?.referrer ? (
+                                    <div className="text-[10px] text-white/40 font-mono">
+                                        Referred by {referral.referrer.slice(0, 10)}…
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            value={referralCodeInput}
+                                            onChange={(e) => setReferralCodeInput(e.target.value)}
+                                            placeholder="REFERRAL CODE"
+                                            className="flex-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
+                                        />
+                                        <button
+                                            onClick={bindReferral}
+                                            disabled={!referralCodeInput.trim()}
+                                            className="px-3 py-2 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all disabled:opacity-40"
+                                        >
+                                            Bind
+                                        </button>
+                                    </div>
+                                )}
+                                {bindState && <div className="text-[10px] text-cyan-300/80">{bindState}</div>}
+                            </div>
+                        </div>
+                    </>
+                );
+            })()}
         </div>
     );
 };

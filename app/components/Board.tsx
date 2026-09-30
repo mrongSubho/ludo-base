@@ -49,6 +49,7 @@ export default function Board({
     poolId = null,
     botDifficulty = 'pro',
     onExitMatch,
+    onOpenChat,
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -65,6 +66,8 @@ export default function Board({
     poolId?: `0x${string}` | null;
     botDifficulty?: import('@/lib/types').BotDifficulty;
     onExitMatch?: () => void;
+    /** Open in-match chat / messages. */
+    onOpenChat?: () => void;
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
@@ -426,7 +429,17 @@ export default function Board({
                         </div>
                     )}
                 </div>
-                <div className="match-footer-slot right" aria-hidden />
+                <div className="match-footer-slot right">
+                    <button
+                        type="button"
+                        className="emote-fab"
+                        onClick={() => onOpenChat?.()}
+                        disabled={!onOpenChat}
+                        aria-label="Chat"
+                    >
+                        <span className="emote-fab-label">Chat</span>
+                    </button>
+                </div>
             </div>
 
             <Leaderboard isOpen={showLeaderboard} onClose={() => onToggleLeaderboard?.(false)} onOpenProfile={onOpenProfile || (() => { })} />

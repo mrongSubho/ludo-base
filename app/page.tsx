@@ -791,6 +791,7 @@ export default function Page() {
                     }
                     botDifficulty={botDifficulty}
                     onExitMatch={handleBackToSubMenu}
+                    onOpenChat={() => toggle('messages')}
                   />
                 )}
               </main>
