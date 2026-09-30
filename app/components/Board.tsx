@@ -326,39 +326,6 @@ export default function Board({
                 counterRotationDeg={counterRotationDeg}
             />
 
-            {/* ── Power inventory: large game-style orb row (always visible) ── */}
-            {showInventory && (
-                <div className="fixed bottom-[72px] left-1/2 -translate-x-1/2 z-[60] flex items-end gap-3 sm:gap-4 px-2">
-                    {targeting && (
-                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black uppercase tracking-[0.22em] text-amber-300 animate-pulse whitespace-nowrap">
-                            Tap a token
-                        </span>
-                    )}
-                    {groupedInventory.map(g => {
-                        const has = g.count > 0;
-                        const secsLeft = g.soonest ? Math.max(0, Math.round((g.soonest - Date.now()) / 1000)) : 0;
-                        const expiring = has && secsLeft < 30;
-                        return (
-                            <button
-                                key={g.type}
-                                onClick={() => spendPower(g.type)}
-                                disabled={!canSpend || !has}
-                                aria-label={`Use ${g.type} power, ${g.count} held${has ? `, expires in ${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}` : ''}`}
-                                className={`power-orb power-orb-${g.type} relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-2 transition-all active:scale-90 disabled:opacity-70 ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${expiring ? 'animate-pulse' : ''} ${has ? '' : 'power-orb-empty'}`}
-                            >
-                                <PowerGlyph type={g.type} />
-                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
-                                {has && secsLeft > 0 && (
-                                    <span className={`power-orb-timer ${expiring ? 'warn' : ''}`}>
-                                        {Math.floor(secsLeft / 60)}:{String(secsLeft % 60).padStart(2, '0')}
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-
             {lxpGain !== null && (
                 <motion.div
                     initial={{ opacity: 0, y: 20, scale: 0.8 }}
@@ -376,6 +343,33 @@ export default function Board({
               </div>
 
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
+
+            {/* Power inventory — unrotated match footer strip (no FooterNav in-game).
+                Ref-sized orbs; always visible (0 counts allowed). */}
+            {showInventory && (
+                <div className="power-inv-strip">
+                    {targeting && (
+                        <span className="power-inv-hint">Tap a token</span>
+                    )}
+                    {groupedInventory.map(g => {
+                        const has = g.count > 0;
+                        const secsLeft = g.soonest ? Math.max(0, Math.round((g.soonest - Date.now()) / 1000)) : 0;
+                        const expiring = has && secsLeft < 30;
+                        return (
+                            <button
+                                key={g.type}
+                                onClick={() => spendPower(g.type)}
+                                disabled={!canSpend || !has}
+                                aria-label={`Use ${g.type} power, ${g.count} held`}
+                                className={`power-orb power-orb-${g.type} ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${expiring ? 'animate-pulse' : ''} ${has ? '' : 'power-orb-empty'}`}
+                            >
+                                <PowerGlyph type={g.type} />
+                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
              {!spectatorMode && myPlayer && (
                  <div className="absolute bottom-2 right-2 z-[45]">
                      <EmoteTray
@@ -452,9 +446,9 @@ function useBoardLayoutRotation(smoothProgress: any) {
     return useTransform(smoothProgress, [0, 1], [270, -90]);
 }
 
-// Power glyphs — sized for the large orb row.
+// Power glyphs — match-footprint size (ref row).
 function PowerGlyph({ type }: { type: PowerType }) {
-    const cls = 'w-7 h-7 sm:w-8 sm:h-8';
+    const cls = 'w-5 h-5 sm:w-6 sm:h-6';
     if (type === 'shield') {
         return (
             <svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>

@@ -10042,85 +10042,110 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   }
 }
 
-/* ─── Power inventory orbs (game-cosmic, always-on row) ─── */
+/* ─── Power inventory strip (match footer — no FooterNav in-game) ─── */
+.power-inv-strip {
+  position: fixed;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+  pointer-events: none;
+}
+.power-inv-strip > * {
+  pointer-events: auto;
+}
+.power-inv-hint {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fbbf24;
+  white-space: nowrap;
+  animation: pulse 1s infinite;
+  pointer-events: none;
+}
 .power-orb {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.22), transparent 45%),
-    radial-gradient(circle at 70% 80%, rgba(0, 0, 0, 0.35), transparent 55%),
-    var(--orb-fill, #1e293b);
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.35), transparent 48%),
+    var(--orb-fill, #334155);
   box-shadow:
-    0 10px 22px rgba(0, 0, 0, 0.4),
-    0 0 18px var(--orb-glow, rgba(34, 211, 238, 0.25)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.22) !important;
+    0 6px 14px rgba(0, 0, 0, 0.28),
+    0 0 10px var(--orb-glow, rgba(34, 211, 238, 0.2));
+  transition: transform 0.12s ease, filter 0.15s ease;
 }
 .power-orb:active:not(:disabled) {
-  filter: brightness(1.12);
+  transform: scale(0.92);
+}
+.power-orb:disabled {
+  cursor: default;
 }
 .power-orb-empty {
-  filter: grayscale(0.35) brightness(0.75);
+  filter: grayscale(0.45) brightness(0.85);
 }
 .power-orb-armed {
   border-color: #fbbf24 !important;
   box-shadow:
-    0 12px 28px rgba(251, 191, 36, 0.45),
-    0 0 22px rgba(251, 191, 36, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    0 8px 18px rgba(251, 191, 36, 0.4),
+    0 0 16px rgba(251, 191, 36, 0.45) !important;
 }
 .power-orb-boost {
-  --orb-fill: linear-gradient(160deg, #f59e0b 0%, #b45309 70%);
-  --orb-glow: rgba(251, 191, 36, 0.45);
+  --orb-fill: linear-gradient(160deg, #fbbf24, #d97706);
+  --orb-glow: rgba(251, 191, 36, 0.35);
 }
 .power-orb-shield {
-  --orb-fill: linear-gradient(160deg, #22d3ee 0%, #0e7490 70%);
-  --orb-glow: rgba(34, 211, 238, 0.4);
+  --orb-fill: linear-gradient(160deg, #38bdf8, #0369a1);
+  --orb-glow: rgba(56, 189, 248, 0.35);
 }
 .power-orb-teleport {
-  --orb-fill: linear-gradient(160deg, #a78bfa 0%, #6d28d9 70%);
-  --orb-glow: rgba(167, 139, 250, 0.45);
+  --orb-fill: linear-gradient(160deg, #a78bfa, #7c3aed);
+  --orb-glow: rgba(167, 139, 250, 0.35);
 }
 .power-orb-nuke {
-  --orb-fill: linear-gradient(160deg, #f87171 0%, #b91c1c 70%);
-  --orb-glow: rgba(248, 113, 113, 0.45);
+  --orb-fill: linear-gradient(160deg, #f87171, #dc2626);
+  --orb-glow: rgba(248, 113, 113, 0.35);
 }
 .power-orb-count {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 5px;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   border-radius: 999px;
   background: linear-gradient(180deg, #ef4444, #b91c1c);
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
-  line-height: 22px;
+  line-height: 18px;
   text-align: center;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 10px rgba(185, 28, 28, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.4);
   font-variant-numeric: tabular-nums;
 }
 .power-orb-count.zero {
-  opacity: 0.85;
-  background: linear-gradient(180deg, #64748b, #334155);
+  background: linear-gradient(180deg, #94a3b8, #64748b);
   box-shadow: none;
-}
-.power-orb-timer {
-  position: absolute;
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 8px;
-  font-weight: 800;
-  font-family: ui-monospace, monospace;
-  color: rgba(255, 255, 255, 0.75);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
-  white-space: nowrap;
-}
-.power-orb-timer.warn {
-  color: #fbbf24;
+  opacity: 0.9;
 }
 body.theme-daybreak .power-orb {
-  border-color: rgba(15, 23, 42, 0.15) !important;
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.18),
+    0 0 10px var(--orb-glow, rgba(34, 211, 238, 0.15));
 }
