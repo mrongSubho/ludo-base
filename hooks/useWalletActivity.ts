@@ -173,8 +173,18 @@ export function useWalletActivity() {
                 }),
             );
 
+            // Etherscan / BaseScan (server) — native ETH + token history
+            let explorerRows: WalletActivityItem[] = [];
+            try {
+                const res = await fetch(`/api/activity?wallet=${address}`);
+                const data = await res.json().catch(() => ({}));
+                if (Array.isArray(data?.items)) explorerRows = data.items as WalletActivityItem[];
+            } catch {
+                /* optional */
+            }
+
             const localAfter = readLocal(address);
-            const merged = [...localAfter, ...chainRows].sort((a, b) => b.at - a.at);
+            const merged = [...localAfter, ...chainRows, ...explorerRows].sort((a, b) => b.at - a.at);
             const seen = new Set<string>();
             setItems(
                 merged.filter((i) => {
