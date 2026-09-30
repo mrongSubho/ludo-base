@@ -228,49 +228,6 @@ function passkeyName(credentialId: string, index: number): string {
     return `Passkey ${index + 1}`;
 }
 
-const ActionRow = ({
-    icon,
-    tint,
-    label,
-    hint,
-    action,
-    onAction,
-    disabled,
-    last = false,
-    children,
-}: {
-    icon: React.ReactNode;
-    tint: string;
-    label: string;
-    hint?: string;
-    action: string;
-    onAction: () => void;
-    disabled?: boolean;
-    last?: boolean;
-    children?: React.ReactNode;
-}) => (
-    <div className={`${last ? '' : 'border-b border-white/5'}`}>
-        <div className="flex items-center gap-3 p-3.5">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-                {icon}
-            </div>
-            <div className="flex-1 flex flex-col min-w-0">
-                <span className="text-[13px] font-bold text-white truncate">{label}</span>
-                {hint && <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>}
-            </div>
-            <button
-                type="button"
-                className="shrink-0 rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-40"
-                disabled={disabled}
-                onClick={onAction}
-            >
-                {action}
-            </button>
-        </div>
-        {children}
-    </div>
-);
-
 const KeyIcon = () => (
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="8" cy="12" r="3.5" />
@@ -638,126 +595,123 @@ export function SettingsPanel({
                                         />
                                         {isCdpWallet && (
                                         <>
-                                        <ActionRow
-                                            icon={<KeyIcon />}
-                                            tint="bg-cyan-500/15 text-cyan-300"
-                                            label="Passkey"
-                                            hint={
-                                                passkeyCount > 0
-                                                    ? `Face ID / Touch ID · ${passkeyCount} enrolled`
-                                                    : 'Face ID / Touch ID · security key'
-                                            }
-                                            action={enrollStatus === 'pending' ? 'Wait…' : passkeyCount > 0 ? 'Add' : 'Enable'}
-                                            disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
-                                            onAction={async () => {
-                                                setPasskeyBusy(true);
-                                                setPasskeyMsg(null);
-                                                try {
-                                                    await enrollPasskey();
-                                                    await refetchPasskeys();
-                                                    try {
-                                                        const list = (passkeys || []) as { credentialId: string }[];
-                                                        // Name newest as "This device" if none saved yet.
-                                                        const last = list[list.length - 1];
-                                                        if (last?.credentialId) {
-                                                            localStorage.setItem(
-                                                                `ludo-passkey-name-${last.credentialId}`,
-                                                                list.length <= 1 ? 'This device' : `Passkey ${list.length}`,
-                                                            );
-                                                        }
-                                                    } catch {
-                                                        /* ignore */
-                                                    }
-                                                    setPasskeyMsg('Passkey added.');
-                                                    setShowPasskeys(true);
-                                                } catch {
-                                                    setPasskeyMsg('Could not add passkey.');
-                                                } finally {
-                                                    setPasskeyBusy(false);
-                                                }
-                                            }}
-                                        >
-                                            {!passkeySupported.data && (
-                                                <p className="px-3.5 pb-2 text-[10px] text-amber-300/80">Not available in this browser</p>
-                                            )}
-                                            {passkeyMsg && (
-                                                <p className="px-3.5 pb-2 text-[10px] text-white/50">{passkeyMsg}</p>
-                                            )}
-                                            {passkeyCount > 0 && (
-                                                <>
+                                        {/* Passkey — parent row; list is nested children */}
+                                        <div className={showPasskeys ? '' : 'border-b border-white/5'}>
+                                            <button
+                                                type="button"
+                                                className="w-full flex items-center gap-3 p-3.5 hover:bg-white/5 transition-colors text-left"
+                                                onClick={() => setShowPasskeys((v) => !v)}
+                                                aria-expanded={showPasskeys}
+                                            >
+                                                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center shrink-0">
+                                                    <KeyIcon />
+                                                </div>
+                                                <div className="flex-1 flex flex-col min-w-0">
+                                                    <span className="text-[13px] font-bold text-white truncate">Passkey</span>
+                                                    <span className="text-[10px] font-bold text-white/35 truncate">
+                                                        {passkeyCount > 0
+                                                            ? `Face ID / Touch ID · ${passkeyCount} active`
+                                                            : 'Face ID / Touch ID · security key'}
+                                                    </span>
+                                                </div>
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    className={`w-3.5 h-3.5 text-white/40 transition-transform shrink-0 ${showPasskeys ? 'rotate-180' : ''}`}
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2.2"
+                                                    strokeLinecap="round"
+                                                >
+                                                    <path d="M6 9l6 6 6-6" />
+                                                </svg>
+                                            </button>
+
+                                            {showPasskeys && (
+                                                <div className="px-3.5 pb-2">
+                                                    {(passkeys || []).map((pk: { credentialId: string }, i: number) => (
+                                                        <div
+                                                            key={pk.credentialId}
+                                                            className="flex items-center gap-2.5 py-2 pl-1 pr-1 border-t border-white/5 first:border-t-0"
+                                                        >
+                                                            <div className="w-7 h-7 rounded-lg bg-cyan-500/12 border border-cyan-400/25 text-cyan-300 flex items-center justify-center shrink-0">
+                                                                <KeyIcon />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-[12px] font-semibold text-white truncate">
+                                                                    {passkeyName(pk.credentialId, i)}
+                                                                </div>
+                                                                <div className="text-[10px] text-white/35 truncate">
+                                                                    Device unlock
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                className="shrink-0 text-[10px] font-bold uppercase text-red-300/80 px-1.5 py-1"
+                                                                disabled={passkeyBusy}
+                                                                onClick={async () => {
+                                                                    setPasskeyBusy(true);
+                                                                    try {
+                                                                        await deletePasskeyAsync(pk.credentialId);
+                                                                        await refetchPasskeys();
+                                                                    } catch {
+                                                                        /* ignore */
+                                                                    } finally {
+                                                                        setPasskeyBusy(false);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    ))}
+
                                                     <button
                                                         type="button"
-                                                        className="mx-3.5 mb-1 w-[calc(100%-1.75rem)] flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left hover:bg-white/[0.08] transition-colors"
-                                                        onClick={() => setShowPasskeys((v) => !v)}
-                                                        aria-expanded={showPasskeys}
+                                                        className="w-full flex items-center gap-2.5 py-2.5 border-t border-white/5 text-left disabled:opacity-40"
+                                                        disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
+                                                        onClick={async () => {
+                                                            setPasskeyBusy(true);
+                                                            setPasskeyMsg(null);
+                                                            try {
+                                                                await enrollPasskey();
+                                                                await refetchPasskeys();
+                                                                try {
+                                                                    const list = (passkeys || []) as { credentialId: string }[];
+                                                                    const last = list[list.length - 1];
+                                                                    if (last?.credentialId) {
+                                                                        localStorage.setItem(
+                                                                            `ludo-passkey-name-${last.credentialId}`,
+                                                                            list.length <= 1 ? 'This device' : `Passkey ${list.length}`,
+                                                                        );
+                                                                    }
+                                                                } catch {
+                                                                    /* ignore */
+                                                                }
+                                                                setPasskeyMsg('Passkey added.');
+                                                            } catch {
+                                                                setPasskeyMsg('Could not add passkey.');
+                                                            } finally {
+                                                                setPasskeyBusy(false);
+                                                            }
+                                                        }}
                                                     >
-                                                        <span className="flex items-center gap-2 min-w-0">
-                                                            <span className="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shrink-0">
-                                                                <KeyIcon />
-                                                            </span>
-                                                            <span className="text-[12px] font-bold text-white/85 truncate">
-                                                                {passkeyCount === 1 ? '1 passkey' : `${passkeyCount} passkeys`}
-                                                            </span>
-                                                        </span>
-                                                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/45 shrink-0">
-                                                            {showPasskeys ? 'Hide' : 'Manage'}
-                                                            <svg
-                                                                viewBox="0 0 24 24"
-                                                                className={`w-3.5 h-3.5 transition-transform ${showPasskeys ? 'rotate-180' : ''}`}
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                strokeWidth="2.2"
-                                                                strokeLinecap="round"
-                                                            >
-                                                                <path d="M6 9l6 6 6-6" />
-                                                            </svg>
+                                                        <div className="w-7 h-7 rounded-lg border border-dashed border-white/20 text-white/50 flex items-center justify-center shrink-0">
+                                                            +
+                                                        </div>
+                                                        <span className="text-[12px] font-bold text-white/75">
+                                                            {enrollStatus === 'pending' ? 'Waiting…' : 'Add passkey'}
                                                         </span>
                                                     </button>
-                                                    {showPasskeys && (
-                                                        <div className="mx-3.5 mb-2.5 overflow-hidden rounded-xl border border-white/10">
-                                                            {(passkeys || []).map((pk: { credentialId: string }, i: number) => (
-                                                                <div
-                                                                    key={pk.credentialId}
-                                                                    className={`flex items-center gap-3 px-3 py-2.5 ${
-                                                                        i ? 'border-t border-white/8' : ''
-                                                                    }`}
-                                                                >
-                                                                    <span className="w-8 h-8 rounded-full bg-cyan-500/12 border border-cyan-400/25 flex items-center justify-center text-cyan-300 shrink-0">
-                                                                        <KeyIcon />
-                                                                    </span>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <div className="text-[12px] font-bold text-white truncate">
-                                                                            {passkeyName(pk.credentialId, i)}
-                                                                        </div>
-                                                                        <div className="text-[10px] font-semibold text-white/40 truncate">
-                                                                            Face ID / Touch ID · security key
-                                                                        </div>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="shrink-0 rounded-lg border border-red-400/25 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-bold uppercase text-red-200"
-                                                                        disabled={passkeyBusy}
-                                                                        onClick={async () => {
-                                                                            setPasskeyBusy(true);
-                                                                            try {
-                                                                                await deletePasskeyAsync(pk.credentialId);
-                                                                                await refetchPasskeys();
-                                                                            } catch {
-                                                                                /* ignore */
-                                                                            } finally {
-                                                                                setPasskeyBusy(false);
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        Remove
-                                                                    </button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
+
+                                                    {!passkeySupported.data && (
+                                                        <p className="pt-1 text-[10px] text-amber-300/80">Not available in this browser</p>
                                                     )}
-                                                </>
+                                                    {passkeyMsg && (
+                                                        <p className="pt-1 text-[10px] text-white/50">{passkeyMsg}</p>
+                                                    )}
+                                                </div>
                                             )}
-                                        </ActionRow>
+                                        </div>
                                         <PrefRow
                                             icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
                                             label="App lock"
