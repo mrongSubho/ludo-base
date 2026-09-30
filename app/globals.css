@@ -10042,18 +10042,19 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   }
 }
 
-/* ─── Power inventory strip (board bottom-center — unrotated sibling) ─── */
+/* ─── Power inventory strip — board-outer flex row (under board, above HUD) ─── */
 .power-inv-strip {
-  position: absolute;
-  bottom: 6px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   z-index: 55;
+  flex: 0 0 auto;
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 0 4px;
+  padding: 2px 8px;
   pointer-events: none;
+  min-height: 52px;
 }
 .power-inv-strip > * {
   pointer-events: auto;

@@ -342,28 +342,6 @@ export default function Board({
 
               </div>
 
-            {/* Power inventory — board bottom-center (sibling of rotated wrapper). */}
-            {showInventory && (
-                <div className="power-inv-strip">
-                    {targeting && <span className="power-inv-hint">Tap a token</span>}
-                    {groupedInventory.map(g => {
-                        const has = g.count > 0;
-                        return (
-                            <button
-                                key={g.type}
-                                onClick={() => spendPower(g.type)}
-                                disabled={!canSpend || !has}
-                                aria-label={`Use ${g.type} power, ${g.count} held`}
-                                className={`power-orb power-orb-${g.type} ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${has ? '' : 'power-orb-empty'}`}
-                            >
-                                <PowerGlyph type={g.type} />
-                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
-
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
 
              {!spectatorMode && myPlayer && (
@@ -384,6 +362,29 @@ export default function Board({
                  </div>
              )}
          </motion.div>
+
+            {/* Power inventory — flex row in board-outer (under board, above HUD).
+                Outside board-area/board-wrapper so it never rotates or clips. */}
+            {showInventory && (
+                <div className="power-inv-strip">
+                    {targeting && <span className="power-inv-hint">Tap a token</span>}
+                    {groupedInventory.map(g => {
+                        const has = g.count > 0;
+                        return (
+                            <button
+                                key={g.type}
+                                onClick={() => spendPower(g.type)}
+                                disabled={!canSpend || !has}
+                                aria-label={`Use ${g.type} power, ${g.count} held`}
+                                className={`power-orb power-orb-${g.type} ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${has ? '' : 'power-orb-empty'}`}
+                            >
+                                <PowerGlyph type={g.type} />
+                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             <MatchStatsOverlay
                 open={!!localGameState.winner && !spectatorMode}
