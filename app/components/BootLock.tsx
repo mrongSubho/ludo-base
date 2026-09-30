@@ -10,14 +10,14 @@
 import { useCallback, useState } from "react";
 import {
     useCurrentUser,
-    useInitiateMfaVerification,
     useIsSignedIn,
     useListPasskeys,
     useSignOut,
-    useSubmitMfaVerification,
+    useVerifyPasskey,
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
+import { useWalletMode } from "@/hooks/useWalletMode";
 
 /** Reset on every full navigation / refresh — one unlock per boot. */
 let unlockedThisLoad = false;
@@ -63,9 +63,9 @@ export default function BootLock() {
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
     const { data: passkeys } = useListPasskeys();
-    const { initiateMfaVerification } = useInitiateMfaVerification();
-    const { submitMfaVerification } = useSubmitMfaVerification();
+    const { verifyPasskeyAsync } = useVerifyPasskey();
     const { signOut } = useSignOut();
+    const walletMode = useWalletMode();
     const { bootLock } = useSecurityPrefs();
     const [unlocked, setUnlocked] = useState(unlockedThisLoad);
     const [busy, setBusy] = useState(false);
@@ -77,12 +77,16 @@ export default function BootLock() {
     const left = Math.max(0, MAX_ATTEMPTS - attempts);
     const lockedOut = attempts >= MAX_ATTEMPTS;
 
-    // Security gate is **server-side only**: CDP reports an enrolled passkey.
-    // Never trust localStorage (clearing site data must not skip the lock).
-    // markBootUnlocked() only covers the create → ready → passkey handoff
-    // in this same document; the next reload always locks.
+    // **In-game CDP only** — external wallets use their own extension security.
+    // Gate is **server-side only**: CDP reports an enrolled passkey (never
+    // localStorage). markBootUnlocked() only covers the create → ready handoff.
     const required =
-        bootLock && isSignedIn && Boolean(id.address) && hasPasskey && !unlocked;
+        bootLock &&
+        walletMode === "ingame" &&
+        isSignedIn &&
+        Boolean(id.address) &&
+        hasPasskey &&
+        !unlocked;
 
     const signOutNow = useCallback(async () => {
         try {
@@ -122,8 +126,7 @@ export default function BootLock() {
 
             if (hasPasskey) {
                 try {
-                    await initiateMfaVerification({ mfaMethod: "passkey" });
-                    await submitMfaVerification({ mfaMethod: "passkey", mfaCode: "" });
+                    await verifyPasskeyAsync();
                     ok = true;
                 } catch {
                     ok = false;
@@ -163,7 +166,7 @@ export default function BootLock() {
         } finally {
             setBusy(false);
         }
-    }, [busy, lockedOut, fail, hasPasskey, initiateMfaVerification, submitMfaVerification]);
+    }, [busy, lockedOut, fail, hasPasskey, verifyPasskeyAsync]);
 
     if (!required) return null;
 
