@@ -10042,19 +10042,41 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   }
 }
 
-/* ─── Power inventory strip — board-outer flex row (under board, above HUD) ─── */
-.power-inv-strip {
-  position: relative;
-  z-index: 55;
+/* ─── Match footer: Emotes left · Power orbs center (under dice/HUD) ─── */
+.match-footer {
   flex: 0 0 auto;
   width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px max(6px, env(safe-area-inset-bottom, 0px));
+  z-index: 55;
+}
+.match-footer-slot {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.match-footer-slot.left {
+  justify-content: flex-start;
+}
+.match-footer-slot.center {
+  justify-content: center;
+}
+.match-footer-slot.right {
+  justify-content: flex-end;
+}
+
+/* ─── Power inventory strip (inside match footer, centered) ─── */
+.power-inv-strip {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 2px 8px;
+  padding: 0 4px;
   pointer-events: none;
-  min-height: 52px;
 }
 .power-inv-strip > * {
   pointer-events: auto;
