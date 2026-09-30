@@ -27,7 +27,7 @@ import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
-import { parseChatPayload, clampChatText, CHAT_TTL_MS } from '@/lib/chat';
+import { parseChatPayload, clampChatText, CHAT_TTL_MS, CHAT_PRESETS } from '@/lib/chat';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
@@ -459,23 +459,34 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
             />
 
-            {/* Match footer: Emotes (left) · Power orbs (centered) — under dice/HUD */}
+            {/* Match footer: Emoji · Chat (stacked left) · Power orbs (center) */}
             <div className="match-footer">
                 <div className="match-footer-slot left">
                     {!spectatorMode && myPlayer && (
-                        <EmoteTray
-                            myColor={myPlayer.color}
-                            floats={emoteFloats}
-                            onEmote={(event) => {
-                                setEmoteFloats((f) => [...f.slice(-4), event]);
-                                broadcastAction('EMOTE', {
-                                    emoteId: event.emoteId,
-                                    color: event.color,
-                                    actor: event.actor,
-                                    t: event.t,
-                                } as GameActionPayload<'EMOTE'>);
-                            }}
-                        />
+                        <div className="match-foot-actions">
+                            <EmoteTray
+                                myColor={myPlayer.color}
+                                floats={emoteFloats}
+                                onEmote={(event) => {
+                                    setEmoteFloats((f) => [...f.slice(-4), event]);
+                                    broadcastAction('EMOTE', {
+                                        emoteId: event.emoteId,
+                                        color: event.color,
+                                        actor: event.actor,
+                                        t: event.t,
+                                    } as GameActionPayload<'EMOTE'>);
+                                }}
+                            />
+                            <button
+                                type="button"
+                                className={`match-foot-pill ${chatOpen ? 'on' : ''}`}
+                                onClick={() => setChatOpen((v) => !v)}
+                                aria-label="Chat"
+                                aria-expanded={chatOpen}
+                            >
+                                Chat
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div className="match-footer-slot center">
@@ -500,40 +511,60 @@ export default function Board({
                         </div>
                     )}
                 </div>
-                <div className="match-footer-slot right">
-                    <button
-                        type="button"
-                        className="emote-fab"
-                        onClick={() => setChatOpen((v) => !v)}
-                        aria-label="Chat"
-                        aria-expanded={chatOpen}
-                    >
-                        <span className="emote-fab-label">Chat</span>
-                    </button>
-                </div>
+                <div className="match-footer-slot right" aria-hidden />
             </div>
 
-            {/* Compact in-match chat composer (lobby players only) */}
+            {/* Chat sheet — preset phrases + free text (ref layout) */}
             {chatOpen && !spectatorMode && (
-                <div className="chat-composer">
-                    <input
-                        className="chat-composer-input"
-                        value={chatDraft}
-                        maxLength={80}
-                        placeholder="Say something…"
-                        autoFocus
-                        onChange={(e) => setChatDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                sendChat();
-                            }
-                            if (e.key === 'Escape') setChatOpen(false);
-                        }}
-                    />
-                    <button type="button" className="chat-composer-send" onClick={sendChat} disabled={!chatDraft.trim()}>
-                        Send
-                    </button>
+                <div className="chat-sheet">
+                    <div className="chat-sheet-presets">
+                        {CHAT_PRESETS.map((p) => (
+                            <button
+                                key={p}
+                                type="button"
+                                className="chat-preset"
+                                onClick={() => {
+                                    const text = clampChatText(p);
+                                    if (!text || !ownColor) return;
+                                    const ev: ChatEvent = { text, color: ownColor, t: Date.now() };
+                                    setChatBubbles((b) => [...b.slice(-3), ev]);
+                                    broadcastAction('CHAT', {
+                                        text,
+                                        color: ownColor,
+                                        t: ev.t,
+                                    } as GameActionPayload<'CHAT'>);
+                                    setChatOpen(false);
+                                }}
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="chat-sheet-row">
+                        <input
+                            className="chat-composer-input"
+                            value={chatDraft}
+                            maxLength={80}
+                            placeholder="Enter message"
+                            autoFocus
+                            onChange={(e) => setChatDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    sendChat();
+                                }
+                                if (e.key === 'Escape') setChatOpen(false);
+                            }}
+                        />
+                        <button
+                            type="button"
+                            className="chat-composer-send"
+                            onClick={sendChat}
+                            disabled={!chatDraft.trim()}
+                        >
+                            Send
+                        </button>
+                    </div>
                 </div>
             )}
 

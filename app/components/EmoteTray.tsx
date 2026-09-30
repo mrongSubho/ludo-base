@@ -34,13 +34,13 @@ export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps
             ))}
             <button
                 type="button"
-                className="emote-fab"
+                className={`match-foot-pill ${open ? 'on' : ''}`}
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                aria-label="Emotes"
+                aria-label="Emoji"
                 disabled={disabled}
             >
-                <span className="emote-fab-label">Emotes</span>
+                Emoji
             </button>
             {open && (
                 <div className="absolute bottom-full left-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">
