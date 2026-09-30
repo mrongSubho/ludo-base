@@ -10198,7 +10198,9 @@ body.theme-daybreak .power-orb {
   width: 64px;
   height: 64px;
   display: block;
-  overflow: visible;
+  border-radius: 18px;
+  overflow: hidden;
+  object-fit: cover;
 }
 body.theme-daybreak .emote-fab {
   filter: drop-shadow(0 8px 14px rgba(15, 23, 42, 0.22));
