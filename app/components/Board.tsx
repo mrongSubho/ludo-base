@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
@@ -343,6 +342,28 @@ export default function Board({
 
               </div>
 
+            {/* Power inventory — board bottom-center (sibling of rotated wrapper). */}
+            {showInventory && (
+                <div className="power-inv-strip">
+                    {targeting && <span className="power-inv-hint">Tap a token</span>}
+                    {groupedInventory.map(g => {
+                        const has = g.count > 0;
+                        return (
+                            <button
+                                key={g.type}
+                                onClick={() => spendPower(g.type)}
+                                disabled={!canSpend || !has}
+                                aria-label={`Use ${g.type} power, ${g.count} held`}
+                                className={`power-orb power-orb-${g.type} ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${has ? '' : 'power-orb-empty'}`}
+                            >
+                                <PowerGlyph type={g.type} />
+                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
 
              {!spectatorMode && myPlayer && (
@@ -411,31 +432,6 @@ export default function Board({
                     wins={localGameState.positions[selectedPlayer.color].filter((p: number) => p === 57).length}
                     onClose={() => setSelectedPlayer(null)}
                 />
-            )}
-
-            {/* Power inventory → document.body (true viewport footer).
-                Must NOT live under board-area / board-wrapper: those have
-                transforms, which trap position:fixed and spin with the seat. */}
-            {showInventory && typeof document !== 'undefined' && createPortal(
-                <div className="power-inv-strip">
-                    {targeting && <span className="power-inv-hint">Tap a token</span>}
-                    {groupedInventory.map(g => {
-                        const has = g.count > 0;
-                        return (
-                            <button
-                                key={g.type}
-                                onClick={() => spendPower(g.type)}
-                                disabled={!canSpend || !has}
-                                aria-label={`Use ${g.type} power, ${g.count} held`}
-                                className={`power-orb power-orb-${g.type} ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${has ? '' : 'power-orb-empty'}`}
-                            >
-                                <PowerGlyph type={g.type} />
-                                <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
-                            </button>
-                        );
-                    })}
-                </div>,
-                document.body
             )}
         </div>
     );

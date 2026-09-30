@@ -10042,13 +10042,13 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   }
 }
 
-/* ─── Power inventory strip (match footer — no FooterNav in-game) ─── */
+/* ─── Power inventory strip (board bottom-center — unrotated sibling) ─── */
 .power-inv-strip {
-  position: fixed;
-  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  position: absolute;
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 60;
+  z-index: 55;
   display: flex;
   align-items: center;
   gap: 10px;
