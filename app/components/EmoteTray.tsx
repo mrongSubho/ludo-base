@@ -34,16 +34,21 @@ export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps
             ))}
             <button
                 type="button"
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/75"
+                className="emote-fab"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
                 aria-label="Emotes"
                 disabled={disabled}
             >
-                Emotes
+                <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M8.5 10h.01M15.5 10h.01" />
+                    <path d="M8 14.5c1.2 1.5 2.7 2.2 4 2.2s2.8-.7 4-2.2" />
+                </svg>
+                <span className="emote-fab-label">Emotes</span>
             </button>
             {open && (
-                <div className="absolute bottom-full right-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">
+                <div className="absolute bottom-full left-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">
                     <div className="grid grid-cols-2 gap-1">
                         {PRESET_EMOTES.map((e) => (
                             <button
