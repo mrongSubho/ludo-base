@@ -10248,10 +10248,12 @@ body.theme-daybreak .match-foot-pill.on {
 
 /* ─── Chat sheet: preset phrases + send row (ref) ─── */
 .chat-sheet {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: calc(100% + 8px);
+  /* Fixed above the match footer — not absolute (that flew off-viewport) */
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(8px + 52px + 8px);
+  width: min(420px, calc(100vw - 20px));
   z-index: 80;
   padding: 12px;
   border-radius: 22px;
