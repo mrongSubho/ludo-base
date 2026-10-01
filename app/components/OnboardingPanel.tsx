@@ -7,7 +7,7 @@ import type { Address, Hex } from 'viem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
-import { ONBOARDING_TRACKS, type OnboardingTrack } from '@/lib/onboardingServer';
+import { ONBOARDING_TRACKS, type OnboardingTrack } from '@/lib/onboardingShared';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
@@ -87,7 +87,6 @@ export const OnboardingPanel = () => {
     }, [tracks]);
     const [welcomeClaimed, setWelcomeClaimed] = useState(false);
     const [referral, setReferral] = useState<ReferralResponse | null>(null);
-    const [loading, setLoading] = useState(false);
     const [locked, setLocked] = useState(false);
     const [claimingId, setClaimingId] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
@@ -100,7 +99,6 @@ export const OnboardingPanel = () => {
             setLocked(true);
             return;
         }
-        setLoading(true);
         setLocked(false);
         try {
             const sessionId = await ensureAppSession();
@@ -123,8 +121,6 @@ export const OnboardingPanel = () => {
             }
         } catch {
             setTracks([]);
-        } finally {
-            setLoading(false);
         }
     }, [address, isGuest, ensureAppSession]);
 
