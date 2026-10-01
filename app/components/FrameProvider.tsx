@@ -10,6 +10,8 @@ import sdk from '@farcaster/frame-sdk';
  *  - pad <body>, leaving a blank band under the footer
  * We measure the real visual viewport + a safe-area probe and publish
  * --app-vh / --safe-bottom / --vv-dead-bottom for the shell + footer.
+ * Focused editable controls additionally publish --kb-inset and
+ * body.keyboard-open so fixed panels can yield their chrome to the IME.
  */
 export default function FrameProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
@@ -30,6 +32,23 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;z-index:-1';
         document.body.appendChild(probe);
 
+        let stableLayoutHeight = window.innerHeight;
+        let stableDeadBottom = 0;
+        let keyboardOpen = false;
+        let scrollTimers: number[] = [];
+
+        const isEditable = (element: Element | null): element is HTMLElement => {
+            if (!(element instanceof HTMLElement)) return false;
+            if (element.isContentEditable) return true;
+            return element.matches('input, textarea, select, [contenteditable="true"]');
+        };
+
+        const scrollFocusedControl = () => {
+            const active = document.activeElement;
+            if (!isEditable(active)) return;
+            active.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+        };
+
         const apply = () => {
             const vv = window.visualViewport;
             const layoutH = window.innerHeight;
@@ -41,10 +60,25 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             // insets are ≤48px. Anything above is host chrome we must not reserve.
             const rawSab = probe.getBoundingClientRect().height;
             const safeBottom = rawSab > 48 ? 0 : Math.round(rawSab);
+            const currentDeadBottom = Math.max(0, Math.round(layoutH - visH - offsetTop));
+            const rawKeyboardInset = Math.max(
+                0,
+                stableLayoutHeight - Math.round(visH) - offsetTop - stableDeadBottom
+            );
+            const kbInset = keyboardOpen && rawKeyboardInset > 120 ? rawKeyboardInset : 0;
 
             root.style.setProperty('--app-vh', `${Math.round(visH)}px`);
             root.style.setProperty('--safe-bottom', `${safeBottom}px`);
             root.style.setProperty('--vv-dead-bottom', `${deadBottom}px`);
+            root.style.setProperty('--kb-inset', `${kbInset}px`);
+            document.body.classList.toggle('keyboard-open', kbInset > 0);
+
+            // Establish a new non-keyboard baseline after rotation, URL-bar
+            // changes, or host-webview chrome settling.
+            if (!keyboardOpen || kbInset === 0) {
+                stableLayoutHeight = layoutH;
+                stableDeadBottom = currentDeadBottom;
+            }
 
             // Kill host-injected body padding that paints as a blank bottom band.
             document.body.style.paddingBottom = '0px';
@@ -54,6 +88,25 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
 
         apply();
         const vv = window.visualViewport;
+        const onFocusIn = (event: FocusEvent) => {
+            if (!isEditable(event.target as Element | null)) return;
+            keyboardOpen = true;
+            apply();
+            scrollTimers.forEach(window.clearTimeout);
+            scrollTimers = [
+                window.setTimeout(scrollFocusedControl, 50),
+                window.setTimeout(scrollFocusedControl, 220),
+            ];
+        };
+        const onFocusOut = () => {
+            window.setTimeout(() => {
+                if (isEditable(document.activeElement)) return;
+                keyboardOpen = false;
+                apply();
+            }, 120);
+        };
+        document.addEventListener('focusin', onFocusIn);
+        document.addEventListener('focusout', onFocusOut);
         vv?.addEventListener('resize', apply);
         vv?.addEventListener('scroll', apply);
         window.addEventListener('resize', apply);
@@ -98,6 +151,8 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         mobileMq.addEventListener('change', stripBlur);
 
         return () => {
+            document.removeEventListener('focusin', onFocusIn);
+            document.removeEventListener('focusout', onFocusOut);
             vv?.removeEventListener('resize', apply);
             vv?.removeEventListener('scroll', apply);
             window.removeEventListener('resize', apply);
@@ -105,6 +160,9 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             window.clearTimeout(t1);
             window.clearTimeout(t2);
             window.clearTimeout(t3);
+            scrollTimers.forEach(window.clearTimeout);
+            document.body.classList.remove('keyboard-open');
+            root.style.removeProperty('--kb-inset');
             window.clearTimeout(blurT);
             window.clearTimeout(blurT2);
             ro?.disconnect();

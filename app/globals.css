@@ -2004,6 +2004,7 @@ body.theme-daybreak .header {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --vv-dead-bottom: 0px;
   --app-vh: 100dvh;
+  --kb-inset: 0px;
 }
 .footer-nav {
   position: fixed;
@@ -2031,6 +2032,13 @@ body.theme-daybreak .header {
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.35);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
+}
+/* The IME owns the visible bottom edge while an editable control is focused.
+   Hiding the footer avoids reserving chrome below a keyboard-aware panel. */
+body.keyboard-open .footer-nav {
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, 120%);
 }
 .nav-item {
   display: flex;
@@ -5917,6 +5925,35 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   top: calc(64px + env(safe-area-inset-top, 0px)) !important;
   bottom: calc(var(--footer-h) + var(--panel-gap) + var(--vv-dead-bottom, 0px)) !important;
   max-height: calc(var(--app-vh, 100dvh) - 64px - var(--footer-h) - var(--panel-gap) - var(--vv-dead-bottom, 0px)) !important;
+}
+
+/* Existing panels already provide the scroll regions; during IME use, make
+   those regions the explicit scroll owner and leave room for the focused
+   control above the keyboard. --app-vh is already visual-viewport height, so
+   do not subtract --kb-inset a second time from its max-height. */
+body.keyboard-open :is(
+  .ludo-market-scope.absolute,
+  .ludo-profile-scope.absolute,
+  .ludo-friends-scope.absolute,
+  .ludo-rankings-scope.absolute,
+  .ludo-leaderboard-scope.absolute,
+  .ludo-arena-scope.absolute,
+  .ludo-teamup-scope.absolute,
+  .ludo-quick-scope.absolute,
+  .ludo-offline-scope.absolute,
+  .ludo-migrate-scope.absolute,
+  .ludo-settings-scope.absolute,
+  .ludo-messages-scope.absolute,
+  .ludo-broadcast-scope.absolute
+) {
+  bottom: 8px !important;
+  max-height: calc(var(--app-vh, 100dvh) - 64px - 8px) !important;
+  transition: none !important;
+}
+body.keyboard-open .overflow-y-auto {
+  overscroll-behavior: contain;
+  padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px));
 }
 
 /* ─── Mobile / short viewports: lobby FITS, never scrolls ─── */
