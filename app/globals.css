@@ -10323,7 +10323,8 @@ body.theme-daybreak .match-foot-pill.on {
 
 /* ─── Seat speech bubbles (white cards + tail, ref) ─── */
 .chat-bubble {
-  max-width: min(220px, 72vw);
+  position: absolute;
+  max-width: min(200px, 60vw);
   padding: 10px 14px;
   border-radius: 18px;
   background: #fff;
@@ -10334,6 +10335,7 @@ body.theme-daybreak .match-foot-pill.on {
   line-height: 1.3;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
   word-break: break-word;
+  z-index: 16;
 }
 body.theme-daybreak .chat-bubble {
   background: #fff;

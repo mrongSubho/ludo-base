@@ -128,9 +128,11 @@ interface NameOverlayProps {
     uiSlots: Record<string, PlayerColor | null>;
     players: Player[];
     getDisplayName: (player: Player) => string;
+    /** Latest lobby chat line per seat color (same map as name pills). */
+    chatBubbles?: { text: string; color: PlayerColor; t: number }[];
 }
 
-export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0 }: NameOverlayProps & { counterRotationDeg?: number }) {
+export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0, chatBubbles }: NameOverlayProps & { counterRotationDeg?: number }) {
     const renderLabel = (corner: 'TL' | 'TR' | 'BL' | 'BR', className: string, style: React.CSSProperties) => {
         const color = uiSlots[corner];
         const p = players.find(pl => pl.color === color);
@@ -138,6 +140,31 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
         return (
             <div className={`home-player-label ${className} ${color}`} style={style}>
                 {getDisplayName(p)}
+            </div>
+        );
+    };
+
+    // Bubble uses the SAME seat geometry as the name pill for that corner.
+    const renderBubble = (corner: 'TL' | 'TR' | 'BL' | 'BR') => {
+        const color = uiSlots[corner];
+        if (!color || !chatBubbles?.length) return null;
+        const msg = [...chatBubbles].reverse().find((c) => c.color === color);
+        if (!msg) return null;
+        const isTop = corner === 'TL' || corner === 'TR';
+        const left = corner === 'TL' || corner === 'BL' ? '20%' : '80%';
+        return (
+            <div
+                className={`chat-bubble ${isTop ? 'below' : 'above'}`}
+                style={{
+                    position: 'absolute',
+                    left,
+                    transform: 'translateX(-50%)',
+                    top: isTop ? 30 : undefined,
+                    bottom: isTop ? undefined : 30,
+                }}
+            >
+                <div className="chat-bubble-text">{msg.text}</div>
+                <div className={`chat-bubble-tail ${isTop ? 'down' : 'up'}`} />
             </div>
         );
     };
@@ -158,6 +185,10 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
             {renderLabel('TR', 'label-top-inside', { position: 'absolute', top: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' })}
             {renderLabel('BL', 'label-bottom-inside', { position: 'absolute', bottom: 0, left: '20%', width: '34%', transform: 'translateX(-50%)' })}
             {renderLabel('BR', 'label-bottom-inside', { position: 'absolute', bottom: 0, left: '80%', width: '34%', transform: 'translateX(-50%)' })}
+            {renderBubble('TL')}
+            {renderBubble('TR')}
+            {renderBubble('BL')}
+            {renderBubble('BR')}
         </div>
     );
 }

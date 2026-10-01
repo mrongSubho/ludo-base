@@ -366,40 +366,8 @@ export default function Board({
                 players={players}
                 getDisplayName={getDisplayNameHelper}
                 counterRotationDeg={counterRotationDeg}
+                chatBubbles={chatBubbles}
             />
-
-            {/* Seat chat bubbles — top seats below name, bottom seats above (in-board). */}
-            <div
-                className="chat-bubble-layer"
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    pointerEvents: 'none',
-                    zIndex: 20,
-                    transform: counterRotationDeg ? `rotate(${counterRotationDeg}deg)` : undefined,
-                }}
-            >
-                {(['TL', 'TR', 'BL', 'BR'] as const).map((corner) => {
-                    const color = uiSlots[corner];
-                    const msg = [...chatBubbles].reverse().find((c) => c.color === color);
-                    if (!color || !msg) return null;
-                    const isTop = corner === 'TL' || corner === 'TR';
-                    const pos: React.CSSProperties =
-                        corner === 'TL'
-                            ? { top: 36, left: '20%', transform: 'translateX(-50%)' }
-                            : corner === 'TR'
-                              ? { top: 36, left: '80%', transform: 'translateX(-50%)' }
-                              : corner === 'BL'
-                                ? { bottom: 36, left: '20%', transform: 'translateX(-50%)' }
-                                : { bottom: 36, left: '80%', transform: 'translateX(-50%)' };
-                    return (
-                        <div key={corner} className={`chat-bubble ${isTop ? 'below' : 'above'}`} style={pos}>
-                            <div className="chat-bubble-text">{msg.text}</div>
-                            <div className={`chat-bubble-tail ${isTop ? 'down' : 'up'}`} />
-                        </div>
-                    );
-                })}
-            </div>
 
             {lxpGain !== null && (
                 <motion.div
