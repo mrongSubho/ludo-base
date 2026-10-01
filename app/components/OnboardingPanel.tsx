@@ -7,6 +7,7 @@ import type { Address, Hex } from 'viem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
+import { ONBOARDING_TRACKS, type OnboardingTrack } from '@/lib/onboardingServer';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
@@ -65,6 +66,25 @@ export const OnboardingPanel = () => {
     const { writeContractAsync } = useWriteContract();
 
     const [tracks, setTracks] = useState<TrackRow[]>([]);
+    /** Full catalog always visible (locked until progress exists). */
+    const catalog: TrackRow[] = React.useMemo(() => {
+        const byId = new Map(tracks.map((x) => [x.track, x]));
+        return (Object.keys(ONBOARDING_TRACKS) as OnboardingTrack[]).map((key) => {
+            const def = ONBOARDING_TRACKS[key];
+            const live = byId.get(key);
+            return {
+                track: key,
+                label: def.label,
+                core: def.core,
+                progress: live?.progress ?? 0,
+                target: live?.target && live.target > 0 ? live.target : def.target,
+                reward: live?.reward ?? def.reward,
+                is_claimed: live?.is_claimed ?? false,
+                claimable: live?.claimable ?? false,
+                voucher_id: live?.voucher_id ?? null,
+            };
+        });
+    }, [tracks]);
     const [welcomeClaimed, setWelcomeClaimed] = useState(false);
     const [referral, setReferral] = useState<ReferralResponse | null>(null);
     const [loading, setLoading] = useState(false);
@@ -218,8 +238,8 @@ export const OnboardingPanel = () => {
         <div className="flex flex-col gap-2 pb-2">
             {/* Mission-quality section labels + cards (match MissionPanel) */}
             {(() => {
-                const coreTracks = tracks.filter((x) => x.core);
-                const extTracks = tracks.filter((x) => !x.core);
+                const coreTracks = catalog.filter((x) => x.core);
+                const extTracks = catalog.filter((x) => !x.core);
                 const coreSum = coreTracks.reduce((s, x) => s + (x.reward || 0), 0);
                 const extSum = extTracks.reduce((s, x) => s + (x.reward || 0), 0);
 
@@ -420,30 +440,18 @@ export const OnboardingPanel = () => {
                             Core package
                         </SectionLabel>
                         <p className="text-[11px] text-white/45 mb-2 -mt-1">Finish core missions to unlock extended rewards.</p>
-                        {loading && tracks.length === 0 ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                            </div>
-                        ) : coreTracks.length === 0 ? (
-                            <div className="text-white/40 text-xs text-center py-10">No core missions yet — play a match to begin.</div>
-                        ) : (
-                            <div className="flex flex-col gap-2">
-                                <AnimatePresence mode="popLayout">{coreTracks.map(TrackCard)}</AnimatePresence>
-                            </div>
-                        )}
+                        <div className="flex flex-col gap-2">
+                            <AnimatePresence mode="popLayout">{coreTracks.map(TrackCard)}</AnimatePresence>
+                        </div>
 
                         <div className="mt-3">
                             <SectionLabel right={<span className="text-[10px] font-black text-white/50 tabular-nums">{extSum} CHIPS</span>}>
                                 Extended missions
                             </SectionLabel>
                             <p className="text-[11px] text-white/45 mb-2 -mt-1">Unlocks after the core package is claimed.</p>
-                            {extTracks.length === 0 ? (
-                                <div className="text-white/40 text-xs text-center py-10">No extended missions yet.</div>
-                            ) : (
-                                <div className="flex flex-col gap-2">
-                                    <AnimatePresence mode="popLayout">{extTracks.map(TrackCard)}</AnimatePresence>
-                                </div>
-                            )}
+                            <div className="flex flex-col gap-2">
+                                <AnimatePresence mode="popLayout">{extTracks.map(TrackCard)}</AnimatePresence>
+                            </div>
                         </div>
 
                         {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-2">{notice}</div>}
