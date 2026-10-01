@@ -56,7 +56,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=overlays-content" />
       </head>
       <body className={themeClass} suppressHydrationWarning>
         <Providers>{children}</Providers>

@@ -36,6 +36,7 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         let stableDeadBottom = 0;
         let keyboardOpen = false;
         let scrollTimers: number[] = [];
+        let ignoreVisualResizeUntil = 0;
 
         const isEditable = (element: Element | null): element is HTMLElement => {
             if (!(element instanceof HTMLElement)) return false;
@@ -54,8 +55,9 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             const layoutH = window.innerHeight;
             const visH = vv ? vv.height : layoutH;
             const offsetTop = vv ? vv.offsetTop : 0;
+            const measuredVisH = Date.now() < ignoreVisualResizeUntil ? layoutH : visH;
             // Layout pixels below the painted visual viewport (host chrome).
-            const deadBottom = Math.max(0, Math.round(layoutH - visH - offsetTop));
+            const deadBottom = Math.max(0, Math.round(layoutH - measuredVisH - offsetTop));
             // Empty webview toolbars report 80–200px insets; real home-indicator
             // insets are ≤48px. Anything above is host chrome we must not reserve.
             const rawSab = probe.getBoundingClientRect().height;
@@ -63,11 +65,14 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             const currentDeadBottom = Math.max(0, Math.round(layoutH - visH - offsetTop));
             const rawKeyboardInset = Math.max(
                 0,
-                stableLayoutHeight - Math.round(visH) - offsetTop - stableDeadBottom
+                stableLayoutHeight - Math.round(measuredVisH) - offsetTop - stableDeadBottom
             );
             const kbInset = keyboardOpen && rawKeyboardInset > 120 ? rawKeyboardInset : 0;
+            const appHeight = kbInset > 0 ? layoutH : Math.round(measuredVisH);
 
-            root.style.setProperty('--app-vh', `${Math.round(visH)}px`);
+            root.style.setProperty('--app-vh', `${appHeight}px`);
+            root.style.setProperty('--layout-vh', `${layoutH}px`);
+            root.style.setProperty('--visible-vh', `${Math.round(measuredVisH)}px`);
             root.style.setProperty('--safe-bottom', `${safeBottom}px`);
             root.style.setProperty('--vv-dead-bottom', `${deadBottom}px`);
             root.style.setProperty('--kb-inset', `${kbInset}px`);
@@ -90,6 +95,7 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         const vv = window.visualViewport;
         const onFocusIn = (event: FocusEvent) => {
             if (!isEditable(event.target as Element | null)) return;
+            ignoreVisualResizeUntil = 0;
             keyboardOpen = true;
             apply();
             scrollTimers.forEach(window.clearTimeout);
@@ -105,8 +111,24 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
                 apply();
             }, 120);
         };
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                keyboardOpen = false;
+                ignoreVisualResizeUntil = Date.now() + 1200;
+                document.body.classList.remove('keyboard-open');
+                root.style.setProperty('--kb-inset', '0px');
+                apply();
+                return;
+            }
+            stableLayoutHeight = window.innerHeight;
+            stableDeadBottom = 0;
+            keyboardOpen = false;
+            ignoreVisualResizeUntil = Date.now() + 1200;
+            apply();
+        };
         document.addEventListener('focusin', onFocusIn);
         document.addEventListener('focusout', onFocusOut);
+        document.addEventListener('visibilitychange', onVisibilityChange);
         vv?.addEventListener('resize', apply);
         vv?.addEventListener('scroll', apply);
         window.addEventListener('resize', apply);
@@ -153,6 +175,7 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         return () => {
             document.removeEventListener('focusin', onFocusIn);
             document.removeEventListener('focusout', onFocusOut);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
             vv?.removeEventListener('resize', apply);
             vv?.removeEventListener('scroll', apply);
             window.removeEventListener('resize', apply);

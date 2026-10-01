@@ -2004,6 +2004,8 @@ body.theme-daybreak .header {
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --vv-dead-bottom: 0px;
   --app-vh: 100dvh;
+  --layout-vh: 100dvh;
+  --visible-vh: 100dvh;
   --kb-inset: 0px;
 }
 .footer-nav {
@@ -2039,6 +2041,12 @@ body.keyboard-open .footer-nav {
   visibility: hidden;
   pointer-events: none;
   transform: translate(-50%, 120%);
+}
+
+/* The board is a fixed composition. The IME clips its lower edge; it must
+   never become a smaller flex container when an input receives focus. */
+body.keyboard-open .app-shell {
+  height: var(--layout-vh, 100dvh) !important;
 }
 .nav-item {
   display: flex;
@@ -5947,10 +5955,14 @@ body.keyboard-open :is(
   .ludo-broadcast-scope.absolute
 ) {
   bottom: 8px !important;
-  max-height: calc(var(--app-vh, 100dvh) - 64px - 8px) !important;
+  max-height: calc(var(--visible-vh, 100dvh) - 64px - 8px) !important;
   transition: none !important;
 }
-body.keyboard-open .overflow-y-auto {
+body.keyboard-open :is(
+  .ludo-messages-scope,
+  .spectator-hud,
+  .ludo-live-chat-scope
+) .overflow-y-auto {
   overscroll-behavior: contain;
   padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px)) !important;
   scroll-padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px));
