@@ -27,7 +27,8 @@ import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
-import { parseChatPayload, clampChatText, CHAT_TTL_MS, CHAT_PRESETS } from '@/lib/chat';
+import { parseChatPayload, clampChatText, CHAT_TTL_MS } from '@/lib/chat';
+import { PRESET_EMOTES } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
@@ -459,34 +460,23 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
             />
 
-            {/* Match footer: Emoji · Chat (stacked left) · Power orbs (center) */}
+            {/* Match footer: Emotes (left) · Power orbs (center) · Chat (right) */}
             <div className="match-footer">
                 <div className="match-footer-slot left">
                     {!spectatorMode && myPlayer && (
-                        <div className="match-foot-actions">
-                            <EmoteTray
-                                myColor={myPlayer.color}
-                                floats={emoteFloats}
-                                onEmote={(event) => {
-                                    setEmoteFloats((f) => [...f.slice(-4), event]);
-                                    broadcastAction('EMOTE', {
-                                        emoteId: event.emoteId,
-                                        color: event.color,
-                                        actor: event.actor,
-                                        t: event.t,
-                                    } as GameActionPayload<'EMOTE'>);
-                                }}
-                            />
-                            <button
-                                type="button"
-                                className={`match-foot-pill ${chatOpen ? 'on' : ''}`}
-                                onClick={() => setChatOpen((v) => !v)}
-                                aria-label="Chat"
-                                aria-expanded={chatOpen}
-                            >
-                                Chat
-                            </button>
-                        </div>
+                        <EmoteTray
+                            myColor={myPlayer.color}
+                            floats={emoteFloats}
+                            onEmote={(event) => {
+                                setEmoteFloats((f) => [...f.slice(-4), event]);
+                                broadcastAction('EMOTE', {
+                                    emoteId: event.emoteId,
+                                    color: event.color,
+                                    actor: event.actor,
+                                    t: event.t,
+                                } as GameActionPayload<'EMOTE'>);
+                            }}
+                        />
                     )}
                 </div>
                 <div className="match-footer-slot center">
@@ -511,20 +501,30 @@ export default function Board({
                         </div>
                     )}
                 </div>
-                <div className="match-footer-slot right" aria-hidden />
+                <div className="match-footer-slot right">
+                    <button
+                        type="button"
+                        className={`match-foot-pill ${chatOpen ? 'on' : ''}`}
+                        onClick={() => setChatOpen((v) => !v)}
+                        aria-label="Chat"
+                        aria-expanded={chatOpen}
+                    >
+                        Chat
+                    </button>
+                </div>
             </div>
 
-            {/* Chat sheet — preset phrases + free text (ref layout) */}
+            {/* Chat sheet — our emote phrases as quick sends + free text */}
             {chatOpen && !spectatorMode && (
                 <div className="chat-sheet">
                     <div className="chat-sheet-presets">
-                        {CHAT_PRESETS.map((p) => (
+                        {PRESET_EMOTES.map((e) => (
                             <button
-                                key={p}
+                                key={e.id}
                                 type="button"
                                 className="chat-preset"
                                 onClick={() => {
-                                    const text = clampChatText(p);
+                                    const text = clampChatText(e.text);
                                     if (!text || !ownColor) return;
                                     const ev: ChatEvent = { text, color: ownColor, t: Date.now() };
                                     setChatBubbles((b) => [...b.slice(-3), ev]);
@@ -536,7 +536,7 @@ export default function Board({
                                     setChatOpen(false);
                                 }}
                             >
-                                {p}
+                                {e.text}
                             </button>
                         ))}
                     </div>
