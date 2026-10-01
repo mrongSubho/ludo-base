@@ -482,15 +482,28 @@ export default function Board({
                 </div>
             </div>
 
-            {/* Chat sheet — our emote phrases as quick sends + free text */}
+            {/* Chat sheet — compact creative card, left of footer (Emotes) */}
             {chatOpen && !spectatorMode && (
                 <div className="chat-sheet">
+                    <div className="chat-sheet-head">
+                        <span className="chat-sheet-dot" />
+                        <span className="chat-sheet-title">Lobby chat</span>
+                        <button
+                            type="button"
+                            className="chat-sheet-x"
+                            aria-label="Close chat"
+                            onClick={() => setChatOpen(false)}
+                        >
+                            ×
+                        </button>
+                    </div>
                     <div className="chat-sheet-presets">
-                        {PRESET_EMOTES.map((e) => (
+                        {PRESET_EMOTES.map((e, i) => (
                             <button
                                 key={e.id}
                                 type="button"
                                 className="chat-preset"
+                                style={{ animationDelay: `${i * 30}ms` }}
                                 onClick={() => {
                                     const text = clampChatText(e.text);
                                     if (!text || !ownColor) return;
@@ -513,8 +526,7 @@ export default function Board({
                             className="chat-composer-input"
                             value={chatDraft}
                             maxLength={80}
-                            placeholder="Enter message"
-                            autoFocus
+                            placeholder="Tap to type…"
                             onChange={(e) => setChatDraft(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {

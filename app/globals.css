@@ -10246,41 +10246,108 @@ body.theme-daybreak .match-foot-pill.on {
   background: #2563eb;
 }
 
-/* ─── Chat sheet: preset phrases + send row (ref) ─── */
+/* ─── Chat sheet — compact creative card (left, above Emotes) ─── */
 .chat-sheet {
-  /* Fixed above the match footer — not absolute (that flew off-viewport) */
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(8px + 52px + 8px);
-  width: min(420px, calc(100vw - 20px));
+  left: 12px;
+  bottom: calc(8px + 52px + 10px);
+  width: min(300px, calc(100vw - 24px));
   z-index: 80;
   padding: 12px;
-  border-radius: 22px;
-  background: rgba(248, 248, 252, 0.97);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
+    linear-gradient(165deg, rgba(22, 28, 48, 0.96), rgba(12, 16, 28, 0.98));
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 24px rgba(34, 211, 238, 0.12);
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+body.theme-daybreak .chat-sheet {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(0, 82, 255, 0.1), transparent 55%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 244, 248, 0.98));
+  border-color: rgba(0, 82, 255, 0.22);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+}
+.chat-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-sheet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.8);
+}
+.chat-sheet-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+body.theme-daybreak .chat-sheet-title {
+  color: rgba(15, 23, 42, 0.75);
+}
+.chat-sheet-x {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 16px;
+  line-height: 1;
+}
+body.theme-daybreak .chat-sheet-x {
+  color: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.06);
+}
 .chat-sheet-presets {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
 .chat-preset {
-  height: 44px;
-  border-radius: 999px;
-  border: none;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.18);
   cursor: pointer;
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 700;
-  color: #1e2a44;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  animation: chatPresetIn 0.18s ease-out both;
+}
+.chat-preset:hover {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.4);
 }
 .chat-preset:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
+}
+body.theme-daybreak .chat-preset {
+  color: #1e2a44;
+  background: rgba(0, 82, 255, 0.06);
+  border-color: rgba(0, 82, 255, 0.16);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+body.theme-daybreak .chat-preset:hover {
+  background: rgba(0, 82, 255, 0.12);
+}
+@keyframes chatPresetIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
 .chat-sheet-row {
   display: flex;
@@ -10290,35 +10357,52 @@ body.theme-daybreak .match-foot-pill.on {
 .chat-composer-input {
   flex: 1;
   min-width: 0;
-  height: 48px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: none;
-  background: #e8e9f2;
-  color: #1e2a44;
-  font-size: 15px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 13px;
   font-weight: 600;
   outline: none;
 }
+.chat-composer-input:focus {
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
 .chat-composer-input::placeholder {
-  color: rgba(30, 42, 68, 0.45);
+  color: rgba(255, 255, 255, 0.35);
+}
+body.theme-daybreak .chat-composer-input {
+  background: #fff;
+  color: #1e2a44;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+body.theme-daybreak .chat-composer-input::placeholder {
+  color: rgba(15, 23, 42, 0.4);
 }
 .chat-composer-send {
-  height: 48px;
-  min-width: 96px;
-  padding: 0 18px;
+  height: 40px;
+  min-width: 72px;
+  padding: 0 14px;
   border: none;
-  border-radius: 16px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 800;
-  color: #fff;
-  background: linear-gradient(180deg, #5b8def, #2f5fd6);
-  box-shadow: 0 6px 14px rgba(47, 95, 214, 0.35);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #041018;
+  background: linear-gradient(180deg, #67e8f9, #22d3ee 55%, #0e9bb8);
+  box-shadow: 0 6px 14px rgba(34, 211, 238, 0.28);
 }
 .chat-composer-send:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: default;
+}
+body.theme-daybreak .chat-composer-send {
+  color: #062a33;
 }
 
 /* ─── Seat speech bubbles (white cards + tail, ref) ─── */
