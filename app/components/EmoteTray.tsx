@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerColor } from '@/lib/types';
 import {
@@ -26,6 +26,30 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
     const [open, setOpen] = useState(false);
     const [tab, setTab] = useState<'text' | 'emoji'>('text');
     const [custom, setCustom] = useState(['', '']);
+    const [editingSlot, setEditingSlot] = useState<number | null>(null);
+    const [draft, setDraft] = useState('');
+
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem('ludo-custom-emotes');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) setCustom([String(parsed[0] ?? '').slice(0, 32), String(parsed[1] ?? '').slice(0, 32)]);
+            }
+        } catch {
+            // Ignore malformed local preferences and use empty slots.
+        }
+    }, []);
+
+    const saveCustom = (slot: number) => {
+        const value = draft.trim().slice(0, 32);
+        if (!value) return;
+        const next = custom.map((item, index) => index === slot ? value : item);
+        setCustom(next);
+        window.localStorage.setItem('ludo-custom-emotes', JSON.stringify(next));
+        setEditingSlot(null);
+        setDraft('');
+    };
 
     return (
         <div className="emote-tray">
@@ -79,6 +103,42 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
                                 {e.text}
                             </button>
                         ))}
+                        {custom.map((value, index) => (
+                            editingSlot === index ? (
+                                <div className="custom-emote-edit" key={`custom-edit-${index}`}>
+                                    <input
+                                        autoFocus
+                                        value={draft}
+                                        maxLength={32}
+                                        placeholder="Write a reaction"
+                                        onChange={(event) => setDraft(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter') saveCustom(index);
+                                            if (event.key === 'Escape') setEditingSlot(null);
+                                        }}
+                                    />
+                                    <button type="button" onClick={() => saveCustom(index)} disabled={!draft.trim()}>Save</button>
+                                </div>
+                            ) : (
+                                <button
+                                    key={`custom-${index}`}
+                                    type="button"
+                                    className={`emote-sheet-option ${value ? '' : 'custom-emote-empty'}`}
+                                    onClick={() => {
+                                        if (!value) {
+                                            setEditingSlot(index);
+                                            setDraft('');
+                                            return;
+                                        }
+                                        onEmote({ emoteId: 'custom', customText: value, color: myColor, t: Date.now() });
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <span className="emote-option-glyph" aria-hidden="true">{value ? '✦' : '+'}</span>
+                                    {value || `Custom ${index + 1}`}
+                                </button>
+                            )
+                        ))}
                         </div> : <div className="emote-sheet-grid">
                             {EMOJI_EMOTES.map((e) => (
                                 <button key={e.id} type="button" className="emote-sheet-option emoji-emote-option" onClick={() => {
@@ -89,30 +149,6 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
                                 </button>
                             ))}
                         </div>}
-                        {tab === 'text' && (
-                            <div className="custom-emote-editor">
-                                {custom.map((value, index) => (
-                                    <div className="custom-emote-row" key={index}>
-                                        <input
-                                            value={value}
-                                            maxLength={32}
-                                            placeholder={`Custom ${index + 1}`}
-                                            onChange={(event) => setCustom((items) => items.map((item, i) => i === index ? event.target.value : item))}
-                                        />
-                                        <button
-                                            type="button"
-                                            disabled={!value.trim()}
-                                            onClick={() => {
-                                                onEmote({ emoteId: 'custom', customText: value.trim().slice(0, 32), color: myColor, t: Date.now() });
-                                                setOpen(false);
-                                            }}
-                                        >
-                                            Send
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

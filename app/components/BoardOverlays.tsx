@@ -177,7 +177,7 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
                 } as React.CSSProperties}
             >
                 <div className="chat-bubble-text">{msg.text}</div>
-                <div className={`chat-bubble-tail ${isTop ? 'down' : 'up'}`} />
+                <span className="emote-float-glyph chat-bubble-glyph" aria-hidden="true">✦</span>
             </div>
         );
     };

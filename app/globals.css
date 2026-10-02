@@ -10118,8 +10118,13 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   justify-content: flex-end;
 }
 .match-footer-chat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: block;
   padding: 6px 10px max(6px, env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
 }
 .match-chat-composer {
   position: relative;
@@ -10132,6 +10137,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
     linear-gradient(165deg, rgba(22, 28, 48, 0.96), rgba(12, 16, 28, 0.98));
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255,255,255,0.04);
   animation: chat-composer-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  pointer-events: auto;
 }
 .match-chat-composer-head {
   display: flex;
@@ -10178,7 +10184,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
 .chat-emoji-button:active { background: rgba(34,211,238,0.18); }
 .chat-emoji-picker {
   position: absolute;
-  right: 0;
+  left: 50%;
   bottom: calc(100% + 8px);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -10189,6 +10195,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   border-radius: 15px;
   background: rgba(12,16,28,0.98);
   box-shadow: 0 14px 30px rgba(0,0,0,0.38);
+  transform: translateX(-50%);
 }
 .chat-emoji-picker button {
   display: grid;
@@ -10199,6 +10206,18 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   border-radius: 8px;
   background: rgba(255,255,255,0.06);
   font-size: 18px;
+}
+body.theme-daybreak .chat-emoji-button {
+  border-color: rgba(0,82,255,0.18);
+  background: rgba(0,82,255,0.06);
+}
+body.theme-daybreak .chat-emoji-picker {
+  border-color: rgba(0,82,255,0.2);
+  background: rgba(255,255,255,0.98);
+  box-shadow: 0 14px 30px rgba(15,23,42,0.2);
+}
+body.theme-daybreak .chat-emoji-picker button {
+  background: rgba(0,82,255,0.06);
 }
 @keyframes chat-composer-in {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
@@ -10409,6 +10428,9 @@ body.theme-daybreak .match-foot-pill.on {
 body.keyboard-open .board-sheet {
   bottom: calc(var(--kb-inset, 0px) + 8px);
 }
+body.keyboard-open .match-footer-chat {
+  bottom: var(--kb-inset, 0px);
+}
 body.keyboard-open .chat-sheet-presets {
   display: none;
 }
@@ -10421,6 +10443,13 @@ body.theme-daybreak .board-sheet {
     linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 244, 248, 0.98));
   border-color: rgba(0, 82, 255, 0.22);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+}
+body.theme-daybreak .match-chat-composer {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(0, 82, 255, 0.1), transparent 55%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 244, 248, 0.98));
+  border-color: rgba(0, 82, 255, 0.22);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18), inset 0 0 0 1px rgba(15,23,42,0.04);
 }
 .emote-sheet {
   left: 12px;
@@ -10542,16 +10571,18 @@ body.theme-daybreak .chat-composer-send {
 /* ─── Seat speech bubbles (white cards + tail, ref) ─── */
 .chat-bubble {
   position: absolute;
-  max-width: min(200px, 60vw);
-  padding: 10px 14px;
-  border-radius: 18px;
-  background: #fff;
-  border: none;
-  color: #1e2a44;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.3;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: max-content;
+  max-width: min(220px, 62vw);
+  padding: 6px 10px 6px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 9999px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.26), 0 0 18px rgba(34, 211, 238, 0.22);
   word-break: break-word;
   z-index: 16;
   animation: chat-bubble-arrive var(--chat-duration, 4000ms) cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -10568,15 +10599,21 @@ body.theme-daybreak .chat-bubble {
 }
 .chat-bubble-text {
   min-width: 0;
+  max-width: min(180px, 52vw);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  white-space: normal;
   animation: chat-bubble-text-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+.chat-bubble-glyph {
+  position: static;
+  flex: 0 0 auto;
+  animation: emote-glyph-pop 0.5s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+}
 .chat-bubble-tail {
-  position: absolute;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  transform: translateX(-50%) rotate(45deg);
-  background: #fff;
+  display: none;
 }
 .chat-bubble-tail.down {
   bottom: -5px;
@@ -10589,23 +10626,23 @@ body.theme-daybreak .chat-bubble {
   0% {
     opacity: 0;
     filter: blur(5px);
-    transform: translateY(10px) scale(0.82);
+    transform: translate(-50%, 10px) scale(0.82);
   }
   16% {
     opacity: 1;
     filter: blur(0);
-    transform: translateY(0) scale(1.04);
+    transform: translate(-50%, 0) scale(1.04);
   }
   30% {
-    transform: translateY(-2px) scale(1);
+    transform: translate(-50%, -2px) scale(1);
   }
   76% {
     opacity: 1;
-    transform: translateY(-6px) scale(1);
+    transform: translate(-50%, -6px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(-18px) scale(0.94);
+    transform: translate(-50%, -18px) scale(0.94);
   }
 }
 
@@ -10733,6 +10770,54 @@ body.theme-daybreak .chat-bubble {
   font-weight: 850;
 }
 .custom-emote-row button:disabled { opacity: 0.4; }
+.custom-emote-empty {
+  justify-content: center;
+  border-style: dashed;
+  color: rgba(255,255,255,0.55);
+}
+.custom-emote-edit {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid rgba(34,211,238,0.28);
+  border-radius: 13px;
+  background: rgba(255,255,255,0.06);
+}
+.custom-emote-edit input {
+  min-width: 0;
+  flex: 1;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  color: #fff;
+  background: rgba(0,0,0,0.24);
+  font-size: 11px;
+}
+.custom-emote-edit button {
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  color: #082f49;
+  background: #67e8f9;
+  font-size: 10px;
+  font-weight: 850;
+}
+body.theme-daybreak .custom-emote-empty {
+  color: rgba(15,23,42,0.55);
+}
+body.theme-daybreak .custom-emote-edit {
+  border-color: rgba(0,82,255,0.2);
+  background: rgba(0,82,255,0.05);
+}
+body.theme-daybreak .custom-emote-edit input {
+  color: #1e2a44;
+  background: rgba(15,23,42,0.06);
+}
 .emoji-emote-glyph {
   display: grid;
   place-items: center;
