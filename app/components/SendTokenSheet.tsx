@@ -114,6 +114,10 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                         className="fld-amt-input"
                         inputMode="decimal"
                         placeholder="0.0"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         value={amount}
                         onChange={(e) => {
                             setAmount(e.target.value);
@@ -143,8 +147,9 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                         </span>
                     )}
                 </div>
-                <input
-                    className={`fld-text ${to.trim() && !toOk ? "bad" : ""}`}
+                <textarea
+                    className={`fld-text resize-none overflow-hidden ${to.trim() && !toOk ? "bad" : ""}`}
+                    rows={1}
                     placeholder="0x recipient address"
                     value={to}
                     onChange={(e) => {
@@ -152,7 +157,10 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                         setConfirming(false);
                     }}
                     autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
                     spellCheck={false}
+                    enterKeyHint="next"
                 />
             </div>
 

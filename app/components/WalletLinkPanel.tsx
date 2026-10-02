@@ -179,13 +179,17 @@ export default function WalletLinkPanel() {
                     Sign with both wallets once. Scores stay separate. Nothing moves on-chain.
                 </p>
                 <div className="wl-link-row">
-                    <input
-                        className="wl-input"
+                    <textarea
+                        className="wl-input resize-none overflow-hidden"
+                        rows={1}
                         placeholder="0x…"
                         value={linkedAddr}
                         onChange={(e) => setLinkedAddr(e.target.value)}
                         spellCheck={false}
                         autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        enterKeyHint="done"
                     />
                     <button
                         type="button"

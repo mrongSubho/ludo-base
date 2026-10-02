@@ -31,21 +31,33 @@ export default function SendNativeSheet() {
             </p>
             <label className="block text-[10px] text-white/50 uppercase tracking-wider">
                 To
-                <input
-                    className="mt-1 w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 font-mono text-[11px]"
+                <textarea
+                    className="mt-1 w-full resize-none overflow-hidden rounded-full border border-white/20 bg-black/40 px-3 py-2 font-mono text-[11px]"
+                    rows={1}
                     placeholder="0x…"
                     value={to}
                     onChange={(e) => setTo(e.target.value)}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    enterKeyHint="next"
                 />
             </label>
             <label className="block text-[10px] text-white/50 uppercase tracking-wider">
                 Amount (ETH)
-                <input
-                    className="mt-1 w-full rounded-lg border border-white/20 bg-black/40 px-2 py-2 font-mono text-[11px]"
+                <textarea
+                    className="mt-1 w-full resize-none overflow-hidden rounded-full border border-white/20 bg-black/40 px-3 py-2 font-mono text-[11px]"
+                    rows={1}
                     inputMode="decimal"
                     placeholder="0.01"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    enterKeyHint="done"
                 />
             </label>
             <div className="flex gap-2">

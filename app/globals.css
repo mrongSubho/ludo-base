@@ -8511,7 +8511,7 @@ body.theme-daybreak .pct-btn {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
-  border-radius: 12px;
+  border-radius: 999px;
   padding: 12px 14px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
@@ -9833,7 +9833,7 @@ body.theme-daybreak .boot-lock-alert {
 .wl-input {
   flex: 1;
   min-width: 0;
-  border-radius: 12px;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
@@ -10441,6 +10441,15 @@ body.theme-daybreak .chat-composer-input {
 }
 body.theme-daybreak .chat-composer-input::placeholder {
   color: rgba(15, 23, 42, 0.4);
+}
+
+/* Text entry controls share the app's pill language. Keep non-text controls
+   (checkboxes, radios, ranges, files, buttons, and selects) untouched. */
+:is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  textarea
+) {
+  border-radius: 9999px !important;
 }
 .chat-composer-send {
   height: 40px;
