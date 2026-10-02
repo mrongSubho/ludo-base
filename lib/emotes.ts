@@ -11,7 +11,8 @@ export type EmoteId =
     | 'wow'
     | 'phew'
     | 'thanks'
-    | 'brb';
+    | 'brb'
+    | 'custom';
 
 export interface EmoteDef {
     id: EmoteId;
@@ -43,6 +44,7 @@ export interface EmoteEvent {
     emoteId: EmoteId;
     color: string;
     actor?: string;
+    customText?: string;
     /** ms epoch */
     t: number;
 }
@@ -50,6 +52,17 @@ export interface EmoteEvent {
 export function createEmoteEvent(emoteId: EmoteId, color: string, actor?: string): EmoteEvent {
     return { emoteId, color, actor, t: Date.now() };
 }
+
+export const EMOJI_EMOTES = [
+    { id: 'heart', label: 'Heart', glyph: '❤️' },
+    { id: 'fire', label: 'Fire', glyph: '🔥' },
+    { id: 'laugh', label: 'Laugh', glyph: '😂' },
+    { id: 'wow-face', label: 'Wow', glyph: '😮' },
+    { id: 'clap', label: 'Clap', glyph: '👏' },
+    { id: 'party', label: 'Party', glyph: '🎉' },
+    { id: 'thumbs-up', label: 'Like', glyph: '👍' },
+    { id: 'eyes', label: 'Eyes', glyph: '👀' },
+] as const;
 
 /** How long the float stays visible (ms). */
 export const EMOTE_TTL_MS = 2200;

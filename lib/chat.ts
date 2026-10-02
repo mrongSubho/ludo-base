@@ -6,6 +6,7 @@ export type ChatEvent = {
     text: string;
     color: PlayerColor;
     actor?: string;
+    audience?: 'all' | 'team';
     t: number;
 };
 
@@ -35,6 +36,7 @@ export function parseChatPayload(payload: unknown): ChatEvent | null {
         text,
         color: p.color as PlayerColor,
         actor: typeof p.actor === 'string' ? p.actor : undefined,
+        audience: p.audience === 'team' ? 'team' : 'all',
         t: typeof p.t === 'number' ? p.t : Date.now(),
     };
 }

@@ -56,9 +56,9 @@ export interface GameActionPayloads {
     ENGINE_STATE: unknown;
     CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };
     /** G5 preset emote float (not a DM — no encryption required). */
-    EMOTE: { emoteId: string; color: PlayerColor; actor?: string; t?: number };
+    EMOTE: { emoteId: string; color: PlayerColor; actor?: string; customText?: string; t?: number };
     /** In-match lobby chat bubble (seat-local, not a DM). */
-    CHAT: { text: string; color: PlayerColor; actor?: string; t?: number };
+    CHAT: { text: string; color: PlayerColor; actor?: string; audience?: 'all' | 'team'; t?: number };
 }
 
 export type GameActionPayload<T extends GameActionType> = GameActionPayloads[T];

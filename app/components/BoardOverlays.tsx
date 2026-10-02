@@ -5,6 +5,7 @@ import { Player } from '@/hooks/useGameEngine';
 import { emoteById, EMOTE_TTL_MS, type EmoteEvent } from '@/lib/emotes';
 import { getEmoteGlyph } from './EmoteTray';
 import { chatTtlMs } from '@/lib/chat';
+import { getTeam } from '@/lib/gameLogic';
 
 interface StatusNotificationProps {
     message: string | null;
@@ -132,11 +133,13 @@ interface NameOverlayProps {
     players: Player[];
     getDisplayName: (player: Player) => string;
     /** Latest lobby chat line per seat color (same map as name pills). */
-    chatBubbles?: { text: string; color: PlayerColor; t: number }[];
+    chatBubbles?: { text: string; color: PlayerColor; audience?: 'all' | 'team'; t: number }[];
     emoteFloats?: EmoteEvent[];
+    viewerColor?: PlayerColor;
+    playerCount?: string;
 }
 
-export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0, chatBubbles, emoteFloats = [] }: NameOverlayProps & { counterRotationDeg?: number }) {
+export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0, chatBubbles, emoteFloats = [], viewerColor, playerCount = '4P' }: NameOverlayProps & { counterRotationDeg?: number }) {
     const renderLabel = (corner: 'TL' | 'TR' | 'BL' | 'BR', className: string, style: React.CSSProperties) => {
         const color = uiSlots[corner];
         const p = players.find(pl => pl.color === color);
@@ -152,14 +155,18 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
     const renderBubble = (corner: 'TL' | 'TR' | 'BL' | 'BR') => {
         const color = uiSlots[corner];
         if (!color || !chatBubbles?.length) return null;
-        const msg = [...chatBubbles].reverse().find((c) => c.color === color);
+        const msg = [...chatBubbles].reverse().find((c) => c.color === color && (
+            c.audience !== 'team' ||
+            !viewerColor ||
+            getTeam(c.color, playerCount) === getTeam(viewerColor, playerCount)
+        ));
         if (!msg) return null;
         const isTop = corner === 'TL' || corner === 'TR';
         const left = corner === 'TL' || corner === 'BL' ? '20%' : '80%';
         return (
             <div
                 key={`${msg.color}-${msg.t}`}
-                className={`chat-bubble ${isTop ? 'below' : 'above'}`}
+                className={`chat-bubble ${msg.audience === 'team' ? 'chat-bubble-team' : ''} ${isTop ? 'below' : 'above'}`}
                 style={{
                     position: 'absolute',
                     left,
@@ -184,7 +191,8 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
             .filter((event) => event.color === color && Date.now() - event.t < EMOTE_TTL_MS)
             .map((event) => {
                 const def = emoteById(event.emoteId);
-                if (!def) return null;
+                const label = event.emoteId === 'custom' ? (event.customText || 'Reaction') : def?.text;
+                if (!label) return null;
                 return (
                     <div
                         key={`${event.color}-${event.t}`}
@@ -196,11 +204,11 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
                         }}
                         data-emote={event.emoteId}
                         data-color={event.color}
-                        aria-label={def.text}
+                        aria-label={label}
                         role="status"
                     >
                         <span className="emote-float-glyph" aria-hidden="true">{getEmoteGlyph(event.emoteId)}</span>
-                        <span className="emote-float-label">{def.text}</span>
+                        <span className="emote-float-label">{label}</span>
                     </div>
                 );
             });

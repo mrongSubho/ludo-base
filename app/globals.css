@@ -10117,6 +10117,93 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
 .match-footer-slot.right {
   justify-content: flex-end;
 }
+.match-footer-chat {
+  display: block;
+  padding: 6px 10px max(6px, env(safe-area-inset-bottom, 0px));
+}
+.match-chat-composer {
+  position: relative;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
+    linear-gradient(165deg, rgba(22, 28, 48, 0.96), rgba(12, 16, 28, 0.98));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255,255,255,0.04);
+  animation: chat-composer-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.match-chat-composer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 6px;
+}
+.team-chat-toggle {
+  margin-left: auto;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.06);
+  font-size: 10px;
+  font-weight: 800;
+}
+.team-chat-toggle.on {
+  color: #082f49;
+  background: #67e8f9;
+  border-color: #67e8f9;
+}
+.match-chat-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chat-emoji-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.chat-emoji-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(34,211,238,0.2);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  font-size: 19px;
+}
+.chat-emoji-button.on,
+.chat-emoji-button:active { background: rgba(34,211,238,0.18); }
+.chat-emoji-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  width: 190px;
+  padding: 7px;
+  border: 1px solid rgba(34,211,238,0.28);
+  border-radius: 15px;
+  background: rgba(12,16,28,0.98);
+  box-shadow: 0 14px 30px rgba(0,0,0,0.38);
+}
+.chat-emoji-picker button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  font-size: 18px;
+}
+@keyframes chat-composer-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 .emote-tray {
   position: static;
 }
@@ -10470,6 +10557,10 @@ body.theme-daybreak .chat-composer-send {
   animation: chat-bubble-arrive var(--chat-duration, 4000ms) cubic-bezier(0.16, 1, 0.3, 1) both;
   transform-origin: center bottom;
 }
+.chat-bubble-team {
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22), 0 0 18px rgba(34, 211, 238, 0.16);
+}
 body.theme-daybreak .chat-bubble {
   background: #fff;
   color: #1e2a44;
@@ -10588,6 +10679,67 @@ body.theme-daybreak .chat-bubble {
 .emote-sheet-option:active {
   transform: scale(0.96);
 }
+.emote-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.06);
+}
+.emote-tabs button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.58);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.emote-tabs button.active {
+  color: #082f49;
+  background: #67e8f9;
+}
+.custom-emote-editor {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+}
+.custom-emote-row {
+  display: flex;
+  gap: 5px;
+}
+.custom-emote-row input {
+  min-width: 0;
+  flex: 1;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid rgba(34,211,238,0.18);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255,255,255,0.06);
+  font-size: 11px;
+}
+.custom-emote-row button {
+  min-width: 48px;
+  border: 0;
+  border-radius: 999px;
+  color: #082f49;
+  background: #67e8f9;
+  font-size: 10px;
+  font-weight: 850;
+}
+.custom-emote-row button:disabled { opacity: 0.4; }
+.emoji-emote-glyph {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  font-size: 21px;
+}
 body.theme-daybreak .emote-sheet-option {
   color: #1e2a44;
   background: rgba(0, 82, 255, 0.06);
@@ -10647,7 +10799,8 @@ body.theme-daybreak .emote-sheet-option {
   .emote-float,
   .emote-float-glyph,
   .chat-bubble,
-  .chat-bubble-text {
+  .chat-bubble-text,
+  .match-chat-composer {
     animation: none;
   }
 }

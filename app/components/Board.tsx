@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, animate, useTransform } from 'framer-motion';
+import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
@@ -28,7 +28,7 @@ import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
 import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
-import { EMOTE_TTL_MS, PRESET_EMOTES } from '@/lib/emotes';
+import { EMOTE_TTL_MS } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
@@ -87,7 +87,8 @@ export default function Board({
     // In-match lobby chat: compact composer + seat bubbles
     const [chatOpen, setChatOpen] = React.useState(false);
     const [chatDraft, setChatDraft] = React.useState('');
-    const [chatInputFocused, setChatInputFocused] = React.useState(false);
+    const [chatEmojiOpen, setChatEmojiOpen] = React.useState(false);
+    const [teamChatOnly, setTeamChatOnly] = React.useState(false);
     const [chatBubbles, setChatBubbles] = React.useState<ChatEvent[]>([]);
 
     // Q2 device-pass hook on the live board: `await __ludoPerf.markdown()`
@@ -239,16 +240,17 @@ export default function Board({
     const sendChat = React.useCallback(() => {
         const text = clampChatText(chatDraft);
         if (!text || !ownColor) return;
-        const ev: ChatEvent = { text, color: ownColor, t: Date.now() };
+        const ev: ChatEvent = { text, color: ownColor, audience: teamChatOnly ? 'team' : 'all', t: Date.now() };
         setChatBubbles((b) => [...b.slice(-3), ev]);
         broadcastAction('CHAT', {
             text,
             color: ownColor,
+            audience: teamChatOnly ? 'team' : 'all',
             t: ev.t,
         } as GameActionPayload<'CHAT'>);
         setChatDraft('');
         setChatOpen(false);
-    }, [chatDraft, ownColor, broadcastAction]);
+    }, [chatDraft, ownColor, teamChatOnly, broadcastAction]);
     const isMyTurn = !!ownColor && turnColor === ownColor;
     const showInventory = !spectatorMode && !!ownColor && canUsePowers;
     const liveInventory: PowerItem[] = showInventory
@@ -378,6 +380,8 @@ export default function Board({
                 counterRotationDeg={counterRotationDeg}
                 chatBubbles={chatBubbles}
                 emoteFloats={emoteFloats}
+                viewerColor={ownColor}
+                playerCount={playerCount}
             />
 
             {lxpGain !== null && (
@@ -440,7 +444,69 @@ export default function Board({
             />
 
             {/* Match footer: Emotes (left) · Power orbs (center) · Chat (right) */}
-            <div className="match-footer">
+            <div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
+                {chatOpen ? (
+                    <div className="match-chat-composer">
+                        <div className="match-chat-composer-head">
+                            <span className="chat-sheet-title">In-game chat</span>
+                            <button
+                                type="button"
+                                className={`team-chat-toggle ${teamChatOnly ? 'on' : ''}`}
+                                onClick={() => setTeamChatOnly((value) => !value)}
+                                disabled={playerCount !== '2v2'}
+                                aria-pressed={teamChatOnly}
+                            >
+                                {teamChatOnly ? 'Team only' : 'Everyone'}
+                            </button>
+                            <button type="button" className="chat-sheet-x" onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
+                        </div>
+                        <div className="match-chat-composer-row">
+                            <div className="chat-emoji-wrap">
+                                <button
+                                    type="button"
+                                    className={`chat-emoji-button ${chatEmojiOpen ? 'on' : ''}`}
+                                    onClick={() => setChatEmojiOpen((value) => !value)}
+                                    aria-label="Add emoji"
+                                >
+                                    🙂
+                                </button>
+                                {chatEmojiOpen && (
+                                    <div className="chat-emoji-picker">
+                                        {['😀', '😂', '😮', '🔥', '❤️', '👏', '🎉', '👍', '👀', '😅'].map((emoji) => (
+                                            <button key={emoji} type="button" onClick={() => {
+                                                setChatDraft((draft) => `${draft}${emoji}`.slice(0, 80));
+                                                setChatEmojiOpen(false);
+                                            }}>{emoji}</button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <textarea
+                                className="chat-composer-input"
+                                value={chatDraft}
+                                maxLength={80}
+                                rows={1}
+                                placeholder={teamChatOnly ? 'Message your teammate…' : 'Message everyone…'}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="sentences"
+                                spellCheck={false}
+                                enterKeyHint="send"
+                                autoFocus
+                                onChange={(e) => setChatDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        sendChat();
+                                    }
+                                    if (e.key === 'Escape') setChatOpen(false);
+                                }}
+                            />
+                            <button type="button" className="chat-composer-send" onClick={sendChat} disabled={!chatDraft.trim()}>Send</button>
+                        </div>
+                    </div>
+                ) : (
+                <>
                 <div className="match-footer-slot left">
                     {!spectatorMode && myPlayer && (
                         <EmoteTray
@@ -451,6 +517,7 @@ export default function Board({
                                     emoteId: event.emoteId,
                                     color: event.color,
                                     actor: event.actor,
+                                    customText: event.customText,
                                     t: event.t,
                                 } as GameActionPayload<'EMOTE'>);
                             }}
@@ -490,89 +557,9 @@ export default function Board({
                         Chat
                     </button>
                 </div>
-            </div>
-
-            {/* Chat sheet — compact creative card, left of footer (Emotes) */}
-            <AnimatePresence>
-                {chatOpen && !spectatorMode && (
-                    <motion.div
-                        className="chat-sheet board-sheet"
-                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                    <div className="chat-sheet-head">
-                        <span className="chat-sheet-dot" />
-                        <span className="chat-sheet-title">Lobby chat</span>
-                        <button
-                            type="button"
-                            className="chat-sheet-x"
-                            aria-label="Close chat"
-                            onClick={() => setChatOpen(false)}
-                        >
-                            ×
-                        </button>
-                    </div>
-                    <div className={`emote-sheet-grid chat-sheet-presets ${chatInputFocused ? 'is-hidden' : ''}`}>
-                        {PRESET_EMOTES.map((e, i) => (
-                            <button
-                                key={e.id}
-                                type="button"
-                                className="emote-sheet-option chat-preset"
-                                style={{ animationDelay: `${i * 30}ms` }}
-                                onClick={() => {
-                                    const text = clampChatText(e.text);
-                                    if (!text || !ownColor) return;
-                                    const ev: ChatEvent = { text, color: ownColor, t: Date.now() };
-                                    setChatBubbles((b) => [...b.slice(-3), ev]);
-                                    broadcastAction('CHAT', {
-                                        text,
-                                        color: ownColor,
-                                        t: ev.t,
-                                    } as GameActionPayload<'CHAT'>);
-                                    setChatOpen(false);
-                                }}
-                            >
-                                {e.text}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="chat-sheet-row">
-                        <textarea
-                            className="chat-composer-input"
-                            value={chatDraft}
-                            maxLength={80}
-                            rows={1}
-                            placeholder="Tap to type…"
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="sentences"
-                            spellCheck={false}
-                            enterKeyHint="send"
-                            onFocus={() => setChatInputFocused(true)}
-                            onBlur={() => setChatInputFocused(false)}
-                            onChange={(e) => setChatDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    sendChat();
-                                }
-                                if (e.key === 'Escape') setChatOpen(false);
-                            }}
-                        />
-                        <button
-                            type="button"
-                            className="chat-composer-send"
-                            onClick={sendChat}
-                            disabled={!chatDraft.trim()}
-                        >
-                            Send
-                        </button>
-                    </div>
-                    </motion.div>
+                </>
                 )}
-            </AnimatePresence>
+            </div>
 
             <Leaderboard isOpen={showLeaderboard} onClose={() => onToggleLeaderboard?.(false)} onOpenProfile={onOpenProfile || (() => { })} />
             {selectedPlayer && (
