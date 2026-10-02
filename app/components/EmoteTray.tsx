@@ -15,8 +15,6 @@ import {
 interface EmoteTrayProps {
     myColor: PlayerColor;
     onEmote: (event: EmoteEvent) => void;
-    /** Live floats keyed by color (local + remote). */
-    floats: EmoteEvent[];
     disabled?: boolean;
 }
 
@@ -24,14 +22,11 @@ interface EmoteTrayProps {
  * G5 — preset emote tray + floating phrases over seats.
  * No voice. No free-text (keeps moderation trivial).
  */
-export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps) {
+export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
     const [open, setOpen] = useState(false);
 
     return (
         <div className="relative">
-            {floats.map((f) => (
-                <EmoteFloat key={`${f.color}-${f.t}`} event={f} />
-            ))}
             <button
                 type="button"
                 className={`match-foot-pill ${open ? 'on' : ''}`}
@@ -65,7 +60,7 @@ export function EmoteTray({ myColor, onEmote, floats, disabled }: EmoteTrayProps
     );
 }
 
-function EmoteFloat({ event }: { event: EmoteEvent }) {
+export function EmoteFloat({ event }: { event: EmoteEvent }) {
     const def = emoteById(event.emoteId);
     const [alive, setAlive] = useState(true);
     useEffect(() => {
@@ -75,14 +70,29 @@ function EmoteFloat({ event }: { event: EmoteEvent }) {
     if (!alive || !def) return null;
     return (
         <div
-            className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap rounded-full border border-white/15 bg-black/80 px-3 py-1 text-[11px] font-bold text-white/90 shadow-lg"
+            className={`emote-float emote-float-${event.emoteId}`}
             data-emote={event.emoteId}
             data-color={event.color}
+            aria-label={def.text}
             role="status"
         >
-            {def.text}
+            <span className="emote-float-glyph" aria-hidden="true">{getEmoteGlyph(event.emoteId)}</span>
+            <span className="emote-float-label">{def.text}</span>
         </div>
     );
+}
+
+function getEmoteGlyph(id: EmoteId): string {
+    switch (id) {
+        case 'gl': return '✦';
+        case 'nice': return '★';
+        case 'oops': return '!';
+        case 'think': return '…';
+        case 'wow': return '⚡';
+        case 'phew': return '♡';
+        case 'thanks': return '✓';
+        case 'brb': return '◌';
+    }
 }
 
 /** Parse an inbound emote wire payload. */

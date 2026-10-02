@@ -5,6 +5,8 @@ import { Player } from '@/hooks/useGameEngine';
 import { PlayerColor } from '@/lib/types';
 import { Corner } from '@/lib/boardLayout';
 import { getTierInfo } from '@/lib/progression';
+import { EmoteFloat } from './EmoteTray';
+import type { EmoteEvent } from '@/lib/emotes';
 
 export const getDisplayNameHelper = (player: Player) => {
     if (player.isAi) return player.name;
@@ -34,12 +36,14 @@ interface PlayerCardProps {
     player: Player;
     isActive: boolean;
     awaitingMove?: boolean;
+    emotes?: EmoteEvent[];
 }
 
 export function PlayerCard({
     player,
     isActive,
     awaitingMove,
+    emotes = [],
 }: PlayerCardProps) {
     const [levelUp, setLevelUp] = useState(false);
     const prevLevelRef = useRef(player.level);
@@ -57,6 +61,9 @@ export function PlayerCard({
     return (
         <div className={`player-card player-card-corner ${player.position}`}>
             <div className="avatar-circle-wrapper" style={{ position: 'relative' }}>
+                {emotes.map((event) => (
+                    <EmoteFloat key={`${event.color}-${event.t}`} event={event} />
+                ))}
                 {awaitingMove && ([0, 0.8] as const).map(delay => (
                     <span
                         key={delay}
@@ -101,6 +108,7 @@ interface PlayerRowProps {
     handleRoll: (val?: number) => void;
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
+    emotes?: EmoteEvent[];
 }
 
 export function PlayerRow({
@@ -110,7 +118,8 @@ export function PlayerRow({
     localGameState,
     handleRoll,
     spectatorMode,
-    myPlayerColor
+    myPlayerColor,
+    emotes = [],
 }: PlayerRowProps) {
     return (
         <div className={`player-row player-row-${(corners as any).includes('TL') ? 'top' : 'bottom'}`}>
@@ -134,6 +143,7 @@ export function PlayerRow({
                             player={p}
                             isActive={isMyTurn}
                             awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
+                            emotes={emotes.filter((event) => event.color === p.color)}
                         />
                         {isMyTurn && !spectatorMode && (
                             <LudoDice

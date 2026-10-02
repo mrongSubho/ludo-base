@@ -285,6 +285,7 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
+                emotes={emoteFloats}
             />
 
             <motion.div 
@@ -427,6 +428,7 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
+                emotes={emoteFloats}
             />
 
             {/* Match footer: Emotes (left) · Power orbs (center) · Chat (right) */}
@@ -434,9 +436,8 @@ export default function Board({
                 <div className="match-footer-slot left">
                     {!spectatorMode && myPlayer && (
                         <EmoteTray
-                            myColor={myPlayer.color}
-                            floats={emoteFloats}
-                            onEmote={(event) => {
+                                    myColor={myPlayer.color}
+                                    onEmote={(event) => {
                                 setEmoteFloats((f) => [...f.slice(-4), event]);
                                 broadcastAction('EMOTE', {
                                     emoteId: event.emoteId,
