@@ -10489,6 +10489,8 @@ body.theme-daybreak .chat-composer-send {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
   word-break: break-word;
   z-index: 16;
+  animation: chat-bubble-arrive var(--chat-duration, 4000ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center bottom;
 }
 body.theme-daybreak .chat-bubble {
   background: #fff;
@@ -10497,6 +10499,7 @@ body.theme-daybreak .chat-bubble {
 }
 .chat-bubble-text {
   min-width: 0;
+  animation: chat-bubble-text-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .chat-bubble-tail {
   position: absolute;
@@ -10511,6 +10514,35 @@ body.theme-daybreak .chat-bubble {
 }
 .chat-bubble-tail.up {
   top: -5px;
+}
+
+@keyframes chat-bubble-arrive {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(10px) scale(0.82);
+  }
+  16% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1.04);
+  }
+  30% {
+    transform: translateY(-2px) scale(1);
+  }
+  76% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.94);
+  }
+}
+
+@keyframes chat-bubble-text-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Animated reactions anchored to the owning player's avatar. */
@@ -10533,6 +10565,96 @@ body.theme-daybreak .chat-bubble {
   pointer-events: none;
   animation: emote-float-rise 2.2s ease-out both;
 }
+.board-emote-top {
+  bottom: auto;
+  transform: translateX(-50%);
+}
+.board-emote-bottom {
+  top: auto;
+  transform: translateX(-50%);
+}
+.emote-sheet {
+  position: fixed;
+  left: 12px;
+  bottom: calc(8px + 52px + 10px);
+  z-index: 80;
+  width: min(300px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
+    linear-gradient(165deg, rgba(22, 28, 48, 0.96), rgba(12, 16, 28, 0.98));
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 24px rgba(34, 211, 238, 0.12);
+}
+body.keyboard-open .emote-sheet {
+  bottom: calc(var(--kb-inset, 0px) + 8px);
+}
+body.theme-daybreak .emote-sheet {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(0, 82, 255, 0.1), transparent 55%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 244, 248, 0.98));
+  border-color: rgba(0, 82, 255, 0.22);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+}
+.emote-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.emote-sheet-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.emote-sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 13px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: left;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+.emote-sheet-option:hover {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.4);
+}
+.emote-sheet-option:active {
+  transform: scale(0.96);
+}
+body.theme-daybreak .emote-sheet-option {
+  color: #1e2a44;
+  background: rgba(0, 82, 255, 0.06);
+  border-color: rgba(0, 82, 255, 0.16);
+}
+.emote-option-glyph {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #22d3ee, #2563eb);
+  font-size: 15px;
+  font-weight: 900;
+}
+.emote-option-oops { background: linear-gradient(135deg, #fb7185, #e11d48); }
+.emote-option-think { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+.emote-option-wow { background: linear-gradient(135deg, #facc15, #f97316); }
+.emote-option-thanks { background: linear-gradient(135deg, #34d399, #059669); }
 .emote-float-glyph {
   display: grid;
   place-items: center;
@@ -10569,7 +10691,9 @@ body.theme-daybreak .chat-bubble {
 }
 @media (prefers-reduced-motion: reduce) {
   .emote-float,
-  .emote-float-glyph {
+  .emote-float-glyph,
+  .chat-bubble,
+  .chat-bubble-text {
     animation: none;
   }
 }

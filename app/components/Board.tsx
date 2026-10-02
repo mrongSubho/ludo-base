@@ -27,8 +27,8 @@ import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
-import { parseChatPayload, clampChatText, CHAT_TTL_MS } from '@/lib/chat';
-import { PRESET_EMOTES } from '@/lib/emotes';
+import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
+import { EMOTE_TTL_MS, PRESET_EMOTES } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
@@ -118,11 +118,20 @@ export default function Board({
     // Expire bubbles after TTL (same cadence as emote floats)
     React.useEffect(() => {
         if (chatBubbles.length === 0) return;
+        const expiresAt = Math.min(...chatBubbles.map((bubble) => bubble.t + chatTtlMs(bubble.text)));
         const t = window.setTimeout(() => {
-            setChatBubbles((b) => b.filter((x) => Date.now() - x.t < CHAT_TTL_MS));
-        }, CHAT_TTL_MS);
+            setChatBubbles((b) => b.filter((x) => Date.now() - x.t < chatTtlMs(x.text)));
+        }, Math.max(0, expiresAt - Date.now()));
         return () => window.clearTimeout(t);
     }, [chatBubbles]);
+
+    React.useEffect(() => {
+        if (emoteFloats.length === 0) return;
+        const t = window.setTimeout(() => {
+            setEmoteFloats((f) => f.filter((x) => Date.now() - x.t < EMOTE_TTL_MS));
+        }, EMOTE_TTL_MS);
+        return () => window.clearTimeout(t);
+    }, [emoteFloats]);
 
     const [boardConfig, setBoardConfig] = useState(() => {
         if (initialPlayers && initialColorCorner) {
@@ -285,7 +294,6 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
-                emotes={emoteFloats}
             />
 
             <motion.div 
@@ -369,6 +377,7 @@ export default function Board({
                 getDisplayName={getDisplayNameHelper}
                 counterRotationDeg={counterRotationDeg}
                 chatBubbles={chatBubbles}
+                emoteFloats={emoteFloats}
             />
 
             {lxpGain !== null && (
@@ -428,7 +437,6 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
-                emotes={emoteFloats}
             />
 
             {/* Match footer: Emotes (left) · Power orbs (center) · Chat (right) */}

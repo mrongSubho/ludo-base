@@ -2,6 +2,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
+import { emoteById, EMOTE_TTL_MS, type EmoteEvent } from '@/lib/emotes';
+import { getEmoteGlyph } from './EmoteTray';
+import { chatTtlMs } from '@/lib/chat';
 
 interface StatusNotificationProps {
     message: string | null;
@@ -130,9 +133,10 @@ interface NameOverlayProps {
     getDisplayName: (player: Player) => string;
     /** Latest lobby chat line per seat color (same map as name pills). */
     chatBubbles?: { text: string; color: PlayerColor; t: number }[];
+    emoteFloats?: EmoteEvent[];
 }
 
-export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0, chatBubbles }: NameOverlayProps & { counterRotationDeg?: number }) {
+export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationDeg = 0, chatBubbles, emoteFloats = [] }: NameOverlayProps & { counterRotationDeg?: number }) {
     const renderLabel = (corner: 'TL' | 'TR' | 'BL' | 'BR', className: string, style: React.CSSProperties) => {
         const color = uiSlots[corner];
         const p = players.find(pl => pl.color === color);
@@ -154,6 +158,7 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
         const left = corner === 'TL' || corner === 'BL' ? '20%' : '80%';
         return (
             <div
+                key={`${msg.color}-${msg.t}`}
                 className={`chat-bubble ${isTop ? 'below' : 'above'}`}
                 style={{
                     position: 'absolute',
@@ -161,12 +166,44 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
                     transform: 'translateX(-50%)',
                     top: isTop ? 30 : undefined,
                     bottom: isTop ? undefined : 30,
-                }}
+                    '--chat-duration': `${chatTtlMs(msg.text)}ms`,
+                } as React.CSSProperties}
             >
                 <div className="chat-bubble-text">{msg.text}</div>
                 <div className={`chat-bubble-tail ${isTop ? 'down' : 'up'}`} />
             </div>
         );
+    };
+
+    const renderEmotes = (corner: 'TL' | 'TR' | 'BL' | 'BR') => {
+        const color = uiSlots[corner];
+        if (!color) return null;
+        const isTop = corner === 'TL' || corner === 'TR';
+        const left = corner === 'TL' || corner === 'BL' ? '20%' : '80%';
+        return emoteFloats
+            .filter((event) => event.color === color && Date.now() - event.t < EMOTE_TTL_MS)
+            .map((event) => {
+                const def = emoteById(event.emoteId);
+                if (!def) return null;
+                return (
+                    <div
+                        key={`${event.color}-${event.t}`}
+                        className={`emote-float emote-float-${event.emoteId} board-emote-${isTop ? 'top' : 'bottom'}`}
+                        style={{
+                            left,
+                            top: isTop ? 34 : undefined,
+                            bottom: isTop ? undefined : 34,
+                        }}
+                        data-emote={event.emoteId}
+                        data-color={event.color}
+                        aria-label={def.text}
+                        role="status"
+                    >
+                        <span className="emote-float-glyph" aria-hidden="true">{getEmoteGlyph(event.emoteId)}</span>
+                        <span className="emote-float-label">{def.text}</span>
+                    </div>
+                );
+            });
     };
 
     return (
@@ -189,6 +226,10 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
             {renderBubble('TR')}
             {renderBubble('BL')}
             {renderBubble('BR')}
+            {renderEmotes('TL')}
+            {renderEmotes('TR')}
+            {renderEmotes('BL')}
+            {renderEmotes('BR')}
         </div>
     );
 }

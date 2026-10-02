@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerColor } from '@/lib/types';
 import {
     PRESET_EMOTES,
     createEmoteEvent,
-    emoteById,
     isEmoteId,
-    EMOTE_TTL_MS,
     type EmoteEvent,
     type EmoteId,
 } from '@/lib/emotes';
@@ -37,52 +36,51 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
             >
                 Emotes
             </button>
-            {open && (
-                <div className="absolute bottom-full left-0 mb-2 z-40 w-48 rounded-2xl border border-white/10 bg-black/85 p-2 backdrop-blur-md shadow-xl">
-                    <div className="grid grid-cols-2 gap-1">
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        className="emote-sheet"
+                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                        <div className="emote-sheet-head">
+                            <span className="chat-sheet-dot" />
+                            <span className="chat-sheet-title">Quick reactions</span>
+                            <button
+                                type="button"
+                                className="chat-sheet-x"
+                                aria-label="Close emotes"
+                                onClick={() => setOpen(false)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="emote-sheet-grid">
                         {PRESET_EMOTES.map((e) => (
                             <button
                                 key={e.id}
                                 type="button"
-                                className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-[10px] font-bold text-white/85 hover:bg-white/10 active:scale-95"
+                                className="emote-sheet-option"
                                 onClick={() => {
                                     onEmote(createEmoteEvent(e.id, myColor));
                                     setOpen(false);
                                 }}
                             >
+                                <span className={`emote-option-glyph emote-option-${e.id}`} aria-hidden="true">{getEmoteGlyph(e.id)}</span>
                                 {e.text}
                             </button>
                         ))}
-                    </div>
-                </div>
-            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
-export function EmoteFloat({ event }: { event: EmoteEvent }) {
-    const def = emoteById(event.emoteId);
-    const [alive, setAlive] = useState(true);
-    useEffect(() => {
-        const t = setTimeout(() => setAlive(false), EMOTE_TTL_MS);
-        return () => clearTimeout(t);
-    }, [event.t]);
-    if (!alive || !def) return null;
-    return (
-        <div
-            className={`emote-float emote-float-${event.emoteId}`}
-            data-emote={event.emoteId}
-            data-color={event.color}
-            aria-label={def.text}
-            role="status"
-        >
-            <span className="emote-float-glyph" aria-hidden="true">{getEmoteGlyph(event.emoteId)}</span>
-            <span className="emote-float-label">{def.text}</span>
-        </div>
-    );
-}
-
-function getEmoteGlyph(id: EmoteId): string {
+export function getEmoteGlyph(id: EmoteId): string {
     switch (id) {
         case 'gl': return '✦';
         case 'nice': return '★';
