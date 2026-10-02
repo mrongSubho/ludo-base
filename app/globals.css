@@ -2207,6 +2207,7 @@ body.keyboard-open .app-shell {
 
 /* ─── Board Outer (positions player cards around the board) ─── */
 .board-outer {
+  position: relative;
   background: transparent !important;
   display: flex;
   flex-direction: column;
@@ -10116,6 +10117,9 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
 .match-footer-slot.right {
   justify-content: flex-end;
 }
+.emote-tray {
+  position: static;
+}
 
 /* ─── Power inventory strip (inside match footer, centered) ─── */
 .power-inv-strip {
@@ -10295,12 +10299,11 @@ body.theme-daybreak .match-foot-pill.on {
   background: #2563eb;
 }
 
-/* ─── Chat sheet — compact creative card (left, above Emotes) ─── */
-.chat-sheet {
-  position: fixed;
-  left: 12px;
-  bottom: calc(8px + 52px + 10px);
-  width: min(300px, calc(100vw - 24px));
+/* ─── Board sheets — shared emote/chat surface ─── */
+.board-sheet {
+  position: absolute;
+  bottom: calc(52px + max(6px, env(safe-area-inset-bottom, 0px)) + 10px);
+  width: min(300px, calc(100% - 24px));
   z-index: 80;
   padding: 12px;
   border-radius: 20px;
@@ -10316,7 +10319,7 @@ body.theme-daybreak .match-foot-pill.on {
   flex-direction: column;
   gap: 10px;
 }
-body.keyboard-open .chat-sheet {
+body.keyboard-open .board-sheet {
   bottom: calc(var(--kb-inset, 0px) + 8px);
 }
 body.keyboard-open .chat-sheet-presets {
@@ -10325,12 +10328,18 @@ body.keyboard-open .chat-sheet-presets {
 .chat-sheet-presets.is-hidden {
   display: none;
 }
-body.theme-daybreak .chat-sheet {
+body.theme-daybreak .board-sheet {
   background:
     radial-gradient(120% 90% at 0% 0%, rgba(0, 82, 255, 0.1), transparent 55%),
     linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 244, 248, 0.98));
   border-color: rgba(0, 82, 255, 0.22);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+}
+.emote-sheet {
+  left: 12px;
+}
+.chat-sheet {
+  right: 12px;
 }
 .chat-sheet-head {
   display: flex;
@@ -10371,41 +10380,10 @@ body.theme-daybreak .chat-sheet-x {
   background: rgba(15, 23, 42, 0.06);
 }
 .chat-sheet-presets {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  margin: 0;
 }
 .chat-preset {
-  height: 34px;
-  border-radius: 12px;
-  border: 1px solid rgba(34, 211, 238, 0.18);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-  animation: chatPresetIn 0.18s ease-out both;
-}
-.chat-preset:hover {
-  background: rgba(34, 211, 238, 0.16);
-  border-color: rgba(34, 211, 238, 0.4);
-}
-.chat-preset:active {
-  transform: scale(0.97);
-}
-body.theme-daybreak .chat-preset {
-  color: #1e2a44;
-  background: rgba(0, 82, 255, 0.06);
-  border-color: rgba(0, 82, 255, 0.16);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-}
-body.theme-daybreak .chat-preset:hover {
-  background: rgba(0, 82, 255, 0.12);
-}
-@keyframes chatPresetIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  min-height: 40px;
 }
 .chat-sheet-row {
   display: flex;
@@ -10574,31 +10552,7 @@ body.theme-daybreak .chat-bubble {
   transform: translateX(-50%);
 }
 .emote-sheet {
-  position: fixed;
   left: 12px;
-  bottom: calc(8px + 52px + 10px);
-  z-index: 80;
-  width: min(300px, calc(100vw - 24px));
-  padding: 12px;
-  border: 1px solid rgba(34, 211, 238, 0.28);
-  border-radius: 20px;
-  background:
-    radial-gradient(120% 90% at 0% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
-    linear-gradient(165deg, rgba(22, 28, 48, 0.96), rgba(12, 16, 28, 0.98));
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 0 24px rgba(34, 211, 238, 0.12);
-}
-body.keyboard-open .emote-sheet {
-  bottom: calc(var(--kb-inset, 0px) + 8px);
-}
-body.theme-daybreak .emote-sheet {
-  background:
-    radial-gradient(120% 90% at 0% 0%, rgba(0, 82, 255, 0.1), transparent 55%),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.98), rgba(242, 244, 248, 0.98));
-  border-color: rgba(0, 82, 255, 0.22);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
 }
 .emote-sheet-head {
   display: flex;

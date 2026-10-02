@@ -25,7 +25,7 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
     const [open, setOpen] = useState(false);
 
     return (
-        <div className="relative">
+        <div className="emote-tray">
             <button
                 type="button"
                 className={`match-foot-pill ${open ? 'on' : ''}`}
@@ -39,7 +39,7 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
             <AnimatePresence>
                 {open && (
                     <motion.div
-                        className="emote-sheet"
+                        className="emote-sheet board-sheet"
                         initial={{ opacity: 0, y: 14, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.98 }}

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
@@ -493,8 +493,15 @@ export default function Board({
             </div>
 
             {/* Chat sheet — compact creative card, left of footer (Emotes) */}
-            {chatOpen && !spectatorMode && (
-                <div className="chat-sheet">
+            <AnimatePresence>
+                {chatOpen && !spectatorMode && (
+                    <motion.div
+                        className="chat-sheet board-sheet"
+                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    >
                     <div className="chat-sheet-head">
                         <span className="chat-sheet-dot" />
                         <span className="chat-sheet-title">Lobby chat</span>
@@ -507,12 +514,12 @@ export default function Board({
                             ×
                         </button>
                     </div>
-                    <div className={`chat-sheet-presets ${chatInputFocused ? 'is-hidden' : ''}`}>
+                    <div className={`emote-sheet-grid chat-sheet-presets ${chatInputFocused ? 'is-hidden' : ''}`}>
                         {PRESET_EMOTES.map((e, i) => (
                             <button
                                 key={e.id}
                                 type="button"
-                                className="chat-preset"
+                                className="emote-sheet-option chat-preset"
                                 style={{ animationDelay: `${i * 30}ms` }}
                                 onClick={() => {
                                     const text = clampChatText(e.text);
@@ -563,8 +570,9 @@ export default function Board({
                             Send
                         </button>
                     </div>
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <Leaderboard isOpen={showLeaderboard} onClose={() => onToggleLeaderboard?.(false)} onOpenProfile={onOpenProfile || (() => { })} />
             {selectedPlayer && (
