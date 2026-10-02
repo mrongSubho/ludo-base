@@ -68,10 +68,14 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
                 stableLayoutHeight - Math.round(measuredVisH) - offsetTop - stableDeadBottom
             );
             const kbInset = keyboardOpen && rawKeyboardInset > 120 ? rawKeyboardInset : 0;
-            const appHeight = kbInset > 0 ? layoutH : Math.round(measuredVisH);
+            // Once an editable control is focused, freeze the app at the
+            // pre-IME layout height. The visual viewport may shrink, but the
+            // board composition must not reflow with it.
+            const appHeight = keyboardOpen ? stableLayoutHeight : Math.round(measuredVisH);
+            const layoutViewportHeight = keyboardOpen ? stableLayoutHeight : layoutH;
 
             root.style.setProperty('--app-vh', `${appHeight}px`);
-            root.style.setProperty('--layout-vh', `${layoutH}px`);
+            root.style.setProperty('--layout-vh', `${layoutViewportHeight}px`);
             root.style.setProperty('--visible-vh', `${Math.round(measuredVisH)}px`);
             root.style.setProperty('--safe-bottom', `${safeBottom}px`);
             root.style.setProperty('--vv-dead-bottom', `${deadBottom}px`);

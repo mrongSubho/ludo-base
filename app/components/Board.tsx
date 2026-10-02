@@ -87,6 +87,7 @@ export default function Board({
     // In-match lobby chat: compact composer + seat bubbles
     const [chatOpen, setChatOpen] = React.useState(false);
     const [chatDraft, setChatDraft] = React.useState('');
+    const [chatInputFocused, setChatInputFocused] = React.useState(false);
     const [chatBubbles, setChatBubbles] = React.useState<ChatEvent[]>([]);
 
     // Q2 device-pass hook on the live board: `await __ludoPerf.markdown()`
@@ -497,7 +498,7 @@ export default function Board({
                             ×
                         </button>
                     </div>
-                    <div className="chat-sheet-presets">
+                    <div className={`chat-sheet-presets ${chatInputFocused ? 'is-hidden' : ''}`}>
                         {PRESET_EMOTES.map((e, i) => (
                             <button
                                 key={e.id}
@@ -527,6 +528,11 @@ export default function Board({
                             value={chatDraft}
                             maxLength={80}
                             placeholder="Tap to type…"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            onFocus={() => setChatInputFocused(true)}
+                            onBlur={() => setChatInputFocused(false)}
                             onChange={(e) => setChatDraft(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
