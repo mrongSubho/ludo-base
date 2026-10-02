@@ -666,12 +666,18 @@ export const SpectatorHUD = ({
                 </div>
 
                 <div className="flex items-center gap-2 px-3 py-3 border-t border-white/5 bg-white/[0.02]">
-                    <input
+                    <textarea
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
+                        rows={1}
                         onKeyDown={e => e.key === 'Enter' && sendChat()}
                         placeholder="Transmit data…"
                         maxLength={120}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="sentences"
+                        spellCheck={false}
+                        enterKeyHint="send"
                         className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs font-medium text-white placeholder-white/20 outline-none focus:border-cyan-400/50 focus:bg-cyan-900/10 transition-all shadow-inner"
                     />
                     <button

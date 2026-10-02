@@ -523,14 +523,17 @@ export default function Board({
                         ))}
                     </div>
                     <div className="chat-sheet-row">
-                        <input
+                        <textarea
                             className="chat-composer-input"
                             value={chatDraft}
                             maxLength={80}
+                            rows={1}
                             placeholder="Tap to type…"
                             autoComplete="off"
                             autoCorrect="off"
+                            autoCapitalize="sentences"
                             spellCheck={false}
+                            enterKeyHint="send"
                             onFocus={() => setChatInputFocused(true)}
                             onBlur={() => setChatInputFocused(false)}
                             onChange={(e) => setChatDraft(e.target.value)}
