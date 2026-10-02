@@ -62,11 +62,17 @@ function TokenPicker({
             </button>
             {open && (
                 <div className="tkpick-menu" role="listbox" aria-labelledby={id}>
-                    <input
+                    <textarea
                         className="tkpick-search"
+                        rows={1}
                         placeholder="Search"
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        enterKeyHint="search"
                         autoFocus
                     />
                     <div className="tkpick-list">

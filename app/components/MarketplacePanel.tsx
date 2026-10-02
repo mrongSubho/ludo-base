@@ -796,11 +796,17 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5 shrink-0 text-white/35">
                                                     <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" />
                                                 </svg>
-                                                <input
+                                                <textarea
                                                     value={search}
+                                                    rows={1}
                                                     onChange={e => setSearch(e.target.value)}
                                                     placeholder="Search"
-                                                    className="flex-1 min-w-0 bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
+                                                    autoComplete="off"
+                                                    autoCorrect="off"
+                                                    autoCapitalize="none"
+                                                    spellCheck={false}
+                                                    enterKeyHint="search"
+                                                    className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
                                                 />
                                                 {search && (
                                                     <button onClick={() => setSearch('')} className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/10 text-white/60 hover:text-white" aria-label="Clear search">
