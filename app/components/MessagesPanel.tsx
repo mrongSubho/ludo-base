@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { EmptyState } from './EmptyState';
-import { ChatContent, EmojiPickerPopover } from './EmojiPicker';
+import { ChatContent, ChatDraftPreview, EmojiPickerPopover } from './EmojiPicker';
 import { encodeChatDraft, encodeChatEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
@@ -795,6 +795,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
                                     {/* Input Area */}
                                     <div className="px-5 pt-2 pb-3">
+                                        <ChatDraftPreview emotes={inputEmotes} />
                                         <div className="flex gap-1.5 relative">
                                             <input
                                                 type="text"
@@ -814,7 +815,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 onToggle={() => setEmojiOpen((value) => !value)}
                                                 onSelect={(emote) => {
                                                     setInputValue((value) => `${value}${emote.glyph}`.slice(0, 140));
-                                                    setInputEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
+                                                    setInputEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
                                                     setEmojiOpen(false);
                                                 }}
                                                 disabled={cooldownTime > 0}

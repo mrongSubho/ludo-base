@@ -10124,6 +10124,28 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
 .match-footer .power-inv-strip {
   justify-content: center;
 }
+.chat-draft-emote-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  margin-bottom: 5px;
+  padding: 3px 7px;
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--accent-cyan, #00e5ff) 30%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-cyan, #00e5ff) 8%, transparent);
+}
+.chat-draft-emote-preview img,
+.chat-draft-emote-preview span {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+}
 .match-footer-chat {
   position: absolute;
   left: 0;

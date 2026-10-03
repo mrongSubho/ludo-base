@@ -81,7 +81,7 @@ export function encodeChatEmote(emote: EmojiEmote): string {
     return asset ? `[[ludo-emote:${asset}|${emote.glyph}]]` : emote.glyph;
 }
 
-export type ChatDraftEmote = { glyph: string; encoded: string };
+export type ChatDraftEmote = { glyph: string; encoded: string; assetUrl?: string };
 
 export function encodeChatDraft(value: string, emotes: readonly ChatDraftEmote[]): string {
     let encoded = '';

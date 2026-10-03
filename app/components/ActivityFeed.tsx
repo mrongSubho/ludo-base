@@ -12,7 +12,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelChildTabs } from './PanelTabs';
-import { EmojiPickerPopover } from './EmojiPicker';
+import { ChatDraftPreview, EmojiPickerPopover } from './EmojiPicker';
 import { ChatContent } from './EmojiPicker';
 import { encodeChatEmote, encodeChatDraft, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 
@@ -296,6 +296,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
 
             {/* Input */}
             <div className="px-5 pt-2 pb-3">
+                <ChatDraftPreview emotes={inputEmotes} />
                 <div className="flex gap-1.5 relative">
                     <textarea
                         value={input}
@@ -320,7 +321,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         onToggle={() => setEmojiOpen((value) => !value)}
                         onSelect={(emote) => {
                             setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
-                            setInputEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
+                            setInputEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
                             setEmojiOpen(false);
                         }}
                         disabled={cooldown > 0}
@@ -1284,7 +1285,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                         onToggle={() => setEmojiOpen((value) => !value)}
                         onSelect={(emote) => {
                             setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
-                            setInputEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
+                            setInputEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
                             setEmojiOpen(false);
                         }}
                         disabled={cooldown > 0}

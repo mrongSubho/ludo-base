@@ -25,7 +25,7 @@ import {
 import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
-import { EmojiPickerPopover } from './EmojiPicker';
+import { ChatDraftPreview, EmojiPickerPopover } from './EmojiPicker';
 import { encodeChatDraft, encodeChatEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
@@ -256,7 +256,7 @@ export default function Board({
         setChatOpen(false);
     }, [chatDraft, chatDraftEmotes, ownColor, teamChatOnly, broadcastAction]);
     const isMyTurn = !!ownColor && turnColor === ownColor;
-    const showInventory = !spectatorMode && !!ownColor && canUsePowers;
+    const showInventory = gameMode === 'power' && !spectatorMode && !!ownColor && canUsePowers;
     const liveInventory: PowerItem[] = showInventory
         ? ((localGameState.playerPowers?.[ownColor!] || []).filter((p: PowerItem) => p.expiresAt > Date.now()))
         : [];
@@ -465,6 +465,7 @@ export default function Board({
                             </button>
                             <button type="button" className="chat-sheet-x" onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
                         </div>
+                        <ChatDraftPreview emotes={chatDraftEmotes} />
                         <div className="match-chat-composer-row">
                             <textarea
                                 className="chat-composer-input"
@@ -495,7 +496,7 @@ export default function Board({
                                 onToggle={() => setChatEmojiOpen((value) => !value)}
                                 onSelect={(emote) => {
                                     setChatDraft((draft) => `${draft}${emote.glyph}`.slice(0, 80));
-                                    setChatDraftEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
+                                    setChatDraftEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
                                     setChatEmojiOpen(false);
                                 }}
                                 label="Add emoji"
