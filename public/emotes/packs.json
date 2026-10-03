@@ -1,0 +1,497 @@
+[
+  {
+    "id": "emoji-collection",
+    "name": "Emoji Collection",
+    "tabGlyph": "🌈",
+    "items": [
+      {
+        "id": "emoji-collection-baddie",
+        "label": "baddie",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/baddie.png"
+      },
+      {
+        "id": "emoji-collection-bedtimevibe",
+        "label": "bedtimevibe",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/bedtimevibe.png"
+      },
+      {
+        "id": "emoji-collection-coffeegurl",
+        "label": "coffeegurl",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/coffeegurl.png"
+      },
+      {
+        "id": "emoji-collection-coolbaddie",
+        "label": "coolbaddie",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/coolbaddie.png"
+      },
+      {
+        "id": "emoji-collection-cozypillowhug",
+        "label": "cozypillowhug",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/cozypillowhug.png"
+      },
+      {
+        "id": "emoji-collection-devilhornsbaddie",
+        "label": "devilhornsbaddie",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/devilhornsbaddie.png"
+      },
+      {
+        "id": "emoji-collection-flowergirlshocked",
+        "label": "flowergirlshocked",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/flowergirlshocked.png"
+      },
+      {
+        "id": "emoji-collection-happynap",
+        "label": "happynap",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/happynap.png"
+      },
+      {
+        "id": "emoji-collection-inlove",
+        "label": "inlove",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/inlove.png"
+      },
+      {
+        "id": "emoji-collection-pinkcowgirl",
+        "label": "pinkcowgirl",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/pinkcowgirl.png"
+      },
+      {
+        "id": "emoji-collection-pinkiewink",
+        "label": "pinkiewink",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/pinkiewink.png"
+      },
+      {
+        "id": "emoji-collection-pizzalover",
+        "label": "pizzalover",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/pizzalover.png"
+      },
+      {
+        "id": "emoji-collection-pridelovevibe",
+        "label": "pridelovevibe",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/pridelovevibe.png"
+      },
+      {
+        "id": "emoji-collection-richbaddieemoji",
+        "label": "richbaddieemoji",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/richbaddieemoji.png"
+      },
+      {
+        "id": "emoji-collection-sassyqueen",
+        "label": "sassyqueen",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/sassyqueen.png"
+      },
+      {
+        "id": "emoji-collection-smokingdrinkingemoji",
+        "label": "smokingdrinkingemoji",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/smokingdrinkingemoji.png"
+      },
+      {
+        "id": "emoji-collection-spagirl",
+        "label": "spagirl",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/spagirl.png"
+      },
+      {
+        "id": "emoji-collection-summerlove",
+        "label": "summerlove",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/summerlove.png"
+      },
+      {
+        "id": "emoji-collection-winkingroyalty",
+        "label": "winkingroyalty",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/winkingroyalty.png"
+      },
+      {
+        "id": "emoji-collection-yawningprincess",
+        "label": "yawningprincess",
+        "glyph": "🌈",
+        "assetUrl": "/emotes/emoji-collection/yawningprincess.png"
+      }
+    ]
+  },
+  {
+    "id": "pepe",
+    "name": "Pepe",
+    "tabGlyph": "🐸",
+    "items": [
+      {
+        "id": "pepe-crazy-happy",
+        "label": "crazy happy",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/crazy-happy.gif"
+      },
+      {
+        "id": "pepe-crying",
+        "label": "crying",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/crying.png"
+      },
+      {
+        "id": "pepe-dehecho",
+        "label": "dehecho",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/dehecho.png"
+      },
+      {
+        "id": "pepe-eu",
+        "label": "eu",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/eu.png"
+      },
+      {
+        "id": "pepe-gamer",
+        "label": "gamer",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/gamer.png"
+      },
+      {
+        "id": "pepe-hehehe",
+        "label": "hehehe",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/hehehe.gif"
+      },
+      {
+        "id": "pepe-jellywithpepe",
+        "label": "jellywithpepe",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/jellywithpepe.png"
+      },
+      {
+        "id": "pepe-komooo",
+        "label": "komooo",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/komooo.png"
+      },
+      {
+        "id": "pepe-lol",
+        "label": "lol",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/lol.png"
+      },
+      {
+        "id": "pepe-mlady",
+        "label": "mlady",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/mlady.gif"
+      },
+      {
+        "id": "pepe-monsterenergy",
+        "label": "monsterenergy",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/monsterenergy.png"
+      },
+      {
+        "id": "pepe-ohwow",
+        "label": "ohwow",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/ohwow.png"
+      },
+      {
+        "id": "pepe-okpepe",
+        "label": "okpepe",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/okpepe.gif"
+      },
+      {
+        "id": "pepe-pepechair",
+        "label": "pepechair",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepechair.gif"
+      },
+      {
+        "id": "pepe-pepeclap",
+        "label": "pepeclap",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepeclap.gif"
+      },
+      {
+        "id": "pepe-pepecook",
+        "label": "pepecook",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepecook.png"
+      },
+      {
+        "id": "pepe-pepecross",
+        "label": "pepecross",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepecross.png"
+      },
+      {
+        "id": "pepe-pepehacker",
+        "label": "pepehacker",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepehacker.gif"
+      },
+      {
+        "id": "pepe-pepehappy",
+        "label": "pepehappy",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepehappy.png"
+      },
+      {
+        "id": "pepe-pepeheart",
+        "label": "pepeheart",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepeheart.png"
+      },
+      {
+        "id": "pepe-pepeok",
+        "label": "pepeok",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepeok.png"
+      },
+      {
+        "id": "pepe-pepeperfect",
+        "label": "pepeperfect",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepeperfect.png"
+      },
+      {
+        "id": "pepe-peperain",
+        "label": "peperain",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/peperain.gif"
+      },
+      {
+        "id": "pepe-peperich",
+        "label": "peperich",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/peperich.gif"
+      },
+      {
+        "id": "pepe-pepesadbusiness",
+        "label": "pepesadbusiness",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepesadbusiness.png"
+      },
+      {
+        "id": "pepe-pepestaring",
+        "label": "pepestaring",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepestaring.png"
+      },
+      {
+        "id": "pepe-pepetyping",
+        "label": "pepetyping",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepetyping.gif"
+      },
+      {
+        "id": "pepe-pepeuwu",
+        "label": "pepeuwu",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/pepeuwu.gif"
+      },
+      {
+        "id": "pepe-sapinhu",
+        "label": "sapinhu",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/sapinhu.png"
+      },
+      {
+        "id": "pepe-valeu",
+        "label": "valeu",
+        "glyph": "🐸",
+        "assetUrl": "/emotes/pepe/valeu.png"
+      }
+    ]
+  },
+  {
+    "id": "uma",
+    "name": "Uma",
+    "tabGlyph": "✨",
+    "items": [
+      {
+        "id": "uma-bangboo-excited",
+        "label": "bangboo excited",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/bangboo-excited.png"
+      },
+      {
+        "id": "uma-bangboo-heart",
+        "label": "bangboo heart",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/bangboo-heart.png"
+      },
+      {
+        "id": "uma-billy-kid-peace",
+        "label": "billy kid peace",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/billy-kid-peace.png"
+      },
+      {
+        "id": "uma-blade",
+        "label": "blade",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/blade.png"
+      },
+      {
+        "id": "uma-caleb-lads",
+        "label": "caleb lads",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/caleb-lads.png"
+      },
+      {
+        "id": "uma-caleb1",
+        "label": "caleb1",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/caleb1.png"
+      },
+      {
+        "id": "uma-danglesylus",
+        "label": "danglesylus",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/danglesylus.gif"
+      },
+      {
+        "id": "uma-genshin-impact-app",
+        "label": "genshin impact app",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/genshin-impact-app.png"
+      },
+      {
+        "id": "uma-hsr-logo",
+        "label": "hsr logo",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/hsr-logo.png"
+      },
+      {
+        "id": "uma-hsrrobinno",
+        "label": "hsrrobinno",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/hsrrobinno.png"
+      },
+      {
+        "id": "uma-jinxdead",
+        "label": "jinxdead",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/jinxdead.gif"
+      },
+      {
+        "id": "uma-kafkaboom",
+        "label": "kafkaboom",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/kafkaboom.gif"
+      },
+      {
+        "id": "uma-killjoyglasses-valorant",
+        "label": "killjoyglasses valorant",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/killjoyglasses-valorant.gif"
+      },
+      {
+        "id": "uma-march1",
+        "label": "march1",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/march1.png"
+      },
+      {
+        "id": "uma-paimonayaya",
+        "label": "paimonayaya",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/paimonayaya.png"
+      },
+      {
+        "id": "uma-paimonbonk",
+        "label": "paimonbonk",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/paimonbonk.png"
+      },
+      {
+        "id": "uma-paimonlurk",
+        "label": "paimonlurk",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/paimonlurk.gif"
+      },
+      {
+        "id": "uma-paimonnomming",
+        "label": "paimonnomming",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/paimonnomming.gif"
+      },
+      {
+        "id": "uma-rafayel-lads",
+        "label": "rafayel lads",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/rafayel-lads.png"
+      },
+      {
+        "id": "uma-rafayellads",
+        "label": "rafayellads",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/rafayellads.gif"
+      },
+      {
+        "id": "uma-sunday",
+        "label": "sunday",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/sunday.png"
+      },
+      {
+        "id": "uma-sylus-lads",
+        "label": "sylus lads",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/sylus-lads.png"
+      },
+      {
+        "id": "uma-sylus",
+        "label": "sylus",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/sylus.png"
+      },
+      {
+        "id": "uma-tears-of-themis-logo",
+        "label": "tears of themis logo",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/tears-of-themis-logo.png"
+      },
+      {
+        "id": "uma-too-easy",
+        "label": "too easy",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/too-easy.png"
+      },
+      {
+        "id": "uma-xavier-lads",
+        "label": "xavier lads",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/xavier-lads.png"
+      },
+      {
+        "id": "uma-yea",
+        "label": "yea",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/yea.png"
+      },
+      {
+        "id": "uma-zayne-lads",
+        "label": "zayne lads",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/zayne-lads.png"
+      },
+      {
+        "id": "uma-zayne1",
+        "label": "zayne1",
+        "glyph": "✨",
+        "assetUrl": "/emotes/uma/zayne1.png"
+      }
+    ]
+  }
+]

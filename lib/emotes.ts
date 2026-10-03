@@ -45,6 +45,7 @@ export interface EmoteEvent {
     color: string;
     actor?: string;
     customText?: string;
+    assetUrl?: string;
     /** ms epoch */
     t: number;
 }
@@ -53,16 +54,41 @@ export function createEmoteEvent(emoteId: EmoteId, color: string, actor?: string
     return { emoteId, color, actor, t: Date.now() };
 }
 
-export const EMOJI_EMOTES = [
-    { id: 'heart', label: 'Heart', glyph: '❤️' },
-    { id: 'fire', label: 'Fire', glyph: '🔥' },
-    { id: 'laugh', label: 'Laugh', glyph: '😂' },
-    { id: 'wow-face', label: 'Wow', glyph: '😮' },
-    { id: 'clap', label: 'Clap', glyph: '👏' },
-    { id: 'party', label: 'Party', glyph: '🎉' },
-    { id: 'thumbs-up', label: 'Like', glyph: '👍' },
-    { id: 'eyes', label: 'Eyes', glyph: '👀' },
-] as const;
+export interface EmojiEmote {
+    id: string;
+    label: string;
+    glyph: string;
+    assetUrl?: string;
+}
+
+export interface EmojiPack {
+    id: string;
+    name: string;
+    /** The tab label is intentionally a glyph to keep the sheet compact. */
+    tabGlyph: string;
+    items: readonly EmojiEmote[];
+}
+
+export const EMOJI_PACKS: readonly EmojiPack[] = [
+    {
+        id: 'starter',
+        name: 'Starter',
+        tabGlyph: '🙂',
+        items: [
+            { id: 'heart', label: 'Heart', glyph: '❤️' },
+            { id: 'fire', label: 'Fire', glyph: '🔥' },
+            { id: 'laugh', label: 'Laugh', glyph: '😂' },
+            { id: 'wow-face', label: 'Wow', glyph: '😮' },
+            { id: 'clap', label: 'Clap', glyph: '👏' },
+            { id: 'party', label: 'Party', glyph: '🎉' },
+            { id: 'thumbs-up', label: 'Like', glyph: '👍' },
+            { id: 'eyes', label: 'Eyes', glyph: '👀' },
+        ],
+    },
+];
+
+/** Backwards-compatible alias for callers that use the original list. */
+export const EMOJI_EMOTES = EMOJI_PACKS[0].items;
 
 /** How long the float stays visible (ms). */
 export const EMOTE_TTL_MS = 2200;

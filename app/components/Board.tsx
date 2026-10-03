@@ -518,6 +518,7 @@ export default function Board({
                                     color: event.color,
                                     actor: event.actor,
                                     customText: event.customText,
+                                    assetUrl: event.assetUrl,
                                     t: event.t,
                                 } as GameActionPayload<'EMOTE'>);
                             }}
