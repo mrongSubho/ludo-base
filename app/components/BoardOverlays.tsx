@@ -6,6 +6,7 @@ import { emoteById, EMOTE_TTL_MS, type EmoteEvent } from '@/lib/emotes';
 import { getEmoteGlyph } from './EmoteTray';
 import { chatTtlMs } from '@/lib/chat';
 import { getTeam } from '@/lib/gameLogic';
+import { ChatContent } from './EmojiPicker';
 
 interface StatusNotificationProps {
     message: string | null;
@@ -176,7 +177,7 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
                     '--chat-duration': `${chatTtlMs(msg.text)}ms`,
                 } as React.CSSProperties}
             >
-                <div className="chat-bubble-text">{msg.text}</div>
+                <ChatContent value={msg.text} className="chat-bubble-text" />
                 <span className="emote-float-glyph chat-bubble-glyph" aria-hidden="true">✦</span>
             </div>
         );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { EMOJI_PACKS, type EmojiEmote, type EmojiPack } from '@/lib/emotes';
+import { EMOJI_PACKS, parseChatContent, type EmojiEmote, type EmojiPack } from '@/lib/emotes';
 
 export function useEmojiPacks() {
     const [packs, setPacks] = useState<readonly EmojiPack[]>(EMOJI_PACKS);
@@ -13,7 +13,7 @@ export function useEmojiPacks() {
             .then((remotePacks: unknown) => {
                 if (!active || !Array.isArray(remotePacks)) return;
                 const validPacks = remotePacks.filter(isEmojiPack);
-                if (validPacks.length > 0) setPacks([...EMOJI_PACKS, ...validPacks]);
+                if (validPacks.length > 0) setPacks(validPacks);
             })
             .catch(() => {
                 // The bundled starter pack remains available offline.
@@ -103,10 +103,10 @@ interface EmojiPickerPopoverProps {
 
 export function EmojiPickerPopover({ open, onToggle, onSelect, disabled, label = 'Add emoji' }: EmojiPickerPopoverProps) {
     const packs = useEmojiPacks();
-    const [tab, setTab] = useState(packs[0]?.id ?? 'starter');
+    const [tab, setTab] = useState(packs[0]?.id ?? '');
 
     useEffect(() => {
-        if (!packs.some((pack) => pack.id === tab)) setTab(packs[0]?.id ?? 'starter');
+        if (!packs.some((pack) => pack.id === tab)) setTab(packs[0]?.id ?? '');
     }, [packs, tab]);
 
     return (
@@ -127,5 +127,26 @@ export function EmojiPickerPopover({ open, onToggle, onSelect, disabled, label =
                 </div>
             )}
         </div>
+    );
+}
+
+export function ChatContent({ value, className = '' }: { value: string; className?: string }) {
+    const parts = parseChatContent(value);
+    const emotes = parts.filter((part) => part.assetUrl);
+    const isSingleEmote = parts.length === 1 && emotes.length === 1;
+    return (
+        <span className={`chat-rich-content ${isSingleEmote ? 'chat-rich-content-single' : ''} ${className}`}>
+            {parts.map((part, index) => part.assetUrl ? (
+                <img
+                    key={`${part.assetUrl}-${index}`}
+                    className="chat-rich-emote"
+                    src={part.assetUrl}
+                    alt={part.glyph || 'Emote'}
+                    loading="lazy"
+                />
+            ) : (
+                <span key={`text-${index}`}>{part.text}</span>
+            ))}
+        </span>
     );
 }

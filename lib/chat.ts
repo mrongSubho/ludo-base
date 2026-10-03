@@ -1,6 +1,7 @@
 "use client";
 
 import type { PlayerColor } from '@/lib/types';
+import { chatVisibleLength } from './emotes';
 
 export type ChatEvent = {
     text: string;
@@ -10,14 +11,15 @@ export type ChatEvent = {
     t: number;
 };
 
-export const CHAT_MAX_LEN = 80;
+export const CHAT_MAX_LEN = 500;
 export const CHAT_MIN_TTL_MS = 4000;
 export const CHAT_MAX_TTL_MS = 5000;
 /** Compatibility alias for callers that need the upper bound. */
 export const CHAT_TTL_MS = CHAT_MAX_TTL_MS;
 
 export function chatTtlMs(text: string): number {
-    const lengthRatio = Math.min(1, Math.max(0, (text.length - 1) / (CHAT_MAX_LEN - 1)));
+    const visibleLength = chatVisibleLength(text);
+    const lengthRatio = Math.min(1, Math.max(0, (visibleLength - 1) / 79));
     return Math.round(CHAT_MIN_TTL_MS + lengthRatio * (CHAT_MAX_TTL_MS - CHAT_MIN_TTL_MS));
 }
 

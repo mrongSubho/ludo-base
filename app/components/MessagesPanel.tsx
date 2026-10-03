@@ -12,7 +12,8 @@ import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { EmptyState } from './EmptyState';
-import { EmojiPickerPopover } from './EmojiPicker';
+import { ChatContent, EmojiPickerPopover } from './EmojiPicker';
+import { encodeChatDraft, encodeChatEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -106,6 +107,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
+    const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
     const [emojiOpen, setEmojiOpen] = useState(false);
     const [cooldownTime, setCooldownTime] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
@@ -345,8 +347,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const handleSendMessage = async () => {
         if (!inputValue.trim() || !selectedChatId || !address || cooldownTime > 0) return;
         if (!guard('dm')) return; // guests get the upgrade wall; input preserved
-        const textToSent = inputValue.slice(0, 140); // Hard limit safety
+        const textToSent = encodeChatDraft(inputValue, inputEmotes).slice(0, 500); // Hard limit safety
         setInputValue(''); // Clear aggressively so it feels responsive
+        setInputEmotes([]);
 
         const newCooldown = 10;
         setCooldownTime(newCooldown); // Start 10 second slow-mode
@@ -770,14 +773,14 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                                     onClick={() => retrySend(msg)}
                                                                     className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] text-left shadow-sm bg-red-600 text-white rounded-tr-md hover:bg-red-500 active:scale-[0.98] transition-all`}
                                                                 >
-                                                                    {msg.content}
+                                                                    <ChatContent value={msg.content} />
                                                                 </button>
                                                             ) : (
                                                                 <div className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] shadow-sm ${isMe
                                                                     ? 'bg-cyan-700 text-white rounded-tr-md'
                                                                     : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'
                                                                     }`}>
-                                                                    {msg.content}
+                                                                    <ChatContent value={msg.content} />
                                                                 </div>
                                                             )}
                                                             {msg.send_status === 'failed' && (
@@ -796,8 +799,11 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             <input
                                                 type="text"
                                                 value={inputValue}
-                                                maxLength={140}
-                                                onChange={(e) => setInputValue(e.target.value)}
+                                                maxLength={500}
+                                                onChange={(e) => {
+                                                    setInputValue(e.target.value);
+                                                    setInputEmotes((items) => retainChatDraftEmotes(e.target.value, items));
+                                                }}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                                                 disabled={cooldownTime > 0}
                                                 placeholder={cooldownTime > 0 ? `Wait ${cooldownTime}s...` : "Type a message..."}
@@ -808,13 +814,14 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 onToggle={() => setEmojiOpen((value) => !value)}
                                                 onSelect={(emote) => {
                                                     setInputValue((value) => `${value}${emote.glyph}`.slice(0, 140));
+                                                    setInputEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
                                                     setEmojiOpen(false);
                                                 }}
                                                 disabled={cooldownTime > 0}
                                             />
-                                            <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'
+                                            <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'
                                                 }`}>
-                                                {inputValue.length}/140
+                                            {inputValue.length}/500
                                             </div>
                                             <button
                                                 onClick={handleSendMessage}

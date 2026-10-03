@@ -10100,7 +10100,8 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  padding: 2px 10px max(6px, env(safe-area-inset-bottom, 0px));
+  margin-top: auto;
+  padding: 2px 4px max(6px, env(safe-area-inset-bottom, 0px));
   z-index: 55;
 }
 .match-footer-slot {
@@ -10116,6 +10117,12 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
 }
 .match-footer-slot.right {
   justify-content: flex-end;
+}
+.match-footer .match-foot-pill {
+  min-width: 76px;
+}
+.match-footer .power-inv-strip {
+  justify-content: center;
 }
 .match-footer-chat {
   position: absolute;
@@ -10239,7 +10246,8 @@ body.theme-daybreak .team-chat-toggle.on {
 .emoji-pack-tabs button.active,
 .emote-pack-tabs-inline button.active {
   color: #082f49;
-  background: #67e8f9;
+  background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.55);
 }
 .emoji-pack-grid {
   display: grid;
@@ -10272,6 +10280,33 @@ body.theme-daybreak .team-chat-toggle.on {
   width: 30px;
   height: 30px;
   object-fit: contain;
+}
+.chat-rich-content {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.chat-rich-content-single {
+  display: inline-flex;
+  min-width: 72px;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+}
+.chat-rich-emote {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+.chat-rich-content-single .chat-rich-emote {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  animation: emote-glyph-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .chat-emoji-button {
   display: grid;
@@ -10848,7 +10883,8 @@ body.theme-daybreak .chat-bubble {
 }
 .emote-tabs button.active {
   color: #082f49;
-  background: #67e8f9;
+  background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.55);
 }
 body.theme-daybreak .emote-tabs {
   background: rgba(15, 23, 42, 0.08);

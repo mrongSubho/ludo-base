@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const wallet = (body.wallet || '').toLowerCase();
-        const content = (body.content || '').slice(0, 140).trim();
+        const content = (body.content || '').slice(0, 500).trim();
         const roomCode = typeof body.roomCode === 'string' && /^[A-Z0-9]{6}$/i.test(body.roomCode.trim())
             ? body.roomCode.trim().toUpperCase()
             : null;

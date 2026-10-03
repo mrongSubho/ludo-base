@@ -13,6 +13,8 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelChildTabs } from './PanelTabs';
 import { EmojiPickerPopover } from './EmojiPicker';
+import { ChatContent } from './EmojiPicker';
+import { encodeChatEmote, encodeChatDraft, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 
 interface Activity {
     id: string;
@@ -105,6 +107,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
     const visibleMsgs = msgs[cscope];
     const [input, setInput] = useState('');
     const [emojiOpen, setEmojiOpen] = useState(false);
+    const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
     const [cooldown, setCooldown] = useState(0);
     const [country, setCountry] = useState('XX');
     const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -173,13 +176,14 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
     }, [msgs]);
 
     const sendChat = async () => {
-        const text = input.trim().slice(0, 140);
+        const text = encodeChatDraft(input.trim(), inputEmotes).slice(0, 500);
         if (!text || cooldown > 0) return;
         // Guests read free; posting needs a wallet.
         if (!guard('dm')) return;
         const wallet = (identityAddress || '').toLowerCase();
         if (!wallet) return;
         setInput('');
+        setInputEmotes([]);
         setCooldown(10);
         try {
             const res = await fetch('/api/live-chat', {
@@ -267,14 +271,14 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                                                 title={`Join room ${m.room_code}`}
                                                 className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
                                             >
-                                                <span className="text-white/90">{m.content || '…'}</span>
+                                                <ChatContent value={m.content || '…'} className="text-white/90" />
                                                 <span className="block mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">
                                                     Tap to join →
                                                 </span>
                                             </button>
                                         ) : (
                                             <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${isRoom && !roomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
-                                                {m.content || '…'}
+                                                <ChatContent value={m.content || '…'} />
                                                 {isRoom && !roomOpen && (
                                                     <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] font-black uppercase tracking-[0.15em] text-white/50 align-middle">
                                                         Over
@@ -295,9 +299,12 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                 <div className="flex gap-1.5 relative">
                     <textarea
                         value={input}
-                        maxLength={140}
+                        maxLength={500}
                         rows={1}
-                        onChange={(e) => setInput(e.target.value)}
+                        onChange={(e) => {
+                            setInput(e.target.value);
+                            setInputEmotes((items) => retainChatDraftEmotes(e.target.value, items));
+                        }}
                         onKeyDown={(e) => e.key === 'Enter' && sendChat()}
                         disabled={cooldown > 0}
                         placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
@@ -313,12 +320,13 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         onToggle={() => setEmojiOpen((value) => !value)}
                         onSelect={(emote) => {
                             setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
+                            setInputEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
                             setEmojiOpen(false);
                         }}
                         disabled={cooldown > 0}
                     />
-                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
-                        {input.length}/140
+                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                        {input.length}/500
                     </div>
                     <button
                         onClick={sendChat}
@@ -891,6 +899,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     const [localOnly, setLocalOnly] = useState(false);
     const [input, setInput] = useState('');
     const [emojiOpen, setEmojiOpen] = useState(false);
+    const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
     const [cooldown, setCooldown] = useState(0);
     const feedScrollRef = useRef<HTMLDivElement>(null);
 
@@ -909,12 +918,13 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     }, [cooldown]);
 
     const sendChat = async () => {
-        const text = input.trim().slice(0, 140);
+        const text = encodeChatDraft(input.trim(), inputEmotes).slice(0, 500);
         if (!text || cooldown > 0) return;
         if (!guard('dm')) return;
         const wallet = (identityAddress || '').toLowerCase();
         if (!wallet) return;
         setInput('');
+        setInputEmotes([]);
         setCooldown(10);
         try {
             const res = await fetch('/api/live-chat', {
@@ -1225,14 +1235,14 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                                 title={m.room_code ? `Join room ${m.room_code}` : undefined}
                                                 className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
                                             >
-                                                <span className="text-white/90">{m.content || '…'}</span>
+                                                <ChatContent value={m.content || '…'} className="text-white/90" />
                                                 <span className="block mt-1 text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">
                                                     Tap to join →
                                                 </span>
                                             </button>
                                         ) : (
                                             <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${mIsRoom && !mRoomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
-                                                {m.content || '…'}
+                                                <ChatContent value={m.content || '…'} />
                                                 {mIsRoom && !mRoomOpen && (
                                                     <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[8px] font-black uppercase tracking-[0.15em] text-white/50 align-middle">
                                                         Over
@@ -1253,9 +1263,12 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                 <div className="flex gap-1.5 relative">
                     <textarea
                         value={input}
-                        maxLength={140}
+                        maxLength={500}
                         rows={1}
-                        onChange={(e) => setInput(e.target.value)}
+                        onChange={(e) => {
+                            setInput(e.target.value);
+                            setInputEmotes((items) => retainChatDraftEmotes(e.target.value, items));
+                        }}
                         onKeyDown={(e) => e.key === 'Enter' && sendChat()}
                         disabled={cooldown > 0}
                         placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
@@ -1271,12 +1284,13 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                         onToggle={() => setEmojiOpen((value) => !value)}
                         onSelect={(emote) => {
                             setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
+                            setInputEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
                             setEmojiOpen(false);
                         }}
                         disabled={cooldown > 0}
                     />
-                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
-                        {input.length}/140
+                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                        {input.length}/500
                     </div>
                     <button
                         onClick={sendChat}

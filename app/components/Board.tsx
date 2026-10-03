@@ -26,6 +26,7 @@ import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import { EmojiPickerPopover } from './EmojiPicker';
+import { encodeChatDraft, encodeChatEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
 import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
@@ -88,6 +89,7 @@ export default function Board({
     // In-match lobby chat: compact composer + seat bubbles
     const [chatOpen, setChatOpen] = React.useState(false);
     const [chatDraft, setChatDraft] = React.useState('');
+    const [chatDraftEmotes, setChatDraftEmotes] = React.useState<ChatDraftEmote[]>([]);
     const [chatEmojiOpen, setChatEmojiOpen] = React.useState(false);
     const [teamChatOnly, setTeamChatOnly] = React.useState(false);
     const [chatBubbles, setChatBubbles] = React.useState<ChatEvent[]>([]);
@@ -239,9 +241,10 @@ export default function Board({
     const turnColor = localGameState.currentPlayer as PlayerColor;
     const ownColor = myPlayer?.color;
     const sendChat = React.useCallback(() => {
-        const text = clampChatText(chatDraft);
+        const text = clampChatText(encodeChatDraft(chatDraft, chatDraftEmotes));
         if (!text || !ownColor) return;
         const ev: ChatEvent = { text, color: ownColor, audience: teamChatOnly ? 'team' : 'all', t: Date.now() };
+        setChatDraftEmotes([]);
         setChatBubbles((b) => [...b.slice(-3), ev]);
         broadcastAction('CHAT', {
             text,
@@ -251,7 +254,7 @@ export default function Board({
         } as GameActionPayload<'CHAT'>);
         setChatDraft('');
         setChatOpen(false);
-    }, [chatDraft, ownColor, teamChatOnly, broadcastAction]);
+    }, [chatDraft, chatDraftEmotes, ownColor, teamChatOnly, broadcastAction]);
     const isMyTurn = !!ownColor && turnColor === ownColor;
     const showInventory = !spectatorMode && !!ownColor && canUsePowers;
     const liveInventory: PowerItem[] = showInventory
@@ -444,8 +447,9 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
             />
 
-            {/* Match footer: Emotes (left) · Power orbs (center) · Chat (right) */}
-            <div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
+            {/* Match footer: social controls are shared by classic and power modes.
+                Snakes keeps its board-specific surface isolated for now. */}
+            {gameMode !== 'snakes' && <div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
                 {chatOpen ? (
                     <div className="match-chat-composer">
                         <div className="match-chat-composer-head">
@@ -474,7 +478,10 @@ export default function Board({
                                 spellCheck={false}
                                 enterKeyHint="send"
                                 autoFocus
-                                onChange={(e) => setChatDraft(e.target.value)}
+                                onChange={(e) => {
+                                    setChatDraft(e.target.value);
+                                    setChatDraftEmotes((items) => retainChatDraftEmotes(e.target.value, items));
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
@@ -488,6 +495,7 @@ export default function Board({
                                 onToggle={() => setChatEmojiOpen((value) => !value)}
                                 onSelect={(emote) => {
                                     setChatDraft((draft) => `${draft}${emote.glyph}`.slice(0, 80));
+                                    setChatDraftEmotes((items) => [...items, { glyph: emote.glyph, encoded: encodeChatEmote(emote) }]);
                                     setChatEmojiOpen(false);
                                 }}
                                 label="Add emoji"
@@ -550,7 +558,7 @@ export default function Board({
                 </div>
                 </>
                 )}
-            </div>
+            </div>}
 
             <Leaderboard isOpen={showLeaderboard} onClose={() => onToggleLeaderboard?.(false)} onOpenProfile={onOpenProfile || (() => { })} />
             {selectedPlayer && (
