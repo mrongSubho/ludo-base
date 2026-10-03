@@ -25,6 +25,7 @@ import {
 import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
+import { EmojiPickerPopover } from './EmojiPicker';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
 import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
@@ -461,26 +462,6 @@ export default function Board({
                             <button type="button" className="chat-sheet-x" onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
                         </div>
                         <div className="match-chat-composer-row">
-                            <div className="chat-emoji-wrap">
-                                <button
-                                    type="button"
-                                    className={`chat-emoji-button ${chatEmojiOpen ? 'on' : ''}`}
-                                    onClick={() => setChatEmojiOpen((value) => !value)}
-                                    aria-label="Add emoji"
-                                >
-                                    🙂
-                                </button>
-                                {chatEmojiOpen && (
-                                    <div className="chat-emoji-picker">
-                                        {['😀', '😂', '😮', '🔥', '❤️', '👏', '🎉', '👍', '👀', '😅'].map((emoji) => (
-                                            <button key={emoji} type="button" onClick={() => {
-                                                setChatDraft((draft) => `${draft}${emoji}`.slice(0, 80));
-                                                setChatEmojiOpen(false);
-                                            }}>{emoji}</button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
                             <textarea
                                 className="chat-composer-input"
                                 value={chatDraft}
@@ -501,6 +482,15 @@ export default function Board({
                                     }
                                     if (e.key === 'Escape') setChatOpen(false);
                                 }}
+                            />
+                            <EmojiPickerPopover
+                                open={chatEmojiOpen}
+                                onToggle={() => setChatEmojiOpen((value) => !value)}
+                                onSelect={(emote) => {
+                                    setChatDraft((draft) => `${draft}${emote.glyph}`.slice(0, 80));
+                                    setChatEmojiOpen(false);
+                                }}
+                                label="Add emoji"
                             />
                             <button type="button" className="chat-composer-send" onClick={sendChat} disabled={!chatDraft.trim()}>Send</button>
                         </div>

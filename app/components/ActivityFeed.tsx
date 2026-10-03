@@ -12,6 +12,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelChildTabs } from './PanelTabs';
+import { EmojiPickerPopover } from './EmojiPicker';
 
 interface Activity {
     id: string;
@@ -103,6 +104,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
     const [msgs, setMsgs] = useState<{ global: ChatMsg[]; local: ChatMsg[] }>({ global: [], local: [] });
     const visibleMsgs = msgs[cscope];
     const [input, setInput] = useState('');
+    const [emojiOpen, setEmojiOpen] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const [country, setCountry] = useState('XX');
     const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -306,7 +308,16 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         enterKeyHint="send"
                         className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
                     />
-                    <div className={`absolute right-[52px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                    <EmojiPickerPopover
+                        open={emojiOpen}
+                        onToggle={() => setEmojiOpen((value) => !value)}
+                        onSelect={(emote) => {
+                            setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
+                            setEmojiOpen(false);
+                        }}
+                        disabled={cooldown > 0}
+                    />
+                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
                         {input.length}/140
                     </div>
                     <button
@@ -879,6 +890,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     const [matchesOnly, setMatchesOnly] = useState(false);
     const [localOnly, setLocalOnly] = useState(false);
     const [input, setInput] = useState('');
+    const [emojiOpen, setEmojiOpen] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const feedScrollRef = useRef<HTMLDivElement>(null);
 
@@ -1254,7 +1266,16 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                         enterKeyHint="send"
                         className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
                     />
-                    <div className={`absolute right-[52px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                    <EmojiPickerPopover
+                        open={emojiOpen}
+                        onToggle={() => setEmojiOpen((value) => !value)}
+                        onSelect={(emote) => {
+                            setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
+                            setEmojiOpen(false);
+                        }}
+                        disabled={cooldown > 0}
+                    />
+                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
                         {input.length}/140
                     </div>
                     <button

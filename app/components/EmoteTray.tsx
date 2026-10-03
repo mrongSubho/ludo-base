@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerColor } from '@/lib/types';
+import { EmojiPackGrid, useEmojiPacks } from './EmojiPicker';
 import {
     PRESET_EMOTES,
-    EMOJI_PACKS,
     createEmoteEvent,
     isEmoteId,
     type EmoteEvent,
@@ -25,34 +25,10 @@ interface EmoteTrayProps {
 export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
     const [open, setOpen] = useState(false);
     const [tab, setTab] = useState<'text' | string>('text');
-    const [packs, setPacks] = useState<readonly typeof EMOJI_PACKS[number][]>(EMOJI_PACKS);
+    const packs = useEmojiPacks();
     const [custom, setCustom] = useState(['', '']);
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
     const [draft, setDraft] = useState('');
-
-    useEffect(() => {
-        let active = true;
-        fetch('/emotes/packs.json')
-            .then((response) => response.ok ? response.json() : null)
-            .then((remotePacks: unknown) => {
-                if (!active || !Array.isArray(remotePacks)) return;
-                const validPacks = remotePacks.filter((pack): pack is typeof EMOJI_PACKS[number] => {
-                    if (!pack || typeof pack !== 'object') return false;
-                    const candidate = pack as Record<string, unknown>;
-                    return typeof candidate.id === 'string' &&
-                        typeof candidate.name === 'string' &&
-                        typeof candidate.tabGlyph === 'string' &&
-                        Array.isArray(candidate.items);
-                });
-                if (validPacks.length > 0) setPacks([...EMOJI_PACKS, ...validPacks]);
-            })
-            .catch(() => {
-                // Keep the bundled starter pack available when optional assets fail to load.
-            });
-        return () => {
-            active = false;
-        };
-    }, []);
 
     useEffect(() => {
         try {
@@ -111,9 +87,11 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
                         </div>
                         <div className="emote-tabs" role="tablist">
                             <button className={tab === 'text' ? 'active' : ''} onClick={() => setTab('text')} role="tab">Text</button>
-                            {packs.map((pack) => (
-                                <button key={pack.id} className={tab === pack.id ? 'active' : ''} onClick={() => setTab(pack.id)} role="tab" aria-label={pack.name}>{pack.tabGlyph}</button>
-                            ))}
+                            <div className="emote-pack-tabs-inline">
+                                {packs.map((pack) => (
+                                    <button key={pack.id} className={tab === pack.id ? 'active' : ''} onClick={() => setTab(pack.id)} role="tab" aria-label={pack.name}>{pack.tabGlyph}</button>
+                                ))}
+                            </div>
                         </div>
                         {tab === 'text' ? <div className="emote-sheet-grid">
                         {PRESET_EMOTES.map((e) => (
@@ -166,18 +144,18 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
                                 </button>
                             )
                         ))}
-                        </div> : <div className="emote-sheet-grid">
-                            {(packs.find((pack) => pack.id === tab)?.items ?? []).map((e) => (
-                                <button key={e.id} type="button" className="emote-sheet-option emoji-emote-option" onClick={() => {
+                        </div> : (
+                            <EmojiPackGrid
+                                packs={packs}
+                                tab={tab}
+                                onTabChange={setTab}
+                                showTabs={false}
+                                onSelect={(e) => {
                                     onEmote({ emoteId: 'custom', customText: e.glyph, assetUrl: e.assetUrl, color: myColor, t: Date.now() });
                                     setOpen(false);
-                                }}>
-                                    <span className="emoji-emote-glyph" aria-hidden="true">
-                                        {e.assetUrl ? <img src={e.assetUrl} alt="" loading="lazy" /> : e.glyph}
-                                    </span>{e.label}
-                                </button>
-                            ))}
-                        </div>}
+                                }}
+                            />
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>

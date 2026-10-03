@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { EmptyState } from './EmptyState';
+import { EmojiPickerPopover } from './EmojiPicker';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -105,6 +106,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
+    const [emojiOpen, setEmojiOpen] = useState(false);
     const [cooldownTime, setCooldownTime] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [notifTab, setNotifTab] = useState<'notifications' | 'messages'>('notifications');
@@ -801,7 +803,16 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 placeholder={cooldownTime > 0 ? `Wait ${cooldownTime}s...` : "Type a message..."}
                                                 className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
                                             />
-                                            <div className={`absolute right-[52px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'
+                                            <EmojiPickerPopover
+                                                open={emojiOpen}
+                                                onToggle={() => setEmojiOpen((value) => !value)}
+                                                onSelect={(emote) => {
+                                                    setInputValue((value) => `${value}${emote.glyph}`.slice(0, 140));
+                                                    setEmojiOpen(false);
+                                                }}
+                                                disabled={cooldownTime > 0}
+                                            />
+                                            <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 130 ? 'text-red-400 font-bold' : 'text-white/20'
                                                 }`}>
                                                 {inputValue.length}/140
                                             </div>
