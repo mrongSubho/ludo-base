@@ -59,6 +59,7 @@ interface GameLobbyProps {
     /** G2 — pass-and-play (all-human hot-seat). */
     onStartPassAndPlay?: () => void;
     onOpenProfile?: (address: string) => void;
+    onBroadcastOpenChange?: (open: boolean) => void;
 }
 
 export default function GameLobby({
@@ -71,6 +72,7 @@ export default function GameLobby({
     onStartGame,
     onStartPassAndPlay,
     onOpenProfile,
+    onBroadcastOpenChange,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -536,7 +538,7 @@ export default function GameLobby({
                         .broadcast-anchor (globals.css) keeps it clear of the
                         fixed footer on narrow phones. */}
                     <div className="broadcast-anchor w-full mt-auto pt-2">
-                        <LiveBroadcastCard onOpenProfile={onOpenProfile} />
+                        <LiveBroadcastCard onOpenProfile={onOpenProfile} onOpenChange={onBroadcastOpenChange} />
                     </div>
 
                 </div>

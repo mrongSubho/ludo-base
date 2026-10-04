@@ -11478,3 +11478,97 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
     animation: none;
   }
 }
+
+/* ─── Landscape guard (rotation failsafe) ───────────────────────────────
+   Plain classes (not Tailwind): the unlayered global reset zeroes Tailwind
+   spacing utilities, so this overlay carries its own box. z-105 sits above
+   the board but below panels (110) and header/footer (200), so chat,
+   settings and nav stay reachable while the broken board is covered. */
+.landscape-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 105;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 8, 15, 0.92);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+.landscape-guard-card {
+  width: 100%;
+  max-width: 340px;
+  padding: 28px 24px 24px;
+  text-align: center;
+  background: rgba(15, 15, 35, 0.9);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 24px;
+  box-shadow: 0 0 24px rgba(124, 58, 237, 0.18), 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.landscape-guard-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  color: #22d3ee;
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.5));
+  animation: landscape-guard-rock 2.4s ease-in-out infinite;
+}
+@keyframes landscape-guard-rock {
+  0%, 100% { transform: rotate(-18deg); }
+  50% { transform: rotate(18deg); }
+}
+.landscape-guard-title {
+  margin: 0 0 8px;
+  font-family: 'Russo One', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+.landscape-guard-sub {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+.landscape-guard-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.landscape-guard-primary {
+  width: 100%;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #04121a;
+  background: #22d3ee;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.35);
+}
+.landscape-guard-primary:active {
+  transform: scale(0.98);
+}
+.landscape-guard-ghost {
+  width: 100%;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landscape-guard-icon {
+    animation: none;
+  }
+}

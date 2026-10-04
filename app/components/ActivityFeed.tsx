@@ -1378,7 +1378,7 @@ function useJoinableCount() {
     }, []);
     return count;
 }
-export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address: string) => void }) => {
+export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfile?: (address: string) => void; onOpenChange?: (open: boolean) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     const joinable = useJoinableCount();
     // Feed data lives here (always mounted) so closing the panel never
@@ -1396,6 +1396,9 @@ export const LiveBroadcastCard = ({ onOpenProfile }: { onOpenProfile?: (address:
         setLatestRoom(r);
     };
     const roomSessionStart = useRef(Date.now());
+    useEffect(() => {
+        onOpenChange?.(isOpen);
+    }, [isOpen, onOpenChange]);
     useEffect(() => {
         const pick = (row: any) => {
             if (!row?.room_code || row.room_open === false) return null;

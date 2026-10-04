@@ -8,6 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
         description: "Play Ludo and manage your Base wallet",
         start_url: "/",
         display: "standalone",
+        // Rotation lock for installed PWA: the OS keeps the app portrait.
+        // (Browsers and in-app webviews ignore this — LandscapeGuard covers them.)
+        orientation: "portrait",
         background_color: "#0b0b12",
         theme_color: "#00E5FF",
         icons: [

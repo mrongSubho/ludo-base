@@ -11,6 +11,7 @@ import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BurnPanel } from './components/BurnPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
 import { ConnectionBadge } from './components/ConnectionBadge';
+import LandscapeGuard from './components/LandscapeGuard';
 
 // ─── Phase 3 loading diet: heavy/below-fold surfaces split into lazy chunks.
 // First paint ships lobby + chrome only; board and panels load on demand. ──
@@ -54,6 +55,7 @@ import { hasOnboarded } from '@/lib/onboarding';
 import { FirstRunSetupPanel } from './components/FirstRunSetupPanel';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
+import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { buildStreamMessage } from '@/lib/matchProof';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
@@ -257,6 +259,7 @@ export default function Page() {
   const [matchStatusReveal, setMatchStatusReveal] = useState(0);
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   const { signMessageAsync } = useSignMessage();
   // DM unread badge reads the same GameData store the panel writes, so it
@@ -320,6 +323,10 @@ export default function Page() {
     activeBetWindow,
   } = useSpectatorSync(spectatingRoomCode);
   const { spectatorCount } = useSpectatorPresence(spectatingRoomCode, address?.toLowerCase());
+
+  // Screen stays on while playing, spectating, reading DMs or watching the
+  // live broadcast feed; released everywhere else.
+  useScreenWakeLock(appState === 'game' || appState === 'spectating' || activeTab === 'messages' || broadcastOpen);
 
   // Read-only spectator count for the match we're PLAYING (no wallet passed,
   // so we never track ourselves into the count — players just observe it).
@@ -660,6 +667,7 @@ export default function Page() {
                   onStartGame={onStartGame}
                   onStartPassAndPlay={() => onStartGame(false)}
                   onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                  onBroadcastOpenChange={setBroadcastOpen}
                 />
               </main>
 
@@ -756,6 +764,8 @@ export default function Page() {
           {/* ── Spectating State ── */}
           {appState === 'spectating' && spectatingRoomCode && (
             <>
+              {/* Rotation failsafe: covers the portrait-built board in landscape */}
+              <LandscapeGuard onExitMatch={handleLeaveSpectating} />
               <HeaderNavPanel
                 finalAvatar={profile?.avatar_url || null}
                 finalName={finalName}
@@ -823,6 +833,8 @@ export default function Page() {
           {/* ── Game State ── */}
           {appState === 'game' && (
             <>
+              {/* Rotation failsafe: covers the portrait-built board in landscape */}
+              <LandscapeGuard onExitMatch={handleBackToSubMenu} />
               <HeaderNavPanel
                 finalAvatar={profile?.avatar_url || null}
                 finalName={finalName}
