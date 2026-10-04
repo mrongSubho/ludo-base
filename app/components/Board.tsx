@@ -302,12 +302,20 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
             />
 
+            <BoardTurnStatus
+                currentPlayer={localGameState.currentPlayer}
+                gamePhase={localGameState.gamePhase}
+                diceValue={localGameState.diceValue}
+                myColor={myPlayer?.color}
+                spectatorMode={spectatorMode}
+            />
+
             <motion.div 
                 className="board-area"
                 ref={areaRef} 
                 animate={isShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
                 transition={{ duration: 0.4 }}
-                style={{ position: 'relative', width: '100%', cursor: 'pointer' }}
+                style={{ position: 'relative', width: '100%', cursor: 'pointer'                 }}
                 onClick={() => {
                     if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying) {
                         cancelAfk(myPlayer.color);
@@ -569,6 +577,34 @@ export default function Board({
                     onClose={() => setSelectedPlayer(null)}
                 />
             )}
+        </div>
+    );
+}
+
+function BoardTurnStatus({
+    currentPlayer,
+    gamePhase,
+    diceValue,
+    myColor,
+    spectatorMode,
+}: {
+    currentPlayer: PlayerColor;
+    gamePhase: string;
+    diceValue: number | null;
+    myColor?: PlayerColor;
+    spectatorMode: boolean;
+}) {
+    const isMyTurn = !spectatorMode && !!myColor && currentPlayer === myColor;
+    const label = spectatorMode
+        ? `Watching ${currentPlayer}`
+        : isMyTurn
+            ? gamePhase === 'moving' ? 'Select a token' : diceValue === null ? 'Roll to start' : 'Move in progress'
+            : `Waiting for ${currentPlayer}`;
+
+    return (
+        <div className={`board-turn-status ${isMyTurn ? 'is-yours' : ''}`} aria-live="polite">
+            <span className="board-turn-status-dot" />
+            <span>{label}</span>
         </div>
     );
 }

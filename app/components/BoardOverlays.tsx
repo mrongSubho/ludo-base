@@ -145,9 +145,15 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
         const color = uiSlots[corner];
         const p = players.find(pl => pl.color === color);
         if (!p) return null;
+        const team = playerCount === '2v2' ? getTeam(p.color, playerCount) : null;
         return (
-            <div className={`home-player-label ${className} ${color}`} style={style}>
-                {getDisplayName(p)}
+            <div className={`home-player-label ${className} ${color} ${team === 1 ? 'team-a-label' : team === 2 ? 'team-b-label' : ''}`} style={style}>
+                {team && (
+                    <span className="team-crest" aria-label={team === 1 ? 'Team A' : 'Team B'}>
+                        {team === 1 ? 'A' : 'B'}
+                    </span>
+                )}
+                <span className="player-name-label">{getDisplayName(p)}</span>
             </div>
         );
     };

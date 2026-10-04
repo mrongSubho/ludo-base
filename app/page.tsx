@@ -9,8 +9,8 @@ import GameLobby from './components/GameLobby';
 import NoticeStrip from './components/NoticeStrip';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BurnPanel } from './components/BurnPanel';
-import { BoardHeaderCompact } from './components/BoardHeaderCompact';
 import { FooterNavPanel } from './components/FooterNavPanel';
+import { ConnectionBadge } from './components/ConnectionBadge';
 
 // ─── Phase 3 loading diet: heavy/below-fold surfaces split into lazy chunks.
 // First paint ships lobby + chrome only; board and panels load on demand. ──
@@ -173,6 +173,80 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
    );
 }
 
+const MatchStatusStrip = ({
+  modeLabel,
+  spectators = 0,
+  watching = false,
+  matchConnectionStatus,
+  streamNode,
+  revealToken = 0,
+}: {
+  modeLabel: string;
+  spectators?: number;
+  watching?: boolean;
+  matchConnectionStatus?: import('@/lib/matchProtocol').MatchConnectionStatus;
+  streamNode?: React.ReactNode;
+  revealToken?: number;
+}) => {
+  const [visible, setVisible] = useState(true);
+  const [mode, format = '1v1', wager = 'Free'] = modeLabel.split(' · ');
+  const connectionLabel = matchConnectionStatus === 'connected'
+    ? 'NET'
+    : matchConnectionStatus === 'reconnecting'
+      ? 'DEGRADED'
+      : matchConnectionStatus === 'syncing'
+        ? 'RESYNC'
+        : 'LOCAL';
+  const qualityLevel = matchConnectionStatus === 'connected'
+    ? 4
+    : matchConnectionStatus === 'reconnecting'
+      ? 2
+      : matchConnectionStatus === 'syncing'
+        ? 1
+        : 3;
+
+  useEffect(() => {
+    setVisible(true);
+    const timer = window.setTimeout(() => setVisible(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [modeLabel, revealToken]);
+
+  return (
+    <div className={`match-status-strip ${visible ? 'is-visible' : 'is-hidden'}`} aria-label="Match status">
+      <button
+        type="button"
+        className="match-status-panel"
+        onClick={() => setVisible(false)}
+        aria-label="Hide match status"
+      >
+        <span className="match-status-side match-status-left">
+          <span className="match-status-pill match-status-connection-pill">{connectionLabel}</span>
+          <span className={`match-status-quality quality-${qualityLevel}`} aria-label={`${connectionLabel} connection quality`}>
+            <i /><i /><i /><i />
+          </span>
+        </span>
+        <span className="match-status-center">
+          <span className="match-status-mode">{mode}</span>
+          <span className="match-status-separator">·</span>
+          <span>{format}</span>
+          <span className="match-status-separator">·</span>
+          <span>{wager}</span>
+        </span>
+        <span className="match-status-side match-status-right">
+          <span className={`match-status-pill match-status-live-pill ${watching ? 'watching' : ''}`}>
+            <span className="match-status-live-dot" />
+            {watching ? 'Inspecting' : 'Live'}
+          </span>
+          {spectators > 0 && <span className="match-status-spectator-count">◉ {spectators}</span>}
+        </span>
+      </button>
+      {streamNode && visible && (
+        <span className="match-status-stream">{streamNode}</span>
+      )}
+    </div>
+  );
+};
+
 
 export default function Page() {
   const [appState, setAppState] = useState<AppState>('dashboard');
@@ -180,6 +254,7 @@ export default function Page() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showQuitWarning, setShowQuitWarning] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [matchStatusReveal, setMatchStatusReveal] = useState(0);
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
@@ -568,6 +643,7 @@ export default function Page() {
                     onFeedClick={() => { closeTab(); setBurnOpen(true); }}
                     onOpenWallet={() => toggle('wallet')}
                     onOpenProfile={() => toggle('profile')}
+                    onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
                 />
 
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
@@ -680,8 +756,7 @@ export default function Page() {
           {/* ── Spectating State ── */}
           {appState === 'spectating' && spectatingRoomCode && (
             <>
-              {/* Compact in-flow spectator header: same shell as the board header */}
-              <BoardHeaderCompact
+              <HeaderNavPanel
                 finalAvatar={profile?.avatar_url || null}
                 finalName={finalName}
                 level={level}
@@ -691,10 +766,16 @@ export default function Page() {
                 hasNotifications={notifCount > 0}
                 onMessagesClick={() => toggle('messages')}
                 onSettingsClick={() => toggle('settings')}
+                onOpenWallet={() => toggle('wallet')}
+                onOpenProfile={() => toggle('profile')}
+                onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
+              />
+              <MatchStatusStrip
                 modeLabel={`Live #${spectatingRoomCode}`}
                 spectators={spectatorCount}
+                watching
                 matchConnectionStatus={matchConnectionStatus}
-                onExit={handleLeaveSpectating}
+                revealToken={matchStatusReveal}
               />
 
               <main className="board-main has-top-back" style={{ paddingRight: spectatorGameState ? '296px' : undefined }}>
@@ -742,9 +823,7 @@ export default function Page() {
           {/* ── Game State ── */}
           {appState === 'game' && (
             <>
-              {/* Compact in-flow board header: main 3-pill design + tiny mode strip.
-                  Never absolute, so it can never overlap board elements. */}
-              <BoardHeaderCompact
+              <HeaderNavPanel
                 finalAvatar={profile?.avatar_url || null}
                 finalName={finalName}
                 level={level}
@@ -754,9 +833,15 @@ export default function Page() {
                 hasNotifications={notifCount > 0}
                 onMessagesClick={() => toggle('messages')}
                 onSettingsClick={() => toggle('settings')}
+                onOpenWallet={() => toggle('wallet')}
+                onOpenProfile={() => toggle('profile')}
+                onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
+              />
+              <MatchStatusStrip
                 modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
                 matchConnectionStatus={matchConnectionStatus}
+                revealToken={matchStatusReveal}
                 streamNode={<StreamToggle
                   matchId={gameState?.matchId}
                   roomCode={lobbyState?.roomCode || roomId || null}

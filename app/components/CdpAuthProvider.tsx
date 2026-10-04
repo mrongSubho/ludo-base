@@ -24,12 +24,15 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
     const enabled = cdpEnabled();
 
     const config = useMemo(
-        () =>
-            enabled
+        () => ({
+            // CDP hooks are consumed by identity/session hooks even when CDP
+            // auth is disabled. Keep the context mounted in local development;
+            // the placeholder is never used for login or wallet creation.
+            projectId: projectId || "local-development",
+            appName: "Ludo Base",
+            disableAnalytics: true,
+            ...(enabled
                 ? {
-                      projectId,
-                      appName: "Ludo Base",
-                      disableAnalytics: true,
                       // Dual-path Mode B (SMART_WALLET_PLANNING §3): OAuth/OTP login
                       // must mint the in-game Smart Account — without this, social
                       // return leaves users signed-in with no wallet and they bounce
@@ -38,14 +41,14 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
                           createOnLogin: "smart" as const,
                       },
                   }
-                : null,
+                : {}),
+        }),
         [enabled, projectId],
     );
 
-    if (!config) return <>{children}</>;
     return (
         <CDPHooksProvider config={config}>
-            <CdpMfaBridge />
+            {enabled && <CdpMfaBridge />}
             {children}
         </CDPHooksProvider>
     );

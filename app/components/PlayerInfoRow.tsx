@@ -34,12 +34,14 @@ interface PlayerCardProps {
     player: Player;
     isActive: boolean;
     awaitingMove?: boolean;
+    isKicked?: boolean;
 }
 
 export function PlayerCard({
     player,
     isActive,
     awaitingMove,
+    isKicked = false,
 }: PlayerCardProps) {
     const [levelUp, setLevelUp] = useState(false);
     const prevLevelRef = useRef(player.level);
@@ -55,7 +57,7 @@ export function PlayerCard({
     }, [player.level]);
 
     return (
-        <div className={`player-card player-card-corner ${player.position}`}>
+        <div className={`player-card player-card-corner ${player.position} ${isActive ? 'player-card-active' : ''}`}>
             <div className="avatar-circle-wrapper" style={{ position: 'relative' }}>
                 {awaitingMove && ([0, 0.8] as const).map(delay => (
                     <span
@@ -88,6 +90,7 @@ export function PlayerCard({
                 <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
                     <span className="text-[8px] font-black">{player.level}</span>
                 </div>
+                <span className={`player-connection-dot ${isKicked ? 'offline' : player.isAi ? 'ai' : ''}`} title={isKicked ? 'Disconnected' : player.isAi ? 'AI opponent' : 'Connected'} />
             </div>
         </div>
     );
@@ -134,6 +137,7 @@ export function PlayerRow({
                             player={p}
                             isActive={isMyTurn}
                             awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
+                            isKicked={isCurrentlyBot && !p.isAi}
                         />
                         {isMyTurn && !spectatorMode && (
                             <LudoDice

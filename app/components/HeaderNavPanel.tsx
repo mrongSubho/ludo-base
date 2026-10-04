@@ -30,6 +30,8 @@ interface HeaderNavPanelProps {
     onOpenWallet?: () => void;
     /** Open the signed-in user's profile panel. */
     onOpenProfile?: () => void;
+    /** Reveal the auto-hidden match status when the empty header area is tapped. */
+    onRevealMatchStatus?: () => void;
 }
 
 export const HeaderNavPanel = ({
@@ -45,11 +47,17 @@ export const HeaderNavPanel = ({
     onFeedClick: _onFeedClick,
     onOpenWallet,
     onOpenProfile,
+    onRevealMatchStatus,
 }: HeaderNavPanelProps) => {
     const chips = useChipsBalance();
     const showChips = Boolean(chips.configured && chips.address);
     return (
-        <header className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[300]">
+        <header
+            className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[300]"
+            onClick={(event) => {
+                if (event.target === event.currentTarget) onRevealMatchStatus?.();
+            }}
+        >
             {/* [x] Header Redesign (3 Pills) */}
             {/* [x] Header Refinement (Compact Symmetrical Spaced Pills) */}
             {/* [x] Verify changes (Fixed widths and "free space" gaps) */}
