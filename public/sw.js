@@ -1,13 +1,23 @@
 /* R5 — service worker: shell cache + Web Push display (VAPID remote push). */
-const CACHE = "ludo-wallet-v1";
+const CACHE = "ludo-wallet-v2";
 
 self.addEventListener("install", (event) => {
     self.skipWaiting();
-    event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/ludo-base-logo.svg"]).catch(() => undefined)));
+    // Icon only. The document is deliberately NOT precached: a cached shell
+    // is served from Cache Storage regardless of HTTP cache headers, which
+    // pins the old hashed CSS/JS and makes a shipped fix look like a no-op.
+    event.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/ludo-base-logo.svg"]).catch(() => undefined)));
 });
 
 self.addEventListener("activate", (event) => {
-    event.waitUntil(self.clients.claim());
+    event.waitUntil(
+        (async () => {
+            // Drop every cache from an older worker version.
+            const keys = await caches.keys();
+            await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+            await self.clients.claim();
+        })(),
+    );
 });
 
 self.addEventListener("push", (event) => {

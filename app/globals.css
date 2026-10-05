@@ -2225,10 +2225,15 @@ body.keyboard-open .app-shell {
   padding: 0;
 }
 
-/* Board area must be allowed to shrink so rows + grid pack into short viewports */
+/* The board area absorbs the leftover height in the column (top HUD row,
+   bottom row and match footer stay tight to the board) and centers the
+   measured square inside it, so slack splits evenly above/below the board
+   instead of pooling in one gap. Unconditional on purpose: an earlier
+   version applied this only inside the max-width:500px block, so any
+   viewport that missed that query fell back to the pooled-gap layout. */
 .board-area {
   min-height: 0;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -10404,7 +10409,10 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
+  /* No margin-top:auto — auto margins and .board-area's flex-grow compete for
+     the same slack, and the auto margin wins, parking the footer at the bottom
+     with one big gap under the board. The board-area owns the slack instead. */
+  margin-top: 0;
   padding: 2px 4px max(6px, env(safe-area-inset-bottom, 0px));
   z-index: 55;
 }
