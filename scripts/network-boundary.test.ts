@@ -7,6 +7,7 @@ import {
   isDuplicateAction,
   isExpired,
   isTerminalMatch,
+  OPEN_ROLL_STATUSES,
 } from '../supabase/functions/_shared/networkBoundary';
 
 test('stale sequence responses identify the current authoritative sequence', () => {
@@ -49,4 +50,17 @@ test('consumed or passed rolls are duplicate actions', () => {
   assert.equal(isDuplicateAction('passed'), true);
   assert.equal(isDuplicateAction('open'), false);
   assert.equal(isDuplicateAction(null), true);
+});
+
+test('only declared open statuses are spendable, and unknown values fail closed', () => {
+  // DB-02: match_rolls.status shipped with default 'available', which no writer
+  // produces and isDuplicateAction rejected — 409ing every networked move on a
+  // fresh install. The vocabulary is now an explicit allowlist so an unknown
+  // value is a visible allowlist gap rather than a silent 409 at runtime.
+  assert.deepEqual([...OPEN_ROLL_STATUSES], ['open']);
+  for (const s of ['open']) assert.equal(isDuplicateAction(s), false);
+  for (const s of ['available', 'consumed', 'passed', 'OPEN', '', 'spent']) {
+    assert.equal(isDuplicateAction(s), true, `${s} must not be spendable`);
+  }
+  assert.equal(isDuplicateAction(undefined), true);
 });

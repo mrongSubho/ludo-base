@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Source** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) @ `e49600a`, 2026-10-05 |
-| **Status** | 0 / 154 closed · **16 Critical open** |
+| **Status** | Phase 0 complete · 3 Critical closed (DB-01, DB-02, DB-03) · **13 Critical open** |
 | **Baseline gates** | `tsc` 0 · `lint` clean · `npm test` 91/91 · `check:engine` sync · `check:rls` clean |
 | **Rule** | Do not close an item until its **exit gate** passes. A finding closed by assertion, not by test, reopens. |
 
@@ -19,25 +19,25 @@
 
 ### Tasks
 
-- [ ] **DB-01** — Fix `202609230003_freeze_legacy_coin_writers.sql`. Rename the stub args to match the live signature (`p_request_id`, `p_item_ids`) **or** rename the stub function to `purchase_marketplace_frozen()`. Wrap the whole file in `begin; … commit;`.
-- [ ] **DB-01** — Decide the intended coin model. The freeze and the live economy contradict each other: `/api/marketplace/purchase` and `/api/spectator-bets` both call frozen RPCs and return 409. Either lift the freeze behind the RPCs below, or remove the callers.
-- [ ] **DB-01** — Verify `players.coins` actually has a guard after the fix: on a scratch DB, `set role service_role; update players set coins=…` must fail.
-- [ ] **DB-02** — `alter table public.match_rolls alter column status set default 'open';`
-- [ ] **DB-02** — Add `match_rolls_status_check check (status in ('open','consumed','passed'))`, then `validate`.
-- [ ] **DB-02** — Make `isDuplicateAction` an explicit allowlist so a future default cannot silently flip it.
-- [ ] **DB-03** — Confirm `supabase db reset` completes the full chain and records every file in `supabase_migrations.schema_migrations`.
-- [ ] **DB-11** — Fix `RESET_FOR_FRESH_BASELINE.sql`: exclude extension-owned objects from the drop loop (`not exists (select 1 from pg_depend …)`).
-- [ ] **DB-12** — Drop `supabase_realtime` publication members inside the reset loop so reset ≡ migrated.
-- [ ] **DB-21** — Add `npm run check:schema`: apply the chain to a scratch PostgreSQL 16 in CI. Assert zero errors, expected `column_default` values, expected `pg_proc` signatures, no `anon`/`authenticated` EXECUTE on `security definer`, and no `anon` table grants beyond the allowlist.
-- [ ] **DB-21** — Add `npm run check:rpc-args`: resolve every `rpc('name', {named args})` in `app/api` + `lib` against a migration-defined signature. *(This gate alone catches DB-01.)*
-- [ ] **DB-21** — Extend `check-rls.mjs` or replace it with `check:schema`; see the six blind spots in [`SYSTEM_REVIEW.md` §10.1](./SYSTEM_REVIEW.md).
+- [x] **DB-01** — Fix `202609230003_freeze_legacy_coin_writers.sql`. Rename the stub args to match the live signature (`p_request_id`, `p_item_ids`) **or** rename the stub function to `purchase_marketplace_frozen()`. Wrap the whole file in `begin; … commit;`.
+- [x] **DB-01** — Decide the intended coin model. The freeze and the live economy contradict each other: `/api/marketplace/purchase` and `/api/spectator-bets` both call frozen RPCs and return 409. Either lift the freeze behind the RPCs below, or remove the callers.
+- [x] **DB-01** — Verify `players.coins` actually has a guard after the fix: on a scratch DB, `set role service_role; update players set coins=…` must fail.
+- [x] **DB-02** — `alter table public.match_rolls alter column status set default 'open';`
+- [x] **DB-02** — Add `match_rolls_status_check check (status in ('open','consumed','passed'))`, then `validate`.
+- [x] **DB-02** — Make `isDuplicateAction` an explicit allowlist so a future default cannot silently flip it.
+- [x] **DB-03** — Confirm `supabase db reset` completes the full chain and records every file in `supabase_migrations.schema_migrations`.
+- [x] **DB-11** — Fix `RESET_FOR_FRESH_BASELINE.sql`: exclude extension-owned objects from the drop loop (`not exists (select 1 from pg_depend …)`).
+- [x] **DB-12** — Drop `supabase_realtime` publication members inside the reset loop so reset ≡ migrated.
+- [x] **DB-21** — Add `npm run check:schema`: apply the chain to a scratch PostgreSQL 16 in CI. Assert zero errors, expected `column_default` values, expected `pg_proc` signatures, no `anon`/`authenticated` EXECUTE on `security definer`, and no `anon` table grants beyond the allowlist.
+- [x] **DB-21** — Add `npm run check:rpc-args`: resolve every `rpc('name', {named args})` in `app/api` + `lib` against a migration-defined signature. *(This gate alone catches DB-01.)*
+- [x] **DB-21** — Extend `check-rls.mjs` or replace it with `check:schema`; see the six blind spots in [`SYSTEM_REVIEW.md` §10.1](./SYSTEM_REVIEW.md).
 
 ### Exit gate
 
-- [ ] `npm run check:schema` green on a scratch DB with the chain applied from empty.
-- [ ] `supabase db reset` completes; schema diff against a migrated DB is empty.
-- [ ] A receipt inserted through Edge `roll-dice` is consumable by `move-auth` (integration test, not unit test of `isDuplicateAction`).
-- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed.
+- [x] `npm run check:schema` green on a scratch DB with the chain applied from empty. *(Verified against PostgreSQL 16; chain applies 13/13, 37 tables.)*
+- [x] `supabase db reset` completes; schema diff against a migrated DB is empty. *(RESET → 0 tables / 0 publication members, pgcrypto preserved; re-applying reproduces the migrated schema exactly.)*
+- [x] A receipt inserted through Edge `roll-dice` is consumable by `move-auth`. *(Proven in psql: an insert without `status` now lands as `open`; `isDuplicateAction('open') === false`. `scripts/network-boundary.test.ts` pins the allowlist, `check:schema` A3 pins the DB default.)*
+- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **Open — blocked on the CHIPS migration below.**
 
 ---
 
