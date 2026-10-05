@@ -33,6 +33,17 @@ type SignTypedFn = (args: {
 const fnUrl = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/move-auth`;
 
 async function callMoveAuth(action: string, body: Record<string, unknown>) {
+    try {
+        return await callMoveAuthInner(action, body);
+    } catch (err) {
+        // Transport/timeout — surface as a normal refusal so callers run their
+        // recovery path instead of throwing past their pending guards.
+        console.error('📡 [MoveAuth] transport failure', action, err);
+        return { ok: false, status: 0, data: { error: 'network error', code: 'TRANSPORT' } };
+    }
+}
+
+async function callMoveAuthInner(action: string, body: Record<string, unknown>) {
     const res = await fetch(fnUrl(), {
         method: 'POST',
         headers: {
@@ -40,6 +51,9 @@ async function callMoveAuth(action: string, body: Record<string, unknown>) {
             'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({ action, ...body }),
+        // Hard bound: an unsettled fetch would leave the caller's pending
+        // guard latched and every later action would silently no-op.
+        signal: AbortSignal.timeout(20000),
     });
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, data };

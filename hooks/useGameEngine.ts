@@ -263,7 +263,12 @@ export function useGameEngine({
         broadcastAction,
         isHost: isAuthority,
         colorCorner,
-        matchConnectionStatus
+        matchConnectionStatus,
+        moveAuth,
+        serverSeqRef,
+        lastRollIdRef,
+        applyServerState,
+        isLobbyConnected
     });
 
     useAIBrain({

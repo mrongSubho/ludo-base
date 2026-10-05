@@ -16,6 +16,21 @@ interface UseAFKManagerProps {
     isHost?: boolean;
     colorCorner?: ColorCorner;
     matchConnectionStatus?: MatchConnectionStatus;
+    /** Networked authority handles for AFK auto-play (host drives bot seats). */
+    moveAuth?: {
+        passTurn: (p: {
+            matchId: string;
+            rollId: string;
+            expectedSeq: number;
+            source?: 'player' | 'host-assist';
+            reason?: string;
+        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
+        getMatchState?: (matchId: string) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
+    };
+    serverSeqRef?: React.MutableRefObject<number>;
+    lastRollIdRef?: React.MutableRefObject<string | null>;
+    applyServerState?: (state: GameState, seq: number) => void;
+    isLobbyConnected?: boolean;
 }
 
 export function useAFKManager({
@@ -28,7 +43,12 @@ export function useAFKManager({
     broadcastAction,
     isHost,
     colorCorner,
-    matchConnectionStatus = 'offline'
+    matchConnectionStatus = 'offline',
+    moveAuth,
+    serverSeqRef,
+    lastRollIdRef,
+    applyServerState,
+    isLobbyConnected
 }: UseAFKManagerProps) {
     useEffect(() => {
         if (localGameState.winner || localGameState.idleWarning ||
@@ -102,6 +122,36 @@ export function useAFKManager({
                 const options = getLegalTokenIndices(localGameState.positions, color, diceValue, colorCorner);
 
                 if (options.length === 0) {
+                    // Server-authoritative matches must advance match_states,
+                    // otherwise the next player's move is refused 403 and the
+                    // match stalls for everyone.
+                    const matchId = localGameState.matchId;
+                    const rollId = lastRollIdRef?.current;
+                    if (isLobbyConnected && moveAuth?.passTurn && matchId && matchId !== 'local' && rollId && serverSeqRef) {
+                        void moveAuth.passTurn({
+                            matchId,
+                            rollId,
+                            expectedSeq: serverSeqRef.current,
+                            source: 'host-assist',
+                        }).then(async (pass) => {
+                            if (pass.ok && pass.state) {
+                                serverSeqRef.current = pass.seq ?? serverSeqRef.current;
+                                if (lastRollIdRef) lastRollIdRef.current = null;
+                                applyServerState?.(pass.state, pass.seq ?? serverSeqRef.current);
+                                setLocalGameState(s => ({ ...s, ...pass.state!, diceValue: null, gamePhase: 'rolling', timeLeft: 15, lastUpdate: Date.now() }));
+                                if (broadcastAction) broadcastAction('ENGINE_STATE', {}, pass.state);
+                                return;
+                            }
+                            const snap = await moveAuth.getMatchState?.(matchId);
+                            if (snap?.ok && snap.state) {
+                                serverSeqRef.current = snap.seq ?? serverSeqRef.current;
+                                if (lastRollIdRef) lastRollIdRef.current = null;
+                                applyServerState?.(snap.state, snap.seq ?? serverSeqRef.current);
+                                setLocalGameState(s => ({ ...s, ...snap.state!, isRolling: false, timeLeft: 15, lastUpdate: Date.now() }));
+                            }
+                        }).catch(err => console.warn('[AFK] networked pass failed', err));
+                        return;
+                    }
                     setLocalGameState((s) => {
                         const nextPlayer = getNextPlayer(s.currentPlayer);
                         const switchState: GameState = {

@@ -66,6 +66,8 @@ interface UseGameActionsProps {
             expectedSeq: number;
             source?: 'player' | 'host-assist';
         }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode; message?: string; armed?: string; kept?: boolean }>;
+        /** Authoritative snapshot fetch — recovery path when a write is refused. */
+        getMatchState?: (matchId: string) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
     };
     /** Latest server seq (match_states). */
     serverSeqRef: React.MutableRefObject<number>;
@@ -170,6 +172,11 @@ export function useGameActions({
                         serverSeqRef.current = result.seq;
                         applyServerState?.(result.state, result.seq);
                         setLocalGameState(prev => ({ ...prev, ...result.state!, lastUpdate: Date.now() }));
+                    } else {
+                        // No snapshot came back (403 wrong turn / 400 illegal /
+                        // transport error) — re-read authority so the board
+                        // cannot sit on a turn the server already passed.
+                        await resyncFromServer(matchId);
                     }
                     return;
                 }
@@ -360,6 +367,32 @@ export function useGameActions({
         }
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
 
+    /**
+     * Pull the authoritative snapshot after a refused write (403 wrong turn,
+     * 409 seq race, transport failure) so a single divergence cannot leave the
+     * board showing a turn the server has already moved past.
+     */
+    const resyncFromServer = useCallback(async (matchId: string) => {
+        if (!moveAuth?.getMatchState) return;
+        try {
+            const snap = await moveAuth.getMatchState(matchId);
+            if (!snap.ok || !snap.state) return;
+            serverSeqRef.current = snap.seq ?? serverSeqRef.current;
+            lastRollIdRef.current = null;
+            rollingRef.current = false;
+            applyServerState?.(snap.state, snap.seq ?? serverSeqRef.current);
+            setLocalGameState(prev => ({
+                ...prev,
+                ...snap.state!,
+                isRolling: false,
+                timeLeft: 15,
+                lastUpdate: Date.now(),
+            }));
+        } catch (err) {
+            console.warn('🔄 [Engine] resync failed', err);
+        }
+    }, [moveAuth, serverSeqRef, lastRollIdRef, applyServerState, setLocalGameState]);
+
     const handleRoll = useCallback(async (value?: number, isRemote = false) => {
         // 🔧 FIX 3: Read from stateRef instead of stale closure for guard check
         const guardState = stateRef.current;
@@ -368,6 +401,7 @@ export function useGameActions({
         
         rollingRef.current = true;
 
+        const matchId = stateRef.current.matchId;
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
         const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats?.[color]?.isKicked;
@@ -416,6 +450,9 @@ export function useGameActions({
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
                         },
+                        // Without a bound, a stalled Edge connection leaves
+                        // isRolling true forever and the turn never resolves.
+                        signal: AbortSignal.timeout(20000),
                         body: JSON.stringify({
                             matchId: localGameState.matchId || 'local',
                             walletAddress: roller,
@@ -552,6 +589,52 @@ export function useGameActions({
         }
 
         if (pDelayedAction === 'turnSwitch') {
+            // Networked matches are server-authoritative: the turn must also
+            // advance in match_states, or every later move is rejected with
+            // 403 'Not this color turn' and the match wedges permanently.
+            const passRollId = lastRollIdRef.current;
+            const networkedPass = isLobbyConnected && !!moveAuth && !!matchId && matchId !== 'local' && !!passRollId;
+            if (networkedPass) {
+                // Bot/AFK seats are advanced by the host; humans pass for themselves.
+                const passSeat = initialPlayers.find(p => p.color === pTargetColor);
+                const passIsBot = passSeat?.isAi || !!stateRef.current.afkStats?.[pTargetColor]?.isKicked;
+                const passSource: 'player' | 'host-assist' =
+                    passIsBot && isHost ? 'host-assist' : 'player';
+                serverActionPendingRef.current = true;
+                try {
+                    const pass = await moveAuth!.passTurn({
+                        matchId: matchId!,
+                        rollId: passRollId!,
+                        expectedSeq: serverSeqRef.current,
+                        source: passSource,
+                    });
+                    if (pass.ok && pass.state) {
+                        serverSeqRef.current = pass.seq ?? serverSeqRef.current;
+                        lastRollIdRef.current = null;
+                        rollingRef.current = false;
+                        applyServerState?.(pass.state, pass.seq ?? serverSeqRef.current);
+                        setLocalGameState((latest) => ({
+                            ...latest,
+                            ...pass.state!,
+                            diceValue: null,
+                            gamePhase: 'rolling',
+                            timeLeft: 15,
+                            lastUpdate: Date.now(),
+                        }));
+                        if (isHost) broadcastAction('ENGINE_STATE', {}, pass.state!);
+                    } else {
+                        // Server refused the pass (usually a seq race). Recover
+                        // from the authoritative snapshot instead of wedging.
+                        await resyncFromServer(matchId!);
+                    }
+                } catch (err) {
+                    console.warn('🎲 [Engine] networked pass failed, resyncing', err);
+                    await resyncFromServer(matchId!);
+                } finally {
+                    serverActionPendingRef.current = false;
+                }
+                return;
+            }
             // Instant pass: no dead time when nobody can move
             setLocalGameState((latest) => {
                 const switchState: GameState = {
@@ -577,7 +660,7 @@ export function useGameActions({
             }, 1500);
         }
 
-    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address]);
+    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
 
     const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
         const prev = stateRef.current;
@@ -634,6 +717,8 @@ export function useGameActions({
                         serverSeqRef.current = result.seq;
                         applyServerState?.(result.state, result.seq);
                         setLocalGameState(s => ({ ...s, ...result.state!, lastUpdate: Date.now() }));
+                    } else {
+                        await resyncFromServer(matchId);
                     }
                     return;
                 }
@@ -805,7 +890,7 @@ export function useGameActions({
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers, applyServerState]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
