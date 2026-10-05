@@ -32,6 +32,7 @@ const th = lobbyTicketStructHash({
     host: "0x0000000000000000000000000000000000000001",
     seatsHash: `0x${"33".repeat(32)}`,
     gameMode: 0,
+    shape: 0,
     maxSeats: 2,
     issuedAt: BigInt(1),
 });

@@ -98,3 +98,36 @@ export const DIFFICULTY_PARAMS: Record<BotDifficulty, {
 };
 export const GUEST_SYNC_DELAY = 800; // ms to wait for host init
 export const JOINER_SYNC_DELAY = 1500; // ms wait for Host PeerJS ID
+
+/**
+ * Numeric game mode for MatchPool.LobbyTicket.gameMode (uint8, <= 2).
+ *
+ * The DB stores the mode as free text while the contract needs a small integer,
+ * so the mapping is declared once here rather than inlined per call site. An
+ * unknown mode is deliberately absent, so callers get `undefined` and must fail
+ * closed rather than silently sign a ticket claiming "classic".
+ *
+ * `matches.game_mode_code` (migration 202609300009) persists this at match start.
+ */
+export const GAME_MODE_CODE: Record<string, number> = {
+    classic: 0,
+    power: 1,
+    snakes: 2,
+};
+
+/** Declared pool shape -> MatchPool.PoolShape. Must match contracts/src/MatchPool.sol. */
+export const MATCH_SHAPE = {
+    '1v1': 0,
+    '2v2': 1,
+    '4P': 2,
+} as const;
+
+export type MatchShapeKey = keyof typeof MATCH_SHAPE;
+
+/** Text shape from the DB -> MatchPool.PoolShape, or null when unset/invalid. */
+export function shapeCodeFromText(text: string | null | undefined): number | null {
+    if (!text) return null;
+    return Object.prototype.hasOwnProperty.call(MATCH_SHAPE, text)
+        ? MATCH_SHAPE[text as MatchShapeKey]
+        : null;
+}

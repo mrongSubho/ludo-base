@@ -62,6 +62,7 @@ contract MatchPoolTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: fee,
@@ -80,6 +81,7 @@ contract MatchPoolTest is Test {
             host: c.host,
             seatsHash: c.seatsHash,
             gameMode: c.gameMode,
+            shape: c.shape,
             maxSeats: c.maxSeats,
             issuedAt: c.ticketIssuedAt
         });

@@ -66,6 +66,7 @@ contract MatchPoolSecurityTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: FEE,
@@ -81,6 +82,7 @@ contract MatchPoolSecurityTest is Test {
             host: c.host,
             seatsHash: c.seatsHash,
             gameMode: c.gameMode,
+            shape: c.shape,
             maxSeats: c.maxSeats,
             issuedAt: c.ticketIssuedAt
         });
@@ -122,7 +124,7 @@ contract MatchPoolSecurityTest is Test {
 
     function test_modeB_edge_only_settle_pays_winner_and_slashes_bond() public {
         _createAndLock();
-        (,,,,,,, uint128 hostBond, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        (,,,,,,,, uint128 hostBond, uint64 settleBy,) = pool.getPoolSummary(poolId);
         assertGt(hostBond, 0);
 
         // Host withholds signature — wait past settleBy (Mode B).
@@ -211,6 +213,7 @@ contract MatchPoolSecurityTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: FEE,
@@ -226,6 +229,7 @@ contract MatchPoolSecurityTest is Test {
             host: host,
             seatsHash: c.seatsHash,
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             issuedAt: c.ticketIssuedAt
         });
@@ -245,7 +249,7 @@ contract MatchPoolSecurityTest is Test {
 
     function test_timeout_refund_requires_edge_unresolvable() public {
         _createAndLock();
-        (,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
         vm.warp(uint256(settleBy) + 3 minutes + 1);
 
         bytes32 msgHash =

@@ -553,6 +553,10 @@ export default function Page() {
           body: JSON.stringify({
              roomCode: lobbyState?.roomCode || `local-${Date.now()}`,
              gameMode: lobbyState?.gameMode || selectedMode,
+             // ECO-08: persist the declared pool shape. The payout split is
+             // decided on-chain from this, so it must not be re-derived from the
+             // UI selector or from seat colours at settle time.
+             matchShape: effectiveMatchType,
              participants: roster,
              ...hostProof,
           })

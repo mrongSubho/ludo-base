@@ -85,6 +85,7 @@ contract ForbiddenTransitions is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: fee,
@@ -103,6 +104,7 @@ contract ForbiddenTransitions is Test {
             host: c.host,
             seatsHash: c.seatsHash,
             gameMode: c.gameMode,
+            shape: c.shape,
             maxSeats: c.maxSeats,
             issuedAt: c.ticketIssuedAt
         });
@@ -280,10 +282,12 @@ contract ForbiddenTransitions is Test {
     }
 
     function _statusOf(bytes32 pid) internal view returns (MatchPool.Status) {
-        (uint8 status,,,,,,) = _summary(pid);
+        (uint8 status,,,,,,,) = _summary(pid);
         return MatchPool.Status(status);
     }
 
+    /// @dev getPoolSummary now returns 11 fields (shape added by ECO-08); this
+    /// helper projects the 8 the transition table cares about.
     function _summary(bytes32 pid)
         internal
         view
@@ -291,23 +295,33 @@ contract ForbiddenTransitions is Test {
             uint8 status,
             uint8 maxSeats,
             uint8 filledSeats,
+            uint8 shape,
             address authority,
             uint128 entryFee,
             uint128 gross,
             uint128 prizeFund
         )
     {
-        (
-            status,
-            maxSeats,
-            filledSeats,
-            authority,
-            entryFee,
-            gross,
-            prizeFund,
-            ,
-            ,
-        ) = pool.getPoolSummary(pid);
+        uint8 s_;
+        uint8 ms_;
+        uint8 fs_;
+        uint8 sh_;
+        address auth_;
+        uint128 fee_;
+        uint128 g_;
+        uint128 pf_;
+        uint128 hb_;
+        uint64 sb_;
+        uint64 cu_;
+        (s_, ms_, fs_, sh_, auth_, fee_, g_, pf_, hb_, sb_, cu_) = pool.getPoolSummary(pid);
+        status = s_;
+        maxSeats = ms_;
+        filledSeats = fs_;
+        shape = sh_;
+        authority = auth_;
+        entryFee = fee_;
+        gross = g_;
+        prizeFund = pf_;
     }
 
     // ----------------------------------------------------------- the big table
@@ -352,9 +366,7 @@ contract ForbiddenTransitions is Test {
         bytes32 structHash = pool.settleStructHash(pid, plan, deadline, 2, host);
         bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
         vm.expectRevert(MatchPool.BadStatus.selector);
-        pool.settlePool(
-            pid, plan, deadline, 2, _sign(hostPk, d), _sign(edgePk, d)
-        );
+        pool.settlePool(pid, plan, deadline, 2, _sign(hostPk, d), _sign(edgePk, d));
     }
 
     function test_settle_after_claim_reverts() public {
@@ -366,9 +378,7 @@ contract ForbiddenTransitions is Test {
         bytes32 structHash = pool.settleStructHash(pid, plan, deadline, 2, host);
         bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
         vm.expectRevert(MatchPool.BadStatus.selector);
-        pool.settlePool(
-            pid, plan, deadline, 2, _sign(hostPk, d), _sign(edgePk, d)
-        );
+        pool.settlePool(pid, plan, deadline, 2, _sign(hostPk, d), _sign(edgePk, d));
     }
 
     function test_cancel_post_lock_reverts() public {

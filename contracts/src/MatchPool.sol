@@ -24,12 +24,25 @@ contract MatchPool is ReentrancyGuard {
         Predict
     }
 
+    /// @notice Declared pool shape. ECO-08: settlement used to *infer* this from
+    /// seat colours plus winner count, which was wrong. In 4P the lobby assigns
+    /// seats green,red,yellow,blue, so the top-2 finishers can legitimately be
+    /// seats 1 and 4 — the exact pair `_isTeamPair` treats as teammates. That
+    /// silently paid a 4P podium 50/50 instead of 75/25. The shape is now
+    /// declared, signed in the lobby ticket, and enforced.
+    enum PoolShape {
+        OneVsOne,
+        TwoVsTwo,
+        FourPlayer
+    }
+
     struct LobbyTicket {
         bytes32 roomCode;
         bytes32 matchId;
         address host;
         bytes32 seatsHash;
         uint8 gameMode;
+        uint8 shape;
         uint8 maxSeats;
         uint64 issuedAt;
     }
@@ -41,6 +54,7 @@ contract MatchPool is ReentrancyGuard {
         address host;
         bytes32 seatsHash;
         uint8 gameMode;
+        uint8 shape;
         uint8 maxSeats;
         uint8 poolKind;
         uint128 entryFee;
@@ -54,6 +68,7 @@ contract MatchPool is ReentrancyGuard {
     struct Pool {
         bytes32 poolId;
         uint8 gameMode;
+        uint8 shape;
         uint8 poolKind;
         uint8 maxSeats;
         uint8 filledSeats;
@@ -88,7 +103,7 @@ contract MatchPool is ReentrancyGuard {
     }
 
     bytes32 public constant LOBBY_TYPEHASH = keccak256(
-        "LobbyTicket(bytes32 roomCode,bytes32 matchId,address host,bytes32 seatsHash,uint8 gameMode,uint8 maxSeats,uint64 issuedAt)"
+        "LobbyTicket(bytes32 roomCode,bytes32 matchId,address host,bytes32 seatsHash,uint8 gameMode,uint8 shape,uint8 maxSeats,uint64 issuedAt)"
     );
     bytes32 public constant SETTLE_TYPEHASH = keccak256(
         "ChipsMatchSettle(bytes32 poolId,bytes32 planHash,uint256 nonce,uint64 deadline,address authority)"
@@ -127,15 +142,21 @@ contract MatchPool is ReentrancyGuard {
     uint256 public cumulativeBurned;
     uint256 public cumulativeFees;
 
-    event PoolCreated(bytes32 indexed poolId, address indexed authority, uint128 entryFee, uint8 maxSeats);
-    event PoolJoined(bytes32 indexed poolId, address indexed player, uint8 seatIndex, uint128 entryFee);
+    event PoolCreated(
+        bytes32 indexed poolId, address indexed authority, uint128 entryFee, uint8 maxSeats
+    );
+    event PoolJoined(
+        bytes32 indexed poolId, address indexed player, uint8 seatIndex, uint128 entryFee
+    );
     event PoolLocked(bytes32 indexed poolId, uint128 hostBond);
     event PoolSettled(bytes32 indexed poolId, uint8 mode, bytes32 resultHash, uint256 prizeFund);
     event PoolCancelled(bytes32 indexed poolId, string reason, bool bondSlashed);
     event PoolExpired(bytes32 indexed poolId);
     event PrizeClaimed(bytes32 indexed poolId, address indexed player, uint256 amount);
     event RefundClaimed(bytes32 indexed poolId, address indexed player, uint256 amount);
-    event AbandonResolved(bytes32 indexed poolId, address indexed accusedSeat, bool dual, uint256 burned);
+    event AbandonResolved(
+        bytes32 indexed poolId, address indexed accusedSeat, bool dual, uint256 burned
+    );
     event BondSlashed(bytes32 indexed poolId, uint256 amount);
     event EdgeSignerUpdated(address edgeSigner);
     event ClaimHubUpdated(address claimHub);
@@ -160,6 +181,11 @@ contract MatchPool is ReentrancyGuard {
     error SeatSquat();
     error TeamPairing();
     error SumMismatch();
+
+    /// @notice A 2v2 pool settled to two winners who are not the teammate pair.
+    /// @dev ECO-08. Previously a 4P pool whose top-2 happened to occupy the
+    /// green/blue seats was silently paid as 2v2; the shape is now authoritative.
+    error NotTeammates();
     error TransferFailed();
     error BurnFailed();
     error DisputeLocked();
@@ -234,6 +260,7 @@ contract MatchPool is ReentrancyGuard {
             uint8 status,
             uint8 maxSeats,
             uint8 filledSeats,
+            uint8 shape,
             address authority,
             uint128 entryFee,
             uint128 gross,
@@ -248,6 +275,7 @@ contract MatchPool is ReentrancyGuard {
             uint8(p.status),
             p.maxSeats,
             p.filledSeats,
+            p.shape,
             p.authority,
             p.entryFee,
             p.gross,
@@ -273,8 +301,11 @@ contract MatchPool is ReentrancyGuard {
         if (_pools[poolId].createdAt != 0) revert BadStatus();
         if (a.maxSeats != 2 && a.maxSeats != 4) revert InvalidParam();
         if (a.gameMode > 2) revert InvalidParam();
+        _requireShapeSeats(a.shape, a.maxSeats);
         if (a.poolKind == uint8(PoolKind.Match) && a.entryFee == 0) revert InvalidParam();
-        if (a.poolKind == uint8(PoolKind.Predict) && a.parentPoolId == bytes32(0)) revert InvalidParam();
+        if (a.poolKind == uint8(PoolKind.Predict) && a.parentPoolId == bytes32(0)) {
+            revert InvalidParam();
+        }
         if (a.entryFee != 0 && !entryTierAllowed[a.entryFee]) revert BadFeeTier();
         if (a.protocolBps > MAX_PROTOCOL_BPS || a.burnBps > MAX_BURN_BPS) revert InvalidParam();
         if (a.host == address(0)) revert BadTicket();
@@ -282,6 +313,7 @@ contract MatchPool is ReentrancyGuard {
         Pool storage p = _pools[poolId];
         p.poolId = poolId;
         p.gameMode = a.gameMode;
+        p.shape = a.shape;
         p.poolKind = a.poolKind;
         p.maxSeats = a.maxSeats;
         p.status = Status.Open;
@@ -306,7 +338,9 @@ contract MatchPool is ReentrancyGuard {
         Pool storage p = _pools[poolId];
         if (p.createdAt == 0 || p.status != Status.Open) revert BadStatus();
         if (_seats[poolId].length != 0) revert BadStatus();
-        if (seatWallets.length != p.maxSeats || seatColors.length != p.maxSeats) revert InvalidParam();
+        if (seatWallets.length != p.maxSeats || seatColors.length != p.maxSeats) {
+            revert InvalidParam();
+        }
 
         bytes32 seatsHash = keccak256(abi.encode(seatWallets, seatColors));
         if (a.seatsHash != seatsHash) revert BadTicket();
@@ -317,6 +351,7 @@ contract MatchPool is ReentrancyGuard {
             host: a.host,
             seatsHash: a.seatsHash,
             gameMode: a.gameMode,
+            shape: a.shape,
             maxSeats: a.maxSeats,
             issuedAt: a.ticketIssuedAt
         });
@@ -488,7 +523,8 @@ contract MatchPool is ReentrancyGuard {
             if (block.timestamp < p.claimUnlockAt) revert DisputeLocked();
             amt = credit[poolId][msg.sender];
         } else if (p.status == Status.Cancelled || p.status == Status.Expired) {
-            amt = creditedJoin[poolId][msg.sender] ? uint256(p.entryFee) : credit[poolId][msg.sender];
+            amt =
+                creditedJoin[poolId][msg.sender] ? uint256(p.entryFee) : credit[poolId][msg.sender];
         } else {
             revert BadStatus();
         }
@@ -542,6 +578,7 @@ contract MatchPool is ReentrancyGuard {
                 t.host,
                 t.seatsHash,
                 t.gameMode,
+                t.shape,
                 t.maxSeats,
                 t.issuedAt
             )
@@ -560,13 +597,16 @@ contract MatchPool is ReentrancyGuard {
         if (sum != p.prizeFund) revert SumMismatch();
 
         // 4-seat, 2 winners: 2v2 teammates (50/50) OR 4P podium (75/25).
-        // Infer mode: TEAM_PAIRINGS pair → equal split; otherwise 4P rank split.
+        //
+        // ECO-08: the branch used to be chosen by `_isTeamPair`, which infers
+        // "teammates" from seat colours. That is wrong for 4P — the lobby seats
+        // 4P as green,red,yellow,blue, so the top-2 can be seats 1 and 4, the
+        // exact pair _isTeamPair calls teammates. A 4P podium was then paid
+        // 50/50 instead of 75/25, with no revert. The shape is now declared in
+        // PoolConfig, signed in the lobby ticket, and stored on the pool.
         if (p.maxSeats == 4 && payoutPlan.length == 2) {
-            address w0 = payoutPlan[0].addr;
-            address w1 = payoutPlan[1].addr;
-            bool isTeam = _isTeamPair(poolId, w0, w1);
-            address first = w0;
-            address second = w1;
+            address first = payoutPlan[0].addr;
+            address second = payoutPlan[1].addr;
             if (seatIndex[poolId][first] > seatIndex[poolId][second]) {
                 (first, second) = (second, first);
             }
@@ -576,19 +616,20 @@ contract MatchPool is ReentrancyGuard {
                 if (payoutPlan[i].addr == first) aAmt = payoutPlan[i].amount;
                 else bAmt = payoutPlan[i].amount;
             }
-            if (isTeam) {
-                // 2v2: exact 50-50, dust to first winning seat (section 4.5 / M2).
+            uint256 hi = aAmt >= bAmt ? aAmt : bAmt;
+            uint256 lo = aAmt >= bAmt ? bAmt : aAmt;
+            if (p.shape == uint8(PoolShape.TwoVsTwo)) {
+                // 2v2: the winners must actually be the declared teammate pair,
+                // and the split must be exactly 50-50 with dust to the lower seat.
+                if (!_isTeamPair(poolId, first, second)) revert NotTeammates();
                 uint256 half = uint256(p.prizeFund) / 2;
                 uint256 dust = uint256(p.prizeFund) % 2;
                 if (aAmt != half + dust || bAmt != half) revert SumMismatch();
             } else {
                 // 4P top-2: 1st 75%, 2nd 25% (remainder to 2nd keeps sum exact).
+                // Payout amounts encode rank: the larger share is 1st.
                 uint256 firstDue = (uint256(p.prizeFund) * 75) / 100;
                 uint256 secondDue = uint256(p.prizeFund) - firstDue;
-                // Rank order: first (lower seatIndex) is 1st place unless payout order says otherwise.
-                // Payout amounts encode rank: larger share = 1st. Enforce either assignment.
-                uint256 hi = aAmt >= bAmt ? aAmt : bAmt;
-                uint256 lo = aAmt >= bAmt ? bAmt : aAmt;
                 if (hi != firstDue || lo != secondDue) revert SumMismatch();
             }
         }
@@ -602,7 +643,8 @@ contract MatchPool is ReentrancyGuard {
         p.resultHash = keccak256(abi.encode(payoutPlan));
         p.status = Status.Settled;
         p.settledAt = uint64(block.timestamp);
-        uint64 dw = p.entryFee >= 10_000e18 ? 10 minutes : p.entryFee >= 1_000e18 ? 5 minutes : 2 minutes;
+        uint64 dw =
+            p.entryFee >= 10_000e18 ? 10 minutes : p.entryFee >= 1_000e18 ? 5 minutes : 2 minutes;
         p.claimUnlockAt = p.settledAt + dw;
 
         // ECO-01: accumulate rather than overwrite. The sum check above counts a
@@ -632,11 +674,15 @@ contract MatchPool is ReentrancyGuard {
         // previously let the pool settle as Settled while protocol fees were
         // never collected, with cumulativeFees still reporting them as taken.
         if (p.protocolAmount != 0) {
-            if (!chips.transferWithMemo(owner, p.protocolAmount, MEMO_FEE)) revert TransferFailed();
+            if (!chips.transferWithMemo(owner, p.protocolAmount, MEMO_FEE)) {
+                revert TransferFailed();
+            }
             cumulativeFees += p.protocolAmount;
         }
         if (p.hostBond != 0 && !p.bondSlashed) {
-            if (!chips.transferWithMemo(p.authority, p.hostBond, MEMO_BOND)) revert TransferFailed();
+            if (!chips.transferWithMemo(p.authority, p.hostBond, MEMO_BOND)) {
+                revert TransferFailed();
+            }
             p.hostBond = 0;
         }
         emit PoolSettled(poolId, modeB ? 1 : 0, p.resultHash, p.prizeFund);
@@ -677,7 +723,9 @@ contract MatchPool is ReentrancyGuard {
         bytes32 d = EIP712.digest(_domainSep(), structHash);
         if (_recover(d, edgeSig) != edgeSigner) revert BadSignature();
         if (dual) {
-            if (hostSig.length == 0 || !_verifyHost(d, hostSig, p.authority)) revert BadSignature();
+            if (hostSig.length == 0 || !_verifyHost(d, hostSig, p.authority)) {
+                revert BadSignature();
+            }
         }
 
         uint256 burned;
@@ -711,6 +759,15 @@ contract MatchPool is ReentrancyGuard {
     }
 
     /// @dev TEAM_PAIRINGS Green+Blue vs Red+Yellow. Colors: 1=G, 2=Y, 3=R, 4=B.
+    /// @dev Declared shape must agree with the seat count, otherwise a 2-seat
+    /// pool could claim TwoVsTwo (50/50 across two opponents) or a 4-seat pool
+    /// claim OneVsOne (which would skip the podium check entirely).
+    function _requireShapeSeats(uint8 shape, uint8 maxSeats) private pure {
+        if (shape > uint8(PoolShape.FourPlayer)) revert InvalidParam();
+        if (shape == uint8(PoolShape.OneVsOne) && maxSeats != 2) revert InvalidParam();
+        if (shape != uint8(PoolShape.OneVsOne) && maxSeats != 4) revert InvalidParam();
+    }
+
     function _isTeamPair(bytes32 poolId, address a, address b) private view returns (bool) {
         uint8 ca = _seatColors[poolId][seatIndex[poolId][a] - 1];
         uint8 cb = _seatColors[poolId][seatIndex[poolId][b] - 1];
@@ -729,7 +786,11 @@ contract MatchPool is ReentrancyGuard {
 
     /// @dev Host may be an EOA (ECDSA) or a deployed smart wallet (ERC-1271).
     ///      Counterfactual ERC-6492 wrappers are not unwrapped on-chain — deploy first.
-    function _verifyHost(bytes32 digestHash, bytes memory sig, address host) private view returns (bool) {
+    function _verifyHost(bytes32 digestHash, bytes memory sig, address host)
+        private
+        view
+        returns (bool)
+    {
         if (ECDSA.recover(digestHash, sig) == host) return true;
         if (host.code.length == 0) return false;
         try IERC1271(host).isValidSignature(digestHash, sig) returns (bytes4 magic) {

@@ -8,6 +8,7 @@ import {
     toHex32,
 } from "@/lib/chipsSettle";
 import { matchPoolAddress } from "@/lib/chips";
+import { MATCH_SHAPE, shapeCodeFromText } from "@/lib/constants";
 import { requireAppSession, serviceDb } from "@/lib/serverAuth";
 
 const ADDRESS_RE = /^0x[a-f0-9]{40}$/;
@@ -30,8 +31,13 @@ const ADDRESS_RE = /^0x[a-f0-9]{40}$/;
  *   - the row must have `host_proven = true`, which /api/match/start only sets
  *     when the creator held a session for participants[0] (SEC-06)
  *   - seats are the stored roster, so a caller cannot nominate anyone
- *   - gameMode comes from the stored `game_mode`
+ *   - gameMode comes from the stored `game_mode_code`, the numeric form
+ *   - shape (ECO-08) comes from the stored `match_shape`, and decides the
+ *     on-chain payout split; it is signed, so a host cannot swap it afterwards
  *   - maxSeats is the stored roster length
+ *
+ * Any of gameMode/shape being absent or disagreeing with the roster size is a
+ * hard 409: an edge signature over a guessed value is worse than no ticket.
  *
  * Seat colours are still caller-supplied because the canonical corner mapping
  * lives in `match_states.color_corner`, which is only written once the match is
@@ -73,7 +79,7 @@ export async function POST(request: Request) {
         const db = serviceDb();
         const { data: match, error } = await db
             .from("matches")
-            .select("id, room_code, game_mode, participants, host_proven")
+            .select("id, room_code, game_mode, game_mode_code, match_shape, participants, host_proven")
             .eq("room_code", String(roomCode))
             .maybeSingle();
         if (error) {
@@ -87,6 +93,8 @@ export async function POST(request: Request) {
             id: string;
             room_code: string;
             game_mode: string;
+            game_mode_code: number | null;
+            match_shape: string | null;
             participants: string[];
             host_proven?: boolean;
         };
@@ -124,12 +132,53 @@ export async function POST(request: Request) {
             );
         }
 
+        // ECO-08: both fields used to be wrong. `gameMode` was hardcoded to 0,
+        // so every ticket claimed classic regardless of the stored mode, and the
+        // selected `game_mode` column was dead code. `shape` did not exist and
+        // the payout split was inferred on-chain from seat colours, which
+        // misreads 4P podiums as 2v2 teams. Both now come from the canonical row
+        // and fail closed when absent — a ticket that guesses here gets an
+        // edge signature over the wrong claim.
+        const gameModeCode = row.game_mode_code;
+        if (gameModeCode === null || gameModeCode === undefined) {
+            return NextResponse.json(
+                {
+                    error: "Match has no numeric game mode; cannot issue a lobby ticket",
+                    code: "GAME_MODE_UNKNOWN",
+                },
+                { status: 409 },
+            );
+        }
+        const shapeCode = shapeCodeFromText(row.match_shape);
+        if (shapeCode === null) {
+            return NextResponse.json(
+                {
+                    error: "Match has no declared pool shape; cannot issue a lobby ticket",
+                    code: "SHAPE_UNKNOWN",
+                },
+                { status: 409 },
+            );
+        }
+        // The contract rejects a shape that disagrees with the seat count, so
+        // refuse here rather than let the signature be wasted on a reverting call.
+        const expectedSeats = shapeCode === MATCH_SHAPE['1v1'] ? 2 : 4;
+        if (seats.length !== expectedSeats) {
+            return NextResponse.json(
+                {
+                    error: `declared shape ${row.match_shape} does not match ${seats.length} seats`,
+                    code: "SHAPE_SEAT_MISMATCH",
+                },
+                { status: 409 },
+            );
+        }
+
         const ticket = {
             roomCode: toHex32(String(row.room_code ?? roomCode)),
             matchId: toHex32(String(row.id)),
             host: wallet.toLowerCase() as Address,
             seatsHash: seatsHash(seats, colors as number[]),
-            gameMode: 0,
+            gameMode: gameModeCode,
+            shape: shapeCode,
             maxSeats: seats.length,
             issuedAt: BigInt(issuedAt ?? Math.floor(Date.now() / 1000)),
         };

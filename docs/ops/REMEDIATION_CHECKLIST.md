@@ -84,7 +84,16 @@ same mission id; all four are now gone.
 - [x] **ECO-01** — `MatchPool._applySettle` now accumulates credits (`+=`). Regression test proves the old code stranded 930 of 1860 CHIPS on a 3-entry plan with a repeated address. Source fixed; **awaiting on-chain redeploy** (see *Contract redeploy* below).
 - [x] **ECO-02** — `usePoolSummary` reads the authoritative `prizeFund` from MatchPool; `bigint` end-to-end.
 - [x] **ECO-03** — transfers are checked returns and the burn is verified via a `totalSupply` delta. Source fixed; **awaiting on-chain redeploy** (see *Contract redeploy* below).
-- [ ] **ECO-08** — Add a `shape`/`gameMode` discriminator to `Pool` so the contract stops inferring 2v2-vs-4P from colours + winner count.
+- [x] **ECO-08** — `MatchPool` now branches settlement on a **declared, signed** `shape` (`PoolShape.{OneVsOne,TwoVsTwo,FourPlayer}`), not on colours + winner count.
+
+  The inference was not merely inelegant, it mispaid. `LOBBY_COLORS['4P']` (`lib/gameLogic.ts:523`) seats players `green,red,yellow,blue` → colour numbers `1,2,3,4`, while `_isTeamPair` (`MatchPool.sol`) reads colours `{1,4}` as teammates. So in **any 4P game whose top two were green and blue, settlement applied the 2v2 50/50 split instead of the 75/25 podium** — with no revert. Compounding it, `poolAuthority.deriveSettlePlan` resolved `auto` → `"team"` unconditionally, making the 75/25 podium unreachable without an explicit override.
+
+  - `shape` added to `PoolConfig`, `Pool` and `LobbyTicket`, and **inside `LOBBY_TYPEHASH`** so a host cannot swap it after signing; `_requireShapeSeats` rejects a shape that disagrees with `maxSeats`.
+  - `_isTeamPair` is retained but demoted to a corroborating check: a 2v2 pool settling to non-teammates now reverts `NotTeammates()` instead of silently paying an arbitrary split.
+  - `getPoolSummary` exposes `shape`, so `deriveSettlePlan` derives the split from the chain and **rejects an explicit split that contradicts the declared shape** rather than silently overriding it.
+  - New: `supabase/migrations/202609300009_matches_pool_shape.sql` adds `matches.match_shape` (CHECK-constrained to `1v1|2v2|4P`) and `matches.game_mode_code`; `/api/match/start` persists both, and `chips/lobby-ticket` reads them. Unknown/absent values are a hard **409** — an edge signature over a guessed value is worse than no ticket.
+  - Backfill is deliberately conservative: 4-seat rows stay `NULL` rather than guessing `2v2`, because 2v2 and 4P both use four seats and a wrong guess silently pays the wrong split.
+  - Tests: `contracts/test/MatchPoolPayout.t.sol` (4 new, incl. `test_4p_green_blue_top2_pays_podium_not_50_50`) and `scripts/pool-shape.test.ts` (9). Both were checked against the pre-fix logic and **fail without it**.
 
 ### Tasks — atomicity
 
@@ -117,6 +126,16 @@ same mission id; all four are now gone.
 - [x] Helper verbs added: `scripts/foundry-deploy.sh anvil-pool | sepolia-pool | base-pool`, with preflight guards that refuse on missing `CHIPS_ADDRESS`/`EDGE_SIGNER`/`GAME_OWNER`/`DEPLOYER_ADDRESS` or `USE_MOCK=true`.
 - [x] Redeploy verified end-to-end on Anvil: `pool.claimHub()` == new hub, `hub.matchPool()` == new pool, `pool.chips()` == pre-existing token, `setClaimHub` wired in-transaction. A stale `DEPLOYER_ADDRESS` fails loudly rather than deploying from an unexpected account.
 - [x] **Base Sepolia redeploy done (2026-10-05).** New `MatchPool` `0x2e93b3B1A3418a45f64B8e319CD0EFa997Aa8aD0`, new `ClaimHub` `0x8ea2b3332fD4e348102603811a24Fdfa8Ddf2D9F`. Confirmed on-chain: `claimHub()`/`matchPool()` cross-reference correctly, `owner`/`edgeSigner`/`chips` preserved, `setClaimHub` wired in-transaction. Both contracts verified on Sourcify (`exact_match`).
+- [ ] **⚠️ The deployed Sepolia pair above is now stale.** ECO-08 changed `MatchPool` again (`shape` field, `LOBBY_TYPEHASH`, `getPoolSummary` arity, plus the new `NotTeammates` error). `PoolConfig`/`LobbyTicket` gained a field and `getPoolSummary` went 10 → 11 return values, so the live contracts **cannot** accept a ticket produced by the current server. Redeploy before using the paid-pool path:
+  ```bash
+  # 1) apply the new migration first — the server reads matches.match_shape
+  supabase db push
+  # 2) redeploy pool + hub (ClaimHub must move with the pool: it binds it in its ctor)
+  FOUNDRY_ACCOUNT=mydeployer scripts/foundry-deploy.sh sepolia-pool
+  # 3) verify
+  scripts/verify-contracts.sh sepolia
+  ```
+  Nothing has used the live pair yet (`chips/lobby-ticket` has no client caller), so no funds are at risk from the gap — but a ticket signed now would be rejected on-chain.
 - [x] Verification moved off the retired Etherscan V1 hosts to V2 + Sourcify fallback (`scripts/verify-contracts.sh`, `contracts/foundry.toml`).
 - [ ] **Still open: Base mainnet redeploy.** Sepolia is done; mainnet has no code at any of these addresses, so nothing is deployed there yet. Same script: `scripts/foundry-deploy.sh base-pool`, but set `GAME_OWNER`/`DEPLOYER_ADDRESS`/`EDGE_SIGNER` to mainnet addresses first — the current Sepolia values must not be reused.
 - [ ] **Open hygiene item: `EDGE_SIGNER` is a public key.** It is `0xf39F…`, Anvil account #0, whose private key is committed in `scripts/foundry-deploy.sh`. Anyone can sign as edge signer, which is what authorizes bet settlement. Preserved on Sepolia for behavioural parity, but it **must** be rotated via `MatchPool.setEdgeSigner` before mainnet or any real funding.

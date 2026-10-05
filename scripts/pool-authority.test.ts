@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    POOL_SHAPE,
     POOL_STATUS,
     PoolAuthorityError,
     assertSettleable,
@@ -30,6 +31,7 @@ function summary(over: Partial<PoolSummary> = {}): PoolSummary {
         status: POOL_STATUS.Locked,
         maxSeats: 2,
         filledSeats: 2,
+        shape: POOL_SHAPE.OneVsOne,
         authority: AUTHORITY as `0x${string}`,
         entryFee: BigInt(10) * E18,
         gross: BigInt(20) * E18,
@@ -102,7 +104,11 @@ test('a lone winner is allowed when the pool is not 4-seat', () => {
 test('4-seat 2v2 team split is exactly 50/50, dust to the first seat', () => {
     // Mirrors MatchPool.sol:584-586 (half = fund/2, dust = fund%2).
     const fund = BigInt(20) * E18 + BigInt(1); // odd, to exercise the dust term
-    const plan = deriveSettlePlan(summary({ maxSeats: 4, prizeFund: fund }), [A, B], 'team');
+    const plan = deriveSettlePlan(
+        summary({ maxSeats: 4, shape: POOL_SHAPE.TwoVsTwo, prizeFund: fund }),
+        [A, B],
+        'team',
+    );
     const half = fund / BigInt(2);
     assert.deepEqual(addrs(plan), [A, B]);
     assert.deepEqual(amounts(plan), [(half + (fund % BigInt(2))).toString(), half.toString()]);
@@ -112,7 +118,11 @@ test('4-seat 2v2 team split is exactly 50/50, dust to the first seat', () => {
 test('4-seat 4P podium split is exactly 75/25, remainder to second', () => {
     // Mirrors MatchPool.sol:590-591.
     const fund = BigInt(20) * E18 + BigInt(7);
-    const plan = deriveSettlePlan(summary({ maxSeats: 4, prizeFund: fund }), [A, B], 'podium');
+    const plan = deriveSettlePlan(
+        summary({ maxSeats: 4, shape: POOL_SHAPE.FourPlayer, prizeFund: fund }),
+        [A, B],
+        'podium',
+    );
     const firstDue = (fund * BigInt(75)) / BigInt(100);
     assert.deepEqual(addrs(plan), [A, B]);
     assert.deepEqual(amounts(plan), [firstDue.toString(), (fund - firstDue).toString()]);
@@ -124,13 +134,18 @@ test('every derived plan sums to the on-chain prize fund exactly', () => {
     // on-chain. Amounts are derived now, so this must always hold.
     const funds = [BigInt(1), BigInt(2), BigInt(3), BigInt(7), E18, BigInt(7) * E18 + BigInt(13), BigInt(12345)];
     for (const f of funds) {
-        for (const maxSeats of [1, 2, 4]) {
+        for (const [maxSeats, shape] of [
+            [1, POOL_SHAPE.OneVsOne],
+            [2, POOL_SHAPE.OneVsOne],
+            [4, POOL_SHAPE.TwoVsTwo],
+            [4, POOL_SHAPE.FourPlayer],
+        ] as const) {
             const winners = maxSeats === 4 ? [A, B] : [A];
-            const plan = deriveSettlePlan(summary({ maxSeats, prizeFund: f }), winners);
+            const plan = deriveSettlePlan(summary({ maxSeats, shape, prizeFund: f }), winners);
             assert.equal(
                 plan.reduce((x, p) => x + p.amount, BigInt(0)),
                 f,
-                `sum mismatch for fund=${f} maxSeats=${maxSeats}`,
+                `sum mismatch for fund=${f} maxSeats=${maxSeats} shape=${shape}`,
             );
         }
     }
@@ -169,4 +184,49 @@ test('settle nonce is 1 for any pool that has provably never settled', () => {
     assert.equal(initialSettleNonce(), BigInt(1));
     assert.doesNotThrow(() => assertSettleable(summary({ status: POOL_STATUS.Locked })));
     assert.throws(() => assertSettleable(summary({ status: POOL_STATUS.Settled })));
+});
+
+test('ECO-08: a 4P pool auto-settles to 75/25, never 50/50', () => {
+    // Regression: the split used to be inferred from seat colours, and the
+    // lobby seats 4P as green,red,yellow,blue. A 4P game whose top two are
+    // green+blue is the {1,4} pair the contract called "teammates", so it was
+    // paid 50/50. Worse, "auto" resolved to "team" unconditionally, making the
+    // podium unreachable without an explicit override. Shape is now declared
+    // on-chain and read by the server.
+    const fund = BigInt(20) * E18;
+    const fourP = summary({ maxSeats: 4, shape: POOL_SHAPE.FourPlayer, prizeFund: fund });
+    const plan = deriveSettlePlan(fourP, [A, B]);
+    const firstDue = (fund * BigInt(75)) / BigInt(100);
+    assert.deepEqual(amounts(plan), [firstDue.toString(), (fund - firstDue).toString()]);
+    assert.notEqual(plan[0]!.amount, fund / BigInt(2), '4P must not pay an even split');
+});
+
+test('ECO-08: a 2v2 pool auto-settles to 50/50', () => {
+    const fund = BigInt(20) * E18;
+    const twoVtwo = summary({ maxSeats: 4, shape: POOL_SHAPE.TwoVsTwo, prizeFund: fund });
+    const plan = deriveSettlePlan(twoVtwo, [A, B]);
+    assert.deepEqual(amounts(plan), [(fund / BigInt(2)).toString(), (fund / BigInt(2)).toString()]);
+});
+
+test('a split that contradicts the declared shape is rejected', () => {
+    const fourP = summary({ maxSeats: 4, shape: POOL_SHAPE.FourPlayer });
+    const twoVtwo = summary({ maxSeats: 4, shape: POOL_SHAPE.TwoVsTwo });
+    assert.throws(() => deriveSettlePlan(fourP, [A, B], 'team'), PoolAuthorityError);
+    assert.throws(() => deriveSettlePlan(twoVtwo, [A, B], 'podium'), PoolAuthorityError);
+    // ...and a 1v1 pool cannot claim a team split either.
+    assert.throws(
+        () => deriveSettlePlan(summary({ maxSeats: 2, shape: POOL_SHAPE.OneVsOne }), [A, B], 'team'),
+        PoolAuthorityError,
+    );
+});
+
+test('an unknown on-chain shape is refused rather than guessed', () => {
+    assert.throws(
+        () => deriveSettlePlan(summary({ maxSeats: 4, shape: 99 }), [A, B]),
+        (e: unknown) => {
+            assert.ok(e instanceof PoolAuthorityError);
+            assert.equal(e.status, 502);
+            return true;
+        },
+    );
 });

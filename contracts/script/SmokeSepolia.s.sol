@@ -57,6 +57,7 @@ contract SmokeSepolia is Script {
             host: host,
             seatsHash: sHash,
             gameMode: 0,
+            shape: 0,
             maxSeats: 2,
             issuedAt: uint64(block.timestamp)
         });
@@ -69,6 +70,7 @@ contract SmokeSepolia is Script {
             host: host,
             seatsHash: sHash,
             gameMode: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: 1000e18,

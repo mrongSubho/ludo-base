@@ -27,7 +27,7 @@ export const EIP712_VERSION = "1";
 
 export const LOBBY_TYPEHASH = keccak256(
     toBytes(
-        "LobbyTicket(bytes32 roomCode,bytes32 matchId,address host,bytes32 seatsHash,uint8 gameMode,uint8 maxSeats,uint64 issuedAt)",
+        "LobbyTicket(bytes32 roomCode,bytes32 matchId,address host,bytes32 seatsHash,uint8 gameMode,uint8 shape,uint8 maxSeats,uint64 issuedAt)",
     ),
 );
 export const SETTLE_TYPEHASH = keccak256(
@@ -47,6 +47,9 @@ export interface LobbyTicketFields {
     host: Address;
     seatsHash: Hex;
     gameMode: number;
+    /** Declared pool shape (MatchPool.PoolShape). Signed so a host cannot
+     *  swap it after issuance to unlock the other payout branch. */
+    shape: number;
     maxSeats: number;
     issuedAt: bigint;
 }
@@ -82,7 +85,7 @@ export function eip712Digest(domainSep: Hex, structHash: Hex): Hex {
 export function lobbyTicketStructHash(t: LobbyTicketFields): Hex {
     return keccak256(
         encodeAbiParameters(
-            parseAbiParameters("bytes32, bytes32, bytes32, address, bytes32, uint8, uint8, uint64"),
+            parseAbiParameters("bytes32, bytes32, bytes32, address, bytes32, uint8, uint8, uint8, uint64"),
             [
                 LOBBY_TYPEHASH,
                 t.roomCode,
@@ -90,6 +93,7 @@ export function lobbyTicketStructHash(t: LobbyTicketFields): Hex {
                 t.host,
                 t.seatsHash,
                 t.gameMode,
+                t.shape,
                 t.maxSeats,
                 t.issuedAt,
             ],
@@ -288,6 +292,7 @@ export function buildLobbyTicketTypedData(t: LobbyTicketFields, matchPool: Addre
                 { name: "host", type: "address" },
                 { name: "seatsHash", type: "bytes32" },
                 { name: "gameMode", type: "uint8" },
+                { name: "shape", type: "uint8" },
                 { name: "maxSeats", type: "uint8" },
                 { name: "issuedAt", type: "uint64" },
             ],
@@ -299,6 +304,7 @@ export function buildLobbyTicketTypedData(t: LobbyTicketFields, matchPool: Addre
             host: t.host,
             seatsHash: t.seatsHash,
             gameMode: t.gameMode,
+            shape: t.shape,
             maxSeats: t.maxSeats,
             issuedAt: t.issuedAt,
         },

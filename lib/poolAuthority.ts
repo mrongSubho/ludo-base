@@ -51,10 +51,19 @@ export const POOL_STATUS = {
     Expired: 5,
 } as const;
 
+/** MatchPool.PoolShape. Must stay in sync with contracts/src/MatchPool.sol. */
+export const POOL_SHAPE = {
+    OneVsOne: 0,
+    TwoVsTwo: 1,
+    FourPlayer: 2,
+} as const;
+
 export interface PoolSummary {
     status: number;
     maxSeats: number;
     filledSeats: number;
+    /** Declared pool shape (ECO-08). Authoritative for the payout split. */
+    shape: number;
     authority: Address;
     entryFee: bigint;
     gross: bigint;
@@ -96,20 +105,21 @@ export async function readPoolSummary(
             functionName: "getPoolSummary",
             args: [poolId as Hex],
         })) as unknown as readonly [
-            number | bigint, number | bigint, number | bigint, string,
+            number | bigint, number | bigint, number | bigint, number | bigint, string,
             bigint, bigint, bigint, bigint, bigint, bigint,
         ];
         return {
             status: Number(res[0]),
             maxSeats: Number(res[1]),
             filledSeats: Number(res[2]),
-            authority: getAddress(res[3]),
-            entryFee: res[4],
-            gross: res[5],
-            prizeFund: res[6],
-            hostBond: res[7],
-            settleBy: res[8],
-            claimUnlockAt: res[9],
+            shape: Number(res[3]),
+            authority: getAddress(res[4]),
+            entryFee: res[5],
+            gross: res[6],
+            prizeFund: res[7],
+            hostBond: res[8],
+            settleBy: res[9],
+            claimUnlockAt: res[10],
         };
     } catch {
         // Deliberately opaque: a revert here means the pool is unknown or the RPC
@@ -186,6 +196,30 @@ export function deriveSettlePlan(
     winners: string[],
     split: "team" | "podium" | "auto" = "auto",
 ): PayoutEntry[] {
+    // ECO-08: the split is chosen by the pool's DECLARED shape, read from the
+    // chain. It used to be inferred from seat colours, which is wrong for 4P:
+    // the lobby seats 4P as green,red,yellow,blue, so the top-2 can be colours
+    // {1,4} — the exact pair the contract treated as teammates — and a 4P
+    // podium was paid 50/50. "auto" previously always resolved to "team", which
+    // made the 75/25 podium unreachable without an explicit override.
+    const shape = summary.shape;
+    if (shape !== POOL_SHAPE.OneVsOne && shape !== POOL_SHAPE.TwoVsTwo && shape !== POOL_SHAPE.FourPlayer) {
+        throw new PoolAuthorityError(`unknown pool shape ${shape}`, 502);
+    }
+    const teamShape = shape === POOL_SHAPE.TwoVsTwo;
+    if (shape === POOL_SHAPE.OneVsOne && split !== "auto") {
+        throw new PoolAuthorityError(`split override is meaningless for a 1v1 pool`, 400);
+    }
+    if (split === "team" && !teamShape) {
+        throw new PoolAuthorityError(
+            `team split requested for a ${shape === POOL_SHAPE.FourPlayer ? "4P" : "1v1"} pool`,
+            400,
+        );
+    }
+    if (split === "podium" && teamShape) {
+        throw new PoolAuthorityError("podium split requested for a 2v2 pool", 400);
+    }
+
     const addrs = winners.map((w) => getAddress(w));
     if (addrs.length === 0) {
         throw new PoolAuthorityError("no winners supplied", 400);
@@ -231,8 +265,8 @@ export function deriveSettlePlan(
         });
     }
 
-    const kind = split === "auto" ? "team" : split;
-    if (kind === "team") {
+    // Shape decides; an explicit split that contradicts it already threw above.
+    if (teamShape) {
         const half = summary.prizeFund / BigInt(2);
         const dust = summary.prizeFund % BigInt(2);
         return [

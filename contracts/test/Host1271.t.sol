@@ -70,6 +70,7 @@ contract Host1271Test is Test {
             host: address(hostWallet),
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: 1000e18,
@@ -85,6 +86,7 @@ contract Host1271Test is Test {
             host: c.host,
             seatsHash: c.seatsHash,
             gameMode: c.gameMode,
+            shape: c.shape,
             maxSeats: c.maxSeats,
             issuedAt: c.ticketIssuedAt
         });
@@ -123,7 +125,7 @@ contract Host1271Test is Test {
         vm.prank(address(0xBEEF));
         pool.settlePool(poolId, plan, deadline, nonce, hostSig, edgeSig);
 
-        (uint8 status,,,,,, uint128 prizeFund,,,) = pool.getPoolSummary(poolId);
+        (uint8 status,,,,,,, uint128 prizeFund,,,) = pool.getPoolSummary(poolId);
         assertEq(status, uint8(MatchPool.Status.Settled));
         assertEq(prizeFund, 1860e18);
     }

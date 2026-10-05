@@ -45,6 +45,7 @@ contract GasBenchTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: 1000e18,
@@ -60,6 +61,7 @@ contract GasBenchTest is Test {
             host: host,
             seatsHash: cfg.seatsHash,
             gameMode: 0,
+shape: 0,
             maxSeats: 2,
             issuedAt: cfg.ticketIssuedAt
         });

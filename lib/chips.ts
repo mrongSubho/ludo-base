@@ -66,6 +66,7 @@ export const MATCH_POOL_ABI = [
             { name: "status", type: "uint8" },
             { name: "maxSeats", type: "uint8" },
             { name: "filledSeats", type: "uint8" },
+            { name: "shape", type: "uint8" },
             { name: "authority", type: "address" },
             { name: "entryFee", type: "uint128" },
             { name: "gross", type: "uint128" },

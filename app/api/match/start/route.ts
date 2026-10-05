@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { serviceDb, requireAppSession } from '@/lib/serverAuth';
+import { GAME_MODE_CODE } from '@/lib/constants';
 
 const ADDRESS_RE = /^0x[a-f0-9]{40}$/i;
 
@@ -28,13 +29,41 @@ const ADDRESS_RE = /^0x[a-f0-9]{40}$/i;
  * `/api/match/record` refuses to settle an unproven match, so an unauthenticated
  * caller can create junk rows but cannot settle them or move progression.
  *
- * Body: { roomCode, gameMode, participants[], walletAddress?, sessionId? }
+ * Body: { roomCode, gameMode, matchShape?, participants[], walletAddress?, sessionId? }
+ *
+ * ECO-08: `matchShape` ('1v1' | '2v2' | '4P') is persisted alongside the match.
+ * The pool shape decides the payout split on-chain, and it used to be inferred
+ * from seat colours — which is wrong for 4P, since LOBBY_COLORS['4P'] seats
+ * players green,red,yellow,blue and MatchPool treats colours {1,4} as
+ * teammates. A 4P game whose top two were green+blue was paid 50/50 instead of
+ * the 75/25 podium. `gameModeCode` is the numeric form for the signed ticket.
  */
 export async function POST(request: Request) {
     try {
         const supabase = serviceDb();
         const body = await request.json();
-        const { roomCode, gameMode, participants, walletAddress, sessionId } = body ?? {};
+        const {
+            roomCode,
+            gameMode,
+            matchShape,
+            participants,
+            walletAddress,
+            sessionId,
+        } = body ?? {};
+
+        // ECO-08. Validate the shape up front: a bad value must not create a
+        // match row that later silently signs a ticket with the wrong split.
+        if (matchShape !== undefined && matchShape !== '1v1' && matchShape !== '2v2' && matchShape !== '4P') {
+            return NextResponse.json({ error: 'matchShape must be 1v1, 2v2 or 4P' }, { status: 400 });
+        }
+        // Seat-count agreement is NOT enforced here: page.tsx posts only the
+        // human roster (AI seats are filtered out), so a bot 4P match legitimately
+        // arrives with fewer entries than the shape implies. The check belongs on
+        // the money path instead — chips/lobby-ticket compares the stored roster
+        // against the stored shape and refuses to sign a mismatched ticket.
+        // Numeric game mode for MatchPool.LobbyTicket. Unknown modes stay NULL
+        // so the ticket route fails closed instead of signing "classic".
+        const gameModeCode = GAME_MODE_CODE[String(gameMode ?? 'classic')] ?? null;
 
         if (!roomCode || typeof roomCode !== 'string' || !Array.isArray(participants)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -103,6 +132,8 @@ export async function POST(request: Request) {
             .insert({
                 room_code: roomCode,
                 game_mode: gameMode || 'classic',
+                game_mode_code: gameModeCode,
+                match_shape: matchShape ?? null,
                 participants: roster,
                 host_proven: hostProven,
             })

@@ -79,6 +79,7 @@ contract SmokeRealChips is Script {
             host: host,
             seatsHash: sHash,
             gameMode: 0,
+            shape: 0,
             maxSeats: 2,
             issuedAt: uint64(block.timestamp)
         });
@@ -91,6 +92,7 @@ contract SmokeRealChips is Script {
             host: host,
             seatsHash: sHash,
             gameMode: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: 1000e18,
@@ -129,6 +131,5 @@ contract SmokeRealChips is Script {
         console.logBytes32(poolId);
         console.log("p2 CHIPS (pre-claim)");
         console.log(chips.balanceOf(p2));
-
     }
 }
