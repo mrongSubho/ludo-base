@@ -22,8 +22,8 @@
  *
  * Run: npm run check:routes
  */
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { join, dirname, relative } from 'node:path';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');

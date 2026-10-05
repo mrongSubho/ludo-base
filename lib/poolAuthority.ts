@@ -111,7 +111,9 @@ export async function readPoolSummary(
             settleBy: res[8],
             claimUnlockAt: res[9],
         };
-    } catch (err) {
+    } catch {
+        // Deliberately opaque: a revert here means the pool is unknown or the RPC
+        // is unreachable, and the distinction is not useful to a caller.
         throw new PoolAuthorityError(
             `pool ${poolId} unreadable on chain ${chainId}`,
             502,

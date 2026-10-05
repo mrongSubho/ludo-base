@@ -40,6 +40,11 @@ jobs:
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate
         run: npm run check:rls
+      - name: Concurrency gate (parallel claim / bet / settle)
+        # Real transactions on real connections: proves the unique-constraint
+        # claim lock and the escrow's bounded debit under genuine contention.
+        # Skips itself when LUDO_SCHEMA_DB_URL is unset.
+        run: npm run test:concurrency
       - name: Route authorization matrix
         # Fails on any route missing from scripts/check-routes.mjs, any method
         # mismatch, any route claiming session auth without a guard, and any
