@@ -80,18 +80,59 @@ redeploy_pool() {
 cmd="${1:-help}"
 case "$cmd" in
   status)
-    echo "== Keystore =="
-    cast wallet list --keystore-dir "$KEYSTORE_DIR" 2>/dev/null || echo "(no keystore yet)"
-    if [[ -n "${SEPOLIA_RPC:-}" ]]; then
-      ADDR=$(cast wallet address --keystore "$KEYSTORE_DIR/$ACCOUNT" 2>/dev/null || true)
-      echo "account=$ACCOUNT addr=${ADDR:-unset}"
-      echo "== Base Sepolia ETH =="
-      [[ -n "${ADDR:-}" ]] && cast balance "$ADDR" --rpc-url "$SEPOLIA_RPC" --ether || true
+    # NOTE: `cast wallet list` takes no --keystore-dir in Foundry 1.8.x, and an
+    # earlier version of this script passed it anyway; the resulting exit code 2
+    # was swallowed by `|| echo "(no keystore yet)"` and reported a false
+    # negative. List the directory directly instead.
+    echo "== Keystore dir: $KEYSTORE_DIR =="
+    KS_COUNT=0
+    if [[ -d "$KEYSTORE_DIR" ]]; then
+      for f in "$KEYSTORE_DIR"/*; do
+        [[ -f "$f" ]] || continue
+        KS_COUNT=$((KS_COUNT + 1))
+        printf "  %s%s\n" "$(basename "$f")" "$([[ "$(basename "$f")" == "$ACCOUNT" ]] && echo '   <- FOUNDRY_ACCOUNT')"
+      done
+      [[ $KS_COUNT -eq 0 ]] && echo "  (directory exists but holds no keystore files)"
+    else
+      echo "  (directory does not exist)"
     fi
-    if [[ -n "${BASE_RPC:-}" ]]; then
-      ADDR=$(cast wallet address --keystore "$KEYSTORE_DIR/$ACCOUNT" 2>/dev/null || true)
-      echo "== Base mainnet ETH =="
-      [[ -n "${ADDR:-}" ]] && cast balance "$ADDR" --rpc-url "$BASE_RPC" --ether || true
+
+    KS_FILE="$KEYSTORE_DIR/$ACCOUNT"
+    if [[ -f "$KS_FILE" ]]; then
+      # Encrypted keystores keep no plaintext address, so this prompts for the
+      # password once and the result is reused for both balance lookups.
+      ADDR=$(cast wallet address --keystore "$KS_FILE" 2>/dev/null || true)
+    else
+      ADDR=""
+    fi
+
+    if [[ -z "$ADDR" ]]; then
+      if [[ -f "$KS_FILE" ]]; then
+        echo "  $ACCOUNT exists at $KS_FILE but the address could not be read."
+        echo "  (no plaintext address is stored; the password prompt was declined or wrong)"
+      elif [[ $KS_COUNT -gt 0 ]]; then
+        echo "  \$ACCOUNT='$ACCOUNT' has no keystore at $KS_FILE"
+        echo "  try another: FOUNDRY_ACCOUNT=<name> scripts/foundry-deploy.sh status"
+      else
+        echo "  no keystore found; create one with: cast wallet import $ACCOUNT --interactive"
+      fi
+    else
+      echo "  $ACCOUNT = $ADDR"
+      if [[ -n "${DEPLOYER_ADDRESS:-}" ]]; then
+        if [[ "$(tr 'A-Z' 'a-z' <<<"$ADDR")" == "$(tr 'A-Z' 'a-z' <<<"$DEPLOYER_ADDRESS")" ]]; then
+          echo "    matches DEPLOYER_ADDRESS  OK (setClaimHub will wire in-transaction)"
+        else
+          echo "    !! does NOT match DEPLOYER_ADDRESS ($DEPLOYER_ADDRESS)"
+          echo "       setClaimHub would be SKIPPED. Either broadcast with the"
+          echo "       DEPLOYER_ADDRESS key, or fix DEPLOYER_ADDRESS in contracts/.env."
+        fi
+      fi
+      for pair in "Base Sepolia:${SEPOLIA_RPC:-}" "Base mainnet:${BASE_RPC:-}"; do
+        label="${pair%%:*}"
+        rpc="${pair#*:}"
+        [[ -z "$rpc" ]] && continue
+        printf "    %-14s %s ETH\n" "$label" "$(cast balance "$ADDR" --rpc-url "$rpc" --ether 2>/dev/null || echo '?')"
+      done
     fi
     ;;
   anvil)
