@@ -1,14 +1,18 @@
 /**
- * Mission catalog reader — the only place mission targets and rewards come from.
+ * Daily/weekly mission catalog reader — the only place those rewards come from.
  *
- * Replaces four hardcoded reward tables (see migration 202609300003):
- *   lib/missionVoucher.ts    ONBOARDING_REWARDS  (whole CHIPS)
- *   lib/onboardingShared.ts  ONBOARDING_TRACKS   (coins)
- *   app/api/missions/claim   REWARDS             (coins)
- *   app/api/missions/list    DAILY_MISSIONS      (coins)
+ * Replaces the three hardcoded daily/weekly reward tables (migration
+ * 202609300003): `app/api/missions/claim` REWARDS, `app/api/missions/list`
+ * DAILY_MISSIONS, and `lib/missionVoucher.ts` ONBOARDING_REWARDS' daily entries.
  *
- * Rewards are whole CHIPS. The on-chain voucher amount is `reward_chips * 1e18`.
- * The 5..20 band is enforced by a CHECK constraint on the table, not here, so a
+ * SCOPE — daily + weekly only. Onboarding is deliberately NOT here: its rewards
+ * predate the CHIPS cutover and stay at their original values (core package
+ * 1000, expanded pack 350) in lib/onboardingShared.ts ONBOARDING_TRACKS, which
+ * is browser-safe and already read by the onboarding UI and /api/onboarding/*.
+ * Keeping a copy here too would recreate the drift this module removes.
+ *
+ * Rewards are whole CHIPS; the on-chain amount is `reward_chips * 1e18`. The
+ * 5..20 band is enforced by a CHECK constraint on the table, not here, so a
  * direct psql write cannot introduce an out-of-band value either.
  */
 import type { Hex } from "viem";

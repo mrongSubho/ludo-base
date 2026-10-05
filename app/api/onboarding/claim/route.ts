@@ -10,13 +10,13 @@ import {
 import {
     ONBOARDING_TRACKS,
     WELCOME_GRANT_MISSION_ID,
+    WELCOME_GRANT_REWARD,
     checkTrackClaimable,
     checkWelcomeGrantClaimable,
     isCorePackageComplete,
     isOnboardingTrack,
     type OnboardingTrack,
 } from '@/lib/onboardingServer';
-import { chipsToBaseUnits, loadMissionDef } from '@/lib/missionCatalog';
 
 const ONBOARDING_PERIOD = keccak256(toBytes('onboarding-v1'));
 const WELCOME_PERIOD = keccak256(toBytes('welcome-grant-v1'));
@@ -55,17 +55,12 @@ export async function POST(request: Request) {
             const check = checkWelcomeGrantClaimable((prior?.length ?? 0) > 0);
             if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
 
-            const welcomeDef = await loadMissionDef(WELCOME_GRANT_MISSION_ID);
-            if (!welcomeDef) {
-                return NextResponse.json({ error: 'welcome_grant not configured' }, { status: 503 });
-            }
-            const welcomeReward = chipsToBaseUnits(welcomeDef.rewardChips);
             const deadline = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
             const { error: insertError } = await db.from('mission_vouchers').insert({
                 wallet_address: wallet,
                 mission_id: WELCOME_GRANT_MISSION_ID,
                 period_id: WELCOME_PERIOD,
-                amount: welcomeReward.toString(),
+                amount: WELCOME_GRANT_REWARD,
                 signature: 'pending',
                 deadline,
             });
@@ -76,7 +71,7 @@ export async function POST(request: Request) {
             return NextResponse.json({
                 success: true,
                 track: WELCOME_GRANT_MISSION_ID,
-                reward: welcomeDef.rewardChips,
+                reward: WELCOME_GRANT_REWARD,
                 pending: true,
             });
         }
@@ -117,11 +112,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'MissionClaim not configured' }, { status: 503 });
         }
 
-        const rewardDef = await loadMissionDef(track);
-        if (!rewardDef) {
-            return NextResponse.json({ error: 'Mission reward not configured' }, { status: 503 });
-        }
-        const amount = chipsToBaseUnits(rewardDef.rewardChips);
+        const amount = BigInt(def.reward) * BigInt(10) ** BigInt(18);
         const missionId: Hex = keccak256(toBytes(`onboarding:${track}`));
         const nonce = BigInt(Date.now());
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 3600);
@@ -158,19 +149,18 @@ export async function POST(request: Request) {
                 wallet_address: wallet,
                 mission_id: `onboarding:${track}`,
                 period_id: ONBOARDING_PERIOD,
-                amount: amount.toString(),
+                amount: def.reward,
                 signature: sig,
                 deadline: new Date(Number(deadline) * 1000).toISOString(),
             });
         } catch {
-            // Bookkeeping only — the voucher is already signed and the
-            // onboarding_progress.is_claimed flag is the real claim lock.
+            // Bookkeeping only — voucher is already signed and claim is locked.
         }
 
         return NextResponse.json({
             success: true,
             track,
-            reward: rewardDef.rewardChips,
+            reward: def.reward,
             missionClaim: claim,
             chainId,
             voucher: {

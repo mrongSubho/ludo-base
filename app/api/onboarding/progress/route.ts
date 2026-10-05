@@ -3,11 +3,11 @@ import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth'
 import {
     ONBOARDING_TRACKS,
     ONBOARDING_TRACK_KEYS,
+    WELCOME_GRANT_REWARD,
     WELCOME_GRANT_MISSION_ID,
     isOnboardingTrack,
     type OnboardingTrack,
 } from '@/lib/onboardingServer';
-import { loadMissionCatalog, loadMissionDef } from '@/lib/missionCatalog';
 
 /**
  * GET /api/onboarding/progress?walletAddress=0x…&sessionId=…
@@ -35,9 +35,6 @@ export async function GET(request: Request) {
 
         const rows = data ?? [];
         const byTrack = new Map(rows.map((r: { track: string }) => [r.track, r]));
-        // Rewards are server-owned (mission_catalog), never hardcoded here.
-        const catalog = await loadMissionCatalog();
-        const rewards = new Map(catalog.map((m) => [m.missionId, m.rewardChips]));
         const tracks = ONBOARDING_TRACK_KEYS.map((key) => {
             const def = ONBOARDING_TRACKS[key];
             const row = byTrack.get(key) as
@@ -52,14 +49,12 @@ export async function GET(request: Request) {
                 core: def.core,
                 progress,
                 target,
-                reward: rewards.get(key) ?? 0,
+                reward: def.reward,
                 is_claimed: isClaimed,
                 claimable: progress >= target && !isClaimed,
                 voucher_id: row?.voucher_id ?? null,
             };
         });
-
-        const welcomeDef = await loadMissionDef(WELCOME_GRANT_MISSION_ID);
 
         const { data: welcome } = await db
             .from('mission_vouchers')
@@ -72,7 +67,7 @@ export async function GET(request: Request) {
             wallet,
             tracks,
             welcomeGrant: {
-                reward: welcomeDef?.rewardChips ?? 0,
+                reward: WELCOME_GRANT_REWARD,
                 claimed: (welcome?.length ?? 0) > 0,
             },
         });
@@ -115,7 +110,6 @@ export async function POST(request: Request) {
             .maybeSingle();
         if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
 
-        const rewardDef = await loadMissionDef(track);
         const prev = existing?.progress ?? 0;
         const target = existing?.target && existing.target > 0 ? existing.target : def.target;
         // Never let a replayed increment blow past the target.
@@ -139,7 +133,7 @@ export async function POST(request: Request) {
             track,
             progress,
             target,
-            reward: rewardDef?.rewardChips ?? 0,
+            reward: def.reward,
             complete: progress >= target,
             is_claimed: existing?.is_claimed ?? false,
         });

@@ -11,9 +11,13 @@
 -- frozen by 202609300001, so the coin paths were already dead and the drift
 -- was invisible.
 --
--- This table replaces all four. Rewards are CHIPS, whole units, and the band
--- is enforced by a CHECK constraint so a bad value cannot be inserted even by
--- a direct psql write.
+-- This table replaces three of the four (the daily/weekly ones). Rewards are
+-- CHIPS, whole units, and the 5..20 band is enforced by a CHECK constraint so a
+-- bad value cannot be inserted even by a direct psql write.
+--
+-- SCOPE: daily + weekly only. Onboarding is intentionally excluded and unchanged
+-- — its rewards predate the CHIPS cutover (core package 1000, expanded pack
+-- 350) and remain in lib/onboardingShared.ts ONBOARDING_TRACKS.
 --
 -- Design notes:
 --  * period drives both the reset cadence and the on-chain periodId:
@@ -33,7 +37,11 @@ create table if not exists public.mission_catalog (
   title        text not null,
   description  text not null default '',
   target       integer not null default 1 check (target >= 0),
-  reward_chips numeric(12, 2) not null check (reward_chips >= 5 and reward_chips <= 20),
+  -- 5..20 band applies to the redesigned daily/weekly CHIPS missions only.
+  -- Onboarding is exempt by decision: its rewards predate the CHIPS cutover and
+  -- keep their original values (core package 1000, expanded pack 350), which are
+  -- owned by lib/onboardingShared.ts ONBOARDING_TRACKS, not by this table.
+  reward_chips numeric(12, 2) not null,  -- see mission_catalog_reward_band below
   active       boolean not null default true,
   sort_order   integer not null default 0,
   updated_at   timestamptz not null default now(),
@@ -42,6 +50,10 @@ create table if not exists public.mission_catalog (
     (category = 'onboarding' and period = 'once') or
     (category = 'daily'     and period = 'day')  or
     (category = 'weekly'    and period = 'week')
+  ),
+  constraint mission_catalog_reward_band check (
+    category = 'onboarding'
+    or (reward_chips >= 5 and reward_chips <= 20)
   )
 );
 
@@ -51,27 +63,13 @@ comment on table public.mission_catalog is
 alter table public.mission_catalog enable row level security;
 revoke all on public.mission_catalog from anon, authenticated;
 
--- ── Onboarding (one-time) ──────────────────────────────────────────────────
-insert into public.mission_catalog
-  (mission_id, category, period, title, description, target, reward_chips, sort_order) values
-  ('welcome_grant', 'onboarding', 'once', 'Welcome Grant',   'Held for your first session.',            0, 20,  1),
-  ('tutorial',      'onboarding', 'once', 'Tutorial',        'Finish the tutorial.',                    1, 10,  2),
-  ('ai_classic',    'onboarding', 'once', 'AI Classic',      'Win one AI Classic match.',               1,  8,  3),
-  ('ai_power',      'onboarding', 'once', 'AI Power',        'Win one AI Power match.',                 1,  8,  4),
-  ('ai_snakes',     'onboarding', 'once', 'AI Snakes',       'Win one Snakes match.',                   1,  8,  5),
-  ('pvp',           'onboarding', 'once', 'First PvP',       'Win one PvP match.',                      1, 15,  6),
-  ('playtime',      'onboarding', 'once', 'Playtime',        'Play for 60 minutes.',                    60, 15,  7),
-  ('social',        'onboarding', 'once', 'Social',          'Complete 4 social actions.',              4, 12,  8),
-  ('day2',          'onboarding', 'once', 'Day 2 Return',    'Return on your second day.',              1,  6,  9),
-  ('day3',          'onboarding', 'once', 'Day 3 Return',    'Return on your third day.',               1,  8, 10),
-  ('friend_dm',     'onboarding', 'once', 'Friends + DM',    'Add 10 friends and send 10 DMs.',          10, 10, 11),
-  ('clan',          'onboarding', 'once', 'Clan Join',       'Join a clan.',                            1, 10, 12)
-on conflict (mission_id) do update set
-  title = excluded.title,
-  description = excluded.description,
-  target = excluded.target,
-  reward_chips = excluded.reward_chips,
-  sort_order = excluded.sort_order;
+-- Onboarding tracks are deliberately NOT in this table. They predate the CHIPS
+-- cutover and their rewards (core package 1000, expanded pack 350) are owned by
+-- lib/onboardingShared.ts ONBOARDING_TRACKS, which is browser-safe and already
+-- the source the onboarding UI and /api/onboarding/* read. Keeping a second copy
+-- here would recreate exactly the drift this table exists to eliminate.
+-- The 'onboarding' category stays in the enum so a future migration can add them
+-- without another type change.
 
 -- ── Daily (58 CHIPS max per day) ───────────────────────────────────────────
 insert into public.mission_catalog

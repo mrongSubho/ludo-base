@@ -78,7 +78,7 @@ export const OnboardingPanel = () => {
                 core: def.core,
                 progress: live?.progress ?? 0,
                 target: live?.target && live.target > 0 ? live.target : def.target,
-                reward: live?.reward ?? 0,
+                reward: live?.reward ?? def.reward,
                 is_claimed: live?.is_claimed ?? false,
                 claimable: live?.claimable ?? false,
                 voucher_id: live?.voucher_id ?? null,
