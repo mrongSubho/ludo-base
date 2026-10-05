@@ -47,11 +47,10 @@ Coins are frozen (202609300001). CHIPS became the only money. Rewards were
 previously defined in four places with two currencies and three values for the
 same mission id; all four are now gone.
 
-- [x] `mission_catalog` table is the single source of truth; rewards are whole CHIPS, CHECK-constrained to 5..20
-- [x] `daily_bonus` = 10 CHIPS; weekly track added (90 CHIPS/week); daily 58, onboarding 130 one-time
+- [x] `mission_catalog` is the single source of truth for **daily + weekly**; whole CHIPS, CHECK-constrained to 5..20
+- [x] `daily_bonus` = 10 CHIPS; weekly track added (90 CHIPS/week); daily 58/week
 - [x] `lib/missionCatalog.ts` is the only reader; `ONBOARDING_REWARDS` deleted
-- [x] `ONBOARDING_TRACKS` keeps only browser-safe structure; no reward field
-- [x] Referral economy constants moved to env with documented defaults
+- [x] **Onboarding deliberately untouched** — core package 1000, expanded pack 350, welcome grant 50, referral 5000/50/10, all still in `ONBOARDING_TRACKS`. Its rewards predate the CHIPS cutover and are a new-user grant, not a repeatable mission, so the 5..20 band does not apply to them. The band CHECK is category-scoped (`mission_catalog_reward_band`) so onboarding is exempt by decision, and no onboarding rows exist in the catalog.
 - [x] `player_missions` keyed by (player, mission, period_id) — daily/weekly cadence falls out of the schema, ad-hoc reset logic deleted
 - [x] SEC-10 closed: `/api/missions/voucher` reward/periodId/nonce are server-owned; claim lock is the `unique(wallet_address, mission_id, period_id)` constraint
 - [x] `/api/missions/claim` retired with an explicit 410 (it flipped `is_claimed` then hit the frozen-coins trigger)
