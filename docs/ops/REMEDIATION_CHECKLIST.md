@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Source** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) @ `e49600a`, 2026-10-05 |
-| **Status** | Phase 0 complete · 4 Critical closed (DB-01, DB-02, DB-03, SEC-05) · **12 Critical open** |
+| **Status** | Phase 0 **15/16** · 4 Critical closed (DB-01, DB-02, DB-03, SEC-05) · **12 Critical open** |
 | **Baseline gates** | `tsc` 0 · `lint` clean · `npm test` 91/91 · `check:engine` sync · `check:rls` clean |
 | **Rule** | Do not close an item until its **exit gate** passes. A finding closed by assertion, not by test, reopens. |
 
@@ -34,10 +34,11 @@
 
 ### Exit gate
 
-- [x] `npm run check:schema` green on a scratch DB with the chain applied from empty. *(Verified against PostgreSQL 16; chain applies 13/13, 37 tables.)*
-- [x] `supabase db reset` completes; schema diff against a migrated DB is empty. *(RESET → 0 tables / 0 publication members, pgcrypto preserved; re-applying reproduces the migrated schema exactly.)*
+- [x] `npm run check:schema` green. **Static mode (A1–A4) is what CI runs and it is green.** *(Verified against PostgreSQL 16 separately: chain applies 16/16, 37 tables.)*
+- [ ] `check:schema` **DB mode** in CI: apply the chain to a scratch Postgres and assert zero errors, expected `column_default`, expected `pg_proc`, no `anon`/`authenticated` EXECUTE on `security definer`, no `anon` table grants. **NOT DONE.** The mode exists behind `LUDO_SCHEMA_DB_URL` but `pg` is not a dependency and CI sets no URL, so it prints a skip notice and only A1–A4 run. A1/A2 catch DB-01 from both directions and A3 catches DB-02, so the shipped defects are covered — but the grant/default assertions are unenforced.
+- [x] `supabase db reset` completes; schema diff against a migrated DB is empty. *(Proven in substance, not with the literal command: Docker is unavailable in this environment, so `supabase db reset` cannot run. Instead the full chain was applied file-by-file with psql against PostgreSQL 16 — 16/16 files, 0 failures — and the RESET script was executed directly. RESET → 0 tables / 0 publication members / pgcrypto preserved, and re-applying the chain reproduced the migrated schema column-for-column. A literal `supabase db reset` still needs a run on a machine with Docker.)*
 - [x] A receipt inserted through Edge `roll-dice` is consumable by `move-auth`. *(Proven in psql: an insert without `status` now lands as `open`; `isDuplicateAction('open') === false`. `scripts/network-boundary.test.ts` pins the allowlist, `check:schema` A3 pins the DB default.)*
-- [x] `/api/marketplace/purchase` no longer 409s. **Coins frozen; marketplace is coins-only and has no CHIPS payment rail yet — see "CHIPS migration" below.**
+- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **NOT DONE.** `purchase_marketplace` is frozen and the route still calls it, so it returns 409 with a raw `LEGACY_COINS_FROZEN` message. The exit gate offered "or its caller is removed"; the caller is still there. Fixing it needs the CHIPS payment rail — tracked under "CHIPS migration" below.
 
 ---
 
