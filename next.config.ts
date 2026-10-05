@@ -46,6 +46,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Documents must never be served stale from a cache. In-app webviews
+        // (Farcaster/X/Coinbase) happily reuse a cached HTML shell, which pins
+        // the old hashed CSS/JS and makes a shipped fix look like a no-op.
+        // Hashed build assets, API routes and files stay cacheable.
+        source: '/:path((?!_next/|api/|.*\\.[^/]+$).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+        ],
+      },
+      {
         source: '/(.*)',
         headers: [
           {
