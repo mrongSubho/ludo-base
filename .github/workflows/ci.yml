@@ -8,6 +8,22 @@ on:
 jobs:
   engine-tests:
     runs-on: ubuntu-latest
+    # check:schema DB mode applies the real migration chain to a scratch
+    # Postgres and asserts catalog invariants (grants, security definer
+    # EXECUTE, column defaults, function signatures). Static A1-A4 run without
+    # this service; the DB assertions need a real engine.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      LUDO_SCHEMA_DB_URL: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,10 +40,14 @@ jobs:
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate
         run: npm run check:rls
-      - name: Schema contract gate
-        # Catches the DB-01 class (CREATE OR REPLACE renaming input parameters,
-        # silently truncating a non-transactional migration) and the DB-02
-        # class (a column default no code accepts). Runs without a database.
+      - name: Schema contract gate (static A1-A4 + DB-mode grants/defaults)
+        # Static: catches the DB-01 class (CREATE OR REPLACE renaming input
+        # parameters, silently truncating a non-transactional migration) and the
+        # DB-02 class (a column default no code accepts).
+        # DB mode (LUDO_SCHEMA_DB_URL set by the service above): applies the
+        # chain for real and asserts column defaults, function signatures,
+        # no anon/authenticated EXECUTE on security definer, and no anon table
+        # grants beyond the allowlist.
         run: npm run check:schema
 
   typecheck:

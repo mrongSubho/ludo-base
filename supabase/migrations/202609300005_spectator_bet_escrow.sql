@@ -384,6 +384,15 @@ comment on function public.chips_escrow_solvency() is
   'Invariant tripwire: sum(accounts.balance) must equal sum(ledger.delta). Non-zero delta means the escrow is corrupt.';
 
 -- service_role only.
+--
+-- chips_escrow_touch is an internal helper, not an entry point: it is
+-- security definer (so the other definer functions can call it under their own
+-- search_path) and must still be unreachable from the outside. Postgres grants
+-- EXECUTE to PUBLIC on new functions by default, and PostgREST will happily
+-- expose a public-schema function to anon, so this needs an explicit revoke.
+-- Found by `npm run check:schema` (DB mode), which flags any security definer
+-- function that anon/authenticated can reach directly or via PUBLIC.
+revoke execute on function public.chips_escrow_touch(text) from public, anon, authenticated;
 revoke execute on function public.chips_escrow_place_bet(text, uuid, text, text, numeric, text) from public, anon, authenticated;
 revoke execute on function public.chips_escrow_settle_bets(uuid, text, text) from public, anon, authenticated;
 revoke execute on function public.chips_escrow_deposit(text, numeric, text) from public, anon, authenticated;

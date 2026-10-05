@@ -278,7 +278,14 @@ async function assertAgainstDatabase(url, files) {
         for (const role of ['anon', 'authenticated', 'service_role']) {
             await c.query(`do $$ begin if not exists (select 1 from pg_roles where rolname='${role}') then execute format('create role %I nologin','${role}'); end if; end $$;`);
         }
-        await c.query('do $$ begin perform 1 from pg_publication where pubname=\'supabase_realtime\'; exception when undefined_object then create publication supabase_realtime; end $$;');
+        // CREATE PUBLICATION cannot run inside plpgsql, and the baseline's
+        // `alter publication supabase_realtime add table` needs it to exist.
+        // Supabase projects always have it; a scratch CI Postgres does not.
+        try {
+            await c.query('create publication supabase_realtime');
+        } catch (err) {
+            if (err.code !== '42710') throw err; // 42710 = duplicate_object
+        }
 
         for (const { file, sql } of files) {
             try { await c.query(sql); }
@@ -295,14 +302,29 @@ async function assertAgainstDatabase(url, files) {
             fail(`DB match_rolls.status default is ${def[0]?.column_default} (expected 'open')`);
         }
 
+        // Security-definer functions must not be callable by anon/authenticated
+        // or by PUBLIC. Uses has_function_privilege rather than parsing proacl:
+        // an earlier version gated on `!/service_role/.test(acl)`, which is
+        // always false in the correct end state (service_role *should* hold
+        // EXECUTE), so the assertion could never fire. A security gate that
+        // silently passes is worse than no gate.
+        //
+        // Trigger functions (returns trigger) are excluded: they have no
+        // callable entry point, so EXECUTE on them is inert.
         const { rows: sdef } = await c.query(
-            `select p.proname, p.prosecdef, coalesce(array_to_string(p.proacl,','),'DEFAULT') acl
-             from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-             where n.nspname='public' and p.prosecdef`);
+            `select p.proname,
+                    has_function_privilege('anon',         p.oid, 'EXECUTE') as anon_exec,
+                    has_function_privilege('authenticated', p.oid, 'EXECUTE') as auth_exec
+               from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public'
+                and p.prosecdef
+                and p.prokind = 'f'            -- functions only, not procedures
+                and p.prorettype <> 'trigger'::regtype`);
         for (const f of sdef) {
-            if (f.proname.endsWith('_columns') || f.proname.endsWith('_summary')) continue; // trigger fns
-            if (/\b(anon|authenticated|PUBLIC)\b/.test(f.acl) && !/service_role/.test(f.acl)) {
-                fail(`DB security definer ${f.proname} is executable by anon/authenticated/public`);
+            if (f.anon_exec || f.auth_exec) {
+                const who = [f.anon_exec ? 'anon' : null, f.auth_exec ? 'authenticated' : null]
+                    .filter(Boolean).join('/');
+                fail(`DB security definer ${f.proname} is executable by ${who} (directly or via PUBLIC)`);
             }
         }
 
