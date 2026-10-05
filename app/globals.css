@@ -2230,13 +2230,13 @@ body.keyboard-open .app-shell {
   padding-bottom: var(--match-footer-slot, 46px);
 }
 
-/* Chat composer open: the board area is pinned to the height captured when the
-   composer opened (--frozen-h) so the IME / overlay can never re-measure the
-   square. Needs !important because the mobile block sets height/flex on
-   .board-area, which would otherwise beat the inline custom property. */
-.board-area.is-frozen {
+/* Board box is committed, not measured live (hooks/useStableBoardBox): pin it
+   to the committed height so an overlay, a panel or the IME squeezing the
+   viewport cannot reflow the HUD cluster or re-measure the square. The square
+   itself comes from the committed value in JS; this just holds the box. */
+.board-area.is-locked {
   flex: 0 0 auto !important;
-  height: var(--frozen-h, auto) !important;
+  height: var(--board-area-h, auto) !important;
 }
 
 /* The board keeps its HUD rows tight: the area does NOT absorb the column

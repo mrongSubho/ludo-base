@@ -13,6 +13,7 @@ import {
 import { useGameEngine, Player } from '@/hooks/useGameEngine';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import { useElementSize } from '@/hooks/useElementSize';
+import { useStableBoardBox } from '@/hooks/useStableBoardBox';
 
 // Modular Components
 import { HomeBlock } from './BoardHome';
@@ -232,23 +233,15 @@ export default function Board({
     // ─── Power inventory: own eyes only (+ targeting) ────────────────────
     // You see your inventory, never opponents'. (Teammate view is a future
     // patch.) Spendable on your own rolling turn; one power per roll.
-    // Measured board sizing: the grid fills the real board-area box —
-    // no viewport arithmetic, correct on every screen by construction.
+    // ─── Board sizing: a COMMITTED value ──────────────────────────────────
+    // The square re-commits only on a real layout change (rotation, window
+    // resize, device) — see hooks/useStableBoardBox. Overlays (chat composer,
+    // panels, emotes) and the IME/keyboard can never shrink it; they draw over
+    // the board. The area box is pinned to the committed height too, so the
+    // HUD cluster around it never reflows either.
     const [areaRef, areaSize] = useElementSize<HTMLDivElement>();
-    const boardSquarePx = areaSize.w > 0 && areaSize.h > 0
-        ? Math.max(160, Math.floor(Math.min(areaSize.w, areaSize.h)))
-        : undefined;
-    // The in-game chat composer is an absolute overlay pinned to the bottom, but
-    // focusing it raises the IME — the viewport can then report less height,
-    // which would re-measure the square and shrink the board mid-match. Freeze
-    // the area at the height it had when the composer opened so the board is
-    // pixel-identical closed and open.
-    const [frozenBoardH, setFrozenBoardH] = useState<number | null>(null);
-    useEffect(() => {
-        setFrozenBoardH(chatOpen && areaSize.h > 0 ? Math.round(areaSize.h) : null);
-        // Only on transitions: capture once at open, release on close.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatOpen]);
+    const stableBox = useStableBoardBox(areaSize);
+    const boardSquarePx = stableBox?.square;
     const turnColor = localGameState.currentPlayer as PlayerColor;
     const ownColor = myPlayer?.color;
     const sendChat = React.useCallback(() => {
@@ -322,13 +315,13 @@ export default function Board({
             />
 
             <motion.div
-                className={`board-area${frozenBoardH ? ' is-frozen' : ''}`}
+                className={`board-area${stableBox ? ' is-locked' : ''}`}
                 ref={areaRef}
                 animate={isShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
                 transition={{ duration: 0.4 }}
                 style={{
                     position: 'relative', width: '100%', cursor: 'pointer',
-                    ...(frozenBoardH ? { '--frozen-h': `${frozenBoardH}px` } as React.CSSProperties : {}),
+                    ...(stableBox ? { '--board-area-h': `${stableBox.height}px` } as React.CSSProperties : {}),
                 }}
                 onClick={() => {
                     if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying) {
