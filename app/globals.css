@@ -3591,15 +3591,19 @@ body.theme-retro-futurism .home-pad {
     gap: 2px !important;
   }
 
+  /* Takes the leftover height (top row / status stay at the top, bottom row +
+     match footer stay at the bottom via space-between) and centers the square
+     inside it — so the split above/below the board is even instead of pooling
+     into one gap below the board. min-height:0 keeps it shrinkable. */
   .board-area {
-    flex: 0 0 auto !important;
+    flex: 1 1 auto !important;
     min-height: 0 !important;
     height: auto !important;
     max-height: none !important;
     width: 100% !important;
     display: flex !important;
     justify-content: center !important;
-    align-items: flex-start !important;
+    align-items: center !important;
   }
 
   .board-wrapper {
