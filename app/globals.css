@@ -10579,8 +10579,9 @@ body.theme-daybreak .team-chat-toggle.on {
   display: none;
 }
 .emoji-pack-tabs {
-  padding: 3px;
-  border-radius: 12px;
+  padding: 4px;
+  gap: 5px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.06);
 }
 .emoji-pack-tabs button,
@@ -10597,10 +10598,29 @@ body.theme-daybreak .team-chat-toggle.on {
   font-size: 19px;
   cursor: pointer;
 }
+/* Sheet tabs: every tab is a visible pill and they share the row equally, so
+   an inactive pack reads as a target rather than as empty space. */
+.emoji-pack-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+.emoji-pack-tabs button:hover,
+.emoji-pack-tabs button:focus-visible {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.4);
+}
 .emoji-pack-tabs button.active,
 .emote-pack-tabs-inline button.active {
   color: #082f49;
   background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  border-color: transparent;
   box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.55);
 }
 .emoji-pack-grid {
@@ -11334,7 +11354,14 @@ body.theme-daybreak .emoji-pack-tabs {
   background: rgba(15, 23, 42, 0.08);
 }
 body.theme-daybreak .emoji-pack-tabs button {
-  color: rgba(15, 23, 42, 0.68);
+  color: rgba(15, 23, 42, 0.78);
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.05);
+}
+body.theme-daybreak .emoji-pack-tabs button:hover,
+body.theme-daybreak .emoji-pack-tabs button:focus-visible {
+  background: rgba(0, 82, 255, 0.12);
+  border-color: rgba(0, 82, 255, 0.28);
 }
 body.theme-daybreak .emoji-pack-tabs button.active,
 body.theme-daybreak .emote-pack-tabs-inline button.active {

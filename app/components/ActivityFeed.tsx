@@ -1261,6 +1261,10 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
 
             {/* Input (always live — sending is orthogonal to filters) */}
             <div className="px-5 pt-2 pb-3">
+                {/* Draft strip: shows the actual emote art. Every item in a pack
+                    shares the pack's tab glyph, so the field alone can't show
+                    which emote was picked. */}
+                <ChatDraftPreview emotes={inputEmotes} />
                 <div className="flex gap-1.5 relative">
                     <textarea
                         value={input}
