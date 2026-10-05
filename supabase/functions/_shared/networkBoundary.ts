@@ -32,6 +32,21 @@ export function isTerminalMatch(state: { winner?: unknown; status?: string }): b
   return Boolean(state.winner) || state.status === 'finished';
 }
 
+/**
+ * match_rolls.status values that mean "this receipt has not been spent yet".
+ *
+ * Must stay in sync with the DB CHECK constraint (match_rolls_status_check)
+ * added in 202609300002. `npm run check:schema` (A3) asserts that the
+ * migration-declared column default is a value this file treats as unspent,
+ * so a future column-default or CHECK change cannot drift away silently —
+ * which is exactly how `default 'available'` vs `status !== 'open'` 409'd
+ * every networked move on a fresh install while CI stayed green.
+ *
+ * Unknown/missing values fail closed (treated as spent).
+ */
+export const OPEN_ROLL_STATUSES = ['open'] as const;
+
 export function isDuplicateAction(status: string | null | undefined): boolean {
-  return status !== 'open';
+  if (status === null || status === undefined) return true;
+  return !(OPEN_ROLL_STATUSES as readonly string[]).includes(status);
 }

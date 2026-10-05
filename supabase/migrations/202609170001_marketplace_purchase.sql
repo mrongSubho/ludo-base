@@ -1,3 +1,6 @@
+
+begin;
+
 create table if not exists public.marketplace_purchases (
   id uuid primary key default gen_random_uuid(),
   wallet_address text not null references public.players(wallet_address) on delete cascade,
@@ -35,3 +38,5 @@ end; $$;
 
 revoke execute on function public.purchase_marketplace(text, text, text[], bigint) from public, anon, authenticated;
 grant execute on function public.purchase_marketplace(text, text, text[], bigint) to service_role;
+
+commit;

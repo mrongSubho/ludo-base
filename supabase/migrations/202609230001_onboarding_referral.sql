@@ -1,6 +1,8 @@
 -- Onboarding / referral support (CHIPS_PLANNING 7.7)
 -- Apply manually via Supabase SQL editor or Management API.
 
+begin;
+
 create table if not exists public.referral_links (
   referrer_wallet text not null references public.players(wallet_address) on delete cascade,
   referee_wallet text not null references public.players(wallet_address) on delete cascade,
@@ -46,3 +48,5 @@ create table if not exists public.mission_vouchers (
 alter table public.referral_links enable row level security;
 alter table public.onboarding_progress enable row level security;
 alter table public.mission_vouchers enable row level security;
+
+commit;

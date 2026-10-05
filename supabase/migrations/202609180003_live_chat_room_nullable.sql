@@ -1,6 +1,9 @@
 -- Compat: restore archive semantics for live_chat.room_code.
 -- Global shouts carry NULL room_code; room announces carry room_code +
 -- room_open. Idempotent on archive-migrated DBs (already nullable).
+
+begin;
+
 do $$
 begin
   if exists (
@@ -15,3 +18,5 @@ end $$;
 -- Already in baseline; guarded no-op for determinism across both lineages.
 create index if not exists live_chat_room_idx
   on public.live_chat (room_code, created_at desc);
+
+commit;

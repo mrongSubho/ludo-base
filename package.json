@@ -12,6 +12,7 @@
     "test:golden": "npx --yes tsx --test scripts/golden-replay.test.ts",
     "golden:write": "npx --yes tsx scripts/golden-replay.ts write",
     "check:rls": "node scripts/check-rls.mjs",
+    "check:schema": "node scripts/check-schema.mjs",
     "test:mp": "npx --yes tsx --test scripts/mp.harness.ts",
     "test:props": "npx --yes tsx --test scripts/engine.props.test.ts",
     "test:foundation": "npx --yes tsx --test scripts/foundation.test.ts",

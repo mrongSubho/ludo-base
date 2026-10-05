@@ -2,6 +2,8 @@
 -- Two wallets opt in; progression is NOT auto-merged (separate players rows until product says otherwise).
 -- CHIPS funds never move on link.
 
+begin;
+
 create table if not exists public.wallet_links (
   id uuid primary key default gen_random_uuid(),
   primary_wallet text not null,
@@ -28,3 +30,5 @@ begin
       using (false) with check (false);
   end if;
 end $$;
+
+commit;

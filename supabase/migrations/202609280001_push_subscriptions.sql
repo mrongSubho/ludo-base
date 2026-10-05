@@ -1,6 +1,8 @@
 -- R5 remote push — VAPID subscription store (REAL_WALLET_PLAN).
 -- Service-role only: client POSTs through /api/push/* with an app session.
 
+begin;
+
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   wallet_address text not null,
@@ -32,3 +34,5 @@ begin
       using (false) with check (false);
   end if;
 end $$;
+
+commit;

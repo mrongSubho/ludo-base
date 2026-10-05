@@ -1,32 +1,32 @@
--- Freeze all legacy players.coins writers (CHIPS cutover).
--- Apply via supabase db push. Coins become display-only.
+-- Corrective re-application of the legacy coin freeze.
 --
--- REPLACEMENT PATH: CHIPS is the only money. CHIPS balances are on-chain
--- (IChips.balanceOf) — there is no custodial CHIPS balance in Postgres, so no
--- Postgres-side CHIPS ledger may be introduced without a new decision.
---   - Missions   -> /api/onboarding/claim issues an EIP-712 MissionClaim voucher
---                   redeemed on-chain by the claimant's own wallet.
---   - Poke rewards -> same MissionClaim voucher path.
---   - Marketplace -> user transfers CHIPS to the treasury; the credit is
---                   confirmed from chips_events (indexed, tx_hash+log_index
---                   unique) and the cosmetic is granted server-side.
---   - Spectator betting -> still coins-only. See SYSTEM_REVIEW.md SEC-05:
---                   no stake is ever debited, so it cannot move to CHIPS
---                   without an escrow decision. Not frozen below.
+-- WHY THIS EXISTS: 202609230003_freeze_legacy_coin_writers.sql raised
+--   ERROR: cannot change name of input parameter "p_request_id"
+-- at its purchase_marketplace stub (it renamed p_request_id -> p_kind and
+-- p_item_ids -> p_items). That file was NOT wrapped in a transaction, so
+-- statements after the failure were silently skipped. Net effect in every
+-- environment that applied it:
 --
--- Wrapped in a transaction: the previous revision of this file raised
--- "cannot change name of input parameter" at the purchase_marketplace stub
--- (it renamed p_request_id -> p_kind and p_item_ids -> p_items). Because the
--- file was not transactional, statements after that point were silently
--- skipped in every environment that applied it, leaving block_coins_mutation()
--- and the players_coins_frozen trigger absent. See SYSTEM_REVIEW.md DB-01.
+--   cash_out_bet              frozen   (line 5 ran)
+--   settle_match_bets         frozen   (line 14 ran)
+--   purchase_marketplace      NOT frozen
+--   block_coins_mutation()    DOES NOT EXIST
+--   players_coins_frozen      ABSENT  -> players.coins has no DB-level guard
+--
+-- 202609230003 has been corrected in place (correct arg names + explicit
+-- transaction) so fresh installs are right. This migration re-applies the
+-- freeze idempotently so already-migrated environments converge too.
+--
+-- Idempotent by construction: every statement is CREATE OR REPLACE,
+-- DROP TRIGGER IF EXISTS + CREATE TRIGGER, or a COMMENT ON.
+-- Safe to run against an environment where the freeze already fully applied.
+--
+-- See docs/ops/SYSTEM_REVIEW.md DB-01 / DB-03.
 
 begin;
 
--- 1) Coin-mutating RPCs throw.
--- Signatures MUST match the live definitions exactly: CREATE OR REPLACE
--- cannot rename input parameters, it errors and aborts the transaction.
---   purchase_marketplace -> defined in 202609170001_marketplace_purchase.sql:13
+-- 1) Coin-mutating RPCs throw. Signatures must match the live definitions
+--    exactly; CREATE OR REPLACE cannot rename input parameters.
 create or replace function public.cash_out_bet(p_bet_id uuid, p_player_id text)
 returns jsonb
 language plpgsql security definer set search_path = public
@@ -75,7 +75,8 @@ begin
   end loop;
 end $$;
 
--- 3) Block any coins UPDATE (defense in depth).
+-- 3) Block any coins UPDATE (defense in depth). This is the statement that
+--    never ran anywhere before this migration.
 create or replace function public.block_coins_mutation()
 returns trigger
 language plpgsql

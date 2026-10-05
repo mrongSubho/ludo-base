@@ -1,4 +1,7 @@
 -- CHIPS indexer cache (planning 8.3) — apply via SQL editor
+
+begin;
+
 create table if not exists public.chips_events (
   chain_id int not null,
   tx_hash text not null,
@@ -59,3 +62,5 @@ alter table public.chips_events enable row level security;
 alter table public.chips_pools enable row level security;
 alter table public.chips_pool_seats enable row level security;
 alter table public.chips_claimable enable row level security;
+
+commit;

@@ -1,6 +1,9 @@
 -- Compat: matches.finished_at for settlement idempotency / replay protection.
 -- winner_address alone cannot guard: draws record with null winner while
 -- progression still runs, so a null-winner match would stay re-recordable.
+
+begin;
+
 alter table public.matches
   add column if not exists finished_at timestamptz;
 
@@ -13,3 +16,5 @@ update public.matches
 -- unsettled; they stay re-recordable exactly once by design. Accepted.
 create index if not exists matches_finished_at_idx
   on public.matches (finished_at desc nulls last);
+
+commit;

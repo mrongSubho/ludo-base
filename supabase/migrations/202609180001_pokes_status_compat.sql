@@ -1,5 +1,8 @@
 -- Compat: accept code-canonical sent/poked_back plus baseline-legacy values.
 -- No destructive rewrite; legacy rows stay readable, new writes use sent/poked_back.
+
+begin;
+
 alter table public.pokes alter column status set default 'sent';
 
 alter table public.pokes drop constraint if exists pokes_status_check;
@@ -16,3 +19,5 @@ create index if not exists pokes_receiver_status_idx
   on public.pokes (receiver_id, status, created_at desc);
 create index if not exists pokes_sender_created_idx
   on public.pokes (sender_id, created_at desc);
+
+commit;

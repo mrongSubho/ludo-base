@@ -24,6 +24,11 @@ jobs:
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate
         run: npm run check:rls
+      - name: Schema contract gate
+        # Catches the DB-01 class (CREATE OR REPLACE renaming input parameters,
+        # silently truncating a non-transactional migration) and the DB-02
+        # class (a column default no code accepts). Runs without a database.
+        run: npm run check:schema
 
   typecheck:
     runs-on: ubuntu-latest
