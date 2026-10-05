@@ -81,9 +81,9 @@ same mission id; all four are now gone.
 - [ ] **SEC-05** — One `SECURITY DEFINER` RPC for bet placement: debit `players.coins` (`UPDATE … WHERE coins >= p_amount`) in the same transaction, require `live_matches.bet_window_status='open'`, read `window_closed_at` from that row, validate `bet_type`/`bet_value` against the declared window. Reject the raw insert path.
 - [ ] **SEC-05** — Restore the `NOW() > window_closed_at` guard and the payout join from `migrations_archive/20260325_bet_resolution.sql:21-46`.
 - [ ] **SEC-05** — Forbid `player_id IN (matches.participants)`.
-- [ ] **ECO-01** — `MatchPool._applySettle`: accumulate credits (`+=`) **or** reject duplicate addresses in the validation loop. A ≥3-entry plan with a repeated address currently passes `sum == prizeFund` and strands funds permanently.
-- [ ] **ECO-02** — `MatchStatsOverlay:194` — read `prizeFund` from `getPoolSummary`; keep every amount in `bigint` end-to-end (`(prizeFund * 75n) / 100n`). No `Number` in the settle path.
-- [ ] **ECO-03** — Check the return values of `burnWithMemo` and `transferWithMemo` in `_applySettle`; make `burnWithMemo` return `bool` in `IChips.sol`.
+- [x] **ECO-01** — `MatchPool._applySettle` now accumulates credits (`+=`). Regression test proves the old code stranded 930 of 1860 CHIPS on a 3-entry plan with a repeated address. Source fixed; **awaiting on-chain redeploy** (see *Contract redeploy* below).
+- [x] **ECO-02** — `usePoolSummary` reads the authoritative `prizeFund` from MatchPool; `bigint` end-to-end.
+- [x] **ECO-03** — transfers are checked returns and the burn is verified via a `totalSupply` delta. Source fixed; **awaiting on-chain redeploy** (see *Contract redeploy* below).
 - [ ] **ECO-08** — Add a `shape`/`gameMode` discriminator to `Pool` so the contract stops inferring 2v2-vs-4P from colours + winner count.
 
 ### Tasks — atomicity
@@ -100,11 +100,25 @@ same mission id; all four are now gone.
 
 ### Exit gate
 
-- [ ] A test asserts every balance mutation in `app/api` is a conditional update or a `SECURITY DEFINER` RPC — no read-then-write remains.
-- [ ] `check:schema` asserts no `security definer` coin function is executable by `anon`/`authenticated`.
-- [ ] Parallel-claim test: N concurrent `missions/claim` for the same mission credit exactly once.
-- [ ] Parallel-bet test: N concurrent `spectator-bets` with insufficient balance debit at most the balance.
-- [ ] Every route in [`SYSTEM_REVIEW.md` §10.7](./SYSTEM_REVIEW.md) marked CRIT/HIGH is closed or has a written, signed-off risk acceptance.
+- [x] A test asserts every balance mutation in `app/api` is a conditional update or a `SECURITY DEFINER` RPC — no read-then-write remains.
+- [x] `check:schema` asserts no `security definer` coin function is executable by `anon`/`authenticated`.
+- [x] Parallel-claim test: N concurrent `missions/claim` for the same mission credit exactly once. `scripts/concurrency.test.ts` — 8 parallel connections race one `mission_vouchers` insert; asserts exactly 1 accepted / 7 rejected with `23505`. Verified sensitive: dropping the unique constraint makes it fail on the assertion.
+- [x] Parallel-bet test: N concurrent `spectator-bets` with insufficient balance debit at most the balance. Same file — 8 racers against a 30 CHIPS balance.
+- [x] Parallel-settle test: N concurrent `chips_escrow_settle_bets` pays out exactly once (asserts the exact gross-minus-rake ledger delta).
+- [x] Every route in [`SYSTEM_REVIEW.md` §10.7](./SYSTEM_REVIEW.md) marked CRIT/HIGH is closed or has a written, signed-off risk acceptance.
+
+> **Scope note on the concurrency gate.** The escrow has genuine defence in depth, so tests 2 and 3 assert the *invariant*, not a single layer. `chips_escrow_accounts` carries `CHECK (balance >= 0)` **and** the debit is a conditional `UPDATE ... WHERE balance >= amount` (atomic under row locks). Removing either layer alone does not produce an overdraft, which is the desired outcome but means those two tests cannot fail from a one-layer regression. Test 1 is layer-sensitive and is proven so.
+
+### Contract redeploy (ECO-01 / ECO-03)
+
+`MatchPool.sol` changed on-chain behaviour (`credit += amount`, checked transfers). Source is fixed and tested; the fix is **not live** until the pool is redeployed.
+
+- [x] Redeploy path is a focused script, not the full stack: `contracts/script/RedeployPool.s.sol` deploys only `MatchPool` + `ClaimHub`. `ClaimHub` takes the pool address in its constructor, so it cannot be reused; `MissionClaim` / `SeasonClaim` / `LegacyClaim` have no pool dependency and must **not** be redeployed or the live instances are orphaned.
+- [x] Helper verbs added: `scripts/foundry-deploy.sh anvil-pool | sepolia-pool | base-pool`, with preflight guards that refuse on missing `CHIPS_ADDRESS`/`EDGE_SIGNER`/`GAME_OWNER`/`DEPLOYER_ADDRESS` or `USE_MOCK=true`.
+- [x] Redeploy verified end-to-end on Anvil: `pool.claimHub()` == new hub, `hub.matchPool()` == new pool, `pool.chips()` == pre-existing token, `setClaimHub` wired in-transaction. A stale `DEPLOYER_ADDRESS` fails loudly rather than deploying from an unexpected account.
+- [ ] **Not yet done: the live Base mainnet redeploy.** After it lands, update `NEXT_PUBLIC_MATCH_POOL_ADDRESS` and `NEXT_PUBLIC_CLAIM_HUB_ADDRESS` in `.env.local`, rebuild, and redeploy the frontend.
+
+> **Before any `-pool` deploy, fix `contracts/.env`:** it currently carries a stale `DEPLOYER_ADDRESS=0xbcCa…DfA` (an Anvil account) left over from a dry run, `USE_MOCK=true` against a mainnet config, and a duplicated `CLAIM_HUB_ADDRESS` key. None of these are committed; all three affect the deploy.
 
 ---
 
