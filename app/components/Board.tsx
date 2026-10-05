@@ -238,11 +238,11 @@ export default function Board({
     const boardSquarePx = areaSize.w > 0 && areaSize.h > 0
         ? Math.max(160, Math.floor(Math.min(areaSize.w, areaSize.h)))
         : undefined;
-    // The in-game chat composer is a floating overlay pinned over the footer,
-    // and focusing it raises the IME — either way the viewport can report less
-    // height, which would re-measure the square and shrink the board mid-match.
-    // Freeze the area at the height it had when the composer opened so the
-    // board geometry is identical closed and open.
+    // The in-game chat composer is an absolute overlay pinned to the bottom, but
+    // focusing it raises the IME — the viewport can then report less height,
+    // which would re-measure the square and shrink the board mid-match. Freeze
+    // the area at the height it had when the composer opened so the board is
+    // pixel-identical closed and open.
     const [frozenBoardH, setFrozenBoardH] = useState<number | null>(null);
     useEffect(() => {
         setFrozenBoardH(chatOpen && areaSize.h > 0 ? Math.round(areaSize.h) : null);

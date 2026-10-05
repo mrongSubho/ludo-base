@@ -2225,7 +2225,12 @@ body.keyboard-open .app-shell {
   padding: 0;
 }
 
-/* Chat composer open: pin the board area to the height captured when the
+/* Reserve the match footer's slot so the centred cluster never sits under it. */
+.board-outer {
+  padding-bottom: var(--match-footer-slot, 46px);
+}
+
+/* Chat composer open: the board area is pinned to the height captured when the
    composer opened (--frozen-h) so the IME / overlay can never re-measure the
    square. Needs !important because the mobile block sets height/flex on
    .board-area, which would otherwise beat the inline custom property. */
@@ -10400,27 +10405,34 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   }
 }
 
-/* ─── Match footer: Emotes left · Power orbs center (under dice/HUD) ─── */
-/* Split the leftover column height between above the HUD cluster and above the
-   match footer: two auto margins share the free space, so the board cluster
-   (top row + square + bottom row, packed tight) sits optically centred while
-   Emotes / power orbs / Chat stay pinned to the bottom edge. When the column
-   overflows on a short viewport both collapse to 0 and nothing is pushed out. */
+/* Split the leftover column height so the board cluster (top row + square +
+   bottom row, packed tight) stays optically centred with air above and below.
+   The two auto margins live on the ROWS, never on the footer: the footer is an
+   absolute bottom bar (see below), so a margin there would leave the flow. */
 .player-row-top {
   margin-top: auto;
 }
 
+.player-row-bottom {
+  margin-bottom: auto;
+}
+
+/* ─── Match footer: Emotes left · Power orbs center (under dice/HUD) ─── */
+/* Always an absolute bottom bar, never a flex child. That is what makes the
+   chat composer free: opening it grows the same box upward as an overlay
+   instead of leaving the flow, so the board cannot shift or re-measure.
+   .board-outer reserves --match-footer-slot so the cluster centres in the
+   space above it. */
 .match-footer {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  /* Paired with .player-row-top's auto margin — see note above. Deliberately
-     NOT `auto` on its own: a lone auto margin swallows the whole slack and
-     reopens the one-big-gap-under-the-board layout. */
-  margin-top: auto;
   padding: 2px 4px max(6px, env(safe-area-inset-bottom, 0px));
   z-index: 55;
 }
