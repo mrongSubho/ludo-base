@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Source** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) @ `e49600a`, 2026-10-05 |
-| **Status** | Phase 0 complete · 3 Critical closed (DB-01, DB-02, DB-03) · **13 Critical open** |
+| **Status** | Phase 0 complete · 4 Critical closed (DB-01, DB-02, DB-03, SEC-05) · **12 Critical open** |
 | **Baseline gates** | `tsc` 0 · `lint` clean · `npm test` 91/91 · `check:engine` sync · `check:rls` clean |
 | **Rule** | Do not close an item until its **exit gate** passes. A finding closed by assertion, not by test, reopens. |
 
@@ -37,7 +37,30 @@
 - [x] `npm run check:schema` green on a scratch DB with the chain applied from empty. *(Verified against PostgreSQL 16; chain applies 13/13, 37 tables.)*
 - [x] `supabase db reset` completes; schema diff against a migrated DB is empty. *(RESET → 0 tables / 0 publication members, pgcrypto preserved; re-applying reproduces the migrated schema exactly.)*
 - [x] A receipt inserted through Edge `roll-dice` is consumable by `move-auth`. *(Proven in psql: an insert without `status` now lands as `open`; `isDuplicateAction('open') === false`. `scripts/network-boundary.test.ts` pins the allowlist, `check:schema` A3 pins the DB default.)*
-- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **Open — blocked on the CHIPS migration below.**
+- [x] `/api/marketplace/purchase` no longer 409s. **Coins frozen; marketplace is coins-only and has no CHIPS payment rail yet — see "CHIPS migration" below.**
+
+---
+
+## CHIPS migration (coins → on-chain CHIPS)
+
+Coins are frozen (202609300001). CHIPS became the only money. Rewards were
+previously defined in four places with two currencies and three values for the
+same mission id; all four are now gone.
+
+- [x] `mission_catalog` table is the single source of truth; rewards are whole CHIPS, CHECK-constrained to 5..20
+- [x] `daily_bonus` = 10 CHIPS; weekly track added (90 CHIPS/week); daily 58, onboarding 130 one-time
+- [x] `lib/missionCatalog.ts` is the only reader; `ONBOARDING_REWARDS` deleted
+- [x] `ONBOARDING_TRACKS` keeps only browser-safe structure; no reward field
+- [x] Referral economy constants moved to env with documented defaults
+- [x] `player_missions` keyed by (player, mission, period_id) — daily/weekly cadence falls out of the schema, ad-hoc reset logic deleted
+- [x] SEC-10 closed: `/api/missions/voucher` reward/periodId/nonce are server-owned; claim lock is the `unique(wallet_address, mission_id, period_id)` constraint
+- [x] `/api/missions/claim` retired with an explicit 410 (it flipped `is_claimed` then hit the frozen-coins trigger)
+- [x] SEC-05 closed: `chips_escrow_*` RPCs own the window gate, market, self-bet block, atomic stake debit, and idempotent settlement
+- [x] `resolve-bet` cross-checks the signed result against `match_states.state` before settling (SEC-29)
+- [x] All CHIPS value columns moved from `bigint` to `numeric` (bigint maxes at 9.2234 CHIPS against a 1e10 supply)
+- [ ] **Marketplace CHIPS payment rail.** Cosmetics are coins-only with no CHIPS path. Needs a treasury address + a purchase-intent message, or a contract. Blocked on that decision.
+- [ ] **Arm the escrow.** `chips_escrow_config.enabled` is `false`; cannot be set true without a treasury wallet and non-zero rake. Requires a funded treasury, a deposit path reconciled against `chips_events`, and a solvency runbook.
+- [ ] **Poke rewards → CHIPS voucher.** `social/poke` still credits frozen coins (now a no-op) rather than minting a voucher.
 
 ---
 
