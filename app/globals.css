@@ -3558,13 +3558,22 @@ body.theme-retro-futurism .home-pad {
     bottom: var(--vv-dead-bottom, 0px) !important;
   }
 
+  /* The match footer must NOT use margin-top:auto on mobile: auto margins
+     and flex-grow compete for the same slack, and the auto margin wins by
+     absorbing all of it — parking the footer at the bottom and leaving one
+     big gap under the board. The board-area's flex:1 1 auto owns the slack
+     instead, so the footer simply follows the stack. */
+  .match-footer {
+    margin-top: 0 !important;
+  }
+
   .board-main {
     padding: 8px 0 !important;
     width: 100% !important;
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: flex-start !important;
+    justify-content: center !important;
     align-items: center !important;
     overflow: hidden !important;
     gap: 6px !important;
@@ -3642,8 +3651,11 @@ body.theme-retro-futurism .home-pad {
     flex-shrink: 0 !important;
   }
 
+  /* Center the whole stack. .board-area already absorbs slack (flex:1 1 auto +
+     align-items:center), so this is the fallback for when it cannot grow: it
+     centers the group instead of pooling the gap under the bottom row. */
   .board-outer {
-    justify-content: flex-start !important;
+    justify-content: center !important;
     /* Keep the HUD and board visually distinct without reopening the old
        flex-grown void. The gap scales gently with viewport height. */
     gap: clamp(6px, 1.1vh, 10px) !important;
