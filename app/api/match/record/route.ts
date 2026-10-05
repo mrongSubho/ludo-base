@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         {
             const { data: existing, error: fetchMatchErr } = await supabase
                 .from('matches')
-                .select('id, winner_address, finished_at, room_code, game_mode, participants')
+                .select('id, winner_address, finished_at, room_code, game_mode, participants, host_proven')
                 .eq('id', matchId)
                 .maybeSingle();
             if (fetchMatchErr) {
@@ -129,6 +129,22 @@ export async function POST(request: Request) {
             const canonicalHost = String(existing.participants?.[0] || '').toLowerCase();
             if (!canonicalHost || recovered !== canonicalHost) {
                 return NextResponse.json({ error: 'Only the canonical match host may record the result' }, { status: 403 });
+            }
+            // SEC-06: /api/match/start used to accept an unauthenticated body, so
+            // `canonicalHost` above was chosen by whoever created the row — an
+            // anonymous caller could nominate themselves, sign, and settle.
+            // host_proven is set only when the creator held a session for
+            // participants[0]; unproven matches are local/bot games and record no
+            // progression. This is the check that actually stops the forgery:
+            // the signature check above is circular without it.
+            if (!(existing as { host_proven?: boolean }).host_proven) {
+                return NextResponse.json(
+                    {
+                        error: 'Match host was never proven; this match cannot record progression',
+                        code: 'HOST_UNPROVEN',
+                    },
+                    { status: 403 },
+                );
             }
             if (existing.finished_at) {
                 return NextResponse.json({ error: 'Match already settled' }, { status: 409 });

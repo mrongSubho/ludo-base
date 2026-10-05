@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npx --yes tsx --test scripts/engine.test.ts scripts/network-boundary.test.ts scripts/chain-gate.test.ts scripts/engine.props.test.ts scripts/foundation.test.ts scripts/net.chaos.ts scripts/hardening.test.ts scripts/gameplay-gaps.test.ts scripts/verify-checklist.test.ts scripts/n0.test.ts scripts/mp.harness.ts scripts/q7.test.ts scripts/q6.test.ts scripts/n6.test.ts scripts/q5-n4.test.ts scripts/onboarding-claim.test.ts scripts/golden-replay.test.ts",
+    "test": "npx --yes tsx --test scripts/engine.test.ts scripts/network-boundary.test.ts scripts/pool-authority.test.ts scripts/chain-gate.test.ts scripts/engine.props.test.ts scripts/foundation.test.ts scripts/net.chaos.ts scripts/hardening.test.ts scripts/gameplay-gaps.test.ts scripts/verify-checklist.test.ts scripts/n0.test.ts scripts/mp.harness.ts scripts/q7.test.ts scripts/q6.test.ts scripts/n6.test.ts scripts/q5-n4.test.ts scripts/onboarding-claim.test.ts scripts/golden-replay.test.ts",
     "test:golden": "npx --yes tsx --test scripts/golden-replay.test.ts",
     "golden:write": "npx --yes tsx scripts/golden-replay.ts write",
     "check:rls": "node scripts/check-rls.mjs",
@@ -27,7 +27,8 @@
     "check:engine": "node scripts/check-edge-engine.mjs",
     "sync:engine": "node scripts/sync-edge-engine.mjs",
     "replay": "npx --yes tsx scripts/replay.ts",
-    "bench:ai": "npx --yes tsx scripts/ai.bench.ts"
+    "bench:ai": "npx --yes tsx scripts/ai.bench.ts",
+    "test:pool-authority": "npx --yes tsx --test scripts/pool-authority.test.ts"
   },
   "dependencies": {
     "@base-org/account": "^2.5.10",

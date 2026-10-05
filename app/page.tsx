@@ -12,6 +12,7 @@ import { BurnPanel } from './components/BurnPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
 import { ConnectionBadge } from './components/ConnectionBadge';
 import LandscapeGuard from './components/LandscapeGuard';
+import { useAppSession } from '../hooks/useAppSession';
 
 // ─── Phase 3 loading diet: heavy/below-fold surfaces split into lazy chunks.
 // First paint ships lobby + chrome only; board and panels load on demand. ──
@@ -261,6 +262,9 @@ export default function Page() {
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
+  // Needed to prove the canonical host to /api/match/start (SEC-06). Best-effort:
+  // offline/bot games still post the anonymous marker and are simply not settleable.
+  const { ensureAppSession } = useAppSession();
   const { signMessageAsync } = useSignMessage();
   // DM unread badge reads the same GameData store the panel writes, so it
   // cleans the instant a thread opens (no second source of truth).
@@ -528,18 +532,37 @@ export default function Page() {
       setBoardSeed({ players, colorCorner: cc, isBotMatch: effectiveIsBotMatch });
 
       try {
+        // Prove the canonical host so the match is settleable. If a wallet is
+        // connected we try for a session; if that fails we fall back to the
+        // anonymous marker, which creates a valid but non-settleable local match.
+        const roster = players.filter(p => !p.isAi).map(p => p.walletAddress || 'anonymous');
+        const rosterHasWallet = /^0x[a-f0-9]{40}$/i.test(String(roster[0] || ''));
+        let hostProof: { walletAddress?: string; sessionId?: string } = {};
+        if (rosterHasWallet && address) {
+          try {
+            const sid = await ensureAppSession();
+            if (sid) hostProof = { walletAddress: address, sessionId: sid };
+          } catch {
+            hostProof = {};
+          }
+        }
+
         const res = await fetch('/api/match/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
              roomCode: lobbyState?.roomCode || `local-${Date.now()}`,
              gameMode: lobbyState?.gameMode || selectedMode,
-             participants: players.filter(p => !p.isAi).map(p => p.walletAddress || 'anonymous')
+             participants: roster,
+             ...hostProof,
           })
         });
         if (res.ok) {
            const data = await res.json();
            newMatchId = data.matchId;
+           if (!data.settleable) {
+             console.info('ℹ️ Match recorded without a proven host — progression will not record.');
+           }
         } else {
            console.warn('⚠️ /api/match/start failed:', await res.text());
         }
