@@ -26,8 +26,9 @@ import {
 import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
-import { ChatDraftPreview, EmojiPickerPopover } from './EmojiPicker';
-import { encodeChatDraft, encodeChatEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
+import { EmojiPickerPopover } from './EmojiPicker';
+import { RichChatField } from './RichChatField';
+import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
 import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
@@ -480,23 +481,13 @@ export default function Board({
                             </button>
                             <button type="button" className="chat-sheet-x" onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
                         </div>
-                        <ChatDraftPreview emotes={chatDraftEmotes} />
                         <div className="match-chat-composer-row">
-                            <textarea
-                                className="chat-composer-input"
+                            <RichChatField
                                 value={chatDraft}
-                                maxLength={80}
-                                rows={1}
-                                placeholder={teamChatOnly ? 'Message your teammate…' : 'Message everyone…'}
-                                autoComplete="off"
-                                autoCorrect="off"
-                                autoCapitalize="sentences"
-                                spellCheck={false}
-                                enterKeyHint="send"
-                                autoFocus
-                                onChange={(e) => {
-                                    setChatDraft(e.target.value);
-                                    setChatDraftEmotes((items) => retainChatDraftEmotes(e.target.value, items));
+                                emotes={chatDraftEmotes}
+                                onChange={(next) => {
+                                    setChatDraft(next);
+                                    setChatDraftEmotes((items) => retainChatDraftEmotes(next, items));
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -505,13 +496,20 @@ export default function Board({
                                     }
                                     if (e.key === 'Escape') setChatOpen(false);
                                 }}
+                                placeholder={teamChatOnly ? 'Message your teammate…' : 'Message everyone…'}
+                                maxLength={80}
+                                autoFocus
+                                ariaLabel="In-game chat message"
                             />
                             <EmojiPickerPopover
                                 open={chatEmojiOpen}
                                 onToggle={() => setChatEmojiOpen((value) => !value)}
                                 onSelect={(emote) => {
-                                    setChatDraft((draft) => `${draft}${emote.glyph}`.slice(0, 80));
-                                    setChatDraftEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
+                                    setChatDraft((draft) => {
+                                        const next = insertDraftEmote(emote, draft, chatDraftEmotes, 80);
+                                        setChatDraftEmotes(next.emotes);
+                                        return next.value;
+                                    });
                                     setChatEmojiOpen(false);
                                 }}
                                 label="Add emoji"

@@ -12,8 +12,9 @@ import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { EmptyState } from './EmptyState';
-import { ChatContent, ChatDraftPreview, EmojiPickerPopover } from './EmojiPicker';
-import { encodeChatDraft, encodeChatEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
+import { ChatContent, EmojiPickerPopover } from './EmojiPicker';
+import { RichChatField } from './RichChatField';
+import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -795,27 +796,30 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
 
                                     {/* Input Area */}
                                     <div className="px-5 pt-2 pb-3">
-                                        <ChatDraftPreview emotes={inputEmotes} />
                                         <div className="flex gap-1.5 relative">
-                                            <input
-                                                type="text"
+                                            <RichChatField
                                                 value={inputValue}
-                                                maxLength={500}
-                                                onChange={(e) => {
-                                                    setInputValue(e.target.value);
-                                                    setInputEmotes((items) => retainChatDraftEmotes(e.target.value, items));
+                                                emotes={inputEmotes}
+                                                onChange={(next) => {
+                                                    setInputValue(next);
+                                                    setInputEmotes((items) => retainChatDraftEmotes(next, items));
                                                 }}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                                                 disabled={cooldownTime > 0}
-                                                placeholder={cooldownTime > 0 ? `Wait ${cooldownTime}s...` : "Type a message..."}
-                                                className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
+                                                placeholder={cooldownTime > 0 ? `Wait ${cooldownTime}s...` : 'Type a message...'}
+                                                maxLength={500}
+                                                hasCounter
+                                                ariaLabel="Message"
                                             />
                                             <EmojiPickerPopover
                                                 open={emojiOpen}
                                                 onToggle={() => setEmojiOpen((value) => !value)}
                                                 onSelect={(emote) => {
-                                                    setInputValue((value) => `${value}${emote.glyph}`.slice(0, 140));
-                                                    setInputEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
+                                                    setInputValue((value) => {
+                                                        const next = insertDraftEmote(emote, value, inputEmotes, 500);
+                                                        setInputEmotes(next.emotes);
+                                                        return next.value;
+                                                    });
                                                     setEmojiOpen(false);
                                                 }}
                                                 disabled={cooldownTime > 0}

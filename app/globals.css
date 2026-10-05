@@ -10456,28 +10456,6 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
 .match-footer .power-inv-strip {
   justify-content: center;
 }
-.chat-draft-emote-preview {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  margin-bottom: 5px;
-  padding: 3px 7px;
-  overflow-x: auto;
-  border: 1px solid color-mix(in srgb, var(--accent-cyan, #00e5ff) 30%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent-cyan, #00e5ff) 8%, transparent);
-}
-.chat-draft-emote-preview img,
-.chat-draft-emote-preview span {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  object-fit: contain;
-  font-size: 22px;
-  line-height: 30px;
-  text-align: center;
-}
 .match-footer-chat {
   position: absolute;
   left: 0;
@@ -10541,6 +10519,92 @@ body.theme-daybreak .team-chat-toggle.on {
   position: relative;
   flex: 0 0 auto;
 }
+/* ─── Rich chat field: emote art drawn inside the field ────────────────────
+   The textarea keeps a transparent text layer (real caret + IME) and a
+   mirrored backing layer paints the text and emote images in the same
+   metrics, so the shortcode positions line up exactly. Both layers share
+   font/padding/line-height — changing one means changing the other. */
+.rich-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+}
+.rich-field-back,
+.rich-field-input {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: normal;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 96px;
+}
+.rich-field-back {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.rich-field-input {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  resize: none;
+  color: transparent;
+  caret-color: #22d3ee;
+  background: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.rich-field-input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.2);
+}
+.rich-field-input:focus {
+  outline: none;
+  border-color: rgba(34, 197, 238, 0.5);
+}
+.rich-field-input:disabled {
+  opacity: 0.5;
+}
+/* Keep the text clear of the floating character counter. */
+.rich-field.has-counter .rich-field-back,
+.rich-field.has-counter .rich-field-input {
+  padding-right: 54px;
+}
+
+.rich-field-token {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: baseline;
+}
+/* Reserves the token's exact width in the painted layer so the real field's
+   caret/selection stay aligned with the art on top of it. */
+.rich-field-token-text {
+  color: transparent;
+}
+.rich-field-emote {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 20px;
+  object-fit: contain;
+  object-position: left center;
+}
+
 .emoji-picker-popover-wrap {
   position: relative;
   flex: 0 0 auto;
@@ -11091,35 +11155,22 @@ body.theme-daybreak .chat-sheet-x {
   gap: 8px;
   align-items: center;
 }
-.chat-composer-input {
-  flex: 1;
-  min-width: 0;
-  height: 40px;
-  resize: none;
-  overflow: hidden;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  outline: none;
+/* The in-match composer uses the same rich field as every other chat surface,
+   so it inherits its metrics here. */
+.match-chat-composer-row .rich-field {
+  min-height: 40px;
 }
-.chat-composer-input:focus {
-  border-color: rgba(34, 211, 238, 0.55);
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
-}
-.chat-composer-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-body.theme-daybreak .chat-composer-input {
-  background: #fff;
+body.theme-daybreak .rich-field-back {
   color: #1e2a44;
+  background: #fff;
   border-color: rgba(15, 23, 42, 0.12);
 }
-body.theme-daybreak .chat-composer-input::placeholder {
+body.theme-daybreak .rich-field-input {
+  caret-color: #0052ff;
+}
+body.theme-daybreak .rich-field-input::placeholder {
   color: rgba(15, 23, 42, 0.4);
+  -webkit-text-fill-color: rgba(15, 23, 42, 0.4);
 }
 
 /* Text entry controls share the app's pill language. Keep non-text controls
@@ -11301,13 +11352,16 @@ body.theme-daybreak .chat-bubble {
 .emote-sheet-option:active {
   transform: scale(0.96);
 }
+/* Quick-reaction sheet tabs: the pack tabs share the row with the TEXT tab and
+   are real pills, matching the emote sheet — previously they were bare 32px
+   glyphs on a transparent track, so only the active one read as a tab. */
 .emote-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   margin-bottom: 8px;
-  padding: 3px;
-  border-radius: 11px;
+  padding: 4px;
+  border-radius: 14px;
   background: rgba(255,255,255,0.06);
   overflow-x: auto;
   scrollbar-width: none;
@@ -11315,29 +11369,72 @@ body.theme-daybreak .chat-bubble {
 .emote-tabs::-webkit-scrollbar {
   display: none;
 }
-.emote-tabs button {
-  flex: 0 0 auto;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  color: rgba(255,255,255,0.58);
-  background: transparent;
-  font-size: 10px;
+.emote-tabs > button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 11px;
   font-weight: 850;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.emote-tabs > .emote-pack-tabs-inline {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  overflow: visible;
+}
+.emote-tabs > .emote-pack-tabs-inline button {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+}
+.emote-tabs > .emote-pack-tabs-inline button:hover,
+.emote-tabs > .emote-pack-tabs-inline button:focus-visible {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.4);
 }
 .emote-tabs button.active {
   color: #082f49;
   background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  border-color: transparent;
   box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+.emote-tabs .emote-pack-tabs-inline button.active {
+  color: #082f49;
+  background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  border-color: transparent;
 }
 body.theme-daybreak .emote-tabs {
   background: rgba(15, 23, 42, 0.08);
 }
-body.theme-daybreak .emote-tabs button {
-  color: rgba(15, 23, 42, 0.68);
+body.theme-daybreak .emote-tabs > button,
+body.theme-daybreak .emote-tabs > .emote-pack-tabs-inline button {
+  color: rgba(15, 23, 42, 0.78);
+  border-color: rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.05);
+}
+body.theme-daybreak .emote-tabs > button:hover,
+body.theme-daybreak .emote-tabs > .emote-pack-tabs-inline button:hover,
+body.theme-daybreak .emote-tabs > .emote-pack-tabs-inline button:focus-visible {
+  background: rgba(0, 82, 255, 0.12);
+  border-color: rgba(0, 82, 255, 0.28);
 }
 body.theme-daybreak .emote-tabs button.active {
   color: #fff;

@@ -12,9 +12,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelChildTabs } from './PanelTabs';
-import { ChatDraftPreview, EmojiPickerPopover } from './EmojiPicker';
+import { EmojiPickerPopover } from './EmojiPicker';
+import { RichChatField } from './RichChatField';
 import { ChatContent } from './EmojiPicker';
-import { encodeChatEmote, encodeChatDraft, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
+import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 
 interface Activity {
     id: string;
@@ -296,32 +297,30 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
 
             {/* Input */}
             <div className="px-5 pt-2 pb-3">
-                <ChatDraftPreview emotes={inputEmotes} />
                 <div className="flex gap-1.5 relative">
-                    <textarea
-                        value={input}
-                        maxLength={500}
-                        rows={1}
-                        onChange={(e) => {
-                            setInput(e.target.value);
-                            setInputEmotes((items) => retainChatDraftEmotes(e.target.value, items));
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-                        disabled={cooldown > 0}
-                        placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="sentences"
-                        spellCheck={false}
-                        enterKeyHint="send"
-                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
-                    />
+                    <RichChatField
+                                            value={input}
+                                            emotes={inputEmotes}
+                                            onChange={(next) => {
+                                                setInput(next);
+                                                setInputEmotes((items) => retainChatDraftEmotes(next, items));
+                                            }}
+                                            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                                            disabled={cooldown > 0}
+                                            placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
+                                            maxLength={500}
+                                            hasCounter
+                                            ariaLabel="Message"
+                                        />
                     <EmojiPickerPopover
                         open={emojiOpen}
                         onToggle={() => setEmojiOpen((value) => !value)}
                         onSelect={(emote) => {
-                            setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
-                            setInputEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
+                            setInput((value) => {
+                                const next = insertDraftEmote(emote, value, inputEmotes, 500);
+                                setInputEmotes(next.emotes);
+                                return next.value;
+                            });
                             setEmojiOpen(false);
                         }}
                         disabled={cooldown > 0}
@@ -1261,35 +1260,30 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
 
             {/* Input (always live — sending is orthogonal to filters) */}
             <div className="px-5 pt-2 pb-3">
-                {/* Draft strip: shows the actual emote art. Every item in a pack
-                    shares the pack's tab glyph, so the field alone can't show
-                    which emote was picked. */}
-                <ChatDraftPreview emotes={inputEmotes} />
                 <div className="flex gap-1.5 relative">
-                    <textarea
-                        value={input}
-                        maxLength={500}
-                        rows={1}
-                        onChange={(e) => {
-                            setInput(e.target.value);
-                            setInputEmotes((items) => retainChatDraftEmotes(e.target.value, items));
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-                        disabled={cooldown > 0}
-                        placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="sentences"
-                        spellCheck={false}
-                        enterKeyHint="send"
-                        className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl pl-3 pr-12 py-2.5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-600/50 transition-colors disabled:opacity-50"
-                    />
+                    <RichChatField
+                                            value={input}
+                                            emotes={inputEmotes}
+                                            onChange={(next) => {
+                                                setInput(next);
+                                                setInputEmotes((items) => retainChatDraftEmotes(next, items));
+                                            }}
+                                            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
+                                            disabled={cooldown > 0}
+                                            placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
+                                            maxLength={500}
+                                            hasCounter
+                                            ariaLabel="Message"
+                                        />
                     <EmojiPickerPopover
                         open={emojiOpen}
                         onToggle={() => setEmojiOpen((value) => !value)}
                         onSelect={(emote) => {
-                            setInput((value) => `${value}${emote.glyph}`.slice(0, 140));
-                            setInputEmotes((items) => [...items, { glyph: emote.glyph, assetUrl: emote.assetUrl, encoded: encodeChatEmote(emote) }]);
+                            setInput((value) => {
+                                const next = insertDraftEmote(emote, value, inputEmotes, 500);
+                                setInputEmotes(next.emotes);
+                                return next.value;
+                            });
                             setEmojiOpen(false);
                         }}
                         disabled={cooldown > 0}

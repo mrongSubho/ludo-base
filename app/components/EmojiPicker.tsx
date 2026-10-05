@@ -101,19 +101,6 @@ interface EmojiPickerPopoverProps {
     label?: string;
 }
 
-export function ChatDraftPreview({ emotes }: { emotes: readonly { glyph: string; assetUrl?: string }[] }) {
-    if (emotes.length === 0) return null;
-    return (
-        <div className="chat-draft-emote-preview" aria-label={`${emotes.length} emote${emotes.length === 1 ? '' : 's'} selected`}>
-            {emotes.map((emote, index) => emote.assetUrl ? (
-                <img key={`${emote.assetUrl}-${index}`} src={emote.assetUrl} alt={emote.glyph || 'Selected emote'} />
-            ) : (
-                <span key={`${emote.glyph}-${index}`}>{emote.glyph}</span>
-            ))}
-        </div>
-    );
-}
-
 export function EmojiPickerPopover({ open, onToggle, onSelect, disabled, label = 'Add emoji' }: EmojiPickerPopoverProps) {
     const packs = useEmojiPacks();
     const [tab, setTab] = useState(packs[0]?.id ?? '');
