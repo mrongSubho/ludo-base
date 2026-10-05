@@ -47,7 +47,18 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         const scrollFocusedControl = () => {
             const active = document.activeElement;
             if (!isEditable(active)) return;
-            active.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+            const el = active as HTMLElement;
+            const rect = el.getBoundingClientRect();
+            // Reveal only when the control is actually clipped. This used to
+            // call scrollIntoView({ block: 'center' }) on every focus, which
+            // scrolled the dashboard shell even when the field was fully
+            // visible — parking the field mid-screen and pushing the panel
+            // header/filters out of view, on desktop as well as on phones.
+            const margin = 24;
+            const top = rect.top - margin;
+            const bottom = rect.bottom + margin;
+            if (top >= 0 && bottom <= window.innerHeight) return;
+            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
         };
 
         const apply = () => {
