@@ -21,8 +21,14 @@ base = "${BASE_RPC}"
 anvil = "http://127.0.0.1:8545"
 
 [etherscan]
-base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
-base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.basescan.org/api" }
+# Etherscan V2: one multichain endpoint, chainid selects the network.
+# The old per-network V1 hosts (api-sepolia.basescan.org) now return
+# "deprecated V1 endpoint, switch to Etherscan API V2" and verification fails.
+# Do NOT add a `chainid` key here -- Forge 1.8.x silently drops it from the
+# resolved config, and the chain is instead taken from --chain-id / --rpc-url.
+# See scripts/verify-contracts.sh, which passes --chain-id explicitly.
+base_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api" }
+base = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/v2/api" }
 
 [fmt]
 line_length = 100
