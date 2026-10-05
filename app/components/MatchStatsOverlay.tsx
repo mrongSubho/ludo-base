@@ -10,6 +10,7 @@ import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { getDisplayNameHelper } from './PlayerInfoRow';
 import { buildMatchReceipt, renderReceiptMarkdown, type MatchReceipt } from '@/lib/receipt/buildMatchReceipt';
+import { usePoolSummary } from '@/hooks/useChipsPool';
 
 // ─── Post-match stats sheet ──────────────────────────────────────────────────
 // Terminal-glass treatment of the classic win sheet: result banner, XP strip,
@@ -182,18 +183,40 @@ export function MatchStatsOverlay({
         claimableChips != null
             ? claimableChips
             : estimateClaimChips(wager, seats, winnerCount);
+    // ECO-02: the authoritative prize fund, straight from MatchPool.
+    const poolSummary = usePoolSummary(poolId ?? null);
     const isPaid = wager > 0;
     const showClaimSlot = open && isPaid;
     const poolLive = typeof onClaimChips === 'function' && !!poolId;
     const secondsLeft = claimSecondsLeft ?? 0;
     const mmss = claimMmss ?? '0:00';
-    const claimReady = poolLive && estClaim > 0 && !!iWon && !claimBusy && secondsLeft === 0;
-
     // Locked splits: 2v2 50/50 · 4P top-2 75/25 (lib/payoutPlan + MatchPool).
     const shape = matchShapeOf(playerCount);
-    const prizeFundWei = BigInt(Math.max(0, Math.floor(wager * seats * 0.93 * 1e18)));
+
+    // ECO-02: the prize fund is read from MatchPool, never re-derived from the
+    // wager. The old `BigInt(Math.floor(wager * seats * 0.93 * 1e18))` built the
+    // amount in IEEE-754 doubles; at CHIPS scale that value is already quantised
+    // to ~256 wei, so the plan never summed to the contract's prizeFund and
+    // settlePool reverted SumMismatch. When no pool exists (offline / bot) the
+    // estimate is display-only and is clearly labelled as such.
+    const onChainPrizeFund = poolSummary?.prizeFund;
+    const prizeFundWei: bigint =
+        onChainPrizeFund && onChainPrizeFund > BigInt(0)
+            ? onChainPrizeFund
+            : BigInt(0);
+    // No pool on chain (offline / bot) => no settleable amount. The display-only
+    // per-winner estimate above (estimateClaimChips) still renders, but nothing
+    // that feeds a payout plan is derived from it.
+    const prizeFundIsEstimate = prizeFundWei === BigInt(0);
+    // Only allow the claim path once the fund is known from the chain.
+    const claimReady =
+        poolLive && !prizeFundIsEstimate && estClaim > 0 && !!iWon && !claimBusy && secondsLeft === 0;
+
     const settlePlan = useMemo(() => {
         if (!showClaimSlot || !winnerAddress || !isPoolHost) return null;
+        // Refuse to build a plan from an estimated fund: it would be wrong by
+        // construction and can only revert on-chain.
+        if (prizeFundIsEstimate) return null;
         // Phase-1: single funded winner wallet (1v1 / sole winner). Multi-seat
         // wallets attach per winnerAddress when each seat maps to a wallet.
         try {
@@ -205,7 +228,7 @@ export function MatchStatsOverlay({
         } catch {
             return null;
         }
-    }, [showClaimSlot, winnerAddress, isPoolHost, shape, prizeFundWei]);
+    }, [showClaimSlot, winnerAddress, isPoolHost, shape, prizeFundWei, prizeFundIsEstimate]);
 
     const myLevel = myPlayer?.level ?? 1;
     const myLxp = myPlayer?.lxp ?? 0;

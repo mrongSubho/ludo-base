@@ -40,6 +40,11 @@ jobs:
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate
         run: npm run check:rls
+      - name: Route authorization matrix
+        # Fails on any route missing from scripts/check-routes.mjs, any method
+        # mismatch, any route claiming session auth without a guard, and any
+        # newly-unauthenticated mutation.
+        run: npm run check:routes
       - name: Schema contract gate (static A1-A4 + DB-mode grants/defaults)
         # Static: catches the DB-01 class (CREATE OR REPLACE renaming input
         # parameters, silently truncating a non-transactional migration) and the

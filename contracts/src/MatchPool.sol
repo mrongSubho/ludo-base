@@ -160,6 +160,8 @@ contract MatchPool is ReentrancyGuard {
     error SeatSquat();
     error TeamPairing();
     error SumMismatch();
+    error TransferFailed();
+    error BurnFailed();
     error DisputeLocked();
     error NoBond();
     error PredictCutoff();
@@ -603,23 +605,38 @@ contract MatchPool is ReentrancyGuard {
         uint64 dw = p.entryFee >= 10_000e18 ? 10 minutes : p.entryFee >= 1_000e18 ? 5 minutes : 2 minutes;
         p.claimUnlockAt = p.settledAt + dw;
 
+        // ECO-01: accumulate rather than overwrite. The sum check above counts a
+        // repeated address once per entry, so a plan containing the same address
+        // twice passes `sum == prizeFund`; with `=` the second write clobbered the
+        // first and the difference was stranded in the contract with no recovery
+        // path. `+=` keeps sum(credit) == prizeFund for every accepted plan.
         for (uint256 i = 0; i < payoutPlan.length; i++) {
-            credit[poolId][payoutPlan[i].addr] = payoutPlan[i].amount;
+            credit[poolId][payoutPlan[i].addr] += payoutPlan[i].amount;
         }
         if (slashBond && payoutPlan.length == 1) {
             credit[poolId][payoutPlan[0].addr] += p.hostBond;
         }
 
+        // ECO-03: IChips.burnWithMemo returns nothing, so success cannot be read
+        // off the call. Verify it by measuring totalSupply across the burn rather
+        // than assuming it worked — previously a silent failure would still
+        // increment cumulativeBurned and emit a settled pool.
         if (p.burnAmount != 0) {
+            uint256 supplyBefore = chips.totalSupply();
             chips.burnWithMemo(p.burnAmount, MEMO_BURN);
-            cumulativeBurned += p.burnAmount;
+            uint256 burned = supplyBefore - chips.totalSupply();
+            if (burned != p.burnAmount) revert BurnFailed();
+            cumulativeBurned += burned;
         }
+        // ECO-03: transferWithMemo returns bool; check it. An unchecked `false`
+        // previously let the pool settle as Settled while protocol fees were
+        // never collected, with cumulativeFees still reporting them as taken.
         if (p.protocolAmount != 0) {
-            chips.transferWithMemo(owner, p.protocolAmount, MEMO_FEE);
+            if (!chips.transferWithMemo(owner, p.protocolAmount, MEMO_FEE)) revert TransferFailed();
             cumulativeFees += p.protocolAmount;
         }
         if (p.hostBond != 0 && !p.bondSlashed) {
-            chips.transferWithMemo(p.authority, p.hostBond, MEMO_BOND);
+            if (!chips.transferWithMemo(p.authority, p.hostBond, MEMO_BOND)) revert TransferFailed();
             p.hostBond = 0;
         }
         emit PoolSettled(poolId, modeB ? 1 : 0, p.resultHash, p.prizeFund);

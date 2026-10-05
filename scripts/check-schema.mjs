@@ -333,6 +333,38 @@ async function assertAgainstDatabase(url, files) {
              where grantee='anon' and privilege_type='UPDATE'`);
         if (granted.length) fail(`DB anon has UPDATE on: ${granted.map((g) => g.table_name).join(', ')}`);
 
+        // Phase 1 exit gate: no balance mutation may be reachable by a client.
+        // Catches a coin/CHIPS RPC left executable by anon/authenticated, which is
+        // how SEC-05 (unauthenticated bet settlement) and SEC-09 (mission double
+        // claim) were reachable in the first place. Frozen/legacy entry points are
+        // named explicitly so retiring one is a deliberate edit, not a silent pass.
+        const BALANCE_FNS = [
+            'cash_out_bet', 'settle_match_bets', 'purchase_marketplace', 'join_tournament',
+            'chips_escrow_place_bet', 'chips_escrow_settle_bets', 'chips_escrow_deposit',
+            'chips_escrow_withdraw', 'chips_escrow_touch', 'chips_escrow_solvency',
+        ];
+        const { rows: bal } = await c.query(
+            `select p.proname,
+                    has_function_privilege('anon',         p.oid, 'EXECUTE') as anon_exec,
+                    has_function_privilege('authenticated', p.oid, 'EXECUTE') as auth_exec
+               from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public' and p.prokind = 'f'
+                and p.proname = any($1)`,
+            [BALANCE_FNS],
+        );
+        for (const f of bal) {
+            if (f.anon_exec || f.auth_exec) {
+                const who = [f.anon_exec ? 'anon' : null, f.auth_exec ? 'authenticated' : null]
+                    .filter(Boolean).join('/');
+                fail(`DB balance function ${f.proname} is executable by ${who} — client-reachable money path`);
+            }
+        }
+        // players.coins must stay frozen at the column level too.
+        const { rows: trig } = await c.query(
+            `select count(*)::int n from pg_trigger
+              where tgrelid = 'public.players'::regclass and tgname = 'players_coins_frozen' and not tgisinternal`);
+        if (!trig[0].n) fail('DB players.coins freeze trigger (players_coins_frozen) is missing');
+
         console.log(`✓ DB mode: chain applied, ${sdef.length} security definer fns + grants asserted`);
     } finally { await c.end(); }
 }

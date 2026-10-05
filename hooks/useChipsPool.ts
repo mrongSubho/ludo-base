@@ -129,6 +129,58 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
     return { join, step, isPending: isPending || batchPending, error, configured, batched };
 }
 
+/**
+ * On-chain pool facts, read straight from MatchPool.
+ *
+ * ECO-02: the settlement UI used to *guess* the prize fund as
+ * `wager * seats * 0.93` in IEEE-754 doubles and then `BigInt(...)`-ed the
+ * result. At CHIPS scale that double is already quantised to ~256 wei, so the
+ * reconstructed amount never matched the contract and `settlePool` reverted
+ * SumMismatch. The fund must come from the chain.
+ */
+export interface PoolSummaryView {
+    status: number;
+    maxSeats: number;
+    filledSeats: number;
+    authority: `0x${string}` | undefined;
+    entryFee: bigint;
+    gross: bigint;
+    /** Authoritative. Use this for any payout plan; never re-derive it. */
+    prizeFund: bigint;
+    hostBond: bigint;
+    settleBy: bigint;
+    claimUnlockAt: bigint | undefined;
+}
+
+export function usePoolSummary(poolId: `0x${string}` | null | undefined) {
+    const pool = matchPoolAddress();
+    const { data } = useReadContract({
+        address: pool,
+        abi: MATCH_POOL_ABI,
+        functionName: "getPoolSummary",
+        args: poolId ? [poolId] : undefined,
+        query: { enabled: Boolean(pool && poolId) },
+    });
+
+    return useMemo<PoolSummaryView | null>(() => {
+        if (!data) return null;
+        // getPoolSummary: [status,maxSeats,filled,auth,entry,gross,prize,bond,settleBy,claimUnlockAt]
+        const a = data as unknown as readonly unknown[];
+        return {
+            status: Number(a[0] ?? 0),
+            maxSeats: Number(a[1] ?? 0),
+            filledSeats: Number(a[2] ?? 0),
+            authority: a[3] as `0x${string}` | undefined,
+            entryFee: (a[4] as bigint) ?? BigInt(0),
+            gross: (a[5] as bigint) ?? BigInt(0),
+            prizeFund: (a[6] as bigint) ?? BigInt(0),
+            hostBond: (a[7] as bigint) ?? BigInt(0),
+            settleBy: (a[8] as bigint) ?? BigInt(0),
+            claimUnlockAt: a[9] as bigint | undefined,
+        };
+    }, [data]);
+}
+
 /** Post-match prize claim (pull) with dispute countdown + gas/net. */
 export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
     const { address: wagmiAddress } = useAccount();
