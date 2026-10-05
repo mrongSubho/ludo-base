@@ -581,15 +581,22 @@ create or replace function public.purchase_marketplace(
 ```
 Postgres raises at execution. The file is **not wrapped in a transaction** (verified: zero `begin;`), so psql/CLI statement-by-statement execution committed everything before line 34 and never applied the rest.
 
-**Actual vs intended** (proven by replaying the full chain against a live PostgreSQL 16):
+**Actual vs intended** — verified **against production `xvwaqxqyjtlsuijgwozi`** (2026-10-05), not only a scratch replay:
 
-| Object | Intended | Actual |
-| --- | --- | --- |
-| `cash_out_bet` | frozen | **frozen** (line 5 ran) |
-| `settle_match_bets` | frozen | **frozen** (line 14 ran) |
-| `purchase_marketplace` | frozen | **NOT frozen** |
-| `block_coins_mutation()` | exists | **does not exist** |
-| `players_coins_frozen` trigger | present | **absent** |
+| Object | Intended | Fresh `db reset` | **Production (actual)** |
+| --- | --- | --- | --- |
+| `cash_out_bet` | frozen | frozen | frozen |
+| `settle_match_bets` | frozen | frozen | frozen |
+| `purchase_marketplace` | frozen | frozen | frozen, but under the **broken** `p_kind`/`p_items` signature |
+| `block_coins_mutation()` | exists | **absent** | **present** |
+| `players_coins_frozen` trigger | present | **absent** | **present** |
+
+Two corrections to the original analysis, both found only by inspecting the live database:
+
+1. **Production was hand-patched.** `block_coins_mutation()` and the `players_coins_frozen` trigger *do* exist there, so `players.coins` was never unguarded in production. The missing-statements failure mode is real for a fresh `db reset` (which is why DB-03 matters) but was masked in production by manual SQL. The finding stands for fresh installs; the "no DB-level guard in production" claim did not.
+2. **`purchase_marketplace` in production carries the broken signature** `(p_wallet, p_kind, p_items, p_total)`, not the canonical `(p_wallet, p_request_id, p_item_ids, p_total)`. `202609170001` therefore never successfully installed its function in production either — the marketplace RPC has been the frozen stub all along, so `/api/marketplace/purchase` has been returning 409 rather than being newly broken by the freeze. `marketplace_purchases` (the table from the same file) does not exist in production either.
+
+**This is why `db push` must be verified against the target, not only against a scratch replay:** a fresh replay cannot see hand-applied drift, and the corrective migration built from the replay alone failed on the real database with `SQLSTATE 42P13 cannot change name of input parameter "p_kind"`. Fixed by `drop function if exists ... (text,text,text[],bigint)` before the create, which is correct for all three states (fresh / drifted / already-fixed). See DB-03.
 
 Proven on the post-chain DB:
 ```
@@ -644,7 +651,7 @@ Make `isDuplicateAction` an explicit allowlist so a future default cannot silent
 
 ---
 
-### DB-03 · Fresh `supabase db reset` cannot complete the migration chain ◐
+### DB-03 · Fresh `supabase db reset` cannot complete the migration chain ◐ ✅ *(confirmed and fixed; also surfaced production drift)*
 
 | | |
 | --- | --- |
@@ -659,7 +666,11 @@ Make `isDuplicateAction` an explicit allowlist so a future default cannot silent
 2. `players.coins` has no DB-level guard (DB-01), so the one table the freeze was meant to protect is the one left open.
 3. Two environments claiming to be "the same version" have different schemas, which makes every subsequent bug report ambiguous.
 
-**Recommendation** — fixed by DB-01 (wrap `202609230003` in a transaction). Then add the `check:schema` gate from §7 so a future mid-file abort fails CI instead of silently truncating the chain. Also see DB-11 and DB-12 — even after DB-01, `RESET_FOR_FRESH_BASELINE.sql` no-ops when `pgcrypto` is installed into `public`, so the reset path needs its own fix and its own equality assertion against the migration path.
+**Recommendation** — fixed. `202609230003` is now transactional, `202609300001` re-applies the freeze idempotently, `202609300002`…`005` complete the chain, and all 16 files apply cleanly to both a scratch PostgreSQL 16 and production PostgreSQL 17.6.
+
+**Confirmed on production after push:** `match_rolls.status` default is now `open` with the `CHECK` constraint present; `purchase_marketplace` normalised to the canonical signature; `mission_catalog` holds daily 58 CHIPS (6 missions, `daily_bonus` 10) and weekly 90 CHIPS with 0 onboarding rows; `player_missions` is keyed `player_missions_period_uniq`; `chips_escrow_config.enabled = false` and `chips_escrow_place_bet` returns `ESCROW_DISABLED`; solvency `delta 0`.
+
+**Lesson added:** `supabase db push` works without Docker (direct remote connection) — only `db reset` and `db dump` need it. But a scratch-DB replay cannot reveal hand-applied drift, so migrations must be verified against the real target too. Always take `supabase migration list` before and after; it shows files the CLI *recorded* as applied regardless of whether their statements actually ran (`202609230003` was recorded applied while having aborted mid-file).
 
 ---
 

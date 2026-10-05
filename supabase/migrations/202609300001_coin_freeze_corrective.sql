@@ -25,8 +25,23 @@
 
 begin;
 
--- 1) Coin-mutating RPCs throw. Signatures must match the live definitions
---    exactly; CREATE OR REPLACE cannot rename input parameters.
+-- 1) Coin-mutating RPCs throw.
+--
+-- purchase_marketplace needs an explicit DROP first. Production carries the
+-- signature from the broken revision of 202609230003 —
+--   (p_wallet text, p_kind text, p_items text[], p_total bigint)
+-- — because that statement succeeded there before the file later failed on the
+-- revoke step, and the CLI recorded 202609230003 as applied regardless. A
+-- CREATE OR REPLACE naming p_request_id/p_item_ids against that function
+-- raises `cannot change name of input parameter "p_kind"` and aborts the whole
+-- transaction (SQLSTATE 42P13).
+--
+-- Dropping by type signature (not by name) is what makes this work in all three
+-- states: fresh install (canonical names from 202609170001), production (p_kind
+-- names), or already-corrected. It also normalises production back onto the
+-- canonical argument names so PostgREST named-arg calls resolve.
+drop function if exists public.purchase_marketplace(text, text, text[], bigint);
+
 create or replace function public.cash_out_bet(p_bet_id uuid, p_player_id text)
 returns jsonb
 language plpgsql security definer set search_path = public
@@ -46,7 +61,7 @@ begin
 end;
 $$;
 
-create or replace function public.purchase_marketplace(
+create function public.purchase_marketplace(
   p_wallet text, p_request_id text, p_item_ids text[], p_total bigint
 ) returns jsonb
 language plpgsql security definer set search_path = public
