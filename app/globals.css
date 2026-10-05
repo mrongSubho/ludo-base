@@ -11326,6 +11326,22 @@ body.theme-daybreak .chat-bubble {
   gap: 8px;
   margin-bottom: 10px;
 }
+/* One grid height for every tab of the quick-reactions sheet. The text presets
+   (2 columns, 10 rows) and the emote packs (6 columns, up to 30) have very
+   different natural heights, which resized the whole sheet on every tab
+   switch. Both now fill the same box and scroll internally, so the sheet keeps
+   one height no matter which tab is open. */
+.emote-sheet {
+  --emote-grid-h: 232px;
+}
+.emote-sheet .emote-sheet-grid,
+.emote-sheet .emoji-pack-grid {
+  height: var(--emote-grid-h);
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .emote-sheet-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
