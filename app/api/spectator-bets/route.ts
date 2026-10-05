@@ -23,52 +23,80 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { walletAddress, sessionId, action, betId, matchId, betType, betValue, amount, windowClosedAt } = await request.json();
+        const { walletAddress, sessionId, action, betId, matchId, betType, betValue, amount, actionId: actionId0 } = await request.json();
         const wallet = await requireAppSession(walletAddress, sessionId);
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const db = serviceDb();
 
         if (action === 'cash_out') {
+            // Withdraw settled winnings out of escrow toward the chain.
+            // `cash_out_bet` credited `players.coins` for bets that were never
+            // paid for (SYSTEM_REVIEW.md SEC-05) and is now frozen.
             if (!betId) return NextResponse.json({ error: 'Missing betId' }, { status: 400 });
 
-            // Read ownership before invoking the privileged RPC. This prevents a
-            // caller from learning or changing another player's bet.
-            const { data: bet, error: lookupError } = await db.from('spectator_bets')
+            const { data: bet, error: lookupError } = await db
+                .from('spectator_bets')
                 .select('id, player_id, status, payout_amount')
                 .eq('id', betId)
                 .maybeSingle();
             if (lookupError) return NextResponse.json({ error: lookupError.message }, { status: 500 });
-            if (!bet || String(bet.player_id).toLowerCase() !== wallet)
+            if (!bet || String(bet.player_id).toLowerCase() !== wallet) {
                 return NextResponse.json({ error: 'Bet not found' }, { status: 404 });
-
-            // cash_out_bet atomically requires an open/pending bet. A retry after
-            // the first successful request must never credit the wallet twice.
+            }
+            const payout = Number(bet.payout_amount ?? 0);
             if (bet.status === 'cashed_out') {
-                return NextResponse.json({ credited: Number(bet.payout_amount || 0), idempotent: true });
+                return NextResponse.json({ withdrawn: payout, idempotent: true });
+            }
+            if (payout <= 0) {
+                return NextResponse.json({ error: 'Nothing to withdraw' }, { status: 400 });
             }
 
-            const { data, error } = await db.rpc('cash_out_bet' as never, {
-                p_bet_id: betId,
-                p_player_id: wallet,
+            const ref = `bet:${betId}`;
+            const { data: out, error: wdErr } = await db.rpc('chips_escrow_withdraw' as never, {
+                p_wallet: wallet,
+                p_amount: String(payout),
+                p_ref: ref,
             } as never);
-            if (error) return NextResponse.json({ error: error.message }, { status: 409 });
-            const credited = Array.isArray(data)
-                ? Number((data[0] as { credited?: number } | undefined)?.credited ?? 0)
-                : Number((data as { credited?: number } | null)?.credited ?? 0);
-            return NextResponse.json({ credited });
+            if (wdErr) return NextResponse.json({ error: wdErr.message }, { status: 409 });
+
+            const { error: flagErr } = await db
+                .from('spectator_bets')
+                .update({ status: 'cashed_out' })
+                .eq('id', betId)
+                .eq('status', 'won');
+            if (flagErr) return NextResponse.json({ error: flagErr.message }, { status: 500 });
+
+            return NextResponse.json({ withdrawn: payout, balance: (out as { balance?: number } | null)?.balance });
         }
 
         const numericAmount = Number(amount);
         if (!matchId || !['dice_roll', 'winner'].includes(String(betType)) ||
             !Number.isInteger(numericAmount) || numericAmount <= 0 || numericAmount > 1000000)
             return NextResponse.json({ error: 'Invalid bet' }, { status: 400 });
-        const odds = betType === 'dice_roll' ? 5 : 2;
-        const { data, error } = await db.from('spectator_bets').insert({
-            match_id: String(matchId), player_id: wallet, bet_type: betType,
-            bet_value: String(betValue || '').slice(0, 80), amount: numericAmount, odds,
-            potential_payout: Math.floor(numericAmount * odds), window_closed_at: windowClosedAt,
-        }).select('id').single();
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+        // Placement goes through the escrow RPC: it owns the betting-window gate,
+        // the market (current_bet_type), the self-bet check, the atomic stake
+        // debit, and idempotency on action_id. The client cannot supply
+        // window_closedAt or influence any of it (SYSTEM_REVIEW.md SEC-05).
+        const actionId = String(actionId0 ?? crypto.randomUUID());
+        const { data, error } = await db.rpc('chips_escrow_place_bet' as never, {
+            p_player: wallet,
+            p_match_id: String(matchId),
+            p_bet_type: String(betType),
+            p_bet_value: String(betValue ?? ''),
+            p_amount: String(numericAmount),
+            p_action_id: actionId,
+        } as never);
+        if (error) {
+            const msg = error.message || 'bet rejected';
+            const known = [
+                'ESCROW_DISABLED', 'BET_WINDOW_NOT_OPEN', 'BET_WINDOW_CLOSED',
+                'BET_TYPE_NOT_CURRENT', 'SELF_BET_NOT_ALLOWED', 'INSUFFICIENT_ESCROW',
+                'BET_OUT_OF_RANGE',
+            ].some((k) => msg.includes(k));
+            if (!known) console.error('spectator bet rpc error', error);
+            return NextResponse.json({ error: known ? msg : 'bet rejected' }, { status: 409 });
+        }
         return NextResponse.json(data);
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });

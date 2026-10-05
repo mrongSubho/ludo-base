@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     // Host must be the recorded host for this match (fail closed if unset).
     const { data: live, error: liveErr } = await supabase
       .from('live_matches')
-      .select('host_address, match_id')
+      .select('host_address, match_id, bet_window_status, window_closed_at, current_bet_type')
       .eq('match_id', matchId)
       .maybeSingle();
 
@@ -119,8 +119,43 @@ Deno.serve(async (req) => {
 
     console.log(`🎰 [Resolve] Match: ${matchId}, Result: ${result}, Type: ${betType}, Host: ${recovered}`);
 
-    // Call the atomic resolution RPC (server-owned settlement)
-    const { data, error } = await supabase.rpc('settle_match_bets', {
+    // The signed result must match what the authority recorded, otherwise the
+    // host could settle a market to a value of their choosing (SEC-29).
+    const { data: authority, error: authErr } = await supabase
+      .from('match_states')
+      .select('state')
+      .eq('match_id', matchId)
+      .maybeSingle();
+
+    if (authErr) {
+      console.error('❌ [Resolve] authority read error:', authErr);
+      return new Response(JSON.stringify({ error: 'authority unavailable' }), {
+        status: 503,
+        headers: corsHeaders,
+      });
+    }
+
+    const winner = ((authority?.state as { winner?: unknown } | null)?.winner ?? null) as string | null;
+    const status = ((authority?.state as { status?: unknown } | null)?.status ?? null) as string | null;
+    const isFinished = winner != null || status === 'finished';
+    if (!isFinished) {
+      return new Response(JSON.stringify({ error: 'match not finished' }), {
+        status: 409,
+        headers: corsHeaders,
+      });
+    }
+    if (winner != null && String(result).toLowerCase() !== String(winner).toLowerCase()) {
+      console.error('❌ [Resolve] result mismatch', { signed: result, authority: winner });
+      return new Response(JSON.stringify({ error: 'result does not match authority' }), {
+        status: 409,
+        headers: corsHeaders,
+      });
+    }
+
+    // Escrow settlement. It owns the window gate (the guard the canonical
+    // settle_match_bets lost, DB-04), the idempotency, the stake refund, the
+    // gross-minus-rake payout, and the treasury credit — all in one transaction.
+    const { data, error } = await supabase.rpc('chips_escrow_settle_bets', {
       p_match_id: matchId,
       p_result: String(result),
       p_bet_type: betType
