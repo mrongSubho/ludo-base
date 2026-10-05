@@ -2225,15 +2225,15 @@ body.keyboard-open .app-shell {
   padding: 0;
 }
 
-/* The board area absorbs the leftover height in the column (top HUD row,
-   bottom row and match footer stay tight to the board) and centers the
-   measured square inside it, so slack splits evenly above/below the board
-   instead of pooling in one gap. Unconditional on purpose: an earlier
-   version applied this only inside the max-width:500px block, so any
-   viewport that missed that query fell back to the pooled-gap layout. */
+/* The board keeps its HUD rows tight: the area does NOT absorb the column
+   slack, so both player rows sit right against the square. The slack is
+   parked outside the cluster by .board-outer's justify-content:center —
+   equal air above the top row and below the match footer, never a hole
+   between the board and the HUD. min-height:0 keeps it shrinkable when the
+   viewport is genuinely too short. */
 .board-area {
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -3605,12 +3605,10 @@ body.theme-retro-futurism .home-pad {
     gap: 2px !important;
   }
 
-  /* Takes the leftover height (top row / status stay at the top, bottom row +
-     match footer stay at the bottom via space-between) and centers the square
-     inside it — so the split above/below the board is even instead of pooling
-     into one gap below the board. min-height:0 keeps it shrinkable. */
+  /* Takes the leftover height when the column overflows on short viewports;
+     on tall ones .board-outer centers the whole cluster instead. */
   .board-area {
-    flex: 1 1 auto !important;
+    flex: 0 1 auto !important;
     min-height: 0 !important;
     height: auto !important;
     max-height: none !important;
@@ -3678,6 +3676,20 @@ body.theme-retro-futurism .home-pad {
     width: 28px !important;
     height: 28px !important;
     font-size: 13px !important;
+  }
+
+  /* Match HUD avatars get a bit more presence now that the rows sit tight
+     against the board (wrapper grows with the circle so the level badge and
+     timer ring keep their room). */
+  .avatar-circle-wrapper {
+    width: 58px !important;
+    height: 58px !important;
+  }
+
+  .avatar-circle {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 22px !important;
   }
 
   .player-name {
