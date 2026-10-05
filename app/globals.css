@@ -10668,6 +10668,7 @@ body.theme-daybreak .team-chat-toggle.on {
   flex: 1 1 0;
   min-width: 0;
   height: 34px;
+  min-height: 34px;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.07);
@@ -10685,7 +10686,8 @@ body.theme-daybreak .team-chat-toggle.on {
   color: #082f49;
   background: linear-gradient(135deg, #67e8f9, #22d3ee);
   border-color: transparent;
-  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.55);
+  /* Symmetric glow — an offset shadow read as extra height on the active tab. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 10px rgba(34, 211, 238, 0.22);
 }
 .emoji-pack-grid {
   display: grid;
@@ -11357,7 +11359,9 @@ body.theme-daybreak .chat-bubble {
    glyphs on a transparent track, so only the active one read as a tab. */
 .emote-tabs {
   display: flex;
-  align-items: center;
+  /* stretch, not center: every tab fills the row's height, so TEXT and the
+     pack pills can never end up different sizes whatever their font does. */
+  align-items: stretch;
   gap: 5px;
   margin-bottom: 8px;
   padding: 4px;
@@ -11365,6 +11369,7 @@ body.theme-daybreak .chat-bubble {
   background: rgba(255,255,255,0.06);
   overflow-x: auto;
   scrollbar-width: none;
+  --emote-tab-h: 34px;
 }
 .emote-tabs::-webkit-scrollbar {
   display: none;
@@ -11372,7 +11377,8 @@ body.theme-daybreak .chat-bubble {
 .emote-tabs > button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 34px;
+  height: var(--emote-tab-h);
+  min-height: var(--emote-tab-h);
   padding: 0 8px;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 10px;
@@ -11387,9 +11393,10 @@ body.theme-daybreak .chat-bubble {
 .emote-tabs > .emote-pack-tabs-inline {
   display: flex;
   flex: 1 1 auto;
-  align-items: center;
+  align-items: stretch;
   gap: 5px;
   min-width: 0;
+  height: var(--emote-tab-h);
   padding: 0;
   background: none;
   overflow: visible;
@@ -11398,7 +11405,8 @@ body.theme-daybreak .chat-bubble {
   flex: 1 1 0;
   min-width: 0;
   width: auto;
-  height: 34px;
+  height: var(--emote-tab-h);
+  min-height: var(--emote-tab-h);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.07);
@@ -11414,7 +11422,9 @@ body.theme-daybreak .chat-bubble {
   color: #082f49;
   background: linear-gradient(135deg, #67e8f9, #22d3ee);
   border-color: transparent;
-  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.55);
+  /* Symmetric, inset-only glow: an offset shadow made the active pill look
+     taller than its neighbours even though the boxes were identical. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 10px rgba(34, 211, 238, 0.22);
 }
 .emote-tabs .emote-pack-tabs-inline button.active {
   color: #082f49;
