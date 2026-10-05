@@ -42,8 +42,11 @@ interface Mission {
     target: number;
     progress?: number;
     is_claimed?: boolean;
-    rewardType: 'coins' | 'gems';
+    /** CHIPS (whole). The coin economy is frozen; see 202609300001. */
+    rewardType: 'chips';
     rewardAmount: number;
+    category?: 'daily' | 'weekly';
+    period?: 'once' | 'day' | 'week';
 }
 
 interface MissionPanelProps {
@@ -117,23 +120,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 }
                 return;
             }
-            const sessionId = await ensureAppSession();
-            if (!sessionId) {
-                alert('Sign-in required to claim');
-                return;
-            }
-            const response = await fetch('/api/missions/claim', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: address, missionId, sessionId }),
-            });
-            if (response.ok) {
-                window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
-                await fetchMissions();
-            } else {
-                const err = await response.json();
-                alert(err.error || 'Failed to claim');
-            }
+            // Coin rewards are retired (202609300001). Rewards are CHIPS and
+            // are only claimable when MissionClaim is configured for the chain.
+            alert('Mission rewards require the CHIPS contract to be configured.');
         } catch (err) {
             console.error('Claim error:', err);
         } finally {
@@ -382,7 +371,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                         {mission.title}
                                                                                     </h3>
                                                                                     <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
-                                                                                        {mission.rewardType === 'coins' ? (
+                                                                                        {mission.rewardType === 'chips' ? (
                                                                                             <svg
                                                                                                 viewBox="0 0 24 24"
                                                                                                 fill="none"
@@ -411,7 +400,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                             </svg>
                                                                                         )}
                                                                                         <span
-                                                                                            className={`text-[11px] font-black leading-none ${mission.rewardType === 'coins' ? 'text-yellow-400' : 'text-cyan-400'}`}
+                                                                                            className={`text-[11px] font-black leading-none ${mission.rewardType === 'chips' ? 'text-cyan-400' : 'text-yellow-400'}`}
                                                                                         >
                                                                                             {mission.rewardAmount}
                                                                                         </span>

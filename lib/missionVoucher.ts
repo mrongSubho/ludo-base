@@ -87,24 +87,33 @@ export function missionClaimAddress(): Address | undefined {
     return a && a.startsWith("0x") ? (a as Address) : undefined;
 }
 
-/** Canonical period id: UTC day `YYYY-MM-DD` or week `YYYY-Www`. */
+/** Canonical period id: UTC day `YYYY-MM-DD`. */
 export function periodIdDay(d = new Date()): Hex {
     return keccak256(toBytes(d.toISOString().slice(0, 10)));
 }
 
-/** Welcome grant + daily table (planning 7.7) — amounts in whole CHIPS. */
-export const ONBOARDING_REWARDS: Record<string, number> = {
-    welcome_grant: 50,
-    tutorial: 100,
-    ai_classic: 100,
-    ai_power: 100,
-    ai_snakes: 100,
-    pvp: 150,
-    playtime: 150,
-    daily_bonus: 20,
-    daily_play_3: 40,
-    daily_win_1: 50,
-};
+/**
+ * ISO-8601 week label `YYYY-Www`, computed in UTC.
+ *
+ * ISO week-*year*, not calendar year — the two differ around New Year
+ * (2025-12-29 is 2026-W01), so the year is taken from the Thursday of the week
+ * rather than from `getUTCFullYear()`. Normalised to UTC midnight first so the
+ * weekday cannot drift by host timezone.
+ */
+export function isoWeekLabel(d = new Date()): string {
+    const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const isoDow = t.getUTCDay() === 0 ? 7 : t.getUTCDay();
+    t.setUTCDate(t.getUTCDate() + 4 - isoDow);
+    const year = t.getUTCFullYear();
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const week = Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Canonical period id for a week bucket: keccak of the ISO week label. */
+export function periodIdWeek(d = new Date()): Hex {
+    return keccak256(toBytes(isoWeekLabel(d)));
+}
 
 export function parseChainForMission(input: unknown): SupportedChainId {
     const n = parseChainId(input);

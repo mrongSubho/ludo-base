@@ -1,16 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { loadMissionCatalog, periodBucketFor } from '@/lib/missionCatalog';
 
-const DAILY_MISSIONS = [
-    { id: 'daily_bonus', type: 'social', title: 'Daily Bonus', description: 'Claim your daily 100 coins!', target: 1, rewardType: 'coins', rewardAmount: 100 },
-    { id: 'daily_play_3', type: 'play', title: 'Warm Up', description: 'Play 3 matches today.', target: 3, rewardType: 'coins', rewardAmount: 100 },
-    { id: 'daily_win_1', type: 'win', title: 'Champion', description: 'Win at least one match today.', target: 1, rewardType: 'coins', rewardAmount: 100 },
-    { id: 'daily_poke_back', type: 'social', title: 'Poke Back!', description: 'Poke back friends who poked you (Max 20/day).', target: 20, rewardType: 'coins', rewardAmount: 100 },
-    { id: 'daily_capture_2', type: 'play', title: 'Token Hunter', description: 'Capture 2 opponent tokens in any match.', target: 2, rewardType: 'coins', rewardAmount: 50 },
-    { id: 'daily_predict_1', type: 'predict', title: 'Sharp Eye', description: 'Win at least one spectator prediction today.', target: 1, rewardType: 'coins', rewardAmount: 100 }
-];
-
+/**
+ * GET /api/missions/list?wallet=0x…&sessionId=…
+ *
+ * Daily + weekly missions joined with the caller's progress for the *current*
+ * period bucket.
+ *
+ * Rewritten from a hardcoded `DAILY_MISSIONS` table of coin rewards plus an
+ * inline daily reset. Rewards now come from `mission_catalog` (whole CHIPS,
+ * CHECK-constrained to 5..20) and the reset disappears entirely because
+ * `player_missions` is keyed by (player, mission, period_id) — a new period is
+ * a new row, so there is no date comparison to get wrong (migration
+ * 202609300004).
+ *
+ * Still writes: it seeds a `player_missions` row at 0 for each mission the
+ * caller has not touched yet, so progress tracking has somewhere to accumulate.
+ */
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const walletAddress = searchParams.get('wallet')?.toLowerCase();
@@ -24,84 +31,82 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Service role: player_missions is default-deny (no public RLS policy).
-        const supabase = serviceDb();
-        // 1. Calculate Start of Day in UTC (00:00:00)
+        const db = serviceDb();
         const now = new Date();
-        const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
 
-        // 2. Fetch User's Missions
-        const { data: userMissions, error } = await supabase
+        const all = await loadMissionCatalog();
+        const periodic = all.filter((m) => m.category === 'daily' || m.category === 'weekly');
+        if (periodic.length === 0) {
+            return NextResponse.json([]);
+        }
+
+        // Buckets in play right now: one per cadence.
+        const buckets = Array.from(
+            new Set(periodic.map((m) => periodBucketFor(m, now))),
+        );
+
+        const { data: rows, error } = await db
             .from('player_missions')
-            .select('*')
-            .eq('player_id', walletAddress);
-
+            .select('mission_id, period_id, progress, is_claimed')
+            .eq('player_id', wallet)
+            .in('period_id', buckets);
         if (error) throw error;
 
-        // 3. Process and Reset Missions if needed
-        const processedMissions = [];
-        const updateBatch: any[] = [];
+        type ProgressRow = { mission_id: string; progress: number; is_claimed: boolean };
+        const byKey = new Map<string, ProgressRow>(
+            ((rows ?? []) as unknown as Array<ProgressRow & { period_id: string }>).map((r) => [
+                `${r.mission_id}:${r.period_id}`,
+                r,
+            ]),
+        );
 
-        for (const def of DAILY_MISSIONS) {
-            const userMission = userMissions?.find(m => m.mission_id === def.id);
-            
-            if (!userMission) {
-                // Initialize if not exists
-                const newMission = {
-                    player_id: walletAddress,
-                    mission_id: def.id,
-                    progress: 0,
-                    is_claimed: false,
-                    last_updated: new Date().toISOString()
+        // Seed rows for anything untouched this period, in one round trip.
+        const seeds = periodic
+            .filter((m) => !byKey.has(`${m.missionId}:${periodBucketFor(m, now)}`))
+            .map((m) => ({
+                player_id: wallet,
+                mission_id: m.missionId,
+                period_id: periodBucketFor(m, now),
+                progress: 0,
+                is_claimed: false,
+                last_updated: now.toISOString(),
+            }));
+        if (seeds.length > 0) {
+            // Conflict means a concurrent request seeded it first — harmless,
+            // the row exists either way.
+            await db
+                .from('player_missions')
+                .upsert(seeds, { onConflict: 'player_id,mission_id,period_id', ignoreDuplicates: true });
+        }
+
+        return NextResponse.json(
+            periodic.map((m) => {
+                const bucket = periodBucketFor(m, now);
+                const row = byKey.get(`${m.missionId}:${bucket}`);
+                const progress = row?.progress ?? 0;
+                const isClaimed = row?.is_claimed ?? false;
+                return {
+                    id: m.missionId,
+                    mission_id: m.missionId,
+                    category: m.category,
+                    period: m.period,
+                    period_id: bucket,
+                    title: m.title,
+                    description: m.description,
+                    target: m.target,
+                    progress,
+                    is_claimed: isClaimed,
+                    rewardType: 'chips' as const,
+                    rewardAmount: m.rewardChips,
+                    claimable: progress >= m.target && !isClaimed,
                 };
-                processedMissions.push({ 
-                    ...def, 
-                    ...newMission,
-                    id: def.id,
-                    db_id: null 
-                });
-                await supabase.from('player_missions').insert(newMission);
-            } else {
-                const lastUpdated = new Date(userMission.last_updated);
-                
-                if (lastUpdated < startOfToday) {
-                    // RESET for new day
-                    const resetMission = {
-                        ...userMission,
-                        progress: 0,
-                        is_claimed: false,
-                        last_updated: new Date().toISOString()
-                    };
-                    processedMissions.push({ 
-                        ...def, 
-                        ...resetMission,
-                        id: def.id, 
-                        db_id: userMission.id 
-                    });
-                    updateBatch.push(supabase.from('player_missions').update({
-                        progress: 0,
-                        is_claimed: false,
-                        last_updated: new Date().toISOString()
-                    }).eq('id', userMission.id));
-                } else {
-                    processedMissions.push({ 
-                        ...def, 
-                        ...userMission,
-                        id: def.id, 
-                        db_id: userMission.id
-                    });
-                }
-            }
-        }
-
-        if (updateBatch.length > 0) {
-            await Promise.all(updateBatch);
-        }
-
-        return NextResponse.json(processedMissions);
-
-    } catch (err: any) {
+            }),
+        );
+    } catch (err) {
         console.error('Error fetching missions:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json(
+            { error: err instanceof Error ? err.message : 'missions unavailable' },
+            { status: 500 },
+        );
     }
 }

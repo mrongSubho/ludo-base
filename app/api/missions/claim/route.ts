@@ -1,97 +1,28 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 
-export async function POST(request: Request) {
-    try {
-        const { walletAddress, missionId, sessionId } = await request.json();
-
-        if (!walletAddress || !missionId) {
-            return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
-        }
-        const wallet = await requireAppSession(walletAddress, sessionId);
-        if (!wallet) {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-        }
-
-        // Service role: player_missions + players.coins are server-only under default-deny.
-        const supabase = serviceDb();
-        const lowAddr = wallet;
-
-        // 1. Fetch Mission Status
-        const { data: mission, error: missionError } = await supabase
-            .from('player_missions')
-            .select('*')
-            .eq('player_id', lowAddr)
-            .eq('mission_id', missionId)
-            .single();
-
-        if (missionError || !mission) {
-            return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
-        }
-
-        if (mission.is_claimed) {
-            return NextResponse.json({ error: 'Already claimed' }, { status: 400 });
-        }
-
-        // 2. Map Mission ID to Rewards (Static for now to match list API)
-        const REWARDS: Record<string, number> = {
-            'daily_bonus': 100,
-            'daily_play_3': 100,
-            'daily_win_1': 100,
-            'daily_poke_back': 100,
-            'daily_capture_2': 50
-        };
-
-        const rewardAmount = REWARDS[missionId] || 0;
-
-        // Special check for daily_bonus: it's always "completable" just by claiming
-        if (missionId === 'daily_bonus') {
-            // Already initialized at progress 0, we can just claim it
-        } else if (mission.progress < 1) { // Assuming progress threshold of at least some value for others
-            // For target-based missions, we should check thresholds. 
-            // In a real system, we'd fetch the mission definition from a DB or shared config.
-            const TARGETS: Record<string, number> = {
-                'daily_play_3': 3,
-                'daily_win_1': 1,
-                'daily_poke_back': 1,
-                'daily_capture_2': 2
-            };
-            
-            if (mission.progress < (TARGETS[missionId] || 1)) {
-                return NextResponse.json({ error: 'Mission not completed' }, { status: 400 });
-            }
-        }
-
-        // 3. ATOMIC TRANSACTION: Mark claimed and add coins
-        // (Using RPC for atomicity if available, but since this is a simple app, sequential is okay for now)
-        const { error: updateError } = await supabase
-            .from('player_missions')
-            .update({ is_claimed: true })
-            .eq('id', mission.id);
-
-        if (updateError) throw updateError;
-
-        // Fetch current coins
-        const { data: player, error: playerError } = await supabase
-            .from('players')
-            .select('coins')
-            .ilike('wallet_address', lowAddr)
-            .single();
-
-        if (playerError) throw playerError;
-
-        const { error: coinError } = await supabase
-            .from('players')
-            .update({ coins: (player.coins || 0) + rewardAmount })
-            .ilike('wallet_address', lowAddr);
-
-        if (coinError) throw coinError;
-
-        return NextResponse.json({ success: true, reward: rewardAmount });
-
-    } catch (err: any) {
-        console.error('Claim Error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
-    }
+/**
+ * POST /api/missions/claim — RETIRED.
+ *
+ * This endpoint credited `players.coins`, a legacy currency frozen by
+ * 202609300001_freeze_legacy_coin_writers.sql. Because the trigger raises on any
+ * `coins` mutation, the handler flipped `player_missions.is_claimed` to true and
+ * *then* failed on the coin write — so missions became permanently unclaimable
+ * while appearing claimed (SYSTEM_REVIEW.md SEC-09).
+ *
+ * CHIPS rewards are issued through the EIP-712 MissionClaim voucher path:
+ *   POST /api/missions/voucher   { walletAddress, sessionId, missionId, chainId? }
+ * Rewards and targets are read from `mission_catalog` server-side.
+ *
+ * Kept as an explicit 410 rather than deleted so an older client gets an
+ * actionable answer instead of a 404.
+ */
+export async function POST() {
+    return NextResponse.json(
+        {
+            error: 'Coin mission rewards have been retired.',
+            migratedTo: '/api/missions/voucher',
+            currency: 'CHIPS',
+        },
+        { status: 410 },
+    );
 }
