@@ -238,6 +238,17 @@ export default function Board({
     const boardSquarePx = areaSize.w > 0 && areaSize.h > 0
         ? Math.max(160, Math.floor(Math.min(areaSize.w, areaSize.h)))
         : undefined;
+    // The in-game chat composer is a floating overlay pinned over the footer,
+    // and focusing it raises the IME — either way the viewport can report less
+    // height, which would re-measure the square and shrink the board mid-match.
+    // Freeze the area at the height it had when the composer opened so the
+    // board geometry is identical closed and open.
+    const [frozenBoardH, setFrozenBoardH] = useState<number | null>(null);
+    useEffect(() => {
+        setFrozenBoardH(chatOpen && areaSize.h > 0 ? Math.round(areaSize.h) : null);
+        // Only on transitions: capture once at open, release on close.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatOpen]);
     const turnColor = localGameState.currentPlayer as PlayerColor;
     const ownColor = myPlayer?.color;
     const sendChat = React.useCallback(() => {
@@ -310,12 +321,15 @@ export default function Board({
                 spectatorMode={spectatorMode}
             />
 
-            <motion.div 
-                className="board-area"
-                ref={areaRef} 
+            <motion.div
+                className={`board-area${frozenBoardH ? ' is-frozen' : ''}`}
+                ref={areaRef}
                 animate={isShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
                 transition={{ duration: 0.4 }}
-                style={{ position: 'relative', width: '100%', cursor: 'pointer'                 }}
+                style={{
+                    position: 'relative', width: '100%', cursor: 'pointer',
+                    ...(frozenBoardH ? { '--frozen-h': `${frozenBoardH}px` } as React.CSSProperties : {}),
+                }}
                 onClick={() => {
                     if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying) {
                         cancelAfk(myPlayer.color);
