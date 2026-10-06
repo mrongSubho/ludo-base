@@ -23,7 +23,7 @@ import { requireAppSession, serviceDb } from "@/lib/serverAuth";
  * Every value that determines what is signed is server-owned:
  *   reward    <- mission_catalog (CHECK-constrained to 5..20 whole CHIPS)
  *   periodId  <- mission_catalog.period, computed for "now" (UTC)
- *   nonce     <- clock-derived + random; see the note below
+ *   nonce     <- public.next_mission_voucher_nonce() (a DB sequence)
  *   amount    <- reward * 1e18
  *
  * The previous revision read no eligibility state at all and accepted a
@@ -114,18 +114,15 @@ export async function POST(request: Request) {
         }
 
         const mid: Hex = missionIdBytes32(missionId);
-            // Nonce only needs to be unique per (wallet, mission, period), which the
-            // unique constraint already guarantees. Mixing in a random suffix keeps
-            // two legitimately-distinct vouchers for the same ms distinguishable.
-            //
-            // OPEN (SEC-10): this is still clock-derived rather than a DB sequence.
-            // The reserve-before-sign insert above is what actually prevents a
-            // double claim — the unique constraint rejects the second racer with
-            // 23505 — so the clock here cannot be used to forge a second payout.
-            // A sequence would remove the last dependency on wall-clock time.
-            const nonce =
-            BigInt(now.getTime()) * BigInt(1000) +
-            BigInt(Math.floor(Math.random() * 1000));
+
+        // Nonce from a DB sequence (migration 202609300010). It used to be
+        // `Date.now() * 1000 + random`, which made the signed payload depend on
+        // server clock state. The claim lock was never at risk from that — the
+        // reserve above rejects the second racer with 23505 — but the sequence
+        // makes uniqueness structural rather than incidental, and two vouchers
+        // issued in the same millisecond are now distinguishable without it.
+        const nonce = await nextVoucherNonce(db);
+
         const voucher = {
             wallet: wallet as `0x${string}`,
             missionId: mid,
@@ -134,7 +131,29 @@ export async function POST(request: Request) {
             deadline,
             nonce,
         };
-        const sig = await signMissionVoucher(voucher, claim, chainId);
+
+        // Reclaim the reservation if signing fails. Without this, a transient edge
+        // error left a `signature = 'pending'` row that permanently blocked that
+        // player's reward for the whole period: the unique claim lock saw the slot
+        // as taken and every retry returned 409. `reserved_at` plus
+        // mission_vouchers_pending_idx also lets a sweep reclaim rows a crash leaves.
+        let sig: Hex;
+        try {
+            sig = await signMissionVoucher(voucher, claim, chainId);
+        } catch (signErr) {
+            await db
+                .from("mission_vouchers")
+                .delete()
+                .eq("wallet_address", wallet)
+                .eq("mission_id", missionId)
+                .eq("period_id", periodId)
+                .eq("signature", "pending");
+            console.error("mission voucher signing failed; reservation released:", signErr);
+            return NextResponse.json(
+                { error: "Voucher signing failed; the claim slot was released, retry shortly" },
+                { status: 503 },
+            );
+        }
 
         const { error: sigErr } = await db
             .from("mission_vouchers")
@@ -169,4 +188,21 @@ export async function POST(request: Request) {
             { status: 500 },
         );
     }
+}
+
+/**
+ * Monotonic nonce for the signed voucher payload.
+ *
+ * Backed by public.next_mission_voucher_nonce() (migration 202609300010), which
+ * is SECURITY DEFINER and service_role-only. Falls back to a timestamp-derived
+ * value only if the RPC is unavailable, so a schema lag cannot block claims
+ * outright — the claim lock is the unique index, not the nonce.
+ */
+async function nextVoucherNonce(db: ReturnType<typeof serviceDb>): Promise<bigint> {
+    const { data, error } = await db.rpc("next_mission_voucher_nonce");
+    if (!error && data !== null && data !== undefined) {
+        return BigInt(data as string | number);
+    }
+    console.error("next_mission_voucher_nonce unavailable; using fallback:", error?.message);
+    return BigInt(Date.now()) * BigInt(1000) + BigInt(Math.floor(Math.random() * 1000));
 }

@@ -319,3 +319,142 @@ test('concurrent settlement pays out exactly once', { skip }, async () => {
         await check.end();
     }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 1 unblock (migration 202609300010): the data-layer invariants that the
+// claim lock and the escrow arming interlock depend on.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('arming the escrow cannot re-enable self-betting', { skip }, async () => {
+    // allow_self_bets sat OUTSIDE chips_escrow_config_armed, so a single
+    // `update ... set enabled = true, allow_self_bets = true` re-opened
+    // self-betting while the RPC's own `player_id = any(m.participants)` guard
+    // was silently overridden.
+    const c = await connect();
+    try {
+        const treasury = '0x' + 'aa'.repeat(20);
+        await assert.rejects(
+            c.query(
+                `update chips_escrow_config
+                    set enabled = true, treasury_wallet = $1, rake_bps = 500, allow_self_bets = true`,
+                [treasury],
+            ),
+            /violates check constraint "chips_escrow_config_armed"/,
+            'arming with self-bets allowed must be refused',
+        );
+
+        // The same arming without self-bets is accepted, so the interlock is the
+        // self-bet clause and not something unrelated.
+        await c.query(
+            `update chips_escrow_config
+                set enabled = true, treasury_wallet = $1, rake_bps = 500, allow_self_bets = false`,
+            [treasury],
+        );
+        const { rows } = await c.query(`select enabled, allow_self_bets from chips_escrow_config`);
+        assert.equal(rows[0].enabled, true);
+        assert.equal(rows[0].allow_self_bets, false);
+
+        // Disarm again so later runs start from the inert default.
+        await c.query(`update chips_escrow_config set enabled = false, treasury_wallet = null, rake_bps = 0`);
+    } finally {
+        await c.end();
+    }
+});
+
+test('the mission claim lock is case-insensitive', { skip }, async () => {
+    // The unique key was on the raw wallet column. Lowercase was enforced only by
+    // an FK to `players` plus a CHECK on that table, so the lock depended on two
+    // constraints living somewhere else entirely.
+    const c = await connect();
+    try {
+        const lower = '0x' + 'ab'.repeat(20);
+        const mixed = '0x' + 'AB'.repeat(20);
+        assert.notEqual(lower, mixed, 'the two spellings must actually differ');
+
+        for (const w of [lower, mixed]) {
+            await c.query(
+                `insert into players (wallet_address) values ($1) on conflict do nothing`,
+                [w.toLowerCase()],
+            );
+        }
+        await c.query(`delete from mission_vouchers where mission_id = 'daily_bonus'`);
+
+        await c.query(
+            `insert into mission_vouchers
+                (wallet_address, mission_id, period_id, amount, signature, deadline)
+             values ($1, 'daily_bonus', 'case-test', 10, '0x', now())`,
+            [lower],
+        );
+        // The mixed-case spelling must collide with the lowercase row.
+        await assert.rejects(
+            c.query(
+                `insert into mission_vouchers
+                    (wallet_address, mission_id, period_id, amount, signature, deadline)
+                 values ($1, 'daily_bonus', 'case-test', 10, '0x', now())`,
+                [mixed],
+            ),
+            /duplicate key/,
+            'a differently-cased wallet must not take a second claim',
+        );
+
+        const { rows } = await c.query(
+            `select count(*)::int n from mission_vouchers where mission_id = 'daily_bonus'`,
+        );
+        assert.equal(rows[0].n, 1);
+        await c.query(`delete from mission_vouchers where mission_id = 'daily_bonus'`);
+    } finally {
+        await c.end();
+    }
+});
+
+test('the voucher nonce comes from a monotonic sequence', { skip }, async () => {
+    // Was `Date.now() * 1000 + random`. A clock reading can repeat or go backwards,
+    // so the signed payload depended on server time.
+    const c = await connect();
+    try {
+        const vals: bigint[] = [];
+        for (let i = 0; i < 5; i++) {
+            const { rows } = await c.query(`select public.next_mission_voucher_nonce() as n`);
+            vals.push(BigInt(rows[0].n));
+        }
+        for (let i = 1; i < vals.length; i++) {
+            assert.ok(vals[i]! > vals[i - 1]!, `nonce must strictly increase: ${vals[i - 1]} -> ${vals[i]}`);
+        }
+        // Client-reachability is asserted by check:schema (no anon/authenticated
+        // EXECUTE on a security definer function), not here: this harness connects
+        // as a superuser, so `set role` always succeeds and would prove nothing.
+    } finally {
+        await c.end();
+    }
+});
+
+test('an orphaned pending reservation is identifiable for reclamation', { skip }, async () => {
+    // A reservation whose signature step failed used to leave a
+    // `signature = 'pending'` row that permanently blocked that wallet's reward
+    // for the period: the claim lock saw the slot as taken and every retry 409'd.
+    const c = await connect();
+    try {
+        const { rows: idx } = await c.query(
+            `select indexdef from pg_indexes where indexname = 'mission_vouchers_pending_idx'`,
+        );
+        assert.equal(idx.length, 1, 'a partial index over pending rows must exist');
+        assert.match(idx[0].indexdef, /signature = 'pending'::text/);
+
+        const { rows: col } = await c.query(
+            `select is_nullable, column_default from information_schema.columns
+             where table_name = 'mission_vouchers' and column_name = 'reserved_at'`,
+        );
+        assert.equal(col[0].is_nullable, 'NO', 'reserved_at must be NOT NULL');
+        assert.match(col[0].column_default, /now\(\)/);
+
+        // The route's failure path deletes the row, so a pending row that survives
+        // past a grace window is exactly the set a sweep should target.
+        const { rows: sel } = await c.query(
+            `select count(*)::int n from mission_vouchers
+             where signature = 'pending' and reserved_at < now() - interval '1 hour'`,
+        );
+        assert.equal(typeof sel[0].n, 'number');
+    } finally {
+        await c.end();
+    }
+});
