@@ -101,7 +101,8 @@ interface PlayerRowProps {
     uiSlots: Record<string, PlayerColor | null>;
     players: Player[];
     localGameState: any;
-    handleRoll: (val?: number) => void;
+    // No face argument: the engine rolls, the UI never supplies the value.
+    handleRoll: () => void;
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
 }
@@ -142,7 +143,7 @@ export function PlayerRow({
                         {isMyTurn && !spectatorMode && (
                             <LudoDice
                                 key={p.color}
-                                onRoll={(val) => handleRoll(val)}
+                                onRoll={handleRoll}
                                 disabled={!canRoll}
                                 currentValue={localGameState.diceValue}
                                 isRolling={localGameState.isRolling}

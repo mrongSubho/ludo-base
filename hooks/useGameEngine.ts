@@ -389,9 +389,13 @@ export function useGameEngine({
             console.log('📬 [Host] Processing Intent:', type, payload);
             
             if (type === 'REQUEST_ROLL') {
-                handleRoll(payload?.value);
+                // No face is honoured, even if one were attached — isGameIntent
+                // already dropped such an intent before it reached this handler.
+                handleRoll();
             } else if (type === 'REQUEST_MOVE') {
-                const diceValue = payload.diceValue ?? localGameState.diceValue;
+                // The face comes from the host's own committed state, never from
+                // the guest's payload.
+                const diceValue = localGameState.diceValue;
                 if (diceValue !== null) moveToken(payload.color, payload.tokenIndex, diceValue);
             } else if (type === 'CMD_REQUEST_TRUST') {
                 toggleAutoPlay(payload.color, payload.isKicked);

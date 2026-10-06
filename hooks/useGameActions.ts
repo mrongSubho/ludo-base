@@ -217,7 +217,8 @@ export function useGameActions({
         // Guest without server path: intent to host (legacy)
         if (isLobbyConnected && !isHost && !isRemote) {
             console.log('🏃 [Guest] Sending REQUEST_MOVE intent');
-            sendIntent('REQUEST_MOVE', { color, tokenIndex, diceValue: steps });
+            // No diceValue: the host moves with the face it already rolled.
+            sendIntent('REQUEST_MOVE', { color, tokenIndex });
             return;
         }
 
@@ -393,7 +394,11 @@ export function useGameActions({
         }
     }, [moveAuth, serverSeqRef, lastRollIdRef, applyServerState, setLocalGameState]);
 
-    const handleRoll = useCallback(async (value?: number, isRemote = false) => {
+    // No `value` parameter, by design. A roll face is never an input to this
+    // function: it comes from Edge `roll-dice` for a networked seat, or local
+    // RNG for an offline one. Previously callers could pass a face and it was
+    // used verbatim, which let a seated guest choose their own dice.
+    const handleRoll = useCallback(async (isRemote = false) => {
         // 🔧 FIX 3: Read from stateRef instead of stale closure for guard check
         const guardState = stateRef.current;
         if (guardState.status === 'finished' || guardState.winner) return;
@@ -412,10 +417,10 @@ export function useGameActions({
             return;
         }
 
-        // 🎲 Guest: Send intent to Host
+        // 🎲 Guest: Ask the host to roll. No face is sent — the host rolls.
         if (isLobbyConnected && !isHost && !isRemote) {
             console.log('🎲 [Guest] Sending REQUEST_ROLL intent');
-            sendIntent('REQUEST_ROLL', { value });
+            sendIntent('REQUEST_ROLL', {});
             rollingRef.current = false;
             return;
         }
@@ -431,14 +436,15 @@ export function useGameActions({
         }
         setLocalGameState((prev) => ({ ...prev, isRolling: true, diceValue: null, timeLeft: 15 }));
         
-        let rollValue: number = value || 0;
+        let rollValue = 0;
         const tumblePromise = new Promise(r => setTimeout(r, 1200));
 
         // 2. Generate and Set Result
         // Networked seats (humans AND host-orchestrated bots/AFK): Edge RNG only.
-        // Offline matches may use local RNG.
+        // Offline matches may use local RNG. There is no path that accepts a face
+        // from the caller.
         let rollReceiptId: string | null = null;
-        if (!value) {
+        {
             const networkedSeat = isLobbyConnected;
             if (networkedSeat) {
                 try {
@@ -912,7 +918,7 @@ export function useGameActions({
         if (color !== myColor && !isTeammateAssist) return;
 
         if (!isHost && isLobbyConnected) {
-            sendIntent('REQUEST_MOVE', { color, tokenIndex, diceValue: localGameState.diceValue });
+            sendIntent('REQUEST_MOVE', { color, tokenIndex });
             return;
         }
 

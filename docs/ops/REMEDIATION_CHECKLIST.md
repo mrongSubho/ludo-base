@@ -167,9 +167,16 @@ verified. One item remains, and it is a decision rather than a defect.**
 
 ### Tasks — dice
 
-- [ ] **SEC-02** — Delete `payload.value` from the `REQUEST_ROLL` branch of `isGameIntent` (`lib/gameProtocol.ts:21-23`). The host must never accept a face.
-- [ ] **SEC-02** — `useGameEngine.ts:386` — call `handleRoll()` with no argument on the networked path.
-- [ ] **SEC-02** — If AFK forced rolls are genuinely needed, route them through Edge `roll-dice` with a `forcedBy:'afk'` flag so a receipt still exists. Do **not** add a client fallback.
+- [x] **SEC-02 — a client can no longer name its own dice face (2026-10-06).** Closed at four levels, not just the parser:
+  - `lib/types.ts` — `REQUEST_ROLL` is `Record<string, never>` and `REQUEST_MOVE` has no `diceValue`, so a face is unrepresentable in a typed caller.
+  - `lib/gameProtocol.ts` — both payloads **reject** the key (`!('value' in payload)`) rather than ignoring it, so a forged intent is dropped loudly instead of silently honoured.
+  - `lib/protocol/schemas.ts` — `.strict()` on both payloads. Plain `z.object()` strips unknown keys and *passes*, which would have read as acceptance at the call site.
+  - `hooks/useGameActions.ts` — the `value` parameter is **gone** from `handleRoll`; no caller can pass a face even in principle. `REQUEST_ROLL` sends `{}` and `REQUEST_MOVE` sends only `{color, tokenIndex}`.
+  - `hooks/useGameEngine.ts` — host calls `handleRoll()` bare, and takes `REQUEST_MOVE`'s face from `localGameState.diceValue`, never from the payload.
+  - `app/components/Dice.tsx` + `PlayerInfoRow.tsx` — `onRoll` is `() => void`. The old call was `onRoll(0)`, which was safe only because `0` is falsy; `onRoll(6)` would have landed unchanged.
+- [x] **SEC-02 (not in the original list) — `REQUEST_MOVE.diceValue` removed.** A mover could declare the face it moved with, and the host preferred it over its own state (`payload.diceValue ?? localGameState.diceValue`). This is the same hole as `REQUEST_ROLL.value` and strictly worse — it allowed moving with a face the host never rolled.
+- [x] **SEC-02 — AFK/AI forced rolls already route through Edge.** `useAFKManager` and `useAIBrain` call `handleRoll()` with no argument, so a forced roll still mints a `match_rolls` receipt. No client fallback exists: a networked seat that cannot reach `roll-dice` **aborts** the roll rather than falling through to `Math.random()`. Asserted by test.
+- [ ] **SEC-01 / SEC-02 (Edge side) — `roll-dice` is still unauthenticated.** It accepts `{matchId, walletAddress, actionId}` from anyone with the anon key and service-role-inserts the receipt. Open abuse: unlimited rolls into any match, attribution forged to any wallet, and **retry-until-six** — `actionId` is client-chosen, so the idempotency that the comment claims to provide does not actually bind a roll to a turn. Needs: caller authentication, "is seated", `state.currentPlayer === seatColor`, `wallet_address` taken from the *recovered* signer rather than the body, and one roll per turn.
 - [ ] **SEC-01** — Authenticate `roll-dice`: require the caller's session/signature, verify they are seated, verify `state.currentPlayer === seatColor`, and bind `wallet_address` to the **recovered** signer.
 - [ ] **SEC-01** — In `move-auth` `move` and `pass`: select `wallet_address` and reject unless `roll.wallet_address === recovered`.
 - [ ] **SEC-01** — Require `state.lastRollId === rollId` (or store `roll_id` on the state row and CAS it) so a roll can only be spent by the turn that minted it.

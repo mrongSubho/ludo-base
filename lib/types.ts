@@ -25,8 +25,12 @@ export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_S
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
 
 export interface GameIntentPayloads {
-    REQUEST_ROLL: { value?: number };
-    REQUEST_MOVE: { color: PlayerColor; tokenIndex: number; diceValue?: number };
+    // A client may REQUEST a roll; it may never name the face. The dice value
+    // only ever comes from the host's authoritative state (or Edge RNG for the
+    // host's own seat). `Record<string, never>` makes a face unrepresentable
+    // at the type level, not merely ignored at runtime.
+    REQUEST_ROLL: Record<string, never>;
+    REQUEST_MOVE: { color: PlayerColor; tokenIndex: number };
     DICE_COMMIT: { hash: string };
     DICE_REVEAL: { nonce: string };
     CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };

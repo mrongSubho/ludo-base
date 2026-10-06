@@ -173,9 +173,11 @@ test('protocol parse-or-drop on join and actions', () => {
         payload: { name: 'Ada', walletAddress: '0xabc' },
     }).ok, true);
     assert.equal(parseJoinRequest({ type: 'JOIN_REQUEST', intentId: '', payload: {} }).ok, false);
+    // In-range face (6), not an out-of-range one: the point is that NO face is
+    // accepted, which `value: 7` never actually tested.
     assert.equal(parseGameIntent({
         type: 'REQUEST_ROLL',
-        payload: { value: 7 },
+        payload: { value: 6 },
         intentId: 'x',
     }).ok, false);
     assert.equal(parseGameActionEnvelope({ type: 'SYNC_STATE', actionId: 'a' }).ok, true);

@@ -17,7 +17,7 @@ interface UseAIBrainProps {
     localGameState: GameState;
     initialPlayers: Player[];
     isHost: boolean;
-    handleRoll: (value?: number) => Promise<void>;
+    handleRoll: (isRemote?: boolean) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
     colorCorner: ColorCorner;

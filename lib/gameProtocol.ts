@@ -19,16 +19,20 @@ export function isGameIntent(value: unknown): value is GameIntent {
     const payload = candidate.payload as Record<string, unknown>;
     switch (candidate.type as GameIntentType) {
         case 'REQUEST_ROLL':
-            return payload.value === undefined
-                || (typeof payload.value === 'number' && Number.isInteger(payload.value) && payload.value >= 1 && payload.value <= 6);
+            // No face. A guest may ask the host to roll, never choose the face.
+            // Fail closed: reject the whole intent rather than stripping the
+            // field, so a forged payload is visible rather than silently honoured.
+            return !('value' in payload);
         case 'REQUEST_MOVE':
+            // `diceValue` is also rejected. The host must move the token with the
+            // face it already committed to on its own state; letting the mover
+            // declare the face would let a guest move with any roll it liked.
             return isPlayerColor(payload.color)
                 && typeof payload.tokenIndex === 'number'
                 && Number.isInteger(payload.tokenIndex)
                 && payload.tokenIndex >= 0
                 && payload.tokenIndex < 4
-                && (payload.diceValue === undefined
-                    || (typeof payload.diceValue === 'number' && Number.isInteger(payload.diceValue) && payload.diceValue >= 1 && payload.diceValue <= 6));
+                && !('diceValue' in payload);
         case 'DICE_COMMIT':
             return typeof payload.hash === 'string' && payload.hash.length > 0;
         case 'DICE_REVEAL':

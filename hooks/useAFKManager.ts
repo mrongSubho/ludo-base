@@ -9,7 +9,7 @@ interface UseAFKManagerProps {
     localGameState: GameState;
     setLocalGameState: GameStateSetter;
     initialPlayers: Player[];
-    handleRoll: (value?: number) => Promise<void>;
+    handleRoll: (isRemote?: boolean) => Promise<void>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
     broadcastAction?: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, stateOverride?: GameState) => void;

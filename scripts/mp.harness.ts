@@ -141,7 +141,11 @@ test('Q4 4P: seat → seed → roll → move → capture → resync → end', as
         type: 'REQUEST_MOVE',
         intentId,
         sender: '0xhost',
-        payload: { color: 'green' as PlayerColor, tokenIndex: 0, diceValue: roll },
+        // No diceValue: the wire must not carry a face. The host reads the one it
+        // rolled from host.state.diceValue, exactly as useGameEngine now does.
+        // This fixture used to send diceValue, so the harness was asserting the
+        // vulnerable shape was legal.
+        payload: { color: 'green' as PlayerColor, tokenIndex: 0 },
     };
     assert.equal(parseGameIntent(intent).ok, true);
     assert.equal(bus.send({ kind: 'INTENT', payload: intent, id: intentId }), true);

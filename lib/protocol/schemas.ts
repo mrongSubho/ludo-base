@@ -12,17 +12,21 @@ export const powerTypeSchema = z.enum(['shield', 'boost', 'nuke', 'teleport']);
 export const gameIntentSchema = z.discriminatedUnion('type', [
     z.object({
         type: z.literal('REQUEST_ROLL'),
-        payload: z.object({ value: z.number().int().min(1).max(6).optional() }),
+        // .strict(): a REQUEST_ROLL carrying `value` is a client trying to name
+        // the dice face and must be dropped, not coerced. z.object() would strip
+        // the unknown key and pass, which reads as acceptance at the call site.
+        payload: z.object({}).strict(),
         sender: z.string().optional(),
         intentId: z.string().min(1),
     }),
     z.object({
         type: z.literal('REQUEST_MOVE'),
+        // .strict(): `diceValue` is rejected for the same reason `value` is on
+        // REQUEST_ROLL — the mover must not declare the face it moves with.
         payload: z.object({
             color: playerColorSchema,
             tokenIndex: z.number().int().min(0).max(3),
-            diceValue: z.number().int().min(1).max(6).optional(),
-        }),
+        }).strict(),
         sender: z.string().optional(),
         intentId: z.string().min(1),
     }),
