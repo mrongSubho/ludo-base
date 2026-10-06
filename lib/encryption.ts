@@ -19,8 +19,13 @@ export interface SealedBox {
     epk: JsonWebKey;
     iv: string;
     content: string;
-    /** 1 = ECDH sealed box */
-    v: 1;
+    /** 1 = ECDH sealed box using the retired SHA-256(tag || secret) KDF (decrypt-only).
+     *  2 = current: real HKDF-SHA-256, salt + sender static key carried here. */
+    v: 1 | 2;
+    /** v2 only: 16 HKDF salt bytes, base64. */
+    salt?: string;
+    /** v2 only: the sender's static public JWK, base64 of its canonical JSON. */
+    from?: string;
 }
 
 function storageKey(ownerId: string): string {
@@ -83,7 +88,13 @@ export async function exportPublicKeyJwk(ownerId: string): Promise<JsonWebKey> {
 export function isSealedBox(value: unknown): value is SealedBox {
     if (!value || typeof value !== 'object') return false;
     const v = value as SealedBox;
-    return v.v === 1 && !!v.epk && typeof v.iv === 'string' && typeof v.content === 'string';
+    // CRY-03 / CRY-01: both versions are valid shapes, but a v2 box must carry
+    // its salt or the HKDF cannot be reproduced.
+    if ((v.v !== 1 && v.v !== 2) || !v.epk || typeof v.iv !== 'string' || typeof v.content !== 'string') {
+        return false;
+    }
+    if (v.v === 2 && typeof v.salt !== 'string') return false;
+    return true;
 }
 
 export function parseMessagePayload(content: string): SealedBox | { iv: string; content: string } | null {
@@ -109,19 +120,74 @@ async function importPeerPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
     );
 }
 
-async function deriveAesKey(priv: CryptoKey, pub: CryptoKey): Promise<CryptoKey> {
-    const bits = await crypto.subtle.deriveBits(
-        { name: CURVE, public: pub },
-        priv,
-        256
+/**
+ * CRY-01: the real HKDF.
+ *
+ * The previous derivation was `SHA-256("ludo-dm-ecdh-v1" || sharedSecret)` with a
+ * comment calling it "HKDF-ish". It is not HKDF: there is no extract step, no
+ * expand step, and — the part that matters — the derived key binds **nothing
+ * about who is talking**. The same shared secret under a different transcript
+ * produced the same AES key, so the key was not domain-separated per conversation.
+ *
+ * Now `crypto.subtle.deriveBits({ name: "HKDF", ... })`, with:
+ *   salt — 16 random bytes, carried in the sealed box so the recipient can
+ *          reproduce it. A fixed salt was never a salt.
+ *   info — the domain tag concatenated with BOTH static public keys, so the key
+ *          is bound to this exact sender/recipient pair and this protocol
+ *          version. Reflecting the keys into `info` is what stops a key derived
+ *          for one peer from being usable in another transcript.
+ *
+ * The v1 path is retained for DECRYPT ONLY. Historical rows were sealed with the
+ * old derivation and must stay readable; nothing new is ever written with it.
+ */
+const HKDF_INFO_PREFIX = 'ludo-dm-ecdh-v2';
+
+async function deriveAesKeyV2(
+    priv: CryptoKey,
+    pub: CryptoKey,
+    salt: Uint8Array,
+    senderStaticPub: JsonWebKey,
+    recipientStaticPub: JsonWebKey,
+): Promise<CryptoKey> {
+    const bits = await crypto.subtle.deriveBits({ name: CURVE, public: pub }, priv, 256);
+    const info = concatBytes(
+        new TextEncoder().encode(HKDF_INFO_PREFIX),
+        new TextEncoder().encode(canonicalJwk(senderStaticPub)),
+        new TextEncoder().encode(canonicalJwk(recipientStaticPub)),
     );
-    // HKDF-ish: hash the shared secret with a domain separator before AES import
+    const okm = await crypto.subtle.deriveBits(
+        { name: 'HKDF', hash: 'SHA-256', salt, info },
+        await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveBits']),
+        256,
+    );
+    return crypto.subtle.importKey('raw', okm, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+/** @deprecated CRY-01 v1: `SHA-256(tag || sharedSecret)`. Decrypt only. */
+async function deriveAesKeyV1(priv: CryptoKey, pub: CryptoKey): Promise<CryptoKey> {
+    const bits = await crypto.subtle.deriveBits({ name: CURVE, public: pub }, priv, 256);
     const salt = new TextEncoder().encode('ludo-dm-ecdh-v1');
     const combined = new Uint8Array(salt.length + bits.byteLength);
     combined.set(salt, 0);
     combined.set(new Uint8Array(bits), salt.length);
     const digest = await crypto.subtle.digest('SHA-256', combined);
     return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(total);
+    let at = 0;
+    for (const p of parts) {
+        out.set(p, at);
+        at += p.length;
+    }
+    return out;
+}
+
+/** Stable JWK text for HKDF `info`, so key order cannot change the derivation. */
+function canonicalJwk(jwk: JsonWebKey): string {
+    return JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y });
 }
 
 /**
@@ -143,7 +209,17 @@ export async function encryptForPeer(
     )) as CryptoKeyPair;
 
     const peerPub = await importPeerPublicKey(recipientPublicKeyJwk);
-    const aesKey = await deriveAesKey(ephemeral.privateKey, peerPub);
+    const senderStatic = await getOrCreateIdentityKey(senderId);
+    // CRY-01: 16 random salt bytes, carried in the box. The old derivation used a
+    // constant "salt", which is just a domain tag.
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const aesKey = await deriveAesKeyV2(
+        ephemeral.privateKey,
+        peerPub,
+        salt,
+        await crypto.subtle.exportKey('jwk', senderStatic.publicKey),
+        recipientPublicKeyJwk,
+    );
 
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const data = new TextEncoder().encode(text);
@@ -151,9 +227,17 @@ export async function encryptForPeer(
     const epk = await crypto.subtle.exportKey('jwk', ephemeral.publicKey);
 
     return {
-        v: 1,
+        v: 2,
         epk,
         iv: b64encode(iv),
+        salt: b64encode(salt),
+        // CRY-02 (partial): the sender's static public key now travels with the
+        // box, so a recipient can tell who a message claims to be from and bind
+        // it into the KDF. Authentication of that claim still needs a signature
+        // and is deliberately not faked here.
+        from: b64encode(new TextEncoder().encode(canonicalJwk(
+            await crypto.subtle.exportKey('jwk', senderStatic.publicKey),
+        ))),
         content: b64encode(encrypted),
     };
 }
@@ -162,7 +246,27 @@ export async function encryptForPeer(
 export async function decryptSealedBox(ownerId: string, box: SealedBox): Promise<string> {
     const pair = await getOrCreateIdentityKey(ownerId);
     const epk = await importPeerPublicKey(box.epk);
-    const aesKey = await deriveAesKey(pair.privateKey, epk);
+
+    // CRY-01: v1 boxes were sealed with the old SHA-256(tag || secret) derivation
+    // and must stay readable, so the version selects the path. Nothing new is
+    // written as v1.
+    let aesKey: CryptoKey;
+    if (box.v === 2 && box.salt) {
+        const senderStatic = box.from
+            ? (JSON.parse(new TextDecoder().decode(b64decode(box.from))) as JsonWebKey)
+            : await crypto.subtle.exportKey('jwk', pair.publicKey);
+        // The recipient's own static key plays the "recipient" role.
+        aesKey = await deriveAesKeyV2(
+            pair.privateKey,
+            epk,
+            b64decode(box.salt),
+            senderStatic,
+            await crypto.subtle.exportKey('jwk', pair.publicKey),
+        );
+    } else {
+        aesKey = await deriveAesKeyV1(pair.privateKey, epk);
+    }
+
     const iv = b64decode(box.iv);
     const content = b64decode(box.content);
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, aesKey, content);

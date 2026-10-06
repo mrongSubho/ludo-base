@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { isSealedBox } from '@/lib/encryption';
 
 export async function GET(request: Request) {
     try {
@@ -30,6 +31,14 @@ export async function GET(request: Request) {
     }
 }
 
+function safeParseJson(value: string): unknown {
+    try {
+        return JSON.parse(value);
+    } catch {
+        return null;
+    }
+}
+
 export async function POST(request: Request) {
     try {
         const { walletAddress, sessionId, action, receiverId, content, messageId } = await request.json();
@@ -38,6 +47,17 @@ export async function POST(request: Request) {
         const db = serviceDb();
         if (action === 'send') {
             const receiver = String(receiverId || '').toLowerCase();
+            // CRY-03: a DM must be a sealed box. Without this the route stored
+            // whatever string it was handed, so a client that failed to encrypt —
+            // or chose not to — wrote plaintext into `messages.content`, where it
+            // sits in a table other code reads. The check is structural, not a
+            // length or shape heuristic: it must parse as a sealed box.
+            if (typeof content !== 'string' || !isSealedBox(safeParseJson(content))) {
+                return NextResponse.json(
+                    { error: 'Message must be a sealed ECDH box, not plaintext' },
+                    { status: 400 },
+                );
+            }
             if (!/^0x[a-f0-9]{40}$/.test(receiver) || !content || String(content).length > 10000)
                 return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
             const { data, error } = await db.from('messages').insert({

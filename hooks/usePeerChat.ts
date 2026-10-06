@@ -37,8 +37,16 @@ export const usePeerChat = ({ address, setMessages, setMyProfile }: PeerChatProp
                         senderWallet
                     );
 
+                    // CRY-02: do not spread the peer-supplied metadata into the
+                    // rendered message. Anything a remote peer puts in `metadata`
+                    // was being copied straight onto the object the UI renders,
+                    // so a peer could set arbitrary fields on a message — a name,
+                    // a flag, whatever the component reads. Only fields this
+                    // client derives are set here.
                     const newMsg: MessageData = {
-                        ...data.metadata,
+                        id: String(data.metadata?.id ?? ''),
+                        sender_id: senderWallet,
+                        receiver_id: address.toLowerCase(),
                         content: plainText,
                         is_read: false,
                         created_at: new Date().toISOString(),

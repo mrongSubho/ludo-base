@@ -328,3 +328,75 @@ test('SEC-32: pickPersistedState drops what it does not know', () => {
     assert.deepEqual(out.powerTiles, [{ r: 1, c: 2 }], 'and tile members reduced to the board');
     assert.equal(out.currentPlayer, 'green', 'known fields survive');
 });
+
+// ── CRY-01 / CRY-02 / CRY-03 ───────────────────────────────────────────────
+
+test('CRY-01: the KDF is real HKDF, not "HKDF-ish"', () => {
+    const src = read('lib/encryption.ts');
+
+    // The derivation itself.
+    assert.match(
+        src,
+        /crypto\.subtle\.deriveBits\(\s*\{\s*name: 'HKDF', hash: 'SHA-256', salt, info\s*\}/,
+        'must be crypto.subtle HKDF, not a hand-rolled hash',
+    );
+    assert.match(src, /HKDF_INFO_PREFIX = 'ludo-dm-ecdh-v2'/);
+
+    // Scoped to the v2 function: a constant "salt" is not a salt, and info must
+    // bind BOTH static keys or the same shared secret derives the same key in a
+    // different transcript.
+    const v2 = src.slice(src.indexOf('async function deriveAesKeyV2'));
+    const v2End = v2.indexOf('/** @deprecated');
+    const v2Body = v2.slice(0, v2End === -1 ? v2.length : v2End);
+    assert.match(v2Body, /canonicalJwk\(senderStaticPub\)/, 'info must bind the sender key');
+    assert.match(v2Body, /canonicalJwk\(recipientStaticPub\)/, 'info must bind the recipient key');
+
+    // Scoped to encryptForPeer: the salt must be random, not derived.
+    const encryptFn = src.slice(src.indexOf('export async function encryptForPeer'));
+    const encryptBody = encryptFn.slice(0, encryptFn.indexOf('export async function decryptSealedBox'));
+    assert.match(
+        encryptBody,
+        /const salt = crypto\.getRandomValues\(new Uint8Array\(16\)\)/,
+        'the HKDF salt must be 16 random bytes',
+    );
+    assert.doesNotMatch(
+        encryptBody,
+        /const salt = new TextEncoder\(\)/,
+        'a constant salt is a domain tag, not a salt',
+    );
+    assert.match(encryptBody, /salt: b64encode\(salt\)/, 'and it must travel in the box');
+    assert.match(encryptBody, /deriveAesKeyV2/);
+    assert.doesNotMatch(
+        encryptBody,
+        /deriveAesKeyV1/,
+        'new messages must never be sealed with the v1 derivation',
+    );
+});
+
+test('CRY-01: v1 stays decrypt-only so historical DMs remain readable', () => {
+    const src = read('lib/encryption.ts');
+    assert.match(src, /deriveAesKeyV1/, 'the v1 derivation must still exist');
+    assert.match(src, /decrypt-only/i);
+    // And the version selects the path — nothing new is written as v1.
+    assert.match(src, /if \(box\.v === 2 && box\.salt\)/);
+    assert.match(src, /v: 1 \| 2/);
+    // A v2 box without its salt cannot be opened, so isSealedBox must refuse it.
+    assert.match(src, /if \(v\.v === 2 && typeof v\.salt !== 'string'\) return false/);
+});
+
+test('CRY-03: the messages route refuses plaintext', () => {
+    const src = code('app/api/messages/route.ts');
+    assert.match(src, /isSealedBox\(safeParseJson\(content\)\)/);
+    assert.match(src, /not plaintext/);
+    assert.match(src, /status: 400/);
+    // Structural check, not a length or shape heuristic.
+    assert.match(src, /typeof content !== 'string' \|\| !isSealedBox/);
+});
+
+test('CRY-02: peer-supplied metadata is not spread into a rendered message', () => {
+    const src = code('hooks/usePeerChat.ts');
+    assert.doesNotMatch(src, /\.\.\.data\.metadata/, 'a peer must not set fields on what the UI renders');
+    // The fields are set explicitly instead.
+    assert.match(src, /sender_id: senderWallet/);
+    assert.match(src, /receiver_id: address\.toLowerCase\(\)/);
+});
