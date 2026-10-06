@@ -126,12 +126,12 @@ only pre-existing correct coin path in the repo._
 
 > **Scope note on the concurrency gate.** The escrow has genuine defence in depth, so tests 2 and 3 assert the *invariant*, not a single layer. `chips_escrow_accounts` carries `CHECK (balance >= 0)` **and** the debit is a conditional `UPDATE ... WHERE balance >= amount` (atomic under row locks). Removing either layer alone does not produce an overdraft, which is the desired outcome but means those two tests cannot fail from a one-layer regression. Test 1 is layer-sensitive and is proven so.
 
-**Gate status: every Phase 1 code task is closed. Three operational items remain,
-none of which is a code defect.**
+**Gate status: every Phase 1 code task is closed. Two operational items remain,
+neither of which is a code defect.**
 
 1. **Not deployed.** `MatchPool` changed again: `AbandonReason` inside `ABANDON_TYPEHASH`, the `submitAbandon`/`submitAbandonDual` signatures, `AFK_STRIKES_REQUIRED`, two new errors, and `getPoolSummary` growing to 12 fields. The live Sepolia pair **cannot** accept a ticket, settle, or abandon produced by the current server.
 2. **`SEC-05a` is built but inert.** `chips_escrow_config.enabled` is `false`, so no escrow RPC runs in production. Arming is a decision, not a fix: funded treasury wallet, non-zero rake, deposit reconciliation against `chips_events`, solvency runbook. `allow_self_bets` is now inside the arming CHECK, so it cannot be re-enabled by a config write.
-3. **Migrations `202609300010` to production** (applied and verified locally only), plus the mainnet deploy and the stranded-funds question, both tracked under *Contract redeploy* below.
+3. **Mainnet deploy and the stranded-funds question**, both tracked under *Contract redeploy* below.
 
 ### Contract redeploy (ECO-01 / ECO-03)
 
@@ -144,10 +144,7 @@ none of which is a code defect.**
 - [x] **Post-ECO-08 redeploy done (2026-10-06).** Live pair is `MatchPool` `0xdfa01EDE5E9A013a6C3deA718818315f9D4A102e`, `ClaimHub` `0x538e25f8ED55Be59662e1F89d0B26c0013B67CCC` — constructed with the rotated edge signer, so no separate `setEdgeSigner` was needed for it. Runtime byte-identical to the local artifact (immutables + CBOR metadata aside), verified on Sourcify as `match`. Superseded: `0xb1cEB8Da…`/`0xcdBd9763…`. Confirmed on-chain: `claimHub()`/`matchPool()` cross-reference, `owner`/`edgeSigner`/`chips` preserved, `setClaimHub` wired. Deployed runtime is byte-identical to the local artifact once the `chips` immutable and the CBOR metadata hash are accounted for (21145 B), so **the ECO-08 `shape` branch is genuinely live**. Both verified on Sourcify as `match` with full sources.
   - Superseded and orphaned, no funds in any: `0xb1cEB8Da…`/`0xcdBd9763…` (pre-edge-rotation), `0x2e93b3B1…`/`0x8ea2b333…` (pre-ECO-08), `0x879E7D56…`/`0x1430E2D4…` (pre-redeploy).
 - [x] Migration `202609300009` **is applied to production** (verified via the Management API: both columns, the CHECK constraint, and the backfill). No row has a `match_shape`, which is correct — the only `host_proven` rows have 1-seat rosters and the contract requires 2 or 4 — so the paid-pool path stays closed by design until `/api/match/start` records one.
-- [ ] **Migration `202609300010` is applied and verified locally only.** It carries the escrow arming interlock, the case-normalized claim lock, the nonce sequence, and pending-row reclamation:
-  ```bash
-  supabase db push
-  ```
+- [x] **Migration `202609300010` applied to production** (verified via the Management API): the arming CHECK now reads `NOT enabled OR (treasury_wallet IS NOT NULL AND rake_bps > 0 AND NOT allow_self_bets)`, the claim lock is a unique index on `lower(wallet_address)`, `next_mission_voucher_nonce()` exists and is `service_role`-only, and the escrow is still inert (`enabled=false, rake_bps=0`).
 - [x] Verification moved off the retired Etherscan V1 hosts to V2 + Sourcify fallback (`scripts/verify-contracts.sh`, `contracts/foundry.toml`).
 - [x] `scripts/verify-contracts.sh` now cross-checks the deployed runtime size against the local artifact before interpreting a verifier answer. This was needed because Sourcify answers "already verified" for *any* previously-verified address, so a stale `contracts/.env` made the script verify the **previous** deployment and still exit 0 — exactly how the ECO-08 redeploy first reported success with the live contracts unverified. It also echoes the addresses it actually checked, so the output can be compared against the deploy log.
 - [x] `scripts/lib-load-env.sh` — one shared `contracts/.env` loader for both deploy/verify scripts. A plain `source ./.env` overwrote caller-supplied variables, so an inline override silently lost; inline now always wins, and trailing `#` comments are stripped (which had been corrupting `ETHERSCAN_API_KEY`).

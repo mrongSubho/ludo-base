@@ -76,6 +76,16 @@ redeploy_pool() {
   fi
   echo
 
+  # forge keeps stale artifacts whenever a script or test file is rewritten:
+  # it generates foundry-pp/DeployHelper*.sol shims, and once those no longer
+  # exist it decodes constructor arguments against the wrong ABI. The symptom is
+  # `Failed to decode constructor arguments ... ABI decoding failed: buffer
+  # overrun` AFTER "Script ran successfully" — the simulation is fine and the
+  # broadcast aborts, so the script prints plausible addresses for contracts that
+  # were never created. Deploys are rare enough that a clean rebuild is the
+  # cheaper trade than shipping whatever the stale artifact described.
+  forge clean
+
   forge script script/RedeployPool.s.sol:RedeployPool \
     --rpc-url "$rpc" \
     --account "$ACCOUNT" \
