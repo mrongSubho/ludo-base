@@ -9,8 +9,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -30,6 +31,38 @@ function bash(snippet: string, env: Record<string, string> = {}): { out: string;
         return { out: `${err.stdout ?? ''}${err.stderr ?? ''}`, code: err.status ?? 1 };
     }
 }
+
+/**
+ * Where tests let the deploy scripts read their env file.
+ *
+ * `scripts/lib-load-env.sh` *creates* `$LUDO_ENV_FILE` from `.env.example` when
+ * it is missing (a first-run bootstrap, so the required keys are visible). That
+ * is fine interactively and wrong in a test: running the suite used to leave a
+ * placeholder `contracts/.env` in the developer's tree, and on CI — which has no
+ * such file — it left one behind for the rest of the run, which then failed the
+ * edge-signer check below for "declares no EDGE_SIGNER".
+ *
+ * Pointing LUDO_ENV_FILE at a throwaway path keeps the bootstrap (and its echo)
+ * inside tmp/ and leaves the real file alone.
+ */
+const SANDBOX_ENV = join(tmpdir(), 'ludo-deploy-guardrails', 'contracts', '.env');
+
+/**
+ * Materialise the sandbox env file from `contracts/.env.example`.
+ *
+ * It has to actually contain the example's keys, not just exist: with an empty
+ * file the loader exports nothing, `require_env` bails at "MISSING
+ * CHIPS_ADDRESS", and the tests never reach the guard or the mode banner they
+ * are asserting on. Copying the example reproduces exactly what the loader sees
+ * on a machine that has run setup once, which is what these tests mean to test.
+ */
+function sandboxEnv(): string {
+    mkdirSync(join(SANDBOX_ENV, '..'), { recursive: true });
+    copyFileSync(join(root, 'contracts/.env.example'), SANDBOX_ENV);
+    return SANDBOX_ENV;
+}
+
+sandboxEnv();
 
 const DEV0 = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'; // anvil #0
 const DEV1 = '0x70997970c51812dc3a010c7d01b50e0d17dc79c8'; // anvil #1
@@ -104,6 +137,7 @@ test('sepolia-pool refuses to deploy with a dev key in any on-chain role', () =>
         base[role] = DEV0;
         const r = bash(`scripts/foundry-deploy.sh sepolia-pool`, {
             ...base,
+            LUDO_ENV_FILE: SANDBOX_ENV,
             FOUNDRY_ACCOUNT: 'definitely-not-a-keystore',
             // Stop before forge is reached; we only assert the guard fires.
         });
@@ -112,7 +146,10 @@ test('sepolia-pool refuses to deploy with a dev key in any on-chain role', () =>
 });
 
 test('sepolia (full stack) refuses to deploy MockChips to a live network', () => {
-    const r = bash('scripts/foundry-deploy.sh sepolia', { USE_MOCK: 'true' });
+    const r = bash('scripts/foundry-deploy.sh sepolia', {
+        USE_MOCK: 'true',
+        LUDO_ENV_FILE: SANDBOX_ENV,
+    });
     assert.match(r.out, /refusing/, 'USE_MOCK=true must be refused on Sepolia');
 });
 
@@ -165,6 +202,7 @@ test('-pool verbs simulate by default and only broadcast on explicit opt-in', ()
 
     const r = bash('scripts/foundry-deploy.sh sepolia-pool', {
         ...inline,
+        LUDO_ENV_FILE: SANDBOX_ENV,
         LUDO_CONFIRM_DEPLOY: '',
     });
     assert.match(r.out, /MODE\s+:\s+SIMULATION/, r.out);
@@ -173,6 +211,7 @@ test('-pool verbs simulate by default and only broadcast on explicit opt-in', ()
     // With the opt-in set it must announce BROADCAST instead.
     const r2 = bash('scripts/foundry-deploy.sh sepolia-pool', {
         ...inline,
+        LUDO_ENV_FILE: SANDBOX_ENV,
         LUDO_CONFIRM_DEPLOY: 'yes',
     });
     assert.match(r2.out, /MODE\s+:\s+BROADCAST/, r2.out);
@@ -217,15 +256,30 @@ test('the edge signer is not a well-known dev key', () => {
     // On a machine that has deployed it exists and is checked in full below; on
     // CI it does not exist, and asserting on its contents there would be
     // asserting on nothing.
+    // existsSync rather than try/catch on the read: if the file is present it
+    // must be usable, and if it is absent there is nothing to assert. `\s*$`
+    // so a CRLF checkout does not read as "present but malformed".
+    const envPath = join(root, 'contracts/.env');
     let declared: string | null = null;
-    try {
-        const env = read('contracts/.env');
-        const m = env.match(/^EDGE_SIGNER=(0x[0-9a-fA-F]{40})$/m);
-        assert.ok(m, 'contracts/.env must declare EDGE_SIGNER');
+    if (existsSync(envPath)) {
+        const m = readFileSync(envPath, 'utf8').match(/^EDGE_SIGNER=(0x[0-9a-fA-F]{40})\s*$/m);
+        assert.ok(m, `${envPath} exists but declares no EDGE_SIGNER address`);
         declared = m[1]!;
-    } catch (e) {
-        if ((e as { code?: string }).code !== 'ENOENT') throw e;
     }
+
+    // The file must never be committed — that is the part CI can always check,
+    // whether or not the secret happens to exist on the machine running it.
+    const ignored = execFileSync('git', ['check-ignore', 'contracts/.env'], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    assert.equal(ignored, 'contracts/.env', 'contracts/.env must be gitignored');
+    const trackedEnv = execFileSync('git', ['ls-files', 'contracts/.env'], {
+        cwd: root,
+        encoding: 'utf8',
+    }).trim();
+    assert.equal(trackedEnv, '', 'contracts/.env must not be tracked by git');
 
     // What CI CAN check, and what is the actual risk in this finding: the secret
     // is never committed, and no tracked file anywhere in the repo carries an
@@ -327,6 +381,7 @@ test('shell constructs used by the deploy helper are bash 3.2 safe', () => {
 
     // And the actual behaviour: a dry run must not print bash diagnostics.
     const r = bash('scripts/foundry-deploy.sh sepolia-pool', {
+        LUDO_ENV_FILE: SANDBOX_ENV,
         FOUNDRY_ACCOUNT: 'definitely-not-a-keystore',
     });
     assert.doesNotMatch(r.out, /unbound variable/);
