@@ -68,6 +68,11 @@ interface UseGameActionsProps {
         }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode; message?: string; armed?: string; kept?: boolean }>;
         /** Authoritative snapshot fetch — recovery path when a write is refused. */
         getMatchState?: (matchId: string) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
+        /**
+         * SEC-01: mint a dice receipt through the match session. No face
+         * parameter exists on purpose — the Edge function is the only source.
+         */
+        requestRoll?: (p: { matchId: string; seatColor: PlayerColor; roomCode?: string }) => Promise<{ ok: boolean; result?: number; rollId?: string | null; error?: string }>;
     };
     /** Latest server seq (match_states). */
     serverSeqRef: React.MutableRefObject<number>;
@@ -446,34 +451,32 @@ export function useGameActions({
         let rollReceiptId: string | null = null;
         {
             const networkedSeat = isLobbyConnected;
+            const rollMatchId = localGameState.matchId;
             if (networkedSeat) {
+                // SEC-01: an authenticated mint, not a bare fetch. The receipt's
+                // minter, seat and turn are derived server-side; there is no
+                // face parameter and no client-chosen wallet (the old
+                // `${color}-bot` string could not even satisfy the players FK,
+                // so hosted bots could not roll at all).
+                if (!rollMatchId) {
+                    console.error('❌ [Engine] networked roll with no matchId — aborting (no client fallback)');
+                    await tumblePromise;
+                    setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
+                    rollingRef.current = false;
+                    return;
+                }
                 try {
-                    const roller = address || `${color}-bot`;
-                    const actionId = crypto.randomUUID();
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-                        },
-                        // Without a bound, a stalled Edge connection leaves
-                        // isRolling true forever and the turn never resolves.
-                        signal: AbortSignal.timeout(20000),
-                        body: JSON.stringify({
-                            matchId: localGameState.matchId || 'local',
-                            walletAddress: roller,
-                            actionId,
-                        })
+                    const mintFn = moveAuth?.requestRoll;
+                    if (!mintFn) throw new Error('no move-auth client');
+                    const mint = await mintFn({
+                        matchId: rollMatchId,
+                        seatColor: color,
                     });
-
-                    if (!response.ok) throw new Error('Edge RNG failed');
-                    const data = await response.json();
-                    const parsed = Number(data?.result);
-                    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 6) {
-                        throw new Error('Edge RNG returned invalid face');
+                    if (!mint.ok || mint.result === undefined) {
+                        throw new Error(mint.error || 'Edge RNG failed');
                     }
-                    rollValue = parsed;
-                    rollReceiptId = data?.rollId ?? null;
+                    rollValue = mint.result;
+                    rollReceiptId = mint.rollId ?? null;
                     lastRollIdRef.current = rollReceiptId;
                 } catch (err) {
                     console.error('❌ [Engine] Edge RNG failed — aborting networked roll (no client fallback)', err);

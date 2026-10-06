@@ -26,6 +26,8 @@ import {
   isExpired,
   isTerminalMatch,
 } from '../_shared/networkBoundary.ts';
+import { verifyMatchSession } from '../_shared/matchSession.ts';
+import { checkRollBinding } from '../_shared/rollReceipt.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -80,27 +82,6 @@ const SESSION_TYPES = {
     { name: 'nonce', type: 'string' },
   ],
 } as const;
-
-async function verifyMatchSession(
-  supabase: SupabaseClient,
-  sessionId: string,
-  matchId: string,
-  expectedWallet: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { data: sess, error } = await supabase
-    .from('match_sessions')
-    .select('id, match_id, wallet_address, expires_at, revoked_at')
-    .eq('id', sessionId)
-    .maybeSingle();
-  if (error || !sess) return { ok: false, error: 'Session not found' };
-  if (sess.revoked_at) return { ok: false, error: 'Session revoked' };
-  if (isExpired(sess.expires_at, Date.now())) return { ok: false, error: 'Session expired' };
-  if (String(sess.match_id) !== String(matchId)) return { ok: false, error: 'Session match mismatch' };
-  if (String(sess.wallet_address).toLowerCase() !== expectedWallet.toLowerCase()) {
-    return { ok: false, error: 'Session wallet mismatch' };
-  }
-  return { ok: true };
-}
 
 function isFresh(issuedAt: string): boolean {
   const t = Date.parse(issuedAt);
@@ -525,14 +506,26 @@ Deno.serve(async (req) => {
         if (!own.ok) return json({ error: 'Not your seat' }, 403);
       }
 
-      // Roll binding
+      // Roll binding (SEC-01)
       const { data: roll, error: rollErr } = await supabase
         .from('match_rolls')
-        .select('id, result, match_id, status')
+        .select('id, result, match_id, status, seat_color, turn_seq, wallet_address')
         .eq('id', rollId)
         .maybeSingle();
-      if (rollErr || !roll) return json({ error: 'Roll not found' }, 404);
-      if (roll.match_id !== String(matchId)) return json({ error: 'Roll match mismatch' }, 403);
+      if (rollErr) return json({ error: 'Roll lookup failed' }, 500);
+      if (!roll) return json({ error: 'Roll not found' }, 404);
+      if (roll.match_id !== String(matchId)) {
+        return json({ error: 'Roll match mismatch' }, 403);
+      }
+      const binding = checkRollBinding({
+        roll, color: String(color), seq,
+        hostAddress: row.host_address,
+        seatWallet: (c: string) => {
+          const st = seats[c as keyof Seats];
+          return st && st.kind === 'human' ? (st.wallet || null) : null;
+        },
+      });
+      if (!binding.ok) return json({ error: binding.error, code: binding.code }, binding.status);
       if (isDuplicateAction(roll.status)) return json({ error: 'Roll already consumed', code: 'DUPLICATE_ACTION' }, 409);
 
       const dice = Number(roll.result);
@@ -664,10 +657,22 @@ Deno.serve(async (req) => {
 
       const { data: roll } = await supabase
         .from('match_rolls')
-        .select('id, result, match_id, status')
+        .select('id, result, match_id, status, seat_color, turn_seq, wallet_address')
         .eq('id', rollId)
         .maybeSingle();
-      if (!roll || roll.match_id !== String(matchId)) return json({ error: 'Roll not found' }, 404);
+      if (!roll) return json({ error: 'Roll not found' }, 404);
+      if (roll.match_id !== String(matchId)) {
+        return json({ error: 'Roll match mismatch' }, 403);
+      }
+      const passBinding = checkRollBinding({
+        roll, color: String(color), seq,
+        hostAddress: row.host_address,
+        seatWallet: (c: string) => {
+          const st = seats[c as keyof Seats];
+          return st && st.kind === 'human' ? (st.wallet || null) : null;
+        },
+      });
+      if (!passBinding.ok) return json({ error: passBinding.error, code: passBinding.code }, passBinding.status);
       if (isDuplicateAction(roll.status)) return json({ error: 'Roll already consumed', code: 'DUPLICATE_ACTION' }, 409);
 
       const dice = Number(roll.result);

@@ -244,6 +244,72 @@ export function useMoveAuth(opts: {
         return r;
     }, [myAddress, signMessageAsync]);
 
+    /**
+     * SEC-01: mint a dice receipt.
+     *
+     * Goes through the match session rather than a bare fetch so `roll-dice` can
+     * authenticate the minter. The seat is the only thing the caller states; the
+     * minter's wallet, the turn, and the one-roll-per-turn rule are all derived
+     * server-side. There is deliberately no parameter for a face — the Edge
+     * function is the only source of one.
+     */
+    const requestRoll = useCallback(async (params: {
+        matchId: string;
+        seatColor: PlayerColor;
+        roomCode?: string;
+    }): Promise<{ ok: boolean; result?: number; rollId?: string | null; error?: string }> => {
+        const actor = (myAddress || '').toLowerCase();
+        if (!actor) return { ok: false, error: 'no wallet' };
+        if (!sharedMoveSessions.has(params.matchId)) {
+            try {
+                await createMatchSession({ matchId: params.matchId, roomCode: params.roomCode || params.matchId });
+            } catch { /* fall back to a per-roll sign */ }
+        }
+        const sessionId = sharedMoveSessions.get(params.matchId);
+        let message: string | undefined;
+        let signature: string | undefined;
+        let issuedAt: string | undefined;
+
+        if (!sessionId) {
+            issuedAt = new Date().toISOString();
+            message = `Ludo roll request\nmatch: ${params.matchId}\nseat: ${params.seatColor}\nat: ${issuedAt}`;
+            try {
+                signature = await signMessageAsync({ account: actor as `0x${string}`, message });
+            } catch {
+                return { ok: false, error: 'sign rejected' };
+            }
+        }
+
+        const res = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+                },
+                body: JSON.stringify({
+                    matchId: params.matchId,
+                    seatColor: params.seatColor,
+                    actor,
+                    sessionId: sessionId || undefined,
+                    message,
+                    signature,
+                    issuedAt,
+                }),
+                signal: AbortSignal.timeout(20000),
+            },
+        ).catch(() => null);
+        if (!res) return { ok: false, error: 'network error' };
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return { ok: false, error: data?.error || `HTTP ${res.status}` };
+        const result = Number(data?.result);
+        if (!Number.isInteger(result) || result < 1 || result > 6) {
+            return { ok: false, error: 'Edge RNG returned invalid face' };
+        }
+        return { ok: true, result, rollId: data?.rollId ?? null };
+    }, [myAddress, signMessageAsync, createMatchSession]);
+
     const submitMove = useCallback(async (params: {
         matchId: string;
         color: PlayerColor;
@@ -520,6 +586,7 @@ export function useMoveAuth(opts: {
         createMatchSession,
         getSessionId,
         clearSession,
+        requestRoll,
         submitMove,
         passTurn,
         submitPower,

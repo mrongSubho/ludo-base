@@ -112,6 +112,106 @@ after(async () => {
 
 const skip = enabled ? false : 'set LUDO_SCHEMA_DB_URL to run concurrency tests';
 
+test('a second roll receipt for the same turn is impossible (SEC-01)', { skip }, async () => {
+    const setup = await connect();
+    const host = '0x' + 'aa'.repeat(20);
+    const matchId = 'roll-turn-1';
+    try {
+        await setup.query(`insert into players(wallet_address) values ($1) on conflict do nothing`, [host]);
+        await setup.query(
+            `insert into match_rolls (match_id, wallet_address, seat_color, turn_seq, result)
+             values ($1, $2, 'green', 7, 3)`,
+            [matchId, host],
+        );
+
+        // Retry until you roll a six. The caller can vary action_id, the body,
+        // the signature — none of it matters. A second receipt for (match, turn)
+        // cannot be inserted, because a partial unique index says so.
+        let accepted = 0;
+        let rejected = 0;
+        await concurrently(6, async (c, i) => {
+            try {
+                await c.query(
+                    `insert into match_rolls (match_id, wallet_address, seat_color, turn_seq, result, action_id)
+                     values ($1, $2, 'green', 7, 6, $3)`,
+                    [matchId, host, `retry-${i}`],
+                );
+                accepted += 1;
+            } catch (e) {
+                assert.equal(sqlState(e), '23505', `unexpected error: ${(e as Error).message}`);
+                rejected += 1;
+            }
+        });
+        assert.equal(accepted, 0, 'no retry may mint a second face for the same turn');
+        assert.equal(rejected, 6, 'every retry must be refused by the unique index');
+
+        const { rows } = await setup.query(
+            `select result from match_rolls where match_id = $1 and turn_seq = 7`,
+            [matchId],
+        );
+        assert.equal(rows.length, 1, 'exactly one receipt for the turn');
+        assert.equal(rows[0].result, 3, 'the first face is the only face');
+    } finally {
+        await setup.query(`delete from match_rolls where match_id = $1`, [matchId]);
+        await setup.end();
+    }
+});
+
+test('a new turn may roll again, and unbound legacy rows do not collide', { skip }, async () => {
+    const setup = await connect();
+    const host = '0x' + 'bb'.repeat(20);
+    const matchId = 'roll-turn-2';
+    try {
+        await setup.query(`insert into players(wallet_address) values ($1) on conflict do nothing`, [host]);
+        // seq advances after every move, so the next turn can mint freely.
+        await setup.query(
+            `insert into match_rolls (match_id, wallet_address, seat_color, turn_seq, result)
+             values ($1, $2, 'green', 7, 2), ($1, $2, 'red', 8, 6)`,
+            [matchId, host],
+        );
+        // Two legacy rows with no turn binding must coexist — the unique index is
+        // partial, so history that predates the migration cannot block a new roll.
+        await setup.query(
+            `insert into match_rolls (match_id, wallet_address, seat_color, turn_seq, result)
+             values ($1, $2, null, null, 4), ($1, $2, null, null, 5)`,
+            [matchId, host],
+        );
+        const { rows } = await setup.query(
+            `select count(*)::int n from match_rolls where match_id = $1 and turn_seq is not null`,
+            [matchId],
+        );
+        assert.equal(rows[0].n, 2, 'one receipt per bound turn');
+    } finally {
+        await setup.query(`delete from match_rolls where match_id = $1`, [matchId]);
+        await setup.end();
+    }
+});
+
+test('the seat vocabulary on a receipt is closed', { skip }, async () => {
+    const setup = await connect();
+    const host = '0x' + 'cc'.repeat(20);
+    const matchId = 'roll-turn-3';
+    try {
+        await setup.query(`insert into players(wallet_address) values ($1) on conflict do nothing`, [host]);
+        let state: string | null = null;
+        try {
+            await setup.query(
+                `insert into match_rolls (match_id, wallet_address, seat_color, turn_seq, result)
+                 values ($1, $2, 'purple', 1, 6)`,
+                [matchId, host],
+            );
+        } catch (e) {
+            state = sqlState(e);
+        }
+        // 23514 = check_violation. A receipt may not name a seat the engine does
+        // not know, or move-auth could never match it to a token.
+        assert.equal(state, '23514', 'an unknown seat colour must be refused');
+    } finally {
+        await setup.query(`delete from match_rolls where match_id = $1`, [matchId]);
+        await setup.end();
+    }
+});
+
 test('concurrent voucher claims credit exactly once per (wallet, mission, period)', { skip }, async () => {
     const setup = await connect();
     const wallet = '0x' + '11'.repeat(20);
