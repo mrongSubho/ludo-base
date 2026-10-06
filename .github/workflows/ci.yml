@@ -32,6 +32,13 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
+      # foundry for scripts/deploy-guardrails.test.ts, which executes the real
+      # deploy scripts and asserts they refuse dev keys. Without it those tests
+      # could not reach the guard at all: foundry-deploy.sh dies at its own
+      # `command -v forge` check first, so the tests were asserting on the wrong
+      # error and CI reported failures that did not reproduce locally.
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1
       - name: Engine unit tests
         run: npm test
       - name: Golden replay corpus (≥50 deterministic matches)
