@@ -196,6 +196,55 @@ test('shell constructs used by the deploy helper are bash 3.2 safe', () => {
     assert.doesNotMatch(r.out, /bad substitution/);
 });
 
+test('the Etherscan V2 chainid is carried in the URL, not a dropped config key', () => {
+    // Etherscan retired the V1 hosts; V2 requires `chainid` as a query param.
+    // Forge 1.8.x silently DROPS a `chainid` key from [etherscan] — it never
+    // appears in `forge config` and has no effect — so every verify failed with
+    // "Missing chainid parameter". Forge appends its query after the configured
+    // URL, so baking chainid into the url works.
+    const toml = read('contracts/foundry.toml');
+    // Strip comments first: the file documents the trap in prose, and a comment
+    // mentioning `chainid` is not a config key.
+    const code = toml
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('#'))
+        .join('\n');
+    // Every `chainid` in live config must be part of the URL query, i.e. directly
+    // preceded by `?`. A bare `chainid = <n>` key is what forge 1.8.x drops.
+    for (const line of code.split('\n')) {
+        let idx = line.indexOf('chainid');
+        while (idx !== -1) {
+            assert.equal(
+                line[idx - 1],
+                '?',
+                `chainid must be a url query param, not a config key: ${line.trim()}`,
+            );
+            idx = line.indexOf('chainid', idx + 1);
+        }
+    }
+    assert.match(
+        toml,
+        /api\.etherscan\.io\/v2\/api\?chainid=84532/,
+        'Base Sepolia chainid must be in the url',
+    );
+    assert.match(toml, /api\.etherscan\.io\/v2\/api\?chainid=8453\b/, 'Base mainnet chainid must be in the url');
+    // And the deprecated V1 hosts must not reappear.
+    assert.doesNotMatch(toml, /basescan\.org\/api/);
+});
+
+test('verify-contracts.sh does not gate success on a SIGPIPE-prone pipeline', () => {
+    // `forge ... | tee log | grep -q` under `set -o pipefail`: grep -q exits on
+    // the first match, tee takes a SIGPIPE, and the whole pipeline goes non-zero.
+    // That reported a successful verification as a failure, intermittently
+    // depending on how much output tee had flushed.
+    const src = read('scripts/verify-contracts.sh')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('#'))
+        .join('\n');
+    assert.doesNotMatch(src, /\|\s*tee\s+\S*\s*\|\s*grep\s+-q/, 'must not pipe through grep -q');
+    assert.match(src, /mktemp/, 'must capture verifier output to a file instead');
+});
+
 test('the edge signer private key lives only in gitignored env files', () => {
     // EDGE_SETTLE_PRIVATE_KEY co-signs settlement digests. It must never be
     // committed, and the two env files holding it must stay ignored.

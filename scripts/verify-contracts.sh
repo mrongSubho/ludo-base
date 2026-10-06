@@ -105,25 +105,35 @@ verify_one() {
     return 1
   fi
 
+  # Deliberately NOT `forge ... | tee | grep -q`. `grep -q` exits on the first
+  # match, which closes the pipe and gives `tee` a SIGPIPE; under `set -o pipefail`
+  # that turns a successful verification into a non-zero pipeline. Whether it
+  # bit us depended on whether tee had finished flushing, so it looked
+  # intermittent. Capture to a file, then grep the file.
+  local log; log="$(mktemp)"
   if forge verify-contract "$address" "$target" \
        --chain-id "$CHAIN_ID" --rpc-url "$RPC" --constructor-args "$args" \
-       --verifier etherscan 2>&1 | tee /tmp/verify.$$ | grep -qiE "success|already verified|verified on etherscan"; then
+       --verifier etherscan >"$log" 2>&1 \
+     && grep -qiE "success|already verified|verified on etherscan" "$log"; then
     echo "   OK (etherscan)"
-    rm -f /tmp/verify.$$
+    grep -oE "https://[a-z.]*basescan[.]org/address/[0-9a-fA-Fx]+" "$log" | head -1 | sed 's/^/     /'
+    rm -f "$log"
     return 0
   fi
 
   echo "   etherscan failed; trying sourcify"
   if forge verify-contract "$address" "$target" \
        --chain-id "$CHAIN_ID" --rpc-url "$RPC" --constructor-args "$args" \
-       --verifier sourcify --watch 2>&1 | tee /tmp/verify.$$ | grep -qiE "success|already verified"; then
+       --verifier sourcify --watch >"$log" 2>&1 \
+     && grep -qiE "success|already verified" "$log"; then
     echo "   OK (sourcify)"
-    rm -f /tmp/verify.$$
+    rm -f "$log"
     return 0
   fi
 
-  echo "   FAILED -- see output above" >&2
-  rm -f /tmp/verify.$$
+  echo "   FAILED" >&2
+  tail -20 "$log" | sed 's/^/     /' >&2
+  rm -f "$log"
   return 1
 }
 
