@@ -70,7 +70,8 @@ test('SEC-07: the tick is rate-limited even when called directly', () => {
 
 test('the client passes its session on both calls', () => {
     // The POST builds its query with URLSearchParams, so assert on the params.
-    assert.match(page, /new URLSearchParams\(\{[^}]*sessionId: sid/s, 'the bootstrap query must carry a session');
+    const params = /new URLSearchParams\(\{[\s\S]*?sessionId: sid[\s\S]*?\}\)/.exec(page);
+    assert.ok(params, 'the bootstrap query must carry a session');
     assert.match(page, /walletAddress: address\.toLowerCase\(\)/);
     assert.match(page, /sessionId: sid/, 'the PATCH body must carry a session');
 });

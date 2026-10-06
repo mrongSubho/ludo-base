@@ -830,20 +830,25 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             sendJoin();
             // REST third path — survives realtime + PeerJS both being blocked.
             // Host polls /api/lobby/join and seats via seatGuestPlayer.
-            void fetch('/api/lobby/join', {
+            //
+            // SEC-12: the session identifies us. `wallet` is no longer sent (the
+            // route derives it) and `coins` is gone entirely — it was persisted
+            // verbatim and shown to the host as a real balance. Resolved outside
+            // the fetch call because this callback is synchronous.
+            void ensureAppSession().then(sessionId => fetch('/api/lobby/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     roomCode: targetRoomId,
-                    wallet: myAddress,
+                    walletAddress: myAddress,
+                    sessionId,
                     username: myProfile?.username,
                     avatarUrl: myProfile?.avatar_url,
                     desiredSeat: desiredSeatRef.current,
                     secret: token,
-                    coins: typeof myProfile?.coins === 'number' ? myProfile.coins : undefined,
                 }),
                 signal: AbortSignal.timeout(12000),
-            }).catch(() => { /* host may not have REST yet */ });
+            })).catch(() => { /* host may not have REST yet */ });
             // Treat lobby as connected once we can talk to the channel
             setIsLobbyConnected(true);
         }
@@ -913,7 +918,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     username?: string | null;
                     avatar_url?: string | null;
                     desired_seat?: number | null;
-                    coins?: number | null;
                 }> = data?.requests || [];
                 for (const req of requests) {
                     if (cancelled) return;
@@ -925,7 +929,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         username: req.username || undefined,
                         avatar_url: req.avatar_url || undefined,
                         desiredSeat: Number.isInteger(req.desired_seat) ? (req.desired_seat as number) : undefined,
-                        coins: typeof req.coins === 'number' ? req.coins : undefined,
                     });
                     if (seated && req.id) {
                         void fetch('/api/lobby/join', {

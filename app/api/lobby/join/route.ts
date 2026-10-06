@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 function sha256Hex(s: string): string {
     return createHash('sha256').update(s).digest('hex');
@@ -8,22 +9,38 @@ function sha256Hex(s: string): string {
 
 /**
  * Guest → host join request (works when PeerJS and realtime broadcast fail).
- * Body: { roomCode, wallet, username?, avatarUrl?, desiredSeat?, secret? }
- * Verifies secret hash when the host stored one on live_matches.
+ * Body: { roomCode, sessionId, username?, avatarUrl?, desiredSeat?, secret? }
+ *
+ * SEC-12: the caller no longer declares who they are. `wallet_address` is derived
+ * from the verified SIWE session, so a request cannot be filed against someone
+ * else's wallet. The client-declared `coins` field is gone — it was written
+ * straight into the row, so the host saw a number the guest chose.
  */
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         const roomCode = String(body.roomCode || '').trim().toUpperCase();
-        const wallet = String(body.wallet || '').trim().toLowerCase();
         const secret = typeof body.secret === 'string' ? body.secret : '';
         const desiredSeat = Number.isInteger(body.desiredSeat) ? body.desiredSeat : null;
 
         if (!roomCode || roomCode.length < 3) {
             return NextResponse.json({ error: 'Invalid room code' }, { status: 400 });
         }
-        if (!wallet || wallet.length < 3) {
-            return NextResponse.json({ error: 'Wallet required' }, { status: 401 });
+
+        // SEC-12: a session is required, and it IS the wallet.
+        const wallet = await requireAppSession(body.walletAddress ?? body.wallet, body.sessionId);
+        if (!wallet) {
+            return NextResponse.json({ error: 'Session required to join a lobby' }, { status: 401 });
+        }
+
+        // SEC-12: throttle per (wallet, room). One wallet must not be able to
+        // flood a host's pending-join list with a single click held down.
+        const limit = checkRateLimit(rateKey(`lobby:join:${roomCode}`, wallet), 5, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many join requests for this room', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
         }
 
         const sb = serviceDb();
@@ -51,7 +68,8 @@ export async function POST(request: Request) {
             avatar_url: body.avatarUrl ? String(body.avatarUrl).slice(0, 512) : null,
             desired_seat: desiredSeat,
             validation_token: secret ? secret.trim().toLowerCase() : null,
-            coins: typeof body.coins === 'number' && Number.isFinite(body.coins) ? Math.max(0, Math.floor(body.coins)) : null,
+            // SEC-12: `coins` is no longer accepted from the client. It was
+            // persisted verbatim, so a guest could show the host any balance.
         });
         if (insErr) {
             console.error('lobby_join_requests insert', insErr);
@@ -92,7 +110,9 @@ export async function GET(request: Request) {
         }
         const { data, error } = await sb
             .from('lobby_join_requests')
-            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, coins, created_at')
+            // No `coins`: it is never written now (SEC-12 removed the only writer),
+            // so selecting it would advertise a value that is always null.
+            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, created_at')
             .eq('room_code', roomCode)
             .order('created_at', { ascending: true })
             .limit(20);
