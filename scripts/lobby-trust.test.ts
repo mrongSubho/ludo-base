@@ -67,24 +67,25 @@ test('the client sends a session and no longer invents a wallet or a balance', (
     assert.doesNotMatch(teamUp, /typeof req\.coins === 'number'/, 'the host must not read a balance from the request');
 });
 
-test('SEC-12: the invite secret gate is dead code and is flagged as such', () => {
-    // `join_secret_hash` is only ever SELECTed, never written — so the
-    // invite-link gate never fires. That is a real gap, and it is why the
-    // session is now the primary gate rather than the secret.
-    assert.match(route, /join_secret_hash/, 'the check is still present');
-    const writers = read('app/api/lobby/join/route.ts').includes('join_secret_hash:');
-    assert.equal(writers, false, 'this route must not write the hash it checks');
+test('SEC-12: the door credentials live in lobby_join_policies, not live_matches', () => {
+    // This test originally pinned a FINDING: `join_secret_hash` was only ever
+    // SELECTed, so the invite gate never fired. The door design replaced that
+    // column — `lobby_join_policies.credential_hash` is written by the host
+    // declaring its door, and read by this route on every join.
+    assert.match(route, /from\('lobby_join_policies'\)/);
+    assert.match(route, /credential_hash/);
+    assert.doesNotMatch(route, /join_secret_hash/, 'the never-written column is no longer consulted');
 });
 
 // ── The friendship requirement is NOT implemented, deliberately ────────────
 
-test('SEC-12 friendship is deliberately NOT required, and the reason is recorded', () => {
-    // Matchmaking pairs STRANGERS by design: QuickMatchPanel joins a room found
-    // by the queue, and `allowOpenJoins()` clears the room secret for exactly
-    // that flow. Requiring an accepted friendship would break quick match
-    // outright, so it is left out pending a product decision rather than
-    // shipping a broken queue.
+test('SEC-12: friendship is required for the invite door and NOT for quick match', () => {
+    // Resolved by product decision: quick match gets its own door, so the
+    // friendship rule applies where it is meaningful and nowhere else.
+    // `scripts/lobby-doors.test.ts` covers the enforcement in detail; this
+    // records that the original blanket requirement is gone, not merely moved.
     const quick = code('app/components/QuickMatchPanel.tsx');
     assert.match(quick, /joinGame\(foundRoomCode, validationToken\)/, 'quick match still joins rooms it did not create');
-    assert.doesNotMatch(route, /from\('friendships'\)/, 'friendship is not gated in this route yet');
+    assert.match(route, /areAcceptedFriends/, 'the invite door checks friendship');
+    assert.match(route, /invite-only/, 'and says so to the guest');
 });

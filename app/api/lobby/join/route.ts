@@ -8,6 +8,30 @@ function sha256Hex(s: string): string {
 }
 
 /**
+ * SEC-12: is `guest` an accepted friend of `host`, in either direction?
+ *
+ * Two explicit `.eq()` queries merged in JS. Never interpolate into `.or()` —
+ * that is a string format, not a query API (SEC-08).
+ */
+async function areAcceptedFriends(guest: string, host: string): Promise<boolean> {
+    const sb = serviceDb();
+    const [asUser, asFriend] = await Promise.all([
+        sb.from('friendships')
+            .select('id')
+            .eq('status', 'accepted')
+            .eq('user_address', guest)
+            .eq('friend_address', host),
+        sb.from('friendships')
+            .select('id')
+            .eq('status', 'accepted')
+            .eq('user_address', host)
+            .eq('friend_address', guest),
+    ]);
+    if (asUser.error || asFriend.error) return false;
+    return (asUser.data?.length || 0) > 0 || (asFriend.data?.length || 0) > 0;
+}
+
+/**
  * Guest → host join request (works when PeerJS and realtime broadcast fail).
  * Body: { roomCode, sessionId, username?, avatarUrl?, desiredSeat?, secret? }
  *
@@ -45,17 +69,48 @@ export async function POST(request: Request) {
 
         const sb = serviceDb();
 
-        // Prefer room row by room_code; fall back to match_id-keyed rows.
-        const { data: room } = await sb
-            .from('live_matches')
-            .select('room_code, match_id, host_address, join_secret_hash')
+        // ── SEC-12: which door is this room? ──────────────────────────────
+        // The host declares this in `lobby_join_policies`. No row means 'open',
+        // which is the pre-SEC-12 behaviour, so existing rooms keep working.
+        const { data: policyRow } = await sb
+            .from('lobby_join_policies')
+            .select('host_address, join_policy, credential_hash')
             .eq('room_code', roomCode)
             .maybeSingle();
 
-        if (room?.join_secret_hash) {
-            if (!secret || sha256Hex(secret) !== room.join_secret_hash) {
+        const door = (policyRow?.join_policy || 'open') as 'matchmaking' | 'invite' | 'open';
+
+        if (door === 'matchmaking') {
+            // Strangers the queue paired: the credential is the queue's
+            // `validation_token`. Friendship is exactly the wrong gate here.
+            if (!policyRow?.credential_hash) {
+                return NextResponse.json({ error: 'Room is not ready to accept joins' }, { status: 409 });
+            }
+            if (!secret || sha256Hex(secret.trim()) !== policyRow.credential_hash) {
+                return NextResponse.json(
+                    { error: 'Invalid matchmaking ticket. Re-run matchmaking.' },
+                    { status: 403 },
+                );
+            }
+        } else if (door === 'invite') {
+            // An invite link: the host picked this guest, so friendship AND the
+            // shareable secret are both required.
+            const hostAddress = String(policyRow?.host_address || '').toLowerCase();
+            if (!policyRow?.credential_hash) {
+                return NextResponse.json({ error: 'Room is not ready to accept joins' }, { status: 409 });
+            }
+            if (!secret || sha256Hex(secret.trim()) !== policyRow.credential_hash) {
                 return NextResponse.json(
                     { error: 'Invalid invite secret. Paste the full invite link (s=…).' },
+                    { status: 403 },
+                );
+            }
+            if (!hostAddress) {
+                return NextResponse.json({ error: 'Room has no host' }, { status: 409 });
+            }
+            if (!(await areAcceptedFriends(wallet, hostAddress))) {
+                return NextResponse.json(
+                    { error: 'This lobby is invite-only. Add each other as friends to join.' },
                     { status: 403 },
                 );
             }

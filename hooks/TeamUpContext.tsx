@@ -60,7 +60,8 @@ export interface TeamUpContextType {
     gameState: GameState;
     lobbyState: LobbyState | null;
     pendingInvite: InvitePayload | null;
-    hostGame: (roomId?: string, expectedValidationToken?: string) => void;
+    /** SEC-12: the third arg declares the lobby's join door. */
+    hostGame: (roomId?: string, expectedValidationToken?: string, joinPolicy?: 'matchmaking' | 'invite' | 'open') => void;
     joinGame: (roomId: string, token?: string, desiredSeat?: number) => void;
     initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
     hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => string;
@@ -730,7 +731,51 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
     }, [processGameAction, seatGuestPlayer, isHost, setLobbyState]);
 
-    const hostGame = useCallback((forcedRoomId?: string, expectedValidationToken?: string) => {
+    /**
+     * SEC-12: declare which door this lobby admits.
+     *
+     *   'matchmaking'  the queue paired the guests, so the credential is the
+     *                  queue's validation_token and friendship is NOT required —
+     *                  quick match legitimately pairs strangers.
+     *   'invite'       the server mints a room secret; a guest needs that secret
+     *                  AND to be an accepted friend of the host.
+     *   'open'         casual open-join by room code, session only.
+     *
+     * Defaults to 'matchmaking' when a queue token is present and 'open'
+     * otherwise, which is exactly the behaviour before this change.
+     */
+    const declareLobbyPolicy = useCallback(async (
+        code: string,
+        policy: 'matchmaking' | 'invite' | 'open',
+        validationToken?: string,
+    ) => {
+        if (!myAddress) return;
+        const sessionId = await ensureAppSession();
+        if (!sessionId) return;
+        try {
+            const res = await fetch('/api/lobby/policy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomCode: code,
+                    joinPolicy: policy,
+                    validationToken,
+                    walletAddress: myAddress,
+                    sessionId,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            // For an invite room the server mints the secret; adopt it so
+            // `inviteLinkFor` can put `?s=` on the link it shares.
+            if (res.ok && data?.roomSecret) setRoomSecret(String(data.roomSecret));
+        } catch { /* the room still works; the door stays open */ }
+    }, [myAddress, ensureAppSession]);
+
+    const hostGame = useCallback((
+        forcedRoomId?: string,
+        expectedValidationToken?: string,
+        joinPolicy?: 'matchmaking' | 'invite' | 'open',
+    ) => {
         destroyPeer();
         setIsHost(true);
         fsmRef.current.reset();
@@ -745,6 +790,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             setRoomSecret(null);
         }
         const code = forcedRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
+        const door = joinPolicy || (expectedValidationToken ? 'matchmaking' : 'open');
+        void declareLobbyPolicy(code, door, expectedValidationToken);
         setRoomId(code);
         setCurrentRoomCode(code);
         setRelayRoom(code);
@@ -1106,7 +1153,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
         // Cloud path — primary when PeerJS is blocked
         relayViaSupabase('game-action', { type: 'GAME_INTENT', action }, lobbyStateRef);
-    }, [isLobbyConnected, isHost, isComputeHost, connections, myAddress, relayViaSupabase, lobbyStateRef]);
+    }, [isLobbyConnected, isHost, isComputeHost, connections, myAddress, relayViaSupabase, lobbyStateRef, declareLobbyPolicy]);
 
     const clearIntent = useCallback(() => setLastIntent(null), []);
 

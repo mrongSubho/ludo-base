@@ -113,6 +113,7 @@ export const SESSION_GATED = new Set([
     'live-matches/window',
     'lobby/invite',
     'lobby/join',
+    'lobby/policy',
     'marketplace/purchase',
     'match/record',
     'match/start',
