@@ -70,48 +70,50 @@ same mission id; all four are now gone.
 
 ### Tasks — authentication and authorization
 
-- [ ] **SEC-03** — `requireAppSession` on `PUT /api/chips/settle/propose`; require `wallet === live_matches.host_address` for `poolId`.
-- [ ] **SEC-03** — Validate abandon evidence in the Edge policy: pool exists, `status === Locked`, `accusedSeat` is seated, `deadline <= settleBy`, `match_states.seq` stalled, `afkStrikes >= 3`.
-- [ ] **SEC-03** — Sign a digest binding a **reason code**, not free-form `seq`/`strikes`.
-- [ ] **SEC-04** — `settle/propose` `POST`: require `wallet === pool.authority` (or an EIP-712 host proof over the same digest) **in all modes**, not just pre-window.
-- [ ] **SEC-04** — Read `prizeFund`, `hostBond`, `settleNonce` from `getPoolSummary`; ignore client amounts. Make the sum check a hard 400, not `try/catch`.
-- [ ] **SEC-04** — Require `participants` to be present and non-empty; reject empty.
-- [x] **SEC-04 (test inversion, 2026-10-06).** `MatchPoolSecurity.t.sol` settled from `address(0xBEEF)` and asserted the payout landed, with no comment — it read as "anyone can settle a locked pool", which is the exact false conclusion the checklist warned about. Rewritten deliberately rather than deleted.
+> **Reconciled 2026-10-06.** Every item below was re-verified against the code
+> rather than trusted from the previous audit, which had marked items closed
+> while still open (and left implemented ones unticked). Statuses now reflect the
+> tree.
 
-  What is actually true: `settlePool` has **no `msg.sender` check** by design. Authorization *is* the edge co-signature (`_recover(d, edgeSig) != edgeSigner`); Mode A also requires the host's own signature, and Mode B (after `settleBy`) exists precisely for a host that withholds it. `msg.sender` is a free choice because the **server** refuses to co-sign for anyone but the on-chain authority — `requireAuthority` in `lib/poolAuthority.ts`, asserted in `scripts/pool-authority.test.ts`. That server check is the authority gate; the contract deliberately is not.
-
-  Five tests now pin that model, each verified sensitive by reverting the contract and confirming the failure: the edge signature is required in both modes (including from the authority itself, and from a wrong signer), and the digest binds the payout plan, the authority, and the nonce — so a co-signature cannot be redirected, re-pointed, or carried to another authority.
-
-  One honest exception: removing `p.settleNonce += 1` breaks **no** test, and that is a property of the contract rather than a gap in the suite — `settlePool` requires status Locked and `_applySettle` sets Settled, so a pool settles at most once and the bumped value is never read again. The bump is inert defence-in-depth; the *check* on line 478 is not, and removing it does fail `test_settle_requires_the_current_nonce`. Documented in the test rather than papered over.
-- [ ] **SEC-06** — Require a wallet signature or an app session bound to `participants[0]` on `POST /api/match/start`.
-- [ ] **SEC-05** — One `SECURITY DEFINER` RPC for bet placement: debit `players.coins` (`UPDATE … WHERE coins >= p_amount`) in the same transaction, require `live_matches.bet_window_status='open'`, read `window_closed_at` from that row, validate `bet_type`/`bet_value` against the declared window. Reject the raw insert path.
-- [ ] **SEC-05** — Restore the `NOW() > window_closed_at` guard and the payout join from `migrations_archive/20260325_bet_resolution.sql:21-46`.
-- [ ] **SEC-05** — Forbid `player_id IN (matches.participants)`.
-- [x] **ECO-01** — `MatchPool._applySettle` now accumulates credits (`+=`). Regression test proves the old code stranded 930 of 1860 CHIPS on a 3-entry plan with a repeated address. Source fixed; **awaiting on-chain redeploy** (see *Contract redeploy* below).
-- [x] **ECO-02** — `usePoolSummary` reads the authoritative `prizeFund` from MatchPool; `bigint` end-to-end.
-- [x] **ECO-03** — transfers are checked returns and the burn is verified via a `totalSupply` delta. Source fixed; **awaiting on-chain redeploy** (see *Contract redeploy* below).
-- [x] **ECO-08** — `MatchPool` now branches settlement on a **declared, signed** `shape` (`PoolShape.{OneVsOne,TwoVsTwo,FourPlayer}`), not on colours + winner count.
-
-  The inference was not merely inelegant, it mispaid. `LOBBY_COLORS['4P']` (`lib/gameLogic.ts:523`) seats players `green,red,yellow,blue` → colour numbers `1,2,3,4`, while `_isTeamPair` (`MatchPool.sol`) reads colours `{1,4}` as teammates. So in **any 4P game whose top two were green and blue, settlement applied the 2v2 50/50 split instead of the 75/25 podium** — with no revert. Compounding it, `poolAuthority.deriveSettlePlan` resolved `auto` → `"team"` unconditionally, making the 75/25 podium unreachable without an explicit override.
-
-  - `shape` added to `PoolConfig`, `Pool` and `LobbyTicket`, and **inside `LOBBY_TYPEHASH`** so a host cannot swap it after signing; `_requireShapeSeats` rejects a shape that disagrees with `maxSeats`.
-  - `_isTeamPair` is retained but demoted to a corroborating check: a 2v2 pool settling to non-teammates now reverts `NotTeammates()` instead of silently paying an arbitrary split.
-  - `getPoolSummary` exposes `shape`, so `deriveSettlePlan` derives the split from the chain and **rejects an explicit split that contradicts the declared shape** rather than silently overriding it.
-  - New: `supabase/migrations/202609300009_matches_pool_shape.sql` adds `matches.match_shape` (CHECK-constrained to `1v1|2v2|4P`) and `matches.game_mode_code`; `/api/match/start` persists both, and `chips/lobby-ticket` reads them. Unknown/absent values are a hard **409** — an edge signature over a guessed value is worse than no ticket.
-  - Backfill is deliberately conservative: 4-seat rows stay `NULL` rather than guessing `2v2`, because 2v2 and 4P both use four seats and a wrong guess silently pays the wrong split.
-  - Tests: `contracts/test/MatchPoolPayout.t.sol` (4 new, incl. `test_4p_green_blue_top2_pays_podium_not_50_50`) and `scripts/pool-shape.test.ts` (9). Both were checked against the pre-fix logic and **fail without it**.
+- [x] **SEC-03a** — `PUT /api/chips/settle/propose` calls `requireAppSession` (`app/api/chips/settle/propose/route.ts:152`), and the session is compared against the **on-chain** `p.authority`. Abandon evidence is re-derived server-side (`deriveAbandonEvidence`, `app/api/chips/settle/propose/route.ts:183`) rather than accepted from the body: seated check, `seq` staleness, `afkStrikes >= 3`.
+- [ ] **SEC-03b** — abandon evidence validated on-chain: pool exists, `status === Locked`, `accusedSeat` seated, `deadline <= settleBy`, `match_states.seq` stalled, `afkStrikes >= 3`. Server-side derivation is done (`lib/poolAuthority.ts`, `app/api/chips/settle/propose/route.ts:183`), but `MatchPool.submitAbandon` only checks the co-signature — there is no on-chain seat/AFK check, so defence rests entirely on the Edge signer. Closing this properly needs a contract change and another redeploy.
+- [ ] **SEC-03c** — sign a digest binding a **reason code**, not free-form `seq`/`strikes`. Still open: `ABANDON_TYPEHASH` (`contracts/src/MatchPool.sol:111`, `lib/chipsSettle.ts:38`) commits `seqAtDisconnect` and `afkStrikes` as raw values, so two different adjudications share a digest shape. The server constrains what it will sign; the signed payload itself carries no reason.
+- [x] **SEC-04a** — `settle/propose` `POST` requires `wallet === pool.authority` in **all** modes (`app/api/chips/settle/propose/route.ts:82`), read from `getPoolSummary` rather than the body. Mode B needs no contract-side host signature by design; the authority gate is the server's `requireAuthority`, and the contract's relayer model is now documented and pinned by `contracts/test/MatchPoolSecurity.t.sol`.
+- [x] **SEC-04b** — `prizeFund`, `hostBond`, `maxSeats` and `status` are read from `getPoolSummary` via `readPoolSummary` (`lib/poolAuthority.ts:94`); client amounts are structurally impossible because `deriveSettlePlan` computes them so `sum === prizeFund` by construction, and the sum check is a thrown 400 rather than a swallowed `try/catch`.
+  - [ ] **Part-open:** `settleNonce` is **not** read from the chain — `getPoolSummary` has no such field, so `initialSettleNonce()` returns a hardcoded `1`, justified by `assertSettleable` requiring a non-terminal status. Sound today because a pool settles at most once, but it is a derived value presented as authoritative.
+- [x] **SEC-04c** — non-empty winner set enforced (`app/api/chips/settle/propose/route.ts:55`); `deriveSettlePlan` additionally rejects a lone winner on a 4-seat pool because that would also sweep up the slashed host bond. Superseded in shape: the route reads `winners`, not `participants`.
+- [x] **SEC-06** — `/api/match/start` requires an app session for `participants[0]` and compares it to the canonical host (`app/api/match/start/route.ts:108`); a session belonging to a different wallet is a 403. `host_proven` records the outcome and `/api/match/record` refuses an unproven host. An app session rather than a wallet signature — the item allowed either.
+- [x] **SEC-05a** — one `SECURITY DEFINER` RPC owns bet placement: `chips_escrow_place_bet` (`supabase/migrations/202609300005_spectator_bet_escrow.sql:126`), `service_role`-only, conditional debit `where balance >= p_amount` in the same transaction with `raise` on zero rows, window gate at `:157`, market check at `:164`, idempotent on `action_id`. The raw insert path is gone; the only caller is `app/api/spectator-bets/route.ts`.
+  - Debits land on `chips_escrow_accounts`, not `players.coins` — a deliberate architectural pivot, not the column the item names.
+  - `chips_escrow_config.enabled` defaults to **`false`**, so every call currently returns `ESCROW_DISABLED`. The path is built and inert; arming needs a funded treasury, a non-zero rake, deposit reconciliation against `chips_events`, and a solvency runbook.
+- [x] **SEC-05b** — the `window_closed_at` guard is restored on both place (`supabase/migrations/202609300005_spectator_bet_escrow.sql:160`) and settle (`supabase/migrations/202609300005_spectator_bet_escrow.sql:241`).
+- [x] **SEC-05c** — self-bets blocked via `player_id = any(m.participants)` (`supabase/migrations/202609300005_spectator_bet_escrow.sql:169`).
 
 ### Tasks — atomicity
 
-- [ ] **SEC-09** — One `SECURITY DEFINER` RPC for mission claims: `UPDATE player_missions SET is_claimed=true WHERE id=… AND is_claimed=false RETURNING *` → abort on 0 rows → `UPDATE players SET coins = coins + amount` in the same transaction. Model it on `purchase_marketplace` (202609170001:18-33), the only correct coin path in the repo.
-- [ ] **SEC-09** — Reconcile the two reward tables: route `daily_bonus` is 100, `ONBOARDING_REWARDS.daily_bonus` is 20.
-- [ ] **SEC-10** — `missions/voucher`: gate signing on real eligibility (`player_missions.progress >= target AND NOT is_claimed`, or the `onboarding_progress` check that `/api/onboarding/claim:86-107` already does).
-- [ ] **SEC-10** — Derive `periodId` server-side only (`periodIdDay()`); derive `nonce` from a DB sequence, not `Date.now()`.
-- [ ] **SEC-10** — Make the `mission_vouchers` bookkeeping insert load-bearing *after* the uniqueness check, not inside `try/catch`.
-- [ ] **ECO-06** — `mission_vouchers`: normalize case in the unique key, unify units (whole CHIPS vs wei), stop swallowing the insert failure.
-- [ ] **SEC-11** — `chips/lobby-ticket`: load the canonical `live_matches`/`matches` row for `matchId`; require `host_address == wallet` there; build `seats`/`colors`/`gameMode`/`maxSeats` from the stored match, not the body.
-- [ ] **DB-13** — Make `spectator_bets.action_id` `not null`, or add `unique (player_id, match_id, bet_type, bet_value) where action_id is null`.
-- [ ] **DB-14** — Wire CHIPS writes through `coin_ledger`, or document it as reserved. It currently has `unique(player_id, idempotency_key)` and **zero** writers, implying a double-entry guarantee that does not exist.
+_Gone by construction, and that is the finding rather than an omission: every balance
+mutation moved behind a `SECURITY DEFINER` RPC or a conditional `UPDATE`, so there is
+no read-then-write left to convert. `chips_escrow_place_bet` is the model; the
+marketplace RPC (`supabase/migrations/202609170001_marketplace_purchase.sql`) is the
+only pre-existing correct coin path in the repo._
+
+### Tasks — mission and reward paths
+
+- [x] **SEC-09b** — reward drift resolved. `mission_catalog` is the single source: `daily_bonus = 10.00`, every reward CHECK-constrained to 5..20, daily total 58, weekly 90. `ONBOARDING_REWARDS` no longer exists as live data — only a stale reference in a `lib/missionCatalog.ts` doc comment.
+- [x] **SEC-09a — superseded, not implemented.** No conditional-claim RPC was ever written; there is no mission-claim `SECURITY DEFINER` function anywhere in `supabase/migrations/`. Instead `POST /api/missions/claim` is an explicit `410` pointing at `/api/missions/voucher`, so no read-then-write on `is_claimed` has a caller. Closed as a supersession, **not** as the implementation the item described.
+- [x] **SEC-10a** — signing is gated on real eligibility: an unclaimed `player_missions` row for the current period with `progress >= target` (`app/api/missions/voucher/route.ts:69`).
+- [x] **SEC-10b (periodId)** — `periodId` is derived server-side only, from `mission_catalog.period` for "now" (`periodIdFor`, `lib/missionCatalog.ts:88`); no client field feeds it.
+  - [ ] **SEC-10b (nonce) — still open.** `nonce` is `Date.now() * 1000 + random` (`app/api/missions/voucher/route.ts:120`), not a DB sequence. Not exploitable — the reserve-before-sign insert's unique constraint rejects the second racer with `23505` — but it keeps a wall-clock dependency in the signed payload. Noted inline in the route.
+- [x] **SEC-10c** — the `mission_vouchers` insert is load-bearing: reserve-before-sign, `23505` → 409, no swallowed failure (`app/api/missions/voucher/route.ts:97`). The concurrency gate proves 8 racers yield exactly one acceptance.
+- [x] **ECO-06 (units)** — unified. `mission_vouchers.amount` is `numeric` holding base units via `chipsToBaseUnits` (`lib/missionCatalog.ts:131`), matching the `uint256` in `contracts/src/MissionClaim.sol:80`.
+  - [ ] **ECO-06 (case) — mitigated, not fixed.** The unique key is on the raw column (`supabase/migrations/202609230001_onboarding_referral.sql:44`), but the FK to `players` plus the `players_wallet_lowercase` CHECK force lowercase upstream. Safe today; would break silently if either were dropped.
+  - [ ] **ECO-06 (pending rows)** — if signing fails after the reserve, a `signature = 'pending'` row is left behind with no defined reclamation path. `MissionClaim` has no timeout sweep.
+
+### Tasks — other
+
+- [x] **SEC-11** — `app/api/chips/lobby-ticket/route.ts` loads the canonical `matches` row (`:74`), requires the caller to be `participants[0]` of a `host_proven` row (`:111`), and derives seats/maxSeats/`gameMode`/`shape` from storage. Seat colours stay caller-supplied by necessity — the canonical corner mapping only exists in `match_states.color_corner`, written after a ticket would be needed — but are bound by `seatsHash` into the signed digest. The `gameMode: 0` hardcode found during this reconciliation is fixed under ECO-08.
+- [x] **DB-13** — `spectator_bets.action_id` is `NOT NULL` (`supabase/migrations/202609300008_bet_idempotency_and_ledger_docs.sql:27`), backfilled then constrained, with `spectator_bets_player_action_uniq` replacing the old constraint.
+- [x] **DB-14** — documented as reserved (`202609300008:45`). The only DB-side writer is `cash_out_bet`, replaced with a `raise` by `202609300001`. Caveat: `scripts/compat-probe.ts` still writes rows, so "zero writers" is true of application code, not the literal repo.
 
 ### Exit gate
 
@@ -123,6 +125,15 @@ same mission id; all four are now gone.
 - [x] Every route in [`SYSTEM_REVIEW.md` §10.7](./SYSTEM_REVIEW.md) marked CRIT/HIGH is closed or has a written, signed-off risk acceptance.
 
 > **Scope note on the concurrency gate.** The escrow has genuine defence in depth, so tests 2 and 3 assert the *invariant*, not a single layer. `chips_escrow_accounts` carries `CHECK (balance >= 0)` **and** the debit is a conditional `UPDATE ... WHERE balance >= amount` (atomic under row locks). Removing either layer alone does not produce an overdraft, which is the desired outcome but means those two tests cannot fail from a one-layer regression. Test 1 is layer-sensitive and is proven so.
+
+**Gate status: OPEN on four counts, all recorded above.**
+
+1. `SEC-03b` / `SEC-03c` — abandon adjudication has no reason code in the signed payload, and `MatchPool.submitAbandon` does no on-chain seat/AFK validation. Defence is entirely the Edge signer. Closing SEC-03b needs a contract change and another redeploy.
+2. `SEC-04b` (nonce) — derived, not read from chain. Sound only because a pool settles at most once.
+3. `SEC-05a` — the escrow RPC is correct but **disabled** (`chips_escrow_config.enabled = false`), so none of it is exercised in production.
+4. `SEC-10b` (nonce) / `ECO-06` (case, pending rows) — mitigated but not fixed.
+
+Two hygiene items that are not Phase 1 code defects but block any real funding: `allow_self_bets` is not constrained by the arming CHECK, so a one-word `UPDATE` re-opens self-betting; and `chips_escrow_config` arming needs a funded treasury, a non-zero rake, deposit reconciliation against `chips_events`, and a solvency runbook.
 
 ### Contract redeploy (ECO-01 / ECO-03)
 

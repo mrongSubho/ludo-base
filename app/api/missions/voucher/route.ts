@@ -23,7 +23,7 @@ import { requireAppSession, serviceDb } from "@/lib/serverAuth";
  * Every value that determines what is signed is server-owned:
  *   reward    <- mission_catalog (CHECK-constrained to 5..20 whole CHIPS)
  *   periodId  <- mission_catalog.period, computed for "now" (UTC)
- *   nonce     <- derived from the claim row, not from the clock
+ *   nonce     <- clock-derived + random; see the note below
  *   amount    <- reward * 1e18
  *
  * The previous revision read no eligibility state at all and accepted a
@@ -114,10 +114,16 @@ export async function POST(request: Request) {
         }
 
         const mid: Hex = missionIdBytes32(missionId);
-        // Nonce only needs to be unique per (wallet, mission, period), which the
-        // unique constraint already guarantees. Mixing in a random suffix keeps
-        // two legitimately-distinct vouchers for the same ms distinguishable.
-        const nonce =
+            // Nonce only needs to be unique per (wallet, mission, period), which the
+            // unique constraint already guarantees. Mixing in a random suffix keeps
+            // two legitimately-distinct vouchers for the same ms distinguishable.
+            //
+            // OPEN (SEC-10): this is still clock-derived rather than a DB sequence.
+            // The reserve-before-sign insert above is what actually prevents a
+            // double claim — the unique constraint rejects the second racer with
+            // 23505 — so the clock here cannot be used to forge a second payout.
+            // A sequence would remove the last dependency on wall-clock time.
+            const nonce =
             BigInt(now.getTime()) * BigInt(1000) +
             BigInt(Math.floor(Math.random() * 1000));
         const voucher = {
