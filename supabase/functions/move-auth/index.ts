@@ -8,6 +8,7 @@ import {
   getLegalTokenIndices,
   getNextPlayer,
   handleThreeSixes,
+  isValidDice,
   processMove,
   activeColorsForTurns,
   stripPowerTypesForWire,
@@ -528,12 +529,24 @@ Deno.serve(async (req) => {
       if (!binding.ok) return json({ error: binding.error, code: binding.code }, binding.status);
       if (isDuplicateAction(roll.status)) return json({ error: 'Roll already consumed', code: 'DUPLICATE_ACTION' }, 409);
 
+      // ENG-13: the face comes from a CHECK-constrained column, but a receipt
+      // written by an older build or a hand-edited row must not reach the engine.
       const dice = Number(roll.result);
+      if (!isValidDice(dice)) {
+        return json({ error: 'Invalid dice face', code: 'ILLEGAL_ACTION' }, 400);
+      }
       const boosted = state.activeBoost === color;
       const steps = boosted ? dice + 6 : dice;
       const legal = getLegalTokenIndices(state.positions, color as PlayerColor, steps, cc);
       if (!legal.includes(Number(tokenIndex))) {
         return json({ error: 'Illegal token for this roll', legal, boosted }, 400);
+      }
+
+      // ENG-05: the third consecutive six forfeits the turn. It is a `pass`, not
+      // a move, and the counter now lives in the engine rather than in a
+      // hook-level copy the client controls.
+      if (handleThreeSixes(state.consecutiveSixes || 0, dice).isThreeSixes) {
+        return json({ error: 'Third consecutive six forfeits the turn', code: 'THREE_SIXES' }, 409);
       }
 
       const move = resolveNetworkedMove({

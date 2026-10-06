@@ -325,6 +325,50 @@ export interface MoveResult {
 }
 
 /**
+ * ENG-03: the single victory rule, extracted from `processMove`.
+ *
+ * `applyPower`'s teleport branch used to move a token without consulting this at
+ * all, so a 2v2 team could go all-home by teleport and be left with
+ * `winner=null`, `status='playing'`, and both colours dropped from the turn
+ * cycle — a permanent deadlock, because no one could ever move again.
+ *
+ * Pure and total: takes the resulting positions and returns the winner/status,
+ * carrying the previous values forward when nothing has been won yet.
+ */
+export function evaluateVictory(
+    newPositions: Record<PlayerColor, number[]>,
+    playerCount: string,
+    prevWinner: string | null = null,
+    prevStatus: 'waiting' | 'playing' | 'finished' = 'playing'
+): { winner: string | null; status: 'waiting' | 'playing' | 'finished' } {
+    const allColors: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    const allFinished = (c: PlayerColor) =>
+        (newPositions[c] || []).every(p => p === BOARD_FINISH_INDEX);
+
+    if (playerCount === '2v2') {
+        const teamWon = (t: number) => {
+            const members = allColors.filter(c => TEAM_ID[c] === t);
+            return members.length > 0 && members.every(c => allFinished(c));
+        };
+        if (teamWon(1)) return { winner: 'Team 1', status: 'finished' };
+        if (teamWon(2)) return { winner: 'Team 2', status: 'finished' };
+        return { winner: prevWinner, status: prevStatus };
+    }
+    // Free-for-all: the first colour to get every token home wins.
+    for (const c of allColors) {
+        if (allFinished(c)) return { winner: c, status: 'finished' };
+    }
+    return { winner: prevWinner, status: prevStatus };
+}
+
+/** Every colour has all four tokens home. */
+export function isBoardCleared(positions: Record<PlayerColor, number[]>): boolean {
+    return (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).every(c =>
+        (positions[c] || []).every(p => p === BOARD_FINISH_INDEX)
+    );
+}
+
+/**
  * Apply one authoritative move as an immutable state transition.
  * Invalid destinations are rejected; valid moves resolve traps, captures,
  * bonus turns, shield cleanup, and the appropriate individual/team victory.
@@ -342,10 +386,21 @@ export function processMove(
     const actingColor = actingPlayer || tokenColor;
     if (state.winner) return { newState: state, captured: false, bonusRoll: false, applied: false };
 
+    // ENG-13: `steps` is caller-supplied on the Edge path and must be a whole
+    // number of cells. Note this is NOT isValidDice — a boosted move is
+    // `dice + DICE_MAX`, so a legitimate step count runs 1..12. Validating steps
+    // with the dice predicate rejected every boosted move outright.
+    if (!isValidStepCount(steps)) {
+        return { newState: state, captured: false, bonusRoll: false, applied: false };
+    }
+
     const initialPos = state.positions[tokenColor][tokenIndex];
     const nextPos = calculateNextPosition(initialPos, steps, tokenColor, cc);
 
-    if (nextPos === initialPos && steps !== 0) {
+    // No destination change means the move is illegal (overshoot, or a non-six
+    // leaving base). The old guard was `steps !== 0`, which described the input
+    // rather than the outcome.
+    if (steps < 1 || nextPos === initialPos) {
         return { newState: state, captured: false, bonusRoll: false, applied: false };
     }
 
@@ -381,7 +436,12 @@ export function processMove(
         ...state.positions,
         [tokenColor]: [...state.positions[tokenColor]].map((p, i) => (i === tokenIndex ? nextPos : p)),
     };
-    const captures = checkMultiCapture(tokenColor, nextPos, { ...state, positions: movedPositions }, cc, playerCount);
+    // ENG-01: pass the PRE-move state. `checkMultiCapture` adds +1 for the
+    // acting token itself (team force is evaluated before the move lands), so
+    // handing it post-move positions double-counts the mover. The effect is a
+    // team capturing on a numerically losing force — e.g. one green against two
+    // reds in 2v2 resolved as 2 >= 2 instead of 1 >= 2.
+    const captures = checkMultiCapture(tokenColor, nextPos, state, cc, playerCount);
     const newPositions = { ...movedPositions };
     captures.forEach(c => {
         newPositions[c.capturedColor] = [...newPositions[c.capturedColor]];
@@ -393,26 +453,10 @@ export function processMove(
         : (state.matchStats ?? emptyEngineMatchStats());
 
     const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
-    const teamWon = (t: number) => {
-        const members = (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).filter(c => TEAM_ID[c] === t);
-        return members.length > 0 && members.every(c => allFinished(c));
-    };
-
-    let winner = state.winner;
-    let status = state.status;
-    if (playerCount === '2v2') {
-        const teamId = getTeam(tokenColor, playerCount);
-        if (teamWon(teamId)) {
-            winner = `Team ${teamId}`;
-            status = 'finished';
-        }
-    } else if (allFinished(tokenColor)) {
-        winner = tokenColor;
-        status = 'finished';
-    }
+    const victory = evaluateVictory(newPositions, playerCount, state.winner, state.status);
 
     const bonusRoll = captured || steps === DICE_ROLL_SIX;
-    const nextPlayer = bonusRoll && status !== 'finished'
+    const nextPlayer = bonusRoll && victory.status !== 'finished'
         ? actingColor
         : getNextPlayer(actingColor, playerCount, activeColors, cc);
 
@@ -423,8 +467,8 @@ export function processMove(
             currentPlayer: nextPlayer,
             diceValue: null,
             gamePhase: 'rolling',
-            winner,
-            status,
+            winner: victory.winner,
+            status: victory.status,
             winners: allFinished(tokenColor) && !state.winners.includes(tokenColor)
                 ? [...state.winners, tokenColor]
                 : state.winners,
@@ -443,18 +487,55 @@ export function handleThreeSixes(
     currentSixes: number,
     roll: number
 ): { isThreeSixes: boolean; nextSixes: number } {
-    if (roll !== DICE_ROLL_SIX) return { isThreeSixes: false, nextSixes: 0 };
-    const nextSixes = currentSixes + 1;
-    if (nextSixes === MAX_CONSECUTIVE_SIXES) return { isThreeSixes: true, nextSixes: 0 };
+    if (!isValidDice(roll) || roll !== DICE_ROLL_SIX) return { isThreeSixes: false, nextSixes: 0 };
+    const base = Number.isFinite(currentSixes) ? Math.max(0, Math.trunc(currentSixes)) : 0;
+    const nextSixes = base + 1;
+    if (nextSixes >= MAX_CONSECUTIVE_SIXES) return { isThreeSixes: true, nextSixes: 0 };
     return { isThreeSixes: false, nextSixes };
 }
 
-/** Return colors that still have unfinished tokens for turn scheduling. */
+/**
+ * ENG-05: the authoritative three-sixes gate for a move.
+ *
+ * The counter used to live in hook-level copies, so a client could keep rolling
+ * sixes past the third and the authority had no way to refuse. This is the one
+ * place that decides, and `resolveNetworkedMove` consults it before anything
+ * else. A third six is a forfeited turn, not a move: `submit-move` on it is
+ * rejected, and the `pass` action is how the turn actually ends.
+ */
+export function checkThreeSixesForMove(
+    state: EngineGameState,
+    dice: number
+): { forbidden: boolean; reason?: string; nextSixes: number } {
+    const { isThreeSixes, nextSixes } = handleThreeSixes(state.consecutiveSixes || 0, dice);
+    if (isThreeSixes) {
+        return { forbidden: true, reason: 'Third consecutive six forfeits the turn', nextSixes: 0 };
+    }
+    return { forbidden: false, nextSixes };
+}
+
+/**
+ * Return colors that still take part in the turn cycle.
+ *
+ * ENG-04: in 2v2 a colour stays active while its TEAMMATE still has tokens.
+ * Without this, finishing green dropped green out of the cycle even though blue
+ * was still playing, and `getNextPlayer` then handed the turn to a colour whose
+ * tokens were all home — a colour that can only pass, forever.
+ */
 export function activeColorsForTurns(state: EngineGameState): PlayerColor[] {
-    const colors = (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).filter(c =>
-        (state.positions[c] || []).some(p => p !== BOARD_FINISH_INDEX)
-    );
-    if (colors.length === 0) return (['green', 'red', 'yellow', 'blue'] as PlayerColor[]);
+    const all: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    const hasTokens = (c: PlayerColor) =>
+        (state.positions[c] || []).some(p => p !== BOARD_FINISH_INDEX);
+    const mode = state.playerCount || '4P';
+    const colors = all.filter(c => {
+        if (hasTokens(c)) return true;
+        if (mode !== '2v2') return false;
+        const mate = getTeammateColor(c, mode);
+        return mate ? hasTokens(mate) : false;
+    });
+    // Every colour finished (or state is malformed): keep the full cycle rather
+    // than returning an empty list, so getNextPlayer's fallback still applies.
+    if (colors.length === 0) return all;
     return colors;
 }
 
@@ -465,6 +546,35 @@ export function stripPowerTypesForWire<T extends { powerTiles?: { r: number; c: 
 }
 
 // ─── Powers (P3) ────────────────────────────────────────────────────────────
+
+/** ENG-13: the only face values the engine will accept. */
+export function isValidDice(value: unknown): value is number {
+    return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 6;
+}
+
+/**
+ * ENG-13: a step count must be a whole number of cells within the widest legal
+ * move. Deliberately wider than `isValidDice`: a boosted move is `dice + 6`.
+ */
+export function isValidStepCount(steps: unknown): steps is number {
+    return (
+        typeof steps === 'number'
+        && Number.isInteger(steps)
+        && steps >= 1
+        && steps <= DICE_MAX + DICE_MAX
+    );
+}
+
+/**
+ * ENG-13: coerce anything into a legal step count. A boosted move is `dice + 6`,
+ * which exceeds a single die; `DICE_MAX + DICE_MAX` is the widest legitimate
+ * step, so that is the ceiling.
+ */
+export function clampSteps(steps: unknown): number {
+    if (typeof steps !== 'number' || !Number.isFinite(steps)) return 0;
+    const rounded = Math.trunc(steps);
+    return Math.max(0, Math.min(rounded, DICE_MAX + DICE_MAX));
+}
 
 export const DICE_MAX = 6;
 export const NUKE_RADIUS = 3;
@@ -546,6 +656,9 @@ export function countNukeVictims(
 
 /** Steps for this move including active Boost (+6). */
 export function effectiveMoveSteps(state: EngineGameState, color: PlayerColor, dice: number): number {
+    // ENG-13: an invalid face must not become a step count.
+    if (!isValidDice(dice)) return 0;
+
     return state.activeBoost === color ? dice + DICE_MAX : dice;
 }
 
@@ -668,6 +781,18 @@ export function applyPower(
     next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'teleport') };
     next.powerSpentThisTurn = true;
     next.lastUpdate = now;
+    // ENG-03: re-evaluate victory. Teleport is the one power that can put a
+    // token straight home, so it is the one power that can end a match. Skipping
+    // this left a 2v2 team all-home with winner=null and both colours out of the
+    // turn cycle — an unbreakable deadlock.
+    const victory = evaluateVictory(newPos, playerCount, state.winner, state.status);
+    if (victory.status === 'finished') {
+        next.winner = victory.winner;
+        next.status = 'finished';
+        const wonColors = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
+            .filter(c => newPos[c].every(p => p === BOARD_FINISH_INDEX) && !state.winners.includes(c));
+        next.winners = [...state.winners, ...wonColors];
+    }
     return { ok: true, state: next, message };
 }
 
@@ -753,8 +878,24 @@ export function resolveNetworkedMove(params: {
     playerCount: string;
     activeColors?: PlayerColor[];
     now?: number;
-}): { ok: boolean; state?: EngineGameState; captured?: boolean; bonusRoll?: boolean; error?: string; fromPos?: number; toPos?: number } {
+}): {
+    ok: boolean;
+    state?: EngineGameState;
+    captured?: boolean;
+    bonusRoll?: boolean;
+    error?: string;
+    code?: string;
+    fromPos?: number;
+    toPos?: number;
+} {
     const { state, color, tokenIndex, dice, cc, playerCount, activeColors, now = Date.now() } = params;
+
+    // ENG-13 + ENG-05 at the authority boundary: refuse an impossible face, then
+    // refuse a third consecutive six before any move is resolved.
+    if (!isValidDice(dice)) return { ok: false, error: 'Invalid dice face' };
+    const sixes = checkThreeSixesForMove(state, dice);
+    if (sixes.forbidden) return { ok: false, error: sixes.reason, code: 'THREE_SIXES' };
+
     const boosted = state.activeBoost === color;
     const steps = effectiveMoveSteps(state, color, dice);
     const legal = getLegalTokenIndices(state.positions, color, steps, cc);
@@ -765,7 +906,9 @@ export function resolveNetworkedMove(params: {
     const result = processMove(state, color, tokenIndex, steps, playerCount, cc, color, activeColors);
     if (!result.applied) return { ok: false, error: 'Move rejected by engine' };
 
-    let next = result.newState;
+    // ENG-05: processMove does not own the counter, so the authoritative value
+    // is written here — the one place a networked move is resolved.
+    let next: EngineGameState = { ...result.newState, consecutiveSixes: sixes.nextSixes };
     if (boosted) {
         next = { ...next, activeBoost: null, boostTrail: color };
         (next as { boostTrail?: PlayerColor | null }).boostTrail = color;

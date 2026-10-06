@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
 import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType, getLegalTokenIndices } from '@/lib/gameLogic';
+import { activeColorsForTurns } from '@/lib/engine';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
 import { ColorCorner, getBoardCoordinate } from '@/lib/boardLayout';
@@ -117,15 +118,14 @@ export function useGameActions({
     }, [localGameState]);
 
     const getNextPlayer = useCallback((current: PlayerColor, currentPositions: GameState['positions']): PlayerColor => {
-        const activeForTurns = activeColorsArr.filter(color => {
-            const hasTokens = currentPositions[color].some((p: number) => p !== BOARD_FINISH_INDEX);
-            if (playerCount === '2v2') {
-                const teammate = getTeammateColor(color, playerCount);
-                const teammateHasTokens = teammate ? currentPositions[teammate].some((p: number) => p !== BOARD_FINISH_INDEX) : false;
-                return hasTokens || teammateHasTokens;
-            }
-            return hasTokens;
-        });
+        // ENG-04: this was a third local copy of the rule. The engine owns it
+        // now; useGameEngine had a fourth. Drift between copies is how a finished
+        // colour stayed in (or left) the turn cycle inconsistently.
+        const activeForTurns = activeColorsForTurns({
+            ...localGameState,
+            positions: currentPositions,
+            playerCount,
+        } as Parameters<typeof activeColorsForTurns>[0]);
 
         return getNextPlayerCore(
             current,

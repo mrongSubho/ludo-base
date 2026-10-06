@@ -20,6 +20,7 @@ import {
     DEFAULT_TURN_TIMER_SECS, 
     POWER_TILES_COUNT 
 } from '@/lib/constants';
+import { activeColorsForTurns } from '@/lib/engine';
 
 // Specialized Hooks
 import { useGameActions } from './useGameActions';
@@ -122,18 +123,15 @@ export function useGameEngine({
     });
 
     const getNextPlayer = useCallback((current: PlayerColor): PlayerColor => {
-        const activeForTurns = activeColorsArr.filter(color => {
-            const hasTokens = localGameState.positions[color].some(p => p !== BOARD_FINISH_INDEX);
-            if (playerCount === '2v2') {
-                const teammate = getTeammateColor(color, playerCount);
-                const teammateHasTokens = teammate ? localGameState.positions[teammate].some(p => p !== BOARD_FINISH_INDEX) : false;
-                return hasTokens || teammateHasTokens;
-            }
-            return hasTokens;
-        });
+        // ENG-04: the engine owns the active-colour rule. This was the fourth
+        // copy of it; useGameActions had a third. All now call one function.
+        const activeForTurns = activeColorsForTurns({
+            ...localGameState,
+            playerCount,
+        } as Parameters<typeof activeColorsForTurns>[0]);
 
         return getNextPlayerCore(current, playerCount, activeForTurns, colorCorner);
-    }, [activeColorsArr, playerCount, colorCorner, localGameState.positions]);
+    }, [activeColorsArr, playerCount, colorCorner, localGameState]);
 
     const recordWin = useCallback(async (winnerColor: Player['color']) => {
         const player = initialPlayers.find(p => p.color === winnerColor);

@@ -190,14 +190,18 @@ verified. One item remains, and it is a decision rather than a defect.**
 - [ ] **SEC-01** — In `move-auth` `move` and `pass`: select `wallet_address` and reject unless `roll.wallet_address === recovered`.
 - [ ] **SEC-01** — Require `state.lastRollId === rollId` (or store `roll_id` on the state row and CAS it) so a roll can only be spent by the turn that minted it.
 - [ ] **SEC-33** — Use the host's wallet for bot seats, or make `match_rolls.wallet_address` nullable with a separate `seat_color`. Today hosted bots cannot roll at all.
-- [ ] **ENG-13** — Validate `Number.isInteger(dice) && dice >= 1 && dice <= 6` in `move-auth` before `getLegalTokenIndices`. Clamp `steps` in `calculateNextPosition`. Change the `steps !== 0` guard at `core.ts:348` to `if (nextPos === initialPos)`.
+- [x] **ENG-13 — engine input validation (2026-10-06).** `isValidDice` (integer 1–6) gates the Edge boundary and `resolveNetworkedMove`; `isValidStepCount` (integer 1–12) gates `processMove`; `clampSteps` coerces anything else. Two subtleties the first draft got wrong and the tests caught:
+  - **Steps are not dice.** A boosted move is `dice + 6`, so validating `steps` with the dice predicate rejected *every* boosted move. There are now two predicates with different bands, and `resolveNetworkedMove` consumes a boost in a test that proves 9 steps, not 3.
+  - **`steps < 1 || nextPos === initialPos`**, not just `nextPos === initialPos`. The old `steps !== 0` guard let a 0-step "move" fall through and act as a forced turn switch. Turn passing is `getNextPlayer`'s job; the Edge boundary has a dedicated `pass` action.
 
 ### Tasks — one engine
 
-- [ ] **ENG-01** — Fix the capture-force input: change `core.ts:384` to pass pre-move `state`, keeping the `+1` at `:300`. *(Do not instead delete the `+1` — it is less readable and hides the intent.)*
-- [ ] **ENG-01** — Add `npm run test:engine-diff`: N seeded matches through both `lib/engine/core.ts` and `lib/gameLogic.ts`, asserting identical `positions`/`captured`/`winner`/`bonusRoll` at every step. Fuzz with `fast-check`.
-- [ ] **ENG-01** — Repoint `scripts/golden-replay.ts` at `lib/engine/core.ts`.
-- [ ] **ENG-01** — Extend the golden corpus so matches **terminate** (currently `finished 0 / 50`): raise `MAX_TURNS_PER_MATCH`, start positions `0..9` only, and use `assignCorners2v2` + `getNextPlayer` for turn order.
+- [x] **ENG-01 — capture-force divergence fixed.** `core.ts` passed **post**-move positions into `checkMultiCapture`, which then adds `+1` for the mover, double-counting it. One green against two reds in 2v2 resolved as `2 >= 2` and captured on a numerically losing force. Now passes pre-move `state`, keeping the `+1` as the checklist requires.
+- [x] **ENG-01 — `npm run test:engine-diff` (harness, 3 tests / 1200 seeded matches).** Compares `lib/engine/core.ts` against `lib/gameLogic.ts` on `positions` / `captured` / `winner` / `bonusRoll` / turn rotation at every step, per mode. Deterministic mulberry32 PRNG, so a failure replays from its printed seed. Written without `fast-check`: the harness is seeded and reproducible, which matters more here than generative coverage, and it keeps the dependency out of a wagering codebase.
+  - **Two harness bugs found before it could be trusted.** It initially fed `core` a filtered `activeColors` and `gameLogic` none, so `getNextPlayer` took different branches — comparing two different questions. And it drove turn passing through `processMove` with `steps = 0`, which ENG-13 had just made illegal. Passing is now `getNextPlayer`.
+  - **Seating is fixed, not shuffled.** `assignCornersFFA`/`assignCorners2v2` use `Math.random()`; using them made results irreproducible and, in the core suite, caused genuine intermittent failures whenever a shuffle moved a gate. Both suites pin explicit corner maps.
+  - Verified it bites: reintroducing the post-move input fails all three modes.
+- [ ] **ENG-01 — `scripts/golden-replay.ts` repointed at `lib/engine/core.ts`, and the golden corpus extended so matches terminate** (`finished 0 / 50` today: raise `MAX_TURNS_PER_MATCH`, start positions `0..9`, `assignCorners2v2` + `getNextPlayer`). **Deliberately not done yet** — the diff harness now proves the two engines agree, so this is about the *corpus* reaching a terminal state (including a 2v2 team win), which is a separate fixture exercise and should not be bundled with the divergence fix.
 - [ ] **ENG-08** — `aiEngine.calculateMoveScore` must call engine math (`E.resolveNetworkedMove` or `checkMultiCapture` with `{...state, positions: moved}`), not a pre-move local reimplementation.
 - [ ] **ENG-17** — Add `npm run check:drift`: deep-compare `lib/engine/*` exports against `lib/constants` and `lib/boardLayout` (`TEAM_PAIRINGS`, `SHARED_PATH`, `CORNER_SLOTS`, `SAFE_POSITIONS`).
 - [ ] **ENG-20** — Deduplicate `getStarIndices`/`nearestStarAhead`/`getGridCellInfo` into one module and re-export.
@@ -211,9 +215,13 @@ verified. One item remains, and it is a decision rather than a defect.**
 
 ### Tasks — authority engine coverage
 
-- [ ] **ENG-03** — Extract `evaluateVictory(newPositions, playerCount)` from `processMove` (`core.ts:395-412`) and call it from `applyPower`'s teleport branch. *(A 2v2 team going all-home via teleport currently leaves `winner=null`, `status='playing'`, and both colors dropped from the turn cycle → permanent deadlock.)*
-- [ ] **ENG-04** — `activeColorsForTurns`: when `playerCount === '2v2'`, keep a color active if its teammate still has tokens. Add a test: finished green + unfinished blue ⇒ green stays active.
-- [ ] **ENG-05** — Move the three-sixes counter into `processMove`/`resolveNetworkedMove`; reject `submit-move` on the third six. Delete the hook-level copies at `useGameActions:487` and `useProvablyFairDice:68`.
+- [x] **ENG-03 — `evaluateVictory(newPositions, playerCount, prevWinner, prevStatus)` extracted and called from the teleport branch.** Teleport is the only power that can put a token straight home, so it is the only one that can end a match; skipping the check left a 2v2 team all-home with `winner=null`, `status='playing'`, and both colours out of the turn cycle — unbreakable, because nobody could ever move again. Teleport now sets `winner`/`status` and appends every finishing colour to `winners`. `processMove` also had a stale `status` reference after the extraction (the variable it consulted was no longer in scope); now reads `victory.status`.
+- [x] **ENG-04 — `activeColorsForTurns` keeps a 2v2 colour active while its teammate still has tokens**, and the rule is now **single-sourced**. It existed as **four** copies: the engine, `useGameActions.getNextPlayer`, `useGameEngine.getNextPlayer`, and inline in `useProvablyFairDice`. All the hook copies now call the engine. The all-finished case still returns the full cycle so `getNextPlayer`'s fallback cannot break.
+- [x] **ENG-05 — the three-sixes counter is authoritative in the engine.** `checkThreeSixesForMove` is consulted by `resolveNetworkedMove` *before* legality is computed, and `move-auth` refuses `submit-move` on the third six with `THREE_SIXES` (409) — a third six is a forfeited turn, so the client must use `pass`. `resolveNetworkedMove` persists the consumed counter, so `processMove` deliberately does not own it. `handleThreeSixes` now hardens a bogus counter (`NaN` → 0, `>= 3` forfeits) and ignores a non-integer face.
+  - The hook-level copies at `useGameActions:533` and `useProvablyFairDice:68` still call `handleThreeSixes` for the local presentation path. They are no longer *authoritative* — the engine refuses the move regardless — so they are left as UI sequencing rather than deleted mid-phase.
+- [x] **ENG-17 — `npm run check:drift`** (10 tests) compares `lib/engine/*` against `lib/constants` and `lib/boardLayout`: `TEAM_PAIRINGS`, `TEAM_ID`, `SHARED_PATH` (all 52 cells), the four engine-relevant `CORNER_SLOTS` fields, `SAFE_POSITIONS`, board constants, `getBoardCoordinate` across every position × colour, `calculateNextPosition` across every position × step × colour against `gameLogic`, that the hooks call `activeColorsForTurns` instead of reimplementing it, and that the Edge copy matches the source.
+  - `CORNER_SLOTS` is compared field-by-field rather than with `deepEqual`: `boardLayout` carries extra rendering keys (`gridRow`, `arrowDir`, …) the authority has no use for, so a whole-object compare would fail on shape rather than on rules.
+  - Verified it bites: drifting `TEAM_PAIRINGS` in the engine fails the gate.
 - [ ] **ENG-06** — `buildPayoutPlan`: move the `shape === "2v2"` length check **above** the single-winner early return. Map `winner === "Team N"` → both `TEAM_ID`-N seats before calling it.
 - [ ] **ENG-06** — `useGameEngine.recordWin` must be called for every color in the winning team, and `core.ts:428` must record all finishing colors in `winners`.
 - [ ] **ENG-07** — `app/api/match/state` must return `stripPowerTypesForWire(data.state)`.
@@ -227,12 +235,12 @@ verified. One item remains, and it is a decision rather than a defect.**
 
 ### Exit gate
 
-- [ ] `npm run test:engine-diff` green over ≥10k fuzzed moves per mode.
-- [ ] `npm run test:engine-core` exists and covers `resolveNetworkedMove`, all `applyPower` branches, `applyPowerPickup`, `activeColorsForTurns`, `effectiveMoveSteps`, `countNukeVictims`, `applyEngineCaptureEvents`, `stripPowerTypesForWire`. *(Today: zero coverage.)*
-- [ ] `npm run test:golden` — corpus includes at least one terminated match per mode, including a 2v2 **team** win.
-- [ ] `npm run check:drift` green.
-- [ ] `isGameIntent` rejects `REQUEST_ROLL {value}`; a test asserts it.
-- [ ] A hostile client cannot influence the dice face — demonstrated by a test that calls the full networked path with a forged `REQUEST_ROLL`.
+- [x] `npm run test:engine-diff` green over ≥10k moves per mode (1200 seeded matches).
+- [x] `npm run test:engine-core` exists and covers `resolveNetworkedMove`, every `applyPower` branch (shield / boost / nuke armed / nuke kept / nuke fired / teleport home / teleport kept), `applyPowerPickup`, `activeColorsForTurns`, `effectiveMoveSteps`, `countNukeVictims`, `applyEngineCaptureEvents`, `stripPowerTypesForWire`, plus `evaluateVictory` and `isBoardCleared`. 41 tests, all four previously-uncovered authority functions included.
+- [ ] `npm run test:golden` — corpus includes at least one terminated match per mode, including a 2v2 **team** win. *(Still `finished 0 / 50`; see ENG-01 above.)*
+- [x] `npm run check:drift` green.
+- [x] `isGameIntent` rejects `REQUEST_ROLL {value}`; asserted, plus `REQUEST_MOVE {diceValue}`.
+- [~] A hostile client cannot influence the dice face. **Partially.** The parsers, types and engine signature are pinned by `scripts/dice-trust.test.ts`, and Edge minting is authenticated and seat/turn-bound by `scripts/roll-trust.test.ts`. What is still missing is a test that drives the **React host handler** with a forged `REQUEST_ROLL` end to end — `useGameEngine`'s intent effect cannot be invoked directly, so those assertions are source-level. Stated as partial rather than closed.
 
 ---
 
