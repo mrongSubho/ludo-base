@@ -144,6 +144,11 @@ verified. One item remains, and it is a decision rather than a defect.**
 - [x] **Post-ECO-08 redeploy done (2026-10-06).** Live pair is `MatchPool` `0xdfa01EDE5E9A013a6C3deA718818315f9D4A102e`, `ClaimHub` `0x538e25f8ED55Be59662e1F89d0B26c0013B67CCC` — constructed with the rotated edge signer, so no separate `setEdgeSigner` was needed for it. Runtime byte-identical to the local artifact (immutables + CBOR metadata aside), verified on Sourcify as `match`. Superseded: `0xb1cEB8Da…`/`0xcdBd9763…`. Confirmed on-chain: `claimHub()`/`matchPool()` cross-reference, `owner`/`edgeSigner`/`chips` preserved, `setClaimHub` wired. Deployed runtime is byte-identical to the local artifact once the `chips` immutable and the CBOR metadata hash are accounted for (21145 B), so **the ECO-08 `shape` branch is genuinely live**. Both verified on Sourcify as `match` with full sources.
   - Superseded and orphaned, no funds in any: `0xb1cEB8Da…`/`0xcdBd9763…` (pre-edge-rotation), `0x2e93b3B1…`/`0x8ea2b333…` (pre-ECO-08), `0x879E7D56…`/`0x1430E2D4…` (pre-redeploy).
 - [x] Migration `202609300009` **is applied to production** (verified via the Management API: both columns, the CHECK constraint, and the backfill). No row has a `match_shape`, which is correct — the only `host_proven` rows have 1-seat rosters and the contract requires 2 or 4 — so the paid-pool path stays closed by design until `/api/match/start` records one.
+- [x] **`roll-dice` and `move-auth` are deployed to production (2026-10-06).** Both via `supabase functions deploy --project-ref xvwaqxqyjtlsuijgwozi`, **after** `202609300011` was applied — that order matters, since the new `roll-dice` is the only writer of `seat_color`/`turn_seq`. Verified against the live endpoints with the anon key:
+  - `roll-dice`: prewarm `200`; no auth material `401`; the **old** `{walletAddress, actionId}` client shape `400` (the fields it relied on no longer exist); unknown session `401`; stale `issuedAt` `401` even with a signature present; `matchId:"local"` `400`; unknown seat `400`; malformed actor `400`.
+  - `move-auth`: `move` / `pass` `401` unauthenticated, and the `THREE_SIXES` path is unreachable without auth (`401`, not `409`) — the rule cannot be probed anonymously.
+  - **Back door closed:** with the anon key, PostgREST refuses to insert into `match_rolls`, `match_sessions`, or `match_states` (`42501`, RLS), and `match_rolls` is unreadable to clients. Only the Edge service role writes.
+  - Not verifiable here: the authenticated *happy* path needs a seeded match plus a live match session, and production has 0 `match_states` rows and 0 active sessions. The first real match exercises it.
 - [x] **Migration `202609300010` applied to production** (verified via the Management API): the arming CHECK now reads `NOT enabled OR (treasury_wallet IS NOT NULL AND rake_bps > 0 AND NOT allow_self_bets)`, the claim lock is a unique index on `lower(wallet_address)`, `next_mission_voucher_nonce()` exists and is `service_role`-only, and the escrow is still inert (`enabled=false, rake_bps=0`).
 - [x] Verification moved off the retired Etherscan V1 hosts to V2 + Sourcify fallback (`scripts/verify-contracts.sh`, `contracts/foundry.toml`).
 - [x] `scripts/verify-contracts.sh` now cross-checks the deployed runtime size against the local artifact before interpreting a verifier answer. This was needed because Sourcify answers "already verified" for *any* previously-verified address, so a stale `contracts/.env` made the script verify the **previous** deployment and still exit 0 — exactly how the ECO-08 redeploy first reported success with the live contracts unverified. It also echoes the addresses it actually checked, so the output can be compared against the deploy log.
@@ -163,7 +168,9 @@ verified. One item remains, and it is a decision rather than a defect.**
 
 ## Phase 2 — Restore dice and engine integrity
 
-**Why.** A seated guest can currently choose their own dice face, and the two live engines resolve the same capture differently.
+**Status (2026-10-06): the dice trust boundary and both engine bugs are closed, deployed, and gated. What remains is coverage and consolidation, not the stated defect.**
+
+**Why it was open.** A seated guest could choose their own dice face, and the two live engines resolved the same capture differently.
 
 ### Tasks — dice
 
