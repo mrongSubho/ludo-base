@@ -126,16 +126,13 @@ same mission id; all four are now gone.
 - [x] Helper verbs added: `scripts/foundry-deploy.sh anvil-pool | sepolia-pool | base-pool`, with preflight guards that refuse on missing `CHIPS_ADDRESS`/`EDGE_SIGNER`/`GAME_OWNER`/`DEPLOYER_ADDRESS` or `USE_MOCK=true`.
 - [x] Redeploy verified end-to-end on Anvil: `pool.claimHub()` == new hub, `hub.matchPool()` == new pool, `pool.chips()` == pre-existing token, `setClaimHub` wired in-transaction. A stale `DEPLOYER_ADDRESS` fails loudly rather than deploying from an unexpected account.
 - [x] **Base Sepolia redeploy done (2026-10-05).** New `MatchPool` `0x2e93b3B1A3418a45f64B8e319CD0EFa997Aa8aD0`, new `ClaimHub` `0x8ea2b3332fD4e348102603811a24Fdfa8Ddf2D9F`. Confirmed on-chain: `claimHub()`/`matchPool()` cross-reference correctly, `owner`/`edgeSigner`/`chips` preserved, `setClaimHub` wired in-transaction. Both contracts verified on Sourcify (`exact_match`).
-- [ ] **⚠️ The deployed Sepolia pair above is now stale.** ECO-08 changed `MatchPool` again (`shape` field, `LOBBY_TYPEHASH`, `getPoolSummary` arity, plus the new `NotTeammates` error). `PoolConfig`/`LobbyTicket` gained a field and `getPoolSummary` went 10 → 11 return values, so the live contracts **cannot** accept a ticket produced by the current server. Redeploy before using the paid-pool path:
+- [x] **Post-ECO-08 redeploy done (2026-10-06).** `MatchPool` `0xb1cEB8Da118eD6F2B74BA3556FD41caf77bff904`, `ClaimHub` `0xcdBd97636dEF250078ab3F679eFA865A7238c107`. Confirmed on-chain: `claimHub()`/`matchPool()` cross-reference, `owner`/`edgeSigner`/`chips` preserved, `setClaimHub` wired. Deployed runtime is byte-identical to the local artifact once the `chips` immutable and the CBOR metadata hash are accounted for (21145 B), so **the ECO-08 `shape` branch is genuinely live**. Both verified on Sourcify as `match` with full sources.
+  - Superseded and orphaned, no funds in either: `0x2e93b3B1…` / `0x8ea2b333…` (pre-ECO-08) and `0x879E7D56…` / `0x1430E2D4…` (pre-redeploy).
+- [ ] **Migration `202609300009` is not applied to production yet.** `chips/lobby-ticket` reads `matches.match_shape` / `game_mode_code` and returns a hard 409 when either is NULL, so the paid-pool path stays closed until this is pushed. It is a pure `ALTER TABLE` + backfill, no contract dependency:
   ```bash
-  # 1) apply the new migration first — the server reads matches.match_shape
   supabase db push
-  # 2) redeploy pool + hub (ClaimHub must move with the pool: it binds it in its ctor)
-  FOUNDRY_ACCOUNT=mydeployer scripts/foundry-deploy.sh sepolia-pool
-  # 3) verify
-  scripts/verify-contracts.sh sepolia
+  supabase db dump --data-only --schema public > /tmp/pre009.sql   # Docker required
   ```
-  Nothing has used the live pair yet (`chips/lobby-ticket` has no client caller), so no funds are at risk from the gap — but a ticket signed now would be rejected on-chain.
 - [x] Verification moved off the retired Etherscan V1 hosts to V2 + Sourcify fallback (`scripts/verify-contracts.sh`, `contracts/foundry.toml`).
 - [x] `scripts/verify-contracts.sh` now cross-checks the deployed runtime size against the local artifact before interpreting a verifier answer. This was needed because Sourcify answers "already verified" for *any* previously-verified address, so a stale `contracts/.env` made the script verify the **previous** deployment and still exit 0 — exactly how the ECO-08 redeploy first reported success with the live contracts unverified. It also echoes the addresses it actually checked, so the output can be compared against the deploy log.
 - [x] `scripts/lib-load-env.sh` — one shared `contracts/.env` loader for both deploy/verify scripts. A plain `source ./.env` overwrote caller-supplied variables, so an inline override silently lost; inline now always wins, and trailing `#` comments are stripped (which had been corrupting `ETHERSCAN_API_KEY`).
