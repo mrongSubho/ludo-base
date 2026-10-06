@@ -2,35 +2,16 @@
 # Foundry deploy helper — local anvil or Base Sepolia.
 set -euo pipefail
 export PATH="$HOME/.foundry/bin:$PATH"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT/contracts"
 
 echo "== Foundry =="
 forge --version | head -1
 
-# Load contracts/.env without clobbering anything already exported: a plain
-# `source ./.env` overrides inline env vars, which makes `FOO=bar ./deploy.sh`
-# silently lose. Inline values win here. Trailing "# ..." comments are stripped
-# so `ETHERSCAN_API_KEY=abc # note` does not yield "abc # note".
-if [[ -f .env ]]; then
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-    [[ "$line" != *=* ]] && continue
-    __k="${line%%=*}"
-    __v="${line#*=}"
-    __k="${__k//[[:space:]]/}"
-    __v="${__v%%#*}"
-    __v="${__v#"${__v%%[![:space:]]*}"}"
-    __v="${__v%"${__v##*[![:space:]]}"}"
-    [[ -n "$__k" ]] || continue
-    [[ -n "${!__k+x}" ]] || export "$__k=$__v"
-  done < .env
-else
-  cp .env.example .env
-  echo "created contracts/.env — set CHIPS_ADDRESS, EDGE_SIGNER, GAME_OWNER, DEPLOYER_ADDRESS"
-fi
-
-unset __k __v
+# Shared loader (scripts/lib-load-env.sh): inline env wins over contracts/.env.
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib-load-env.sh"
 
 KEYSTORE_DIR="${FOUNDRY_KEYSTORE_DIR:-$HOME/.foundry/keystores}"
 ACCOUNT="${FOUNDRY_ACCOUNT:-deployer}"
