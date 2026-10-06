@@ -1,7 +1,19 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 const walletPattern = /^0x[a-f0-9]{40}$/;
+
+/**
+ * SEC-28: server-derived activity dedup key.
+ *
+ * Deterministic from (type, actor, subject) so the same congratulation resolves
+ * to the same row and a distinct one gets its own. Stable across retries, and
+ * not steerable by the caller the way `requestId` was.
+ */
+function deriveActivityId(type: string, actor: string, subject: string): string {
+    return `${type}:${actor.toLowerCase()}:${subject.toLowerCase()}`.slice(0, 100);
+}
 
 /**
  * GET /api/social/moderation?walletAddress=…&sessionId=…&target=0x…
@@ -35,9 +47,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { walletAddress, sessionId, action, target, reason, requestId } = await request.json();
+        const { walletAddress, sessionId, action, target, reason } = await request.json();
         const wallet = await requireAppSession(walletAddress, sessionId);
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+        // SEC-28: a session is not a rate limit. A 7-day SIWE session let one
+        // wallet write unbounded `activities` and `user_reports` rows.
+        const limit = checkRateLimit(rateKey(`moderation:${String(action || '')}`, wallet), 20, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many requests', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
+        }
         const targetWallet = String(target || '').toLowerCase();
         if (action !== 'activity' && (!walletPattern.test(targetWallet) || targetWallet === wallet)) {
             return NextResponse.json({ error: 'Invalid target' }, { status: 400 });
@@ -70,8 +92,11 @@ export async function POST(request: Request) {
         }
 
         if (action === 'congratulate') {
-            const id = String(requestId || '').slice(0, 100);
-            if (!id) return NextResponse.json({ error: 'Request id is required' }, { status: 400 });
+            // SEC-28: the dedup key is derived from the session and the target,
+            // not from a client-supplied `requestId`. A caller could otherwise
+            // mint unlimited distinct activities by varying the id, or suppress
+            // its own rows by reusing one.
+            const id = deriveActivityId('congratulate', wallet, targetWallet);
             const { data: existing } = await db.from('activities').select('id')
                 .eq('actor_id', wallet).eq('type', 'congratulate')
                 .contains('metadata', { request_id: id }).limit(1);
@@ -85,8 +110,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true });
         }
         if (action === 'activity') {
-            const id = String(requestId || '').slice(0, 100);
-            if (!id) return NextResponse.json({ error: 'Request id is required' }, { status: 400 });
+            // SEC-28: same derivation. `room_code` is part of the key, so
+            // re-entering a different tournament is a distinct activity.
+            const id = deriveActivityId('join_tournament', wallet, `${targetWallet}:${String(target || '').slice(0, 80)}`);
             const { data: existing } = await db.from('activities').select('id')
                 .eq('actor_id', wallet).eq('type', 'join_tournament')
                 .contains('metadata', { request_id: id }).limit(1);

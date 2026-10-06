@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 // Prices are server-owned; the browser only submits SKU identifiers.
 const PRICES: Record<string, number> = {
@@ -12,6 +13,18 @@ export async function POST(request: Request) {
         const { walletAddress, sessionId, itemIds, requestId } = await request.json();
         const wallet = await requireAppSession(walletAddress, sessionId);
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+
+        // A session is not a rate limit. `requestId` here is a genuine
+        // idempotency key for a debit, so it stays client-supplied; what is
+        // missing is a bound on how many purchases one wallet may attempt.
+        const limit = checkRateLimit(rateKey('marketplace:purchase', wallet), 10, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many requests', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
+        }
+
         const ids = Array.isArray(itemIds) ? [...new Set(itemIds.map(String))] : [];
         const id = String(requestId || '');
         if (!ids.length || ids.length > 30 || !id || ids.some(sku => !PRICES[sku])) {

@@ -1,32 +1,15 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { checkRateLimit, clientIp, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 // POST /api/feedback — anonymous by contract (baseline feedback_anon_insert).
-// Guests and signed-out visitors can submit; attribution is best-effort only.
-// Spam control without identity: per-IP throttle, min length, honeypot, and
-// same-sender duplicate dedup. Reads stay service-only (no SELECT policy).
+// Guests and signed-out visitors can submit. Attribution is applied only when a
+// real session is present (SEC-27: an unverified walletAddress is no longer
+// trusted). Spam control: the shared per-IP limiter (SEC-34), min length,
+// honeypot, and same-sender dedup. Reads stay service-only (no SELECT policy).
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_PER_WINDOW = 5;
 const DEDUP_MS = 5 * 60 * 1000;
-const ipHits = new Map<string, number[]>();
-
-function throttleOk(ip: string): boolean {
-    const now = Date.now();
-    const hits = (ipHits.get(ip) || []).filter(t => now - t < WINDOW_MS);
-    if (hits.length >= MAX_PER_WINDOW) {
-        ipHits.set(ip, hits);
-        return false;
-    }
-    hits.push(now);
-    ipHits.set(ip, hits);
-    // Opportunistic cleanup so the map can't grow without bound.
-    if (ipHits.size > 5000) {
-        for (const [k, v] of ipHits) {
-            if (v.length === 0 || now - v[v.length - 1] >= WINDOW_MS) ipHits.delete(k);
-        }
-    }
-    return true;
-}
 
 export async function POST(request: Request) {
     try {
@@ -40,16 +23,24 @@ export async function POST(request: Request) {
         if (!cleanTopic || cleanMessage.length < 10) {
             return NextResponse.json({ error: 'Topic and a message of at least 10 characters are required' }, { status: 400 });
         }
-        const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() || 'unknown';
-        if (!throttleOk(ip)) {
-            return NextResponse.json({ error: 'Too many submissions — try again later' }, { status: 429 });
+        // SEC-27: the platform-provided IP, not `x-forwarded-for[0]` — that index
+        // is the client-controllable prefix, so keying a limit on it meant keying
+        // it on attacker input. Now via the shared limiter (SEC-34), which also
+        // sweeps expired buckets instead of growing without bound.
+        const limit = checkRateLimit(rateKey('feedback', clientIp(request)), MAX_PER_WINDOW, WINDOW_MS);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many submissions — try again later', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
         }
-        // Optional attribution: a valid session pins the sender, anything
-        // else submits unattributed. Never rejects.
+        // Attribution requires a real session. The old fallback accepted an
+        // unverified `walletAddress` and stamped it on the row, which let anyone
+        // file feedback against another wallet (SEC-27).
         let wallet: string | null = null;
-        if (typeof walletAddress === 'string' && walletAddress) {
+        if (typeof walletAddress === 'string' && walletAddress && sessionId) {
             try {
-                wallet = await requireAppSession(walletAddress, sessionId ?? null);
+                wallet = await requireAppSession(walletAddress, sessionId);
             } catch {
                 wallet = null;
             }

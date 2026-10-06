@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { isWalletAddress, normalizeWallet } from '@/lib/validation/wallet';
+import { checkRateLimit, clientIp, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 // Accepted game friendships for a wallet (both directions), lowercase.
 // Served via service role: friendships has no anon SELECT policy, and this
@@ -36,6 +37,17 @@ async function fetchAcceptedFriends(walletLower: string): Promise<string[]> {
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const raw = searchParams.get('wallet');
+
+    // SEC-08: every call here spends NEYNAR_API_KEY twice (profile + following).
+    // A session gates it now, but the session lasts 7 days, so the key still
+    // needs its own bound rather than relying on the session alone.
+    const limit = checkRateLimit(rateKey('friends', clientIp(request)), 10, 60_000);
+    if (!limit.ok) {
+        return NextResponse.json(
+            { error: 'Too many requests', retryAfter: limit.retryAfterSec },
+            { status: 429, headers: rateLimitHeaders(limit) },
+        );
+    }
 
     if (!raw) return NextResponse.json({ error: 'No wallet provided' }, { status: 400 });
 

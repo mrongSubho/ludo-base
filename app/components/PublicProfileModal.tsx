@@ -360,7 +360,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             } else if (action === 'Congratulate') {
                 const sessionId = await ensureAppSession();
                 const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'congratulate', target: userAddress, requestId: crypto.randomUUID() }) }) : null;
+                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'congratulate', target: userAddress }) }) : null;
                 if (response?.ok) {
                     setActionSuccess("Celebrated!");
                     setTimeout(() => setActionSuccess(null), 2500);

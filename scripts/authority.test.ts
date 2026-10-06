@@ -163,6 +163,7 @@ test('the six counter wraps on the third six rather than running away', () => {
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import type * as ts from 'typescript';
 
 const require = createRequire(import.meta.url);
 
