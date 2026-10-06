@@ -539,6 +539,49 @@ export function activeColorsForTurns(state: EngineGameState): PlayerColor[] {
     return colors;
 }
 
+/**
+ * SEC-32: the fields allowed to be persisted into `match_states.state`.
+ *
+ * The old approach blacklisted exactly one thing — `powerTiles[].type`, because
+ * that is the tile a guest must not learn. Everything else was stored verbatim,
+ * and `seed` takes `initialState` from the request, so any other field could be
+ * written into an authority row. A blocklist cannot enumerate what a client
+ * invents; a whitelist can.
+ *
+ * `powerTiles` keeps `r`/`c` (the board is public) and drops everything else,
+ * including the `type`.
+ */
+export const PERSISTED_STATE_FIELDS = [
+    'positions', 'currentPlayer', 'diceValue', 'isRolling', 'gamePhase', 'status',
+    'winner', 'winners', 'consecutiveSixes', 'playerCount', 'isStarted',
+    'lastUpdate', 'timeLeft', 'strikes', 'afkStats', 'matchStats',
+    'activeShields', 'activeTraps', 'activeBoost', 'powerSpentThisTurn',
+    'boostTrail', 'nukeFlash', 'captureMessage', 'playerPowers',
+    'botDifficulty', 'matchId', 'powerSpentTurn', 'turnStartedAt',
+] as const;
+
+/** Only these members of a power tile may be persisted. `type` is NOT one. */
+const PERSISTED_TILE_FIELDS = ['r', 'c'] as const;
+
+export function pickPersistedState(state: unknown): Record<string, unknown> {
+    if (!state || typeof state !== 'object' || Array.isArray(state)) return {};
+    const src = state as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const field of PERSISTED_STATE_FIELDS) {
+        if (src[field] !== undefined) out[field] = src[field];
+    }
+    const tiles = Array.isArray(src.powerTiles) ? src.powerTiles : null;
+    if (tiles) {
+        out.powerTiles = tiles.map((t: unknown) => {
+            const tile = (t || {}) as Record<string, unknown>;
+            const kept: Record<string, unknown> = {};
+            for (const f of PERSISTED_TILE_FIELDS) if (tile[f] !== undefined) kept[f] = tile[f];
+            return kept;
+        });
+    }
+    return out;
+}
+
 /** Sanitize state before putting it on the wire / into match_states for guests. */
 export function stripPowerTypesForWire<T extends { powerTiles?: { r: number; c: number; type?: unknown }[] }>(state: T): T {
     if (!state?.powerTiles?.length) return state;

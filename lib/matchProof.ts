@@ -115,6 +115,8 @@ export function buildSeedMessage(params: {
     roomCode: string;
     expectedSeq: number;
     issuedAt: string;
+    /** SEC-16: sha256 over the canonical board. Required. */
+    board: string;
 }): string {
     return [
         SEED_PREFIX,
@@ -123,6 +125,9 @@ export function buildSeedMessage(params: {
         `host: ${params.hostAddress.toLowerCase()}`,
         `room: ${params.roomCode}`,
         `seq: ${params.expectedSeq}`,
+        // The board the host is agreeing to. Without this the signature covered
+        // only the match identity, so any board could be seeded afterwards.
+        `board: ${params.board}`,
         `issued: ${params.issuedAt}`,
     ].join('\n');
 }
@@ -191,4 +196,47 @@ export function buildEcdhMessage(walletAddress: string, fingerprint: string, iss
         `fingerprint: ${fingerprint}`,
         `issued: ${issuedAt}`,
     ].join('\n');
+}
+
+/**
+ * SEC-16: canonical JSON.
+ *
+ * `JSON.stringify` is key-order dependent, so two structurally identical objects
+ * can serialise differently and the digest would not match between the client
+ * and the Edge function. Keys are emitted in sorted order at every level.
+ */
+export function stableStringify(value: unknown): string {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj).filter((k) => obj[k] !== undefined).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+}
+
+/**
+ * SEC-16: the board digest covered by the seed signature.
+ *
+ * `buildSeedMessage` used to sign the match identity only, so a host could sign
+ * "start this match" and then seed whatever board it liked — including one that
+ * put its own tokens ahead. Binding the digest means the board the host agrees to
+ * is the board that gets stored.
+ *
+ * Both sides compute this over the same canonical form, so key order and
+ * `undefined` members cannot make a legitimate digest mismatch.
+ */
+export async function boardDigest(params: {
+    initialState: unknown;
+    colorCorner: unknown;
+    playerSeats: unknown;
+}): Promise<string> {
+    const canonical = stableStringify({
+        initialState: params.initialState,
+        colorCorner: params.colorCorner,
+        playerSeats: params.playerSeats,
+    });
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical));
+    const bytes = new Uint8Array(digest);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }

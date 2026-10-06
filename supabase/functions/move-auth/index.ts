@@ -12,6 +12,7 @@ import {
   processMove,
   activeColorsForTurns,
   stripPowerTypesForWire,
+  pickPersistedState,
   resolveNetworkedMove,
   applyPower,
   type ColorCorner,
@@ -30,6 +31,8 @@ import {
 import { verifyMatchSession } from '../_shared/matchSession.ts';
 import { edgeError, edgeErrorBody, edgeErrorStatus, opaquePowerError } from '../_shared/errors.ts';
 import { checkRollBinding } from '../_shared/rollReceipt.ts';
+import { boardDigest } from '../_shared/boardDigest.ts';
+import { assignCorners2v2, assignCornersFFA } from '../_shared/corners.ts';
 import {
   casWon,
   checkPassLegality,
@@ -124,7 +127,7 @@ function buildPassMessage(p: { matchId: string; actor: string; rollId: string; e
   ].join('\n');
 }
 
-function buildSeedMessage(p: { matchId: string; hostAddress: string; roomCode: string; expectedSeq: number; issuedAt: string }) {
+function buildSeedMessage(p: { matchId: string; hostAddress: string; roomCode: string; expectedSeq: number; issuedAt: string; board: string }) {
   return [
     SEED_PREFIX,
     'Start this match — nothing leaves your wallet.',
@@ -132,6 +135,9 @@ function buildSeedMessage(p: { matchId: string; hostAddress: string; roomCode: s
     `host: ${p.hostAddress.toLowerCase()}`,
     `room: ${p.roomCode}`,
     `seq: ${p.expectedSeq}`,
+    // SEC-16: the board the host is agreeing to. Without it the signature
+    // covered only the match identity, so any board could be seeded afterwards.
+    `board: ${p.board}`,
     `issued: ${p.issuedAt}`,
   ].join('\n');
 }
@@ -281,7 +287,9 @@ Deno.serve(async (req) => {
         wallet_address: recovered,
         room_code: roomCode || null,
         expires_at: new Date(Number(expiresAt)).toISOString(),
-      }, { onConflict: 'authorization_key' }).select('id').single();
+        // SEC-17: scoped to the wallet as well. On `authorization_key` alone two
+        // wallets sharing a key silently overwrote each other's grant.
+      }, { onConflict: 'authorization_key,wallet_address' }).select('id').single();
       if (error || !data) return json({ error: error?.message || 'Provisional session failed' }, 500);
       return json({ success: true, provisionalId: data.id });
     }
@@ -393,8 +401,12 @@ Deno.serve(async (req) => {
         return json({ error: 'Missing seed payload' }, 400);
       }
       if (!isFresh(issuedAt)) return json({ error: 'Proof expired' }, 401);
+      // SEC-16: recompute the digest from what actually arrived and compare.
+      // The client signing its own digest proves nothing if we trust that value.
+      const actualBoard = await boardDigest({ initialState, colorCorner, playerSeats });
       const expected = buildSeedMessage({
-        matchId, hostAddress, roomCode: roomCode || '', expectedSeq: expectedSeq ?? 0, issuedAt,
+        matchId, hostAddress, roomCode: roomCode || '', expectedSeq: expectedSeq ?? 0,
+        issuedAt, board: actualBoard,
       });
       if (message !== expected) return json({ error: 'Message payload mismatch' }, 401);
       const seedCheck = await verifyActorSignature(String(hostAddress), message, signature);
@@ -423,10 +435,37 @@ Deno.serve(async (req) => {
         return json({ error: 'Seed identity does not match canonical match' }, 403);
       }
       const seats = playerSeats as Seats;
-      for (const seat of Object.values(seats)) {
-        if (seat.kind === 'human' && (!seat.wallet || !canonicalParticipants.includes(seat.wallet.toLowerCase()))) {
-          return json({ error: 'Seat wallet is not a canonical participant' }, 403);
+      const SEAT_KEYS = ['green', 'red', 'yellow', 'blue'];
+      // Seat keys must be a subset of the four colours: an extra key is a seat
+      // the engine never reads, and a smuggling channel into persisted state.
+      for (const key of Object.keys(seats)) {
+        if (!SEAT_KEYS.includes(key)) return json({ error: 'Unknown seat key' }, 400);
+      }
+      const seenWallets = new Set<string>();
+      for (const [key, seat] of Object.entries(seats)) {
+        if (!SEAT_KEYS.includes(key) || !seat) return json({ error: 'Invalid seat entry' }, 400);
+        if (seat.kind === 'human') {
+          const w = String(seat.wallet || '').toLowerCase();
+          if (!w || !canonicalParticipants.includes(w)) {
+            return json({ error: 'Seat wallet is not a canonical participant' }, 403);
+          }
+          // The same wallet in two seats would let one player hold both sides.
+          if (seenWallets.has(w)) return json({ error: 'Wallet seated twice' }, 400);
+          seenWallets.add(w);
+        } else if (seat.kind !== 'bot' && seat.kind !== 'afk') {
+          return json({ error: 'Unknown seat kind' }, 400);
         }
+      }
+
+      // SEC-16: the colour assignment must match what the engine derives for the
+      // declared mode, so a host cannot seat a 2v2 pair on one diagonal.
+      const declaredCount = String((initialState as { playerCount?: unknown })?.playerCount ?? '4P');
+      const derivedCc = declaredCount === '2v2'
+        ? assignCorners2v2()
+        : assignCornersFFA(declaredCount === '1v1' ? '1v1' : '4P');
+      const ccGiven = (colorCorner || {}) as Record<string, string>;
+      if (!SEAT_KEYS.every((k) => (derivedCc as Record<string, string>)[k] === ccGiven[k])) {
+        return json({ error: 'color_corner does not match the declared mode' }, 400);
       }
 
       const { data: existing } = await supabase
@@ -438,8 +477,11 @@ Deno.serve(async (req) => {
         return json({ error: 'Match already seeded', seq: existing.seq }, 409);
       }
 
+      // SEC-32: `initialState` arrives from the request. It is persisted into an
+      // authority row, so it goes through the whitelist rather than being stored
+      // as received — the old blacklist covered only powerTiles[].type.
       const state = {
-        ...initialState,
+        ...pickPersistedState(initialState),
         matchId,
         seq: 0,
         lastUpdate: Date.now(),
@@ -585,7 +627,8 @@ Deno.serve(async (req) => {
         .from('match_states')
         .update({
           seq: nextSeq,
-          state: toStore,
+          // SEC-32: whitelist on every write, not only at seed.
+          state: pickPersistedState(toStore),
           updated_at: new Date().toISOString(),
         })
         .eq('match_id', matchId)
@@ -752,7 +795,7 @@ Deno.serve(async (req) => {
       if (nextSeq === null) return staleStateResponse(supabase, matchId);
       const { data: passSaved, error: saveErr } = await supabase
         .from('match_states')
-        .update({ seq: nextSeq, state: next, updated_at: new Date().toISOString() })
+        .update({ seq: nextSeq, state: pickPersistedState(next), updated_at: new Date().toISOString() })
         .eq('match_id', matchId)
         .eq('seq', seq)
         .select('seq');
@@ -876,7 +919,7 @@ Deno.serve(async (req) => {
       const toStore = { ...result.state, lastUpdate: Date.now() };
       const { data: powerSaved, error: saveErr } = await supabase
         .from('match_states')
-        .update({ seq: nextSeq, state: toStore, updated_at: new Date().toISOString() })
+        .update({ seq: nextSeq, state: pickPersistedState(toStore), updated_at: new Date().toISOString() })
         .eq('match_id', matchId)
         .eq('seq', seq)
         .select('seq');

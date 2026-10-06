@@ -3,6 +3,7 @@
 
 import { useCallback, useRef } from 'react';
 import {
+    boardDigest,
     buildMoveMessage,
     buildPassMessage,
     buildPowerMessage,
@@ -221,12 +222,22 @@ export function useMoveAuth(opts: {
         if (!myAddress) return { ok: false as const, error: 'no wallet' };
         const issuedAt = new Date().toISOString();
         const expectedSeq = 0;
+        // SEC-16: the signed message binds the board, not just the match
+        // identity. Computed over the canonical form so key order cannot make a
+        // legitimate digest mismatch.
+        const initialState = stripPowerTypesForWire(params.initialState);
+        const board = await boardDigest({
+            initialState,
+            colorCorner: params.colorCorner,
+            playerSeats: params.playerSeats,
+        });
         const message = buildSeedMessage({
             matchId: params.matchId,
             hostAddress: myAddress,
             roomCode: params.roomCode,
             expectedSeq,
             issuedAt,
+            board,
         });
         const signature = await signMessageAsync({ account: myAddress as `0x${string}`, message });
         const r = await callMoveAuth('seed', {
@@ -235,7 +246,8 @@ export function useMoveAuth(opts: {
             roomCode: params.roomCode,
             colorCorner: params.colorCorner,
             playerSeats: params.playerSeats,
-            initialState: stripPowerTypesForWire(params.initialState),
+            board,
+            initialState,
             expectedSeq,
             message,
             signature,

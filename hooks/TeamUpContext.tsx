@@ -1028,13 +1028,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // Returns the room code synchronously so invite links work immediately.
     const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'classic', entryFee: number = 0) => {
         const code = generateRoomCode();
-        void createProvisionalSession(`room:${code}`, code).then(result => {
+        // SEC-17: the key includes the wallet, so two wallets that happen to
+        // collide on a room code get separate provisional grants rather than
+        // overwriting each other.
+        void createProvisionalSession(`room:${code}:${(myAddress || '').toLowerCase()}`, code).then(result => {
             if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
         });
         hostGame(code);
         initQuickLobby(code, matchType, gameMode, entryFee);
         return code;
-    }, [hostGame, initQuickLobby, createProvisionalSession]);
+    }, [hostGame, initQuickLobby, createProvisionalSession, myAddress]);
 
     /** Public-pool fill: matchmaking already paired guests — do not require room secret. */
     const allowOpenJoins = useCallback(() => {

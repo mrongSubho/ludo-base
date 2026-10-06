@@ -44,9 +44,17 @@ const baseSepoliaChain: any = {
   rpcUrls: { default: { http: ["https://sepolia.base.org"] } },
 };
 
-export const SUPPORTED_CHAIN_IDS = [84532, 8453] as const;
+/**
+ * SEC-20: kept in step with `lib/chains.ts`, which allows `[84532]` only.
+ *
+ * These two had drifted — the Edge boundary accepted `8453` while the app did
+ * not — so a signature could be verified on a chain the product does not support,
+ * against a *public* RPC endpoint the deployment never chose. The Next and Edge
+ * allowlists must be one number.
+ */
+export const SUPPORTED_CHAIN_IDS = [84532] as const;
 export type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
-export const DEFAULT_CHAIN_ID: SupportedChainId = 8453;
+export const DEFAULT_CHAIN_ID: SupportedChainId = 84532;
 
 export function parseChainId(input: unknown): SupportedChainId | null {
   const n =
@@ -55,7 +63,8 @@ export function parseChainId(input: unknown): SupportedChainId | null {
       : typeof input === "string" && input.trim() !== ""
         ? Number(input.trim())
         : NaN;
-  if (n === 84532 || n === 8453) return n;
+  // Derived from the allowlist, so the two cannot drift apart again.
+  if ((SUPPORTED_CHAIN_IDS as readonly number[]).includes(n)) return n as SupportedChainId;
   return null;
 }
 
@@ -82,9 +91,19 @@ function chainClient(chainId: SupportedChainId): any {
   } catch {
     rpc = "";
   }
+  // SEC-20: refuse the public-endpoint fallback. `http()` with no URL talks to
+  // viem's default public RPC, which the deployment never chose and cannot rate
+  // limit. Without a configured RPC the smart-account path is simply unavailable
+  // and we fail closed — the fast EOA path still works, so this does not
+  // weaken verification, it only declines to guess an endpoint.
+  if (!rpc) {
+    throw new Error(
+      `No verify RPC configured for chain ${chainId}; refusing the public-endpoint fallback`,
+    );
+  }
   const client = createPublicClient({
     chain: chainId === 84532 ? baseSepoliaChain : baseChain,
-    transport: rpc ? http(rpc) : http(),
+    transport: http(rpc),
   });
   _clients[chainId] = client;
   return client;
