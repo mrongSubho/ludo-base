@@ -264,7 +264,7 @@ export default function Page() {
   const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
   // Needed to prove the canonical host to /api/match/start (SEC-06). Best-effort:
   // offline/bot games still post the anonymous marker and are simply not settleable.
-  const { ensureAppSession } = useAppSession();
+  const { ensureAppSession, peekAppSession } = useAppSession();
   const { signMessageAsync } = useSignMessage();
   // DM unread badge reads the same GameData store the panel writes, so it
   // cleans the instant a thread opens (no second source of truth).
@@ -338,30 +338,53 @@ export default function Page() {
     appState === 'game' ? (lobbyState?.roomCode ?? null) : null
   );
 
+  /**
+   * SEC-07: the arena is host-gated. A session is required to open it, and the
+   * first session-holding caller becomes its host. Only the host drives the
+   * tick; other spectators watch the same broadcast stream without writing.
+   */
+  const [arenaIsHost, setArenaIsHost] = useState(false);
+
   const handleWatchMatch = useCallback(async (roomCode: string) => {
     let resolvedRoom = roomCode;
     if (roomCode === 'ARENA-POWER-4P') {
-      const response = await fetch('/api/live-arena/power4p', { method: 'POST' });
+      const sid = await ensureAppSession();
+      if (!sid || !address) return;
+      const qs = new URLSearchParams({
+        walletAddress: address.toLowerCase(),
+        sessionId: sid,
+      });
+      const response = await fetch(`/api/live-arena/power4p?${qs.toString()}`, { method: 'POST' });
       const data = await response.json();
       if (!response.ok || !data.roomCode) return;
       resolvedRoom = data.roomCode;
+      setArenaIsHost(Boolean(data.isHost));
     }
     setSpectatingRoomCode(resolvedRoom);
     setAppState('spectating');
-  }, []);
+  }, [address, ensureAppSession]);
 
   useEffect(() => {
     if (appState !== 'spectating' || spectatingRoomCode !== 'ARENA-POWER-4P') return;
+    // Not the host: watch only. Sending a tick would just earn a 403.
+    if (!arenaIsHost || !address) return;
     const authorityId = crypto.randomUUID();
+    const sid = peekAppSession();
+    if (!sid) return;
     const tick = () => fetch('/api/live-arena/power4p', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ arenaKey: 'power4p-ai', authorityId }),
+      body: JSON.stringify({
+        arenaKey: 'power4p-ai',
+        authorityId,
+        walletAddress: address.toLowerCase(),
+        sessionId: sid,
+      }),
     }).catch(() => undefined);
     void tick();
     const timer = window.setInterval(tick, 3000);
     return () => window.clearInterval(timer);
-  }, [appState, spectatingRoomCode]);
+  }, [appState, spectatingRoomCode, arenaIsHost, address, peekAppSession]);
 
   const handleLeaveSpectating = useCallback(() => {
     setSpectatingRoomCode(null);
