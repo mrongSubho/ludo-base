@@ -49,6 +49,9 @@ const MATRIX = {
     'lobby/invites':          { methods: ['GET'],          auth: 'session', resource: 'self', serviceRole: true },
     // SEC-12: POST is unauthenticated and seat-verified only by a room secret.
     'lobby/join':             { methods: ['POST', 'GET', 'DELETE'], auth: 'session*', resource: 'none', serviceRole: true },
+    // SEC-12: the host declares the door, and only for a room it already hosts
+    // (the route re-checks room ownership rather than trusting `resource`).
+    'lobby/policy':           { methods: ['POST'], auth: 'session', resource: 'host', serviceRole: true },
 
     // ── Chips / settlement ────────────────────────────────────────────────
     'chips/settle/propose':   { methods: ['POST', 'PUT'], auth: 'session', resource: 'host', serviceRole: true },
