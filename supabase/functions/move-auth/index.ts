@@ -28,6 +28,7 @@ import {
   isTerminalMatch,
 } from '../_shared/networkBoundary.ts';
 import { verifyMatchSession } from '../_shared/matchSession.ts';
+import { edgeError, edgeErrorBody, edgeErrorStatus, opaquePowerError } from '../_shared/errors.ts';
 import { checkRollBinding } from '../_shared/rollReceipt.ts';
 import {
   casWon,
@@ -407,7 +408,14 @@ Deno.serve(async (req) => {
         .select('id, room_code, participants')
         .eq('id', String(matchId))
         .maybeSingle();
-      if (matchError) return json({ error: matchError.message }, 500);
+      // SEC-31: a PostgREST error names the table, column and constraint and its
+      // hint suggests the exact GRANT to add. Log it, never return it.
+      if (matchError) {
+        console.error('[move-auth] matches read failed', JSON.stringify({
+          code: matchError.code, message: matchError.message, hint: matchError.hint,
+        }));
+        return json(edgeErrorBody('INTERNAL'), edgeErrorStatus('INTERNAL'));
+      }
       if (!canonicalMatch) return json({ error: 'Canonical match not found' }, 404);
       const canonicalParticipants = (canonicalMatch.participants || []).map((p: string) => String(p).toLowerCase());
       if (String(canonicalMatch.room_code || '') !== String(roomCode || '') ||
@@ -450,7 +458,12 @@ Deno.serve(async (req) => {
         player_seats: playerSeats,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'match_id' });
-      if (upErr) return json({ error: upErr.message }, 500);
+      if (upErr) {
+        console.error('[move-auth] session upsert failed', JSON.stringify({
+          code: upErr.code, message: upErr.message, hint: upErr.hint,
+        }));
+        return json(edgeErrorBody('INTERNAL'), edgeErrorStatus('INTERNAL'));
+      }
       return json({ success: true, seq: 0, state: stripPowerTypesForWire(state) });
     }
 
@@ -842,8 +855,16 @@ Deno.serve(async (req) => {
         playerCount
       );
       if (!result.ok) {
+        // SEC-31: the engine string stays in the log; the caller gets a code.
+        // `armed`/`kept` are kept because the UI acts on them and they reveal
+        // nothing about another player.
+        const code = opaquePowerError(result.error);
+        if (!result.armed && !result.kept) {
+          console.error('[move-auth] power refused', JSON.stringify({ code, engine: result.error }));
+        }
         return json({
-          error: result.error,
+          error: 'Power could not be used',
+          code,
           armed: result.armed,
           kept: result.kept,
           seq,
@@ -931,6 +952,9 @@ Deno.serve(async (req) => {
     return json({ error: `Unknown action: ${action}` }, 404);
   } catch (err) {
     console.error('❌ [MoveAuth] Error:', err);
-    return json({ error: (err as Error).message }, 400);
+    // SEC-31: never echo a caught exception. It may be a Supabase error object
+    // carrying a grant hint.
+    console.error('[move-auth] unhandled', (err as Error)?.stack || String(err));
+    return json(edgeErrorBody('INTERNAL'), edgeErrorStatus('INTERNAL'));
   }
 });

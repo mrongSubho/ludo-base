@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 import { verifyPersonalSign } from '../_shared/walletVerify.ts';
+import { CORS_HEADERS, edgeError, jsonOk } from '../_shared/errors.ts';
 
 const BET_RESOLVE_PREFIX = 'Ludo Base bet resolve';
 const MAX_AGE_MS = 10 * 60 * 1000;
@@ -41,10 +42,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'application/json',
-  };
+  const corsHeaders = CORS_HEADERS;
 
   try {
     const { matchId, result, betType, hostAddress, message, signature, issuedAt } = await req.json();
@@ -104,11 +102,10 @@ Deno.serve(async (req) => {
       .eq('match_id', matchId)
       .maybeSingle();
 
+    // SEC-31: a PostgREST error names the table, column and constraint, and its
+    // hint suggests the exact GRANT to add. Never echoed.
     if (liveErr) {
-      return new Response(JSON.stringify({ error: liveErr.message }), {
-        status: 500,
-        headers: corsHeaders,
-      });
+      return edgeError('INTERNAL', { scope: 'resolve-bet', cause: liveErr, log: { matchId } });
     }
     if (!live?.host_address || live.host_address.toLowerCase() !== recovered) {
       return new Response(JSON.stringify({ error: 'Host not authorized for this match' }), {
@@ -116,6 +113,44 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
     }
+
+    // SEC-29 (1): the betting window must be CLOSED before anything settles.
+    // The RPC also guards this, but it does so by raising a SQL exception, which
+    // would reach the caller as an opaque 500. Deciding it here gives a truthful
+    // 409, and refuses an already-settled window before any money moves.
+    if (live.bet_window_status === 'open') {
+      return edgeError('CONFLICT', {
+        scope: 'resolve-bet',
+        log: { matchId, reason: 'window_open', status: live.bet_window_status },
+      });
+    }
+    if (live.bet_window_status === 'settled') {
+      return edgeError('CONFLICT', {
+        scope: 'resolve-bet',
+        log: { matchId, reason: 'already_settled' },
+      });
+    }
+
+    // SEC-29 (2): the market is the one the AUTHORITY recorded, not the one the
+    // caller names. The signed message binds `betType`, so a host cannot swap it
+    // — but it could still sign a type the match never opened, and the RPC's own
+    // check is conditional (`if current_bet_type is not null and ... distinct`),
+    // so a null recorded type would let ANY type through. Compare here, and fail
+    // closed when nothing was recorded.
+    const recordedType = live.current_bet_type ? String(live.current_bet_type) : null;
+    if (!recordedType) {
+      return edgeError('CONFLICT', {
+        scope: 'resolve-bet',
+        log: { matchId, reason: 'no_recorded_bet_type', claimed: String(betType) },
+      });
+    }
+    if (recordedType !== String(betType)) {
+      return edgeError('CONFLICT', {
+        scope: 'resolve-bet',
+        log: { matchId, reason: 'bet_type_mismatch', recorded: recordedType, claimed: String(betType) },
+      });
+    }
+    const settledBetType = recordedType;
 
     console.log(`🎰 [Resolve] Match: ${matchId}, Result: ${result}, Type: ${betType}, Host: ${recovered}`);
 
@@ -128,10 +163,11 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (authErr) {
-      console.error('❌ [Resolve] authority read error:', authErr);
-      return new Response(JSON.stringify({ error: 'authority unavailable' }), {
+      return edgeError('INTERNAL', {
+        scope: 'resolve-bet',
+        cause: authErr,
+        log: { matchId },
         status: 503,
-        headers: corsHeaders,
       });
     }
 
@@ -144,11 +180,20 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
     }
-    if (winner != null && String(result).toLowerCase() !== String(winner).toLowerCase()) {
-      console.error('❌ [Resolve] result mismatch', { signed: result, authority: winner });
-      return new Response(JSON.stringify({ error: 'result does not match authority' }), {
-        status: 409,
-        headers: corsHeaders,
+    // The cross-check the audit asks for: the signed result must equal the winner
+    // the authority recorded. Previously this was guarded by `winner != null`, so
+    // a match that finished with NO winner skipped the comparison entirely and
+    // any result settled the market. Require a winner.
+    if (winner == null) {
+      return edgeError('CONFLICT', {
+        scope: 'resolve-bet',
+        log: { matchId, reason: 'finished_without_winner', status },
+      });
+    }
+    if (String(result).toLowerCase() !== String(winner).toLowerCase()) {
+      return edgeError('CONFLICT', {
+        scope: 'resolve-bet',
+        log: { matchId, reason: 'result_mismatch', signed: String(result), authority: winner },
       });
     }
 
@@ -158,24 +203,20 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase.rpc('chips_escrow_settle_bets', {
       p_match_id: matchId,
       p_result: String(result),
-      p_bet_type: betType
+      // The recorded type, not the caller's.
+      p_bet_type: settledBetType,
     });
 
+    // The RPC raises named exceptions (BET_WINDOW_STILL_OPEN, BET_TYPE_MISMATCH,
+    // …). Those are useful in the log and are exactly what must not be echoed.
     if (error) {
-      console.error('❌ [Resolve] RPC Error:', error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: corsHeaders,
-      });
+      return edgeError('INTERNAL', { scope: 'resolve-bet', cause: error, log: { matchId } });
     }
 
-    return new Response(JSON.stringify({ success: true, summary: data }), {
-      headers: corsHeaders,
-    });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 400,
-      headers: corsHeaders,
-    });
+    return jsonOk({ success: true, summary: data });
+  } catch (err) {
+    // SEC-31: a caught exception may be anything, including a Supabase error
+    // object with a grant hint in it.
+    return edgeError('INTERNAL', { scope: 'resolve-bet', cause: err });
   }
 });
