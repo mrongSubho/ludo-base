@@ -35,11 +35,23 @@ export function middleware(request: NextRequest) {
     const verdict = checkRateLimit(key, rule.limit, rule.windowMs);
 
     if (verdict.ok) {
-        // Pass the remaining budget downstream so a handler can pre-empt rather
-        // than discover the limit at the database.
         const headers = new Headers(rateLimitHeaders(verdict));
         headers.set('X-RateLimit-Limit', String(rule.limit));
-        return NextResponse.next({ request: { headers } });
+
+        // Both sides, and they are not the same thing:
+        //   request  — the handler can pre-empt rather than discover the limit at
+        //              the database.
+        //   response — the CALLER can see its remaining budget. Verified missing
+        //              in production: an allowed `/api/farcaster` returned no
+        //              X-RateLimit-* at all, because `NextResponse.next({request:
+        //              {headers}})` only sets request headers. A client cannot
+        //              back off from a limit it cannot see coming.
+        const res = NextResponse.next({ request: { headers } });
+        for (const [k, v] of Object.entries(rateLimitHeaders(verdict))) {
+            res.headers.set(k, v);
+        }
+        res.headers.set('X-RateLimit-Limit', String(rule.limit));
+        return res;
     }
 
     return NextResponse.json(

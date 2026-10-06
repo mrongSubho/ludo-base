@@ -223,6 +223,17 @@ test('middleware.ts exists and matches /api broadly', () => {
     assert.doesNotMatch(src, /limit:\s*\d/, 'limits belong in the table, not the middleware');
 });
 
+test('the ALLOWED path sets response headers, not just request headers', () => {
+    // Found in production: an allowed /api/farcaster returned no X-RateLimit-*
+    // at all, because `NextResponse.next({ request: { headers } })` sets only
+    // the request headers. A client cannot back off from a limit it never sees.
+    const src = read('middleware.ts');
+    const okBranch = src.slice(src.indexOf('if (verdict.ok)'), src.indexOf('if (!verdict.ok)'));
+    assert.match(okBranch, /res\.headers\.set\(/, 'the response must carry the budget');
+    assert.match(okBranch, /res\.headers\.set\('X-RateLimit-Limit'/, 'including the limit itself');
+    assert.match(okBranch, /NextResponse\.next\(\{ request: \{ headers \} \}\)/, 'and the request side is kept');
+});
+
 test('the key unauthenticated spenders are limited', () => {
     // These three call Neynar with a server-side key and no session.
     for (const r of ['farcaster', 'friends', 'activity']) {
