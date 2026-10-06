@@ -39,6 +39,25 @@ P2=$(cast wallet address --keystore "$KEYSTORE_DIR/$P2_ACCOUNT")
 assert_not_dev_key_on_live_network "$HOST" "Base Sepolia"
 assert_not_dev_key_on_live_network "$P2" "Base Sepolia"
 
+# SmokeSepolia.s.sol calls vm.startBroadcast(<pk>) with an explicit key, which
+# overrides forge's --account on the command line. It reads these two from the
+# environment, so they have to be exported here or `run()` reverts on
+# vm.envUint before broadcasting anything.
+#
+# This was the remaining half of the published-key problem: the host leg was
+# already read from env, but the player-2 leg still broadcast with a hardcoded
+# anvil default, and neither variable was exported at all, so the live smoke run
+# could not have completed. Derive both from the same keystores whose addresses
+# were just checked against the dev-key list above.
+SMOKE_HOST_PK=$(cast wallet private-key --keystore "$KEYSTORE_DIR/$HOST_ACCOUNT")
+SMOKE_P2_PK=$(cast wallet private-key --keystore "$KEYSTORE_DIR/$P2_ACCOUNT")
+export SMOKE_HOST_PK SMOKE_P2_PK
+
+# Belt and braces: the guard above ran on the derived addresses, but the keys
+# themselves are what get signed with, so check the actual values too.
+assert_not_dev_key_on_live_network "$(cast wallet address --private-key "$SMOKE_HOST_PK")" "Base Sepolia"
+assert_not_dev_key_on_live_network "$(cast wallet address --private-key "$SMOKE_P2_PK")" "Base Sepolia"
+
 echo "host(smoke)=$HOST"
 echo "p2=$P2"
 echo "pool=$MATCH_POOL_ADDRESS chips=$CHIPS_ADDRESS hub=$CLAIM_HUB_ADDRESS"

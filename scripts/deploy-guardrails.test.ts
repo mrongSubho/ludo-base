@@ -141,21 +141,41 @@ test('-pool verbs simulate by default and only broadcast on explicit opt-in', ()
     }
 
     // And the dry run must announce itself and never reach the broadcast stage.
-    // The account name is bogus on purpose: this only asserts on the pre-forge
-    // output, so the test never needs a keystore or spends ETH.
-    const r = bash('scripts/foundry-deploy.sh sepolia-pool', {
+    //
+    // These three addresses are supplied inline because the script's
+    // `require_env` runs before it prints the mode, and it loads them from
+    // `contracts/.env` otherwise. That file is gitignored — so without them this
+    // test exited at "MISSING EDGE_SIGNER" on CI and never reached the assertion,
+    // while passing on any developer machine that had deployed at least once.
+    // That is the same class of bug as the dev-key guard depending on `cast`:
+    // a test whose result depended on undeclared local state.
+    //
+    // They are the REAL deployed addresses, not the anvil defaults, because
+    // `assert_not_dev_key_on_live_network` runs immediately after `require_env`
+    // and would (correctly) refuse anything on the dev list — which is itself a
+    // nice thing for the test to be exercising. No keystore is needed: the
+    // assertion is entirely on the pre-forge output, so nothing is signed,
+    // broadcast, or spent.
+    const inline = {
+        EDGE_SIGNER: NEW_EDGE,
+        GAME_OWNER: OWNER,
+        DEPLOYER_ADDRESS: OWNER,
         FOUNDRY_ACCOUNT: 'definitely-not-a-keystore',
+    };
+
+    const r = bash('scripts/foundry-deploy.sh sepolia-pool', {
+        ...inline,
         LUDO_CONFIRM_DEPLOY: '',
     });
-    assert.match(r.out, /MODE\s+:\s+SIMULATION/);
+    assert.match(r.out, /MODE\s+:\s+SIMULATION/, r.out);
     assert.doesNotMatch(r.out, /ONCHAIN EXECUTION COMPLETE/, 'a dry run must not broadcast');
 
     // With the opt-in set it must announce BROADCAST instead.
     const r2 = bash('scripts/foundry-deploy.sh sepolia-pool', {
-        FOUNDRY_ACCOUNT: 'definitely-not-a-keystore',
+        ...inline,
         LUDO_CONFIRM_DEPLOY: 'yes',
     });
-    assert.match(r2.out, /MODE\s+:\s+BROADCAST/);
+    assert.match(r2.out, /MODE\s+:\s+BROADCAST/, r2.out);
 });
 
 test('the committed well-known dev key is gone from every live-network path', () => {
@@ -193,16 +213,98 @@ test('the edge signer is not a well-known dev key', () => {
     // Regression: EDGE_SIGNER was 0xf39F… (anvil #0) on the live Sepolia pool,
     // whose private key is published in the Hardhat/Anvil docs. Anyone could
     // therefore sign as edge signer and authorize bet settlement co-signatures.
-    const env = read('contracts/.env');
-    const m = env.match(/^EDGE_SIGNER=(0x[0-9a-fA-F]{40})$/m);
-    assert.ok(m, 'contracts/.env must declare EDGE_SIGNER');
-    assert.notEqual(m[1]!.toLowerCase(), DEV0.toLowerCase());
-    assert.notEqual(m[1]!.toLowerCase(), DEV1.toLowerCase());
+    // The file holding the real signer is `contracts/.env`, which is gitignored.
+    // On a machine that has deployed it exists and is checked in full below; on
+    // CI it does not exist, and asserting on its contents there would be
+    // asserting on nothing.
+    let declared: string | null = null;
+    try {
+        const env = read('contracts/.env');
+        const m = env.match(/^EDGE_SIGNER=(0x[0-9a-fA-F]{40})$/m);
+        assert.ok(m, 'contracts/.env must declare EDGE_SIGNER');
+        declared = m[1]!;
+    } catch (e) {
+        if ((e as { code?: string }).code !== 'ENOENT') throw e;
+    }
 
-    const r = bash(
-        `source scripts/lib-dev-keys.sh; assert_not_dev_key_on_live_network ${m[1]} "Base Sepolia"`,
-    );
-    assert.equal(r.code, 0, 'declared EDGE_SIGNER must pass the dev-key guard');
+    // What CI CAN check, and what is the actual risk in this finding: the secret
+    // is never committed, and no tracked file anywhere in the repo carries an
+    // anvil private key. If someone pasted the key into a config or a source
+    // file, this fails — with or without `contracts/.env` present.
+    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+        .split('\n')
+        .filter(Boolean);
+    const devKeys = [
+        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+        '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+        '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
+        '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
+        '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a',
+        '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba',
+        '0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e',
+        '0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356',
+        '0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97',
+        '0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6',
+    ];
+    // Two files must contain these keys as DATA — the deny list that recognises
+    // them, and this test. Everything else may only mention a key on a line that
+    // is unambiguously about the throwaway local chain.
+    const holdsKeysAsData = new Set([
+        'scripts/lib-dev-keys.sh',
+        'scripts/deploy-guardrails.test.ts',
+    ]);
+    for (const file of tracked) {
+        if (holdsKeysAsData.has(file)) continue;
+        let body: string;
+        try {
+            body = readFileSync(join(root, file), 'utf8');
+        } catch {
+            continue; // binary, or gone since ls-files
+        }
+        for (const key of devKeys) {
+            if (!body.includes(key)) continue;
+            // `scripts/foundry-deploy.sh` embeds key #0 in its anvil verbs, and
+            // DeployStack.s.sol documents the local-anvil invocation with it. That
+            // is fine — but only there. Requiring every occurrence to sit on a
+            // line that names the local chain is what stops this from degrading
+            // into "the file is on the list, anything goes in it".
+            // Group backslash-continued lines into whole commands first, so a key
+            // on a wrapped `--private-key` continuation is judged by the command
+            // it belongs to rather than by its own line.
+            const statements: { line: number; text: string }[] = [];
+            let pending: { line: number; text: string } | null = null;
+            for (const [i, raw] of body.split('\n').entries()) {
+                const cont = /\\\s*$/.test(raw);
+                const chunk = raw.replace(/\\\s*$/, '');
+                if (!pending) pending = { line: i + 1, text: chunk };
+                else pending.text += ' ' + chunk;
+                if (!cont) {
+                    statements.push(pending);
+                    pending = null;
+                }
+            }
+            if (pending) statements.push(pending);
+
+            for (const st of statements) {
+                if (!st.text.includes(key)) continue;
+                const isLocalOnly = /127\.0\.0\.1|localhost|\banvil\b/i.test(st.text);
+                assert.ok(
+                    isLocalOnly,
+                    `${file}:${st.line} holds an anvil private key in a command that does not ` +
+                        'reference the local chain — anyone can sign as it',
+                );
+            }
+        }
+    }
+
+    if (declared !== null) {
+        assert.notEqual(declared.toLowerCase(), DEV0.toLowerCase());
+        assert.notEqual(declared.toLowerCase(), DEV1.toLowerCase());
+        const r = bash(
+            `source scripts/lib-dev-keys.sh; assert_not_dev_key_on_live_network ${declared} "Base Sepolia"`,
+        );
+        assert.equal(r.code, 0, 'declared EDGE_SIGNER must pass the dev-key guard');
+    }
 });
 
 test('shell constructs used by the deploy helper are bash 3.2 safe', () => {

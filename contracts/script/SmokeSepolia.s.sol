@@ -20,9 +20,6 @@ contract SmokeSepolia is Script {
     function _p2Pk() internal view returns (uint256) {
         return vm.envUint("SMOKE_P2_PK");
     }
-    uint256 internal constant P2_PK =
-        0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
-
     function _sign(uint256 pk, bytes32 digest) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
@@ -100,7 +97,7 @@ contract SmokeSepolia is Script {
         pool.joinPool(poolId);
         vm.stopBroadcast();
 
-        vm.startBroadcast(P2_PK);
+        vm.startBroadcast(_p2Pk());
         chips.approve(address(pool), 2_000e18);
         pool.joinPool(poolId);
         vm.stopBroadcast();
