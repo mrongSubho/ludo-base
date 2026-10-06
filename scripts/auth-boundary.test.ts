@@ -382,6 +382,10 @@ test('CRY-01: v1 stays decrypt-only so historical DMs remain readable', () => {
     assert.match(src, /v: 1 \| 2/);
     // A v2 box without its salt cannot be opened, so isSealedBox must refuse it.
     assert.match(src, /if \(v\.v === 2 && typeof v\.salt !== 'string'\) return false/);
+    // And the epk must be a real P-256 public JWK — `epk: 42` used to pass and
+    // then failed deep inside importKey instead of at the door.
+    assert.match(src, /epk\.kty !== 'EC' \|\| epk\.crv !== 'P-256'/);
+    assert.match(src, /typeof epk !== 'object' \|\| epk === null/);
 });
 
 test('CRY-03: the messages route refuses plaintext', () => {

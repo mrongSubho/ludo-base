@@ -90,9 +90,17 @@ export function isSealedBox(value: unknown): value is SealedBox {
     const v = value as SealedBox;
     // CRY-03 / CRY-01: both versions are valid shapes, but a v2 box must carry
     // its salt or the HKDF cannot be reproduced.
-    if ((v.v !== 1 && v.v !== 2) || !v.epk || typeof v.iv !== 'string' || typeof v.content !== 'string') {
+    if ((v.v !== 1 && v.v !== 2) || typeof v.iv !== 'string' || typeof v.content !== 'string') {
         return false;
     }
+    // The ephemeral key must actually be a P-256 public JWK. Checking only that
+    // `epk` is truthy let `epk: 42` through, which then failed much later inside
+    // importKey — as a decrypt error on the client, or as a stored row that can
+    // never be opened, rather than as a rejected request at the door.
+    const epk = v.epk as JsonWebKey | undefined;
+    if (typeof epk !== 'object' || epk === null) return false;
+    if (epk.kty !== 'EC' || epk.crv !== 'P-256') return false;
+    if (typeof epk.x !== 'string' || typeof epk.y !== 'string') return false;
     if (v.v === 2 && typeof v.salt !== 'string') return false;
     return true;
 }
