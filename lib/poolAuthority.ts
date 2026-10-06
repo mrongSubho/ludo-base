@@ -64,6 +64,8 @@ export interface PoolSummary {
     filledSeats: number;
     /** Declared pool shape (ECO-08). Authoritative for the payout split. */
     shape: number;
+    /** Next settle nonce (SEC-04b). Read from chain, never derived. */
+    settleNonce: bigint;
     authority: Address;
     entryFee: bigint;
     gross: bigint;
@@ -106,7 +108,7 @@ export async function readPoolSummary(
             args: [poolId as Hex],
         })) as unknown as readonly [
             number | bigint, number | bigint, number | bigint, number | bigint, string,
-            bigint, bigint, bigint, bigint, bigint, bigint,
+            bigint, bigint, bigint, bigint, bigint, bigint, bigint,
         ];
         return {
             status: Number(res[0]),
@@ -120,6 +122,7 @@ export async function readPoolSummary(
             hostBond: res[8],
             settleBy: res[9],
             claimUnlockAt: res[10],
+            settleNonce: res[11],
         };
     } catch {
         // Deliberately opaque: a revert here means the pool is unknown or the RPC
@@ -149,11 +152,9 @@ export function requireAuthority(summary: PoolSummary, wallet: string): Address 
 /**
  * Reject pools that can no longer be settled or abandoned.
  *
- * `settleNonce` has no public getter, but it is initialised to 1 on create and
- * only ever incremented by `settlePool` itself, which also sets
- * `status = Settled`. So a pool in any non-terminal status has provably never
- * settled and its nonce is 1. Asserting the status makes that assumption
- * self-checking rather than load-bearing.
+ * Independent of the nonce: `settlePool` sets `status = Settled`, so a terminal
+ * pool has already consumed its nonce and signing another digest for it would
+ * only produce an on-chain revert.
  */
 export function assertSettleable(summary: PoolSummary): void {
     if (summary.status === POOL_STATUS.Settled) {
@@ -170,9 +171,16 @@ export function assertSettleable(summary: PoolSummary): void {
     }
 }
 
-/** Nonce for a pool that assertSettleable() has confirmed has never settled. */
-export function initialSettleNonce(): bigint {
-    return BigInt(1);
+/**
+ * The settle nonce to sign over.
+ *
+ * SEC-04b. This used to return a hardcoded `1`, justified by the pool having a
+ * non-terminal status. It is now read from the chain via getPoolSummary, so the
+ * server never signs a digest the contract will reject because it guessed the
+ * counter wrong.
+ */
+export function settleNonceFor(summary: PoolSummary): bigint {
+    return summary.settleNonce;
 }
 
 /**

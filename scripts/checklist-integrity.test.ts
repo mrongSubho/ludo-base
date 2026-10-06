@@ -36,12 +36,20 @@ function phase1Parts(): { tasks: string; exitGate: string } {
         const p1 = section('## Phase 1', '## Phase 2');
         const g = p1.indexOf('### Exit gate');
         assert.ok(g > 0, 'Phase 1 has no exit gate');
+        // The gate section ends where the next `###` subsection begins. Anything
+        // after it (e.g. "Contract redeploy") is operational follow-up, not a
+        // gate criterion, and must not be counted as one.
+        const nextSubsection = p1.indexOf('\n### ', g + 1);
         phase1Cache = p1.slice(0, g);
-        return { tasks: phase1Cache, exitGate: p1.slice(g) };
+        return { tasks: phase1Cache, exitGate: p1.slice(g, nextSubsection > 0 ? nextSubsection : undefined) };
     }
     const p1 = section('## Phase 1', '## Phase 2');
     const g = p1.indexOf('### Exit gate');
-    return { tasks: p1.slice(0, g), exitGate: p1.slice(g) };
+    const nextSubsection = p1.indexOf('\n### ', g + 1);
+    return {
+        tasks: p1.slice(0, g),
+        exitGate: p1.slice(g, nextSubsection > 0 ? nextSubsection : undefined),
+    };
 }
 
 /** Strip the checkbox syntax so items can be classified. */

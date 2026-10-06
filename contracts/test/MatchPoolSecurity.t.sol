@@ -111,13 +111,15 @@ contract MatchPoolSecurityTest is Test {
         return keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
     }
 
-    function _abandonDigest(address accused, uint64 seq, uint8 strikes, uint64 deadline)
-        internal
-        view
-        returns (bytes32)
-    {
+    function _abandonDigest(
+        address accused,
+        uint64 seq,
+        uint8 strikes,
+        uint64 deadline,
+        uint8 reason
+    ) internal view returns (bytes32) {
         bytes32 structHash = keccak256(
-            abi.encode(pool.ABANDON_TYPEHASH(), poolId, accused, seq, strikes, deadline)
+            abi.encode(pool.ABANDON_TYPEHASH(), poolId, accused, reason, seq, strikes, deadline)
         );
         return keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
     }
@@ -147,9 +149,56 @@ contract MatchPoolSecurityTest is Test {
     ///     scripts/pool-authority.test.ts ("requireAuthority accepts only the
     ///     on-chain authority"). That server check is the authority gate; this
     ///     contract deliberately is not.
+    /// @dev Named accessors for getPoolSummary.
+    ///
+    /// This suite previously read fields positionally out of the 11-tuple, which
+    /// silently drifted when ECO-08 inserted `shape` and SEC-04b appended
+    /// `settleNonce`: the compiler only checks arity, so a test could keep
+    /// compiling while reading the wrong field. Named locals pin the indices once.
+    function _summary(bytes32 pid)
+        private
+        view
+        returns (uint8 status_, uint128 hostBond_, uint64 settleBy_)
+    {
+        (
+            uint8 st,
+            uint8 ms,
+            uint8 fs,
+            uint8 sh,
+            address auth,
+            uint128 fee,
+            uint128 gross,
+            uint128 pf,
+            uint128 hb,
+            uint64 sb,
+            uint64 cu,
+            uint256 sn
+        ) = pool.getPoolSummary(pid);
+        ms;
+        fs;
+        sh;
+        auth;
+        fee;
+        gross;
+        pf;
+        cu;
+        sn;
+        status_ = st;
+        hostBond_ = hb;
+        settleBy_ = sb;
+    }
+
+    function _settleBy(bytes32 pid) private view returns (uint64) {
+        uint8 st;
+        uint128 hb;
+        uint64 sb;
+        (st, hb, sb) = _summary(pid);
+        return sb;
+    }
+
     function test_modeB_msg_sender_is_a_relayer_the_edge_signature_is_the_gate() public {
         _createAndLock();
-        (,,,,,,,, uint128 hostBond, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        (, uint128 hostBond, uint64 settleBy) = _summary(poolId);
         assertGt(hostBond, 0);
 
         // Host withholds signature — wait past settleBy (Mode B).
@@ -181,7 +230,7 @@ contract MatchPoolSecurityTest is Test {
     /// settles — not the host, not a relayer, not after `settleBy`.
     function test_modeB_still_requires_the_edge_signature() public {
         _createAndLock();
-        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        uint64 settleBy = _settleBy(poolId);
         vm.warp(uint256(settleBy) + 1);
 
         MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
@@ -205,7 +254,7 @@ contract MatchPoolSecurityTest is Test {
     /// redirect the whole prize fund to themselves.
     function test_edge_signature_is_bound_to_the_payout_plan() public {
         _createAndLock();
-        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        uint64 settleBy = _settleBy(poolId);
         vm.warp(uint256(settleBy) + 1);
 
         MatchPool.Payout[] memory signedPlan = new MatchPool.Payout[](1);
@@ -237,7 +286,7 @@ contract MatchPoolSecurityTest is Test {
     /// different authority does not transfer to this pool.
     function test_edge_signature_is_bound_to_the_authority() public {
         _createAndLock();
-        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        uint64 settleBy = _settleBy(poolId);
         vm.warp(uint256(settleBy) + 1);
 
         MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
@@ -260,7 +309,7 @@ contract MatchPoolSecurityTest is Test {
     /// `test_settle_requires_the_current_nonce`.
     function test_settled_pool_refuses_a_replayed_co_signature() public {
         _createAndLock();
-        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        uint64 settleBy = _settleBy(poolId);
         vm.warp(uint256(settleBy) + 1);
 
         MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
@@ -271,7 +320,8 @@ contract MatchPoolSecurityTest is Test {
 
         pool.settlePool(poolId, plan, deadline, 1, hex"", sig);
 
-        (uint8 statusAfter,,,,,,,,,,) = pool.getPoolSummary(poolId);
+        uint8 statusAfter;
+        (statusAfter,,) = _summary(poolId);
         assertEq(statusAfter, uint8(MatchPool.Status.Settled), "pool must be Settled");
 
         vm.expectRevert(MatchPool.BadStatus.selector);
@@ -291,7 +341,7 @@ contract MatchPoolSecurityTest is Test {
     /// is the check on line 478, and removing that does fail this test.
     function test_settle_requires_the_current_nonce() public {
         _createAndLock();
-        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        uint64 settleBy = _settleBy(poolId);
         vm.warp(uint256(settleBy) + 1);
 
         MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
@@ -323,9 +373,11 @@ contract MatchPoolSecurityTest is Test {
         uint256 burnBefore;
         (burnBefore,) = pool.burnRatioInputs();
 
-        uint64 deadline = uint64(block.timestamp + 1 hours);
-        bytes32 d = _abandonDigest(p1, 1, 3, deadline);
-        pool.submitAbandon(poolId, p1, 1, 3, deadline, _sign(edgePk, d));
+        // SEC-03b: the deadline must fall at or before the settle window, or the
+        // adjudication could never execute on time. lockPool set a 30 minute window.
+        uint64 deadline = uint64(block.timestamp + 10 minutes);
+        bytes32 d = _abandonDigest(p1, 1, 3, deadline, 0);
+        pool.submitAbandon(poolId, p1, 0, 1, 3, deadline, _sign(edgePk, d));
 
         uint256 burnAfter;
         (burnAfter,) = pool.burnRatioInputs();
@@ -348,9 +400,9 @@ contract MatchPoolSecurityTest is Test {
         uint256 burnBefore;
         (burnBefore,) = pool.burnRatioInputs();
 
-        uint64 deadline = uint64(block.timestamp + 1 hours);
-        bytes32 d = _abandonDigest(p1, 1, 3, deadline);
-        pool.submitAbandonDual(poolId, p1, 1, 3, deadline, _sign(edgePk, d), _sign(hostPk, d));
+        uint64 deadline = uint64(block.timestamp + 10 minutes);
+        bytes32 d = _abandonDigest(p1, 1, 3, deadline, 0);
+        pool.submitAbandonDual(poolId, p1, 0, 1, 3, deadline, _sign(edgePk, d), _sign(hostPk, d));
 
         uint256 burnAfter;
         (burnAfter,) = pool.burnRatioInputs();
@@ -407,7 +459,7 @@ contract MatchPoolSecurityTest is Test {
 
     function test_timeout_refund_requires_edge_unresolvable() public {
         _createAndLock();
-        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        uint64 settleBy = _settleBy(poolId);
         vm.warp(uint256(settleBy) + 3 minutes + 1);
 
         bytes32 msgHash =
@@ -437,5 +489,59 @@ contract MatchPoolSecurityTest is Test {
                 address(pool)
             )
         );
+    }
+
+    /// @dev SEC-03b: an AFK abandon signed without enough strikes is rejected
+    /// on-chain. Previously any afkStrikes value passed, because the count was
+    /// never checked — only the co-signature was.
+    function test_afk_abandon_requires_the_strike_threshold() public {
+        _createAndLock();
+        uint64 deadline = uint64(block.timestamp + 10 minutes);
+
+        MatchPool.Payout[] memory none = new MatchPool.Payout[](0);
+        none;
+
+        // Two strikes is one short of AFK_STRIKES_REQUIRED.
+        bytes32 d = _abandonDigest(p1, 1, 2, deadline, 0);
+        vm.expectRevert(MatchPool.InsufficientStrikes.selector);
+        pool.submitAbandon(poolId, p1, 0, 1, 2, deadline, _sign(edgePk, d));
+
+        // Three clears it.
+        bytes32 ok_ = _abandonDigest(p1, 1, 3, deadline, 0);
+        pool.submitAbandon(poolId, p1, 0, 1, 3, deadline, _sign(edgePk, ok_));
+    }
+
+    /// @dev SEC-03b: a deadline placed after the settle window closes could never
+    /// be executed on time, so the contract now refuses it outright.
+    function test_abandon_deadline_cannot_outlive_the_settle_window() public {
+        _createAndLock();
+        // lockPool used a 30 minute window; a 1 hour deadline is past it.
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        bytes32 d = _abandonDigest(p1, 1, 3, deadline, 0);
+        vm.expectRevert(MatchPool.DeadlineAfterWindow.selector);
+        pool.submitAbandon(poolId, p1, 0, 1, 3, deadline, _sign(edgePk, d));
+    }
+
+    /// @dev SEC-03c: the reason is inside the signed digest, so a signature
+    /// obtained for one reason cannot be replayed as the other. With
+    /// HostWithheld the strike threshold does not apply, so a digest signed for
+    /// HostWithheld would settle an AFK abandon with too few strikes if the
+    /// reason were not bound.
+    function test_abandon_reason_is_bound_into_the_signature() public {
+        _createAndLock();
+        uint64 deadline = uint64(block.timestamp + 10 minutes);
+
+        // The Edge co-signs ONE digest, declared as HostWithheld with two strikes.
+        // Under AfkDisconnect the same two strikes are below the threshold, so if
+        // the reason were not inside the digest the caller could simply relabel the
+        // submission and skip the check.
+        bytes32 signed = _abandonDigest(p1, 1, 2, deadline, 1);
+
+        // Relabelled as an AFK abandon: the digest no longer matches.
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.submitAbandon(poolId, p1, 0, 1, 2, deadline, _sign(edgePk, signed));
+
+        // As declared, it settles.
+        pool.submitAbandon(poolId, p1, 1, 1, 2, deadline, _sign(edgePk, signed));
     }
 }

@@ -45,7 +45,7 @@ contract GasBenchTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: 1000e18,
@@ -61,7 +61,7 @@ shape: 0,
             host: host,
             seatsHash: cfg.seatsHash,
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             issuedAt: cfg.ticketIssuedAt
         });
@@ -86,10 +86,11 @@ contract SuffixAttributionTest is Test {
     function test_trailing_8021_data_ignored() public {
         chips = new MockChips();
         chips.mint(address(this), 100e18);
-        bytes memory payload = abi.encodeWithSignature("transfer(address,uint256)", address(0x1), uint256(10e18));
+        bytes memory payload =
+            abi.encodeWithSignature("transfer(address,uint256)", address(0x1), uint256(10e18));
         bytes memory suffix = hex"8021802180218021802180218021802180218021802180218021802180218021";
         bytes memory data = bytes.concat(payload, suffix);
-        (bool ok, ) = address(chips).call(data);
+        (bool ok,) = address(chips).call(data);
         assertTrue(ok, "call with 8021 trailing data must not revert");
         assertEq(chips.balanceOf(address(0x1)), 10e18);
     }

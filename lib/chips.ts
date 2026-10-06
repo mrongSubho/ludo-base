@@ -74,6 +74,7 @@ export const MATCH_POOL_ABI = [
             { name: "hostBond", type: "uint128" },
             { name: "settleBy", type: "uint64" },
             { name: "claimUnlockAt", type: "uint64" },
+            { name: "settleNonce", type: "uint256" },
         ],
     },
 ] as const;

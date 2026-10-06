@@ -24,6 +24,22 @@ contract MatchPool is ReentrancyGuard {
         Predict
     }
 
+    /// @notice Why the Edge signer is adjudicating an abandon (SEC-03c).
+    ///
+    /// Previously the signed payload carried only `seqAtDisconnect` and
+    /// `afkStrikes`, so two different adjudications produced the same digest
+    /// shape and the contract could enforce nothing about the claimed cause. The
+    /// reason is now signed, and each value carries its own on-chain
+    /// precondition.
+    enum AbandonReason {
+        /// Accused seat disconnected repeatedly: requires afkStrikes to have
+        /// reached AFK_STRIKES_REQUIRED.
+        AfkDisconnect,
+        /// Pool was locked and the host never settled: no strike requirement, but
+        /// the window must already have closed.
+        HostWithheld
+    }
+
     /// @notice Declared pool shape. ECO-08: settlement used to *infer* this from
     /// seat colours plus winner count, which was wrong. In 4P the lobby assigns
     /// seats green,red,yellow,blue, so the top-2 finishers can legitimately be
@@ -109,8 +125,14 @@ contract MatchPool is ReentrancyGuard {
         "ChipsMatchSettle(bytes32 poolId,bytes32 planHash,uint256 nonce,uint64 deadline,address authority)"
     );
     bytes32 public constant ABANDON_TYPEHASH = keccak256(
-        "ChipsMatchAbandon(bytes32 poolId,address accusedSeat,uint64 seqAtDisconnect,uint8 afkStrikes,uint64 deadline)"
+        "ChipsMatchAbandon(bytes32 poolId,address accusedSeat,uint8 reason,uint64 seqAtDisconnect,uint8 afkStrikes,uint64 deadline)"
     );
+
+    /// @notice Strikes an accused seat must accumulate before an AFK abandon is
+    /// valid. Mirrors hooks/useAFKManager.ts (`AFK_STRIKES_REQUIRED`) and
+    /// lib/poolAuthority.ts, so the contract cannot be stricter or looser than
+    /// the netcode it adjudicates.
+    uint8 public constant AFK_STRIKES_REQUIRED = 3;
 
     bytes32 public constant MEMO_FEE = keccak256("match:fee");
     bytes32 public constant MEMO_BURN = keccak256("match:burn");
@@ -186,6 +208,14 @@ contract MatchPool is ReentrancyGuard {
     /// @dev ECO-08. Previously a 4P pool whose top-2 happened to occupy the
     /// green/blue seats was silently paid as 2v2; the shape is now authoritative.
     error NotTeammates();
+
+    /// @notice An AFK abandon was signed without the accused seat having reached
+    /// AFK_STRIKES_REQUIRED strikes. SEC-03b.
+    error InsufficientStrikes();
+
+    /// @notice An abandon deadline was placed after the pool's settle window had
+    /// closed, so it could never be adjudicated on time. SEC-03b.
+    error DeadlineAfterWindow();
     error TransferFailed();
     error BurnFailed();
     error DisputeLocked();
@@ -267,7 +297,8 @@ contract MatchPool is ReentrancyGuard {
             uint128 prizeFund,
             uint128 hostBond,
             uint64 settleBy,
-            uint64 claimUnlockAt
+            uint64 claimUnlockAt,
+            uint256 settleNonce
         )
     {
         Pool storage p = _pools[poolId];
@@ -282,7 +313,8 @@ contract MatchPool is ReentrancyGuard {
             p.prizeFund,
             p.hostBond,
             p.settleBy + p.pauseDelta,
-            p.claimUnlockAt
+            p.claimUnlockAt,
+            p.settleNonce
         );
     }
 
@@ -483,24 +515,38 @@ contract MatchPool is ReentrancyGuard {
     function submitAbandon(
         bytes32 poolId,
         address accusedSeat,
+        uint8 reason,
         uint64 seqAtDisconnect,
         uint8 afkStrikes,
         uint64 deadline,
         bytes calldata edgeSig
     ) external nonReentrant {
-        _abandon(poolId, accusedSeat, seqAtDisconnect, afkStrikes, deadline, edgeSig, "", false);
+        _abandon(
+            poolId, accusedSeat, reason, seqAtDisconnect, afkStrikes, deadline, edgeSig, "", false
+        );
     }
 
     function submitAbandonDual(
         bytes32 poolId,
         address accusedSeat,
+        uint8 reason,
         uint64 seqAtDisconnect,
         uint8 afkStrikes,
         uint64 deadline,
         bytes calldata edgeSig,
         bytes calldata hostSig
     ) external nonReentrant {
-        _abandon(poolId, accusedSeat, seqAtDisconnect, afkStrikes, deadline, edgeSig, hostSig, true);
+        _abandon(
+            poolId,
+            accusedSeat,
+            reason,
+            seqAtDisconnect,
+            afkStrikes,
+            deadline,
+            edgeSig,
+            hostSig,
+            true
+        );
     }
 
     function claimMatch(bytes32 poolId) external nonReentrant {
@@ -705,6 +751,7 @@ contract MatchPool is ReentrancyGuard {
     function _abandon(
         bytes32 poolId,
         address accusedSeat,
+        uint8 reason,
         uint64 seqAtDisconnect,
         uint8 afkStrikes,
         uint64 deadline,
@@ -718,10 +765,26 @@ contract MatchPool is ReentrancyGuard {
         if (seatIndex[poolId][accusedSeat] == 0) revert NotSeated();
 
         bytes32 structHash = keccak256(
-            abi.encode(ABANDON_TYPEHASH, poolId, accusedSeat, seqAtDisconnect, afkStrikes, deadline)
+            abi.encode(
+                ABANDON_TYPEHASH, poolId, accusedSeat, reason, seqAtDisconnect, afkStrikes, deadline
+            )
         );
         bytes32 d = EIP712.digest(_domainSep(), structHash);
         if (_recover(d, edgeSig) != edgeSigner) revert BadSignature();
+
+        // SEC-03b. Both checks were missing, so an Edge signature over any
+        // afkStrikes/deadline pair was acceptable on-chain. `seqAtDisconnect`
+        // stays in the digest as evidence but cannot be verified here: match
+        // state lives in the app database, not the contract. That is precisely
+        // why the signed payload now names a reason the contract CAN check.
+        //
+        // Deliberately AFTER the signature check: these preconditions must be
+        // enforced on authenticated values, otherwise anyone can probe the
+        // threshold and the settle window from an unsigned call's revert reason.
+        if (reason == uint8(AbandonReason.AfkDisconnect) && afkStrikes < AFK_STRIKES_REQUIRED) {
+            revert InsufficientStrikes();
+        }
+        if (deadline > p.settleBy + p.pauseDelta) revert DeadlineAfterWindow();
         if (dual) {
             if (hostSig.length == 0 || !_verifyHost(d, hostSig, p.authority)) {
                 revert BadSignature();

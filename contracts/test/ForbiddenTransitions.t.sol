@@ -217,7 +217,7 @@ contract ForbiddenTransitions is Test {
         } else if (action == A_TIMEOUT) {
             pool.timeoutRefund(pid, true, "");
         } else if (action == A_ABANDON) {
-            pool.submitAbandon(pid, p1, 0, 0, uint64(block.timestamp + 1), "");
+            pool.submitAbandon(pid, p1, 0, 0, 0, uint64(block.timestamp + 1), "");
         } else if (action == A_PAUSE) {
             vm.prank(owner);
             pool.addPauseDelta(pid, 60);
@@ -286,8 +286,8 @@ contract ForbiddenTransitions is Test {
         return MatchPool.Status(status);
     }
 
-    /// @dev getPoolSummary now returns 11 fields (shape added by ECO-08); this
-    /// helper projects the 8 the transition table cares about.
+    /// @dev getPoolSummary returns 12 fields (shape by ECO-08, settleNonce by
+    /// SEC-04b); this helper projects the 8 the transition table cares about.
     function _summary(bytes32 pid)
         internal
         view
@@ -313,7 +313,8 @@ contract ForbiddenTransitions is Test {
         uint128 hb_;
         uint64 sb_;
         uint64 cu_;
-        (s_, ms_, fs_, sh_, auth_, fee_, g_, pf_, hb_, sb_, cu_) = pool.getPoolSummary(pid);
+        uint256 sn_;
+        (s_, ms_, fs_, sh_, auth_, fee_, g_, pf_, hb_, sb_, cu_, sn_) = pool.getPoolSummary(pid);
         status = s_;
         maxSeats = ms_;
         filledSeats = fs_;

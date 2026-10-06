@@ -87,7 +87,7 @@ contract MatchPoolSettlementIntegrityTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: FEE,
@@ -201,7 +201,7 @@ shape: 0,
 
         // getPoolSummary returns (status, maxSeats, filledSeats, authority,
         // entryFee, gross, prizeFund, hostBond, settleBy, claimUnlockAt).
-        (uint8 status,,,,,,,,,,) = pool.getPoolSummary(poolId);
+        (uint8 status, , , , , , , , , , , ) = pool.getPoolSummary(poolId);
         assertEq(uint256(status), 3, "status must be Settled");
 
         // A settled pool must be claimable by the winner; if credit were lost the

@@ -70,7 +70,7 @@ contract Host1271Test is Test {
             host: address(hostWallet),
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: 1000e18,
@@ -115,7 +115,8 @@ shape: 0,
         plan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
         uint64 deadline = uint64(block.timestamp + 1 hours);
         uint256 nonce = 1;
-        bytes32 structHash = pool.settleStructHash(poolId, plan, deadline, nonce, address(hostWallet));
+        bytes32 structHash =
+            pool.settleStructHash(poolId, plan, deadline, nonce, address(hostWallet));
         bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
 
         // Host is a contract wallet; signature is owner ECDSA, validated via ERC-1271.
@@ -125,7 +126,7 @@ shape: 0,
         vm.prank(address(0xBEEF));
         pool.settlePool(poolId, plan, deadline, nonce, hostSig, edgeSig);
 
-        (uint8 status,,,,,,, uint128 prizeFund,,,) = pool.getPoolSummary(poolId);
+        (uint8 status, , , , , , , uint128 prizeFund, , , , ) = pool.getPoolSummary(poolId);
         assertEq(status, uint8(MatchPool.Status.Settled));
         assertEq(prizeFund, 1860e18);
     }
@@ -136,7 +137,8 @@ shape: 0,
         plan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
         uint64 deadline = uint64(block.timestamp + 1 hours);
         uint256 nonce = 1;
-        bytes32 structHash = pool.settleStructHash(poolId, plan, deadline, nonce, address(hostWallet));
+        bytes32 structHash =
+            pool.settleStructHash(poolId, plan, deadline, nonce, address(hostWallet));
         bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
         uint256 roguePk = 0xDEAD;
         bytes memory hostSig = _sign(roguePk, d);

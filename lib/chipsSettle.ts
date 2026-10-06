@@ -37,7 +37,7 @@ export const SETTLE_TYPEHASH = keccak256(
 );
 export const ABANDON_TYPEHASH = keccak256(
     toBytes(
-        "ChipsMatchAbandon(bytes32 poolId,address accusedSeat,uint64 seqAtDisconnect,uint8 afkStrikes,uint64 deadline)",
+        "ChipsMatchAbandon(bytes32 poolId,address accusedSeat,uint8 reason,uint64 seqAtDisconnect,uint8 afkStrikes,uint64 deadline)",
     ),
 );
 
@@ -171,10 +171,20 @@ export function settleDigest(
     return eip712Digest(domainSeparator(matchPool, chainId), structHash);
 }
 
+/** MatchPool.AbandonReason. Must stay in sync with contracts/src/MatchPool.sol. */
+export const ABANDON_REASON = {
+    /** Accused seat disconnected repeatedly; needs AFK_STRIKES_REQUIRED strikes. */
+    AfkDisconnect: 0,
+    /** Pool locked and the host never settled; no strike requirement. */
+    HostWithheld: 1,
+} as const;
+
 export function abandonDigest(
     params: {
         poolId: Hex;
         accusedSeat: Address;
+        /** Declared cause. Signed, so it cannot be relabelled after issuance. */
+        reason: number;
         seqAtDisconnect: bigint;
         afkStrikes: number;
         deadline: bigint;
@@ -184,11 +194,12 @@ export function abandonDigest(
 ): Hex {
     const structHash = keccak256(
         encodeAbiParameters(
-            parseAbiParameters("bytes32, bytes32, address, uint64, uint8, uint64"),
+            parseAbiParameters("bytes32, bytes32, address, uint8, uint64, uint8, uint64"),
             [
                 ABANDON_TYPEHASH,
                 params.poolId,
                 params.accusedSeat,
+                params.reason,
                 params.seqAtDisconnect,
                 params.afkStrikes,
                 params.deadline,

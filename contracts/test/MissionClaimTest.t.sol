@@ -32,12 +32,7 @@ contract MissionClaimTest is Test {
     function _claimArgs(uint256 amount, uint256 nonce)
         internal
         view
-        returns (
-            bytes32 missionId,
-            bytes32 periodId,
-            uint64 deadline,
-            bytes32 d
-        )
+        returns (bytes32 missionId, bytes32 periodId, uint64 deadline, bytes32 d)
     {
         missionId = keccak256("daily_bonus");
         periodId = keccak256("2026-09-23");

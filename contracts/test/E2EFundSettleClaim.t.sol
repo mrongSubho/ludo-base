@@ -77,7 +77,7 @@ contract E2EFundSettleClaimTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: FEE,
@@ -93,7 +93,7 @@ shape: 0,
             host: host,
             seatsHash: cfg.seatsHash,
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             issuedAt: cfg.ticketIssuedAt
         });
@@ -117,14 +117,7 @@ shape: 0,
         uint64 deadline = uint64(block.timestamp + 1 hours);
         bytes32 structHash = pool.settleStructHash(poolId, plan, deadline, 1, host);
         bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
-        pool.settlePool(
-            poolId,
-            plan,
-            deadline,
-            1,
-            _sign(hostPk, d),
-            _sign(edgePk, d)
-        );
+        pool.settlePool(poolId, plan, deadline, 1, _sign(hostPk, d), _sign(edgePk, d));
 
         // CLAIM
         vm.warp(block.timestamp + 6 minutes);

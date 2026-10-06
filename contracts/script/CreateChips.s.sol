@@ -38,16 +38,13 @@ contract CreateChips is Script {
         initCalls[5] = B20FactoryLib.encodeGrantRole(B20Constants.UNPAUSE_ROLE, securityMsig);
         initCalls[6] = B20FactoryLib.encodeGrantRole(B20Constants.METADATA_ROLE, opsMsig);
         initCalls[7] = B20FactoryLib.encodeGrantRole(B20Constants.OPERATOR_ROLE, securityMsig);
-        initCalls[8] = B20FactoryLib.encodeUpdateContractURI("https://ludobase.xyz/token/chips.json");
+        initCalls[8] =
+            B20FactoryLib.encodeUpdateContractURI("https://ludobase.xyz/token/chips.json");
         initCalls[9] = B20FactoryLib.encodeUpdateExtraMetadata("game", "ludo-base");
 
         vm.startBroadcast();
-        token = StdPrecompiles.B20_FACTORY.createB20(
-            IB20Factory.B20Variant.ASSET,
-            salt,
-            params,
-            initCalls
-        );
+        token = StdPrecompiles.B20_FACTORY
+            .createB20(IB20Factory.B20Variant.ASSET, salt, params, initCalls);
         vm.stopBroadcast();
 
         console.log("CHIPS B20", token);

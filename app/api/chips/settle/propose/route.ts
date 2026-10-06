@@ -6,6 +6,7 @@ import {
     payoutPlanHash,
     settleDigest,
     abandonDigest,
+    ABANDON_REASON,
 } from "@/lib/chipsSettle";
 import { matchPoolAddress } from "@/lib/chips";
 import { requireAppSession, serviceDb } from "@/lib/serverAuth";
@@ -16,7 +17,7 @@ import {
     PoolAuthorityError,
     assertSettleable,
     deriveSettlePlan,
-    initialSettleNonce,
+    settleNonceFor,
     readPoolSummary,
     requireAuthority,
     resolveDeadline,
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
         );
 
         const deadline = resolveDeadline(summary, body?.deadline);
-        const nonce = initialSettleNonce();
+        const nonce = settleNonceFor(summary);
 
         const params = {
             poolId: String(poolId) as Hex,
@@ -182,9 +183,21 @@ export async function PUT(request: Request) {
         // to choose seqAtDisconnect, afkStrikes and deadline outright.
         const evidence = await deriveAbandonEvidence(String(poolId), accused);
 
+        // SEC-03c: the declared cause is part of the signed payload, and the
+        // contract enforces its precondition (AFK strikes) against it. An AFK
+        // abandon is only signed once the strike threshold is genuinely met, so
+        // there is never a reason that fails on-chain.
+        if (evidence.afkStrikes < AFK_STRIKES_REQUIRED) {
+            throw new PoolAuthorityError(
+                `accused seat has ${evidence.afkStrikes} strike(s); ${AFK_STRIKES_REQUIRED} required for an AFK abandon`,
+                400,
+            );
+        }
+
         const params = {
             poolId: String(poolId) as Hex,
             accusedSeat: accused,
+            reason: ABANDON_REASON.AfkDisconnect,
             seqAtDisconnect: evidence.seqAtDisconnect,
             afkStrikes: evidence.afkStrikes,
             deadline: evidence.deadline,
@@ -201,6 +214,7 @@ export async function PUT(request: Request) {
             params: {
                 poolId: params.poolId,
                 accusedSeat: params.accusedSeat,
+                reason: ABANDON_REASON.AfkDisconnect,
                 seqAtDisconnect: params.seqAtDisconnect.toString(),
                 afkStrikes: params.afkStrikes,
                 deadline: params.deadline.toString(),

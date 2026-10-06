@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {
     POOL_SHAPE,
     POOL_STATUS,
+    settleNonceFor,
     PoolAuthorityError,
     assertSettleable,
     deriveSettlePlan,
-    initialSettleNonce,
     requireAuthority,
     resolveDeadline,
     type PoolSummary,
@@ -32,6 +32,7 @@ function summary(over: Partial<PoolSummary> = {}): PoolSummary {
         maxSeats: 2,
         filledSeats: 2,
         shape: POOL_SHAPE.OneVsOne,
+        settleNonce: BigInt(1),
         authority: AUTHORITY as `0x${string}`,
         entryFee: BigInt(10) * E18,
         gross: BigInt(20) * E18,
@@ -177,14 +178,16 @@ test('resolveDeadline refuses a past or out-of-window deadline', () => {
     );
 });
 
-test('settle nonce is 1 for any pool that has provably never settled', () => {
-    // settleNonce has no public getter; it starts at 1 and is only incremented by
-    // settlePool, which also sets status = Settled. assertSettleable gates on that
-    // status, so 1 is correct here and only here.
-    assert.equal(initialSettleNonce(), BigInt(1));
-    assert.doesNotThrow(() => assertSettleable(summary({ status: POOL_STATUS.Locked })));
-    assert.throws(() => assertSettleable(summary({ status: POOL_STATUS.Settled })));
+test('the settle nonce comes from the chain, never a hardcoded 1', () => {
+    // SEC-04b: this used to return BigInt(1) with a justification that happened
+    // to hold. A derived value signed as if authoritative is a latent failure
+    // the moment a second settle path exists.
+    assert.equal(settleNonceFor(summary({ settleNonce: BigInt(1) })), BigInt(1));
+    assert.equal(settleNonceFor(summary({ settleNonce: BigInt(7) })), BigInt(7));
+    // It must not silently clamp a consumed counter back to the first value.
+    assert.notEqual(settleNonceFor(summary({ settleNonce: BigInt(4) })), BigInt(1));
 });
+
 
 test('ECO-08: a 4P pool auto-settles to 75/25, never 50/50', () => {
     // Regression: the split used to be inferred from seat colours, and the
