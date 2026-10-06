@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
 
         if (action === "unsubscribe") {
             if (!endpoint) return NextResponse.json({ error: "endpoint required" }, { status: 400 });
-            await dropPushSubscription(endpoint);
+            // SEC-14: scoped to the session wallet, not the endpoint alone.
+            await dropPushSubscription(endpoint, requester);
             return NextResponse.json({ ok: true, action });
         }
 

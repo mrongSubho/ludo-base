@@ -18,16 +18,25 @@ export interface OpsNotice {
     issuedAt: string;
 }
 
-export interface SignedNoticeBundle {
+/**
+ * SEC-26: there is no signature here.
+ *
+ * The field was called `signature` and held `unsigned:<fnv>`. FNV is unkeyed, so
+ * anyone could recompute it for a forged bundle — calling that a signature
+ * invites exactly the trust it cannot support. The stamp survives under the name
+ * that describes it, and `signature` is explicitly null on the wire so no caller
+ * reaches for it.
+ */
+export interface NoticeBundle {
     version: number;
     issuedAt: string;
     notices: OpsNotice[];
-    /** Hex signature over canonical payload (optional in dev). */
-    signature?: string;
+    /** Unkeyed content stamp. NOT a signature — do not verify against it. */
+    contentHash?: string;
 }
 
-/** Canonical string signed by ops (Ed25519/eth-sig later; content hash now). */
-export function buildNoticeMessage(bundle: Omit<SignedNoticeBundle, 'signature'>): string {
+/** Canonical string the content stamp is computed over. */
+export function buildNoticeMessage(bundle: Omit<NoticeBundle, 'contentHash'>): string {
     const notices = bundle.notices
         .map((n) => `${n.id}|${n.level}|${n.title}|${n.body}|${n.expiresAt ?? ''}|${n.href ?? ''}|${n.issuedAt}`)
         .join('\n');
@@ -45,9 +54,9 @@ export function filterActiveNotices(notices: OpsNotice[], nowMs: number = Date.n
 }
 
 /** Parse/validate a remote bundle — parse-or-drop like the wire protocol. */
-export function parseNoticeBundle(raw: unknown): SignedNoticeBundle | null {
+export function parseNoticeBundle(raw: unknown): NoticeBundle | null {
     if (!raw || typeof raw !== 'object') return null;
-    const b = raw as Partial<SignedNoticeBundle>;
+    const b = raw as Partial<NoticeBundle>;
     if (typeof b.version !== 'number' || !Array.isArray(b.notices)) return null;
     const notices: OpsNotice[] = [];
     for (const n of b.notices) {
@@ -70,7 +79,9 @@ export function parseNoticeBundle(raw: unknown): SignedNoticeBundle | null {
         version: b.version,
         issuedAt: typeof b.issuedAt === 'string' ? b.issuedAt : new Date().toISOString(),
         notices,
-        signature: typeof b.signature === 'string' ? b.signature : undefined,
+        // SEC-26: read the content stamp under its real name. `signature` is
+        // gone from the wire, so nothing should expect it here either.
+        contentHash: typeof b.contentHash === 'string' ? b.contentHash : undefined,
     };
 }
 

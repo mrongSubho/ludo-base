@@ -52,15 +52,45 @@ export async function POST(request: Request) {
                 .eq('id', friendshipId).eq('friend_address', wallet).eq('status', 'pending');
             if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         } else if (action === 'remove') {
-            let query = db.from('friendships').delete();
-            if (friendshipId) query = query.eq('id', friendshipId);
-            else {
+            // SEC-13: scope the delete to a row the caller is actually part of.
+            // `.eq('id', friendshipId)` alone let any session-holder delete ANY
+            // friendship in the table by guessing an id — including between two
+            // other people. Both directions are checked explicitly rather than
+            // with an interpolated `.or()` (SEC-08).
+            if (friendshipId) {
+                const { data: row } = await db
+                    .from('friendships')
+                    .select('id, user_address, friend_address')
+                    .eq('id', friendshipId)
+                    .maybeSingle();
+                const mine = row && (
+                    String(row.user_address).toLowerCase() === wallet
+                    || String(row.friend_address).toLowerCase() === wallet
+                );
+                if (!mine) {
+                    return NextResponse.json({ error: 'Not your friendship' }, { status: 403 });
+                }
+            } else {
                 const friend = String(target || '').toLowerCase();
                 if (!/^0x[a-f0-9]{40}$/.test(friend)) return NextResponse.json({ error: 'Invalid target' }, { status: 400 });
-                query = query.or(`and(user_address.eq.${wallet},friend_address.eq.${friend}),and(user_address.eq.${friend},friend_address.eq.${wallet})`);
+                const [asUser, asFriend] = await Promise.all([
+                    db.from('friendships').delete()
+                        .eq('user_address', wallet).eq('friend_address', friend),
+                    db.from('friendships').delete()
+                        .eq('user_address', friend).eq('friend_address', wallet),
+                ]);
+                const err = asUser.error || asFriend.error;
+                if (err) {
+                    console.error('[friendships] remove failed', JSON.stringify({ code: err.code, message: err.message, hint: err.hint }));
+                    return NextResponse.json({ error: 'Could not remove friendship' }, { status: 500 });
+                }
+                return NextResponse.json({ success: true });
             }
-            const { error } = await query;
-            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            const { error } = await db.from('friendships').delete().eq('id', friendshipId);
+            if (error) {
+                console.error('[friendships] remove failed', JSON.stringify({ code: error.code, message: error.message, hint: error.hint }));
+                return NextResponse.json({ error: 'Could not remove friendship' }, { status: 500 });
+            }
         } else if (action === 'request') {
             const friend = String(target || '').toLowerCase();
             if (!/^0x[a-f0-9]{40}$/.test(friend) || friend === wallet) return NextResponse.json({ error: 'Invalid target' }, { status: 400 });

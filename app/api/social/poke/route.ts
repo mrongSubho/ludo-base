@@ -124,6 +124,21 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, type: 'poke_back', reward: 100 });
         }
 
+        // SEC-22: a poke requires an accepted friendship in either direction.
+        // Without this anyone could poke any wallet, and each poke credited
+        // BOTH sides with the 'social' onboarding track — so it was also a way
+        // to farm progress for an arbitrary account.
+        const [asUser, asFriend] = await Promise.all([
+            supabase.from('friendships').select('id')
+                .eq('status', 'accepted').eq('user_address', s).eq('friend_address', r),
+            supabase.from('friendships').select('id')
+                .eq('status', 'accepted').eq('user_address', r).eq('friend_address', s),
+        ]);
+        const friends = (asUser.data?.length || 0) > 0 || (asFriend.data?.length || 0) > 0;
+        if (!friends) {
+            return NextResponse.json({ error: 'You can only poke friends' }, { status: 403 });
+        }
+
         // 2. Check if sender already poked receiver
         const { data: existing } = await supabase
             .from('pokes')

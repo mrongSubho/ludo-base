@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
     buildNoticeMessage,
     filterActiveNotices,
-    type SignedNoticeBundle,
+    type NoticeBundle,
     type OpsNotice,
 } from '@/lib/notices';
 
@@ -17,7 +17,7 @@ export async function GET() {
     const raw = process.env.NOTICE_BUNDLE_JSON;
     if (raw) {
         try {
-            const parsed = JSON.parse(raw) as SignedNoticeBundle;
+            const parsed = JSON.parse(raw) as NoticeBundle;
             if (Array.isArray(parsed.notices)) notices = filterActiveNotices(parsed.notices);
         } catch {
             /* stay empty */
@@ -31,10 +31,18 @@ export async function GET() {
         notices,
     };
     const message = buildNoticeMessage(bundle);
-    // Lightweight content stamp until ops signing key lands (crypto.subtle / eth_sig).
-    const signature = `unsigned:${simpleHash(message)}`;
+    // SEC-26: this was `signature: 'unsigned:<fnv>'`, which invites a caller to
+    // treat an FNV hash as a signature. It is not one — it is unkeyed, so anyone
+    // can recompute it for a forged bundle. It stays as a content stamp, under a
+    // name that says what it is.
+    const contentHash = simpleHash(message);
 
-    return NextResponse.json({ ...bundle, signature });
+    return NextResponse.json({
+        ...bundle,
+        contentHash,
+        signature: null,
+        signatureAlgorithm: null,
+    });
 }
 
 function simpleHash(input: string): string {

@@ -168,3 +168,52 @@ test('the activity hook passes a session', () => {
     assert.match(src, /peekAppSession\(\)/);
     assert.match(src, /api\/activity\?wallet=\$\{encodeURIComponent\(address\)\}/);
 });
+
+// ── SEC-13 / SEC-14 / SEC-22 / SEC-26 ─────────────────────────────────────
+
+test('SEC-13: a friendship delete is scoped to the caller', () => {
+    const src = code('app/api/friendships/route.ts');
+    // `.eq('id', friendshipId)` alone let any session-holder delete ANY
+    // friendship in the table by guessing an id.
+    assert.match(src, /Not your friendship/);
+    assert.match(src, /status: 403/);
+    assert.match(src, /String\(row\.user_address\)\.toLowerCase\(\) === wallet/);
+    assert.match(src, /String\(row\.friend_address\)\.toLowerCase\(\) === wallet/);
+    // And the by-target path must not interpolate (SEC-08).
+    assert.doesNotMatch(src, /\.or\(`and\(user_address/);
+});
+
+test('SEC-14: a push unsubscribe is scoped to the wallet', () => {
+    const lib = code('lib/pushServer.ts');
+    assert.match(lib, /dropPushSubscription\(endpoint: string, walletAddress: string\)/);
+    assert.match(lib, /\.eq\("endpoint", endpoint\)[\s\S]*\.eq\("wallet_address"/);
+    assert.match(lib, /if \(!endpoint \|\| !walletAddress\) return/, 'walletAddress is required, not advisory');
+    const route = code('app/api/push/subscribe/route.ts');
+    assert.match(route, /dropPushSubscription\(endpoint, requester\)/);
+});
+
+test('SEC-22: a poke requires an accepted friendship', () => {
+    const src = code('app/api/social/poke/route.ts');
+    assert.match(src, /You can only poke friends/);
+    assert.match(src, /status: 403/);
+    // Both directions, and only 'accepted'.
+    assert.equal((src.match(/\.eq\('status', 'accepted'\)/g) || []).length, 2);
+});
+
+test('SEC-26: an unkeyed hash is no longer called a signature', () => {
+    const route = code('app/api/notices/route.ts');
+    assert.match(route, /contentHash/);
+    assert.match(route, /signature: null/, 'and the field is explicitly null on the wire');
+    assert.doesNotMatch(route, /signature: `unsigned:/, 'the FNV stamp must not be presented as a signature');
+
+    const lib = code('lib/notices.ts');
+    assert.match(lib, /contentHash\?: string/);
+    assert.doesNotMatch(lib, /signature\?: string/, 'the type must not advertise a signature');
+    // The warning lives in a docblock, so read the raw file — `code()` strips
+    // comment lines and would hide exactly the text this asserts.
+    assert.match(
+        read('lib/notices.ts'),
+        /NOT a signature — do not verify against it/,
+        'the field must be documented as unverified, or a caller will trust it',
+    );
+});

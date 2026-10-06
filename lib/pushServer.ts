@@ -99,9 +99,19 @@ export async function sendPushToWallet(walletAddress: string, payload: PushPaylo
 }
 
 /** Drop one endpoint (unsubscribe / 410 cleanup). */
-export async function dropPushSubscription(endpoint: string): Promise<void> {
-    if (!endpoint) return;
-    await serviceDb().from("push_subscriptions").delete().eq("endpoint", endpoint);
+/**
+ * SEC-14: `walletAddress` is REQUIRED, not advisory.
+ *
+ * This used to delete by `endpoint` alone, through the service role. Push
+ * endpoints are long opaque strings, so the practical risk is a leaked or
+ * shoulder-surfed endpoint letting one wallet silently unsubscribe another —
+ * and a caller who guessed or observed an endpoint could always do it.
+ */
+export async function dropPushSubscription(endpoint: string, walletAddress: string): Promise<void> {
+    if (!endpoint || !walletAddress) return;
+    await serviceDb().from("push_subscriptions").delete()
+        .eq("endpoint", endpoint)
+        .eq("wallet_address", String(walletAddress).toLowerCase());
 }
 
 /** Upsert a browser PushSubscription for a wallet. */
