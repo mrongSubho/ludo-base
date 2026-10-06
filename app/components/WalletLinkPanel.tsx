@@ -5,6 +5,7 @@ import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { readWalletMode, writeWalletMode, type WalletMode } from "@/lib/walletMode";
 import { buildWalletLinkMessage } from "@/lib/walletLink";
 import { useWalletSigner } from "@/hooks/useWalletSigner";
+import { useAppSession } from "@/hooks/useAppSession";
 
 /**
  * W3 — Session wallet switcher + optional two-sig link.
@@ -53,6 +54,7 @@ const ModeChip = ({
 );
 
 export default function WalletLinkPanel() {
+    const { peekAppSession } = useAppSession();
     const player = usePlayerSigner();
     const external = useWalletSigner();
     const [busy, setBusy] = useState(false);
@@ -71,7 +73,12 @@ export default function WalletLinkPanel() {
             return;
         }
         try {
-            const res = await fetch(`/api/wallet-links?wallet=${wallet}`);
+            // SEC-24: the route now needs a session for this exact wallet.
+            const sid = peekAppSession();
+            const res = await fetch(
+                `/api/wallet-links?wallet=${encodeURIComponent(wallet)}`
+                + (sid ? `&walletAddress=${encodeURIComponent(wallet)}&sessionId=${encodeURIComponent(sid)}` : ''),
+            );
             const data = await res.json().catch(() => ({}));
             setHasLinked(Array.isArray(data?.links) && data.links.length > 0);
         } catch {

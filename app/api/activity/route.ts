@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { normalizeWallet } from "@/lib/validation/wallet";
+import { requireAppSession } from "@/lib/serverAuth";
 
 /**
  * Wallet activity from Etherscan V2 (Base Sepolia = chainid 84532).
@@ -48,10 +50,18 @@ async function scan(params: Record<string, string>) {
 }
 
 export async function GET(req: NextRequest) {
-    const wallet = (req.nextUrl.searchParams.get("wallet") || "").toLowerCase();
-    if (!/^0x[a-f0-9]{40}$/.test(wallet)) {
+    // SEC-23: validate before anything upstream. Each call spends
+    // ETHERSCAN_API_KEY, and this was reachable without a session.
+    const wallet = normalizeWallet(req.nextUrl.searchParams.get("wallet"));
+    if (!wallet) {
         return NextResponse.json({ error: "wallet required" }, { status: 400 });
     }
+    const session = await requireAppSession(
+        req.nextUrl.searchParams.get("walletAddress"),
+        req.nextUrl.searchParams.get("sessionId"),
+    );
+    if (!session) return NextResponse.json({ error: "Session required" }, { status: 401 });
+    if (session !== wallet) return NextResponse.json({ error: "Not your wallet" }, { status: 403 });
 
     const [txs, tokens] = await Promise.all([
         scan({

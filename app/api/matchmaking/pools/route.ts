@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { normalizeWallet } from '@/lib/validation/wallet';
 import { serviceDb } from '@/lib/serverAuth';
 
 /**
@@ -12,7 +13,13 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const gameMode = searchParams.get('gameMode');
         const matchType = searchParams.get('matchType');
-        const excludeWallet = (searchParams.get('walletAddress') || '').toLowerCase() || null;
+        // SEC-23: validated before it reaches the query. It was taken as-is and
+        // compared in SQL.
+        const rawExclude = searchParams.get('walletAddress');
+        const excludeWallet = rawExclude ? normalizeWallet(rawExclude) : null;
+        if (rawExclude && !excludeWallet) {
+            return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 });
+        }
         if (!gameMode || !matchType) {
             return NextResponse.json({ error: 'gameMode and matchType are required' }, { status: 400 });
         }

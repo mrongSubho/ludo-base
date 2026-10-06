@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAppSession } from "./useAppSession";
 import {
     createPublicClient,
     http,
@@ -80,6 +81,7 @@ function fmtToken(raw: bigint, decimals: number): string {
 
 export function useWalletActivity() {
     const player = usePlayerSigner();
+    const { peekAppSession } = useAppSession();
     const [items, setItems] = useState<WalletActivityItem[]>([]);
     const [loading, setLoading] = useState(false);
     const pollRef = useRef<number | null>(null);
@@ -176,7 +178,12 @@ export function useWalletActivity() {
             // Etherscan / BaseScan (server) — native ETH + token history
             let explorerRows: WalletActivityItem[] = [];
             try {
-                const res = await fetch(`/api/activity?wallet=${address}`);
+                // SEC-23: the route now needs a session for this wallet.
+                const sid = peekAppSession();
+                const res = await fetch(
+                    `/api/activity?wallet=${encodeURIComponent(address)}`
+                    + (sid ? `&walletAddress=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sid)}` : ''),
+                );
                 const data = await res.json().catch(() => ({}));
                 if (Array.isArray(data?.items)) explorerRows = data.items as WalletActivityItem[];
             } catch {

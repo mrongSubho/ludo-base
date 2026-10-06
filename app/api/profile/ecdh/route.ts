@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { buildEcdhMessage, ecdhKeyFingerprint, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { canonicalizeP256Jwk } from '@/lib/validation/ecdhJwk';
 
 /** Recipient ECDH pubkey lookup for DM sealing (service role: ecdh_pubkey is server-only). */
 export async function GET(request: Request) {
@@ -47,12 +48,24 @@ export async function POST(request: Request) {
             return NextResponse.json({ error, code: verdict.code }, { status: 401 });
         }
         const recovered = String(walletAddress).toLowerCase();
-        // Service role: players writes are default-deny; proof is the wallet signature above.
+        // SEC-25: rebuild the key from the four accepted fields. The posted
+        // object used to be persisted verbatim, so `{ ..., d }` wrote the
+        // private scalar to players.ecdh_pubkey and GET handed it back out.
+        const canonical = canonicalizeP256Jwk(publicKey);
+        if (!canonical.ok) {
+            return NextResponse.json({ error: canonical.error }, { status: 400 });
+        }
+
+        // Service role: players writes are default-deny; proof is the wallet
+        // signature above. Only the canonical key is stored.
         const { error } = await serviceDb().from('players').upsert(
-            { wallet_address: recovered, ecdh_pubkey: publicKey },
+            { wallet_address: recovered, ecdh_pubkey: canonical.key },
             { onConflict: 'wallet_address' },
         );
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (error) {
+            console.error('[ecdh] upsert failed', JSON.stringify({ code: error.code, message: error.message, hint: error.hint }));
+            return NextResponse.json({ error: 'Key could not be stored' }, { status: 500 });
+        }
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 400 });
