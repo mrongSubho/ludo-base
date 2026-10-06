@@ -29,6 +29,12 @@ import {
 } from '../_shared/networkBoundary.ts';
 import { verifyMatchSession } from '../_shared/matchSession.ts';
 import { checkRollBinding } from '../_shared/rollReceipt.ts';
+import {
+  casWon,
+  checkPassLegality,
+  checkSeatAuthority,
+  passStatePatch,
+} from '../_shared/turnAuthority.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -163,13 +169,11 @@ async function verifyActorSignature(
 
 type Seats = Record<string, { kind: 'human' | 'bot' | 'afk'; wallet?: string }>;
 
-function seatOwnsColor(seats: Seats, color: string, wallet: string): { ok: boolean; kind?: string } {
+/** Wallet owning `color`, or null when the seat is a bot/AFK/unowned. */
+function seatWalletOf(seats: Seats, color: string): string | null {
   const seat = seats[color];
-  if (!seat) return { ok: false };
-  if (seat.kind === 'human') {
-    return { ok: (seat.wallet || '').toLowerCase() === wallet.toLowerCase(), kind: 'human' };
-  }
-  return { ok: false, kind: seat.kind };
+  if (!seat || seat.kind !== 'human') return null;
+  return seat.wallet || null;
 }
 
 function activeColors(state: EngineGameState): PlayerColor[] {
@@ -494,18 +498,16 @@ Deno.serve(async (req) => {
       if (state.currentPlayer !== color) return json({ error: 'Not this color turn', currentPlayer: state.currentPlayer }, 403);
 
       // Ownership
-      if (source === 'host-assist') {
-        if (recovered !== String(row.host_address || '').toLowerCase()) {
-          return json({ error: 'Only host may assist' }, 403);
-        }
-        const seat = seats[color];
-        if (!seat || seat.kind === 'human') {
-          return json({ error: 'host-assist only for bot/AFK seats' }, 403);
-        }
-      } else {
-        const own = seatOwnsColor(seats, color, recovered);
-        if (!own.ok) return json({ error: 'Not your seat' }, 403);
-      }
+      // SEC-19: `move` already refused host-assist on a human seat; `pass` did
+      // not. Both now call one function, so they cannot diverge again.
+      const seatOk = checkSeatAuthority({
+        source,
+        seats: seats as Record<string, { kind: string; wallet?: string }>,
+        color: String(color),
+        actor: recovered,
+        hostAddress: row.host_address,
+      });
+      if (!seatOk.ok) return json({ error: seatOk.error, code: seatOk.code }, seatOk.status);
 
       // Roll binding (SEC-01)
       const { data: roll, error: rollErr } = await supabase
@@ -521,10 +523,7 @@ Deno.serve(async (req) => {
       const binding = checkRollBinding({
         roll, color: String(color), seq,
         hostAddress: row.host_address,
-        seatWallet: (c: string) => {
-          const st = seats[c as keyof Seats];
-          return st && st.kind === 'human' ? (st.wallet || null) : null;
-        },
+        seatWallet: (c: string) => seatWalletOf(seats, c),
       });
       if (!binding.ok) return json({ error: binding.error, code: binding.code }, binding.status);
       if (isDuplicateAction(roll.status)) return json({ error: 'Roll already consumed', code: 'DUPLICATE_ACTION' }, 409);
@@ -566,7 +565,10 @@ Deno.serve(async (req) => {
       if (nextSeq === null) return staleStateResponse(supabase, matchId);
       const toStore = { ...move.state, lastUpdate: Date.now() };
 
-      const { error: saveErr } = await supabase
+      // SEC-15: select the column back. A CAS that matches zero rows is a 200
+      // with an empty body, not an error — without this the loser of a race
+      // reported success for a state it never persisted.
+      const { data: saved, error: saveErr } = await supabase
         .from('match_states')
         .update({
           seq: nextSeq,
@@ -574,8 +576,10 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('match_id', matchId)
-        .eq('seq', seq); // optimistic concurrency
-      if (saveErr) return json({ error: saveErr.message }, 500);
+        .eq('seq', seq) // optimistic concurrency
+        .select('seq');
+      const cas = casWon({ error: saveErr, data: saved });
+      if (!cas.ok) return staleStateResponse(supabase, matchId);
 
       // Re-read to confirm we won the race
       const confirm = await loadMatch(supabase, matchId);
@@ -589,7 +593,7 @@ Deno.serve(async (req) => {
       }).eq('id', rollId);
 
       const fromPos = move.fromPos ?? state.positions[color as PlayerColor][Number(tokenIndex)];
-      await supabase.from('match_moves').insert({
+      const { error: moveInsErr } = await supabase.from('match_moves').insert({
         match_id: String(matchId),
         seq: nextSeq,
         actor: recovered,
@@ -602,6 +606,13 @@ Deno.serve(async (req) => {
         captured,
         bonus_roll: bonusRoll,
       });
+      if (moveInsErr) {
+        // The state is committed; only the audit row failed. Say so rather than
+        // returning a clean 200 — a move with no `match_moves` row is exactly
+        // the gap SEC-15 is about, and it must be visible in logs.
+        console.error('[move-auth] match_moves insert failed', moveInsErr);
+        return json({ error: 'Move audit write failed', code: 'AUDIT_WRITE_FAILED' }, 500);
+      }
 
       // Broadcast to room channel (best-effort)
       try {
@@ -633,7 +644,7 @@ Deno.serve(async (req) => {
 
     // ── PASS TURN ───────────────────────────────────────────────────────
     if (action === 'pass' || path.endsWith('pass-turn')) {
-      const { matchId, actor, rollId, expectedSeq, message, signature, issuedAt, source, reason, sessionId } = body;
+      const { matchId, actor, rollId, expectedSeq, message, signature, issuedAt, source, sessionId } = body;
       if (!matchId || !actor || !rollId || expectedSeq === undefined) {
         return json({ error: 'Missing pass payload' }, 400);
       }
@@ -659,14 +670,17 @@ Deno.serve(async (req) => {
       const seats = row.player_seats as Seats;
       const color = state.currentPlayer;
 
-      if (source === 'host-assist') {
-        if (recovered !== String(row.host_address || '').toLowerCase()) {
-          return json({ error: 'Only host may assist' }, 403);
-        }
-      } else {
-        const own = seatOwnsColor(seats, color, recovered);
-        if (!own.ok) return json({ error: 'Not your seat' }, 403);
-      }
+      // SEC-19: the pass branch never refused host-assist on a human seat, so
+      // the host could end a human's turn — including with a pass that human
+      // never chose. `move` already had this rule; both now call one function.
+      const seatOk = checkSeatAuthority({
+        source,
+        seats: seats as Record<string, { kind: string; wallet?: string }>,
+        color: String(color),
+        actor: recovered,
+        hostAddress: row.host_address,
+      });
+      if (!seatOk.ok) return json({ error: seatOk.error, code: seatOk.code }, seatOk.status);
 
       const { data: roll } = await supabase
         .from('match_rolls')
@@ -680,10 +694,7 @@ Deno.serve(async (req) => {
       const passBinding = checkRollBinding({
         roll, color: String(color), seq,
         hostAddress: row.host_address,
-        seatWallet: (c: string) => {
-          const st = seats[c as keyof Seats];
-          return st && st.kind === 'human' ? (st.wallet || null) : null;
-        },
+        seatWallet: (c: string) => seatWalletOf(seats, c),
       });
       if (!passBinding.ok) return json({ error: passBinding.error, code: passBinding.code }, passBinding.status);
       if (isDuplicateAction(roll.status)) return json({ error: 'Roll already consumed', code: 'DUPLICATE_ACTION' }, 409);
@@ -691,36 +702,49 @@ Deno.serve(async (req) => {
       const dice = Number(roll.result);
       const legal = getLegalTokenIndices(state.positions, color, dice, cc);
 
-      // Pass is only valid when no legal move OR explicit three-sixes
+      // SEC-18: `reason: 'forced'` is gone from both the contract and the
+      // destructuring above. The caller used to be able to assert its own
+      // forced-ness and hand the turn over at will; the engine now decides,
+      // from the face and the counter, whether a pass is legal.
+      const legality = checkPassLegality({
+        legal,
+        dice,
+        consecutiveSixes: state.consecutiveSixes || 0,
+      });
+      if (!legality.ok) {
+        return json({ error: legality.error, code: legality.code, legal }, legality.status);
+      }
       const { isThreeSixes } = handleThreeSixes(state.consecutiveSixes || 0, dice);
-      if (!isThreeSixes && legal.length > 0 && reason !== 'forced') {
-        return json({ error: 'Legal moves exist', legal }, 400);
-      }
 
-      let next = { ...state };
-      if (isThreeSixes) {
-        next.consecutiveSixes = 0;
-      } else {
-        next.consecutiveSixes = dice === 6 ? (state.consecutiveSixes || 0) + 1 : 0;
-      }
-      next.currentPlayer = getNextPlayer(
+      const handedTo = getNextPlayer(
         color,
         state.playerCount || '4P',
         activeColors(state),
         cc
       );
-      next.diceValue = null;
-      next.gamePhase = 'rolling';
-      next.lastUpdate = Date.now();
+      // SEC-30: `powerSpentThisTurn` was left untouched by `pass`, so a player
+      // who spent a power and then had no legal move carried `true` into the
+      // next turn and was refused every power until they moved again.
+      let next = {
+        ...state,
+        ...passStatePatch({
+          currentPlayer: handedTo,
+          dice,
+          consecutiveSixes: isThreeSixes ? 0 : (state.consecutiveSixes || 0),
+          now: Date.now(),
+        }),
+      };
 
       const nextSeq = compareAndSwapSequence(seq, Number(expectedSeq));
       if (nextSeq === null) return staleStateResponse(supabase, matchId);
-      const { error: saveErr } = await supabase
+      const { data: passSaved, error: saveErr } = await supabase
         .from('match_states')
         .update({ seq: nextSeq, state: next, updated_at: new Date().toISOString() })
         .eq('match_id', matchId)
-        .eq('seq', seq);
-      if (saveErr) return json({ error: saveErr.message }, 500);
+        .eq('seq', seq)
+        .select('seq');
+      const passCas = casWon({ error: saveErr, data: passSaved });
+      if (!passCas.ok) return staleStateResponse(supabase, matchId);
       const passConfirm = await loadMatch(supabase, matchId);
       if (!passConfirm || !confirmSequenceAfterWrite(Number(passConfirm.seq), nextSeq).ok) {
         return staleStateResponse(supabase, matchId);
@@ -798,14 +822,16 @@ Deno.serve(async (req) => {
       const seats = row.player_seats as Seats;
       const playerCount = (state.playerCount || '4P') as EngineGameState['playerCount'];
 
-      if (source === 'host-assist') {
-        if (recovered !== String(row.host_address || '').toLowerCase()) {
-          return json({ error: 'Only host may assist' }, 403);
-        }
-      } else {
-        const own = seatOwnsColor(seats, color, recovered);
-        if (!own.ok) return json({ error: 'Not your seat' }, 403);
-      }
+      // SEC-19: this branch was missing the human-seat refusal entirely, so the
+      // host could spend any player's power on their turn.
+      const powerSeatOk = checkSeatAuthority({
+        source,
+        seats: seats as Record<string, { kind: string; wallet?: string }>,
+        color: String(color),
+        actor: recovered,
+        hostAddress: row.host_address,
+      });
+      if (!powerSeatOk.ok) return json({ error: powerSeatOk.error, code: powerSeatOk.code }, powerSeatOk.status);
 
       const result = applyPower(
         state,
@@ -827,12 +853,14 @@ Deno.serve(async (req) => {
       const nextSeq = compareAndSwapSequence(seq, Number(expectedSeq));
       if (nextSeq === null) return staleStateResponse(supabase, matchId);
       const toStore = { ...result.state, lastUpdate: Date.now() };
-      const { error: saveErr } = await supabase
+      const { data: powerSaved, error: saveErr } = await supabase
         .from('match_states')
         .update({ seq: nextSeq, state: toStore, updated_at: new Date().toISOString() })
         .eq('match_id', matchId)
-        .eq('seq', seq);
-      if (saveErr) return json({ error: saveErr.message }, 500);
+        .eq('seq', seq)
+        .select('seq');
+      const powerCas = casWon({ error: saveErr, data: powerSaved });
+      if (!powerCas.ok) return staleStateResponse(supabase, matchId);
       const powerConfirm = await loadMatch(supabase, matchId);
       if (!powerConfirm || !confirmSequenceAfterWrite(Number(powerConfirm.seq), nextSeq).ok) {
         return staleStateResponse(supabase, matchId);

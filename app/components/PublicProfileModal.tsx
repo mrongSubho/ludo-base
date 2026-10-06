@@ -38,7 +38,7 @@ interface PublicProfileModalProps {
 }
 
 export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM }: PublicProfileModalProps) {
-    const { ensureAppSession } = useAppSession();
+    const { ensureAppSession, peekAppSession } = useAppSession();
     const { address: currentUserAddress } = useCurrentUser();
     // Guests can scout profiles, but social writes hit the wall.
     const { guard } = useGuestWall();
@@ -122,7 +122,13 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
             // 2. Fetch current user's friends list to validate DM capability (SLOWER)
             try {
-                const response = await fetch(`/api/friends?wallet=${currentUserAddress}`);
+                // SEC-08: session-gated (see RankingsPanel for the same shape).
+                const friendsSession = peekAppSession();
+                const response = await fetch(
+                    `/api/friends?wallet=${encodeURIComponent(currentUserAddress)}`
+                    + `&walletAddress=${encodeURIComponent(currentUserAddress)}`
+                    + (friendsSession ? `&sessionId=${encodeURIComponent(friendsSession)}` : ''),
+                );
                 if (response.ok) {
                     const data = await response.json();
 

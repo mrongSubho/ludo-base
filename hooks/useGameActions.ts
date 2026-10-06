@@ -57,7 +57,7 @@ interface UseGameActionsProps {
             rollId: string;
             expectedSeq: number;
             source?: 'player' | 'host-assist';
-            reason?: string;
+            /** Removed (SEC-18): the engine derives pass legality server-side. */
         }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode }>;
         submitPower: (p: {
             matchId: string;

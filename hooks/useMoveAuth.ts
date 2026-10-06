@@ -401,7 +401,6 @@ export function useMoveAuth(opts: {
         rollId: string;
         expectedSeq: number;
         source?: 'player' | 'host-assist';
-        reason?: string;
         actorOverride?: string;
     }): Promise<MoveAuthResult> => {
         const source = params.source || 'player';
@@ -434,7 +433,6 @@ export function useMoveAuth(opts: {
             rollId: params.rollId,
             expectedSeq: params.expectedSeq,
             source,
-            reason: params.reason,
             sessionId: sessionId || undefined,
             message,
             signature,
@@ -447,7 +445,7 @@ export function useMoveAuth(opts: {
                 sessionId = renewed.sessionId;
                 r = await callMoveAuth('pass', {
                     matchId: params.matchId, actor, rollId: params.rollId,
-                    expectedSeq: params.expectedSeq, source, reason: params.reason,
+                    expectedSeq: params.expectedSeq, source,
                     sessionId,
                 });
             }

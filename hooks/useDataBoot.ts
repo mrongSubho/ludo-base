@@ -47,7 +47,13 @@ export const useDataBoot = (address: string | undefined) => {
                 // peer_id/coins merge in from GET /api/profile below).
                 (supabase.from('players') as any).select('wallet_address, username, avatar_url, lxp, rxp, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at').eq('wallet_address', lowerAddr).maybeSingle(),
                 (supabase.from('players') as any).select('wallet_address, username, avatar_url, total_wins, last_played_at, status, lxp, rxp, rank_tier').order('total_wins', { ascending: false }).limit(50),
-                fetch(`/api/friends?wallet=${lowerAddr}`).then(res => res.json()),
+                // SEC-08: the route now requires a session and only answers for
+                // the caller's own wallet. A 401 is not data — resolve to empty
+                // lists so a missing session degrades the panel instead of
+                // poisoning it.
+                fetch(`/api/friends?wallet=${encodeURIComponent(lowerAddr)}`
+                    + (sessionId ? `&walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}` : ''))
+                    .then(async res => (res.ok ? res.json() : { onchainFriends: [], gameFriends: [], acceptedFriends: [] })),
                 privateData
             ]);
 

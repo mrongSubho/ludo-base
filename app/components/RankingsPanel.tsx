@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
+import { useAppSession } from '@/hooks/useAppSession';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
 import { PanelTabs } from './PanelTabs';
@@ -35,6 +36,7 @@ const TIER_BEAM: Record<string, string> = {
 const MEDAL = ['#facc15', '#e2e8f0', '#d97706'];
 
 export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: RankingsPanelProps) {
+    const { peekAppSession } = useAppSession();
     const { address } = useAccount();
     const { leaderboard: players, isBooting } = useGameData();
     // Mobile: mount the shell immediately — enter/exit tweens on a blurred
@@ -70,7 +72,12 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
         setFriendsLoading(true);
         (async () => {
             try {
-                const res = await fetch(`/api/friends?wallet=${address}`);
+                // SEC-08: session-gated, and only for the caller's own wallet.
+                const sid = peekAppSession();
+                const res = await fetch(
+                    `/api/friends?wallet=${encodeURIComponent(address)}`
+                    + (sid ? `&walletAddress=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sid)}` : ''),
+                );
                 if (!res.ok) throw new Error('friends fetch failed');
                 const data = await res.json();
                 // Friendship evidence = Farcaster follows + accepted game friendships.
