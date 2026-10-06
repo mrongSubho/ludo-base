@@ -12,6 +12,8 @@ forge --version | head -1
 # Shared loader (scripts/lib-load-env.sh): inline env wins over contracts/.env.
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib-load-env.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib-dev-keys.sh"
 
 KEYSTORE_DIR="${FOUNDRY_KEYSTORE_DIR:-$HOME/.foundry/keystores}"
 ACCOUNT="${FOUNDRY_ACCOUNT:-deployer}"
@@ -37,6 +39,11 @@ require_env() {
   fi
 }
 
+# A live-network deploy is a chain write that costs money and cannot be undone.
+# Run the simulation first, then require an explicit opt-in to broadcast: this
+# script is easy to invoke by accident (a test, a stray shell history entry, a
+# "just checking" run), and `forge script --broadcast` will happily spend real
+# ETH on whatever is in contracts/.env at that moment.
 redeploy_pool() {
   local rpc="$1" network="$2"
   require_env CHIPS_ADDRESS EDGE_SIGNER GAME_OWNER DEPLOYER_ADDRESS
@@ -45,17 +52,46 @@ redeploy_pool() {
     echo "  refusing: USE_MOCK=true is set, but this deploys against a real CHIPS token" >&2
     exit 1
   fi
+  # A dev key as an on-chain role is fatal: anyone can sign as edge signer and
+  # authorize settlement, or as owner and drain the pool. The anvil verbs bypass
+  # this because they only target a throwaway local chain.
+  assert_not_dev_key_on_live_network "${EDGE_SIGNER:-}" "$network"
+  assert_not_dev_key_on_live_network "${GAME_OWNER:-}" "$network"
+  assert_not_dev_key_on_live_network "${DEPLOYER_ADDRESS:-}" "$network"
+
+  local broadcast=()
+  if [[ "${LUDO_CONFIRM_DEPLOY:-}" == "yes" ]]; then
+    broadcast=(--broadcast)
+  fi
+
   echo "== Redeploying MatchPool + ClaimHub on $network =="
-  echo "   CHIPS : $CHIPS_ADDRESS"
-  echo "   owner : ${GAME_OWNER}"
+  echo "   CHIPS    : $CHIPS_ADDRESS"
+  echo "   owner    : ${GAME_OWNER}"
+  echo "   edge     : ${EDGE_SIGNER}"
+  echo "   chips RPC: $rpc"
+  if [[ ${#broadcast[@]} -eq 0 ]]; then
+    echo "   MODE     : SIMULATION (nothing will be sent)"
+  else
+    echo "   MODE     : BROADCAST"
+  fi
+  echo
+
   forge script script/RedeployPool.s.sol:RedeployPool \
     --rpc-url "$rpc" \
     --account "$ACCOUNT" \
-    --broadcast \
+    "${broadcast[@]}" \
     "${VERIFY_FLAG[@]}"
+
   echo
-  echo "Verify the line above reads 'setClaimHub: done in this transaction'."
-  echo "If it says SKIPPED, run setClaimHub from $GAME_OWNER."
+  if [[ ${#broadcast[@]} -eq 0 ]]; then
+    echo "Simulation only — no transaction was sent."
+    echo "Check the output above, then re-run with LUDO_CONFIRM_DEPLOY=yes to broadcast:"
+    echo "  LUDO_CONFIRM_DEPLOY=yes FOUNDRY_ACCOUNT=$ACCOUNT scripts/foundry-deploy.sh ${network,,}-pool"
+  else
+    echo "Verify the line above reads 'setClaimHub: done in this transaction'."
+    echo "If it says SKIPPED, run setClaimHub from $GAME_OWNER."
+    echo "Then: scripts/verify-contracts.sh ${network,,}"
+  fi
 }
 
 cmd="${1:-help}"
@@ -117,6 +153,8 @@ case "$cmd" in
     fi
     ;;
   anvil)
+    # Anvil's default key is used here on purpose: this chain is local, ephemeral
+    # and holds no value. scripts/lib-dev-keys.sh blocks it on every live verb.
     anvil --port 8545 &
     sleep 1
     forge script script/DeployStack.s.sol --rpc-url http://127.0.0.1:8545 \
@@ -136,17 +174,32 @@ case "$cmd" in
         --broadcast
     ;;
   sepolia)
+    # DeployStack mints MockChips and funds the owner with 1,000,000 CHIPS, so it
+    # must never run against a live network even by accident.
+    if [[ "${USE_MOCK:-false}" == "true" ]]; then
+      echo "  refusing: USE_MOCK=true would deploy a MockChips token to Base Sepolia" >&2
+      echo "  use 'sepolia-pool' for a real redeploy, or set USE_MOCK=false deliberately" >&2
+      exit 1
+    fi
+    assert_not_dev_key_on_live_network "${EDGE_SIGNER:-}" "Base Sepolia"
+    assert_not_dev_key_on_live_network "${GAME_OWNER:-}" "Base Sepolia"
+    assert_not_dev_key_on_live_network "${DEPLOYER_ADDRESS:-}" "Base Sepolia"
+    local broadcast=()
+    [[ "${LUDO_CONFIRM_DEPLOY:-}" == "yes" ]] && broadcast=(--broadcast)
+    if [[ ${#broadcast[@]} -eq 0 ]]; then
+      echo "   MODE: SIMULATION (nothing will be sent; re-run with LUDO_CONFIRM_DEPLOY=yes)"
+    fi
     forge script script/DeployStack.s.sol \
       --rpc-url "${SEPOLIA_RPC:-https://sepolia.base.org}" \
       --account "$ACCOUNT" \
-      --broadcast \
+      "${broadcast[@]}" \
       "${VERIFY_FLAG[@]}"
     ;;
   sepolia-pool)
-    redeploy_pool "${SEPOLIA_RPC:-https://sepolia.base.org}" "Base Sepolia"
+    redeploy_pool "${SEPOLIA_RPC:-https://sepolia.base.org}" "Sepolia"
     ;;
   base-pool)
-    redeploy_pool "${BASE_RPC:-https://mainnet.base.org}" "Base mainnet"
+    redeploy_pool "${BASE_RPC:-https://mainnet.base.org}" "Base"
     ;;
   *)
     cat <<EOF
@@ -169,7 +222,12 @@ Create keystore (interactive, once):
 
 Before any -pool deploy, contracts/.env must have CHIPS_ADDRESS, EDGE_SIGNER,
 GAME_OWNER and DEPLOYER_ADDRESS set to the real values. DEPLOYER_ADDRESS must be
-the address your deploy key controls.
+the address your deploy key controls, and none of the three may be a well-known
+Anvil/Hardhat dev key (scripts/lib-dev-keys.sh enforces this).
+
+-pool verbs SIMULATE by default. Broadcasting is opt-in:
+
+  LUDO_CONFIRM_DEPLOY=yes FOUNDRY_ACCOUNT=deployer scripts/foundry-deploy.sh sepolia-pool
 EOF
     ;;
 esac

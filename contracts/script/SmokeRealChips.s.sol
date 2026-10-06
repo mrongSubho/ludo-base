@@ -18,10 +18,17 @@ import {IB20} from "base-std/interfaces/IB20.sol";
  * Then after 5 min: bash scripts/claim-sepolia.sh <poolId>
  */
 contract SmokeRealChips is Script {
-    uint256 internal constant SMOKE_PK =
-        0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-    uint256 internal constant P2_PK =
-        0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
+    // Keys are supplied by the caller, not compiled in. These previously held
+    // the Anvil/Hardhat default keys, whose private keys are published, so a
+    // smoke run against a live network used a host account anybody could act
+    // as. scripts/smoke-sepolia.sh now passes real keystore keys via env.
+    function _smokePk() internal view returns (uint256) {
+        return vm.envUint("SMOKE_HOST_PK");
+    }
+
+    function _p2Pk() internal view returns (uint256) {
+        return vm.envUint("SMOKE_P2_PK");
+    }
 
     function _sign(uint256 pk, bytes32 digest) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
@@ -52,8 +59,8 @@ contract SmokeRealChips is Script {
         MatchPool pool = MatchPool(payable(poolAddr));
         // ClaimHub used after dispute window in claim-sepolia.sh
 
-        address host = vm.addr(SMOKE_PK);
-        address p2 = vm.addr(P2_PK);
+        address host = vm.addr(_smokePk());
+        address p2 = vm.addr(_p2Pk());
 
         // --- Phase A: fund smoke seats with real CHIPS (deployer holds 10B) ---
         vm.startBroadcast();
@@ -83,7 +90,7 @@ contract SmokeRealChips is Script {
             maxSeats: 2,
             issuedAt: uint64(block.timestamp)
         });
-        bytes memory ticketSig = _sign(SMOKE_PK, pool.lobbyTicketHash(t));
+        bytes memory ticketSig = _sign(_smokePk(), pool.lobbyTicketHash(t));
 
         MatchPool.PoolConfig memory cfg = MatchPool.PoolConfig({
             poolId: poolId,
@@ -103,7 +110,7 @@ contract SmokeRealChips is Script {
             ticketIssuedAt: t.issuedAt
         });
 
-        vm.startBroadcast(SMOKE_PK);
+        vm.startBroadcast(_smokePk());
         pool.createPool(cfg, seats, colors, ticketSig);
         console.log("poolId");
         console.logBytes32(poolId);
@@ -111,19 +118,19 @@ contract SmokeRealChips is Script {
         pool.joinPool(poolId);
         vm.stopBroadcast();
 
-        vm.startBroadcast(P2_PK);
+        vm.startBroadcast(_p2Pk());
         chips.approve(poolAddr, 2_000e18);
         pool.joinPool(poolId);
         vm.stopBroadcast();
 
-        vm.startBroadcast(SMOKE_PK);
+        vm.startBroadcast(_smokePk());
         pool.lockPool(poolId, 30 minutes);
         MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
         plan[0] = MatchPool.Payout({addr: p2, amount: 1860e18});
         uint64 deadline = uint64(block.timestamp + 1 hours);
         bytes32 sh = pool.settleStructHash(poolId, plan, deadline, 1, host);
         bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(poolAddr), sh));
-        bytes memory sig = _sign(SMOKE_PK, d);
+        bytes memory sig = _sign(_smokePk(), d);
         pool.settlePool(poolId, plan, deadline, 1, sig, sig);
         vm.stopBroadcast();
 
