@@ -66,7 +66,7 @@ contract MatchPoolSecurityTest is Test {
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: FEE,
@@ -122,7 +122,32 @@ shape: 0,
         return keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
     }
 
-    function test_modeB_edge_only_settle_pays_winner_and_slashes_bond() public {
+    /// @notice In Mode B, `msg.sender` is a RELAYER, not the authorization.
+    ///
+    /// SEC-04. The previous version of this test called `settlePool` from a
+    /// random address and asserted the payout landed, with no comment about what
+    /// that implied. It read as "anyone can settle a locked pool", which is both
+    /// the wrong conclusion and a trap: the SEC-04 checklist item asked for a test
+    /// asserting a non-authority CANNOT settle after `settleBy`, and this file
+    /// appeared to pin the opposite.
+    ///
+    /// What is actually true, and is asserted here deliberately:
+    ///
+    ///   - `MatchPool.settlePool` has NO `msg.sender` check. Authorization is the
+    ///     edge co-signature: `_recover(d, edgeSig) != edgeSigner` reverts.
+    ///     Mode A additionally requires the host's own signature; Mode B (after
+    ///     `settleBy`) exists precisely for a host that withholds it, so it
+    ///     requires only the edge signature.
+    ///   - The digest binds `poolId`, the payout plan, `deadline`, `nonce` and
+    ///     `p.authority`, so a co-signature is single-use and plan-specific. The
+    ///     sibling tests below pin each of those bindings.
+    ///   - `msg.sender` being a free choice is safe only because the server
+    ///     refuses to produce a co-signature for anyone but the on-chain
+    ///     authority: `requireAuthority` in lib/poolAuthority.ts, asserted in
+    ///     scripts/pool-authority.test.ts ("requireAuthority accepts only the
+    ///     on-chain authority"). That server check is the authority gate; this
+    ///     contract deliberately is not.
+    function test_modeB_msg_sender_is_a_relayer_the_edge_signature_is_the_gate() public {
         _createAndLock();
         (,,,,,,,, uint128 hostBond, uint64 settleBy,) = pool.getPoolSummary(poolId);
         assertGt(hostBond, 0);
@@ -139,6 +164,8 @@ shape: 0,
         bytes32 d = _settleDigest(plan, deadline, 1);
         bytes memory emptyHost = hex"";
 
+        // Relay from an unrelated address: permitted, because authorization is
+        // carried by edgeSig and not by msg.sender.
         vm.prank(address(0xBEEF));
         pool.settlePool(poolId, plan, deadline, 1, emptyHost, _sign(edgePk, d));
 
@@ -148,6 +175,137 @@ shape: 0,
         pool.claimMatch(poolId);
         // winner gets prize + slashed bond
         assertEq(chips.balanceOf(p1), beforeBal + prize + uint256(hostBond));
+    }
+
+    /// @dev The edge co-signature is required in BOTH modes. Without it nobody
+    /// settles — not the host, not a relayer, not after `settleBy`.
+    function test_modeB_still_requires_the_edge_signature() public {
+        _createAndLock();
+        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        vm.warp(uint256(settleBy) + 1);
+
+        MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
+        plan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        bytes32 d = _settleDigest(plan, deadline, 1);
+
+        // Authority relaying its own request, without the edge signature.
+        vm.prank(host);
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.settlePool(poolId, plan, deadline, 1, hex"", hex"");
+
+        // ...and with a signature from the wrong key.
+        vm.prank(address(0xBEEF));
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.settlePool(poolId, plan, deadline, 1, hex"", _sign(0xDEAD, d));
+    }
+
+    /// @dev A co-signature obtained for one payout plan must not settle another.
+    /// Without the plan in the digest an attacker could take a signed digest and
+    /// redirect the whole prize fund to themselves.
+    function test_edge_signature_is_bound_to_the_payout_plan() public {
+        _createAndLock();
+        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        vm.warp(uint256(settleBy) + 1);
+
+        MatchPool.Payout[] memory signedPlan = new MatchPool.Payout[](1);
+        signedPlan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        bytes32 d = _settleDigest(signedPlan, deadline, 1);
+        bytes memory sig = _sign(edgePk, d);
+
+        // Same digest, different recipient.
+        MatchPool.Payout[] memory stolen = new MatchPool.Payout[](1);
+        stolen[0] = MatchPool.Payout({addr: address(0xBAD), amount: 1860e18});
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.settlePool(poolId, stolen, deadline, 1, hex"", sig);
+
+        // Same digest, split across two winners.
+        MatchPool.Payout[] memory split = new MatchPool.Payout[](2);
+        split[0] = MatchPool.Payout({addr: p1, amount: 930e18});
+        split[1] = MatchPool.Payout({addr: p2, amount: 930e18});
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.settlePool(poolId, split, deadline, 1, hex"", sig);
+
+        // The intended plan still settles, proving the rejections above were the
+        // binding and not some unrelated failure.
+        vm.prank(address(0xBEEF));
+        pool.settlePool(poolId, signedPlan, deadline, 1, hex"", sig);
+    }
+
+    /// @dev The digest names `p.authority`. A co-signature obtained for a
+    /// different authority does not transfer to this pool.
+    function test_edge_signature_is_bound_to_the_authority() public {
+        _createAndLock();
+        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        vm.warp(uint256(settleBy) + 1);
+
+        MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
+        plan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+
+        bytes32 structHash = pool.settleStructHash(poolId, plan, deadline, 1, address(0xBEEF));
+        bytes32 d = keccak256(abi.encodePacked("\x19\x01", _sep(), structHash));
+
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.settlePool(poolId, plan, deadline, 1, hex"", _sign(edgePk, d));
+    }
+
+    /// @dev A pool that has already settled refuses a replayed co-signature.
+    ///
+    /// Named for what it actually proves: the `status != Settled` gate. An earlier
+    /// version of this test claimed to prove the nonce was single-use, but the
+    /// status check fires first — verified by deleting `p.settleNonce += 1` and
+    /// watching this test still pass. The nonce binding is pinned separately by
+    /// `test_settle_requires_the_current_nonce`.
+    function test_settled_pool_refuses_a_replayed_co_signature() public {
+        _createAndLock();
+        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        vm.warp(uint256(settleBy) + 1);
+
+        MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
+        plan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        bytes32 d = _settleDigest(plan, deadline, 1);
+        bytes memory sig = _sign(edgePk, d);
+
+        pool.settlePool(poolId, plan, deadline, 1, hex"", sig);
+
+        (uint8 statusAfter,,,,,,,,,,) = pool.getPoolSummary(poolId);
+        assertEq(statusAfter, uint8(MatchPool.Status.Settled), "pool must be Settled");
+
+        vm.expectRevert(MatchPool.BadStatus.selector);
+        pool.settlePool(poolId, plan, deadline, 1, hex"", sig);
+    }
+
+    /// @dev The nonce is bound into the digest and checked against the pool's own
+    /// counter, so a co-signature carrying a stale or invented nonce is refused
+    /// even on the first (and only) settle.
+    ///
+    /// This is the test that actually pins the nonce. Deleting the
+    /// `p.settleNonce += 1` bump leaves it passing — and that is not a gap in the
+    /// test, it is a property of the contract: `settlePool` requires status
+    /// Locked and `_applySettle` sets Settled, so a pool settles at most once and
+    /// the bumped value is never read again. The bump is inert defence-in-depth
+    /// for a hypothetical future path that re-opens settlement. What is NOT inert
+    /// is the check on line 478, and removing that does fail this test.
+    function test_settle_requires_the_current_nonce() public {
+        _createAndLock();
+        (,,,,,,,,, uint64 settleBy,) = pool.getPoolSummary(poolId);
+        vm.warp(uint256(settleBy) + 1);
+
+        MatchPool.Payout[] memory plan = new MatchPool.Payout[](1);
+        plan[0] = MatchPool.Payout({addr: p1, amount: 1860e18});
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+
+        // A signature the edge co-signed over a nonce that is not the pool's.
+        bytes32 d = _settleDigest(plan, deadline, 7);
+        vm.expectRevert(MatchPool.BadSignature.selector);
+        pool.settlePool(poolId, plan, deadline, 7, hex"", _sign(edgePk, d));
+
+        // ...and the nonce the pool expects still works.
+        bytes32 ok_ = _settleDigest(plan, deadline, 1);
+        pool.settlePool(poolId, plan, deadline, 1, hex"", _sign(edgePk, ok_));
     }
 
     function test_modeA_requires_host_sig() public {
@@ -213,7 +371,7 @@ shape: 0,
             host: host,
             seatsHash: keccak256(abi.encode(seats, colors)),
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             poolKind: 0,
             entryFee: FEE,
@@ -229,7 +387,7 @@ shape: 0,
             host: host,
             seatsHash: c.seatsHash,
             gameMode: 0,
-shape: 0,
+            shape: 0,
             maxSeats: 2,
             issuedAt: c.ticketIssuedAt
         });

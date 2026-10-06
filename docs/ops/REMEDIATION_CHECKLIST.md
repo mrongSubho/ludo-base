@@ -76,7 +76,13 @@ same mission id; all four are now gone.
 - [ ] **SEC-04** — `settle/propose` `POST`: require `wallet === pool.authority` (or an EIP-712 host proof over the same digest) **in all modes**, not just pre-window.
 - [ ] **SEC-04** — Read `prizeFund`, `hostBond`, `settleNonce` from `getPoolSummary`; ignore client amounts. Make the sum check a hard 400, not `try/catch`.
 - [ ] **SEC-04** — Require `participants` to be present and non-empty; reject empty.
-- [ ] **SEC-04** — Foundry: assert `settlePool` is not callable by a non-authority after `settleBy`. *(Note `MatchPoolSecurity.t.sol:140-141` currently pins the opposite — update it deliberately.)*
+- [x] **SEC-04 (test inversion, 2026-10-06).** `MatchPoolSecurity.t.sol` settled from `address(0xBEEF)` and asserted the payout landed, with no comment — it read as "anyone can settle a locked pool", which is the exact false conclusion the checklist warned about. Rewritten deliberately rather than deleted.
+
+  What is actually true: `settlePool` has **no `msg.sender` check** by design. Authorization *is* the edge co-signature (`_recover(d, edgeSig) != edgeSigner`); Mode A also requires the host's own signature, and Mode B (after `settleBy`) exists precisely for a host that withholds it. `msg.sender` is a free choice because the **server** refuses to co-sign for anyone but the on-chain authority — `requireAuthority` in `lib/poolAuthority.ts`, asserted in `scripts/pool-authority.test.ts`. That server check is the authority gate; the contract deliberately is not.
+
+  Five tests now pin that model, each verified sensitive by reverting the contract and confirming the failure: the edge signature is required in both modes (including from the authority itself, and from a wrong signer), and the digest binds the payout plan, the authority, and the nonce — so a co-signature cannot be redirected, re-pointed, or carried to another authority.
+
+  One honest exception: removing `p.settleNonce += 1` breaks **no** test, and that is a property of the contract rather than a gap in the suite — `settlePool` requires status Locked and `_applySettle` sets Settled, so a pool settles at most once and the bumped value is never read again. The bump is inert defence-in-depth; the *check* on line 478 is not, and removing it does fail `test_settle_requires_the_current_nonce`. Documented in the test rather than papered over.
 - [ ] **SEC-06** — Require a wallet signature or an app session bound to `participants[0]` on `POST /api/match/start`.
 - [ ] **SEC-05** — One `SECURITY DEFINER` RPC for bet placement: debit `players.coins` (`UPDATE … WHERE coins >= p_amount`) in the same transaction, require `live_matches.bet_window_status='open'`, read `window_closed_at` from that row, validate `bet_type`/`bet_value` against the declared window. Reject the raw insert path.
 - [ ] **SEC-05** — Restore the `NOW() > window_closed_at` guard and the payout join from `migrations_archive/20260325_bet_resolution.sql:21-46`.
