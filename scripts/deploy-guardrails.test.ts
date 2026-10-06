@@ -170,6 +170,32 @@ test('the edge signer is not a well-known dev key', () => {
     assert.equal(r.code, 0, 'declared EDGE_SIGNER must pass the dev-key guard');
 });
 
+test('shell constructs used by the deploy helper are bash 3.2 safe', () => {
+    // macOS ships bash 3.2, where "${arr[@]}" on an EMPTY array trips `set -u`
+    // ("unbound variable") and "${var,,}" is a syntax error. Both appeared in
+    // this helper and broke the dry run and the closing hint respectively.
+    const src = read('scripts/foundry-deploy.sh');
+    const devKeys = read('scripts/lib-dev-keys.sh');
+    for (const [name, s] of [['foundry-deploy.sh', src], ['lib-dev-keys.sh', devKeys]] as const) {
+        assert.doesNotMatch(s, /\$\{[a-zA-Z_]+,,/, `${name} must not use bash-4 case expansion`);
+        // Every command-position array expansion must use the +"${a[@]}" form.
+        // A `for x in "${a[@]}"` header is fine (bash 3.2 allows an empty array
+        // there), so those lines are excluded.
+        const unguarded = s
+            .split('\n')
+            .filter((l) => !/^\s*for\b/.test(l))
+            .flatMap((l) => l.match(/(?<!\+)"\$\{[a-zA-Z_]+\[@\]\}"/g) ?? []);
+        assert.equal(unguarded.length, 0, `${name} has unguarded empty-array expansion: ${unguarded}`);
+    }
+
+    // And the actual behaviour: a dry run must not print bash diagnostics.
+    const r = bash('scripts/foundry-deploy.sh sepolia-pool', {
+        FOUNDRY_ACCOUNT: 'definitely-not-a-keystore',
+    });
+    assert.doesNotMatch(r.out, /unbound variable/);
+    assert.doesNotMatch(r.out, /bad substitution/);
+});
+
 test('the edge signer private key lives only in gitignored env files', () => {
     // EDGE_SETTLE_PRIVATE_KEY co-signs settlement digests. It must never be
     // committed, and the two env files holding it must stay ignored.

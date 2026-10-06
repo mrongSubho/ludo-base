@@ -45,7 +45,7 @@ require_env() {
 # "just checking" run), and `forge script --broadcast` will happily spend real
 # ETH on whatever is in contracts/.env at that moment.
 redeploy_pool() {
-  local rpc="$1" network="$2"
+  local rpc="$1" network="$2" verify_verb="${3:-}"
   require_env CHIPS_ADDRESS EDGE_SIGNER GAME_OWNER DEPLOYER_ADDRESS
   # Bail out rather than deploy MockChips-style test contracts to a live chain.
   if [[ "${USE_MOCK:-false}" == "true" ]]; then
@@ -79,18 +79,18 @@ redeploy_pool() {
   forge script script/RedeployPool.s.sol:RedeployPool \
     --rpc-url "$rpc" \
     --account "$ACCOUNT" \
-    "${broadcast[@]}" \
-    "${VERIFY_FLAG[@]}"
+    ${broadcast[@]+"${broadcast[@]}"} \
+    ${VERIFY_FLAG[@]+"${VERIFY_FLAG[@]}"}
 
   echo
   if [[ ${#broadcast[@]} -eq 0 ]]; then
     echo "Simulation only — no transaction was sent."
     echo "Check the output above, then re-run with LUDO_CONFIRM_DEPLOY=yes to broadcast:"
-    echo "  LUDO_CONFIRM_DEPLOY=yes FOUNDRY_ACCOUNT=$ACCOUNT scripts/foundry-deploy.sh ${network,,}-pool"
+    echo "  LUDO_CONFIRM_DEPLOY=yes FOUNDRY_ACCOUNT=$ACCOUNT scripts/foundry-deploy.sh ${verify_verb}"
   else
     echo "Verify the line above reads 'setClaimHub: done in this transaction'."
     echo "If it says SKIPPED, run setClaimHub from $GAME_OWNER."
-    echo "Then: scripts/verify-contracts.sh ${network,,}"
+    echo "Then: scripts/verify-contracts.sh ${verify_verb/sepolia-pool/sepolia}"
   fi
 }
 
@@ -192,14 +192,14 @@ case "$cmd" in
     forge script script/DeployStack.s.sol \
       --rpc-url "${SEPOLIA_RPC:-https://sepolia.base.org}" \
       --account "$ACCOUNT" \
-      "${broadcast[@]}" \
-      "${VERIFY_FLAG[@]}"
+      ${broadcast[@]+"${broadcast[@]}"} \
+      ${VERIFY_FLAG[@]+"${VERIFY_FLAG[@]}"}
     ;;
   sepolia-pool)
-    redeploy_pool "${SEPOLIA_RPC:-https://sepolia.base.org}" "Sepolia"
+    redeploy_pool "${SEPOLIA_RPC:-https://sepolia.base.org}" "Sepolia" "sepolia-pool"
     ;;
   base-pool)
-    redeploy_pool "${BASE_RPC:-https://mainnet.base.org}" "Base"
+    redeploy_pool "${BASE_RPC:-https://mainnet.base.org}" "Base" "base-pool"
     ;;
   *)
     cat <<EOF
