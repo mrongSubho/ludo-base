@@ -23,23 +23,65 @@ ANVIL_DEFAULT_KEYS=(
   0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6 # anvil #9
 )
 
+# The addresses those keys derive to. Written out rather than computed at call
+# time, and that is the whole point of this file's second half.
+#
+# The guard used to derive these with `cast wallet address`, skipping any key
+# where cast failed. That is fail-open: on a machine or CI runner without
+# foundry installed, every derivation failed, every key was skipped, and the
+# guard returned success — i.e. it happily approved an anvil key for Base
+# Sepolia. It refused to do its job precisely when the tooling was missing.
+#
+# The addresses are deterministic and public, so they need no tooling at all.
+# Derivation is kept as a *belt-and-braces* second check for when cast happens to
+# be present, but it is never load-bearing and its absence is not an error.
+ANVIL_DEFAULT_ADDRESSES=(
+  0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 # anvil #0
+  0x70997970C51812dc3A010C7d01b50e0d17dc79C8 # anvil #1
+  0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC # anvil #2
+  0x90F79bf6EB2c4f870365E785982E1f101E93b906 # anvil #3
+  0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 # anvil #4
+  0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc # anvil #5
+  0x976EA74026E726554dB657fA54763abd0C3a0aa9 # anvil #6
+  0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 # anvil #7
+  0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f # anvil #8
+  0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 # anvil #9
+)
+
 # Refuse to proceed when an address is a known dev key and the target is a live
 # network. Intentionally addresses-only: comparing derived addresses catches the
 # case where someone puts the key in a keystore or a config file rather than on
 # a command line.
 assert_not_dev_key_on_live_network() {
   local address="$1" network="$2"
-  local derived
-  for key in "${ANVIL_DEFAULT_KEYS[@]}"; do
-    derived=$(cast wallet address --private-key "$key" 2>/dev/null) || continue
-    local d_lc a_lc lc
-    lc=$(printf '%s' "$derived" | tr '[:upper:]' '[:lower:]')
-    a_lc=$(printf '%s' "$address" | tr '[:upper:]' '[:lower:]')
+  local a_lc derived lc
+  a_lc=$(printf '%s' "$address" | tr '[:upper:]' '[:lower:]')
+
+  # Primary check: the precomputed list. No external tooling, cannot fail open.
+  for known in "${ANVIL_DEFAULT_ADDRESSES[@]}"; do
+    lc=$(printf '%s' "$known" | tr '[:upper:]' '[:lower:]')
     if [[ "$lc" == "$a_lc" ]]; then
       echo "REFUSING: $address is a well-known dev key (anvil default mnemonic) and cannot" >&2
       echo "  be used on $network. Anyone can sign as it. Use a funded keystore instead." >&2
       return 1
     fi
   done
+
+  # Secondary check: re-derive from the keys, when cast is available. Guards
+  # against the address list drifting out of sync with the key list. A missing
+  # or failing cast is not an error and not a reason to allow anything.
+  if command -v cast >/dev/null 2>&1; then
+    for key in "${ANVIL_DEFAULT_KEYS[@]}"; do
+      derived=$(cast wallet address --private-key "$key" 2>/dev/null) || continue
+      [[ -z "$derived" ]] && continue
+      lc=$(printf '%s' "$derived" | tr '[:upper:]' '[:lower:]')
+      if [[ "$lc" == "$a_lc" ]]; then
+        echo "REFUSING: $address is a well-known dev key (anvil default mnemonic) and cannot" >&2
+        echo "  be used on $network. Anyone can sign as it. Use a funded keystore instead." >&2
+        return 1
+      fi
+    done
+  fi
+
   return 0
 }

@@ -46,6 +46,41 @@ test('the dev-key guard refuses an anvil address on a live network', () => {
     }
 });
 
+test('the dev-key guard still refuses when foundry is not installed', () => {
+    // Regression, and the reason CI was red while this suite passed locally.
+    // The guard used to derive each dev address with `cast` and `continue` past
+    // any failure. On a runner without foundry every derivation failed, every key
+    // was skipped, and the guard returned 0 — approving an anvil key for Base
+    // Sepolia. The refusal must not depend on optional tooling being present.
+    const bare = '/usr/bin:/bin';
+    if (execFileSync('bash', ['-c', `command -v cast || true`], {
+        cwd: root, encoding: 'utf8', env: { ...process.env, PATH: bare },
+    }).trim() !== '') {
+        return; // cannot build a foundry-free PATH here; the assertion below is
+                // the real guard anyway.
+    }
+    for (const dev of [DEV0, DEV1]) {
+        const r = bash(
+            `source scripts/lib-dev-keys.sh; assert_not_dev_key_on_live_network ${dev} "Base Sepolia"`,
+            { PATH: bare },
+        );
+        assert.equal(r.code, 1, `${dev} must be refused even with no foundry`);
+        assert.match(r.out, /REFUSING/);
+    }
+    // And the list must not be a placeholder that only the cast path can populate.
+    const lib = read('scripts/lib-dev-keys.sh');
+    assert.match(lib, /ANVIL_DEFAULT_ADDRESSES=/);
+    const aStart = lib.indexOf('ANVIL_DEFAULT_ADDRESSES=(');
+    const listed = lib.slice(aStart, lib.indexOf(')', aStart));
+    for (const dev of [DEV0, DEV1]) {
+        assert.ok(listed.toLowerCase().includes(dev.toLowerCase()), `${dev} must be listed as a known address`);
+    }
+    const kStart = lib.indexOf('ANVIL_DEFAULT_KEYS=(');
+    const keyCount = lib.slice(kStart, lib.indexOf(')', kStart)).split('0x').length - 1;
+    const addrCount = listed.split('0x').length - 1;
+    assert.equal(addrCount, keyCount, 'key and address lists must stay the same length');
+});
+
 test('the dev-key guard allows a real address', () => {
     for (const addr of [NEW_EDGE, OWNER]) {
         const r = bash(

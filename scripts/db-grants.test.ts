@@ -45,7 +45,9 @@ const NOT_GRANTED: Record<string, string> = {
         'stops it. Making it work needs a per-player policy — DB-27.',
     game_invites:
         'subscribed via postgres_changes but has no RLS policy, and the row carries ' +
-        'validation_token. Making it work needs a guest_address-scoped policy — DB-27.',
+        'validation_token. Removed from the supabase_realtime publication by DB-27 ' +
+        'rather than given a policy: nothing subscribes to it, and the invite secret ' +
+        'is delivered by the join route response instead.',
 };
 
 /**
@@ -233,5 +235,59 @@ test('every allowlisted table still has RLS enabled', () => {
     assert.ok(block, 'could not locate the baseline RLS loop');
     for (const t of ALLOWLIST) {
         assert.ok(block[1].includes(`'${t}'`), `${t} must have RLS enabled in the baseline`);
+    }
+});
+
+/**
+ * DB-10 — `live_matches` is column-scoped, not table-scoped.
+ *
+ * `live_matches_public_read` is `using (true)`, so a table-wide SELECT grant
+ * publishes every column in the row. That included `join_secret_hash`,
+ * `arena_key`, `authority_id` and `host_address` to the anon key. A test that
+ * only checks "is live_matches granted?" would have passed while all four were
+ * readable, so this asserts the column list.
+ */
+const LIVE_MATCHES_COLUMNS = [
+    'match_id',
+    'room_code',
+    'bet_window_status',
+    'spectator_count',
+    'current_bet_type',
+    'created_at',
+];
+
+const LIVE_MATCHES_SECRETS = ['join_secret_hash', 'arena_key', 'authority_id', 'host_address'];
+
+test('DB-10: live_matches is granted column-wise, and no secret column is in it', () => {
+    const migration =
+        'supabase/migrations/202609300015_live_matches_column_scope.sql';
+    const sql = readRoot(migration);
+
+    assert.match(sql, /revoke select on public\.live_matches from anon, authenticated/);
+    const granted = sql.slice(
+        sql.indexOf('grant select (') + 'grant select ('.length,
+        sql.indexOf(') on public.live_matches'),
+    );
+    const columns = granted
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+
+    for (const c of LIVE_MATCHES_COLUMNS) {
+        assert.ok(columns.includes(c), `${c} must stay readable by spectators`);
+    }
+    for (const c of LIVE_MATCHES_SECRETS) {
+        assert.ok(
+            !columns.includes(c),
+            `${c} must not be readable by a spectator — live_matches_public_read is using(true)`,
+        );
+    }
+    // Every granted column has to be one the client actually selects. A column
+    // that is public but unread is the next audit's problem.
+    const client = clientFiles()
+        .map((f) => readRoot(f))
+        .join('\n');
+    for (const c of columns) {
+        assert.ok(client.includes(c), `${c} is granted but no client reads it`);
     }
 });
