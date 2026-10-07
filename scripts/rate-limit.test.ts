@@ -223,15 +223,32 @@ test('middleware.ts exists and matches /api broadly', () => {
     assert.doesNotMatch(src, /limit:\s*\d/, 'limits belong in the table, not the middleware');
 });
 
-test('the ALLOWED path sets response headers, not just request headers', () => {
+test('the ALLOWED path sets response headers and never rewrites the request', () => {
     // Found in production: an allowed /api/farcaster returned no X-RateLimit-*
-    // at all, because `NextResponse.next({ request: { headers } })` sets only
-    // the request headers. A client cannot back off from a limit it never sees.
+    // at all, because the middleware only set request headers. A client cannot
+    // back off from a limit it never sees.
+    //
+    // The first fix went too far the other way: `NextResponse.next({ request:
+    // { headers } })` to keep "both sides". No handler ever read the request
+    // side — and in Vercel's production runtime the rewritten request arrives
+    // with an EMPTY BODY, so every rate-limited POST (siwe/verify, presence,
+    // live-chat, matchmaking/join, matchmaking/cancel) 500'd inside
+    // request.json() in prod while passing locally and in CI. Verified live:
+    // POST {} to /api/presence returned "Unexpected end of JSON input" while
+    // exempt /api/lobby/policy parsed the identical body. So the request must
+    // pass through untouched; the budget travels on the response alone.
     const src = read('middleware.ts');
     const okBranch = src.slice(src.indexOf('if (verdict.ok)'), src.indexOf('if (!verdict.ok)'));
     assert.match(okBranch, /res\.headers\.set\(/, 'the response must carry the budget');
     assert.match(okBranch, /res\.headers\.set\('X-RateLimit-Limit'/, 'including the limit itself');
-    assert.match(okBranch, /NextResponse\.next\(\{ request: \{ headers \} \}\)/, 'and the request side is kept');
+    // Strip line comments first: the comment above documents the forbidden
+    // pattern by name, and matching it would prove nothing.
+    const code = okBranch.replace(/\/\/.*$/gm, '');
+    assert.doesNotMatch(
+        code,
+        /NextResponse\.next\(\{\s*request:/,
+        'the request must not be rewritten or prod loses the body',
+    );
 });
 
 test('the key unauthenticated spenders are limited', () => {

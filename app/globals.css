@@ -7518,6 +7518,14 @@ body.theme-daybreak .cb-mode-pill {
   color: #fbbf24;
   font-size: 12px;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cb-banner .cb-link {
+  flex-shrink: 0;
+  font-weight: 700;
 }
 body.theme-daybreak .cb-banner {
   color: #b45309;

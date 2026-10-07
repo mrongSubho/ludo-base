@@ -70,7 +70,7 @@ function WalletRow({
 }
 
 export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProps) {
-    const { connect, connectors } = useConnect();
+    const { connect, connectors, error: connectError, isPending: connectPending } = useConnect();
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
     const [mounted, setMounted] = useState(false);
@@ -104,21 +104,41 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
         }
     }, [isOpen, isSignedIn, currentUser, onClose]);
 
-    /** Must run synchronously in onClick — no await before connect(). */
+    /** Must run synchronously in onClick — no await before connect().
+     * Mode flips to external only after connect succeeds: writing it in the
+     * click handler strands in-game users in a disconnected external slot
+     * when the popup is dismissed or fails. */
     const handleSignInWithBase = (e: React.MouseEvent) => {
         e.preventDefault();
-        writeWalletMode('external');
         const baseConn =
             connectors.find((c) => c.id === 'baseAccount' || c.type === 'baseAccount') ||
             connectors.find((c) => c.name.toLowerCase().includes('coinbase'));
         if (baseConn) {
-            connect({ connector: baseConn });
+            connect({ connector: baseConn }, { onSuccess: () => writeWalletMode('external') });
         }
     };
 
     const handleConnect = (connector: Connector) => {
-        writeWalletMode('external');
-        connect({ connector });
+        connect(
+            { connector },
+            {
+                onSuccess: () => writeWalletMode('external'),
+                onError: () => {
+                    // Desktop fallback: the MetaMask SDK connector can fail
+                    // where the raw injected provider works (and vice versa).
+                    // Retry once through injected before surfacing the error.
+                    if (typeof window === 'undefined') return;
+                    const eth = (window as unknown as { ethereum?: unknown }).ethereum;
+                    if (!eth || connector.id === 'injected') return;
+                    const injectedConn = connectors.find((c) => c.id === 'injected');
+                    if (!injectedConn) return;
+                    connect(
+                        { connector: injectedConn },
+                        { onSuccess: () => writeWalletMode('external') },
+                    );
+                },
+            },
+        );
     };
 
     const getWalletIcon = (connector: Connector) => {
@@ -251,6 +271,16 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     icon={getWalletIcon(phantomConnector)}
                                     onClick={() => handleConnect(phantomConnector)}
                                 />
+                            )}
+                            {connectPending && (
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--modal-muted, rgba(255,255,255,0.55))', textAlign: 'center' }}>
+                                    Waiting for wallet approval…
+                                </p>
+                            )}
+                            {connectError && !connectPending && (
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#f87171', textAlign: 'center' }} role="alert">
+                                    Connection failed: {connectError.message?.split('\n')[0] || 'unknown error'} Tap the wallet again to retry.
+                                </p>
                             )}
                         </div>
 

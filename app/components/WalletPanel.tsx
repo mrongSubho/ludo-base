@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { formatUnits } from "viem";
+import { useCurrentUser, useIsSignedIn } from "@coinbase/cdp-hooks";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useWalletMode } from "@/hooks/useWalletMode";
 import { useNetworkLabel } from "@/hooks/useNetworkLabel";
 import { useWalletActivity } from "@/hooks/useWalletActivity";
+import { resolvePlayerIdentity } from "@/lib/playerIdentity";
+import { writeWalletMode } from "@/lib/walletMode";
 import SendTokenSheet from "./SendTokenSheet";
 import ReceiveSheet from "./ReceiveSheet";
 import WalletActivityList from "./WalletActivityList";
@@ -127,6 +130,14 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
     const { items: activity } = useWalletActivity();
     const [screen, setScreen] = useState<Screen>("home");
     const [copied, setCopied] = useState(false);
+    const { isSignedIn } = useIsSignedIn();
+    const { currentUser } = useCurrentUser();
+
+    // Rescue: mode flipped to external (e.g. dismissed connect popup) while a
+    // live CDP in-game wallet exists. Offer one-tap switch-back instead of a
+    // dead external slot with no address.
+    const cdpSmart = resolvePlayerIdentity(currentUser).cdpSmartAccount;
+    const showIngameRescue = mode === "external" && !address && isSignedIn && Boolean(cdpSmart);
 
     // H2 — CHIPS never priced into USD total.
     const usdTotal = useMemo(() => Number(formatUnits(usdc ?? BigInt(0), 6)), [usdc]);
@@ -232,6 +243,19 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                 {needsReconnect && (
                     <div className="cb-banner">
                         Session expired — reconnect to restore in-game wallet. External wallets stay connected.
+                    </div>
+                )}
+
+                {showIngameRescue && (
+                    <div className="cb-banner">
+                        <span>In-game wallet found — switch back to see your address and CHIPS.</span>
+                        <button
+                            type="button"
+                            className="cb-link"
+                            onClick={() => writeWalletMode("ingame")}
+                        >
+                            Switch to in-game
+                        </button>
                     </div>
                 )}
 

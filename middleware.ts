@@ -35,18 +35,20 @@ export function middleware(request: NextRequest) {
     const verdict = checkRateLimit(key, rule.limit, rule.windowMs);
 
     if (verdict.ok) {
-        const headers = new Headers(rateLimitHeaders(verdict));
-        headers.set('X-RateLimit-Limit', String(rule.limit));
-
-        // Both sides, and they are not the same thing:
-        //   request  — the handler can pre-empt rather than discover the limit at
-        //              the database.
-        //   response — the CALLER can see its remaining budget. Verified missing
-        //              in production: an allowed `/api/farcaster` returned no
-        //              X-RateLimit-* at all, because `NextResponse.next({request:
-        //              {headers}})` only sets request headers. A client cannot
-        //              back off from a limit it cannot see coming.
-        const res = NextResponse.next({ request: { headers } });
+        // Response headers ONLY — never override the request.
+        //
+        // An earlier version did `NextResponse.next({ request: { headers } })`
+        // so a handler could read its own budget off the request. No handler
+        // ever did — and in Vercel's production runtime the rewritten request
+        // arrives with an EMPTY BODY. Every rate-limited POST (siwe/verify,
+        // presence, live-chat, matchmaking/join, matchmaking/cancel) then
+        // 500'd inside request.json() in prod while passing locally and in CI:
+        // verified live, POST {} to /api/presence returned
+        // {"error":"Unexpected end of JSON input"} while /api/lobby/policy
+        // (exempt, plain next()) parsed the identical body. Plain next() leaves
+        // the caller's headers and body untouched, which is also what keeps
+        // x-vercel-ip-country and webhook signatures intact downstream.
+        const res = NextResponse.next();
         for (const [k, v] of Object.entries(rateLimitHeaders(verdict))) {
             res.headers.set(k, v);
         }
