@@ -404,3 +404,46 @@ test('CRY-02: peer-supplied metadata is not spread into a rendered message', () 
     assert.match(src, /sender_id: senderWallet/);
     assert.match(src, /receiver_id: address\.toLowerCase\(\)/);
 });
+
+// ── CDP MFA bridge: silent-hang fix (found live 2026-10-07) ─────────────────
+// CDP's withMfa awaits a deferred that only a fully-completed verifyPasskey
+// settles. The bridge swallowed every failure (`catch {}`), left `busy` set,
+// and the UI sat on "sending" forever with nothing in any log — while the
+// browser never even showed a prompt (uvpaa=false, PASSKEY_NOT_SUPPORTED
+// before any UI). Every retry hit `busy` and was dropped: a permanent silent
+// signing outage surviving everything but a reload.
+
+test('CDP MFA bridge never swallows a verification failure', () => {
+    const src = read('app/components/CdpMfaBridge.tsx');
+    // A loud error naming the subsystem, not a bare catch.
+    assert.match(src, /console\.error\(['"]\[cdp-mfa\]/);
+    // The attempt is bounded: a ceremony that never prompts must not park.
+    // Assert USE, not existence — the constant and helper existing while the
+    // call site awaits bare verifyPasskeyAsync() is the exact regression.
+    assert.match(src, /await withMfaTimeout\(\s*verifyPasskeyAsync\(\)/);
+    assert.match(src, /MFA_VERIFY_TIMEOUT_MS = 45_000/);
+    // `busy` resets on every path, or one stall poisons all retries.
+    const finallyBlock = src.slice(src.indexOf('finally'));
+    assert.match(finallyBlock, /busy\.current = false/);
+});
+
+test('CDP MFA bridge timeout fires before the sign-level timeout', () => {
+    // If the bridge outlived the sign attempt, the busy flag would still be
+    // set when the user retries after the sign error surfaces.
+    const bridge = read('app/components/CdpMfaBridge.tsx');
+    const hook = read('hooks/useAppSession.ts');
+    const bridgeMs = Number(bridge.match(/MFA_VERIFY_TIMEOUT_MS = ([\d_]+)/)?.[1].replace(/_/g, ''));
+    const signMs = Number(hook.match(/SIGN_TIMEOUT_MS = ([\d_]+)/)?.[1].replace(/_/g, ''));
+    assert.ok(bridgeMs > 0 && signMs > 0, 'both timeouts must be declared');
+    assert.ok(bridgeMs < signMs, `bridge (${bridgeMs}ms) must fire before sign (${signMs}ms)`);
+});
+
+test('SIWE sign step is bounded so a parked signer cannot hang the UI', () => {
+    const src = read('hooks/useAppSession.ts');
+    assert.match(src, /SIGN_TIMEOUT_MS = 60_000/);
+    // Same rule as the bridge: the wrapper must be USED at the sign call
+    // site, not merely defined.
+    assert.match(src, /await withSignTimeout\(\s*\n?\s*signMessageAsync\(/);
+    assert.match(src, /stage=wallet-sign-start/);
+    assert.match(src, /stage=wallet-sign-done/);
+});

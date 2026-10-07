@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
-import { readWalletMode, writeWalletMode, type WalletMode } from "@/lib/walletMode";
+import { useWalletMode } from "@/hooks/useWalletMode";
+import { writeWalletMode, type WalletMode } from "@/lib/walletMode";
 import { buildWalletLinkMessage } from "@/lib/walletLink";
 import { useWalletSigner } from "@/hooks/useWalletSigner";
 import { useAppSession } from "@/hooks/useAppSession";
@@ -63,7 +64,7 @@ export default function WalletLinkPanel() {
     const [linkedAddr, setLinkedAddr] = useState("");
     const [hasLinked, setHasLinked] = useState(false);
 
-    const mode = readWalletMode();
+    const mode = useWalletMode();
 
     // External is only playable after a successful two-sig link.
     const refreshLinks = useCallback(async () => {
@@ -159,16 +160,17 @@ export default function WalletLinkPanel() {
                     <ModeChip
                         active={mode === "ingame"}
                         label="In-game"
-                        hint="CDP smart · Ludo UI"
+                        hint={player.ingameLive ? "CDP smart · Ludo UI" : "Sign in to unlock"}
+                        disabled={!player.ingameLive}
                         onClick={() => switchMode("ingame")}
                     />
                     <ModeChip
-                        active={(mode === "external" || !mode) && hasLinked}
+                        active={mode === "external"}
                         label="External"
-                        hint={hasLinked ? "Base · MetaMask · Phantom" : "Link a wallet to unlock"}
-                        disabled={!hasLinked}
+                        hint={!player.externalLive ? "Connect a wallet to unlock" : hasLinked ? "Base · MetaMask · Phantom" : "Link a wallet to unlock"}
+                        disabled={!hasLinked || !player.externalLive}
                         onClick={() => {
-                            if (!hasLinked) return;
+                            if (!hasLinked || !player.externalLive) return;
                             switchMode("external");
                         }}
                     />

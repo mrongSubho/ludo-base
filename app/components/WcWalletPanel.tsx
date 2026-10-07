@@ -141,7 +141,7 @@ export default function WcWalletPanel() {
                     setProposals((p) => p.filter((x) => x.id !== id));
                     return;
                 }
-                const approve = buildApproveSession(proposal, [address], player.mode);
+                const approve = buildApproveSession(proposal, [address], player.mode ?? "external");
                 await kit.approveSession(approve as never);
                 setProposals((p) => p.filter((x) => x.id !== id));
                 setMsg("Session approved");

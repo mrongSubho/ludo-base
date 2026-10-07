@@ -10,6 +10,22 @@ import { readSecurityPrefs } from '@/hooks/useSecurityPrefs';
 
 const STORAGE_KEY = 'ludo-siwe-session';
 
+/** Bound for one wallet-sign attempt (see the sign callback below). */
+const SIGN_TIMEOUT_MS = 60_000;
+
+function withSignTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+            () => reject(new Error(`sign-timeout: wallet did not return a signature within ${ms}ms`)),
+            ms,
+        );
+    });
+    return Promise.race([p, timeout]).finally(() => {
+        if (timer !== undefined) clearTimeout(timer);
+    }) as Promise<T>;
+}
+
 type Stored = { sessionId: string; wallet: string; expiresAt: string };
 
 /**
@@ -85,6 +101,7 @@ export function useAppSession() {
                 // CDP/background message sign (security prefs).
                 if (!readSecurityPrefs().autoSign && typeof window !== "undefined" && window.PublicKeyCredential) {
                     try {
+                        console.error('[siwe-sign] stage=biometrics-prompt');
                         const ch = crypto.getRandomValues(new Uint8Array(32));
                         await navigator.credentials.get({
                             publicKey: {
@@ -94,6 +111,7 @@ export function useAppSession() {
                                 timeout: 60_000,
                             },
                         });
+                        console.error('[siwe-sign] stage=biometrics-done');
                     } catch {
                         return Promise.reject(new Error("Device biometrics required to sign in"));
                     }
@@ -107,7 +125,16 @@ export function useAppSession() {
                 // the allowlist and rebuilds the identical text.
                 const chainId = parseChainId(walletChainId) ?? DEFAULT_CHAIN_ID;
                 const message = buildSiweMessage({ domain, address, issuedAt, expirationTime, nonce, chainId });
-                const signature = await signMessageAsync({ account: address as `0x${string}`, message });
+                // A parked signer used to hang this promise forever: no CDP
+                // popup, no error, UI stuck on "sending" with zero feedback and
+                // nothing in any log. Bound it so a stall surfaces as a loud,
+                // retryable error carrying the stage it died in.
+                console.error('[siwe-sign] stage=wallet-sign-start');
+                const signature = await withSignTimeout(
+                    signMessageAsync({ account: address as `0x${string}`, message }),
+                    SIGN_TIMEOUT_MS,
+                );
+                console.error('[siwe-sign] stage=wallet-sign-done');
                 return {
                     signature: signature as string,
                     body: { domain, address, nonce, issuedAt, expirationTime, signature, message, chainId },

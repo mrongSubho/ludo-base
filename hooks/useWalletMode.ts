@@ -1,16 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { readWalletMode, subscribeWalletMode, type WalletMode } from "@/lib/walletMode";
+import { useSyncExternalStore } from "react";
+import { useAccount } from "wagmi";
+import { useCurrentUser } from "@coinbase/cdp-hooks";
+import {
+    readWalletMode,
+    resolveActiveMode,
+    subscribeWalletMode,
+    type WalletMode,
+} from "@/lib/walletMode";
 
-/** Reactive wallet mode (external | ingame) for wallet surfaces. */
-export function useWalletMode(): WalletMode {
-    const [mode, setMode] = useState<WalletMode>(() => readWalletMode() ?? "external");
-    useEffect(() => {
-        setMode(readWalletMode() ?? "external");
-        return subscribeWalletMode(() => setMode(readWalletMode() ?? "external"));
-    }, []);
-    return mode;
+/**
+ * Reactive **resolved** wallet mode (external | ingame | null).
+ * Live connection state wins; the stored `ludo-wallet-mode` is only the
+ * tiebreaker when both sources are live. Null = nothing connected.
+ */
+export function useWalletMode(): WalletMode | null {
+    const stored = useSyncExternalStore(subscribeWalletMode, readWalletMode, () => null);
+    const { address: externalAddress } = useAccount();
+    const { currentUser } = useCurrentUser();
+    const smart = currentUser?.evmSmartAccountObjects?.[0]?.address;
+    return resolveActiveMode(stored, {
+        ingame: Boolean(smart),
+        external: Boolean(externalAddress),
+    });
 }
 
 export type { WalletMode };
