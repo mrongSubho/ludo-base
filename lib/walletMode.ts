@@ -1,6 +1,6 @@
 /**
  * Wallet mode for dual-path (SMART_WALLET_PLANNING.md).
- * 'external' — Base / MM / Phantom (wagmi)
+ * 'external' — Base / MM / Phantom / WalletConnect (wagmi)
  * 'ingame'   — CDP Smart Account (in-game wallet)
  */
 

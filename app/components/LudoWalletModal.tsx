@@ -31,6 +31,18 @@ const WALLET_ICONS: Record<string, React.ReactNode> = {
             <circle cx="24" cy="24" r="5" fill="#0052ff" />
         </svg>
     ),
+    walletconnect: (
+        <svg viewBox="0 0 24 24" style={{ width: '22px', height: '22px' }} fill="none" aria-hidden>
+            <path
+                d="M5.2 9.8c3.75-3.7 9.85-3.7 13.6 0l.95.94a.75.75 0 0 1 0 1.06l-1.3 1.28a.38.38 0 0 1-.54 0l-1.32-1.3a6.3 6.3 0 0 0-9.18 0l-1.32 1.3a.38.38 0 0 1-.54 0l-1.3-1.28a.75.75 0 0 1 0-1.06l.95-.94Z"
+                fill="#3B99FC"
+            />
+            <path
+                d="m8.1 14.1 1.35-1.32a.38.38 0 0 1 .54 0l1.04 1.02a1.38 1.38 0 0 0 1.94 0l1.04-1.02a.38.38 0 0 1 .54 0l1.35 1.32a.38.38 0 0 1 0 .54l-1.93 1.9a2.8 2.8 0 0 1-3.94 0l-1.93-1.9a.38.38 0 0 1 0-.54Z"
+                fill="#3B99FC"
+            />
+        </svg>
+    ),
     email: (
         <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="5" width="18" height="14" rx="3" />
@@ -154,6 +166,9 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
 
     const metamaskConnector = connectors.find((c) => c.name.toLowerCase().includes('metamask'));
     const phantomConnector = connectors.find((c) => c.name.toLowerCase().includes('phantom'));
+    const walletConnectConnector = connectors.find(
+        (c) => c.id.toLowerCase().includes('walletconnect') || c.name.toLowerCase().includes('walletconnect'),
+    );
 
     return (
         <AnimatePresence>
@@ -270,6 +285,14 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     label="Phantom"
                                     icon={getWalletIcon(phantomConnector)}
                                     onClick={() => handleConnect(phantomConnector)}
+                                />
+                            )}
+                            {walletConnectConnector && (
+                                <WalletRow
+                                    label="WalletConnect"
+                                    hint="Connect with 500+ wallets"
+                                    icon={WALLET_ICONS.walletconnect}
+                                    onClick={() => handleConnect(walletConnectConnector)}
                                 />
                             )}
                             {connectPending && (

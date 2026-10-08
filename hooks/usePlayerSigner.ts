@@ -18,7 +18,7 @@ async function disconnectedSigner(): Promise<`0x${string}`> {
 
 /**
  * Active-mode signer (SMART_WALLET_PLANNING §4).
- * External = wagmi (Base/MM/Phantom). In-game = CDP parent Smart Account.
+ * External = wagmi (Base/MM/Phantom/WalletConnect). In-game = CDP parent Smart Account.
  * Identity = parent/smart only — never owner EOA / sub.
  *
  * `mode` is **resolved, not stored**: live connection state wins and the
