@@ -130,7 +130,12 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
         }
     };
 
-    const handleConnect = (connector: Connector) => {
+    const handleConnect = (connector: Connector | undefined) => {
+        if (!connector) {
+            // Keep the option visible even when a local build was started
+            // without a usable WalletConnect project id.
+            return;
+        }
         connect(
             { connector },
             {
@@ -287,14 +292,16 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     onClick={() => handleConnect(phantomConnector)}
                                 />
                             )}
-                            {walletConnectConnector && (
-                                <WalletRow
-                                    label="WalletConnect"
-                                    hint="Connect with 500+ wallets"
-                                    icon={WALLET_ICONS.walletconnect}
-                                    onClick={() => handleConnect(walletConnectConnector)}
-                                />
-                            )}
+                            <WalletRow
+                                label="WalletConnect"
+                                hint={
+                                    walletConnectConnector
+                                        ? "Connect with 500+ wallets"
+                                        : "Set NEXT_PUBLIC_WC_PROJECT_ID and restart localhost"
+                                }
+                                icon={WALLET_ICONS.walletconnect}
+                                onClick={() => handleConnect(walletConnectConnector)}
+                            />
                             {connectPending && (
                                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--modal-muted, rgba(255,255,255,0.55))', textAlign: 'center' }}>
                                     Waiting for wallet approval…
