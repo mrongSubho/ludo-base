@@ -2,8 +2,11 @@
 
 /**
  * Security preferences (SMART_WALLET_PLANNING §5).
- * - bootLock: require passkey / device bio every app boot
- * - txStepUp: "strict" = passkey (or device bio) required for tx;
+ * These preferences apply to the CDP in-game wallet only. External wallets
+ * (MetaMask, Base Account, and other wagmi connectors) use their native
+ * wallet authentication and confirmation UI.
+ * - bootLock: require passkey / device bio every app boot for CDP
+ * - txStepUp: "strict" = device bio required for CDP tx;
  *             "confirm" = our Confirm button only (CDP auto-approve)
  * - autoSign: silent CDP sign for app-session / match messages (no extra prompt)
  */

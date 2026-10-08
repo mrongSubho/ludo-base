@@ -42,6 +42,25 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 
 `ENGINE_LOGIC.md` is the living rules/spec doc — update it when engine or settlement behavior changes.
 
+### Wallet locking and authentication boundary
+
+- **CDP in-game wallet only:** passkeys / device biometrics guard app boot when
+  the CDP wallet is active and a CDP passkey is enrolled (`BootLock`). CDP
+  sensitive transactions can also require a device-unlock step-up; CDP
+  background app-session and match-message signing follows the CDP security
+  preferences (`autoSign`).
+- **External wallets:** MetaMask, Base Account, WalletConnect, and any other
+  external/wagmi wallet are never guarded by Ludo's passkey or device-bio
+  system. Their native wallet extension/app owns login, biometric/device
+  unlock, and transaction confirmation.
+- **No cross-wallet lock controls:** do not add or expose Ludo passkey,
+  biometric boot-lock, or biometric transaction settings for external wallets.
+  Security preferences must not trigger a WebAuthn/device-bio prompt when the
+  active signer is external; route authentication through that wallet's native
+  signer UI instead.
+- `useWalletMode()` is the source of truth for this boundary: `ingame` means
+  CDP guards may apply; `external` means native wallet guards apply.
+
 ## Conventions & gotchas
 
 - Path alias: `@/*` → repo root.

@@ -98,8 +98,14 @@ export function useAppSession() {
         const result = await guard.ensure(address, {
             sign: async () => {
                 // autoSign off → require device Face ID / Touch ID before
-                // CDP/background message sign (security prefs).
-                if (!readSecurityPrefs().autoSign && typeof window !== "undefined" && window.PublicKeyCredential) {
+                // CDP/background message sign (security prefs). External
+                // wallets must use their native wallet confirmation flow.
+                if (
+                    player.mode === "ingame" &&
+                    !readSecurityPrefs().autoSign &&
+                    typeof window !== "undefined" &&
+                    window.PublicKeyCredential
+                ) {
                     try {
                         console.error('[siwe-sign] stage=biometrics-prompt');
                         const ch = crypto.getRandomValues(new Uint8Array(32));
