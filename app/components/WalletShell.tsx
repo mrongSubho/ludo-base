@@ -13,6 +13,7 @@ import WalletSecurityPanel from "./WalletSecurityPanel";
 import { useBiometricGate } from "@/hooks/useBiometricGate";
 import { usePushReady } from "@/hooks/usePushReady";
 import { useAppSession } from "@/hooks/useAppSession";
+import { useWalletMode } from "@/hooks/useWalletMode";
 
 type Tab = "home" | "send" | "token" | "receive" | "swap" | "activity" | "apps" | "security";
 
@@ -26,8 +27,13 @@ export default function WalletShell() {
     const bio = useBiometricGate();
     const push = usePushReady();
     const appSession = useAppSession();
+    const walletMode = useWalletMode();
     const [bioSkipped, setBioSkipped] = useState(false);
-    const showGate = bio.supported === true && !bio.unlocked && !bioSkipped;
+    const showGate =
+        walletMode === "ingame" &&
+        bio.supported === true &&
+        !bio.unlocked &&
+        !bioSkipped;
 
     useEffect(() => {
         bio.checkSupport();

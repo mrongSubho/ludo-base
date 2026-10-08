@@ -6,6 +6,7 @@ import { IoClose } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import InGameWalletPanel from './InGameWalletPanel';
 import { isInGameWalletEnabled, writeWalletMode, readWalletMode } from '@/lib/walletMode';
+import { useWalletMode } from '@/hooks/useWalletMode';
 import { useIsSignedIn, useCurrentUser } from '@coinbase/cdp-hooks';
 import { resolvePlayerIdentity } from '@/lib/playerIdentity';
 import { hasSeenWalletReady } from '@/lib/walletOnboarding';
@@ -85,6 +86,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
     const { connect, connectors, error: connectError, isPending: connectPending } = useConnect();
     const { isSignedIn } = useIsSignedIn();
     const { currentUser } = useCurrentUser();
+    const walletMode = useWalletMode();
     const [mounted, setMounted] = useState(false);
     const [showInGame, setShowInGame] = useState(false);
 
@@ -96,10 +98,15 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
     useEffect(() => {
         if (!isOpen) return;
         const id = resolvePlayerIdentity(currentUser);
-        if (isSignedIn && id.address && !hasSeenWalletReady(id.address)) {
+        if (
+            walletMode === 'ingame' &&
+            isSignedIn &&
+            id.address &&
+            !hasSeenWalletReady(id.address)
+        ) {
             setShowInGame(true);
         }
-    }, [isOpen, isSignedIn, currentUser]);
+    }, [isOpen, isSignedIn, currentUser, walletMode]);
 
     // Silent restore only after the user has completed "wallet ready" once.
     // First-time OAuth return must land on ready → passkey, not skip the gate.
@@ -108,13 +115,14 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
         const id = resolvePlayerIdentity(currentUser);
         if (
             isSignedIn &&
+            walletMode === 'ingame' &&
             id.address &&
             readWalletMode() === 'ingame' &&
             hasSeenWalletReady(id.address)
         ) {
             onClose();
         }
-    }, [isOpen, isSignedIn, currentUser, onClose]);
+    }, [isOpen, isSignedIn, currentUser, walletMode, onClose]);
 
     /** Must run synchronously in onClick — no await before connect().
      * Mode flips to external only after connect succeeds: writing it in the
