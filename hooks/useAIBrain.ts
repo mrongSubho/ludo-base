@@ -12,12 +12,13 @@ import {
 } from '@/lib/constants';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import { shouldPauseLocalOrchestration } from '@/lib/netcode/resync';
+import type { RollOutcome } from './useGameActions';
 
 interface UseAIBrainProps {
     localGameState: GameState;
     initialPlayers: Player[];
     isHost: boolean;
-    handleRoll: (isRemote?: boolean) => Promise<void>;
+    handleRoll: (isRemote?: boolean) => Promise<RollOutcome>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
     colorCorner: ColorCorner;
@@ -157,8 +158,8 @@ export function useAIBrain({
         // 🔧 FIX 1: NO cleanup return. Timers are managed via refs and only
         // cleared when the actionKey meaningfully changes (above).
     }, [
-        localGameState.winner, 
-        localGameState.currentPlayer, 
+        localGameState.winner,
+        localGameState.currentPlayer,
         localGameState.gamePhase, 
         localGameState.diceValue, 
         localGameState.isRolling,
@@ -174,4 +175,13 @@ export function useAIBrain({
         playerCount, 
         colorCorner
     ]);
+
+    // NET-18: unmount-only cleanup ON TOP of the actionKey clearing above.
+    // Ref management keeps timers alive across spurious re-renders (FIX 1), but
+    // it never released them when the component went away — a bot turn firing
+    // after unmount moved a token into a torn-down board.
+    useEffect(() => () => {
+        if (rollTimerRef.current) { clearTimeout(rollTimerRef.current); rollTimerRef.current = null; }
+        if (moveTimerRef.current) { clearTimeout(moveTimerRef.current); moveTimerRef.current = null; }
+    }, []);
 }

@@ -295,7 +295,9 @@ export function BoardGrid({
                                 transition={{ repeat: Infinity, duration: 1.5 }}
                                 style={{
                                     fontSize: 48,
-                                    fontFamily: "'Russo One', sans-serif",
+                                    // Self-hosted via next/font — reference the CSS
+                                    // variable, not the old Google family name.
+                                    fontFamily: "var(--font-russo), sans-serif",
                                     color: COLOR_MAP[activeColor as string] || '#ffffff',
                                     textShadow: `0 0 10px ${COLOR_MAP[activeColor as string]}aa, 0 0 20px ${COLOR_MAP[activeColor as string]}66`,
                                     display: 'inline-block'

@@ -40,7 +40,7 @@ const config = createConfig({
         }),
         injected(),
         walletConnect({
-            projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || '673e0d259a5dc10d64b0fec83f6e8eca',
+            projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || '',
         }),
         metaMask(),
         safe(),
@@ -68,7 +68,7 @@ export function Providers({ children }: { children: ReactNode }) {
             <QueryClientProvider client={queryClient}>
                 <CdpAuthProvider>
                 <OnchainKitProvider
-                    apiKey="YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
+                    apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY || ''}
                     chain={baseSepolia}
                     config={{
                         analytics: false,

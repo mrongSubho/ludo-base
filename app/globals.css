@@ -3,10 +3,9 @@
    Centralized Pastel Design System
    =========================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=Russo+One&display=swap');
-/* Diet: Orbitron + Exo 2 removed (zero usages) — two fewer render-blocking requests. */
+/* Webfonts are self-hosted via next/font (see app/fonts.ts) — the three
+   fonts.googleapis.com @imports that used to sit here cost three
+   render-blocking cross-origin requests on every document. */
 @import "tailwindcss";
 
 @theme {
@@ -146,7 +145,7 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
    Oversized tight grotesque for the numbers that matter (reference: 20GB).
    Double-classed to outrank the accent mappings above. */
 body.theme-daybreak .porcelain-hero.porcelain-hero {
-  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter-tight), var(--font-inter), system-ui, sans-serif;
   font-weight: 800;
   letter-spacing: -0.03em;
   font-size: 2.6rem;
@@ -159,17 +158,17 @@ body.theme-daybreak .porcelain-hero.porcelain-hero {
    The reference speaks in a tight neo-grotesque (medium-bold, close tracking)
    with tabular numerals — not our wide-tracked display fonts. */
 body.theme-daybreak {
-  --font-porcelain-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-porcelain-display: var(--font-inter-tight), var(--font-inter), system-ui, sans-serif;
 }
 body.theme-daybreak h1,
 body.theme-daybreak h2,
 body.theme-daybreak h3 {
-  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif !important;
+  font-family: var(--font-inter-tight), var(--font-inter), system-ui, sans-serif !important;
   letter-spacing: -0.02em;
   text-transform: none;
 }
 body.theme-daybreak :is(.font-mono) {
-  font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter-tight), var(--font-inter), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
@@ -1068,7 +1067,7 @@ body {
   /* pan-y (not none): vertical touch scrolling must work or any content below
      the fold is permanently unreachable on mobile. Draggable elements
      (dice etc.) set their own touch-action via framer-motion. */
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   background-color: var(--ludo-bg);
   background: var(--ludo-bg-image);
   background-attachment: fixed;
@@ -1139,9 +1138,9 @@ body.theme-retro-futurism {
   --panel-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
   
   /* Font Overrides */
-  --font-sans: 'Chakra Petch', sans-serif;
-  --font-body: 'Chakra Petch', sans-serif;
-  --font-heading: 'Russo One', sans-serif;
+  --font-sans: var(--font-chakra), sans-serif;
+  --font-body: var(--font-chakra), sans-serif;
+  --font-heading: var(--font-russo), sans-serif;
   
   background-color: var(--ludo-bg);
   color: var(--ludo-text);
@@ -1153,7 +1152,7 @@ body.theme-retro-futurism h2,
 body.theme-retro-futurism h3,
 body.theme-retro-futurism .header-title,
 body.theme-retro-futurism .section-label {
-  font-family: 'Russo One', sans-serif !important;
+  font-family: var(--font-russo), sans-serif !important;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -1847,7 +1846,7 @@ body.theme-daybreak .header {
   color: var(--color-ludo-muted);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 .player-pill:hover {
@@ -1897,7 +1896,7 @@ body.theme-daybreak .header {
   color: var(--color-ludo-muted);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 .bet-chip:hover {
@@ -1923,7 +1922,7 @@ body.theme-daybreak .header {
   color: #FFFFFF;
   font-size: 15px;
   font-weight: 600;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
   cursor: pointer;
   transition: all 0.25s ease;
   box-shadow: 0 4px 16px rgba(0, 82, 255, 0.3);
@@ -2061,7 +2060,7 @@ body.keyboard-open .app-shell {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: none;
   border: none;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 .nav-item.active {
@@ -11722,7 +11721,7 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
 }
 .landscape-guard-title {
   margin: 0 0 8px;
-  font-family: 'Russo One', sans-serif;
+  font-family: var(--font-russo), sans-serif;
   font-size: 18px;
   letter-spacing: 0.05em;
   text-transform: uppercase;

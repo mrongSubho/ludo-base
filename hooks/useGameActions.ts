@@ -15,6 +15,17 @@ import {
 } from '@/lib/constants';
 import type { MatchActionErrorCode } from '@/lib/matchProtocol';
 
+/**
+ * NET-19: outcome of a token move, for callers that act on confirmation.
+ * `applied` = the move landed locally or was accepted by the authority;
+ * `failed` = refused (pending guard, no rollId, server rejection, illegal);
+ * `deferred` = handed to the host as an intent (a guest's own broadcast).
+ */
+export type MoveTokenOutcome = 'applied' | 'failed' | 'deferred';
+
+/** NET-19: `deferred` = handed to the host as a REQUEST_ROLL intent. */
+export type RollOutcome = 'applied' | 'failed' | 'deferred';
+
 interface UseGameActionsProps {
     localGameState: GameState;
     setLocalGameState: GameStateSetter;
@@ -135,19 +146,25 @@ export function useGameActions({
         );
     }, [activeColorsArr, playerCount, colorCorner]);
 
-    const moveToken = useCallback(async (color: PlayerColor, tokenIndex: number, steps: number, isRemote = false) => {
+    /**
+     * NET-19: callers get a status so a caller that owns a deadline (AFK
+     * escalation) can tell an applied move from a refused one. Returning
+     * `Promise<void>` forced every caller to assume success and re-arm its
+     * clock, which made the 3rd strike unreachable.
+     */
+    const moveToken = useCallback(async (color: PlayerColor, tokenIndex: number, steps: number, isRemote = false): Promise<MoveTokenOutcome> => {
         const currentState0 = stateRef.current;
-        if (currentState0.status === 'finished' || currentState0.winner) return;
+        if (currentState0.status === 'finished' || currentState0.winner) return 'failed';
         const matchId = currentState0.matchId;
         const useServer = isLobbyConnected && !!moveAuth && !!matchId && matchId !== 'local';
 
         // ── v2: Edge-validated move (networked) ──────────────────────────
         if (useServer && !isRemote) {
-            if (serverActionPendingRef.current) return;
+            if (serverActionPendingRef.current) return 'failed';
             const rollId = lastRollIdRef.current;
             if (!rollId) {
                 console.error('🏃 [MoveAuth] No rollId — cannot submit move');
-                return;
+                return 'failed';
             }
             const seat = initialPlayers.find(p => p.color === color);
             const isBotSeat = seat?.isAi || currentState0.afkStats?.[color]?.isKicked;
@@ -185,7 +202,7 @@ export function useGameActions({
                         // cannot sit on a turn the server already passed.
                         await resyncFromServer(matchId);
                     }
-                    return;
+                    return 'failed';
                 }
 
                 serverSeqRef.current = result.seq ?? serverSeqRef.current;
@@ -225,7 +242,7 @@ export function useGameActions({
             } finally {
                 serverActionPendingRef.current = false;
             }
-            return;
+            return 'applied';
         }
 
         // Guest without server path: intent to host (legacy)
@@ -233,7 +250,7 @@ export function useGameActions({
             console.log('🏃 [Guest] Sending REQUEST_MOVE intent');
             // No diceValue: the host moves with the face it already rolled.
             sendIntent('REQUEST_MOVE', { color, tokenIndex });
-            return;
+            return 'deferred';
         }
 
         if (autoMoveTimeoutRef.current) {
@@ -242,7 +259,7 @@ export function useGameActions({
         }
 
         const currentState = stateRef.current;
-        if (currentState.gamePhase !== 'moving' && !isRemote) return;
+        if (currentState.gamePhase !== 'moving' && !isRemote) return 'failed';
 
         // Boosted move: +6 steps, consumed on use (host computes; guests
         // replay the broadcast steps without re-adding).
@@ -380,6 +397,7 @@ export function useGameActions({
                 });
             }, 800);
         }
+        return 'applied';
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
 
     /**
@@ -412,11 +430,16 @@ export function useGameActions({
     // function: it comes from Edge `roll-dice` for a networked seat, or local
     // RNG for an offline one. Previously callers could pass a face and it was
     // used verbatim, which let a seated guest choose their own dice.
-    const handleRoll = useCallback(async (isRemote = false) => {
+    //
+    // NET-19: resolves to a RollOutcome so a caller that owns a deadline (AFK
+    // escalation) distinguishes "face committed" from "refused". `Promise<void>`
+    // forced every caller to assume success and re-arm its clock, which is why
+    // the 3rd-strike kick was unreachable.
+    const handleRoll = useCallback(async (isRemote = false): Promise<RollOutcome> => {
         // 🔧 FIX 3: Read from stateRef instead of stale closure for guard check
         const guardState = stateRef.current;
-        if (guardState.status === 'finished' || guardState.winner) return;
-        if (rollingRef.current || guardState.isRolling || guardState.gamePhase !== 'rolling') return;
+        if (guardState.status === 'finished' || guardState.winner) return 'failed';
+        if (rollingRef.current || guardState.isRolling || guardState.gamePhase !== 'rolling') return 'failed';
         
         rollingRef.current = true;
 
@@ -428,7 +451,7 @@ export function useGameActions({
         // 🚨 CRITICAL FIX: Bots are host-only in lobby, but in local match, we are the host.
         if (!isRemote && (isLobbyConnected && !isHost) && isCurrentlyBot) {
             rollingRef.current = false;
-            return;
+            return 'failed';
         }
 
         // 🎲 Guest: Ask the host to roll. No face is sent — the host rolls.
@@ -436,7 +459,7 @@ export function useGameActions({
             console.log('🎲 [Guest] Sending REQUEST_ROLL intent');
             sendIntent('REQUEST_ROLL', {});
             rollingRef.current = false;
-            return;
+            return 'failed';
         }
 
         // 🎰 Host: Open betting window (Only for human players)
@@ -472,7 +495,7 @@ export function useGameActions({
                     await tumblePromise;
                     setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
                     rollingRef.current = false;
-                    return;
+                    return 'failed';
                 }
                 try {
                     const mintFn = moveAuth?.requestRoll;
@@ -492,7 +515,7 @@ export function useGameActions({
                     await tumblePromise;
                     setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
                     rollingRef.current = false;
-                    return;
+                    return 'failed';
                 }
             } else {
                 // Offline human / local bot
@@ -525,7 +548,7 @@ export function useGameActions({
         const currentState = stateRef.current;
         if (currentState.gamePhase !== 'rolling' || currentState.winner) {
             rollingRef.current = false;
-            return;
+            return 'failed';
         }
 
 
@@ -651,7 +674,7 @@ export function useGameActions({
                 } finally {
                     serverActionPendingRef.current = false;
                 }
-                return;
+                return 'failed';
             }
             // Instant pass: no dead time when nobody can move
             setLocalGameState((latest) => {
@@ -678,7 +701,7 @@ export function useGameActions({
                 autoMoveTimeoutRef.current = null;
             }, 1500);
         }
-
+        return 'applied';
     }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
 
     const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {

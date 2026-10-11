@@ -4,13 +4,14 @@ import { Player } from './useGameEngine';
 import { getLegalTokenIndices } from '@/lib/gameLogic';
 import { ColorCorner } from '@/lib/boardLayout';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
+import type { RollOutcome, MoveTokenOutcome } from './useGameActions';
 
 interface UseAFKManagerProps {
     localGameState: GameState;
     setLocalGameState: GameStateSetter;
     initialPlayers: Player[];
-    handleRoll: (isRemote?: boolean) => Promise<void>;
-    moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
+    handleRoll: (isRemote?: boolean) => Promise<RollOutcome>;
+    moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => Promise<MoveTokenOutcome>;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
     broadcastAction?: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, stateOverride?: GameState) => void;
     isHost?: boolean;
@@ -110,8 +111,14 @@ export function useAFKManager({
             if (localGameState.gamePhase === 'rolling') {
                 // No pre-rolled face: handleRoll uses Edge RNG in networked
                 // matches and local RNG only offline (see useGameActions).
-                setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
-                handleRoll();
+                // NET-19: the clock is reset by the roll path itself once a
+                // face is committed. Resetting here (before any confirmation)
+                // re-armed the timer on an aborted Edge roll, so the AFK
+                // escalation could never reach the 3rd strike/kick.
+                void Promise.resolve(handleRoll()).then((applied) => {
+                    if (applied !== 'applied') return; // refused/deferred — let timeLeft run out again
+                    setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
+                });
             } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
                 const diceValue = localGameState.diceValue;
                 // Engine-accurate legality only — never naive pos+roll
@@ -169,9 +176,14 @@ export function useAFKManager({
                     });
                 } else {
                     const randomIdx = options[Math.floor(Math.random() * options.length)];
-                    // Reset timeLeft immediately to prevent loop
-                    setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
-                    moveToken(color, randomIdx, diceValue);
+                    // NET-19: reset only after a confirmed apply. `moveToken`
+                    // resolves with a status so this hook can tell "moved" from
+                    // "refused / still in flight"; an unconfirmed reset re-armed
+                    // the timer forever and the kick was unreachable.
+                    void Promise.resolve(moveToken(color, randomIdx, diceValue)).then((status) => {
+                        if (status === 'failed') return;
+                        setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
+                    });
                 }
             }
         }

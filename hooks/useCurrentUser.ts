@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { useCdpParentSigner } from '@/hooks/useCdpParentSigner';
+import { useCurrentUser as useCdpSignedInUser } from '@coinbase/cdp-hooks';
 import { supabase } from '@/lib/supabase';
 import { GUEST_EVENT, getGuestId, isGuestActive, migrateGuestStash } from '@/lib/guest';
 import { useAppSession } from './useAppSession';
 
 export function useCurrentUser() {
     const { address: wagmiAddress, isConnected: isWalletConnected } = useAccount();
-    // In-game CDP smart account (dual-path). Never the owner EOA.
-    const cdp = useCdpParentSigner();
+    // In-game CDP smart account (dual-path). Never the owner EOA. Read the
+    // address straight off the CDP session: routing this through
+    // useCdpParentSigner pulled @coinbase/cdp-core, viem
+    // account-abstraction and a public client onto the boot graph just to
+    // obtain one address string. useCdpParentSigner is still the right entry
+    // point for signing, and it is only imported by wallet/signing surfaces.
+    const { currentUser: cdpUser } = useCdpSignedInUser();
     const { sessionId: appSessionId } = useAppSession();
     const [guestTick, setGuestTick] = useState(0);
     const [profile, setProfile] = useState<{
@@ -32,7 +37,7 @@ export function useCurrentUser() {
     // Active guest only counts while no wallet is connected — a wallet always wins.
     const guestId = !wagmiAddress && isGuestActive() ? getGuestId() : null;
     void guestTick;
-    const cdpAddress = cdp.address;
+    const cdpAddress = cdpUser?.evmSmartAccountObjects?.[0]?.address as string | undefined;
     const address = wagmiAddress ?? cdpAddress ?? guestId ?? undefined;
     const isGuest = !wagmiAddress && !cdpAddress && !!guestId;
     const isConnected = isWalletConnected || Boolean(cdpAddress) || isGuest;

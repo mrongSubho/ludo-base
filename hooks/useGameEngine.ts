@@ -313,12 +313,11 @@ export function useGameEngine({
         return () => clearTimeout(safetyTimer);
     }, [localGameState.gamePhase, localGameState.winner, getNextPlayer, setLocalGameState]);
 
-    // 🌍 Synchronize local state with network state (Guest only)
-    useEffect(() => {
-        if (isLobbyConnected && !isHost && networkGameState) {
-            setLocalGameState(networkGameState);
-        }
-    }, [isLobbyConnected, isHost, networkGameState]);
+    // NET-12: the blanket guest sync above (setLocalGameState(networkGameState)
+    // with no seq/timestamp guard) was deleted. It fired on the same commit as
+    // the seq-advance effect below, so this one ran first and made that one
+    // unreachable — while also clobbering the host-only local fields the
+    // careful merge below preserves (powerTiles types, matchId, UI state).
 
     // Authorize the player's whole match as soon as the host publishes the
     // authoritative match id. This keeps the wallet prompt in the pre-match

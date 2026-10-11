@@ -64,6 +64,9 @@ import { buildStreamMessage } from '@/lib/matchProof';
 type AppState = 'dashboard' | 'game' | 'spectating';
 type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
 
+/** Short brand dwell for the splash sweep; measured from hydration, never from navigation start. */
+const SPLASH_MIN_DWELL_MS = 500;
+
 // Mock user data has been removed
 
 const SplashScreen = () => (
@@ -392,8 +395,23 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 1500);
-    return () => clearTimeout(t);
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The splash is a brand moment, NOT a readiness gate. It previously held
+    // the screen for a blind 1500ms wall-clock no matter how fast the app
+    // hydrated — that alone was ~1s of the 2,311ms Speed Index. Gate the hold
+    // on hydration (one frame after mount) and keep only a short dwell from
+    // there so the entrance sweep still completes.
+    const frame = requestAnimationFrame(() => {
+      timer = setTimeout(() => {
+        if (alive) setShowSplash(false);
+      }, SPLASH_MIN_DWELL_MS);
+    });
+    return () => {
+      alive = false;
+      cancelAnimationFrame(frame);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // Sync state to ref for back-button hardware popstate interceptor

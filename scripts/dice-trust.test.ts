@@ -163,7 +163,9 @@ test('handleRoll takes no face parameter at all', () => {
     // Removing the parameter is the real fix; the parsers are defence in depth.
     // If `value` comes back, every caller can name a face again.
     const src = code('hooks/useGameActions.ts');
-    const sig = /const handleRoll = useCallback\(async \(([^)]*)\) => \{/.exec(src);
+    // NET-19 added the RollOutcome return type to this signature; the subject
+    // under test is still the parameter list, which must stay face-free.
+    const sig = /const handleRoll = useCallback\(async \(([^)]*)\)(?::[^{]+)? => \{/.exec(src);
     assert.ok(sig, 'handleRoll signature not found');
     assert.doesNotMatch(sig[1], /value/, `handleRoll must not accept a value (got: ${sig[1].trim()})`);
 });
@@ -201,5 +203,5 @@ test('a networked seat has no client-side dice fallback', () => {
     // attempt, and never run when `isLobbyConnected`.
     const networkedBranch = body.indexOf('if (networkedSeat) {');
     assert.ok(networkedBranch > 0 && offlineRng > networkedBranch);
-    assert.match(body.slice(networkedBranch, offlineRng), /} catch \(err\) \{[\s\S]*?return;/);
+    assert.match(body.slice(networkedBranch, offlineRng), /} catch \(err\) \{[\s\S]*?return( 'failed')?;/);
 });

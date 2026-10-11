@@ -1,6 +1,7 @@
 import { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from './Providers';
+import { fontVariables } from './fonts';
 import { cookies } from 'next/headers';
 
 const APP_URL = 'https://ludo-base.vercel.app';
@@ -53,14 +54,14 @@ export default async function RootLayout({
   // cookies migrate to Daybreak.
   let themeClass = 'theme-retro-futurism'; // Default
   if (theme === 'light' || theme === 'porcelain') themeClass = 'theme-daybreak';
-  return (
-    <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=overlays-content" />
-      </head>
-      <body className={themeClass} suppressHydrationWarning>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
+    return (
+        <html lang="en" className={fontVariables}>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=overlays-content" />
+            </head>
+            <body className={themeClass} suppressHydrationWarning>
+                <Providers>{children}</Providers>
+            </body>
+        </html>
+    );
 }
