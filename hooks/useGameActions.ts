@@ -336,11 +336,12 @@ export function useGameActions({
 
         setLocalGameState(finalState);
 
+        // NET-03: no MOVE_TOKEN broadcast. The partial target-position hint let
+        // a guest advance its own rules state from a peer's word, and it could
+        // disagree with match_states (the audit's live divergence). The state
+        // travels as the seq-gated match_states override below instead.
         if (isHost && isLobbyConnected && !isRemote) {
-            // We broadcast LIVE state immediately to show the target position
-            broadcastAction('MOVE_TOKEN', {
-                payload: { color, tokenIndex, steps: effSteps, targetPosition: newState.positions[color][tokenIndex] }
-            }, finalState);
+            broadcastAction('ENGINE_STATE', {}, finalState);
         }
 
         if (newState.positions[color][tokenIndex] !== currentState.positions[color][tokenIndex]) audio.playMove();
@@ -373,7 +374,8 @@ export function useGameActions({
                         lastUpdate: Date.now(),
                         timeLeft: 15 // Reset for next turn
                     };
-                    if (isLobbyConnected) broadcastAction('TURN_SWITCH', { nextPlayer: pNextPlayer }, switchState);
+                    // NET-03: full state instead of a TURN_SWITCH hint.
+                    if (isHost && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
                     return switchState;
                 });
             }, 800);
@@ -663,7 +665,8 @@ export function useGameActions({
                     lastUpdate: Date.now()
                 };
                 console.log(`🎲 [Engine] Auto-switching to ${pNextPlayer}`);
-                if (isHost && isLobbyConnected) broadcastAction('TURN_SWITCH', { nextPlayer: pNextPlayer }, switchState);
+                // NET-03: full state instead of a TURN_SWITCH hint.
+                if (isHost && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
                 rollingRef.current = false;
                 return switchState;
             });

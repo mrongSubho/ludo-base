@@ -404,6 +404,13 @@ export function useGameEngine({
                 moveToken(action.color, action.tokenIndex, action.diceValue);
             } else if (action.kind === 'trust') {
                 toggleAutoPlay(action.color, action.isKicked);
+            } else if (action.kind === 'ignore') {
+                // NET-04: declined (bad payload / no committed face). Do NOT
+                // dequeue — dropping it silently lost the guest's intent with
+                // no ACK and no retry. The guest's ACK watch resends it, or a
+                // later state change (a committed face) lets the same intent
+                // apply on the next effect run.
+                return;
             }
 
             clearIntent();

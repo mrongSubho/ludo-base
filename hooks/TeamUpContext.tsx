@@ -83,7 +83,11 @@ export interface TeamUpContextType {
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
     participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor; lxp?: number; rxp?: number }>;
+    /** Oldest unprocessed guest intent (head of the FIFO queue). */
     lastIntent: GameIntent | null;
+    /** NET-04: the full FIFO queue — `lastIntent` is its head. */
+    intentQueue: readonly GameIntent[];
+    /** NET-04: drop the QUEUE HEAD only. Never clears a whole queue. */
     clearIntent: () => void;
     leaveGame: () => void;
     validationToken?: string;
@@ -144,7 +148,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         moveAuth.createProvisionalSession({ authorizationKey, roomCode }), [moveAuth]);
     const bindProvisionalSession = useCallback((provisionalId: string, matchId: string, roomCode?: string) =>
         moveAuth.bindProvisionalSession({ provisionalId, matchId, roomCode }), [moveAuth]);
-    const [lastIntent, setLastIntent] = useState<GameIntent | null>(null);
+    // NET-04: intents queue. The single-slot version dropped every intent
+    // that arrived while the host was busy, so a fast guest's second roll or
+    // move vanished with no ACK and no retry.
+    const [intentQueue, setIntentQueue] = useState<GameIntent[]>([]);
     // Matchmaking validation token the host will require from guests (if set).
     const expectedValidationTokenRef = useRef<string | null>(null);
     // Host-only join secret for invite lobbies (not on the matchmaking path).
@@ -155,6 +162,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [serverSeq, setServerSeq] = useState(0);
     const [matchConnectionStatus, setMatchConnectionStatus] = useState<MatchConnectionStatus>('offline');
     const [hasAuthoritativeSnapshot, setHasAuthoritativeSnapshot] = useState(false);
+    // Mirror for readers that must not re-subscribe when the flag flips
+    // (the resync effect below reads it inside a callback).
+    const hasAuthoritativeSnapshotRef = useRef(false);
+    hasAuthoritativeSnapshotRef.current = hasAuthoritativeSnapshot;
 
     // E5 — single match lifecycle machine (illegal transitions are metered).
     const fsmRef = useRef(createMatchFsm('idle'));
@@ -218,6 +229,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             return result;
         },
         onStatus: setMatchConnectionStatus,
+        // NET-05: a client that already holds a snapshot must not be paused by
+        // a flap. Read through a ref-free state read — the effect re-runs when
+        // the value flips, which is exactly when the gate should change.
+        hasAuthoritativeSnapshot: () => hasAuthoritativeSnapshotRef.current,
     });
 
     useEffect(() => {
@@ -447,11 +462,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
 
         // Always include matchId so guests + host share one Edge match.
+        // NET-03: a stateful broadcast from the authority carries the
+        // `match_states` provenance and the seq it was taken at, so guests
+        // apply the FULL state through the seq-gated path instead of replaying
+        // partial MOVE_TOKEN/TURN_SWITCH hints. Lobby-level broadcasts (no
+        // fullState) are unaffected.
         const payloadRecord = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
         const actionData = {
             type,
             ...payloadRecord,
             matchId: payloadRecord.matchId || gameStateRef.current.matchId,
+            source: fullState ? 'match_states' : undefined,
+            seq: fullState ? serverSeqRef.current : undefined,
             stateOverride: fullState ? sanitizeGameStateForWire(fullState) : undefined,
             gameState: fullState
                 ? sanitizeGameStateForWire(fullState)
@@ -576,6 +598,47 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }, [isHost, setParticipants, setLobbyState, lobbyStateRef, broadcastLobbyAction, sendMatchEvent]);
 
     // 6. Game Engine Action Processor
+    /** NET-04: watch one intent's ACK; resend the identical intentId on a lapse. */
+    const MAX_INTENT_RETRIES = 2;
+    const INTENT_ACK_TIMEOUT_MS = 2500;
+    const intentQueueRef = useRef<GameIntent[]>([]);
+    intentQueueRef.current = intentQueue;
+    const unsentIntentRef = useRef<GameIntent | null>(null);
+    const pendingIntentAcks = useRef<Map<string, number>>(new Map());
+    const intentAckTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    const resendIntent = useRef<(action: GameIntent) => void>(() => {});
+    const scheduleIntentAckWatch = useCallback((intentId: string) => {
+        if (intentAckTimers.current.has(intentId)) return;
+        const timer = setTimeout(() => {
+            intentAckTimers.current.delete(intentId);
+            const tries = (pendingIntentAcks.current.get(intentId) ?? 0) + 1;
+            if (tries > MAX_INTENT_RETRIES) {
+                pendingIntentAcks.current.delete(intentId);
+                return;
+            }
+            pendingIntentAcks.current.set(intentId, tries);
+            const fresh = unsentIntentRef.current?.intentId === intentId ? unsentIntentRef.current : null;
+            if (fresh) resendIntent.current(fresh);
+            // Watch again — a second lapse fails the same way, then gives up.
+            const next = setTimeout(() => {
+                intentAckTimers.current.delete(intentId);
+                pendingIntentAcks.current.delete(intentId);
+            }, INTENT_ACK_TIMEOUT_MS);
+            intentAckTimers.current.set(intentId, next);
+        }, INTENT_ACK_TIMEOUT_MS);
+        intentAckTimers.current.set(intentId, timer);
+    }, []);
+
+    /** NET-04: ACK tells the guest its intent reached the authority. */
+    const sendIntentAck = useCallback((intentId: string | undefined, status: 'accepted' | 'stale' = 'accepted') => {
+        if (!intentId) return;
+        const ack = { type: 'GAME_INTENT_ACK', payload: { intentId, status } };
+        connectionsRef.current.forEach(conn => { if (conn.open) conn.send(ack); });
+        if (isLobbyConnected) {
+            relayViaSupabase('game-action', ack, lobbyStateRef);
+        }
+    }, [isLobbyConnected, relayViaSupabase]);
+
     const processGameAction = useCallback((data: Record<string, unknown>) => {
         const type = typeof data.type === 'string' ? data.type : '';
         const actionId = typeof data.actionId === 'string' ? data.actionId : undefined;
@@ -584,6 +647,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (actionId) processedActionIds.current.add(actionId);
 
         console.log('🕹️ Processing action:', type, data);
+
+        // NET-03: only the authority (host or compute host) may drive a
+        // networked match's rules state. Guests' boards follow the seq-gated
+        // `stateOverride` path below, which is the same authority source
+        // move-auth persists.
+        const isMatchAuthority = isHost || isComputeHost;
 
         // G5 — preset emote float (lightweight; not a DM)
         if (type === 'EMOTE') {
@@ -616,7 +685,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return;
             }
             console.log('📬 [Host] Intent via Supabase:', action?.type);
-            setLastIntent(action);
+            setIntentQueue(q => [...q, action]);
+            sendIntentAck(action.intentId);
             return;
         }
 
@@ -641,6 +711,20 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     else console.warn('🪑 [Host] Could not seat JOIN_REQUEST', payload.address);
                 };
                 setTimeout(retry, 400);
+            }
+            return;
+        }
+
+        // NET-04: the host ACKed this intent — no retry needed.
+        if (type === 'GAME_INTENT_ACK' && !isHost) {
+            const acked = (data.payload as { intentId?: string } | undefined)?.intentId;
+            if (acked) {
+                pendingIntentAcks.current.delete(acked);
+                const t = intentAckTimers.current.get(acked);
+                if (t) {
+                    clearTimeout(t);
+                    intentAckTimers.current.delete(acked);
+                }
             }
             return;
         }
@@ -689,7 +773,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     }) : null);
                 }
             }
-        } else if (type === 'ROLL_DICE') {
+        } else if (type === 'ROLL_DICE' && isMatchAuthority) {
             setGameState((prev: GameState) => ({
                 ...prev,
                 diceValue: typeof data.value === 'number' ? data.value : prev.diceValue,
@@ -697,7 +781,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 gamePhase: data.gamePhase === 'moving' || data.gamePhase === 'landing' || data.gamePhase === 'rolling' ? data.gamePhase : prev.gamePhase,
                 lastAction: { type: 'ROLL_DICE', payload: data }
             }));
-        } else if (type === 'MOVE_TOKEN') {
+        } else if (type === 'MOVE_TOKEN' && isMatchAuthority) {
             const payload = (data.payload && typeof data.payload === 'object' ? data.payload : data) as Record<string, unknown>;
             const color = payload.color as PlayerColor;
             const tokenIndex = Number(payload.tokenIndex);
@@ -708,7 +792,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 newPos[color as PlayerColor][tokenIndex] = targetPosition;
                 return { ...prev, positions: newPos, lastUpdate: Date.now(), lastAction: { type: 'MOVE_TOKEN', payload } };
             });
-        } else if (type === 'TURN_SWITCH') {
+        } else if (type === 'TURN_SWITCH' && isMatchAuthority) {
             const nextPlayer = (data.nextPlayer || data.currentPlayer) as PlayerColor;
             setGameState((prev: GameState) => ({
                 ...prev,
@@ -724,7 +808,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(String(data.sender || ''), String(data.nonce || ''), lobbyStateRef);
         }
-    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer]);
+    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -768,7 +852,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     return;
                 }
                 console.log('📬 [Host] Received Intent (PeerJS):', data.action);
-                setLastIntent(data.action);
+                setIntentQueue(q => [...q, data.action]);
+                sendIntentAck(data.action.intentId);
             }
         } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
             processGameAction(data);
@@ -1193,29 +1278,43 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (!isLobbyConnected || isHost || isComputeHost) return;
         const intentId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         const action = createGameIntent(type, payload, myAddress, intentId);
+        // NET-04: a guest that never sees an ACK retries the SAME intentId
+        // (bounded), so a dropped PeerJS send is recovered instead of leaving
+        // the guest believing it acted. The host's `rememberIntent` dedups it.
+        pendingIntentAcks.current.set(intentId, 0);
+        unsentIntentRef.current = action;
+        scheduleIntentAckWatch(intentId);
 
-        const conn = Array.from(connections.values())[0];
-        if (conn && conn.open) {
-            conn.send({ type: 'GAME_ACTION', action });
-        }
-        // Cloud path — primary when PeerJS is blocked
-        relayViaSupabase('game-action', { type: 'GAME_INTENT', action }, lobbyStateRef);
+        const send = (intent: GameIntent) => {
+            const conn = Array.from(connections.values())[0];
+            if (conn && conn.open) {
+                conn.send({ type: 'GAME_ACTION', action: intent });
+            }
+            // Cloud path — primary when PeerJS is blocked
+            relayViaSupabase('game-action', { type: 'GAME_INTENT', action: intent }, lobbyStateRef);
+        };
+        resendIntent.current = send;
+        send(action);
     }, [isLobbyConnected, isHost, isComputeHost, connections, myAddress, relayViaSupabase, lobbyStateRef, declareLobbyPolicy]);
 
-    const clearIntent = useCallback(() => setLastIntent(null), []);
+    // NET-04: dropping the head is the only safe clear. Clearing the whole
+    // queue on a path that declined to act (bad payload, no committed face)
+    // silently discarded intents the guest would otherwise retry.
+    const clearIntent = useCallback(() => setIntentQueue(q => q.slice(1)), []);
+
 
     const value = useMemo(() => ({
         roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState,
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
-        participants, lastIntent, clearIntent, leaveGame, validationToken,
+        participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
         matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
-        startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
+        startQuickMatch, myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
