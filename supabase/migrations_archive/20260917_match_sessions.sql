@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Match-scoped session keys (EIP-712). One wallet sign per match.
 CREATE TABLE IF NOT EXISTS public.match_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

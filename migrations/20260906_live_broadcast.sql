@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ============================================================================
 -- Ludo Base — Live Broadcast Chat SQL
 -- Run in Supabase Dashboard > SQL Editor, top to bottom. Safe to re-run.

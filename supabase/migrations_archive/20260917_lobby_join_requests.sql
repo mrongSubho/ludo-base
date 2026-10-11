@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Manual / NAT-hostile join path: guest inserts a request; host polls or realtime-reads.
 CREATE TABLE IF NOT EXISTS public.lobby_join_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

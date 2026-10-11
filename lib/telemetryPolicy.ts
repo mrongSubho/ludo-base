@@ -3,6 +3,7 @@
  * Promote exit criteria to measurable SLOs; enforce scrub + sample rules
  * in code so high-volume noise never buries resync/authority/errors.
  */
+import { isSealedBox } from './encryption';
 
 export type SloName =
     | 'match_completion_rate'
@@ -80,6 +81,16 @@ export const SENSITIVE_KEY_PREFIXES = [
     'secret',
     'mnemonic',
     'cookie',
+    // SEC-35: DM/chat payload shapes. A sealed box logged under an innocent
+    // key (or a plaintext someone failed to encrypt) must not reach telemetry.
+    'content',
+    'message',
+    'text',
+    'body',
+    'plaintext',
+    'epk',
+    'iv',
+    'ciphertext',
 ] as const;
 
 export const MAX_PROP_VALUE_LEN = 200;
@@ -91,6 +102,21 @@ export function isSensitiveKey(key: string): boolean {
 
 export function truncateValue(v: string): string {
     return v.length > MAX_PROP_VALUE_LEN ? `${v.slice(0, MAX_PROP_VALUE_LEN)}…` : v;
+}
+
+/**
+ * SEC-35: a value that parses as an ECDH sealed box is ciphertext regardless
+ * of the key it arrived under. Backward-compat note: `isSealedBox` is pure
+ * (no WebCrypto), so this runs in Node tests and Edge alike.
+ */
+function isSealedBoxValue(v: string): boolean {
+    const t = v.trim();
+    if (!t.startsWith('{')) return false;
+    try {
+        return isSealedBox(JSON.parse(t));
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -110,6 +136,10 @@ export function scrubTelemetryProps(props: Record<string, unknown> | undefined):
             continue;
         }
         if (typeof v === 'string') {
+            if (isSealedBoxValue(v)) {
+                out[k] = '[redacted]';
+                continue;
+            }
             out[k] = truncateValue(v);
             continue;
         }

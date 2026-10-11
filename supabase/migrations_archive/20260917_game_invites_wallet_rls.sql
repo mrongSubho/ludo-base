@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Wallet-only app: old RLS required auth.jwt() sub, so inserts/realtime never
 -- delivered invites. Host writes go through the service-role API; guests
 -- read their own invites via /api/lobby/invits (wallet query param).

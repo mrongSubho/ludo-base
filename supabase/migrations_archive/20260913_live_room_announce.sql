@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ─── Live room announcements (Session parties in chat + matches) ────────────
 -- Apply manually via the Supabase SQL Editor.
 --

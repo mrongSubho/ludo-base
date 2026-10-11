@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ==========================================================
 -- STATUS TIMEOUT CLEANUP (IDLE -> OFFLINE)
 -- Run this to fix "Forever Online" ghosting

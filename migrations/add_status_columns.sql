@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ==========================================================
 -- GLOBAL ACTIVE STATUS MIGRATION
 -- Adds tracking columns to the players table

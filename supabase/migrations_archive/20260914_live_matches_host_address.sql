@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Host-address binding for signed bet settlement.
 -- resolve-bet only accepts a result signed by this wallet.
 ALTER TABLE public.live_matches

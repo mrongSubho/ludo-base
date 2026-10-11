@@ -55,6 +55,13 @@ export const DICE_MIN = 1;
 export const DICE_MAX = 6;
 export const DICE_ROLL_SIX = 6;
 
+// --- Chat / DM wire caps (single source of truth) ---
+// DB CHECKs mirror these values exactly: `messages.content`
+// (length 1..MAX_DM_CONTENT_LEN) and `live_chat.content`
+// (length 1..MAX_CHAT_LEN). Change both sides together —
+// DB-15/DB-16 closed on a shared constant, not on matching numbers.
+export const MAX_DM_CONTENT_LEN = 4000;
+export const MAX_CHAT_LEN = 500;
 // --- AI Heuristics & Scoring ---
 export const AI_SCORES = {
   PROMOTION: 150, // Entering home lane (Queen)

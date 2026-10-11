@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Atomic Bet Resolution & Payouts
 
 CREATE OR REPLACE FUNCTION public.settle_match_bets(

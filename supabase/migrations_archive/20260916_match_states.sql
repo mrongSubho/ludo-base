@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Server-authoritative match state (v2 move validation)
 CREATE TABLE IF NOT EXISTS public.match_states (
     match_id TEXT PRIMARY KEY,

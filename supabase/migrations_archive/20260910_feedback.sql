@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ─── User feedback inbox (Settings → Feedback) ─────────────────────────────
 -- Apply manually via the Supabase SQL Editor (see AGENTS.md). Until applied,
 -- the in-app form surfaces an honest send error instead of failing silently.

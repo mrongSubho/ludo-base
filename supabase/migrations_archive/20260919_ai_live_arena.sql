@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 ALTER TABLE public.live_matches
   ADD COLUMN IF NOT EXISTS arena_key TEXT,
   ADD COLUMN IF NOT EXISTS authority_id TEXT,

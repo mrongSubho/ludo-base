@@ -1,3 +1,14 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema
+-- lives in supabase/migrations/; new SQL goes there only.
+
+-- DB-19 decision (2026-10-11): the join_tournament() below is SUPERSEDED and
+-- must not be revived. It returns {success,…} and debits players.coins
+-- read-then-write; coins are frozen (202609300001), so the debit raises and
+-- the pre-check-then-debit races under concurrency. Canonical is the live
+-- baseline join_tournament(uuid,text) → {participant_id}: idempotent
+-- insert-if-capacity, no coin leg, service_role-only, zero app callers.
+-- No adapter: with no callers and no coin economy, an adapter would resurrect
+-- the exact path the freeze killed.
 -- Tournament System Schema
 
 -- 1. Tables

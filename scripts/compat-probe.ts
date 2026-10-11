@@ -244,7 +244,9 @@ export interface RealtimeTableSpec {
 }
 
 export const REALTIME_TABLES: readonly RealtimeTableSpec[] = [
-  { table: 'messages', privateFields: ['ciphertext', 'encryption_nonce'] },
+  // CRY-08: `messages` was removed from the supabase_realtime publication
+  // (202609300018) — nothing subscribes, so it stays off this list rather
+  // than probing a dead channel.
   { table: 'conversations', privateFields: [] },
   { table: 'game_invites', privateFields: ['validation_token'] },
   {
@@ -1440,12 +1442,11 @@ export function runOfflineSelfTest(repoRoot: string): ProbeCheck[] {
   push(
     'matrix/realtime-count',
     'matrix-definition',
-    REALTIME_TABLES.length === 6,
+    REALTIME_TABLES.length === 5,
     `realtime tables: ${REALTIME_TABLES.map((r) => r.table).join(',')}`,
   );
   const rtTables = new Set(REALTIME_TABLES.map((r) => r.table));
   for (const t of [
-    'messages',
     'conversations',
     'game_invites',
     'matchmaking_queue',

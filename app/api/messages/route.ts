@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { isSealedBox } from '@/lib/encryption';
+import { MAX_DM_CONTENT_LEN } from '@/lib/constants';
 
 export async function GET(request: Request) {
     try {
@@ -58,7 +59,9 @@ export async function POST(request: Request) {
                     { status: 400 },
                 );
             }
-            if (!/^0x[a-f0-9]{40}$/.test(receiver) || !content || String(content).length > 10000)
+            // DB-15: the route cap is the shared constant, equal to the
+            // `messages.content` DB CHECK — one constant, not two numbers.
+            if (!/^0x[a-f0-9]{40}$/.test(receiver) || !content || String(content).length > MAX_DM_CONTENT_LEN)
                 return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
             const { data, error } = await db.from('messages').insert({
                 sender_id: wallet, receiver_id: receiver, content: String(content),

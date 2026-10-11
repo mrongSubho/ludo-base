@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- A wallet authorization created before a match id exists. It is bound to
 -- match_sessions only after matchmaking or Team Up creates the final match.
 CREATE TABLE IF NOT EXISTS public.provisional_match_sessions (

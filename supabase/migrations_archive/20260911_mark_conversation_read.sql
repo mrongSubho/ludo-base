@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ─── Read-repair RPC (Session Inbox badges) ─────────────────────────────────
 -- Applied manually via the Supabase SQL Editor.
 --

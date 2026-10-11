@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Bet cash-out: 50% of potential payout while the window is still open.
 -- Apply manually via the Supabase SQL Editor (per repo convention).
 -- Safety: only pending own bets, window must still be open. The settle RPC

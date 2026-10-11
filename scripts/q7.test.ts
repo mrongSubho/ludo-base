@@ -36,6 +36,36 @@ test('Q7 scrub redacts sensitive keys and truncates', () => {
     assert.ok(!isSensitiveKey('diceValue'));
 });
 
+test('SEC-35: DM/chat payload keys and sealed-box values are redacted', () => {
+    const out = scrubTelemetryProps({
+        content: 'hello',
+        message: 'hi',
+        text: 'hey',
+        body: 'yo',
+        plaintext: 'oops',
+        epk: '{"kty":"EC"}',
+        iv: 'abcd',
+        ciphertext: 'efgh',
+        diceValue: 6,
+    });
+    for (const k of ['content', 'message', 'text', 'body', 'plaintext', 'epk', 'iv', 'ciphertext']) {
+        assert.equal(out[k], '[redacted]', `${k} must be redacted`);
+    }
+    assert.equal(out.diceValue, 6);
+
+    // A sealed box under an innocent key is still ciphertext.
+    const box = JSON.stringify({
+        v: 2,
+        epk: { kty: 'EC', crv: 'P-256', x: 'aaa', y: 'bbb' },
+        iv: 'cccc',
+        salt: 'dddd',
+        content: 'eeee',
+    });
+    const boxed = scrubTelemetryProps({ payload: box, note: '{"a":1}' });
+    assert.equal(boxed.payload, '[redacted]', 'a sealed-box value must be dropped whatever the key');
+    assert.equal(boxed.note, '{"a":1}', 'non-box JSON passes through');
+});
+
 test('Q7 sampling keeps critical events at 100%', () => {
     for (const e of ALWAYS_SAMPLE_EVENTS) {
         assert.equal(shouldSample(e, 0, () => 0.99), true, e);

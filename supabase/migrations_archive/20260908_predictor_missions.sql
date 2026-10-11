@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Predictor missions: winning spectators progress daily_predict_1.
 -- Apply manually via the Supabase SQL Editor (per repo convention).
 -- Bump rides inside the atomic settlement RPC: server-authoritative,

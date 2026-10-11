@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Publish static ECDH public keys for sealed-box DMs.
 ALTER TABLE public.players
   ADD COLUMN IF NOT EXISTS ecdh_pubkey JSONB;

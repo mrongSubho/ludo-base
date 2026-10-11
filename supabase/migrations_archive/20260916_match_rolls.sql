@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- Server-side dice receipts. Edge Function is the only writer (service role).
 -- Clients may SELECT for audit / spectator verification.
 CREATE TABLE IF NOT EXISTS public.match_rolls (

@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- All player mutations go through wallet-bound server endpoints.
 DROP POLICY IF EXISTS "players open update" ON public.players;
 DROP POLICY IF EXISTS "players profile update" ON public.players;

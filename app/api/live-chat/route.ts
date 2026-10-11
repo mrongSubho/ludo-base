@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { MAX_CHAT_LEN } from '@/lib/constants';
 
 const LIMIT = 20;
 const SLOW_MODE_S = 10;
@@ -64,7 +65,9 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const wallet = (body.wallet || '').toLowerCase();
-        const content = (body.content || '').slice(0, 500).trim();
+        // DB-16: the route cap is the shared constant, equal to the
+        // `live_chat.content` DB CHECK — one constant, not two numbers.
+        const content = (body.content || '').slice(0, MAX_CHAT_LEN).trim();
         const roomCode = typeof body.roomCode === 'string' && /^[A-Z0-9]{6}$/i.test(body.roomCode.trim())
             ? body.roomCode.trim().toUpperCase()
             : null;

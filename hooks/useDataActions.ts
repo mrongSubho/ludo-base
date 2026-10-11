@@ -4,7 +4,7 @@
 import { useCallback } from 'react';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { UserProfile, MessageData } from './GameDataContext';
-import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
+import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey, takeIdentityRegenerated } from '@/lib/encryption';
 import { DataConnection, Peer } from 'peerjs';
 import { buildEcdhMessage, ecdhKeyFingerprint } from '@/lib/matchProof';
 import { useAppSession } from './useAppSession';
@@ -160,6 +160,15 @@ export const useDataActions = ({
             const dmSession = await ensureAppSession();
             if (dmSession) {
                 await getOrCreateIdentityKey(lowerAddr);
+                // CRY-06: a regenerated identity no longer matches the
+                // published key, so every future DM would be undecryptable.
+                // Consume the flag loudly; the server-key mismatch compare
+                // below republishes on this same Send, and a failed publish
+                // fails the send with `send_status: 'failed'` UI state
+                // instead of swallowing the rotation.
+                if (takeIdentityRegenerated().includes(lowerAddr)) {
+                    console.warn('[ecdh] identity regenerated — republishing before send; pre-rotation DMs may be unreadable');
+                }
                 if (!ecdhAlreadyPublished(lowerAddr)) {
                     const localJwk = await exportPublicKeyJwk(lowerAddr);
                     const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);

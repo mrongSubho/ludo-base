@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ============================================================================
 -- Ludo Base — Hybrid party fill (Fill Remaining with Quick Match)
 -- Run in Supabase Dashboard > SQL Editor.

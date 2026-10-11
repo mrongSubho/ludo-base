@@ -1,3 +1,6 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema
+-- lives in supabase/migrations/; new SQL goes there only.
+
 -- Tighten messages UPDATE: previously USING (true) let anyone flip any column.
 -- Without Supabase Auth we cannot bind UPDATE to the wallet caller, so this
 -- migration locks the mutable surface to read-receipt / delete-flag columns
@@ -18,22 +21,8 @@ CREATE POLICY "messages flag updates only"
         AND char_length(content) BETWEEN 1 AND 8192
     );
 
-CREATE OR REPLACE FUNCTION public.messages_restrict_columns()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF NEW.sender_id IS DISTINCT FROM OLD.sender_id
-       OR NEW.receiver_id IS DISTINCT FROM OLD.receiver_id
-       OR NEW.content IS DISTINCT FROM OLD.content THEN
-        RAISE EXCEPTION 'messages: sender/receiver/content are immutable';
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_messages_restrict_columns ON public.messages;
-CREATE TRIGGER trg_messages_restrict_columns
-    BEFORE UPDATE ON public.messages
-    FOR EACH ROW
-    EXECUTE FUNCTION public.messages_restrict_columns();
+-- CRY-07: the messages_restrict_columns() copy that lived below is
+-- intentionally reduced to this comment. Canonical trigger:
+-- supabase/migrations/00000000000000_baseline.sql (messages_restrict_columns
+-- + trg_messages_restrict_columns). Keeping a second copy here invited the
+-- next reader to "fix" the wrong one.

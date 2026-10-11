@@ -405,6 +405,52 @@ test('CRY-02: peer-supplied metadata is not spread into a rendered message', () 
     assert.match(src, /receiver_id: address\.toLowerCase\(\)/);
 });
 
+test('CRY-06: fresh identities are non-extractable and regen is surfaced', async () => {
+    // Node has neither IndexedDB nor localStorage, so this exercises the
+    // session-only fallback path; the persistence branches are browser-only.
+    // What is asserted here is load-bearing everywhere: the private half must
+    // never export, the public half must (publish + seal depend on it), and a
+    // fresh identity must flag regen so the send flow republishes.
+    const { getOrCreateIdentityKey, takeIdentityRegenerated } = await import('../lib/encryption');
+    takeIdentityRegenerated(); // drain any earlier flag
+    const owner = '0x' + 'cd'.repeat(20);
+    const pair = await getOrCreateIdentityKey(owner);
+    await assert.rejects(
+        crypto.subtle.exportKey('jwk', pair.privateKey),
+        'a fresh static private key must not be extractable',
+    );
+    const pub = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    assert.equal(pub.kty, 'EC', 'the public half must stay exportable (publish needs it)');
+    assert.ok(
+        takeIdentityRegenerated().includes(owner),
+        'a fresh identity must flag regen so the next Send republishes',
+    );
+    assert.deepEqual(takeIdentityRegenerated(), [], 'the flag is consumed, not sticky');
+});
+
+test('CRY-06: v2 round-trip survives non-extractable storage', async () => {
+    // Node has neither IndexedDB nor localStorage, so stub the legacy
+    // fallback store: this executes the documented no-IDB branch, where the
+    // extractable JWK persists across calls and the round-trip must hold.
+    const store = new Map<string, string>();
+    (globalThis as Record<string, unknown>).localStorage = {
+        getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+        setItem: (k: string, v: string) => void store.set(k, String(v)),
+        removeItem: (k: string) => void store.delete(k),
+    };
+    try {
+        const { encryptForPeer, decryptSealedBox, getOrCreateIdentityKey } = await import('../lib/encryption');
+        const a = '0x' + 'aa'.repeat(20);
+        const b = '0x' + 'bb'.repeat(20);
+        const bPub = await crypto.subtle.exportKey('jwk', (await getOrCreateIdentityKey(b)).publicKey);
+        const box = await encryptForPeer(a, bPub, 'hello non-extractable world');
+        assert.equal(box.v, 2, 'new writes are v2 HKDF boxes');
+        assert.equal(await decryptSealedBox(b, box), 'hello non-extractable world');
+    } finally {
+        delete (globalThis as Record<string, unknown>).localStorage;
+    }
+});
+
 // ── CDP MFA bridge: silent-hang fix (found live 2026-10-07) ─────────────────
 // CDP's withMfa awaits a deferred that only a fully-completed verifyPasskey
 // settles. The bridge swallowed every failure (`catch {}`), left `busy` set,

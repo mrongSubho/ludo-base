@@ -1,3 +1,5 @@
+-- ARCHIVED — frozen history, never applied by any chain. Canonical schema lives in supabase/migrations/; new SQL goes there only.
+
 -- ============================================================================
 -- Ludo Base — LXP/RXP column rename: ALREADY LIVE, DO NOT RUN.
 -- Verified 2026-09-04: `players` carries `lxp`/`rxp` (both 0 for existing
