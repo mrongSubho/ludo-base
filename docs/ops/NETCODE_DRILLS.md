@@ -30,13 +30,17 @@ Paste results into `docs/ops/UNPARK_DECISION.md` §1.2 when done.
 
 1. **Drop PeerJS 10s** mid-match — expect `reconnecting` badge → `resync_ok` → timers resume only after snapshot.
 2. **Drop Supabase Realtime** — dual-path intents still seat/move via the surviving path.
-3. **Kill host / elect compute-host** — `net_authority_switch` increments; no illegal FSM transition; no double-apply (`intentId` dedup).
-4. **Airplane mode 30s** — abandon grace countdown visible (G3); no abandon accepted before `ABANDON_GRACE_MS`.
+3. **Kill host / elect compute-host** — `net_authority_switch` increments; a real `HOST_ELECT` crosses the match FSM (phase-gated to `live`/`resyncing`); no illegal transition; no double-apply (`intentId` dedup). **Counters are production-bumped now (NET-21, 2026-10-11)** — the presence election calls the same `bumpNet` names, so a drill's graph and the app's agree.
+4. **Airplane mode 30s** — abandon grace countdown visible (G3); no abandon accepted before `ABANDON_GRACE_MS`; classification meters no intents (NET-22 — `net_intent_ok` stays flat through A6).
 5. **Duplicate join** (same guest twice) — one seat; second `JOIN_REQUEST` is a no-op. *(covered by `npm run drill:live` D5)*
 
 ## Counters to graph during drills
 
 `net_heartbeat_ok` · `net_heartbeat_timeout` · `net_reconnect_attempt` · `net_reconnect_success` · `net_seq_gap` · `net_authority_switch` · `net_resync_applied` · `net_schema_drop` · `net_intent_dup` · `net_intent_ok`
+
+All ten are bumped by **production code paths** as well as the drills (2026-10-11): `net_heartbeat_ok` / `net_authority_switch` from the match presence election (`hooks/useGamePresence.ts`), the reconnect ladder from `lib/netcode/resync.ts` + `reconnectDelayMs`, and the intent pair from `rememberIntent` — so D3/A4 rows can now fail on real behaviour rather than only on the drill scripts.
+
+**Per-match reset (NET-27):** `resetNetCounters()` runs on networked `START_GAME` and on rematch, so a receipt's `net` section describes one match, not the session.
 
 See `lib/netcode/counters.ts` and `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` Track N.
 

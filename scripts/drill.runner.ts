@@ -152,6 +152,16 @@ test('A6 abandon grace + HIGH-2 refund', () => {
     assert.equal(edge.burnBps, 0);
 });
 
+test('NET-22: classification meters no intents', () => {
+    // classifyAbandon used to bump net_intent_ok, polluting drill row A1
+    // with non-intents. Classification must be counter-silent.
+    resetNetCounters();
+    classifyAbandon({ hasEdgeSig: true, hasHostSig: true, sinceDisconnectMs: ABANDON_GRACE_MS + 5 });
+    classifyAbandon({ hasEdgeSig: true, hasHostSig: false, sinceDisconnectMs: ABANDON_GRACE_MS + 5 });
+    classifyAbandon({ hasEdgeSig: false, hasHostSig: false, sinceDisconnectMs: ABANDON_GRACE_MS + 5 });
+    assert.equal(getNetCounters().net_intent_ok, 0, 'classifying abandonment is not an intent');
+});
+
 test('Drill matrix summary — print sign-off sheet', () => {
     const automatable = rows.filter((r) => !r.live);
     console.log('\n── Live-drill sign-off (automated rows) ──');

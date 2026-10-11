@@ -135,6 +135,10 @@ export interface MatchStatsOverlayProps {
     poolAuthority?: `0x${string}` | null;
     /** Winner wallet for single-winner prize plan (Phase-1 1v1 / FFA). */
     winnerAddress?: `0x${string}` | null;
+    /** NET-27: authority seq for the receipt (null offline). */
+    seq?: number | null;
+    /** NET-27: live replay log when one exists (currently none in prod). */
+    replay?: import('@/lib/replay/log').ReplayLog | null;
 }
 
 export function MatchStatsOverlay({
@@ -160,6 +164,8 @@ export function MatchStatsOverlay({
     isPoolHost,
     poolAuthority,
     winnerAddress,
+    seq,
+    replay,
 }: MatchStatsOverlayProps) {
     const seats = playerCount === '1v1' ? 2 : 4;
 
@@ -262,8 +268,10 @@ export function MatchStatsOverlay({
     const [copied, setCopied] = useState(false);
     const receipt: MatchReceipt | null = useMemo(() => {
         if (!open || !gameState.winner) return null;
-        return buildMatchReceipt({ state: gameState, players });
-    }, [open, gameState, players]);
+        // NET-27: seq + replay ride into the receipt; counters were reset at
+        // match start so the net section describes THIS match, not the session.
+        return buildMatchReceipt({ state: gameState, players, seq: seq ?? undefined, replay: replay ?? undefined, includeEvents: !!replay });
+    }, [open, gameState, players, seq, replay]);
 
     const copyReceipt = useCallback(() => {
         if (!receipt) return;

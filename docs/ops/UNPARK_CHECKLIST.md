@@ -13,12 +13,23 @@
 
 | Check | Result |
 | --- | --- |
-| `npm test` ×3 soak | **58/58 pass** (engine, network-boundary, chain-gate, props, foundation, chaos, hardening, gameplay-gaps) |
+| `npm test` ×3 soak | **380/380 pass** (engine, network-boundary, chain-gate, props, foundation, chaos, hardening, gameplay-gaps, authority, roll/edges/trust) |
 | `npx tsc -p tsconfig.json --noEmit` | **0 errors** |
-| `npm run lint` | **0 errors** (336 style warnings — burn-down only) |
+| `npm run lint` | **0 errors** |
 | `npm run test:chaos` | **7/7** intent flood, schema drops, seq-gap/stale, host-elect, backoff, abandon grace, replay noise |
 | `npm run bench:ai` | **0 illegal picks** (rookie/pro/master) |
 | `npm run check:engine` | **In sync** after `sync-edge-engine.mjs` (parity gate held) |
+| `npm run check:schema` | **Static + DB mode** — 29 migrations, grants, `column_default`, `pg_proc` signatures asserted |
+| `npm run check:drift` | **10/10** — `TEAM_PAIRINGS`, `SHARED_PATH`, `CORNER_SLOTS`, `SAFE_POSITIONS`, coords, `calculateNextPosition` |
+| `npm run test:golden` | **50/50 terminate** across 1v1/4P/2v2 (incl. a 2v2 team win), double-run hash-identical |
+| `npm run check:routes` | **47 routes clean** — no unauthenticated mutation remains |
+
+> **Scope note on "code gate green."** The phrase covers the **app** gates above,
+> which include `check:schema` and `check:drift` — it previously read as
+> engine-only. What it still does **not** cover: a literal `supabase db reset`
+> (proven file-by-file against PostgreSQL 16 instead — Docker unavailable),
+> live device/latency drills, and the device-measured hop frame budget. See
+> `docs/ops/REMEDIATION_CHECKLIST.md` for per-finding status.
 
 ---
 

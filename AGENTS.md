@@ -24,23 +24,29 @@ Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wag
 - `lib/types.ts` — `GameState` is the authoritative game state type (includes `activeBoost`, `powerTiles`, `BoardPlayer`, `ColorCorner`). Prefer `GameState` / `GameStateSetter` over `any` in game hooks.
 - `app/components/` — all UI. New component files: `PascalCase.tsx`; hooks/utilities: `camelCase`.
 - `supabase/functions/` — **Deno Edge Functions** (`roll-dice`, `resolve-bet`): `Deno` global + `https://esm.sh/` imports. Not bundled by Next; deploy separately. `resolve-bet` requires a host-signed payload (`lib/matchProof.ts` + `live_matches.host_address`).
-- **Migrations:** new SQL goes in `supabase/migrations/` (canonical). Root `migrations/` still has older files — do not add new ones there. Apply manually (SQL Editor or Management API).
+ - **Migrations:** new SQL goes in `supabase/migrations/` (canonical). Root `migrations/` and `supabase/migrations_archive/` are **frozen archives** (ARCHIVED header on every file, gated by `scripts/archive-guard.test.ts`) — never add new ones there. Apply canonical SQL via `supabase db push` (CLI) or the Dashboard SQL Editor.
 - `.agent/` — third-party Antigravity Kit; `.agents/` — third-party installable skills (reproducible via `npx skills add` + `skills-lock.json`); `.commandcode/` — agent tool scaffold. All gitignored; ignore for app work.
 
 ## Security & trust model (do not regress)
 
 These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 
-1. **2v2 teams are one source of truth:** `TEAM_PAIRINGS` in `lib/constants.ts` — **Green+Blue vs Red+Yellow**. Seating (`assignCorners2v2`), `getTeammateColor`, `getTeam`, assist, capture, and win checks must all use it. Never fork a second pairing.
+1. **2v2 teams are one source of truth:** `TEAM_PAIRINGS` in `lib/constants.ts` — **Green+Blue vs Red+Yellow**. Seating (`assignCorners2v2`), `getTeammateColor`, `getTeam`, lobby order (`LOBBY_COLORS['2v2']`, derived not hardcoded), trap truce, assist, capture, and win checks must all use it. Never fork a second pairing.
 2. **Move legality uses engine math:** always `calculateNextPosition` / `getLegalTokenIndices`. Never `pos + roll` (breaks gate crossing into home stretch 52–57).
-3. **Networked rolls:** Edge `roll-dice` only; receipts in `match_rolls` (unique `action_id`). **Networked moves (v2):** Edge `move-auth` (seed / `submit-move` / `pass-turn` / `submit-power`). **Match session (A/C):** one EIP-712 `LudoMatchSession` sign per match → `match_sessions.sessionId` for in-match actions (no per-move popup). Fallback = per-action signature. **SIWE app session (B):** `/api/siwe/verify` + `app_sessions` for chat/profile/settings only — never match moves. `match_states.seq` is display + rules authority. Offline keeps local `processMove`. `npm run check:engine` must pass.
+3. **Networked rolls:** Edge `roll-dice` only — a networked seat that cannot reach it **aborts** the roll; there is no client-side `Math.random()` fallback anywhere on that path (a local fallback is a face the client chose). Receipts in `match_rolls` bound to seat + turn (`match_rolls_match_turn_uniq` makes retry-until-six structurally impossible). **Networked moves (v2):** Edge `move-auth` (seed / `submit-move` / `pass-turn` / `submit-power`). **Match session (A/C):** one EIP-712 `LudoMatchSession` sign per match → `match_sessions.sessionId` for in-match actions (no per-move popup). Fallback = per-action signature. **SIWE app session (B):** `/api/siwe/verify` + `app_sessions` for chat/profile/settings only — never match moves. `match_states.seq` is display + rules authority. Offline keeps local `processMove`. `npm run check:engine` must pass.
 4. **`/api/match/record`:** requires wallet signature over `buildMatchRecordMessage`; signer must be a listed participant; no coin pot payout (progression only); replay blocked if match already has a winner.
 5. **`resolve-bet`:** host wallet-signs `buildBetResolveMessage`; Edge verifies signature + `live_matches.host_address`. Do not accept free-form `result` from the network.
 6. **Power tile types** stay on the authority; strip `type` via `lib/wireSanitize.ts` (`sanitizeGameStateForWire`).
-7. **DMs:** ECDH P-256 sealed boxes (`lib/encryption.ts`). Pubkeys on `players.ecdh_pubkey`. Legacy wallet-hash is decrypt-only. Recipient without a pubkey → send fails closed (no plaintext downgrade).
-8. **Messages RLS:** UPDATE is column-locked by trigger (`messages_restrict_columns`) — sender/receiver/content immutable.
+7. **DMs:** ECDH P-256 sealed boxes (`lib/encryption.ts`). Static identity is a non-extractable CryptoKey in IndexedDB (legacy localStorage JWK migrates on load). Pubkeys on `players.ecdh_pubkey`. Legacy wallet-hash is decrypt-only. Recipient without a pubkey → send fails closed (no plaintext downgrade); `POST /api/messages` rejects non-box content structurally.
+8. **Messages RLS:** UPDATE is column-locked by trigger (`messages_restrict_columns` in `supabase/migrations/00000000000000_baseline.sql`; the archived `migrations_archive/20260914_messages_rls_lockdown.sql` copy is reduced to a comment) — sender/receiver/content immutable.
 
 `ENGINE_LOGIC.md` is the living rules/spec doc — update it when engine or settlement behavior changes.
+
+**Finding register:** `docs/ops/SYSTEM_REVIEW.md` is the audit that produced the
+security/engine/netcode findings above, and `docs/ops/REMEDIATION_CHECKLIST.md`
+tracks each one to closure with an exit gate. Consult both before touching any
+invariant above — the checklist states *why* each rule exists and what test
+closes it.
 
 ### Wallet locking and authentication boundary
 

@@ -174,4 +174,48 @@ contract MissionClaimTest is Test {
         vm.expectRevert(MissionClaim.OnlyOwner.selector);
         missions.setPerPeriodCeiling(1);
     }
+
+    // ── ECO-05: relaying is an explicit allowlisted role, tx.origin is gone ──
+
+    function test_allowlisted_relayer_may_submit_another_wallets_voucher() public {
+        (bytes32 missionId, bytes32 periodId, uint64 deadline, bytes32 d) = _claimArgs(20e18, 11);
+
+        vm.prank(owner);
+        missions.setClaimRelayer(address(this), true);
+        // The relayer is not the wallet and is not alice's tx.origin either.
+        bytes memory sig = _sign(opPk, d);
+        uint256 before = chips.balanceOf(alice);
+        missions.claim(alice, missionId, 20e18, periodId, deadline, 11, sig);
+        assertEq(chips.balanceOf(alice), before + 20e18, "allowlisted relayer pays the wallet");
+    }
+
+    function test_unallowlisted_relayer_is_refused() public {
+        (bytes32 missionId, bytes32 periodId, uint64 deadline, bytes32 d) = _claimArgs(20e18, 12);
+        bytes memory sig = _sign(opPk, d);
+        vm.prank(mallory);
+        vm.expectRevert(MissionClaim.BadParam.selector);
+        missions.claim(alice, missionId, 20e18, periodId, deadline, 12, sig);
+    }
+
+    function test_revoked_relayer_loses_access() public {
+        (bytes32 missionId, bytes32 periodId, uint64 deadline, bytes32 d) = _claimArgs(20e18, 13);
+        vm.prank(owner);
+        missions.setClaimRelayer(mallory, true);
+        vm.prank(owner);
+        missions.setClaimRelayer(mallory, false);
+
+        vm.prank(mallory);
+        vm.expectRevert(MissionClaim.BadParam.selector);
+        missions.claim(alice, missionId, 20e18, periodId, deadline, 13, _sign(opPk, d));
+    }
+
+    function test_setClaimRelayer_onlyOwner_and_nonzero() public {
+        vm.prank(mallory);
+        vm.expectRevert(MissionClaim.OnlyOwner.selector);
+        missions.setClaimRelayer(mallory, true);
+
+        vm.prank(owner);
+        vm.expectRevert(MissionClaim.BadParam.selector);
+        missions.setClaimRelayer(address(0), true);
+    }
 }

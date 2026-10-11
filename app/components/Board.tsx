@@ -78,7 +78,7 @@ export default function Board({
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
-    const { participants, broadcastAction } = useTeamUp();
+    const { participants, broadcastAction, serverSeq } = useTeamUp();
     const {
         claim: claimChips,
         claimable: onchainClaimable,
@@ -427,6 +427,9 @@ export default function Board({
                 open={!!localGameState.winner && !spectatorMode}
                 gameState={localGameState}
                 players={players}
+                // Offline boards never advance the authority seq (stays 0);
+                // only a real seq belongs on the receipt.
+                seq={serverSeq || null}
                 myPlayer={myPlayer}
                 playerCount={playerCount}
                 wager={wager}

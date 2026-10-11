@@ -61,3 +61,25 @@ test('N4 TTL + LRU dedup store', () => {
     assert.equal(rememberIntent(store, 'fresh-1'), 'dup');
     assert.ok(getNetCounters().net_intent_dup >= 1);
 });
+
+test('NET-23: expiry is amortized — head walk every call, full sweep throttled', () => {
+    const seen: string[] = [];
+    const store = createDedupStore({ max: 10, ttlMs: 100, sweepIntervalMs: 10_000, onEvict: (id, reason) => seen.push(`${id}:${reason}`) });
+    store.add('old', 0);
+    store.add('new', 150);
+    // t=160: the expired head is collected by the per-call walk; the fresh
+    // head stops it. The full sweep stays throttled (160 - 0 < 10_000).
+    assert.equal(store.has('probe', 160), false);
+    assert.deepEqual(seen, ['old:ttl']);
+    assert.equal(store.has('old', 160), false, 'expired head is gone');
+    assert.equal(store.has('new', 160), true, 'fresh head survives');
+    // t=20000: past the throttle — the full sweep reclaims the stranded entry.
+    assert.equal(store.has('probe2', 20_000), false);
+    assert.deepEqual(seen, ['old:ttl', 'new:ttl']);
+    assert.equal(store.size(), 0);
+    // Expiry never flips a present id to missing early: a live id reads dup.
+    const live = createDedupStore({ max: 10, ttlMs: 100 });
+    live.add('k', 0);
+    assert.equal(live.has('k', 50), true);
+    assert.equal(live.add('k', 50), true, 'still dup before TTL');
+});

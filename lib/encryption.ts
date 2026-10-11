@@ -441,7 +441,15 @@ export async function decryptMessage(encryptedData: { iv: string; content: strin
     return new TextDecoder().decode(decrypted);
 }
 
-/** Decrypt any stored message body: sealed box first, then legacy. */
+/**
+ * ECO-07: decrypt only. No caller is on the encrypt path — `encryptMessage`
+ * legacy writer was removed with the plaintext-DM era; only historical `{v1}`
+ * and wallet-hash rows still need opening. This function is the sole reader
+ * of `deriveSharedKey` so the legacy path ages out with the rows, not by a
+ * deletion that strands readable history.
+ *
+ * @deprecated The wallet-hash leg is decrypt-only for pre-sealed-box rows.
+ */
 export async function decryptAnyMessage(
     ownerId: string,
     rawContent: string,

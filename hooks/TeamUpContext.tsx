@@ -34,7 +34,7 @@ import {
     GameActionPayload,
 } from '@/lib/types';
 import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
-import { bumpNet } from '@/lib/netcode/counters';
+import { bumpNet, resetNetCounters } from '@/lib/netcode/counters';
 import { createDedupStore, rememberIntent } from '@/lib/netcode/dedup';
 import { track } from '@/lib/telemetry';
 import { createMatchFsm, type MatchFsmEvent, type MatchPhase } from '@/lib/matchFsm';
@@ -168,11 +168,26 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         serverSeqRef.current = Math.max(serverSeqRef.current, seq);
         setServerSeq(seq);
         setHasAuthoritativeSnapshot(true);
-        setGameState(prev => ({
-            ...prev,
-            ...state,
-            lastUpdate: Date.now(),
-        }));
+        setGameState(prev => {
+            // NET-24: the wire strips authority-only power-tile types, so a
+            // wholesale spread would destroy the HOST's own tile knowledge
+            // (pickup logic needs `type`). Re-attach local types for tiles
+            // that are still on the board at the same cell; tiles the server
+            // respawned elsewhere correctly arrive typeless.
+            const localTypes = new Map(
+                (prev.powerTiles || []).map(t => [`${t.r},${t.c}`, (t as { type?: unknown }).type]),
+            );
+            const powerTiles = (state.powerTiles || []).map(t => {
+                const type = localTypes.get(`${t.r},${t.c}`);
+                return type === undefined ? t : { ...t, type };
+            });
+            return {
+                ...prev,
+                ...state,
+                powerTiles: powerTiles as GameState['powerTiles'],
+                lastUpdate: Date.now(),
+            };
+        });
         if (state.status === 'finished' || state.winner) {
             setMatchConnectionStatus('ended');
             sendMatchEvent({ type: 'FINISH' });
@@ -278,7 +293,22 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     });
 
     // 2.5. Presence Manager (AFK Failsafe Baton Pass)
-    const { isComputeHost, activePlayers } = useGamePresence(currentRoomCode, myAddress);
+    // NET-21: production netcode metering. Presence sync is the match-path
+    // heartbeat; a change of elected compute host is an authority switch and
+    // drives a real HOST_ELECT through the match FSM (phase-gated — lobby
+    // elections must not pollute the illegal-transition metric).
+    const onPresenceNetEvent = useCallback((e: { type: 'heartbeat' } | { type: 'authority-switch'; prev: string | null; next: string }) => {
+        if (e.type === 'heartbeat') {
+            bumpNet('net_heartbeat_ok');
+            return;
+        }
+        bumpNet('net_authority_switch');
+        const phase = fsmRef.current.phase;
+        if (phase === 'live' || phase === 'resyncing') {
+            sendMatchEvent({ type: 'HOST_ELECT' });
+        }
+    }, [sendMatchEvent]);
+    const { isComputeHost, activePlayers } = useGamePresence(currentRoomCode, myAddress, onPresenceNetEvent);
 
     // 3. Broadcast Helpers
     const broadcastAction = useCallback(<T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => {
@@ -309,6 +339,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 playerCount: startPayload.playerCount || prev.playerCount,
                 initialBoardConfig: startPayload.initialBoardConfig
             }));
+            // NET-27: counters reset per match so the receipt's net section
+            // describes this match, not the session.
+            resetNetCounters();
             sendMatchEvent({ type: 'ALL_SEATED' });
             sendMatchEvent({ type: 'START' });
 

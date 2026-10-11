@@ -29,9 +29,15 @@ contract MissionClaim is ReentrancyGuard {
 
     mapping(bytes32 => bool) public usedVoucher;
     mapping(bytes32 => bool) public opKeyRevoked; // digest-keyed revoke (optional)
+    /// @notice Contracts allowed to relay a claim on a wallet's behalf.
+    /// @dev ECO-05: makes ClaimHub.allowedSource live code, not dead config.
+    ///      Only addresses the owner has explicitly allowed can submit a
+    ///      voucher signed for someone else.
+    mapping(address => bool) public claimRelayer;
 
     event OpKeyUpdated(address opKey);
     event MissionClaimed(address indexed wallet, bytes32 indexed missionId, bytes32 periodId, uint256 amount);
+    event ClaimRelayerSet(address indexed relayer, bool allowed);
     event PausedSet(bool paused);
     event CeilingSet(uint256 perPeriodCeiling);
 
@@ -46,6 +52,12 @@ contract MissionClaim is ReentrancyGuard {
     modifier onlyOwner() {
         if (msg.sender != owner) revert OnlyOwner();
         _;
+    }
+
+    function setClaimRelayer(address relayer, bool allowed) external onlyOwner {
+        if (relayer == address(0)) revert BadParam();
+        claimRelayer[relayer] = allowed;
+        emit ClaimRelayerSet(relayer, allowed);
     }
 
     constructor(IChips chips_, address opKey_, address owner_) {
@@ -100,10 +112,11 @@ contract MissionClaim is ReentrancyGuard {
     ) external nonReentrant {
         if (paused) revert IsPaused();
         if (block.timestamp > deadline) revert Expired();
-        if (msg.sender != wallet && tx.origin != wallet) {
-            // Allow ClaimHub later via onlyWallet; Phase 1: claimant must be wallet.
-            revert BadParam();
-        }
+        // ECO-05: claimant identity is msg.sender only. `tx.origin` was
+        // removed — it allowed any contract a wallet interacted with to
+        // submit that wallet's voucher, which is the master-phishing path.
+        // Relaying is now an explicit, owner-allowlisted role (ClaimHub).
+        if (msg.sender != wallet && !claimRelayer[msg.sender]) revert BadParam();
 
         bytes32 d = voucherDigest(wallet, missionId, amount, periodId, deadline, nonce);
         if (ECDSA.recover(d, sig) != opKey) revert BadSig();

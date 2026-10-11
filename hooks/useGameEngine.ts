@@ -21,6 +21,7 @@ import {
     POWER_TILES_COUNT 
 } from '@/lib/constants';
 import { activeColorsForTurns } from '@/lib/engine';
+import { resetNetCounters } from '@/lib/netcode/counters';
 import { hostActionForIntent } from '@/lib/hostIntent';
 
 // Specialized Hooks
@@ -424,6 +425,8 @@ export function useGameEngine({
             players: newPlayers,
             colorCorner: newCC
         });
+        // NET-27: counters reset per match (rematch included).
+        resetNetCounters();
         setLocalGameState({
             ...INITIAL_GAME_STATE,
             botDifficulty,

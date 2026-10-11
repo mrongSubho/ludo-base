@@ -8,9 +8,21 @@ interface GamePresenceState {
     isComputeHost: boolean;
 }
 
+/**
+ * NET-21: production liveness + authority metering for the match path.
+ * - `heartbeat`: the presence sync IS the match liveness heartbeat
+ *   (throttled to one bump per 5s — syncs also fire on joins).
+ * - `authority-switch`: the elected compute host actually changed hands
+ *   (initial election is not a switch).
+ */
+export type PresenceNetEvent =
+    | { type: 'heartbeat' }
+    | { type: 'authority-switch'; prev: string | null; next: string };
+
 export function useGamePresence(
     roomCode: string | null,
-    walletAddress?: string
+    walletAddress?: string,
+    onEvent?: (e: PresenceNetEvent) => void,
 ) {
     const [presenceState, setPresenceState] = useState<GamePresenceState>({
         activePlayers: [],
@@ -21,6 +33,11 @@ export function useGamePresence(
     const pendingHostRef = useRef<string | null>(null);
     const activeWalletsRef = useRef<string[]>([]);
     const pendingHostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Callback + heartbeat throttle live in refs so the channel effect below
+    // does not resubscribe when the parent re-renders.
+    const onEventRef = useRef(onEvent);
+    onEventRef.current = onEvent;
+    const lastHeartbeatRef = useRef(0);
 
     useEffect(() => {
         if (!roomCode) return;
@@ -79,9 +96,15 @@ export function useGamePresence(
                         pendingHostTimerRef.current = null;
                         pendingHostRef.current = null;
                         if (!nextHost || !activeWalletsRef.current.includes(nextHost)) return;
+                        const prev = electedHostRef.current;
                         electedHostRef.current = nextHost;
-                        setPresenceState(prev => ({
-                            ...prev,
+                        // Only a change of hands is a switch — the initial
+                        // election has no predecessor to switch from.
+                        if (prev && prev !== nextHost) {
+                            onEventRef.current?.({ type: 'authority-switch', prev, next: nextHost });
+                        }
+                        setPresenceState(prevState => ({
+                            ...prevState,
                             isComputeHost: walletAddress?.toLowerCase() === electedHostRef.current,
                         }));
                     }, 1000);
@@ -92,6 +115,14 @@ export function useGamePresence(
                     activePlayers: activeWallets,
                     isComputeHost: !!electedHost && electedHost === walletAddress?.toLowerCase(),
                 });
+
+                // Match-path liveness heartbeat (throttled — syncs also fire
+                // on joins, which are not heartbeats).
+                const now = Date.now();
+                if (now - lastHeartbeatRef.current >= 5000) {
+                    lastHeartbeatRef.current = now;
+                    onEventRef.current?.({ type: 'heartbeat' });
+                }
                 
                 console.log(`👑 [Presence] Compute Hierarchy updated:`, activeWallets);
             })

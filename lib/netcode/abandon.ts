@@ -5,7 +5,6 @@
  */
 
 import type { AfkPlayerStats, PlayerColor } from '../types';
-import { bumpNet } from './counters';
 import { track } from '../telemetry';
 
 /** Grace window before abandon is submittable after disconnect (ms). */
@@ -43,7 +42,8 @@ export function classifyAbandon(evidence: AbandonEvidence): AbandonOutcome {
         return { mode: 'none', reason: 'grace', burnBps: 0, refundBps: 10000 };
     }
     if (evidence.hasEdgeSig && evidence.hasHostSig) {
-        bumpNet('net_intent_ok');
+        // NET-22: classification is not an intent — it must not bump
+        // net_intent_ok (that polluted drill row A1 with non-intents).
         return {
             mode: 'dual_sign_burn_split',
             burnBps: 5000,
@@ -53,7 +53,6 @@ export function classifyAbandon(evidence: AbandonEvidence): AbandonOutcome {
         };
     }
     if (evidence.hasEdgeSig) {
-        bumpNet('net_intent_ok');
         return {
             mode: 'edge_only_refund',
             burnBps: 0,

@@ -32,8 +32,7 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
     - **Sync Delay:** Guests wait **800ms** before the first connection attempt to allow Host initialization.
 
 ### 2.2 Hybrid Mesh Communication Model
-- **Reliability Layer (Supabase Broadcast):** The primary channel for high-frequency game actions (dice rolls, token moves, turns). Subscribing to `game-room-<roomCode>` ensures low-latency delivery across the Supabase global mesh.
-- **P2P Identity & Initial Handshake (PeerJS):** Still strictly utilized for initial peer discovery, identity validation (`validation_token`), and specialized profile synchronization (`SYNC_PROFILE`). 
+- **Reliability Layer (Supabase Broadcast):** The primary channel for high-frequency game actions (dice rolls, token moves, turns). Subscribing to `game-room-<roomCode>` ensures low-latency delivery across the Supabase global mesh.- **P2P Identity & Initial Handshake (PeerJS):** Still strictly utilized for initial peer discovery, identity validation (`validation_token`), and specialized profile synchronization (`SYNC_PROFILE`). 
 - **Mesh Redundancy:** Actions are signed with a unique `actionId`. The engine implements a processed actions Set (`processedActionsRef`) to deduplicate payloads received via both PeerJS and Supabase.
 - **Cleanup:** Automatically clears searching tickets upon component unmount and forces immediate termination of stale sessions to prevent ghost matches.
 
@@ -105,7 +104,7 @@ Standardized star positions: `{r:2, c:9}, {r:7, c:2}, {r:9, c:14}, {r:14, c:7}` 
 
 ### 5.2 Bot Heuristics (`aiEngine.ts`)
 Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
-1.  **Reach Finish Zone (+200):** Safely bringing a token home.
+1.  **Reach Finish Zone (+150):** Safely bringing a token home (`REACH_FINISH` in `lib/constants.ts`).
 2.  **Power Tile Hunting (+120):** Aggressive targeting of power-up squares.
 3.  **Capture Token (+100):** Aggressive hunting of opponent tokens.
 4.  **Reinforce Ally (+60):** Building Force on a square with an ally.
@@ -113,6 +112,8 @@ Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
 6.  **Exit Base (+40):** Bringing tokens out of the base.
 7.  **Enter Home Lane (+25):** Prioritizing entries to the protected home stretch.
 8.  **Progression (+1x):** Small reward per cell of color-relative distance travelled toward home (0 at own start, 50 at gate, 51–56 home stretch) — never the raw track index, which scored a fresh token of a late-start color above a token six cells from home.
+
+**Doc accuracy (ENG-16):** item 1 states the `AI_SCORES.REACH_FINISH` value from `lib/constants.ts` (150). It previously read +200 with no constant backing it — the code is the source of truth, so the doc was corrected rather than the constant.
 - **Difficulty tiers (`DIFFICULTY_PARAMS` in `lib/constants.ts`, stored per match as `GameState.botDifficulty`, default `pro` = legacy behavior):**
     - **Rookie:** ±40% score noise, ignores power tiles (`powerHunt 0`, never spends powers), capture ×0.7, slow clocks (roll 600–2200ms, move 1400ms).
     - **Pro:** clean baseline weights, standard clocks (roll 150–1900ms, move 900ms).
@@ -218,7 +219,7 @@ Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`
 ### 7.2 Chat encryption
 DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair (opaque non-extractable CryptoKey in IndexedDB; legacy localStorage JWK migrates on load) and publishes the public JWK on `players.ecdh_pubkey` via a fresh wallet `personal_sign` over the key fingerprint. Senders generate an ephemeral pair, derive AES-GCM via real HKDF-SHA-256 (16 random salt bytes + both static keys in `info`, all carried in the v2 box), and store `{v:2, epk, iv, salt, from, content}`. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`messages_restrict_columns` in `supabase/migrations/00000000000000_baseline.sql`).
 
-Note: if a recipient has never published `ecdh_pubkey`, new sends fail closed (no plaintext downgrade).
+Note: if a recipient has never published `ecdh_pubkey`, new sends fail closed (no plaintext downgrade). `POST /api/messages` enforces the same at the door (CRY-03): `content` must parse as a sealed box via `isSealedBox` — structural, not a length heuristic — so a client that failed to encrypt writes nothing rather than plaintext.
 
 ### 7.3 Match recording (signed)
 `/api/match/record` requires a wallet signature over a canonical payload (`lib/matchProof.ts`). The signer must be a listed participant. Coin pots are **not** paid from this route (progression only). Replay is blocked when `matchId` already has a winner.
@@ -234,7 +235,7 @@ Note: if a recipient has never published `ecdh_pubkey`, new sends fail closed (n
 > Added: 2026-03-23 | Status: Phase 1–3 complete, Phase 4 (UI) in progress
 
 ### 8.1 Architecture: State-Sync Streaming ("Zero-Video")
-Spectators do **not** watch a video stream. Instead, they subscribe to the same Supabase Realtime Broadcast channel as players (`game-room-${roomCode}`) via the `useSpectatorSync` hook. Their browser receives the same `GameAction` payloads and re-renders `Board.tsx` locally in `spectatorMode`.
+Spectators do **not** watch a video stream. Instead, they subscribe to the same Supabase Realtime Broadcast channel as players (`game-room-${roomCode}`) via the `useSpectatorSync` hook. Their browser receives the same `GameAction` payloads and re-renders `Board.tsx` locally in `spectatorMode`. (Their control channel is a separate `match-states-room-<roomCode>` presence channel, used for bootstrap/join messages — not gameplay event delivery.)
 
 This approach costs zero additional bandwidth per spectator and scales horizontally with Supabase infrastructure.
 
@@ -248,9 +249,9 @@ This approach costs zero additional bandwidth per spectator and scales horizonta
 ### 8.2 Betting Window Protocol (V2 Hardened)
 The host broadcasts a `BET_WINDOW_OPEN` event **before** initiating the dice commit. After 3 seconds, the host broadcasts `BET_WINDOW_CLOSED` with an ISO timestamp. **DICE_COMMIT is only sent after BET_WINDOW_CLOSED.** 
 
-**Security V2:** The `settle_match_bets` RPC on Supabase performs a server-side check ensuring `NOW() > window_closed_at`. This prevents front-running even if the client-side Edge Function trigger is spoofed.
+**Security V2 (DB-04 audit):** the timing guard lives in `chips_escrow_settle_bets` (`supabase/migrations/202609300005_spectator_bet_escrow.sql`), which requires `window_closed_at` to be set **and** in the past (`BET_WINDOW_STILL_OPEN` otherwise) before any payout. The canonical `settle_match_bets` was frozen by `202609300001` and its stub body raises `LEGACY_COINS_FROZEN` — it carries neither a live guard nor idempotency. Rake is taken from `chips_escrow_config.rake_bps`, and the outcome is cross-checked against `match_states.state` before settlement (SEC-29).
 
-**Security V3 (signed settlement):** `resolve-bet` no longer accepts a free-form `result` from the network. The host wallet-signs `buildBetResolveMessage(...)` (`lib/matchProof.ts`). The Edge Function recovers the signer, requires `live_matches.host_address` to match, and only then calls `settle_match_bets`. Host address is written on `hostGame` / `START_GAME` (migration `20260914_live_matches_host_address.sql`).
+**Security V3 (signed settlement):** `resolve-bet` no longer accepts a free-form `result` from the network. The host wallet-signs `buildBetResolveMessage(...)` (`lib/matchProof.ts`). The Edge Function recovers the signer, requires `live_matches.host_address` to match, refuses an open or already-settled window (`409`), derives `bet_type` from `live_matches.current_bet_type` (a null recorded type fails closed), requires a recorded winner, and only then calls `chips_escrow_settle_bets`. Host address is written on `hostGame` / `START_GAME` (migration `20260914_live_matches_host_address.sql`).
 
 ### 8.3 New Database Tables
 | Table | Purpose |

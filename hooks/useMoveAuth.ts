@@ -17,6 +17,7 @@ import {
 } from '@/lib/sessionProof';
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { stripPowerTypesForWire } from '@/lib/engine';
+import { track } from '@/lib/telemetry';
 import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types';
 import type { MatchActionError, MatchActionErrorCode, MatchActionSuccess } from '@/lib/matchProtocol';
 import type { MatchStateSnapshot } from '@/lib/matchProtocol';
@@ -486,6 +487,9 @@ export function useMoveAuth(opts: {
         if (r.status === 401 && useProof) {
             // Session expired mid-match — clear and retry public get so the UI
             // still renders (moves will re-prompt via createMatchSession).
+            // NET-26: meter the downgrade — a silent fallback here would hide
+            // an auth outage as "working" read-only boards.
+            track('net_degraded', { reason: 'moveauth_public_downgrade', matchId });
             sharedMoveSessions.delete(matchId);
             const retry = await callMoveAuth('get', { matchId });
             if (retry.ok && retry.data?.state && Number.isFinite(Number(retry.data.seq))) {

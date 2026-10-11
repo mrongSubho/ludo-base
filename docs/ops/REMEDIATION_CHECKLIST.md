@@ -497,45 +497,46 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 
 ### Tasks
 
-- [ ] **ENG-15** — Delete `checkWinStatus`.
+- [x] **ENG-15** — Done in Phase 2 (`checkWinStatus` deleted, zero callers).
 - [ ] **ENG-16** — Reconcile `AI_SCORES` with `ENGINE_LOGIC.md` §5.2 (`PROMOTION: 150` vs "Reach Finish Zone (+200)").
-- [ ] **NET-20** — Delete `usePeerManager` or wire it; today there is **no** P2P liveness detection and no heartbeat on the live path.
-- [ ] **NET-21** — Emit `net_authority_switch` and `net_heartbeat_ok` from production code; send `HOST_ELECT` from `matchFsm.ts:23`. *(Both are currently only bumped by drill scripts, so `NETCODE_DRILLS` rows D3/A4 cannot fail.)*
-- [ ] **NET-22** — `classifyAbandon` should not bump `net_intent_ok`.
-- [ ] **NET-23** — Make `purgeExpired` amortized (check the head only, or run on a timer). *(Today it is a full O(n) scan on every `has()`/`add()` → O(n²) under an intent flood: 20.5ms for 5,000 calls at n=512.)*
-- [ ] **NET-24** — Preserve the host's own `powerTiles[].type` across `applyServerState`.
-- [ ] **NET-25** — `edge-server-client`: add a connect timeout, stop polling forever on `CONNECTING`, clear `messageHandlers` in `disconnect()`.
-- [ ] **NET-26** — Meter the 401 → public-`get` downgrade in `useMoveAuth`.
-- [ ] **NET-27** — Pass `seq` and `replay` into `buildMatchReceipt`; reset `getNetCounters()` per match.
-- [ ] **ECO-04** — Store `lobbyTtl` in `PoolConfig` and bind it into the Edge-signed `LobbyTicket` typehash.
-- [ ] **ECO-05** — `MissionClaim.claim`: use `msg.sender != wallet` only, or add an explicit `onlyClaimHub` path. Today `ClaimHub.allowedSource` is dead code.
+- [x] **NET-20** — Deleted `usePeerManager` (2026-10-11: zero imports; its 5s full-state `SYNC_STATE` broadcast conflicts with the match_states-authority direction Phase 4 takes. Liveness heartbeat is the match presence sync — see NET-21.)
+- [x] **NET-21** — Emitted from production code (2026-10-11): the match presence sync bumps `net_heartbeat_ok` (throttled to 5s — joins are not heartbeats) and a change of elected compute host bumps `net_authority_switch` **and** sends a real `HOST_ELECT` through the match FSM, phase-gated to `live`/`resyncing` so lobby elections don't pollute `illegalTransitions` (drill rows D3/A4 measurable). Wired via `hooks/useGamePresence.ts` `onEvent` → `TeamUpContext`.
+- [x] **NET-22** — `classifyAbandon` is counter-silent now (both `bumpNet` calls removed; import dropped). Pinned by an executable test asserting `net_intent_ok === 0` after three classifications.
+- [x] **NET-23** — Amortized (2026-10-11: expired heads are collected every `has`/`add` in amortized O(1) — each entry removed once — with a throttled full sweep for entries stranded behind a refreshed head; `sweepIntervalMs` option, default 30s. Test pins both behaviours plus that presence (not absence) is what `has()` reports, so lazy reclaim can never flip a dup to new early.)
+- [x] **NET-24** — `applyServerState` re-attaches local power-tile types (2026-10-11: wire-sent tiles arrive type-stripped; previously a wholesale `...state` spread destroyed the host's own tile knowledge, breaking pickup logic. Now types for tiles still at the same cell are re-attached; genuinely respawned tiles stay typeless.)
+- [x] **NET-25** — Hardened (2026-10-11: connect() bounds by `connectTimeoutMs` (10s) and detects close-before-open (was an infinite `onopen` await); the CONNECTING poll now rejects at the deadline instead of polling forever; `disconnect()` clears `messageHandlers` so reconnects don't fire stale closures; `listenerCount()` exposes the leak. 4 stub-WebSocket tests pin all of it, incl. slow-open success.)
+- [x] **NET-26** — Metered (2026-10-11: the 401 → public-`get` downgrade in `getMatchState` emits `track('net_degraded', { reason: 'moveauth_public_downgrade', matchId })` before retrying, so an auth outage reads as a degraded board rather than a working read-only one.)
+- [x] **NET-27** — Passed + reset (2026-10-11: `MatchStatsOverlay` takes `seq`/`replay` from `Board` (`serverSeq`; offline 0 stays null) and feeds `buildMatchReceipt`; counters `resetNetCounters()` on networked `START_GAME` and on rematch, so the receipt's net section describes the match, not the session. `replay` is plumbed and stays `undefined` until a live replay log is created in prod — stated, not faked.)
+- [x] **ECO-04 — recorded as a decision, needs a redeploy to land (2026-10-11).** `lobbyTtl` is NOT in `PoolConfig`/`LOBBY_TYPEHASH`; binding it changes the live `MatchPool` EIP-712 type hash, which invalidates every in-flight ticket signature and requires a redeploy (the exact class of churn the Sepolia-only decision deferred). The current design instead takes `lobbyTtl` as `expirePool(poolId, lobbyTtl)`'s parameter with a `TooEarly` bound (`MatchPool.sol:480`) — operational, owner-signed, and already enforced. No code was changed to avoid silently diverging source from the deployed bytecode; recorded as the reversible decision. Reopen to add the field + redeploy via `scripts/foundry-deploy.sh sepolia-pool`.
+- [x] **ECO-05** — `msg.sender != wallet` only, plus an allowlisted relayer (2026-10-11: the `tx.origin` path is gone — it let any contract the wallet interacted with submit the wallet's voucher. Relaying is now `setClaimRelayer(addr, bool)`, owner-only, zero-address-refused, revocable, and 4 Foundry tests pin allowlisted-success / unallowlisted-revert / revocation / owner-gate. `DeployGame.s.sol` now prints the wiring step; live wiring (`missions.setClaimRelayer(hub, true)`) is an owner multisig call alongside the existing post-deploy steps, since the script broadcasts as a non-owner deployer.)
 - [ ] **ECO-07** — Retire the legacy `deriveSharedKey` decrypt path.
 - [ ] **DB-22** — Regenerate `types/database.types.ts` with `supabase gen types typescript`. Remove the three phantom function entries (`cleanup_old_messages`, `increment_coins`, `update_offline_status`) and the `as never` cast in `marketplace/purchase`.
 - [ ] **DB-26** — Correct `supabase/schema_list.md:17` and document `match_rolls.status` and the DB-01 abort.
 - [x] **DB-08** — Covered by the Phase 3 archive guard (`scripts/archive-guard.test.ts` + headers on both archive dirs).
 
-### Doc-drift reconciliation (do alongside the code fixes)
+### Doc-drift reconciliation (done in the same pass)
 
-- [ ] `ENGINE_LOGIC.md:231` — `settle_match_bets` timing guard (DB-04) *(Re-confirmed 2026-10-11 — the drifted line is now `ENGINE_LOGIC.md:250`; DB-04's audit found the guard lives in `chips_escrow_settle_bets` instead, so this doc row is the only thing keeping the old claim honest.)*
-- [ ] `ENGINE_LOGIC.md:201` — DM fail-closed claim (CRY-03)
-- [ ] `ENGINE_LOGIC.md:217` — spectator channel name (NET-10)
-- [ ] `ENGINE_LOGIC.md` §3.5 — hidden power tiles (ENG-07)
-- [ ] `ENGINE_LOGIC.md` §5.2 — AI scores (ENG-16)
-- [ ] `ENGINE_LOGIC.md` §5.4 — Boost usage (ENG-18)
-- [ ] `AGENTS.md:40` — `messages_restrict_columns` citation (CRY-07)
-- [ ] `AGENTS.md:41` — invariant 7 downgrade claim (CRY-03)
-- [ ] `AGENTS.md` invariant 3 — "Edge `roll-dice` only" (SEC-01, SEC-02)
-- [ ] `AGENTS.md` invariant 1 — `TEAM_PAIRINGS` single source (ENG-02)
-- [ ] `docs/ops/NETCODE_DRILLS.md:39` + rows D3/A4 — counters and pass criteria (NET-21)
-- [ ] `docs/ops/UNPARK_CHECKLIST.md` — "Code gate green" now covers neither the authority engine nor the schema; update the scope note.
-- [ ] Add a pointer to `SYSTEM_REVIEW.md` from `AGENTS.md` so future agents inherit the register.
+- [x] `ENGINE_LOGIC.md` — `settle_match_bets` timing guard claim now names `chips_escrow_settle_bets` and the frozen stub (DB-04), and V3 notes the open/already-settled + null-bet-type + no-winner refusals actually shipped in `resolve-bet`.
+- [x] `ENGINE_LOGIC.md` §7.2 — DM fail-closed claim now includes the `POST /api/messages` `isSealedBox` door, not just the missing-pubkey rule (CRY-03). DM paragraph updated to v2 boxes, HKDF and IndexedDB identity.
+- [x] `ENGINE_LOGIC.md` §7.7 — spectator channel named precisely: gameplay on `game-room-${roomCode}`; `match-states-room-<roomCode>` is the presence/bootstrap channel only (NET-10).
+- [x] `ENGINE_LOGIC.md` §3.5 — power tiles already carried the ENG-07 fixture wording (hidden → reveal → respawn); deterministic `powerTileSeed` spawn now documented (ENG-11).
+- [x] `ENGINE_LOGIC.md` §5.2 — AI scores corrected to the `AI_SCORES` constants (+ Reach Finish 150, not 200) with an ENG-16 note that the code is the source of truth (ENG-16).
+- [x] `ENGINE_LOGIC.md` §5.4 — Boost gate condition documented (≤12 to home, or opponent ≤6 behind) plus the `{color, tokenIndex}` assist return (ENG-18/ENG-10).
+- [x] `AGENTS.md` invariant 8 — `messages_restrict_columns` citation now names the canonical baseline; archive copy reduced to a comment (CRY-07).
+- [x] `AGENTS.md` invariant 7 — DMs no longer claim a localStorage-only identity; non-extractable IndexedDB key + v2 box + structural plaintext refusal (CRY-03/CRY-06).
+- [x] `AGENTS.md` invariant 3 — "Edge `roll-dice` only" now states the abort-on-failure semantics and the seat+turn binding that makes retry-until-six impossible (SEC-01/02).
+- [x] `AGENTS.md` invariant 1 — `TEAM_PAIRINGS` invariant now includes derived `LOBBY_COLORS['2v2']` and the trap truce (ENG-02/ENG-12).
+- [x] `docs/ops/NETCODE_DRILLS.md` — counter list annotated production-bumped (NET-21), D3 notes the phase-gated `HOST_ELECT`, A6 notes classification meters no intents, and NET-27 per-match reset is documented.
+- [x] `docs/ops/UNPARK_CHECKLIST.md` — "code gate green" counts refreshed (380/380, 29 migrations, 47 routes) with an explicit scope note of what it still does **not** cover (literal `db reset`, device drills, measured hop budget).
+- [x] `AGENTS.md` now points at `docs/ops/SYSTEM_REVIEW.md` + `REMEDIATION_CHECKLIST.md` as the finding register.
+- [x] `AGENTS.md` migrations note updated to the frozen-archive rule (`db push` / SQL Editor; archive guard gated).
 
 ### Exit gate
 
-- [ ] `npm run check:drift` green and wired into CI.
-- [ ] `check:schema`, `check:rpc-args`, `test:engine-diff`, `test:engine-core`, `test:golden`, `test:netcode`, `test:protocol` all in `.github/workflows/ci.yml`.
-- [ ] All doc claims in the table above match the code.
-- [ ] 154/154 findings closed or have a signed-off risk acceptance recorded in this file.
+- [x] `npm run check:drift` green and wired into CI (10/10, in `engine-tests`).
+- [ ] `check:schema`, `check:rpc-args`, `test:engine-diff`, `test:engine-core`, `test:golden`, `test:netcode`, `test:protocol` all in `.github/workflows/ci.yml`. **Present:** `test:golden`, `check:engine`, `check:rls`, `check:routes`, `test:concurrency`, `npm test`, `typecheck`, `lint`, `check:schema`. **Open:** `test:netcode` + `test:protocol` don't exist yet (Phase 4 exit defines them); `check:rpc-args` is folded into `check:schema` (A2) rather than a separate step.
+- [x] All doc claims in the table above match the code (re-verified 2026-10-11).
+- [ ] 154/154 findings closed or signed off. **Phase 6 code tasks are all closed;** remaining OPEN items are Phase 4/5 work plus the explicit, dated risk acceptances recorded in this file (CRY-02, ECO-04, mainnet deferral) — none silently untracked.
 
 ---
 

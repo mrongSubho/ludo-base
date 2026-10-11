@@ -32,6 +32,7 @@ contract DeployGame is Script {
         console.log("ClaimHub", address(hub));
         console.log("MissionClaim", address(missions));
         console.log("CHIPS", chipsAddr);
+        console.log("Next: missions.setClaimRelayer(hub, true) from GAME_OWNER_MULTISIG");
         console.log("Next: transfer ownership + pool.setClaimHub(hub) from GAME_OWNER_MULTISIG");
         console.log("Fill docs/tokenomics/TOKEN_PARAMS.md deploy table");
 
