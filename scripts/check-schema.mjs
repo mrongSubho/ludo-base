@@ -342,6 +342,7 @@ async function assertAgainstDatabase(url, files) {
             'cash_out_bet', 'settle_match_bets', 'purchase_marketplace', 'join_tournament',
             'chips_escrow_place_bet', 'chips_escrow_settle_bets', 'chips_escrow_deposit',
             'chips_escrow_withdraw', 'chips_escrow_touch', 'chips_escrow_solvency',
+            'chips_escrow_spend_purchase',
         ];
         const { rows: bal } = await c.query(
             `select p.proname,

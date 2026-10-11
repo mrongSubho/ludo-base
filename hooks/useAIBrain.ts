@@ -141,7 +141,9 @@ export function useAIBrain({
                     });
 
                     if (bestMove !== null) {
-                        moveTokenRef.current(color, bestMove, diceValue);
+                        // ENG-10: move the teammate's token with the teammate's
+                        // color — the index is into bestMove.color's array.
+                        moveTokenRef.current(bestMove.color, bestMove.tokenIndex, diceValue);
                     } else {
                         console.warn('🤖 [AIBrain] No valid moves found for bot. Forcing turn switch.');
                         // 🔧 SAFETY: If getBestMove returns null, reset lastActionRef

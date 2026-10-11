@@ -112,13 +112,20 @@ test('the intent types no longer have a field for a face', () => {
 
 test('the host REQUEST_ROLL handler cannot pass a face to the engine', () => {
     const src = code('hooks/useGameEngine.ts');
-    // The handler must call handleRoll() bare. `payload?.value` / `payload.value`
-    // anywhere in the intent handler is the original bug.
+    // The handler must not read a face off the payload — the original bug.
     assert.doesNotMatch(src, /payload\??\.value/, 'host must not read payload.value');
+    // The decision is delegated to the executably-tested hostActionForIntent
+    // (scripts/host-intent.test.ts drives it with forged intents); the effect
+    // must call it with the host's committed face and roll on its verdict.
     assert.match(
         src,
-        /if \(type === 'REQUEST_ROLL'\) \{[\s\S]*?handleRoll\(\);/,
-        'REQUEST_ROLL must call handleRoll() with no argument',
+        /hostActionForIntent\(lastIntent, localGameState\.diceValue\)/,
+        'REQUEST_ROLL must go through hostActionForIntent with the host face',
+    );
+    assert.match(
+        src,
+        /action\.kind === 'roll'[\s\S]*?handleRoll\(\);/,
+        'a roll verdict must call handleRoll() with no argument',
     );
 });
 
@@ -127,8 +134,8 @@ test('the host REQUEST_MOVE handler uses the host dice, not the guest dice', () 
     assert.doesNotMatch(src, /payload\??\.diceValue/, 'host must not read payload.diceValue');
     assert.match(
         src,
-        /if \(type === 'REQUEST_MOVE'\) \{[\s\S]*?const diceValue = localGameState\.diceValue;/,
-        'REQUEST_MOVE must take the face from the host state',
+        /action\.kind === 'move'[\s\S]*?moveToken\(action\.color, action\.tokenIndex, action\.diceValue\)/,
+        'REQUEST_MOVE must move with the helper-derived host face',
     );
 });
 

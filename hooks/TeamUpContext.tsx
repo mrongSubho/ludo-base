@@ -329,6 +329,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     isStarted: true,
                     status: 'playing' as const,
                     powerTiles: gameStateRef.current.powerTiles || [],
+                    // ENG-11: commit the host's respawn seed so the Edge
+                    // authority and every guest spawn identical tiles.
+                    powerTileSeed: gameStateRef.current.powerTileSeed
+                        ?? ((Math.random() * 0x100000000) >>> 0),
                     playerPowers: gameStateRef.current.playerPowers || ENGINE_INIT.playerPowers,
                     powerSpentThisTurn: false,
                     activeBoost: null,

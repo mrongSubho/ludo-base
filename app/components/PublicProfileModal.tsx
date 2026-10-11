@@ -296,7 +296,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 const data = await response.json();
                 if (response.ok) {
                     window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
-                    setActionSuccess(data.type === 'poke_back' ? `Poked Back! +${data.reward} Coins` : "Poke Sent!");
+                    setActionSuccess(data.type === 'poke_back' ? (data.reward > 0 ? `Poked Back! +${data.reward} CHIPS` : "Poked Back!") : "Poke Sent!");
                     setTimeout(() => setActionSuccess(null), 2500);
                 } else {
                     setActionSuccess(data.error || "Failed to Poke");

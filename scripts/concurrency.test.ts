@@ -461,6 +461,103 @@ test('arming the escrow cannot re-enable self-betting', { skip }, async () => {
     }
 });
 
+test('CHIPS marketplace spend is atomic, idempotent, and cannot overdraw', { skip }, async () => {
+    // The marketplace rail (migration 202609300017): escrowed CHIPS buy
+    // cosmetics through chips_escrow_spend_purchase — conditional debit,
+    // treasury credit, proof row, replay-safe on (wallet, request_id).
+    const buyer = '0x' + '66'.repeat(20);
+    const treasury = '0x' + '77'.repeat(20);
+    const price = (BigInt(300) * E18).toString();
+
+    const setup = await connect();
+    try {
+        await setup.query(
+            `insert into players(wallet_address) values ($1), ($2) on conflict do nothing`,
+            [buyer, treasury],
+        );
+        await setup.query(
+            `update chips_escrow_config set enabled = true, treasury_wallet = $1, rake_bps = 500,
+                    allow_self_bets = false`,
+            [treasury],
+        );
+        await setup.query(`select chips_escrow_deposit($1, $2::numeric, 'buy-seed')`, [
+            buyer,
+            (BigInt(1000) * E18).toString(),
+        ]);
+
+        // First spend: 300 of 1000.
+        const first = await setup.query(
+            `select chips_escrow_spend_purchase($1, 'buy-1', array['dice-midnight'], $2::numeric) as r`,
+            [buyer, price],
+        );
+        assert.equal(first.rows[0].r.idempotent, false);
+        assert.equal(BigInt(first.rows[0].r.balance), BigInt(700) * E18);
+
+        // Replay with the same request_id: no second debit.
+        const replay = await setup.query(
+            `select chips_escrow_spend_purchase($1, 'buy-1', array['dice-midnight'], $2::numeric) as r`,
+            [buyer, price],
+        );
+        assert.equal(replay.rows[0].r.idempotent, true);
+        assert.equal(BigInt(replay.rows[0].r.balance), BigInt(700) * E18);
+
+        // Overdraft: refused, balance untouched.
+        await assert.rejects(
+            setup.query(
+                `select chips_escrow_spend_purchase($1, 'buy-2', array['s3'], $2::numeric)`,
+                [buyer, (BigInt(10000) * E18).toString()],
+            ),
+            /INSUFFICIENT_ESCROW/,
+            'an under-funded purchase must be refused',
+        );
+
+        // Buyer 700, treasury 300, proof row recorded.
+        const { rows: acct } = await setup.query(
+            `select wallet_address, balance from chips_escrow_accounts
+              where wallet_address in ($1, $2)`,
+            [buyer, treasury],
+        );
+        const bal = Object.fromEntries(acct.map((r) => [r.wallet_address, BigInt(r.balance)]));
+        assert.equal(bal[buyer], BigInt(700) * E18);
+        assert.equal(bal[treasury], BigInt(300) * E18);
+        const { rows: proof } = await setup.query(
+            `select item_ids, total_base from chips_marketplace_purchases
+              where wallet_address = $1 and request_id = 'buy-1'`,
+            [buyer],
+        );
+        assert.equal(proof.length, 1);
+        assert.deepEqual(proof[0].item_ids, ['dice-midnight']);
+        assert.equal(BigInt(proof[0].total_base), BigInt(300) * E18);
+
+        // Concurrent same-key racers debit at most once.
+        await concurrently(6, async (c) => {
+            try {
+                await c.query(
+                    `select chips_escrow_spend_purchase($1, 'buy-race', array['s4'], $2::numeric)`,
+                    [buyer, (BigInt(100) * E18).toString()],
+                );
+            } catch {
+                /* INSUFFICIENT_ESCROW only if the balance were exhausted */
+            }
+        });
+        const { rows: after } = await setup.query(
+            `select balance from chips_escrow_accounts where wallet_address = $1`,
+            [buyer],
+        );
+        assert.equal(BigInt(after[0].balance), BigInt(600) * E18,
+            'six same-key racers must debit exactly once (700 - 100)');
+
+        const { rows: solv } = await setup.query(`select chips_escrow_solvency() as s`);
+        const s = solv[0].s as { delta: string; solvent: boolean };
+        assert.equal(s.solvent, true, `escrow must stay solvent after purchases, delta=${s.delta}`);
+
+        // Disarm again so later runs start from the inert default.
+        await setup.query(`update chips_escrow_config set enabled = false, treasury_wallet = null, rake_bps = 0`);
+    } finally {
+        await setup.end();
+    }
+});
+
 test('the mission claim lock is case-insensitive', { skip }, async () => {
     // The unique key was on the raw wallet column. Lowercase was enforced only by
     // an FK to `players` plus a CHECK on that table, so the lock depended on two

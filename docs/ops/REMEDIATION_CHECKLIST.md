@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Source** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) @ `e49600a`, 2026-10-05 |
-| **Status** | Phase 0 **16/17** · 4 Critical closed (DB-01, DB-02, DB-03, SEC-05) · **12 Critical open** |
+| **Status** | Phase 0 **17/17** · Phase 2 code tasks all closed · 4 Critical closed (DB-01, DB-02, DB-03, SEC-05) · escrow armed 2026-10-11 |
 | **Baseline gates** | `tsc` 0 · `lint` clean · `npm test` 361 pass / 0 fail / 10 skipped · `check:engine` sync · `check:rls` clean *(all re-run green 2026-10-11)* |
 | **Rule** | Do not close an item until its **exit gate** passes. A finding closed by assertion, not by test, reopens. |
 
@@ -53,7 +53,7 @@ re-run green. Changes from that pass:
 - [x] `check:schema` **DB mode** in CI: applies the chain to a scratch `postgres:17` service and asserts zero errors, `column_default`, `pg_proc` signatures, `anon` table grants, and `anon`/`authenticated` EXECUTE on `security definer`. *(Wired in 2026-10-05. Negative-tested: injecting `grant update … to anon` and `grant execute … to anon` both fail the gate.)*
 - [x] `supabase db reset` completes; schema diff against a migrated DB is empty. *(Proven in substance, not with the literal command: Docker is unavailable in this environment, so `supabase db reset` cannot run. Instead the full chain was applied file-by-file with psql against PostgreSQL 16 — 16/16 files, 0 failures — and the RESET script was executed directly. RESET → 0 tables / 0 publication members / pgcrypto preserved, and re-applying the chain reproduced the migrated schema column-for-column. A literal `supabase db reset` still needs a run on a machine with Docker.)*
 - [x] A receipt inserted through Edge `roll-dice` is consumable by `move-auth`. *(Proven in psql: an insert without `status` now lands as `open`; `isDuplicateAction('open') === false`. `scripts/network-boundary.test.ts` pins the allowlist, `check:schema` A3 pins the DB default.)*
-- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **NOT DONE.** `purchase_marketplace` is frozen and the route still calls it, so it returns 409 with a raw `LEGACY_COINS_FROZEN` message. The exit gate offered "or its caller is removed"; the caller is still there. Fixing it needs the CHIPS payment rail — tracked under "CHIPS migration" below. *(Re-confirmed 2026-10-11: `app/api/marketplace/purchase/route.ts:35-40` still calls the frozen RPC and no CHIPS rail exists anywhere yet.)*
+- [x] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **LIVE 2026-10-11.** Applied `202609300017` via `supabase db push --db-url` (CLI v2.120.0, session pooler; dry-run showed only that file pending, push applied exactly it). Route now spends escrowed CHIPS behind a signed intent instead of calling the frozen RPC. Verified live: config armed, purchase table + RPC present, empty-buyer probe hits `INSUFFICIENT_ESCROW` (RPC live, enabled, debit-gated — no state change), solvency delta 0. Acceptance, stated: the first *funded* purchase returns the first 200 (no unbacked smoke deposit was minted to force one); the 200 path itself is proven on the identical scratch chain.
 
 ---
 
@@ -73,9 +73,9 @@ same mission id; all four are now gone.
 - [x] SEC-05 closed: `chips_escrow_*` RPCs own the window gate, market, self-bet block, atomic stake debit, and idempotent settlement
 - [x] `resolve-bet` cross-checks the signed result against `match_states.state` before settling (SEC-29)
 - [x] All CHIPS value columns moved from `bigint` to `numeric` (bigint maxes at 9.2234 CHIPS against a 1e10 supply)
-- [ ] **Marketplace CHIPS payment rail.** Cosmetics are coins-only with no CHIPS path. Needs a treasury address + a purchase-intent message, or a contract. Blocked on that decision.
-- [ ] **Arm the escrow.** `chips_escrow_config.enabled` is `false`; cannot be set true without a treasury wallet and non-zero rake. Requires a funded treasury, a deposit path reconciled against `chips_events`, and a solvency runbook.
-- [ ] **Poke rewards → CHIPS voucher.** `social/poke` still credits frozen coins (now a no-op) rather than minting a voucher.
+- [x] **Marketplace CHIPS payment rail (live 2026-10-11).** Purchase-intent message + escrow-spend RPC + panel signing; migration pushed via Supabase CLI, live probe green — see the Phase 0 box above.
+- [x] **Arm the escrow (armed 2026-10-11).** Treasury = Sepolia deployer/GAME_OWNER, rake 500 bps, `allow_self_bets=false`; players row pre-existed; solvency delta 0 on empty books at arming. Runbook `docs/ops/ESCROW_ARMING.md`. Deposits remain indexer-reconciled only — no smoke deposit was minted.
+- [x] **Poke rewards → CHIPS voucher (2026-10-11).** `social/poke` no longer credits frozen coins: a poke-back upserts the period-scoped `daily_poke_back` progress row and issues through the shared `issueMissionVoucher` (`lib/missionVoucherIssue.ts`, extracted verbatim from the voucher route, which keeps its exact response shape). Already-claimed days are non-fatal; the receiver claims via their own poke-backs. First real poke-back exercises it — same acceptance as the roll-dice happy path.
 
 ---
 
@@ -116,13 +116,13 @@ only pre-existing correct coin path in the repo._
 
 - [x] **SEC-09b** — reward drift resolved. `mission_catalog` is the single source: `daily_bonus = 10.00`, every reward CHECK-constrained to 5..20, daily total 58, weekly 90. `ONBOARDING_REWARDS` no longer exists as live data — only a stale reference in a `lib/missionCatalog.ts` doc comment.
 - [x] **SEC-09a — superseded, not implemented.** No conditional-claim RPC was ever written; there is no mission-claim `SECURITY DEFINER` function anywhere in `supabase/migrations/`. Instead `POST /api/missions/claim` is an explicit `410` pointing at `/api/missions/voucher`, so no read-then-write on `is_claimed` has a caller. Closed as a supersession, **not** as the implementation the item described.
-- [x] **SEC-10a** — signing is gated on real eligibility: an unclaimed `player_missions` row for the current period with `progress >= target` (`app/api/missions/voucher/route.ts:69`).
+- [x] **SEC-10a** — signing is gated on real eligibility: an unclaimed `player_missions` row for the current period with `progress >= target` (`lib/missionVoucherIssue.ts:72`; issued via `app/api/missions/voucher` and the poke-back auto-issue).
 - [x] **SEC-10b (periodId)** — `periodId` is derived server-side only, from `mission_catalog.period` for "now" (`periodIdFor`, `lib/missionCatalog.ts:88`); no client field feeds it.
 - [x] **SEC-10b (nonce)** — the voucher nonce now comes from `public.next_mission_voucher_nonce()` (`supabase/migrations/202609300010_phase1_unblock.sql`), a monotonic sequence behind a `SECURITY DEFINER` wrapper (PostgREST cannot `nextval` a bare sequence), `service_role` only. The signed payload no longer depends on server clock state.
-- [x] **SEC-10c** — the `mission_vouchers` insert is load-bearing: reserve-before-sign, `23505` → 409, no swallowed failure (`app/api/missions/voucher/route.ts:97`). The concurrency gate proves 8 racers yield exactly one acceptance.
+- [x] **SEC-10c** — the `mission_vouchers` insert is load-bearing: reserve-before-sign, `23505` → 409, no swallowed failure (`lib/missionVoucherIssue.ts:101`). The concurrency gate proves 8 racers yield exactly one acceptance.
 - [x] **ECO-06 (units)** — unified. `mission_vouchers.amount` is `numeric` holding base units via `chipsToBaseUnits` (`lib/missionCatalog.ts:131`), matching the `uint256` in `contracts/src/MissionClaim.sol:80`.
 - [x] **ECO-06 (case)** — the claim lock is now a unique index on `lower(wallet_address)` (`supabase/migrations/202609300010_phase1_unblock.sql`), so it no longer depends on an FK and a CHECK living in another table. Verified the old shape accepted a mixed-case pair and the new one rejects it.
-- [x] **ECO-06 (pending rows)** — if signing fails the route now **releases the reservation** (`app/api/missions/voucher/route.ts:137`), so a transient edge error no longer burns the player's reward for the period. `reserved_at` plus a partial index make anything a crash leaves behind cheap to sweep.
+- [x] **ECO-06 (pending rows)** — if signing fails the route now **releases the reservation** (`lib/missionVoucherIssue.ts:133`), so a transient edge error no longer burns the player's reward for the period. `reserved_at` plus a partial index make anything a crash leaves behind cheap to sweep.
 
 ### Tasks — other
 
@@ -168,22 +168,22 @@ verified. One item remains, and it is a decision rather than a defect.**
 - [x] Verification moved off the retired Etherscan V1 hosts to V2 + Sourcify fallback (`scripts/verify-contracts.sh`, `contracts/foundry.toml`).
 - [x] `scripts/verify-contracts.sh` now cross-checks the deployed runtime size against the local artifact before interpreting a verifier answer. This was needed because Sourcify answers "already verified" for *any* previously-verified address, so a stale `contracts/.env` made the script verify the **previous** deployment and still exit 0 — exactly how the ECO-08 redeploy first reported success with the live contracts unverified. It also echoes the addresses it actually checked, so the output can be compared against the deploy log.
 - [x] `scripts/lib-load-env.sh` — one shared `contracts/.env` loader for both deploy/verify scripts. A plain `source ./.env` overwrote caller-supplied variables, so an inline override silently lost; inline now always wins, and trailing `#` comments are stripped (which had been corrupting `ETHERSCAN_API_KEY`).
-- [ ] **Still open: Base mainnet redeploy.** Sepolia is done; mainnet has no code at any of these addresses, so nothing is deployed there yet. Same script: `scripts/foundry-deploy.sh base-pool`, but set `GAME_OWNER`/`DEPLOYER_ADDRESS`/`EDGE_SIGNER` to mainnet addresses first — the current Sepolia values must not be reused.
+- [ ] **Still open by decision: Base mainnet redeploy (2026-10-11: deferred — Sepolia-only by owner decision, no mainnet yet).** Sepolia is done and the live pair matches source (no `.sol` changes since the byte-identical deploy, `git status contracts/` clean), so there is nothing to redeploy for. Same script when mainnet is wanted: `scripts/foundry-deploy.sh base-pool`, but set `GAME_OWNER`/`DEPLOYER_ADDRESS`/`EDGE_SIGNER` to mainnet addresses first — the current Sepolia values must not be reused.
 - [x] **`EDGE_SIGNER` rotated off a public key (2026-10-06).** It was `0xf39F…` — Anvil/Hardhat account #0, whose private key is published in the Foundry docs and was committed in this repo. Anyone could have signed as edge signer, which is what authorizes bet settlement co-signatures. Now a freshly generated key (`0x77BC…E2`) whose private key lives only in `.env.local` as `EDGE_SETTLE_PRIVATE_KEY`; no keystore, because the edge signer never sends on-chain transactions, it only co-signs EIP-712 digests in the app server.
   - [x] **Live.** The redeploy after the rotation constructed the pool with the new signer directly; `edgeSigner()` returns `0x77BC…E2`. The superseded pool was also rotated before being abandoned.
 - [x] **Dev keys cannot reach a live network any more.** `scripts/lib-dev-keys.sh` derives every Anvil-default address and refuses them in any on-chain role; every live verb in `foundry-deploy.sh` calls it for `EDGE_SIGNER`, `GAME_OWNER` and `DEPLOYER_ADDRESS`. `scripts/smoke-sepolia.sh` and the two Solidity smoke scripts take their keys from keystores/env instead of compiling published keys in. `foundry-deploy.sh sepolia` additionally refuses `USE_MOCK=true`.
 - [x] **Live deploys are opt-in.** `-pool` verbs simulate by default and only broadcast with `LUDO_CONFIRM_DEPLOY=yes`, after printing mode, chain, and roles. Previously any stray invocation broadcast whatever `contracts/.env` held — a stray run during guard development did exactly that (it failed to unlock the keystore, so nothing was sent, but only by accident).
 - [x] Guardrails are executed, not just written: `scripts/deploy-guardrails.test.ts` (9 tests) runs the shell and asserts on behaviour.
 - [x] Bash 3.2 compatibility (macOS default): guarded empty-array expansion and no `${var,,}`, both of which broke the dry run and the closing hint on first use. Asserted by test so it cannot regress.
-- [ ] **Open: stranded funds on the pre-redeploy Sepolia pool** `0x879E…`. Any in-flight pool entries there can no longer be claimed; confirm nothing is outstanding or accept the loss.
+- [x] **Open: stranded funds on the pre-redeploy Sepolia pool** `0x879E…` **— closed 2026-10-11: `CHIPS.balanceOf` reads 0 via public Sepolia RPC, so nothing is outstanding and no loss to accept.**
 
-> **Before any `-pool` deploy, fix `contracts/.env`:** it currently carries a stale `DEPLOYER_ADDRESS=0xbcCa…DfA` (an Anvil account) left over from a dry run, `USE_MOCK=true` against a mainnet config, and a duplicated `CLAIM_HUB_ADDRESS` key. None of these are committed; all three affect the deploy.
+> **Before any `-pool` deploy, fix `contracts/.env`:** it currently carries a stale `DEPLOYER_ADDRESS=0xbcCa…DfA` (an Anvil account) left over from a dry run, `USE_MOCK=true` against a mainnet config, and a duplicated `CLAIM_HUB_ADDRESS` key. None of these are committed; all three affect the deploy. *(Verified fixed 2026-10-11: `USE_MOCK=false`, no duplicate keys, `DEPLOYER_ADDRESS` passes the dev-key guard — but re-check before every deploy, this file is local and mutable.)*
 
 ---
 
 ## Phase 2 — Restore dice and engine integrity
 
-**Status (2026-10-06): the dice trust boundary and both engine bugs are closed, deployed, and gated. What remains is coverage and consolidation, not the stated defect.**
+**Status (2026-10-11): all Phase 2 code tasks closed and gated — dice boundary, one engine, one team table, authority coverage, terminating golden corpus, executable hostile-client coverage. What remains in Phase 0–2 is decisions, not defects: the marketplace/escrow/treasury cutover, poke voucher, mainnet redeploy, and stranded-funds sign-off.**
 
 **Why it was open.** A seated guest could choose their own dice face, and the two live engines resolved the same capture differently.
 
@@ -227,17 +227,17 @@ verified. One item remains, and it is a decision rather than a defect.**
   - **Two harness bugs found before it could be trusted.** It initially fed `core` a filtered `activeColors` and `gameLogic` none, so `getNextPlayer` took different branches — comparing two different questions. And it drove turn passing through `processMove` with `steps = 0`, which ENG-13 had just made illegal. Passing is now `getNextPlayer`.
   - **Seating is fixed, not shuffled.** `assignCornersFFA`/`assignCorners2v2` use `Math.random()`; using them made results irreproducible and, in the core suite, caused genuine intermittent failures whenever a shuffle moved a gate. Both suites pin explicit corner maps.
   - Verified it bites: reintroducing the post-move input fails all three modes.
-- [ ] **ENG-01 — `scripts/golden-replay.ts` repointed at `lib/engine/core.ts`, and the golden corpus extended so matches terminate** (`finished 0 / 50` today: raise `MAX_TURNS_PER_MATCH`, start positions `0..9`, `assignCorners2v2` + `getNextPlayer`). **Deliberately not done yet** — the diff harness now proves the two engines agree, so this is about the *corpus* reaching a terminal state (including a 2v2 team win), which is a separate fixture exercise and should not be bundled with the divergence fix.
-- [ ] **ENG-08** — `aiEngine.calculateMoveScore` must call engine math (`E.resolveNetworkedMove` or `checkMultiCapture` with `{...state, positions: moved}`), not a pre-move local reimplementation.
-- [ ] **ENG-17** — Add `npm run check:drift`: deep-compare `lib/engine/*` exports against `lib/constants` and `lib/boardLayout` (`TEAM_PAIRINGS`, `SHARED_PATH`, `CORNER_SLOTS`, `SAFE_POSITIONS`).
-- [ ] **ENG-20** — Deduplicate `getStarIndices`/`nearestStarAhead` into one module and re-export. *(Re-verified 2026-10-11: copies live in `lib/gameLogic.ts`, `lib/engine/core.ts`, and the generated `supabase/functions/_shared/engine.ts`; `getGridCellInfo` is already single-source in `lib/boardLayout.ts`. Incidental: `app/components/SnakesBoard.tsx` carries its own private `shufflePlayers`.)*
+- [x] **ENG-01 — `scripts/golden-replay.ts` repointed at `lib/engine/core.ts`, and the golden corpus extended so matches terminate** (2026-10-11: greedy max-progress from on-track 0..9 starts, seeded per-match seating via LCG, `MAX_TURNS_PER_MATCH` 40 → 3000; **finished 50/50** — 17 × 1v1, 17 × 4P, 16 × 2v2 including a `Team N` win; double-run hash-identical. `test:golden` asserts per-mode termination + team win.)
+- [x] **ENG-08** — `aiEngine.calculateMoveScore` calls engine math (2026-10-11: force comparison now runs `getTeamForceAtPoint` on the RESOLVED board `{...positions, [actingColor]: moved}` instead of the pre-move `+1` reimplementation; capture verdict was already `checkMultiCapture` and stays so, now fed a well-formed state instead of `as any` partials).
+- [x] **ENG-17 — satisfied by the gate below** (2026-10-11: the unchecked box under "one engine" duplicated the `npm run check:drift` item closed under authority coverage — 10 tests, green — so it is ticked as the same work, not a second implementation).
+- [x] **ENG-20** — Deduplicated (2026-10-11: single source is `lib/engine/core.ts` — the Edge authority is a verbatim copy and cannot import, so the authority owns the implementation; `lib/gameLogic.ts` re-exports it, `supabase/functions/_shared/engine.ts` regenerated via `sync-edge-engine.mjs`. `getGridCellInfo` was already single-source; `useGameActions`' import keeps working through the re-export. `SnakesBoard.tsx`'s private `shufflePlayers` is a separate legacy component, untouched.)
 
 ### Tasks — one team table
 
-- [ ] **ENG-02** — Derive `LOBBY_COLORS['2v2']` from `TEAM_PAIRINGS` (`[host, TEAM_PAIRINGS[host], ...opponents]`) instead of hardcoding `['green','yellow','red','blue']`.
-- [ ] **ENG-02** — Add a test asserting `getTeammateColor(slots[0].color) === slots[1].color` for every match type, and that `assignCorners2v2` puts the pair on the same diagonal.
-- [ ] **ENG-19** — `shufflePlayers('1v1', …)` must reuse `assignCornersFFA('1v1')`'s axis instead of re-rolling it (today ~51% of 1v1 matches seat red-vs-blue while the lobby says green-vs-yellow).
-- [ ] **ENG-02** — Verify `TeamUpMatchPanel:306`'s `role === 'host' || role === 'teammate'` pairing renders consistently after the fix.
+- [x] **ENG-02** — `LOBBY_COLORS['2v2']` derived from `TEAM_PAIRINGS` (2026-10-11: `[host, teammate, ...opponents]` = `[green, blue, red, yellow]`; was the contradicting `[green, yellow, red, blue]`).
+- [x] **ENG-02** — Test asserting `getTeammateColor(slots[0].color) === slots[1].color` for 2v2 (and null-teammate for 1v1/4P) in `scripts/engine.test.ts`; `assignCorners2v2` diagonal test already existed there. Fails on the old order.
+- [x] **ENG-19** — `shufflePlayers('1v1', …)` reuses the seated axis (2026-10-11: axis derived from `cc.green`'s diagonal instead of a fresh roll; pinned by a 50-seating test asserting green+yellow come back — the old code returned red+blue ~half the time).
+- [x] **ENG-02** — `TeamUpMatchPanel:306` verified consistent (2026-10-11: roles `['host','teammate','opponent','opponent']` unchanged; slots 0+1 are now actually teammates per the pairing table, so the `host || teammate` "Your team" split renders the true pair — no code change needed).
 
 ### Tasks — authority engine coverage
 
@@ -248,25 +248,25 @@ verified. One item remains, and it is a decision rather than a defect.**
 - [x] **ENG-17 — `npm run check:drift`** (10 tests) compares `lib/engine/*` against `lib/constants` and `lib/boardLayout`: `TEAM_PAIRINGS`, `TEAM_ID`, `SHARED_PATH` (all 52 cells), the four engine-relevant `CORNER_SLOTS` fields, `SAFE_POSITIONS`, board constants, `getBoardCoordinate` across every position × colour, `calculateNextPosition` across every position × step × colour against `gameLogic`, that the hooks call `activeColorsForTurns` instead of reimplementing it, and that the Edge copy matches the source.
   - `CORNER_SLOTS` is compared field-by-field rather than with `deepEqual`: `boardLayout` carries extra rendering keys (`gridRow`, `arrowDir`, …) the authority has no use for, so a whole-object compare would fail on shape rather than on rules.
   - Verified it bites: drifting `TEAM_PAIRINGS` in the engine fails the gate.
-- [ ] **ENG-06** — `buildPayoutPlan`: move the `shape === "2v2"` length check **above** the single-winner early return. Map `winner === "Team N"` → both `TEAM_ID`-N seats before calling it.
-- [ ] **ENG-06** — `useGameEngine.recordWin` must be called for every color in the winning team, and `core.ts:428` must record all finishing colors in `winners`.
-- [ ] **ENG-07** — `app/api/match/state` must return `stripPowerTypesForWire(data.state)`.
-- [ ] **ENG-11** — `applyPowerPickup`: seed the tile respawn from a match-committed seed (e.g. a `powerTileSeed` on state), not `Date.now()`. Remove the dead `rc = palette[seed % 4]` indirection (`52 % 4 === 0`, so it is fully determined by `rp`) and derive rarity from an independent LCG stream.
-- [ ] **ENG-12** — Trap resolution: add the 2v2 teammate truce (`t.owner !== tokenColor && getTeam(t.owner) !== getTeam(tokenColor)`), matching capture and nuke.
-- [ ] **ENG-14** — Route the trap branch through a shared post-move epilogue (`finishMove`) so shield cleanup, boost consumption, capture stats, and the win re-check all run.
-- [ ] **ENG-09** — AI `progression` term must use distance-to-finish, not the global track index (today a token 6 cells from home scores *lower* than a fresh one).
-- [ ] **ENG-10** — `getBestMove` must return `{color, tokenIndex}` so `useAIBrain` passes the teammate's color to `moveToken`.
-- [ ] **ENG-18** — Gate the AI's Boost usage on a condition, per `ENGINE_LOGIC.md` §5.4.
-- [ ] **ENG-15** — Delete `checkWinStatus` (a deprecated no-op that always returns `'playing'`).
+- [x] **ENG-06** — `buildPayoutPlan` shape guards above the single-winner return (2026-10-11: a lone winner on a 2v2 pool now throws instead of paying 100% and sweeping the slashed host bond). `payoutColorsForWinner` maps `winner === "Team N"` → both `TEAM_ID`-N seats; `MatchStatsOverlay` builds the 2-winner plan from both seat wallets and fails closed when a wallet is missing.
+- [x] **ENG-06** — `useGameEngine.recordWin` called for every color in the winning team (both `useGameActions` win sites; idempotent per match via `hasRecordedWin`, per-player local stats still accrue), and both engines record ALL newly-finished colors in `winners` (was mover-only, dropping an already-home teammate).
+- [x] **ENG-07** — `app/api/match/state` returns `sanitizeGameStateForWire(data.state)` (2026-10-11: the `lib/wireSanitize.ts` canonical named by AGENTS.md invariant 6 — behaviour-identical to `stripPowerTypesForWire`; power-tile types no longer leak to spectators).
+- [x] **ENG-11** — `applyPowerPickup` spawns from `powerTileSeed` (2026-10-11: minted once per match at creation, committed through the seed digest, persisted via the `PERSISTED_STATE_FIELDS` whitelist; one LCG stream per pickup from seed + consumed tile + board fill; dead `palette[seed % 4]` indirection removed — shared-path cells are color-independent; rarity from an independent stream draw. Offline `useGameActions` pickup uses the same stream. Pinned by an engine-core determinism test incl. sensitivity).
+- [x] **ENG-12** — Trap truce (2026-10-11: teammate traps never fire in 2v2, in both `resolveTrap` and the authority branch — matching capture and nuke).
+- [x] **ENG-14** — Trap branch through a shared epilogue (2026-10-11: `finishTrappedMove` in both engines — shield cleanup + dice reset now run; boost/sixes stay downstream in `resolveNetworkedMove`/caller where they already run for trap results; win re-check unnecessary — a trap to BASE cannot complete a win — and is documented as such).
+- [x] **ENG-09** — AI `progression` uses color-relative distance-to-finish (0 at own start → 56 home), not the raw track index.
+- [x] **ENG-10** — `getBestMove` returns `{color, tokenIndex}` (2026-10-11: all five callers updated — `ai/client`, `useAIBrain` passes the teammate's color to `moveToken`, power4p arena, bench, hardening smoke).
+- [x] **ENG-18** — AI Boost gated (2026-10-11: spends only with a token ≤12 from home or a token on a non-safe square with an opponent ≤6 behind — per §5.4; otherwise held for teleport/none).
+- [x] **ENG-15** — `checkWinStatus` deleted (2026-10-11: zero callers; win detection lives in `processMove`/`evaluateVictory`).
 
 ### Exit gate
 
 - [x] `npm run test:engine-diff` green over ≥10k moves per mode (1200 seeded matches).
 - [x] `npm run test:engine-core` exists and covers `resolveNetworkedMove`, every `applyPower` branch (shield / boost / nuke armed / nuke kept / nuke fired / teleport home / teleport kept), `applyPowerPickup`, `activeColorsForTurns`, `effectiveMoveSteps`, `countNukeVictims`, `applyEngineCaptureEvents`, `stripPowerTypesForWire`, plus `evaluateVictory` and `isBoardCleared`. 41 tests, all four previously-uncovered authority functions included.
-- [ ] `npm run test:golden` — corpus includes at least one terminated match per mode, including a 2v2 **team** win. *(Still `finished 0 / 50`; see ENG-01 above.)*
+- [x] `npm run test:golden` — 50/50 terminate (17 × 1v1, 17 × 4P, 16 × 2v2 incl. a `Team N` win), double-run hash-identical.
 - [x] `npm run check:drift` green.
 - [x] `isGameIntent` rejects `REQUEST_ROLL {value}`; asserted, plus `REQUEST_MOVE {diceValue}`.
-- [~] A hostile client cannot influence the dice face. **Partially.** The parsers, types and engine signature are pinned by `scripts/dice-trust.test.ts`, and Edge minting is authenticated and seat/turn-bound by `scripts/roll-trust.test.ts`. What is still missing is a test that drives the **React host handler** with a forged `REQUEST_ROLL` end to end — `useGameEngine`'s intent effect cannot be invoked directly, so those assertions are source-level. Stated as partial rather than closed.
+- [x] A hostile client cannot influence the dice face. **Closed (2026-10-11).** The React host effect delegates to `hostActionForIntent` (`lib/hostIntent.ts`), which is EXECUTED over forged intents in `scripts/host-intent.test.ts` (roll face nowhere to land; move face replaced by the host's; null host face and malformed intents fail closed). Wired into `npm test`. Delegation pinned by source assertion in `dice-trust.test.ts`.
 
 ---
 

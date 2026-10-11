@@ -1,9 +1,13 @@
 /**
  * Golden-replay generator + CI sample (≥50 deterministic matches).
  *
- * Each match is a short legal-move walk with a seeded LCG (no RNG from
- * Math.random) through `processMove` / `getLegalTokenIndices`. We record a
- * JSONL replay and `hashGameState` of the final state.
+ * ENG-01: this corpus runs the AUTHORITY engine (`lib/engine/core.ts`) — the
+ * module Edge executes — not the app's legacy `lib/gameLogic.ts`. Each match
+ * is a greedy legal-move walk with a seeded LCG (no Math.random anywhere,
+ * including seating) through core `processMove` / `getLegalTokenIndices`.
+ * Matches terminate: greedy max-progress play from on-track starts (0..9)
+ * finishes every mode, including a 2v2 team win — `finished 0 / 50` is gone.
+ * We record a JSONL replay and `hashGameState` of the final state.
  *
  * Run:
  *   npm run test:golden          # CI gate (recompute twice, compare)
@@ -14,12 +18,16 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-    INITIAL_GAME_STATE,
     processMove,
     getLegalTokenIndices,
     handleThreeSixes,
-    emptyMatchStats,
-} from '../lib/gameLogic';
+    getNextPlayer,
+    calculateNextPosition,
+    emptyEngineMatchStats,
+} from '../lib/engine/core';
+import type { ColorCorner, EngineGameState, PlayerColor } from '../lib/engine/core';
+import { CORNER_SLOTS } from '../lib/boardLayout';
+import { INITIAL_GAME_STATE } from '../lib/gameLogic';
 import { hashGameState } from '../lib/replay/hash';
 import {
     createReplayLog,
@@ -27,13 +35,14 @@ import {
     finalizeReplay,
     serializeReplay,
 } from '../lib/replay/log';
-import type { ColorCorner, GameState, PlayerColor } from '../lib/types';
+import type { GameState } from '../lib/types';
 
 export const GOLDEN_MATCH_COUNT = 50;
-export const MAX_TURNS_PER_MATCH = 40;
+export const MAX_TURNS_PER_MATCH = 3000;
 
-const CC: ColorCorner = { green: 'BL', red: 'BR', yellow: 'TR', blue: 'TL' };
-const COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+type GoldenMode = '1v1' | '4P' | '2v2';
+const MODES: GoldenMode[] = ['4P', '1v1', '2v2'];
+const COLORS4: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
 
 /** Deterministic LCG — same seed → same match. */
 export function lcg(seed: number): () => number {
@@ -44,42 +53,108 @@ export function lcg(seed: number): () => number {
     };
 }
 
-function baseState(playerCount: '1v1' | '4P' = '4P'): GameState {
+/** Cells travelled toward home (0 at own start, 50 at gate, 51..56 home). */
+function travelDistance(pos: number, color: PlayerColor, cc: ColorCorner): number {
+    if (pos === -1) return -1;
+    if (pos >= 52) return pos - 1;
+    const corner = cc[color];
+    const startIdx = corner ? CORNER_SLOTS[corner].startIdx : 0;
+    return (((pos - startIdx) % 52) + 52) % 52;
+}
+
+type Seating = { cc: ColorCorner; active: PlayerColor[] };
+
+/**
+ * Deterministic seating per match — the LCG, never Math.random.
+ * 1v1 seats green+yellow on one diagonal; 2v2 seats the TEAM_PAIRINGS pairs
+ * (Green+Blue vs Red+Yellow) on opposite diagonals.
+ */
+function cornersFor(mode: GoldenMode, rand: () => number): Seating {
+    if (mode === '4P') {
+        return {
+            cc: { green: 'BL', red: 'BR', yellow: 'TR', blue: 'TL' },
+            active: [...COLORS4],
+        };
+    }
+    if (mode === '1v1') {
+        const first: ['BL', 'TR'] | ['BR', 'TL'] = rand() < 0.5 ? ['BL', 'TR'] : ['BR', 'TL'];
+        const second: ['BL', 'TR'] | ['BR', 'TL'] = first[0] === 'BL' ? ['BR', 'TL'] : ['BL', 'TR'];
+        const [a0, a1] = rand() < 0.5 ? first : [first[1], first[0]];
+        const [b0, b1] = rand() < 0.5 ? second : [second[1], second[0]];
+        return {
+            cc: { green: a0, yellow: a1, red: b0, blue: b1 },
+            active: ['green', 'yellow'],
+        };
+    }
+    const gbFirst: ['BL', 'TR'] | ['BR', 'TL'] = rand() < 0.5 ? ['BL', 'TR'] : ['BR', 'TL'];
+    const ryAxis: ['BL', 'TR'] | ['BR', 'TL'] = gbFirst[0] === 'BL' ? ['BR', 'TL'] : ['BL', 'TR'];
+    const [g, b] = rand() < 0.5 ? gbFirst : [gbFirst[1], gbFirst[0]];
+    const [r, y] = rand() < 0.5 ? ryAxis : [ryAxis[1], ryAxis[0]];
+    return {
+        cc: { green: g, blue: b, red: r, yellow: y },
+        active: [...COLORS4],
+    };
+}
+
+/** Tokens start on track (0..9 spread) so the corpus races instead of camping base. */
+function startPositions(): Record<PlayerColor, number[]> {
+    const out = {} as Record<PlayerColor, number[]>;
+    COLORS4.forEach((color, i) => {
+        out[color] = [0, 1, 2, 3].map((j) => (i * 3 + j * 2) % 10);
+    });
+    return out;
+}
+
+function baseState(mode: GoldenMode): EngineGameState {
+    return {
+        positions: startPositions(),
+        currentPlayer: 'green',
+        diceValue: null,
+        gamePhase: 'rolling',
+        status: 'playing',
+        winner: null,
+        winners: [],
+        consecutiveSixes: 0,
+        playerCount: mode,
+        activeShields: [],
+        activeTraps: [],
+        activeBoost: null,
+        powerSpentThisTurn: false,
+        lastUpdate: 0,
+        matchId: 'golden',
+        powerTiles: [],
+        playerPowers: { green: [], red: [], yellow: [], blue: [] },
+        matchStats: emptyEngineMatchStats(),
+    };
+}
+
+/** GameState view of the authority state for the replay log / hash. */
+function viewOf(state: EngineGameState, mode: GoldenMode): GameState {
     return {
         ...INITIAL_GAME_STATE,
-        status: 'playing',
-        isStarted: true,
+        ...state,
+        playerCount: mode,
         matchId: 'golden',
-        playerCount,
-        matchStats: emptyMatchStats(),
-        lastUpdate: 0,
-    };
+        isStarted: true,
+    } as GameState;
 }
 
 export type GoldenMatchResult = {
     index: number;
     seed: number;
+    mode: GoldenMode;
     turns: number;
     finalHash: string;
     replayJsonl: string;
     winner: string | null;
 };
 
-export function runGoldenMatch(index: number, seed: number): GoldenMatchResult {
+export function runGoldenMatch(index: number, seed: number, mode: GoldenMode = MODES[index % MODES.length]): GoldenMatchResult {
     const rand = lcg(seed);
-    let state = baseState('4P');
-    // Seed a few tokens on the path so captures/progress happen
-    state = {
-        ...state,
-        positions: {
-            green: [0, 5, -1, -1],
-            red: [2, 8, -1, -1],
-            yellow: [1, 6, -1, -1],
-            blue: [3, 9, -1, -1],
-        },
-    };
+    const { cc, active } = cornersFor(mode, rand);
+    let state = baseState(mode);
 
-    const log = createReplayLog({ matchId: `golden-${index}`, playerCount: '4P' });
+    const log = createReplayLog({ matchId: `golden-${index}`, playerCount: mode });
     let turns = 0;
     let seq = 0;
 
@@ -95,12 +170,12 @@ export function runGoldenMatch(index: number, seed: number): GoldenMatchResult {
             seq,
             kind: 'roll',
             payload: { color, roll, isThreeSixes: t6.isThreeSixes },
-        });
+        }, viewOf(state, mode));
         if (t6.isThreeSixes) {
             state = {
                 ...state,
                 consecutiveSixes: 0,
-                currentPlayer: (COLORS[(COLORS.indexOf(color) + 1) % 4]) as PlayerColor,
+                currentPlayer: getNextPlayer(color, mode, active, cc),
                 diceValue: null,
                 gamePhase: 'rolling',
             };
@@ -108,51 +183,63 @@ export function runGoldenMatch(index: number, seed: number): GoldenMatchResult {
         }
         state = { ...state, consecutiveSixes: t6.nextSixes, diceValue: roll, gamePhase: 'moving' };
 
-        const legal = getLegalTokenIndices(state.positions, color, roll, CC);
+        const legal = getLegalTokenIndices(state.positions, color, roll, cc);
         if (legal.length === 0) {
             state = {
                 ...state,
-                currentPlayer: (COLORS[(COLORS.indexOf(color) + 1) % 4]) as PlayerColor,
+                currentPlayer: getNextPlayer(color, mode, active, cc),
                 diceValue: null,
                 gamePhase: 'rolling',
             };
             continue;
         }
-        const tokenIndex = legal[Math.floor(rand() * legal.length)]!;
+        // Greedy max-progress with a seeded tiebreak — deterministic and
+        // terminating. Random legal picks loop on captures forever.
+        let tokenIndex = legal[0]!;
+        let best = -Infinity;
+        for (const idx of legal) {
+            const dest = calculateNextPosition(state.positions[color]![idx]!, roll, color, cc);
+            const d = travelDistance(dest, color, cc) + rand() * 1e-9;
+            if (d > best) {
+                best = d;
+                tokenIndex = idx;
+            }
+        }
         seq += 1;
-        const result = processMove(state, color, tokenIndex, roll, '4P', CC);
+        const result = processMove(state, color, tokenIndex, roll, mode, cc, color, active);
+        if (!result.applied) {
+            // Unreachable for a legal pick (legality uses the same math);
+            // pass defensively rather than wedging the corpus.
+            state = {
+                ...state,
+                currentPlayer: getNextPlayer(color, mode, active, cc),
+                diceValue: null,
+                gamePhase: 'rolling',
+            };
+            continue;
+        }
         appendReplayEvent(log, {
             seq,
             kind: 'action',
             actionId: `m-${index}-${t}`,
             payload: { color, tokenIndex, roll, captured: result.captured, bonus: result.bonusRoll },
-        }, result.newState);
+        }, viewOf(result.newState, mode));
 
         state = {
             ...result.newState,
             diceValue: result.bonusRoll ? roll : null,
             gamePhase: result.bonusRoll ? 'moving' : 'rolling',
         };
-
-        // Synthetic terminal: if any color has all four home, finish
-        for (const c of COLORS) {
-            if (state.positions[c].every((p) => p === 57)) {
-                state = {
-                    ...state,
-                    status: 'finished',
-                    winner: c,
-                    winners: [c],
-                };
-            }
-        }
     }
 
-    finalizeReplay(log, state);
+    const view = viewOf(state, mode);
+    finalizeReplay(log, view);
     return {
         index,
         seed,
+        mode,
         turns,
-        finalHash: hashGameState(state),
+        finalHash: hashGameState(view),
         replayJsonl: serializeReplay(log),
         winner: state.winner,
     };
@@ -171,14 +258,20 @@ export function assertDeterministicCorpus(count = GOLDEN_MATCH_COUNT): {
     n: number;
     uniqueHashes: number;
     finished: number;
+    finishedByMode: Record<GoldenMode, number>;
 } {
     const a = runGoldenCorpus(count);
     const b = runGoldenCorpus(count);
     assertSame(a, b);
+    const finishedByMode = { '1v1': 0, '4P': 0, '2v2': 0 } as Record<GoldenMode, number>;
+    for (const m of a) {
+        if (m.winner) finishedByMode[m.mode] += 1;
+    }
     return {
         n: a.length,
         uniqueHashes: new Set(a.map((m) => m.finalHash)).size,
         finished: a.filter((m) => m.winner).length,
+        finishedByMode,
     };
 }
 
@@ -196,6 +289,7 @@ export function writeGoldenFixtures(dir: string, corpus: GoldenMatchResult[]): v
     const manifest = corpus.map((m) => ({
         index: m.index,
         seed: m.seed,
+        mode: m.mode,
         turns: m.turns,
         finalHash: m.finalHash,
         winner: m.winner,

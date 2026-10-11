@@ -49,7 +49,7 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Seating Axis:** Players are assigned to corners: `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, or `Top-Left (TL)`.
 - **Turns:** Anti-clockwise rotation.
 - **Diagonal Partnership (2v2):** Partners always sit diagonally opposite (`BL+TR` or `BR+TL`).
-- **Team pairings (single source of truth — `TEAM_PAIRINGS` in `lib/constants.ts`):** **Green+Blue** vs **Red+Yellow**. Seating (`assignCorners2v2`), capture truce, teammate assist, AI targeting, and win checks all read this table. Never fork a second pairing.
+- **Team pairings (single source of truth — `TEAM_PAIRINGS` in `lib/constants.ts`):** **Green+Blue** vs **Red+Yellow**. Seating (`assignCorners2v2`), lobby order (`LOBBY_COLORS['2v2']`, derived not hardcoded), capture truce, trap truce, teammate assist, AI targeting, and win checks all read this table. Never fork a second pairing.
 
 ### 3.3 Movement & Capture (Force Mechanics)
 - **Home Exit:** Requires a `DICE_MAX` (6) to move from base (`BASE_INDEX: -1`) to start tile (0).
@@ -64,9 +64,10 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
 - **Victory:** A team wins only when all 8 tokens (4 per player) have reached the Finish square.
 - **Teams:** Green+Blue (team 1) vs Red+Yellow (team 2).
+- **`winners` records every newly-finished color** (both teammates on a team win), and `recordWin` fires per color. Settlement maps `Team N` → both `TEAM_ID`-N seats before `buildPayoutPlan`; a lone winner on a 2v2 pool throws instead of paying 100%.
 
 ### 3.5 Power System v3 (hidden tiles → timed inventory → targeted spend)
-- **Tiles:** exactly 5 (`POWER_TILES_COUNT`), main track only, never home tiles. Each carries a hidden type (rarity: Boost .4 / Shield .25 / Teleport .2 / Nuke .15). Tiles render NOTHING pre-pickup; landing exactly on one reveals (flash + discovery message), grants to inventory, and spawns a replacement elsewhere.
+- **Tiles:** exactly 5 (`POWER_TILES_COUNT`), main track only, never home tiles. Each carries a hidden type (rarity: Boost .4 / Shield .25 / Teleport .2 / Nuke .15). Tiles render NOTHING pre-pickup; landing exactly on one reveals (flash + discovery message), grants to inventory, and spawns a replacement elsewhere. Replacement spawns are deterministic: one LCG stream per pickup seeded by the match-committed `powerTileSeed` (minted at match start, covered by the seed digest) — never wall-clock — so every authority holding the same state spawns the same tile. Traps respect the 2v2 teammate truce and resolve through the shared post-move epilogue (shield cleanup, dice reset).
 - **Inventory:** per-color arrays of `{type, expiresAt}` — counts with clocks (Nuke 3:00, Shield 4:00, Boost/Teleport 5:00). Re-pickup of a held type refreshes its clocks. Expiry sweeps run on every game transition; expired items vanish silently. Bottom-centered badge bar (counts + mm:ss, amber pulse <30s), rendered only when non-empty.
 - **Mechanics:** Shield = all on-board tokens until your next move completes (cleared on move resolution). Nuke = every opponent token within ±3 of the SELECTED token goes home; shields + safe stars hold. Boost = next move +6 (consumed in `moveToken`, host-computed so guests replay exact steps). Teleport = foremost token to nearest forward star (circular); 49–56 → straight to 57.
 - **Spend rules:** tap badge → Shield/Boost fire immediately; Nuke/Teleport arm targeting (gold rings on that color's tokens, tap token to fire, tap elsewhere/badge to cancel). One power per roll (`powerSpentThisTurn`, cleared on each new roll). No-target spends keep the power + explain why. Powers execute host-side; guests replay via broadcast state.
@@ -111,7 +112,7 @@ Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
 5.  **Enter Safe Zone (+50):** Moving to defensive star squares.
 6.  **Exit Base (+40):** Bringing tokens out of the base.
 7.  **Enter Home Lane (+25):** Prioritizing entries to the protected home stretch.
-8.  **Progression (+1x):** Small reward for each step moved towards the finish.
+8.  **Progression (+1x):** Small reward per cell of color-relative distance travelled toward home (0 at own start, 50 at gate, 51–56 home stretch) — never the raw track index, which scored a fresh token of a late-start color above a token six cells from home.
 - **Difficulty tiers (`DIFFICULTY_PARAMS` in `lib/constants.ts`, stored per match as `GameState.botDifficulty`, default `pro` = legacy behavior):**
     - **Rookie:** ±40% score noise, ignores power tiles (`powerHunt 0`, never spends powers), capture ×0.7, slow clocks (roll 600–2200ms, move 1400ms).
     - **Pro:** clean baseline weights, standard clocks (roll 150–1900ms, move 900ms).
@@ -128,7 +129,7 @@ In multiplayer networked matches, turn orchestration (AI moves, AFK detection, s
 AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently of movement:
 - **Shield:** Triggered if any ally token is vulnerable to an opponent within 6 steps.
 - **Nuke:** Triggered when an opponent cluster is within the configured blast radius.
-- **Boost/Teleport:** Used strategically to accelerate finishing or clear dangerous zones.
+- **Boost/Teleport:** Used strategically to accelerate finishing or clear dangerous zones. Boost spend is gated: a token within 12 cells of home, or a token on a non-safe square with an opponent ≤6 behind it — otherwise the AI holds it. `getBestMove` returns `{color, tokenIndex}` so 2v2 assist moves address the teammate's token with the teammate's color.
 
 ---
 
@@ -208,7 +209,7 @@ Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`
 - `npm run test:engine-diff` — 1200 seeded matches through both, comparing `positions` / `captured` / `winner` / `bonusRoll` / turn rotation. Deterministic mulberry32, so a failure replays from its printed seed. Seating is **pinned**, not shuffled: `assignCornersFFA` uses `Math.random()`, which would make results irreproducible.
 - `npm run test:engine-core` — the authority functions that previously had **zero** coverage: `resolveNetworkedMove`, every `applyPower` branch, `applyPowerPickup`, `activeColorsForTurns`, `effectiveMoveSteps`, `countNukeVictims`, `applyEngineCaptureEvents`, `stripPowerTypesForWire`.
 - `npm run check:drift` — `TEAM_PAIRINGS`, `SHARED_PATH`, `CORNER_SLOTS`, `SAFE_POSITIONS`, coordinates, and `calculateNextPosition` against `lib/constants` + `lib/boardLayout`.
-- `npm run test:golden` — the replay corpus. **Known gap: it finishes 0/50 matches**, so it is not yet evidence of a terminating game.
+- `npm run test:golden` — the replay corpus, driven through the authority engine (`lib/engine/core.ts`), not the legacy module. 50/50 matches terminate across 1v1/4P/2v2 (greedy max-progress from on-track starts, seeded seating), including a 2v2 team win; double-run hash-identical.
 
 ### 7.1c SIWE app session (chat / profile / settings)
 

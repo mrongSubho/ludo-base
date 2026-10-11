@@ -101,32 +101,13 @@ export function rollPowerType(rand: number = Math.random()): PowerType {
 }
 
 // Track indices (0–51) of the star squares for a given color/corner.
-/** Return shared-track indices occupied by safe stars for a color. */
-export function getStarIndices(color: PlayerColor, cc: ColorCorner): number[] {
-    const out: number[] = [];
-    for (let pos = 0; pos < 52; pos++) {
-        const pt = getBoardCoordinate(pos, color, cc);
-        if (pt && GLOBAL_SAFE_POINTS.some(s => s.r === pt.r && s.c === pt.c)) out.push(pos);
-    }
-    return out;
-}
-
-// Nearest star strictly ahead (circular); -1 if the color has none.
-/** Find the next safe star clockwise from `pos`, or `-1` when unavailable. */
-export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorner): number {
-    const stars = getStarIndices(color, cc);
-    if (stars.length === 0) return -1;
-    let best = -1;
-    let bestDist = Infinity;
-    for (const s of stars) {
-        const dist = (s - pos + 52) % 52;
-        if (dist > 0 && dist < bestDist) {
-            bestDist = dist;
-            best = s;
-        }
-    }
-    return best;
-}
+// ENG-20: single-sourced in lib/engine/core.ts (the Edge authority is a
+// verbatim copy of that module and cannot import, so the authority owns the
+// implementation and this module re-exports it). check:drift gates value
+// parity against boardLayout geometry.
+export { getStarIndices, nearestStarAhead } from './engine/core';
+// ENG-11: deterministic respawn helpers share the authority implementation.
+export { lcg32, rollPowerTypeLcg, spawnReplacementTile } from './engine/core';
 
 /** Resolve the 2v2 teammate from the shared team-pairing table. */
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
@@ -351,8 +332,38 @@ export interface MoveResult {
     bonusRoll: boolean;
 }
 
-export function resolveTrap(state: GameState, targetPoint: Point, tokenColor: PlayerColor, tokenIndex: number): { trapIdx: number, newPositions: Record<PlayerColor, number[]> } | null {
-    const trapIdx = state.activeTraps.findIndex(t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor);
+/**
+ * ENG-14: shared post-move epilogue for the trap branch (parity with
+ * core.ts `finishTrappedMove`). The trap early-return skipped shield cleanup
+ * and left a stale `diceValue` behind; it now runs the same epilogue as the
+ * normal branch. Boost/sixes are owned downstream (authority) or by the
+ * caller (offline), and a trap to BASE can never complete a win.
+ */
+function finishTrappedMove(
+    state: GameState,
+    newPositions: Record<PlayerColor, number[]>,
+    newTraps: GameState['activeTraps'],
+    actingColor: PlayerColor,
+    playerCount: string,
+    activeColors: PlayerColor[] | undefined,
+    cc: ColorCorner,
+): GameState {
+    return {
+        ...state,
+        positions: newPositions,
+        activeTraps: newTraps,
+        activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+        lastUpdate: Date.now(),
+        currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
+        gamePhase: 'rolling',
+        diceValue: null,
+    };
+}
+
+export function resolveTrap(state: GameState, targetPoint: Point, tokenColor: PlayerColor, tokenIndex: number, playerCount: string = '4P'): { trapIdx: number, newPositions: Record<PlayerColor, number[]> } | null {
+    // ENG-12: 2v2 teammate truce — a teammate's trap never fires on you,
+    // matching capture (checkMultiCapture) and nuke (countNukeVictims).
+    const trapIdx = state.activeTraps.findIndex(t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor && (playerCount !== '2v2' || getTeam(t.owner, playerCount) !== getTeam(tokenColor, playerCount)));
     if (trapIdx === -1) return null;
 
     const newPositions = { ...state.positions };
@@ -382,15 +393,6 @@ export function resolveCapturesInPositions(
         newPositions[c.capturedColor][c.capturedIdx] = BASE_INDEX;
     });
     return { captured: true, newPositions, captureList: captures };
-}
-
-/** @deprecated Win detection lives inline in processMove. Do not reintroduce. */
-export function checkWinStatus(
-    _positions: Record<PlayerColor, number[]>,
-    _playerCount: string,
-    currentWinner: string | null
-): { winner: string | null; status: 'waiting' | 'playing' | 'finished'; newlyWonColor: PlayerColor | null } {
-    return { winner: currentWinner, status: currentWinner ? 'finished' : 'playing', newlyWonColor: null };
 }
 
 /**
@@ -436,19 +438,12 @@ export function processMove(
     if (!targetPoint) return { newState: state, captured: false, bonusRoll: false };
     
     // 1. Resolve Traps
-    const trapResult = resolveTrap(state, targetPoint, tokenColor, tokenIndex);
+    const trapResult = resolveTrap(state, targetPoint, tokenColor, tokenIndex, playerCount);
     if (trapResult) {
         const newTraps = [...state.activeTraps];
         newTraps.splice(trapResult.trapIdx, 1);
         return {
-            newState: { 
-                ...state, 
-                positions: trapResult.newPositions, 
-                activeTraps: newTraps, 
-                lastUpdate: Date.now(),
-                currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
-                gamePhase: 'rolling'
-            },
+            newState: finishTrappedMove(state, trapResult.newPositions, newTraps, actingColor, playerCount, activeColors, cc),
             captured: false,
             bonusRoll: false
         };
@@ -490,6 +485,11 @@ export function processMove(
     const bonusRoll = captured || steps === DICE_ROLL_SIX;
     const nextPlayer = (bonusRoll && status !== 'finished') ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, cc);
 
+    // ENG-06: record EVERY newly-finished color (parity with core.ts).
+    // In 2v2 the teammate may already be all-home when the team wins.
+    const newlyFinished = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
+        .filter(c => allFinished(c) && !state.winners.includes(c));
+
     return {
         newState: {
             ...state,
@@ -499,7 +499,7 @@ export function processMove(
             gamePhase: 'rolling',
             winner,
             status,
-            winners: allFinished(tokenColor) && !state.winners.includes(tokenColor) ? [...state.winners, tokenColor] : state.winners,
+            winners: newlyFinished.length ? [...state.winners, ...newlyFinished] : state.winners,
             matchStats,
             lastUpdate: Date.now()
         },
@@ -520,9 +520,17 @@ export function handleThreeSixes(
 
 // --- Lobby Management Helpers ---
 
+// ENG-02: single source of truth. The 2v2 order is derived from TEAM_PAIRINGS
+// ([host, teammate, ...opponents]) so the lobby can never contradict the
+// seating/capture/win rule table in lib/constants.ts.
+const LOBBY_2V2_HOST: PlayerColor = 'green';
+const LOBBY_2V2_TEAMMATE: PlayerColor = TEAM_PAIRINGS[LOBBY_2V2_HOST];
+const LOBBY_2V2_OPPONENTS = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
+    .filter(c => c !== LOBBY_2V2_HOST && c !== LOBBY_2V2_TEAMMATE);
+
 const LOBBY_COLORS: Record<string, PlayerColor[]> = {
     '1v1': ['green', 'yellow'], // Changed from ['green', 'red'] to ensure diagonal opposition
-    '2v2': ['green', 'yellow', 'red', 'blue'],
+    '2v2': [LOBBY_2V2_HOST, LOBBY_2V2_TEAMMATE, ...LOBBY_2V2_OPPONENTS],
     '4P': ['green', 'red', 'yellow', 'blue'],
 };
 

@@ -478,8 +478,28 @@ test('applyPowerPickup grants a power on an exact typed landing', () => {
     assert.notDeepEqual(r.powerTiles![0], { r: pt.r, c: pt.c, type: 'boost' }, 'and not on the same cell');
 });
 
-test('applyPowerPickup refreshes an existing item of the same type', () => {
+test('ENG-11: respawn is deterministic from the match seed, not the clock', () => {
     const target = 6;
+    const pt = getBoardCoordinate(target, 'green', CC4P)!;
+    const mk = (seed: number) => st({
+        powerTileSeed: seed,
+        powerTiles: [{ r: pt.r, c: pt.c, type: 'boost' }],
+        playerPowers: { green: [] } as never,
+    });
+    const a = applyPowerPickup(mk(12345), 'green', target, CC4P, 1_000_000);
+    const b = applyPowerPickup(mk(12345), 'green', target, CC4P, 9_999_999);
+    assert.deepEqual(
+        a.powerTiles, b.powerTiles,
+        'the same seed must spawn the same tile regardless of wall-clock',
+    );
+    const c = applyPowerPickup(mk(777), 'green', target, CC4P, 1_000_000);
+    assert.notDeepEqual(
+        a.powerTiles, c.powerTiles,
+        'a different seed must move the stream (sensitivity)',
+    );
+});
+
+test('applyPowerPickup refreshes an existing item of the same type', () => {    const target = 6;
     const pt = getBoardCoordinate(target, 'green', CC4P)!;
     const s = st({
         powerTiles: [{ r: pt.r, c: pt.c, type: 'boost' }],

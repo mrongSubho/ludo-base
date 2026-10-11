@@ -98,14 +98,14 @@ function callWorker<T>(kind: 'move' | 'power', payload: unknown, timeoutMs: numb
     });
 }
 
-/** Best token index or null. Never throws — falls back to sync then null. */
+/** Best {color, tokenIndex} or null. Never throws — falls back to sync then null. */
 export async function getBestMoveAsync(
     args: BestMoveArgs,
     timeoutMs: AiTimeoutMs = DEFAULT_TIMEOUT_MS
-): Promise<number | null> {
+): Promise<{ color: PlayerColor; tokenIndex: number } | null> {
     try {
         if (canUseWorker()) {
-            return await callWorker<number | null>('move', args, timeoutMs);
+            return await callWorker<{ color: PlayerColor; tokenIndex: number } | null>('move', args, timeoutMs);
         }
     } catch (err) {
         track('net_degraded', { reason: 'ai_worker_fallback', kind: 'move' });

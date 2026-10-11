@@ -21,6 +21,7 @@ import {
     POWER_TILES_COUNT 
 } from '@/lib/constants';
 import { activeColorsForTurns } from '@/lib/engine';
+import { hostActionForIntent } from '@/lib/hostIntent';
 
 // Specialized Hooks
 import { useGameActions } from './useGameActions';
@@ -114,6 +115,9 @@ export function useGameEngine({
         ...INITIAL_GAME_STATE,
         botDifficulty,
         currentPlayer: (initialPlayers[0]?.color as PlayerColor) || 'green',
+        // ENG-11: mint the respawn seed once per match; it commits via the
+        // seed digest and is the sole entropy for replacement-tile spawns.
+        powerTileSeed: (Math.random() * 0x100000000) >>> 0,
         powerTiles: (gameMode === 'power' ? pathCells
             .filter(c => c.cls === 'board-cell')
             .sort(() => Math.random() - 0.5)
@@ -383,22 +387,20 @@ export function useGameEngine({
     // 📬 Listen for Guest Intents (Host only)
     useEffect(() => {
         if (isHost && lastIntent) {
-            const { type, payload } = lastIntent;
-            console.log('📬 [Host] Processing Intent:', type, payload);
-            
-            if (type === 'REQUEST_ROLL') {
-                // No face is honoured, even if one were attached — isGameIntent
-                // already dropped such an intent before it reached this handler.
+            // The roll/move decision is hostActionForIntent (lib/hostIntent.ts),
+            // executed under scripts/host-intent.test.ts. No face is ever read
+            // from the payload here — see that module for the invariant.
+            const action = hostActionForIntent(lastIntent, localGameState.diceValue);
+            console.log('📬 [Host] Processing Intent:', lastIntent.type, action);
+
+            if (action.kind === 'roll') {
                 handleRoll();
-            } else if (type === 'REQUEST_MOVE') {
-                // The face comes from the host's own committed state, never from
-                // the guest's payload.
-                const diceValue = localGameState.diceValue;
-                if (diceValue !== null) moveToken(payload.color, payload.tokenIndex, diceValue);
-            } else if (type === 'CMD_REQUEST_TRUST') {
-                toggleAutoPlay(payload.color, payload.isKicked);
+            } else if (action.kind === 'move') {
+                moveToken(action.color, action.tokenIndex, action.diceValue);
+            } else if (action.kind === 'trust') {
+                toggleAutoPlay(action.color, action.isKicked);
             }
-            
+
             clearIntent();
         }
     }, [isHost, lastIntent, handleRoll, moveToken, toggleAutoPlay, clearIntent, localGameState.diceValue]);
@@ -426,6 +428,8 @@ export function useGameEngine({
             ...INITIAL_GAME_STATE,
             botDifficulty,
             currentPlayer: newPlayers[0].color,
+            // ENG-11: fresh seed per match (see above).
+            powerTileSeed: (Math.random() * 0x100000000) >>> 0,
             powerTiles: (gameMode === 'power' ? pathCells
                 .filter(c => c.cls === 'board-cell')
                 .sort(() => Math.random() - 0.5)

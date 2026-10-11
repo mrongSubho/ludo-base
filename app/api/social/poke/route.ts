@@ -1,12 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { loadMissionDef, periodBucketFor } from '@/lib/missionCatalog';
+import { issueMissionVoucher, type IssuedVoucher } from '@/lib/missionVoucherIssue';
 
 /**
  * POKE SYSTEM LOGIC
  * A pokes B -> (sent)
- * B pokes A -> (poked_back) -> Both get 100 coins
+ * B pokes A -> (poked_back) -> poker-back gets a CHIPS voucher
+ * (`daily_poke_back`, 6 CHIPS). Coins are frozen (202609300001): the old
+ * `players.coins + 100` credit for both sides is gone — it wrote into a
+ * frozen column and was a no-op. The receiver claims their own voucher when
+ * they poke someone back; each side is capped at one voucher per UTC day by
+ * the `mission_vouchers` claim lock.
  */
+const POKE_BACK_MISSION = 'daily_poke_back';
 
 export async function POST(request: Request) {
     try {
@@ -81,37 +89,47 @@ export async function POST(request: Request) {
                 })
                 .eq('id', incoming.id);
 
-            // Reward both
-            const { data: players } = await supabase
-                .from('players')
-                .select('wallet_address, coins')
-                .in('wallet_address', [s, r]);
-
-            if (players) {
-                for (const p of players) {
-                    await supabase
-                        .from('players')
-                        .update({ coins: (p.coins || 0) + 100 })
-                        .ilike('wallet_address', p.wallet_address);
-                }
-            }
-
-            // Increment "Poke Back" mission for the sender (current caller)
-            const { data: mission } = await supabase
-                .from('player_missions')
-                .select('id, progress')
-                .eq('player_id', s)
-                .eq('mission_id', 'daily_poke_back')
-                .single();
-
-            if (mission) {
-                await supabase
+            // Reward the poker-back with a CHIPS voucher (period-scoped:
+            // first poke-back of the UTC day completes target 1). A claimed
+            // day (409) or a missing catalog row is non-fatal — the poke-back
+            // itself still counts.
+            let voucher: IssuedVoucher | null = null;
+            let rewardChips = 0;
+            const def = await loadMissionDef(POKE_BACK_MISSION);
+            if (def) {
+                const bucket = periodBucketFor(def, new Date());
+                const { data: prow } = await supabase
                     .from('player_missions')
-                    .update({ 
-                        progress: (mission.progress || 0) + 1,
-                        last_updated: new Date().toISOString()
-                    })
-                    .eq('id', mission.id);
+                    .select('id, progress, is_claimed')
+                    .eq('player_id', s)
+                    .eq('mission_id', POKE_BACK_MISSION)
+                    .eq('period_id', bucket)
+                    .maybeSingle();
+                if (prow) {
+                    if (!prow.is_claimed) {
+                        await supabase
+                            .from('player_missions')
+                            .update({
+                                progress: (prow.progress || 0) + 1,
+                                last_updated: new Date().toISOString(),
+                            })
+                            .eq('id', prow.id);
+                    }
+                } else {
+                    await supabase.from('player_missions').insert({
+                        player_id: s,
+                        mission_id: POKE_BACK_MISSION,
+                        period_id: bucket,
+                        progress: 1,
+                    });
+                }
+                const issue = await issueMissionVoucher(s, POKE_BACK_MISSION);
+                if (issue.ok) {
+                    voucher = issue.issued;
+                    rewardChips = issue.issued.rewardChips;
+                } else if (issue.status !== 409 && issue.status !== 400) {
+                    console.error('[poke] voucher issue failed:', issue.error);
+                }
             }
 
             try {
@@ -121,7 +139,13 @@ export async function POST(request: Request) {
             } catch (onbErr) {
                 console.error('[onboarding] social writer failed:', onbErr);
             }
-            return NextResponse.json({ success: true, type: 'poke_back', reward: 100 });
+            return NextResponse.json({
+                success: true,
+                type: 'poke_back',
+                reward: rewardChips,
+                rewardCurrency: 'CHIPS',
+                voucher,
+            });
         }
 
         // SEC-22: a poke requires an accepted friendship in either direction.

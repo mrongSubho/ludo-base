@@ -342,9 +342,19 @@ export function shufflePlayers(
     if (cc) {
         let activeColorEntries = Object.entries(cc) as [PlayerColor, Corner][];
 
-        // REFINEMENT: For 1v1, we MUST filter to exactly 2 diagonal players
+        // REFINEMENT: For 1v1, we MUST filter to exactly 2 diagonal players.
+        // ENG-19: reuse the axis assignCornersFFA('1v1') already seated instead
+        // of re-rolling one. A fresh roll disagrees with the seating ~51% of
+        // matches (red-vs-blue seated while the lobby says green-vs-yellow).
+        // The seating guarantees green+yellow share a diagonal, so derive the
+        // axis from cc itself: whichever diagonal holds cc.green is the match.
         if (playerCount === '1v1') {
-            const axis = DIAGONAL_AXES[Math.floor(Math.random() * 2)][0]; // ['BL', 'TR'] or ['BR', 'TL']
+            const greenCorner = cc['green' as keyof typeof cc];
+            const axis: readonly [Corner, Corner] = (greenCorner === 'BL' || greenCorner === 'TR')
+                ? (['BL', 'TR'] as const)
+                : (greenCorner === 'BR' || greenCorner === 'TL')
+                    ? (['BR', 'TL'] as const)
+                    : DIAGONAL_AXES[0][0];
             activeColorEntries = activeColorEntries.filter(([, corner]) => axis.includes(corner));
         }
 

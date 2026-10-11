@@ -4,7 +4,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Hex } from 'viem';
 import { SettlePoolButton } from './SettlePoolButton';
-import { buildPayoutPlan, payoutShareLabel, type MatchShape } from '@/lib/payoutPlan';
+import { buildPayoutPlan, payoutColorsForWinner, payoutShareLabel, type MatchShape } from '@/lib/payoutPlan';
 import { BOARD_FINISH_INDEX, TEAM_ID } from '@/lib/constants';
 import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
@@ -213,13 +213,33 @@ export function MatchStatsOverlay({
         poolLive && !prizeFundIsEstimate && estClaim > 0 && !!iWon && !claimBusy && secondsLeft === 0;
 
     const settlePlan = useMemo(() => {
-        if (!showClaimSlot || !winnerAddress || !isPoolHost) return null;
+        if (!showClaimSlot || !isPoolHost) return null;
         // Refuse to build a plan from an estimated fund: it would be wrong by
         // construction and can only revert on-chain.
         if (prizeFundIsEstimate) return null;
-        // Phase-1: single funded winner wallet (1v1 / sole winner). Multi-seat
-        // wallets attach per winnerAddress when each seat maps to a wallet.
+        // ENG-06: a 2v2 engine win is `winner === "Team N"` — map it to both
+        // TEAM_ID-N seats before calling buildPayoutPlan. A lone seat on a 2v2
+        // pool throws there (it would also sweep the slashed host bond), and a
+        // team missing a wallet mapping fails closed here.
         try {
+            const teamSeats = payoutColorsForWinner(gameState.winner, playerCount);
+            if (shape === '2v2' && teamSeats.length === 2) {
+                const addrs = teamSeats.map(
+                    (seat) => players.find((p) => p.color === seat)?.walletAddress,
+                );
+                if (!addrs[0] || !addrs[1]) return null;
+                return buildPayoutPlan({
+                    shape,
+                    prizeFund: prizeFundWei,
+                    winners: [
+                        { addr: addrs[0] as `0x${string}`, rank: 1, seatIndex: 1 },
+                        { addr: addrs[1] as `0x${string}`, rank: 1, seatIndex: 2 },
+                    ],
+                });
+            }
+            // Phase-1: single funded winner wallet (1v1 / sole winner). Multi-seat
+            // wallets attach per winnerAddress when each seat maps to a wallet.
+            if (!winnerAddress) return null;
             return buildPayoutPlan({
                 shape,
                 prizeFund: prizeFundWei,
@@ -228,7 +248,7 @@ export function MatchStatsOverlay({
         } catch {
             return null;
         }
-    }, [showClaimSlot, winnerAddress, isPoolHost, shape, prizeFundWei, prizeFundIsEstimate]);
+    }, [showClaimSlot, winnerAddress, isPoolHost, shape, prizeFundWei, prizeFundIsEstimate, gameState.winner, players, playerCount]);
 
     const myLevel = myPlayer?.level ?? 1;
     const myLxp = myPlayer?.lxp ?? 0;

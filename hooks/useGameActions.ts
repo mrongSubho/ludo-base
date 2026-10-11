@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
-import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, rollPowerType, getLegalTokenIndices } from '@/lib/gameLogic';
+import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, getLegalTokenIndices, lcg32, spawnReplacementTile } from '@/lib/gameLogic';
 import { activeColorsForTurns } from '@/lib/engine';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
@@ -207,6 +207,13 @@ export function useGameActions({
                     audio.playWin();
                     triggerWinConfetti();
                     recordWin(color);
+                    // ENG-06: a 2v2 team win records BOTH teammates, not just
+                    // the mover. recordWin is idempotent per match (guarded by
+                    // hasRecordedWin) but updates each player's local stats.
+                    const mate = getTeammateColor(color, playerCount);
+                    if (playerCount === '2v2' && mate && result.state.winner.startsWith('Team ')) {
+                        recordWin(mate);
+                    }
                 }
                 setTimeout(() => {
                     setLocalGameState(latest => latest.gamePhase === 'landing'
@@ -300,23 +307,16 @@ export function useGameActions({
                     granted.push({ type: tile.type, expiresAt: now + full });
                     finalState.playerPowers = { ...(currentState.playerPowers || {}), [color]: granted };
                     // Respawn to keep the board seeded.
+                    // ENG-11: the same deterministic stream as the authority —
+                    // match seed + consumed tile + board fill, never Math.random().
                     const taken = new Set((currentState.powerTiles || []).map((t) => `${t.r},${t.c}`));
                     taken.delete(`${tile.r},${tile.c}`);
-                    const palette: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
-                    let spawnedKey: string | null = null;
-                    for (let tries = 0; tries < 24 && !spawnedKey; tries++) {
-                        const rc = palette[Math.floor(Math.random() * palette.length)];
-                        const rp = Math.floor(Math.random() * 52);
-                        const pt = getBoardCoordinate(rp, rc, colorCorner);
-                        if (pt && !taken.has(`${pt.r},${pt.c}`)) {
-                            spawnedKey = `${pt.r},${pt.c}`;
-                        }
-                    }
                     const remaining = (currentState.powerTiles || []).filter((_, i) => i !== tileIdx);
-                    if (spawnedKey) {
-                        const [sr, sc] = spawnedKey.split(',').map(Number);
-                        remaining.push({ r: sr, c: sc, type: rollPowerType() });
-                    }
+                    const rand = lcg32(
+                        ((currentState.powerTileSeed ?? 0) >>> 0) + tile.r * 31 + tile.c * 17 + remaining.length * 101,
+                    );
+                    const spawned = spawnReplacementTile(taken, rand, colorCorner);
+                    if (spawned) remaining.push(spawned);
                     finalState.powerTiles = remaining;
                     const foundMsg = `${tile.type.toUpperCase()} discovered!`;
                     finalState.captureMessage = captured ? `${finalState.captureMessage ?? ''} ${foundMsg}`.trim() : foundMsg;
@@ -347,6 +347,11 @@ export function useGameActions({
             audio.playWin();
             triggerWinConfetti();
             recordWin(color);
+            // ENG-06: a 2v2 team win records BOTH teammates (see above).
+            const mate = getTeammateColor(color, playerCount);
+            if (playerCount === '2v2' && mate && newState.winner.startsWith('Team ')) {
+                recordWin(mate);
+            }
         }
 
         // 🚀 Executing side effects OUTSIDE the setLocalGameState!

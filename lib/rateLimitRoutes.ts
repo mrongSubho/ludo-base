@@ -105,6 +105,7 @@ export const NEVER_LIMIT = new Set([
  * HMAC-verified webhook that fails closed without its secret.
  */
 export const SESSION_GATED = new Set([
+    'chips/escrow-balance',
     'chips/lobby-ticket',
     'chips/settle/propose',
     'feedback',

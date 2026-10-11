@@ -154,6 +154,12 @@ export interface GameState {
     lastUpdate: number;
     playerCount: '1v1' | '4P' | '2v2';
     matchId?: string;
+    /**
+     * ENG-11: match-committed power-tile respawn seed. Minted once at match
+     * start, covered by the seed signature digest, and the sole entropy for
+     * replacement-tile spawns (never Date.now()). Optional on older states.
+     */
+    powerTileSeed?: number;
     /** Edge `match_rolls.id` for the last networked face (audit / settlement). */
     lastRollId?: string | null;
     lastAction?: { type: GameActionType; payload: unknown };

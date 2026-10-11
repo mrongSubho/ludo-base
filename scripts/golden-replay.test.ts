@@ -36,6 +36,22 @@ test('golden seeds differ across the corpus', () => {
     assert.equal(typeof lcg(1)(), 'number');
 });
 
+test('ENG-01: corpus terminates in every mode, including a 2v2 team win', () => {
+    const summary = assertDeterministicCorpus(GOLDEN_MATCH_COUNT);
+    console.log('golden termination', summary.finishedByMode);
+    for (const mode of ['1v1', '4P', '2v2'] as const) {
+        assert.ok(
+            summary.finishedByMode[mode] >= 1,
+            `need ≥1 terminated ${mode} match, got ${summary.finishedByMode[mode]}`,
+        );
+    }
+    const corpus = runGoldenCorpus(GOLDEN_MATCH_COUNT);
+    assert.ok(
+        corpus.some((m) => m.mode === '2v2' && (m.winner ?? '').startsWith('Team ')),
+        'need a 2v2 team win in the corpus',
+    );
+});
+
 test('hashGameState is a 16-hex digest used in corpus', () => {
     const m = runGoldenMatch(0, 99);
     assert.equal(m.finalHash.length, 16);

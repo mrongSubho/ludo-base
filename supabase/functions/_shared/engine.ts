@@ -139,6 +139,11 @@ export interface EngineGameState {
     matchId?: string;
     /** Combat counters — safe to broadcast; optional on older states. */
     matchStats?: MatchCaptureStats;
+    /**
+     * ENG-11: match-committed power-tile respawn seed (see GameState).
+     * Persisted (PERSISTED_STATE_FIELDS) and covered by the seed digest.
+     */
+    powerTileSeed?: number;
     /** Authority-only power types — never broadcast. */
     powerTiles?: { r: number; c: number; type?: PowerType }[];
     playerPowers?: Partial<Record<PlayerColor, PowerItem[]>>;
@@ -371,6 +376,38 @@ export function isBoardCleared(positions: Record<PlayerColor, number[]>): boolea
 }
 
 /**
+ * ENG-14: shared post-move epilogue for the trap branch.
+ *
+ * The trap early-return used to hand-roll its own state patch, skipping
+ * shield cleanup (the trapped token kept a live shield entry from home) and
+ * the dice reset. It now runs the same epilogue as the normal branch.
+ * Boost consumption, the sixes counter and the win re-check intentionally
+ * live outside `processMove`: boost/sixes are owned by `resolveNetworkedMove`
+ * downstream (which runs for trap results too), and a trap sends a token to
+ * BASE so it can never complete a win.
+ */
+function finishTrappedMove(
+    state: EngineGameState,
+    newPositions: Record<PlayerColor, number[]>,
+    newTraps: EngineGameState['activeTraps'],
+    actingColor: PlayerColor,
+    playerCount: string,
+    activeColors: PlayerColor[] | undefined,
+    cc: ColorCorner,
+): EngineGameState {
+    return {
+        ...state,
+        positions: newPositions,
+        activeTraps: newTraps,
+        activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+        lastUpdate: Date.now(),
+        currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
+        gamePhase: 'rolling',
+        diceValue: null,
+    };
+}
+
+/**
  * Apply one authoritative move as an immutable state transition.
  * Invalid destinations are rejected; valid moves resolve traps, captures,
  * bonus turns, shield cleanup, and the appropriate individual/team victory.
@@ -409,8 +446,10 @@ export function processMove(
     const targetPoint = getBoardCoordinate(nextPos, tokenColor, cc);
     if (!targetPoint) return { newState: state, captured: false, bonusRoll: false, applied: false };
 
+    // ENG-12: 2v2 teammate truce — a teammate's trap never fires on you,
+    // matching capture and nuke.
     const trapIdx = (state.activeTraps || []).findIndex(
-        t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor
+        t => t.r === targetPoint.r && t.c === targetPoint.c && t.owner !== tokenColor && (playerCount !== '2v2' || getTeam(t.owner, playerCount) !== getTeam(tokenColor, playerCount))
     );
     if (trapIdx >= 0) {
         const newPositions = { ...state.positions };
@@ -419,15 +458,7 @@ export function processMove(
         const newTraps = [...(state.activeTraps || [])];
         newTraps.splice(trapIdx, 1);
         return {
-            newState: {
-                ...state,
-                positions: newPositions,
-                activeTraps: newTraps,
-                lastUpdate: Date.now(),
-                currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
-                gamePhase: 'rolling',
-                diceValue: null,
-            },
+            newState: finishTrappedMove(state, newPositions, newTraps, actingColor, playerCount, activeColors, cc),
             captured: false,
             bonusRoll: false,
             applied: true,
@@ -456,6 +487,11 @@ export function processMove(
 
     const allFinished = (c: PlayerColor) => newPositions[c].every(p => p === BOARD_FINISH_INDEX);
     const victory = evaluateVictory(newPositions, playerCount, state.winner, state.status);
+    // ENG-06: record EVERY newly-finished color, not just the mover. In 2v2
+    // the teammate may already be all-home when the team wins; leaving them
+    // out of `winners` desyncs the sheet, the payout mapping, and recordWin.
+    const newlyFinished = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
+        .filter(c => allFinished(c) && !state.winners.includes(c));
 
     const bonusRoll = captured || steps === DICE_ROLL_SIX;
     const nextPlayer = bonusRoll && victory.status !== 'finished'
@@ -471,9 +507,7 @@ export function processMove(
             gamePhase: 'rolling',
             winner: victory.winner,
             status: victory.status,
-            winners: allFinished(tokenColor) && !state.winners.includes(tokenColor)
-                ? [...state.winners, tokenColor]
-                : state.winners,
+            winners: newlyFinished.length ? [...state.winners, ...newlyFinished] : state.winners,
             activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
             matchStats,
             lastUpdate: Date.now(),
@@ -560,6 +594,7 @@ export const PERSISTED_STATE_FIELDS = [
     'activeShields', 'activeTraps', 'activeBoost', 'powerSpentThisTurn',
     'boostTrail', 'nukeFlash', 'captureMessage', 'playerPowers',
     'botDifficulty', 'matchId', 'powerSpentTurn', 'turnStartedAt',
+    'powerTileSeed',
 ] as const;
 
 /** Only these members of a power tile may be persisted. `type` is NOT one. */
@@ -843,6 +878,59 @@ export function applyPower(
 
 /** After a successful move: grant pickup if landed exactly on a typed power tile. */
 /**
+ * ENG-11: deterministic 32-bit LCG. Respawn position and rarity draw from
+ * one per-pickup stream seeded by the match-committed `powerTileSeed` — never
+ * from `Date.now()`, so every authority holding the same state spawns the
+ * same tile.
+ */
+export function lcg32(seed: number): () => number {
+    let s = (seed >>> 0) || 1;
+    return () => {
+        s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+        return s / 0x100000000;
+    };
+}
+
+const POWER_RARITY: { type: PowerType; w: number }[] = [
+    { type: 'boost', w: 0.4 },
+    { type: 'shield', w: 0.25 },
+    { type: 'teleport', w: 0.2 },
+    { type: 'nuke', w: 0.15 },
+];
+
+/** Roll a rarity from an independent draw of the LCG stream. */
+export function rollPowerTypeLcg(rand: () => number): PowerType {
+    let acc = 0;
+    const roll = rand();
+    for (const p of POWER_RARITY) {
+        acc += p.w;
+        if (roll < acc) return p.type;
+    }
+    return 'boost';
+}
+
+/**
+ * Spawn one replacement tile on a non-colliding shared-path cell.
+ * Position and rarity come from independent draws of `rand`. The `rc`
+ * palette indirection is gone: shared-path cells are color-independent
+ * (`getBoardCoordinate` ignores color below index 52), so `52 % 4 === 0`
+ * made it fully determined by `rp` — dead entropy dressed as a draw.
+ */
+export function spawnReplacementTile(
+    taken: Set<string>,
+    rand: () => number,
+    cc: ColorCorner,
+): { r: number; c: number; type: PowerType } | null {
+    for (let tries = 0; tries < 32; tries++) {
+        const rp = Math.floor(rand() * 52);
+        const pt = getBoardCoordinate(rp, 'green', cc);
+        if (pt && !taken.has(`${pt.r},${pt.c}`)) {
+            return { r: pt.r, c: pt.c, type: rollPowerTypeLcg(rand) };
+        }
+    }
+    return null;
+}
+/**
  * Grant a power for an exact landing, refresh duplicate expiry, and respawn
  * one typed tile at a non-colliding shared-path coordinate.
  */
@@ -870,35 +958,17 @@ export function applyPowerPickup(
     );
     granted.push({ type: tile.type, expiresAt: now + full });
 
-    // Respawn replacement tile (typed) elsewhere
+    // Respawn replacement tile (typed) elsewhere.
+    // ENG-11: seeded by the match-committed powerTileSeed, mixed with the
+    // consumed tile and the board fill so each pickup gets its own stream.
+    // Wall-clock `now` only stamps inventory expiry below — never the spawn.
     const taken = new Set(tiles.map(t => `${t.r},${t.c}`));
     taken.delete(`${tile.r},${tile.c}`);
     const remaining = tiles.filter((_, i) => i !== tileIdx);
-    // Deterministic-ish spawn: walk shared path from a hash of now+color
-    const palette: PlayerColor[] = ['green', 'red', 'blue', 'yellow'];
-    let spawned: { r: number; c: number; type: PowerType } | null = null;
-    for (let tries = 0; tries < 32 && !spawned; tries++) {
-        const seed = (now + tries * 17 + color.charCodeAt(0)) >>> 0;
-        const rc = palette[seed % 4];
-        const rp = seed % 52;
-        const pt = getBoardCoordinate(rp, rc, cc);
-        if (pt && !taken.has(`${pt.r},${pt.c}`)) {
-            // Weighted rarity
-            const roll = ((seed >>> 8) % 1000) / 1000;
-            let acc = 0;
-            let ptype: PowerType = 'boost';
-            for (const p of [
-                { type: 'boost' as PowerType, w: 0.4 },
-                { type: 'shield' as PowerType, w: 0.25 },
-                { type: 'teleport' as PowerType, w: 0.2 },
-                { type: 'nuke' as PowerType, w: 0.15 },
-            ]) {
-                acc += p.w;
-                if (roll < acc) { ptype = p.type; break; }
-            }
-            spawned = { r: pt.r, c: pt.c, type: ptype };
-        }
-    }
+    const rand = lcg32(
+        ((state.powerTileSeed ?? 0) >>> 0) + tile.r * 31 + tile.c * 17 + remaining.length * 101,
+    );
+    const spawned = spawnReplacementTile(taken, rand, cc);
     if (spawned) remaining.push(spawned);
 
     return {

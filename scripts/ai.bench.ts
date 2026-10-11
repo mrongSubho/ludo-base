@@ -117,13 +117,14 @@ function runDifficulty(difficulty: BotDifficulty, trials: number, seed: number):
             continue;
         }
 
+        const tokenIndex = pick.tokenIndex;
         const legal = getLegalTokenIndices(positions, 'green', roll, CC as never);
-        if (!legal.includes(pick)) {
+        if (!legal.includes(tokenIndex)) {
             result.illegal += 1;
             continue;
         }
 
-        const from = positions.green[pick];
+        const from = positions.green[tokenIndex];
         const to = calculateNextPosition(from, roll, 'green', CC as never);
         if (from === BASE_INDEX && to !== BASE_INDEX) result.chosePromote += 1;
         else if (to === 57 || to > from) result.choseAdvance += 1;

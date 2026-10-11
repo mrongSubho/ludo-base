@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { serviceDb } from '@/lib/serverAuth';
+import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 
 /**
  * GET /api/match/state?matchId=…
@@ -20,7 +21,8 @@ export async function GET(request: Request) {
             .maybeSingle();
         if (error) throw error;
         if (!data) return NextResponse.json({ error: 'Match not found', code: 'MATCH_NOT_FOUND' }, { status: 404 });
-        return NextResponse.json(data);
+        // ENG-07: power-tile types are authority-only; never leak them to spectators.
+        return NextResponse.json({ ...data, state: sanitizeGameStateForWire(data.state) });
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }

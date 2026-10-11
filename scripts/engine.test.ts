@@ -12,9 +12,10 @@ import {
     getLegalTokenIndices,
     handleThreeSixes,
     processMove,
+    createLobbySlots,
     INITIAL_GAME_STATE,
 } from '../lib/gameLogic';
-import { assignCorners2v2, CORNER_SLOTS } from '../lib/boardLayout';
+import { assignCorners2v2, assignCornersFFA, shufflePlayers, CORNER_SLOTS } from '../lib/boardLayout';
 import { TEAM_PAIRINGS, TEAM_ID, BASE_INDEX } from '../lib/constants';
 import type { PlayerColor } from '../lib/types';
 
@@ -115,5 +116,35 @@ test('processMove capture sends opponent home and grants bonus', () => {
     } else {
         // On a safe star, no capture — still a legal move
         assert.equal(newState.positions.green[0], 3);
+    }
+});
+
+test('ENG-02: lobby slot 0+1 are teammates for every match type', () => {
+    for (const matchType of ['1v1', '2v2', '4P'] as const) {
+        const slots = createLobbySlots(matchType);
+        if (matchType === '2v2') {
+            // Slot 0 is the host; slot 1 must be their TEAM_PAIRINGS teammate,
+            // and the lobby order is [host, teammate, ...opponents].
+            assert.equal(slots[0].role, 'host');
+            assert.equal(slots[1].role, 'teammate');
+            assert.equal(getTeammateColor(slots[0].color, '2v2'), slots[1].color);
+        } else {
+            assert.equal(getTeammateColor(slots[0].color, matchType), null);
+        }
+    }
+});
+
+test('ENG-19: shufflePlayers 1v1 reuses the seated axis instead of re-rolling', () => {
+    // assignCornersFFA('1v1') seats green+yellow on one diagonal. The shuffle
+    // must return exactly those seats — an independent roll disagreed ~51%.
+    for (let i = 0; i < 50; i++) {
+        const cc = assignCornersFFA('1v1');
+        const players = shufflePlayers('1v1', false, cc) as { color: string; position: string }[];
+        assert.equal(players.length, 2);
+        const colors = players.map((p) => p.color).sort();
+        assert.deepEqual(colors, ['green', 'yellow']);
+        for (const p of players) {
+            assert.ok(p.color === 'green' || p.color === 'yellow');
+        }
     }
 });

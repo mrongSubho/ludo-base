@@ -184,7 +184,7 @@ export async function PATCH(request: Request) {
     const roll = Math.floor(Math.random() * 6) + 1;
     const legal = getLegalTokenIndices(state.positions, color, roll, row.data.color_corner);
     const next = legal.length
-      ? processMove({ ...state, diceValue: roll, gamePhase: 'moving' }, color, getBestMove(state.positions, color, roll, row.data.color_corner, '4P', state.powerTiles, state, 'pro') ?? legal[0], roll, '4P', row.data.color_corner).newState
+      ? processMove({ ...state, diceValue: roll, gamePhase: 'moving' }, color, getBestMove(state.positions, color, roll, row.data.color_corner, '4P', state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0], roll, '4P', row.data.color_corner).newState
       : { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
     const updated = await sb.from('match_states').update({ state: next, seq: Number(row.data.seq) + 1, updated_at: now })
       .eq('match_id', matchId).eq('seq', row.data.seq).select('seq').maybeSingle();

@@ -5,6 +5,9 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePreferences } from '@/hooks/usePreferences';
 import { getOwned, addOwned } from '@/lib/inventory';
 import { useAppSession } from '@/hooks/useAppSession';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
+import { buildPurchaseIntentMessage } from '@/lib/purchaseIntent';
+import { marketplaceTotalChips } from '@/lib/marketplacePrices';
 import { getShowcased, setShowcased } from '@/lib/showcase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
@@ -63,6 +66,19 @@ interface MarketItem {
 }
 
 // ─── Token Icon ───────────────────────────────────────────────────────────
+const CHIPS_E18 = BigInt(10) ** BigInt(18);
+
+/** Escrow balances move in base units (numeric); the panel gates in whole CHIPS. */
+function chipsBaseToWhole(v: unknown): number {
+    try {
+        const s = String(v ?? '0').split('.')[0].trim();
+        if (!/^[-+]?\d+$/.test(s)) return 0;
+        const whole = BigInt(s) / CHIPS_E18;
+        return whole <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(whole) : Number.MAX_SAFE_INTEGER;
+    } catch {
+        return 0;
+    }
+}
 const TokenIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
         <circle cx="12" cy="12" r="10" />
@@ -169,8 +185,7 @@ const SORT_LABELS: Record<SortKey, string> = {
     rarity: 'Top rarity',
 };
 
-/** Compact coin formatting: 1100 → "1.1K" (keeps footer buttons from overflowing) */
-const formatCompact = (n: number) => {
+/** Compact coin formatting: 1100 → "1.1K" (keeps footer buttons from overflowing) */const formatCompact = (n: number) => {
     if (n >= 1000) {
         const v = n / 1000;
         return `${Number.isInteger(v) ? v : v.toFixed(1)}K`;
@@ -401,14 +416,40 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         }
     }, [activeTab]);
 
-    // ─── Real inventory + coins ───
-    const { profile, address } = useCurrentUser();
+    // ─── Real inventory + escrowed CHIPS ───
+    const { address } = useCurrentUser();
     // Guests may browse + showcase, but buying hits the wall.
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
+    const player = usePlayerSigner();
     const { preferences, updatePreference } = usePreferences();
     const wallet = address?.toLowerCase() ?? null;
-    const balance = profile?.coins || 0;
+    // Spendable balance is escrowed CHIPS (whole), not frozen coins.
+    // Starts at 0 so every buy gate stays closed until it resolves.
+    const [balance, setBalance] = useState(0);
+    useEffect(() => {
+        if (!isOpen || !wallet) {
+            setBalance(0);
+            return;
+        }
+        let cancelled = false;
+        void (async () => {
+            try {
+                const sessionId = await ensureAppSession();
+                if (!sessionId || cancelled) return;
+                const res = await fetch(
+                    `/api/chips/escrow-balance?walletAddress=${wallet}&sessionId=${sessionId}`,
+                );
+                const data = await res.json().catch(() => null);
+                if (!cancelled && res.ok) setBalance(chipsBaseToWhole(data?.balance));
+            } catch {
+                if (!cancelled) setBalance(0);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, wallet]);
 
     useEffect(() => {
         if (isOpen) {
@@ -440,8 +481,30 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setConfirmItem(null);
     };
 
-    // ─── Real purchase: deduct coins in Supabase, persist ownership locally ───
+    // ─── Real purchase: signed CHIPS intent, escrow debit, ownership local ───
     // Shared core so grid quick-buy and the inspect sheet use one flow.
+    // One wallet signature per purchase (infrequent, non-repudiable). The
+    // server rebuilds the intent from the shared price table and verifies
+    // before debiting; requestId makes retries idempotent.
+    const sendPurchase = async (ids: string[]) => {
+        const sessionId = await ensureAppSession();
+        if (!sessionId || !wallet) throw new Error('Sign-in required');
+        const total = marketplaceTotalChips(ids);
+        if (total === null) throw new Error('Unknown item');
+        const requestId = crypto.randomUUID();
+        const issuedAt = new Date().toISOString();
+        const message = buildPurchaseIntentMessage({ buyer: wallet, itemIds: ids, totalChips: total, requestId, issuedAt });
+        const signature = await player.signMessageAsync({ account: wallet as `0x${string}`, message });
+        const response = await fetch('/api/marketplace/purchase', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: ids, requestId, message, signature, issuedAt }),
+        });
+        const data = await response.json().catch(() => null);
+        if (!response?.ok) throw new Error(data?.error || 'Purchase failed');
+        setBalance(chipsBaseToWhole(data?.balance));
+        return data;
+    };
+
     const buyItem = async (item: MarketItem) => {
         if (!wallet) return;
         if (!guard('market-buy')) return;
@@ -450,17 +513,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setTransactionResult(null);
 
         try {
-            const sessionId = await ensureAppSession();
-            const response = sessionId ? await fetch('/api/marketplace/purchase', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: [item.id], requestId: crypto.randomUUID() }),
-            }) : null;
-            if (!response?.ok) throw new Error('Purchase failed');
+            await sendPurchase([item.id]);
 
             const next = addOwned(wallet, item.id);
             setOwnedIds(next);
 
-            // Purchase deducts coins server-side — refresh the header balance.
+            // Purchase deducts escrowed CHIPS server-side — balance refreshed above.
             window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
 
             const newActivity: MarketActivity = {
@@ -492,12 +550,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setIsProcessing(true);
         setTransactionResult(null);
         try {
-            const sessionId = await ensureAppSession();
-            const response = sessionId ? await fetch('/api/marketplace/purchase', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: missing.map(item => item.id), requestId: crypto.randomUUID() }),
-            }) : null;
-            if (!response?.ok) throw new Error('Purchase failed');
+            await sendPurchase(missing.map(item => item.id));
 
             let next = ownedIds;
             const now = 'Just now';
@@ -738,9 +791,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <span className="text-[11px] font-black text-cyan-300 tracking-wide">BASE NETWORK</span>
                                                 </span>
                                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10">
+                                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10" title="Escrowed CHIPS available for purchases">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
-                                                    <span className="text-[11px] font-black text-white tabular-nums">{balance.toLocaleString()}</span>
+                                                    <span className="text-[11px] font-black text-white tabular-nums">{balance.toLocaleString()} CHIPS</span>
                                                 </span>
                                             </div>
                                         </div>
@@ -1038,7 +1091,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         {balance >= missingTotal ? (
                                                             <>
                                                                 <span className="text-[11px] font-black uppercase tracking-[0.12em]">Complete</span>
-                                                                <span className="text-[10px] font-black font-mono opacity-70">{formatCompact(missingTotal)} coins</span>
+                                                                <span className="text-[10px] font-black font-mono opacity-70">{formatCompact(missingTotal)} CHIPS</span>
                                                             </>
                                                         ) : (
                                                             <>
@@ -1288,10 +1341,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
                                                         <span className="porcelain-hero text-3xl font-black text-white font-mono">{selectedItem.price.toLocaleString()}</span>
-                                                        <span className="text-sm font-bold text-white/35">coins</span>
+                                                        <span className="text-sm font-bold text-white/35">CHIPS</span>
                                                     </div>
                                                     {!owned && !canAfford && (
-                                                        <p className="mt-1.5 text-[11px] font-bold text-red-300/90">You need {(selectedItem.price - balance).toLocaleString()} more coins.</p>
+                                                        <p className="mt-1.5 text-[11px] font-bold text-red-300/90">You need {(selectedItem.price - balance).toLocaleString()} more CHIPS (escrowed).</p>
                                                     )}
                                                     {transactionResult === 'error' && (
                                                         <p className="mt-1.5 text-[11px] font-bold text-red-300/90">Purchase failed — check your connection and try again.</p>

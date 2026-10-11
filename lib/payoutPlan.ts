@@ -13,6 +13,8 @@
  */
 import type { Address } from "viem";
 import type { PayoutEntry } from "./chipsSettle";
+import { TEAM_ID } from "./constants";
+import type { PlayerColor } from "./types";
 
 export type MatchShape = "1v1" | "2v2" | "4P";
 
@@ -22,6 +24,26 @@ export interface RankedWinner {
     rank: number;
     /** Optional 1-based seat index for dust tie-break; lower wins dust. */
     seatIndex?: number;
+}
+
+/**
+ * ENG-06: resolve a game winner to its 2v2 payout seats.
+ * The engine reports a team win as `winner === "Team N"` — both `TEAM_ID`-N
+ * seats must be paid. Returns the two seat colors, or `[]` when the winner
+ * is not a team result (caller uses the single-winner path).
+ */
+export function payoutColorsForWinner(
+    winner: string | null,
+    playerCount: string,
+): PlayerColor[] {
+    if (playerCount === "2v2" && typeof winner === "string" && winner.startsWith("Team ")) {
+        const id = Number(winner.slice("Team ".length));
+        const seats = (["green", "red", "yellow", "blue"] as PlayerColor[]).filter(
+            (c) => TEAM_ID[c] === id,
+        );
+        if (seats.length === 2) return seats;
+    }
+    return [];
 }
 
 function dustToFirst(prizeFund: bigint, amounts: bigint[], order: number[]): bigint[] {
@@ -55,12 +77,12 @@ export function buildPayoutPlan(args: {
     );
     const order = ranked.map((w, i) => w.seatIndex ?? i + 1);
 
-    if (ranked.length === 1) {
-        return [{ addr: ranked[0].addr, amount: prizeFund }];
-    }
-
+    // ENG-06: shape guards sit ABOVE the single-winner return. A lone winner
+    // on a 2v2 pool must throw (it would also sweep the slashed host bond),
+    // never slip through as a 100% payout.
     if (shape === "1v1") {
-        throw new Error("1v1 needs exactly one winner");
+        if (ranked.length !== 1) throw new Error("1v1 needs exactly one winner");
+        return [{ addr: ranked[0].addr, amount: prizeFund }];
     }
 
     if (shape === "2v2") {
@@ -71,6 +93,10 @@ export function buildPayoutPlan(args: {
             { addr: ranked[0].addr, amount: amounts[0] },
             { addr: ranked[1].addr, amount: amounts[1] },
         ];
+    }
+
+    if (ranked.length === 1) {
+        return [{ addr: ranked[0].addr, amount: prizeFund }];
     }
 
     // 4P podium top-2: 75% / 25%

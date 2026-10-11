@@ -116,8 +116,8 @@ test('E4 AI client falls back to sync heuristics without a worker', async () => 
         state,
         difficulty: 'pro',
     });
-    // green token 0 at 3 + 3 → 6 is legal; expect 0 (only token on board)
-    assert.equal(move, 0);
+    // green token 0 at 3 + 3 → 6 is legal; expect {color:'green', tokenIndex:0} (only token on board)
+    assert.deepEqual(move, { color: 'green', tokenIndex: 0 });
 
     const power = await getBestPowerUsageAsync({
         state,
