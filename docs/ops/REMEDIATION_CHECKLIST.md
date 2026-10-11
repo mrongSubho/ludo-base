@@ -4,12 +4,27 @@
 | --- | --- |
 | **Source** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) @ `e49600a`, 2026-10-05 |
 | **Status** | Phase 0 **16/17** · 4 Critical closed (DB-01, DB-02, DB-03, SEC-05) · **12 Critical open** |
-| **Baseline gates** | `tsc` 0 · `lint` clean · `npm test` 91/91 · `check:engine` sync · `check:rls` clean |
+| **Baseline gates** | `tsc` 0 · `lint` clean · `npm test` 361 pass / 0 fail / 10 skipped · `check:engine` sync · `check:rls` clean *(all re-run green 2026-10-11)* |
 | **Rule** | Do not close an item until its **exit gate** passes. A finding closed by assertion, not by test, reopens. |
 
 **How to use.** Work one phase at a time. Each phase has an ordered task list and an exit gate. Tick the boxes as you land commits. Reference finding IDs (`SEC-01`, `ENG-01`, …) in the PR description so the register stays authoritative.
 
 **Phases are ordered by dependency, not by severity.** Phase 0 first: until a fresh `db reset` produces a schema equivalent to a migrated one, nothing else can be validated.
+
+**Re-verified 2026-10-11.** Every ticked claim in this file was re-checked against
+the tree (read-only review, phase by phase), and the baseline gates above were
+re-run green. Changes from that pass:
+
+- The four stale **SEC-01/SEC-33** dice duplicates under Phase 2's dice tasks are
+  now ticked — closed by `612ef30` but left unticked.
+- **REA-18** and **REA-26** are ticked — done, found unticked.
+- **DB-20** closed as a verified no-op; **DB-04** closed as superseded by
+  `chips_escrow_settle_bets`.
+- **NET-01** marked partial: the `passTurn` routing already exists; only the
+  STALE_SEQ retry is missing.
+- All other open boxes were confirmed still open. One register correction:
+  `getGridCellInfo` is no longer duplicated (single copy in `lib/boardLayout.ts`);
+  the live ENG-20 duplication is `getStarIndices`/`nearestStarAhead`.
 
 ---
 
@@ -38,7 +53,7 @@
 - [x] `check:schema` **DB mode** in CI: applies the chain to a scratch `postgres:17` service and asserts zero errors, `column_default`, `pg_proc` signatures, `anon` table grants, and `anon`/`authenticated` EXECUTE on `security definer`. *(Wired in 2026-10-05. Negative-tested: injecting `grant update … to anon` and `grant execute … to anon` both fail the gate.)*
 - [x] `supabase db reset` completes; schema diff against a migrated DB is empty. *(Proven in substance, not with the literal command: Docker is unavailable in this environment, so `supabase db reset` cannot run. Instead the full chain was applied file-by-file with psql against PostgreSQL 16 — 16/16 files, 0 failures — and the RESET script was executed directly. RESET → 0 tables / 0 publication members / pgcrypto preserved, and re-applying the chain reproduced the migrated schema column-for-column. A literal `supabase db reset` still needs a run on a machine with Docker.)*
 - [x] A receipt inserted through Edge `roll-dice` is consumable by `move-auth`. *(Proven in psql: an insert without `status` now lands as `open`; `isDuplicateAction('open') === false`. `scripts/network-boundary.test.ts` pins the allowlist, `check:schema` A3 pins the DB default.)*
-- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **NOT DONE.** `purchase_marketplace` is frozen and the route still calls it, so it returns 409 with a raw `LEGACY_COINS_FROZEN` message. The exit gate offered "or its caller is removed"; the caller is still there. Fixing it needs the CHIPS payment rail — tracked under "CHIPS migration" below.
+- [ ] `/api/marketplace/purchase` returns 200 on a real SKU, or its caller is removed. **NOT DONE.** `purchase_marketplace` is frozen and the route still calls it, so it returns 409 with a raw `LEGACY_COINS_FROZEN` message. The exit gate offered "or its caller is removed"; the caller is still there. Fixing it needs the CHIPS payment rail — tracked under "CHIPS migration" below. *(Re-confirmed 2026-10-11: `app/api/marketplace/purchase/route.ts:35-40` still calls the frozen RPC and no CHIPS rail exists anywhere yet.)*
 
 ---
 
@@ -193,10 +208,14 @@ verified. One item remains, and it is a decision rather than a defect.**
 - [x] **SEC-33 — hosted bots and AFK seats can roll.** They previously sent a literal `"<color>-bot"` string as `wallet_address`, which cannot satisfy the FK to `players(wallet_address)`, so the insert failed and hosted bots could not roll at all. The host now mints with `seat_color` = the bot's colour, which is what the seat column is for.
 - [x] **Migration `202609300011_roll_receipt_binding.sql`.** `seat_color` + `turn_seq`, a closed seat vocabulary, and the partial unique index. Historical rows are deliberately left unbound and the Edge boundary fails closed on them rather than backfilling a guess. **Apply before deploying the new `roll-dice`** — it is the only writer of both columns.
 - [x] **The rules are tested, not asserted.** They live in `_shared/rollReceipt.ts` as pure functions so `scripts/roll-trust.test.ts` (23 tests) executes them in Node; the wiring between the Edge handlers and those functions is checked separately and is explicitly labelled a source assertion, because Deno is not installed in CI. `scripts/concurrency.test.ts` adds three tests against real Postgres, including **six concurrent retries of one turn, of which zero are accepted**.
-- [ ] **SEC-01** — Authenticate `roll-dice`: require the caller's session/signature, verify they are seated, verify `state.currentPlayer === seatColor`, and bind `wallet_address` to the **recovered** signer.
-- [ ] **SEC-01** — In `move-auth` `move` and `pass`: select `wallet_address` and reject unless `roll.wallet_address === recovered`.
-- [ ] **SEC-01** — Require `state.lastRollId === rollId` (or store `roll_id` on the state row and CAS it) so a roll can only be spent by the turn that minted it.
-- [ ] **SEC-33** — Use the host's wallet for bot seats, or make `match_rolls.wallet_address` nullable with a separate `seat_color`. Today hosted bots cannot roll at all.
+> The next four boxes are stale duplicates of the 2026-10-06 SEC-01/SEC-33 items
+> above. All four were closed by `612ef30` and left unticked in error; ticked at
+> the 2026-10-11 re-verification.
+
+- [x] **SEC-01** — Authenticate `roll-dice`: require the caller's session/signature, verify they are seated, verify `state.currentPlayer === seatColor`, and bind `wallet_address` to the **recovered** signer.
+- [x] **SEC-01** — In `move-auth` `move` and `pass`: select `wallet_address` and reject unless `roll.wallet_address === recovered`.
+- [x] **SEC-01** — Require `state.lastRollId === rollId` (or store `roll_id` on the state row and CAS it) so a roll can only be spent by the turn that minted it. *(Satisfied server-side: `move-auth` requires the receipt's `turn_seq` to equal the current `match_states.seq`, per the item above — a client-carried `lastRollId` is deliberately not trusted.)*
+- [x] **SEC-33** — Use the host's wallet for bot seats, or make `match_rolls.wallet_address` nullable with a separate `seat_color`. Today hosted bots cannot roll at all.
 - [x] **ENG-13 — engine input validation (2026-10-06).** `isValidDice` (integer 1–6) gates the Edge boundary and `resolveNetworkedMove`; `isValidStepCount` (integer 1–12) gates `processMove`; `clampSteps` coerces anything else. Two subtleties the first draft got wrong and the tests caught:
   - **Steps are not dice.** A boosted move is `dice + 6`, so validating `steps` with the dice predicate rejected *every* boosted move. There are now two predicates with different bands, and `resolveNetworkedMove` consumes a boost in a test that proves 9 steps, not 3.
   - **`steps < 1 || nextPos === initialPos`**, not just `nextPos === initialPos`. The old `steps !== 0` guard let a 0-step "move" fall through and act as a forced turn switch. Turn passing is `getNextPlayer`'s job; the Edge boundary has a dedicated `pass` action.
@@ -211,7 +230,7 @@ verified. One item remains, and it is a decision rather than a defect.**
 - [ ] **ENG-01 — `scripts/golden-replay.ts` repointed at `lib/engine/core.ts`, and the golden corpus extended so matches terminate** (`finished 0 / 50` today: raise `MAX_TURNS_PER_MATCH`, start positions `0..9`, `assignCorners2v2` + `getNextPlayer`). **Deliberately not done yet** — the diff harness now proves the two engines agree, so this is about the *corpus* reaching a terminal state (including a 2v2 team win), which is a separate fixture exercise and should not be bundled with the divergence fix.
 - [ ] **ENG-08** — `aiEngine.calculateMoveScore` must call engine math (`E.resolveNetworkedMove` or `checkMultiCapture` with `{...state, positions: moved}`), not a pre-move local reimplementation.
 - [ ] **ENG-17** — Add `npm run check:drift`: deep-compare `lib/engine/*` exports against `lib/constants` and `lib/boardLayout` (`TEAM_PAIRINGS`, `SHARED_PATH`, `CORNER_SLOTS`, `SAFE_POSITIONS`).
-- [ ] **ENG-20** — Deduplicate `getStarIndices`/`nearestStarAhead`/`getGridCellInfo` into one module and re-export.
+- [ ] **ENG-20** — Deduplicate `getStarIndices`/`nearestStarAhead` into one module and re-export. *(Re-verified 2026-10-11: copies live in `lib/gameLogic.ts`, `lib/engine/core.ts`, and the generated `supabase/functions/_shared/engine.ts`; `getGridCellInfo` is already single-source in `lib/boardLayout.ts`. Incidental: `app/components/SnakesBoard.tsx` carries its own private `shufflePlayers`.)*
 
 ### Tasks — one team table
 
@@ -332,7 +351,7 @@ verified. One item remains, and it is a decision rather than a defect.**
   - **Verified in production:** the five allowlisted tables still read; `activities`, `conversations`, `messages`, `game_invites`, `spectator_bets`, `chips_pools`, `mission_vouchers`, `player_missions`, `pokes` all now `401`; `players?select=*` is `401` while the column list is `200`; anon `INSERT` returns `42501` and `DELETE` returns `401`. App smoke: `/`, `/api/geo`, `/api/notices` all `200`. See [`SYSTEM_REVIEW.md` §10.6](./SYSTEM_REVIEW.md).
 - [x] **DB-10 — `live_matches` is column-scoped (2026-10-06).** `live_matches_public_read` is `using (true)`, so **every** granted column was world-readable, and DB-09 kept a table-wide SELECT. That published to the anon key: `join_secret_hash` (the invite secret), `arena_key`, `authority_id` (who holds the arena tick) and `host_address` (every host wallet). Verified live before the fix — all four returned 200.
   - Migration `202609300015` revokes the table grant and re-grants exactly the six columns a spectator reads. Verified live after: the four secrets return **401**, the six public columns return 200, and the real `LiveArenaDirectory` query (with its `matches!inner` join) still resolves. The fix is at the GRANT, not the policy, so other readers are unaffected and a future secret-column select fails loudly with 42501 naming it.
-- [ ] **DB-04 — NOT audited in this pass.** `settle_match_bets` exists; whether it carries the `window_closed_at > NOW()` guard and is idempotent was not checked. Bet settlement is money, so this one deserves a proper look rather than a checkbox.
+- [x] **DB-04 — audited 2026-10-11; closed as superseded.** `settle_match_bets` is a frozen stub — `202609300001` rewrites its body to `raise exception 'LEGACY_COINS_FROZEN'` — so the live function carries neither a window guard nor idempotency. Both properties were rebuilt in the CHIPS successor: `chips_escrow_settle_bets` (`202609300005:240-256`) refuses an open window (`BET_WINDOW_STILL_OPEN`), claims the open bet rows under a lock so a second call finds none, and writes the ledger with `on conflict do nothing`. The stale doc claim that the old RPC performs the timing check is `ENGINE_LOGIC.md:250`, tracked in the doc-drift table.
 - [x] **DB-05 — moot.** `mark_conversation_read` already exists as a SECURITY DEFINER function and is not missing. Not re-ported from the archive: the live one is the thing in use, and swapping it for a 24h/7d variant without knowing why the current one exists would be a downgrade dressed as a fix.
 - [x] **DB-06 — moot.** `cleanup_stale_data` already exists as a SECURITY DEFINER function. Same reasoning as DB-05: the live function is in use and its interval is not documented anywhere I can check, so "restoring" the archive's version is a coin flip that could delete data on a different schedule than production expects.
 - [x] **DB-07 — moot, verified rather than "fixed".** `messages_restrict_columns` uses `<>`, which is NULL-unsafe: if a comparison operand were NULL the row would be treated as unchanged and the mutation would slip past. Checked the columns: `sender_id`, `receiver_id` and `content` are all **NOT NULL** (only `ciphertext` is nullable, and that one already uses `IS DISTINCT FROM`). NULL cannot reach the comparison, so there is no hole. Left the code alone — rewriting it would have made the file look reviewed without changing a single behaviour.
@@ -365,7 +384,7 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 - [x] **DB-18 — partially. `202609300016`** adds `tournaments_status_present` and `tournament_matches_status_present` (present, 1–32 chars, not padding) so both have a constraint for the first time.
   - **Not done:** reconciling `tournaments.status` with the archive vocabulary. Same reason as DB-17 — both tables are empty, so there is no evidence of the intended domain, and guessing would encode a wrong vocabulary as a constraint.
 - [ ] **DB-19** — Decide the `join_tournament` contract (`{'success',…}` + coin debit vs `{'participant_id'}`) and update the archive or add an adapter.
-- [ ] **DB-20** — Verify `matchmaking/join:87` handles the missing `role`/`search_timeout` keys.
+- [x] **DB-20 — verified no-op (2026-10-11).** `app/api/matchmaking/join` never reads `role` or `search_timeout` — the route destructures only its own request body (`sessionId, gameMode, matchType, wager, …`) and forwards the RPC payload, and consumers use defensive access (`data.room_code || ''`). The `'search_timeout'` return exists only in the archived root migration (`migrations/20260904_hybrid_matchmaking.sql`), not in the canonical `join_matchmaking_hybrid`.
 - [x] **DB-23 (the part that mattered) — `202609300016`.** Added `unique (wallet_address) where revoked_at is null` on `app_sessions`. `/api/siwe/verify` revokes before it inserts, so this cannot deadlock the normal login path; what it closes is two concurrent verifies both reading "no live session" and both inserting, leaving a wallet with two valid app sessions. `app_sessions_active_idx` is a plain btree and did not prevent that.
   - **Not done:** the rest of the §10.3 index list. Not audited item by item in this pass.
 - [ ] **DB-24** — Port `prevent_client_player_tampering` from the archive, or delete the archive file so the intent is not lost.
@@ -389,7 +408,7 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 
 ### Tasks
 
-- [ ] **NET-01** — Call `moveAuth.passTurn({matchId, rollId, expectedSeq, source:'host-assist', reason:'three-sixes'|'no-legal'})` from both the three-sixes and no-legal-move branches in `useGameActions`. Apply the returned `state` via `applyServerState`; broadcast from **that**.
+- [~] **NET-01** — Call `moveAuth.passTurn({matchId, rollId, expectedSeq, source:'host-assist', reason:'three-sixes'|'no-legal'})` from both the three-sixes and no-legal-move branches in `useGameActions`. Apply the returned `state` via `applyServerState`; broadcast from **that**. *(Re-verified 2026-10-11: the substance is in — both branches funnel through the delayed `turnSwitch` path, which on networked matches calls `moveAuth.passTurn` and applies via `applyServerState` (`useGameActions.ts:535-633`; AFK variant `useAFKManager.ts:130-154`). Still partial because `source` is `'host-assist'` only for bot/AFK seats rather than keyed on the three-sixes/no-legal reason, and there is no STALE_SEQ retry — the next box.)*
 - [ ] **NET-01** — Add a `.then` that retries once on `STALE_SEQ`.
 - [ ] **NET-02** — Delete `useGameEngine.ts:215`. Thread `TeamUpContext.serverSeq` (the ref, not the number) into `useGameActions`. Remove the two manual assignments at `:170` and `:177`.
 - [ ] **NET-02** — Add one bounded retry on `code === 'STALE_SEQ'`: re-read the snapshot, re-submit with the fresh `expectedSeq` and the **same** `rollId`.
@@ -437,14 +456,14 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 
 ### Tasks
 
-- [ ] **REA-01** — Create and subscribe one channel per room in the effect at `useSupabaseRelay:69`; send via a ref; `removeChannel` on teardown. *(This also removes the double-subscribe hazard in NET-11 and the REST fallback cost.)*
+- [ ] **REA-01** — Create and subscribe one channel per room in the effect at `useSupabaseRelay:69`; send via a ref; `removeChannel` on teardown. *(This also removes the double-subscribe hazard in NET-11 and the REST fallback cost.)* *(Re-verified 2026-10-11: the receive path already does this — one channel per room, subscribed in an effect with `removeChannel` teardown (`useSupabaseRelay.ts:63-86`). The send path is still channel-per-send: a fresh never-joined `supabase.channel(...)` per relay at `:51-60`.)*
 - [ ] **REA-02** — `useMemo` the `GameDataContext` value over its 18 fields.
 - [ ] **REA-03** — Add `filter: 'wallet_address=eq.<me>'` to the self-profile channel; bound the leaderboard projection; equality-guard `setProfilesMap`.
 - [ ] **REA-04** — `useDataBoot`: set `isBootComplete` in the `finally`, or scope the throw per section so one `/api/messages` 403 cannot abort the whole boot. Surface a retry affordance instead of an empty leaderboard.
 - [ ] **REA-06** — `FrameProvider`: drop `attributes` from the MutationObserver (or debounce with `requestAnimationFrame`). `childList` alone is enough for mount-time stripping.
 - [ ] **REA-07** — Lift `usePreferences` to a provider or a `useSyncExternalStore` over the cookie with invalidation, so mid-match toggles reach every consumer.
 - [ ] **REA-08** — Wrap each `activeTab` panel and the board in `PanelErrorBoundary`. Add `app/global-error.tsx`.
-- [ ] **REA-09** — `useSoundEffects.playSound`: set `clone.volume = volume`, or just play `audio`.
+- [ ] **REA-09** — `useSoundEffects.playSound`: set `clone.volume = volume`, or just play `audio`. *(Re-verified 2026-10-11: the shared-element problem is gone — a fresh `new Audio(path)` per call — but `volume` is set on the original while the played node is `audio.cloneNode(true)`, and `volume` does not survive `cloneNode`; the clip always plays at 1.0. Same fix.)*
 - [ ] **REA-10** — `useGameActions:246` — write `newState.currentPlayer` on the fresh `finalState`, not on the aliased `newState` returned by `processMove`.
 - [ ] **REA-11** — `useGameEngine:441` — gate the whole-state write-up on a ref-stable `matchId`; flush once on `matchId` arrival instead of at 1Hz.
 - [ ] **REA-12** — Hoist a single module-level `AudioContext`. Add `osc.onended = () => { gain.disconnect(); osc.disconnect(); }` to every sound path.
@@ -453,15 +472,15 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 - [ ] **REA-15** — Delete the manual `<meta viewport>`; put `maximumScale: 1, interactiveWidget: 'resizes-content'` in the `viewport` export.
 - [ ] **REA-16** — `page.tsx:281` — initialize `onboarded` to `false` and set it in a mount effect; re-check for guests too.
 - [ ] **REA-17** — `handleWatchMatch`: add `try/catch` and `AbortSignal.timeout(15000)`.
-- [ ] **REA-18** — Mount the broadcast feed only when the dashboard is open; delete the duplicate `LiveChatPanel`/`LiveMatchSearchesPanel` (imported nowhere, ~600 lines each, re-implementing the same subscriptions under different channel names).
+- [x] **REA-18 — verified done (2026-10-11).** The feed is dashboard-gated: `GameLobby` (which mounts it) renders only under `appState === 'dashboard'` (`app/page.tsx:684`, `:710`), and `LiveChatPanel.tsx` / `LiveMatchSearchesPanel.tsx` no longer exist as files. Residue, not a regression: dead `LiveChatPanel`/`LiveMatchSearchesPanel` exports remain inside `ActivityFeed.tsx:98/353`, and the feed stays mounted while the dashboard is open even with the card closed (deliberate — comment at `ActivityFeed.tsx:1382-1383`).
 - [ ] **REA-19** — `TokenPiece`: return cleanups from `playSpawn`/`playLanding` and register them on an unmount effect.
-- [ ] **REA-20** — Move the `useScreenWakeLock` ref write out of render.
+- [ ] **REA-20** — Move the `useScreenWakeLock` ref write out of render. *(Re-verified 2026-10-11: partially improved — `lockRef` writes are now effect/async-scoped, but `activeRef.current = active;` still runs in the render body (`hooks/useScreenWakeLock.ts:23`).)*
 - [ ] **REA-21** — Hoist `useBoardLayoutRotation` out of the JSX props in `Board.tsx:340`.
 - [ ] **REA-22** — `INITIAL_GAME_STATE`: make `lastUpdate` lazy or zero; force a new identity in the `leaveGame` reset.
 - [ ] **REA-23** — Memoize the `GuestWallContext` value.
 - [ ] **REA-24** — Wrap `handlePlayNow` / `handleBackToSubMenu` in `useCallback`.
 - [ ] **REA-25** — `ActivityFeed:819` — add `me`/`resolveHost` to the dep array, or hold them in refs.
-- [ ] **REA-26** — Lower the board-square floor below the minimum measured viewport height, or clamp to the container.
+- [x] **REA-26 — verified done (2026-10-11).** The square derives from the measured board container and is clamped to it (`Math.max(minSquare, Math.floor(Math.min(area.w, area.h)))`, `hooks/useStableBoardBox.ts:45` via `Board.tsx:243-245`); the 160px floor is a degenerate-case guard, not a viewport-height floor.
 - [ ] **REA-27** — Delete the never-rendered `dynamic(() => import('./Leaderboard'))` in `page.tsx:36`.
 - [ ] **REA-28** — Remove `@x402/core|evm|extensions|svm` and `x402-fetch` from `package.json`, or record the plan. They are imported nowhere.
 - [ ] **REA-29** — Confirm the hardcoded OnchainKit key in `Providers.tsx:71` is the intended public key, and move it to an env var with a documented default.
@@ -499,7 +518,7 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 
 ### Doc-drift reconciliation (do alongside the code fixes)
 
-- [ ] `ENGINE_LOGIC.md:231` — `settle_match_bets` timing guard (DB-04)
+- [ ] `ENGINE_LOGIC.md:231` — `settle_match_bets` timing guard (DB-04) *(Re-confirmed 2026-10-11 — the drifted line is now `ENGINE_LOGIC.md:250`; DB-04's audit found the guard lives in `chips_escrow_settle_bets` instead, so this doc row is the only thing keeping the old claim honest.)*
 - [ ] `ENGINE_LOGIC.md:201` — DM fail-closed claim (CRY-03)
 - [ ] `ENGINE_LOGIC.md:217` — spectator channel name (NET-10)
 - [ ] `ENGINE_LOGIC.md` §3.5 — hidden power tiles (ENG-07)
