@@ -95,6 +95,11 @@ export function useGameEngine({
         lastIntent,
         clearIntent,
         startBettingWindow,
+        // NET-02: the TeamUpContext ref IS the seq of record. useGameEngine
+        // used to hold a private `useRef(0)`, so the AFK manager and the
+        // actions hook could write a seq the context never saw — and a
+        // rejected action could look "current" after a resync.
+        serverSeqRef,
         serverSeq,
         applyServerState,
         matchConnectionStatus,
@@ -215,7 +220,6 @@ export function useGameEngine({
         }, 250);
     }, []);
 
-    const serverSeqRef = useRef(0);
     const lastRollIdRef = useRef<string | null>(null);
     const chainId = useChainId();
     const moveAuth = useMoveAuth({ myAddress: player.address ?? address, signMessageAsync, signTypedDataAsync, chainId });

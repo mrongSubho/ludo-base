@@ -97,6 +97,13 @@ export interface TeamUpContextType {
     startBettingWindow: (betType: BetType) => Promise<string>;
     /** P4: monotonic match_states.seq known to this client. */
     serverSeq: number;
+    /**
+     * NET-02: the seq REF of record (same value as `serverSeq`, but a ref so
+     * writers and readers never race React's render timing). Networked actions
+     * read `serverSeqRef.current` for `expectedSeq`; `applyServerState` owns
+     * the write. Exposed so useGameEngine holds no second copy.
+     */
+    serverSeqRef: React.MutableRefObject<number>;
     /** Apply a server-authoritative state (Edge / match_states). */
     applyServerState: (state: GameState, seq: number, allowEqual?: boolean) => void;
     /** True after a snapshot has been applied since the latest reconnect. */
@@ -1202,14 +1209,14 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
         matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, lastIntent, clearIntent, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, applyServerState, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 

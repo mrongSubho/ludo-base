@@ -18,6 +18,7 @@ import {
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { stripPowerTypesForWire } from '@/lib/engine';
 import { track } from '@/lib/telemetry';
+import { withStaleSeqRetry as staleRetry, type MoveAuthCall } from '@/lib/netcode/staleSeq';
 import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types';
 import type { MatchActionError, MatchActionErrorCode, MatchActionSuccess } from '@/lib/matchProtocol';
 import type { MatchStateSnapshot } from '@/lib/matchProtocol';
@@ -64,6 +65,8 @@ async function callMoveAuthInner(action: string, body: Record<string, unknown>) 
 export type MoveAuthResult =
     | ({ ok: true } & MatchActionSuccess)
     | ({ ok: false } & MatchActionError);
+
+
 
 /** Module-shared session maps: useMoveAuth is instantiated twice
  * (TeamUpContext creates the match session at start; useGameEngine consumes
@@ -344,52 +347,58 @@ export function useMoveAuth(opts: {
             } catch { /* fall back to per-action sign */ }
         }
 
-        const sessionId = sharedMoveSessions.get(params.matchId);
         const issuedAt = new Date().toISOString();
-        let message: string | undefined;
-        let signature: string | undefined;
-
-        if (!sessionId) {
-            message = buildMoveMessage({
+        // NET-01/NET-02: one bounded retry re-reads the 409's snapshot and
+        // re-submits with the fresh expectedSeq and the SAME rollId.
+        const attempt = async (seq: number): Promise<MoveAuthCall> => {
+            let sessionId = sharedMoveSessions.get(params.matchId);
+            let message: string | undefined;
+            let signature: string | undefined;
+            if (!sessionId) {
+                message = buildMoveMessage({
+                    matchId: params.matchId,
+                    actor,
+                    color: params.color,
+                    tokenIndex: params.tokenIndex,
+                    rollId: params.rollId,
+                    expectedSeq: seq,
+                    issuedAt,
+                });
+                try {
+                    signature = await signMessageAsync({ account: actor as `0x${string}`, message });
+                } catch {
+                    return { ok: false, status: 0, data: { error: 'sign rejected' } };
+                }
+            }
+            let r = await callMoveAuth('move', {
                 matchId: params.matchId,
                 actor,
                 color: params.color,
                 tokenIndex: params.tokenIndex,
                 rollId: params.rollId,
-                expectedSeq: params.expectedSeq,
-                issuedAt,
+                expectedSeq: seq,
+                source,
+                sessionId: sessionId || undefined,
+                message,
+                signature,
+                issuedAt: sessionId ? undefined : issuedAt,
             });
-            try {
-                signature = await signMessageAsync({ account: actor as `0x${string}`, message });
-            } catch {
-                return { ok: false, error: 'sign rejected' };
+            if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
+                clearSession(params.matchId);
+                const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.roomCode || params.matchId });
+                if (renewed.ok) {
+                    sessionId = renewed.sessionId;
+                    r = await callMoveAuth('move', {
+                        matchId: params.matchId, actor, color: params.color, tokenIndex: params.tokenIndex,
+                        rollId: params.rollId, expectedSeq: seq, source,
+                        sessionId,
+                    });
+                }
             }
-        }
+            return r;
+        };
 
-        let r = await callMoveAuth('move', {
-            matchId: params.matchId,
-            actor,
-            color: params.color,
-            tokenIndex: params.tokenIndex,
-            rollId: params.rollId,
-            expectedSeq: params.expectedSeq,
-            source,
-            sessionId: sessionId || undefined,
-            message,
-            signature,
-            issuedAt: sessionId ? undefined : issuedAt,
-        });
-        if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
-            clearSession(params.matchId);
-            const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.roomCode || params.matchId });
-            if (renewed.ok) {
-                r = await callMoveAuth('move', {
-                    matchId: params.matchId, actor, color: params.color, tokenIndex: params.tokenIndex,
-                    rollId: params.rollId, expectedSeq: params.expectedSeq, source,
-                    sessionId: renewed.sessionId,
-                });
-            }
-        }
+        const r = await staleRetry(attempt, params.expectedSeq);
         if (r.ok && r.data?.state) {
             return {
                 ok: true,
@@ -422,47 +431,54 @@ export function useMoveAuth(opts: {
         if (!sharedMoveSessions.has(params.matchId) && source === 'player' && myAddress) {
             await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
         }
-        let sessionId = sharedMoveSessions.get(params.matchId);
         const issuedAt = new Date().toISOString();
-        let message: string | undefined;
-        let signature: string | undefined;
-        if (!sessionId) {
-            message = buildPassMessage({
+        // NET-01/NET-02: same bounded retry as submitMove — the pass keeps its
+        // rollId, so a replayed/dropped response cannot pass the turn twice.
+        const attempt = async (seq: number): Promise<MoveAuthCall> => {
+            let sessionId = sharedMoveSessions.get(params.matchId);
+            let message: string | undefined;
+            let signature: string | undefined;
+            if (!sessionId) {
+                message = buildPassMessage({
+                    matchId: params.matchId,
+                    actor,
+                    rollId: params.rollId,
+                    expectedSeq: seq,
+                    issuedAt,
+                });
+                try {
+                    signature = await signMessageAsync({ account: actor as `0x${string}`, message });
+                } catch {
+                    return { ok: false, status: 0, data: { error: 'sign rejected' } };
+                }
+            }
+            let r = await callMoveAuth('pass', {
                 matchId: params.matchId,
                 actor,
                 rollId: params.rollId,
-                expectedSeq: params.expectedSeq,
-                issuedAt,
+                expectedSeq: seq,
+                source,
+                sessionId: sessionId || undefined,
+                message,
+                signature,
+                issuedAt: sessionId ? undefined : issuedAt,
             });
-            try {
-                signature = await signMessageAsync({ account: actor as `0x${string}`, message });
-            } catch {
-                return { ok: false, error: 'sign rejected' };
+            if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
+                clearSession(params.matchId);
+                const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
+                if (renewed.ok) {
+                    sessionId = renewed.sessionId;
+                    r = await callMoveAuth('pass', {
+                        matchId: params.matchId, actor, rollId: params.rollId,
+                        expectedSeq: seq, source,
+                        sessionId,
+                    });
+                }
             }
-        }
-        let r = await callMoveAuth('pass', {
-            matchId: params.matchId,
-            actor,
-            rollId: params.rollId,
-            expectedSeq: params.expectedSeq,
-            source,
-            sessionId: sessionId || undefined,
-            message,
-            signature,
-            issuedAt: sessionId ? undefined : issuedAt,
-        });
-        if (!r.ok && r.status === 401 && sessionId && source === 'player' && myAddress) {
-            clearSession(params.matchId);
-            const renewed = await createMatchSession({ matchId: params.matchId, roomCode: params.matchId });
-            if (renewed.ok) {
-                sessionId = renewed.sessionId;
-                r = await callMoveAuth('pass', {
-                    matchId: params.matchId, actor, rollId: params.rollId,
-                    expectedSeq: params.expectedSeq, source,
-                    sessionId,
-                });
-            }
-        }
+            return r;
+        };
+
+        const r = await staleRetry(attempt, params.expectedSeq);
         if (r.ok && r.data?.state) {
             return { ok: true, seq: r.data.seq, state: r.data.state as GameState };
         }

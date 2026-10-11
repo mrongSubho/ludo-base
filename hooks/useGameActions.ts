@@ -173,8 +173,10 @@ export function useGameActions({
 
                 if (!result.ok || !result.state) {
                     console.error('🏃 [MoveAuth] rejected:', result.error, result.code);
+                    // NET-02: no local high-water write. `applyServerState`
+                    // below owns serverSeqRef (the TeamUpContext ref), so a
+                    // second copy here could mask the authority's seq.
                     if (typeof result.seq === 'number' && result.state) {
-                        serverSeqRef.current = result.seq;
                         applyServerState?.(result.state, result.seq);
                         setLocalGameState(prev => ({ ...prev, ...result.state!, lastUpdate: Date.now() }));
                     } else {
@@ -623,7 +625,7 @@ export function useGameActions({
                         source: passSource,
                     });
                     if (pass.ok && pass.state) {
-                        serverSeqRef.current = pass.seq ?? serverSeqRef.current;
+                        // NET-02: applyServerState owns the ref; no local write.
                         lastRollIdRef.current = null;
                         rollingRef.current = false;
                         applyServerState?.(pass.state, pass.seq ?? serverSeqRef.current);
@@ -728,7 +730,7 @@ export function useGameActions({
                 if (!result.ok || !result.state) {
                     console.error('⚡ [MoveAuth] power rejected:', result.error, result.code);
                     if (typeof result.seq === 'number' && result.state) {
-                        serverSeqRef.current = result.seq;
+                        // NET-02: applyServerState owns the ref.
                         applyServerState?.(result.state, result.seq);
                         setLocalGameState(s => ({ ...s, ...result.state!, lastUpdate: Date.now() }));
                     } else {
