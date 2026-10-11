@@ -13,7 +13,7 @@ import { useProvablyFairDice } from '@/hooks/useProvablyFairDice';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useBettingController } from '@/hooks/useBettingController';
 import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
-import { useMoveAuth } from '@/hooks/useMoveAuth';
+import { useMoveAuth, clearAllMoveSessions } from '@/hooks/useMoveAuth';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useMatchStates } from '@/hooks/useMatchStates';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
@@ -34,8 +34,8 @@ import {
     GameActionPayload,
 } from '@/lib/types';
 import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
+import { createDedupStore, rememberIntent, type DedupStore } from '@/lib/netcode/dedup';
 import { bumpNet, resetNetCounters } from '@/lib/netcode/counters';
-import { createDedupStore, rememberIntent } from '@/lib/netcode/dedup';
 import { track } from '@/lib/telemetry';
 import { createMatchFsm, type MatchFsmEvent, type MatchPhase } from '@/lib/matchFsm';
 import { ActiveBettingWindow } from './useSpectatorSync';
@@ -251,6 +251,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
+
     const peerRef = useRef<Peer | null>(null);
     // Dedup guest intents delivered on both PeerJS and Supabase.
     // N4 — TTL + LRU-bounded (was an unbounded Set).
@@ -304,6 +305,27 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         broadcastToAll,
         getRoomSecret: () => expectedValidationTokenRef.current
     });
+
+    // NET-08: the dedup stores are keyed by an id space that belongs to a
+    // room, not a session. Joining a new room with a resident store drops
+    // every action as a "duplicate" of the previous room's, so the stores and
+    // the pending-intent watches reset whenever the room code changes.
+    const roomKeyRef = useRef<string | null>(null);
+    useEffect(() => {
+        const room = currentRoomCode || lobbyState?.roomCode || null;
+        if (roomKeyRef.current === room) return;
+        roomKeyRef.current = room;
+        if (room === null) return;
+        processedActionIds.current.clear();
+        processedIntentIds.current.clear();
+        processedJoinRequestIds.current.clear();
+        clearAllMoveSessions();
+        intentAckTimers.current.forEach(t => clearTimeout(t));
+        intentAckTimers.current.clear();
+        pendingIntentAcks.current.clear();
+        unsentIntentRef.current = null;
+        setIntentQueue([]);
+    }, [currentRoomCode, lobbyState?.roomCode]);
 
     // 2. Supabase Relay (define relayViaSupabase early)
     const { relayViaSupabase, setRelayRoom, processedActionIds } = useSupabaseRelay({
@@ -680,8 +702,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 track('schema_drop', { via: 'supabase', kind: 'GAME_INTENT' });
                 return;
             }
-            const intentId = action?.intentId || actionId;
-            if (rememberIntent(processedIntentIds.current, intentId) === 'dup') {
+            // NET-09: identical identity rule on both transports.
+            const intentId = action.intentId || actionId;
+            if (rememberIntent(processedIntentIds.current, intentId) !== 'new') {
                 return;
             }
             console.log('📬 [Host] Intent via Supabase:', action?.type);
@@ -847,10 +870,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             processGameAction(data);
         } else if (data.type === 'GAME_ACTION') {
             if (isHost) {
-                const intentId = data.action?.intentId as string | undefined;
-                if (rememberIntent(processedIntentIds.current, intentId) === 'dup') {
+                // NET-09: run the SAME parser on this transport. The PeerJS
+                // path used to trust `data.action` verbatim, so a malformed
+                // intent (or one naming a dice face) reached the host's
+                // handler unchallenged — exactly what the Supabase path
+                // rejects before the host ever sees it.
+                if (!isGameIntent(data.action)) {
+                    bumpNet('net_schema_drop');
+                    track('schema_drop', { via: 'peerjs', kind: 'GAME_ACTION' });
                     return;
                 }
+                // The id is intentId when present, else the actionId — the two
+                // transports must agree on identity for dedup to hold.
+                const intentId = data.action.intentId || (data.actionId as string | undefined);
+                const verdict = rememberIntent(processedIntentIds.current, intentId);
+                if (verdict !== 'new') return;
                 console.log('📬 [Host] Received Intent (PeerJS):', data.action);
                 setIntentQueue(q => [...q, data.action]);
                 sendIntentAck(data.action.intentId);
@@ -1073,7 +1107,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef, setRelayRoom, sendMatchEvent]);
 
     // Host polls REST join requests (works when realtime JOIN_REQUEST never lands).
-    const processedJoinRequestIds = useRef<Set<string>>(new Set());
+    // NET-08: bounded store, not an unbounded Set.
+    const processedJoinRequestIds = useRef<DedupStore>(createDedupStore({
+        max: 1024,
+        ttlMs: 60 * 60 * 1000,
+    }));
     useEffect(() => {
         if (!isHost || !currentRoomCode || !lobbyState || lobbyState.status !== 'forming') return;
         const room = currentRoomCode;
@@ -1205,6 +1243,19 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setValidationToken(undefined);
         serverSeqRef.current = 0;
         setServerSeq(0);
+        // NET-08: clear all three dedup stores here and on room change, or a
+        // second match in one session inherits the previous match's id space
+        // and drops every action as a "duplicate". Also drops the move-session
+        // map (keyed by matchId) so a stale grant cannot act on a new match.
+        processedActionIds.current.clear();
+        processedIntentIds.current.clear();
+        processedJoinRequestIds.current.clear();
+        clearAllMoveSessions();
+        intentAckTimers.current.forEach(t => clearTimeout(t));
+        intentAckTimers.current.clear();
+        pendingIntentAcks.current.clear();
+        unsentIntentRef.current = null;
+        setIntentQueue([]);
 
         if (myAddress) {
             void Promise.resolve(appSessionId || peekAppSession()).then(sessionId => sessionId ? fetch('/api/presence', {

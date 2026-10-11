@@ -88,8 +88,12 @@ export function useSpectatorSync(roomCode: string | null) {
         };
         void bootstrap();
 
+        // NET-10: this hook subscribed to `match-states-room-<code>`, which no
+        // one broadcasts to — the gameplay channel is `game-room-<code>`
+        // (TeamUpContext.broadcastAction). Spectators therefore received
+        // nothing until the initial pull, and then never again.
         const channel = supabase
-            .channel(`match-states-room-${roomCode}`)
+            .channel(`game-room-${roomCode}`)
             .on('broadcast', { event: 'game-action' }, ({ payload }) => {
                 const parsed = parseSpectatorBroadcast(payload);
                 if (!parsed.ok) {
@@ -217,8 +221,34 @@ export function useSpectatorSync(roomCode: string | null) {
                 }
             });
 
+        // NET-10: a broadcast-only spectator seat goes stale the moment one
+        // packet is lost. The public snapshot endpoint is cheap and already
+        // used for the initial pull, so poll it as a backstop rather than
+        // trusting delivery.
+        const poll = setInterval(() => {
+            if (cancelled || !matchId) return;
+            void resyncMatch({
+                matchId,
+                currentSeq: stateRef.current.seq,
+                fetchSnapshot: async (id) => {
+                    const res = await fetch(`/api/match/state?matchId=${encodeURIComponent(id)}`);
+                    if (res.status === 404) return { ok: false, code: 'MATCH_NOT_FOUND' };
+                    if (!res.ok) return { ok: false, code: 'FETCH_FAIL' };
+                    const body = (await res.json()) as { seq?: number; state?: GameState };
+                    if (!body?.state || !Number.isFinite(Number(body.seq))) {
+                        return { ok: false, code: 'BAD_SNAPSHOT' };
+                    }
+                    return { ok: true, seq: Number(body.seq), state: body.state };
+                },
+                apply: (snap, seq) => {
+                    updateState({ gameState: snap, isConnected: true, seq });
+                },
+            });
+        }, 5000);
+
         return () => {
             cancelled = true;
+            clearInterval(poll);
             console.log(`🚪 [Spectator] Leaving game-room-${roomCode}`);
             supabase.removeChannel(channel);
             setState(EMPTY_STATE);

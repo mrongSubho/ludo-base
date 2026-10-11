@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LobbyState } from '@/lib/types';
+import { createDedupStore, type DedupStore } from '@/lib/netcode/dedup';
+import { bumpNet } from '@/lib/netcode/counters';
 
 interface UseSupabaseRelayProps {
     myAddress: string | undefined;
@@ -18,7 +20,17 @@ export function useSupabaseRelay({
     processGameAction,
     joinGame
 }: UseSupabaseRelayProps) {
-    const processedActionIds = useRef<Set<string>>(new Set());
+    // NET-08: TTL + LRU-bounded eviction replaces an unbounded Set that grew
+    // for the whole session. Evictions meter net_intent_dup so a dropped id
+    // is visible rather than silently re-applied.
+    const processedActionIds = useRef<DedupStore>(createDedupStore({
+        max: 2048,
+        ttlMs: 30 * 60 * 1000,
+        onEvict: (id, reason) => {
+            bumpNet('net_intent_dup');
+            console.warn(`🛰️ Relay dedup evicted ${id} (${reason})`);
+        },
+    }));
     /** Immediate room target — React state lags one render; guests must send now. */
     const roomCodeRef = useRef<string | null>(null);
 

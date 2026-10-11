@@ -18,6 +18,17 @@ export type DedupOptions = {
     sweepIntervalMs?: number;
 };
 
+/**
+ * Ids in this repo are either a monotonic timestamp prefix
+ * (`${Date.now()}-${rand}`) or a plain integer. The leading number is the
+ * order; ids with none (uuid) are order-less and only the resident check
+ * applies, which fails closed (an unknown uuid cannot be proven older).
+ */
+function idToSeq(id: string): number | null {
+    const m = /^(\d+)/.exec(id);
+    return m ? Number(m[1]) : null;
+}
+
 export type DedupStore = {
     /** True if id was already present (duplicate). */
     has: (id: string, now?: number) => boolean;
@@ -25,10 +36,19 @@ export type DedupStore = {
     add: (id: string, now?: number) => boolean;
     size: () => number;
     evictions: () => number;
+    /** Highest id sequence ever seen (NET-08 replay guard). */
+    highWaterSeq: () => number;
     clear: () => void;
 };
 
 export function createDedupStore(opts: DedupOptions = {}): DedupStore {
+    /**
+     * NET-08: an id older than the high-water mark is refused even after LRU
+     * eviction. `max` only bounds memory — replay must depend on ORDER, not on
+     * whether an entry still happens to be resident. Without this, a long
+     * match's early ids (evicted at max:512) read as NEW and double-apply.
+     */
+    const highWater = { value: 0 };
     const max = Math.max(1, opts.max ?? 512);
     const ttlMs = Math.max(0, opts.ttlMs ?? 10 * 60 * 1000);
     const sweepIntervalMs = Math.max(0, opts.sweepIntervalMs ?? 30_000);
@@ -79,7 +99,10 @@ export function createDedupStore(opts: DedupOptions = {}): DedupStore {
     return {
         has(id, now = Date.now()) {
             purgeExpired(now);
-            return map.has(id);
+            if (map.has(id)) return true;
+            // Not resident: a strictly-older id can never come back to life.
+            const n = idToSeq(id);
+            return n !== null && n <= highWater.value;
         },
         add(id, now = Date.now()) {
             purgeExpired(now);
@@ -89,6 +112,8 @@ export function createDedupStore(opts: DedupOptions = {}): DedupStore {
                 map.set(id, now);
                 return true;
             }
+            const n = idToSeq(id);
+            if (n !== null && n > highWater.value) highWater.value = n;
             map.set(id, now);
             while (map.size > max) evictLru();
             return false;
@@ -99,8 +124,12 @@ export function createDedupStore(opts: DedupOptions = {}): DedupStore {
         evictions() {
             return evicted;
         },
+        highWaterSeq() {
+            return highWater.value;
+        },
         clear() {
             map.clear();
+            highWater.value = 0;
         },
     };
 }

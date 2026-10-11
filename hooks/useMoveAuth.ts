@@ -77,6 +77,15 @@ const sharedMoveSessions = new Map<string, string>();
 /** Prevent concurrent first actions from opening one wallet prompt each. */
 const sharedMovePending = new Map<string, Promise<{ ok: boolean; sessionId?: string; error?: string }>>();
 
+/**
+ * NET-08: drop every in-memory match session. Called on leaveGame / room
+ * change so a grant issued for the previous match cannot act on the next
+ * one; the module-level map is shared across both hook instances.
+ */
+export function clearAllMoveSessions(): void {
+    sharedMoveSessions.clear();
+}
+
 export function useMoveAuth(opts: {
     myAddress: string | undefined;
     signMessageAsync: SignFn;

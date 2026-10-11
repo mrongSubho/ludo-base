@@ -62,6 +62,38 @@ test('N4 TTL + LRU dedup store', () => {
     assert.ok(getNetCounters().net_intent_dup >= 1);
 });
 
+test('NET-08: a replayed id below the high-water mark is refused after eviction', () => {
+    // The old unbounded Sets never forgot; the bounded store must not forget
+    // ORDER. An evicted-but-stale id must read as duplicate, never as new —
+    // otherwise it double-applies after long enough.
+    const evicted: string[] = [];
+    const store = createDedupStore({ max: 2, ttlMs: 10 * 60 * 1000, onEvict: (id, r) => evicted.push(`${id}:${r}`) });
+    store.add('1000-a');
+    store.add('2000-a');
+    store.add('3000-a'); // evicts 1000-a (LRU)
+    store.add('4000-a'); // evicts 2000-a
+    assert.deepEqual(evicted, ['1000-a:lru', '2000-a:lru']);
+
+    // The evicted ids are still refused by the order guard.
+    assert.equal(store.has('1000-a'), true, 'an evicted older id is still a duplicate');
+    assert.equal(store.has('2000-a'), true);
+    // A genuinely-new id has never been seen and is not below the mark.
+    assert.equal(store.has('9999-new'), false);
+    assert.equal(store.highWaterSeq(), 4000);
+
+    // clear() resets both the map and the mark — a new match is a new space.
+    store.clear();
+    assert.equal(store.highWaterSeq(), 0);
+    assert.equal(store.has('1000-a'), false, 'after a clear the old id space is gone too');
+});
+
+test('NET-08: order-less ids fail closed rather than being treated as new', () => {
+    const store = createDedupStore({ max: 4 });
+    store.add('6f1e-uuid-no-seq');
+    assert.equal(store.has('6f1e-uuid-no-seq'), true, 'resident order-less ids are still duplicates');
+    assert.equal(store.has('another-uuid'), false, 'an unseen order-less id is not provably stale — treated as new');
+});
+
 test('NET-23: expiry is amortized — head walk every call, full sweep throttled', () => {
     const seen: string[] = [];
     const store = createDedupStore({ max: 10, ttlMs: 100, sweepIntervalMs: 10_000, onEvict: (id, reason) => seen.push(`${id}:${reason}`) });
