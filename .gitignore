@@ -17,6 +17,11 @@
 /.next/
 /out/
 
+# cloudflare workers (opennext adapter output + local-only vars)
+.open-next/
+.dev.vars
+.wrangler/
+
 # production
 /build
 

@@ -84,3 +84,9 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Cloudflare Workers local dev: lets `next dev` resolve workerd bindings.
+// Inert under `next build` / `next start` / Vercel — only the preview/dev
+// path consumes it. (opennext adapter, pinned to Next 16.1.x support.)
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+initOpenNextCloudflareForDev();

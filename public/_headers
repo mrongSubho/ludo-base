@@ -1,0 +1,4 @@
+# Long-lived hashed Next.js build assets — immutable per content hash.
+# (Documents stay no-store via next.config.ts headers(); see AGENTS.md.)
+/_next/static/*
+  Cache-Control: public,max-age=31536000,immutable
