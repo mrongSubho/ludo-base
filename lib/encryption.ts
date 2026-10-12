@@ -421,18 +421,6 @@ export async function deriveSharedKey(walletA: string, walletB: string, salt = '
     return window.crypto.subtle.importKey('raw', hash, 'AES-GCM', true, ['encrypt', 'decrypt']);
 }
 
-/** Encrypt using the legacy wallet-derived key; retained only for old rows. */
-export async function encryptMessage(text: string, key: CryptoKey): Promise<{ iv: string; content: string }> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
-    return {
-        iv: b64encode(iv),
-        content: b64encode(encrypted),
-    };
-}
-
 /** Decrypt a legacy `{iv, content}` payload using its already-derived key. */
 export async function decryptMessage(encryptedData: { iv: string; content: string }, key: CryptoKey): Promise<string> {
     const iv = b64decode(encryptedData.iv);

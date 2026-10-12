@@ -817,12 +817,7 @@ export type Database = {
     }
     Functions: {
       cleanup_matchmaking_queue: { Args: never; Returns: undefined }
-      cleanup_old_messages: { Args: never; Returns: undefined }
       cleanup_stale_data: { Args: never; Returns: undefined }
-      increment_coins: {
-        Args: { p_amount: number; p_wallet: string }
-        Returns: undefined
-      }
       join_matchmaking: {
         Args: {
           p_game_mode: string
@@ -838,7 +833,6 @@ export type Database = {
         Args: { friend: string; me: string }
         Returns: undefined
       }
-      update_offline_status: { Args: never; Returns: undefined }
       cash_out_bet: {
         Args: { p_bet_id: string; p_player_id: string }
         Returns: Json
