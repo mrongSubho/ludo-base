@@ -22,6 +22,7 @@ import {
 } from '@/lib/constants';
 import { activeColorsForTurns } from '@/lib/engine';
 import { resetNetCounters } from '@/lib/netcode/counters';
+import { shouldFlushServerState } from '@/lib/netcode/flushGate';
 import { hostActionForIntent } from '@/lib/hostIntent';
 
 // Specialized Hooks
@@ -494,16 +495,24 @@ export function useGameEngine({
     // change — including the ~1Hz timer ticks — pushing the entire board into
     // TeamUpContext once a second and re-rendering its whole subtree. It now
     // flushes once, on matchId arrival (the ref-stable transition that means
-    // "this client joined a real match"), and never on timer churn.
+    // "this client joined a real match"), and never on timer churn. The
+    // decision is `shouldFlushServerState` (lib/netcode/flushGate.ts) so the
+    // hooks harness executes it instead of asserting on effect source.
     const flushedMatchIdRef = useRef<string | null | undefined>(null);
     useEffect(() => {
         const ctxMatchId = localGameState.matchId;
-        const hasServerMatch = Boolean(ctxMatchId && ctxMatchId !== 'local');
-        if (isHost && isLobbyConnected && hasServerMatch && flushedMatchIdRef.current !== ctxMatchId) {
-            flushedMatchIdRef.current = ctxMatchId;
+        const decision = shouldFlushServerState({
+            flushedId: flushedMatchIdRef.current ?? null,
+            matchId: ctxMatchId,
+            isHost,
+            isLobbyConnected,
+        });
+        if (decision === 'flush') {
+            flushedMatchIdRef.current = ctxMatchId ?? null;
             updateGameState(localGameState);
+        } else if (decision === 'reset') {
+            flushedMatchIdRef.current = null;
         }
-        if (!hasServerMatch) flushedMatchIdRef.current = null;
     }, [isHost, isLobbyConnected, localGameState.matchId, localGameState.isStarted, updateGameState]);
 
     // Networked guests copy only the server snapshot cached by TeamUpContext.

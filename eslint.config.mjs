@@ -6,6 +6,10 @@ export default tseslint.config(
     {
         ignores: [
             '.next/**',
+            // REA-30 (unfiled): `.open-next/` is opennextjs-cloudflare build
+            // output. It appeared in the tree and lint walked 400+ generated
+            // files (214k errors); like `.next/`, it is never source.
+            '.open-next/**',
             'node_modules/**',
             'supabase/functions/**',
             '.agent/**',

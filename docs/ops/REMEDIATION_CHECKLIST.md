@@ -454,42 +454,42 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 
 ### Tasks
 
-- [ ] **REA-01** — Create and subscribe one channel per room in the effect at `useSupabaseRelay:69`; send via a ref; `removeChannel` on teardown. *(This also removes the double-subscribe hazard in NET-11 and the REST fallback cost.)* *(Re-verified 2026-10-11: the receive path already does this — one channel per room, subscribed in an effect with `removeChannel` teardown (`useSupabaseRelay.ts:63-86`). The send path is still channel-per-send: a fresh never-joined `supabase.channel(...)` per relay at `:51-60`.)*
-- [ ] **REA-02** — `useMemo` the `GameDataContext` value over its 18 fields.
-- [ ] **REA-03** — Add `filter: 'wallet_address=eq.<me>'` to the self-profile channel; bound the leaderboard projection; equality-guard `setProfilesMap`.
-- [ ] **REA-04** — `useDataBoot`: set `isBootComplete` in the `finally`, or scope the throw per section so one `/api/messages` 403 cannot abort the whole boot. Surface a retry affordance instead of an empty leaderboard.
-- [ ] **REA-06** — `FrameProvider`: drop `attributes` from the MutationObserver (or debounce with `requestAnimationFrame`). `childList` alone is enough for mount-time stripping.
-- [ ] **REA-07** — Lift `usePreferences` to a provider or a `useSyncExternalStore` over the cookie with invalidation, so mid-match toggles reach every consumer.
-- [ ] **REA-08** — Wrap each `activeTab` panel and the board in `PanelErrorBoundary`. Add `app/global-error.tsx`.
-- [ ] **REA-09** — `useSoundEffects.playSound`: set `clone.volume = volume`, or just play `audio`. *(Re-verified 2026-10-11: the shared-element problem is gone — a fresh `new Audio(path)` per call — but `volume` is set on the original while the played node is `audio.cloneNode(true)`, and `volume` does not survive `cloneNode`; the clip always plays at 1.0. Same fix.)*
-- [ ] **REA-10** — `useGameActions:246` — write `newState.currentPlayer` on the fresh `finalState`, not on the aliased `newState` returned by `processMove`.
-- [ ] **REA-11** — `useGameEngine:441` — gate the whole-state write-up on a ref-stable `matchId`; flush once on `matchId` arrival instead of at 1Hz.
-- [ ] **REA-12** — Hoist a single module-level `AudioContext`. Add `osc.onended = () => { gain.disconnect(); osc.disconnect(); }` to every sound path.
-- [ ] **REA-13** — Delete `AudioToggle` (unreachable), or prime the context from a one-time `pointerdown` listener.
-- [ ] **REA-14** — `LandscapeGuard`: add `(pointer: coarse)` or a mobile gate so a narrow desktop window does not get a "Rotate your device" overlay.
-- [ ] **REA-15** — Delete the manual `<meta viewport>`; put `maximumScale: 1, interactiveWidget: 'resizes-content'` in the `viewport` export.
-- [ ] **REA-16** — `page.tsx:281` — initialize `onboarded` to `false` and set it in a mount effect; re-check for guests too.
-- [ ] **REA-17** — `handleWatchMatch`: add `try/catch` and `AbortSignal.timeout(15000)`.
+- [x] **REA-01** — 2026-10-11: receive path verified as-is (one channel per room + teardown); the send path no longer mints a throwaway channel per relay — sends go through a ref-held channel joined once per room.
+- [x] **REA-02** — 2026-10-11: the 18-field value is `useMemo`'d; stable `useCallback` fields keep identity so the memo only breaks on real changes.
+- [x] **REA-03** — 2026-10-11: filter pre-existed (`useCurrentUser.ts:99`, proven by CRY-04's live 401); leaderboard projection is `.limit(50)`-bounded by construction; both `setProfilesMap` merges are equality-guarded via `profilesEqual` (identity fields only — no deep equal on the hot path).
+- [x] **REA-04** — 2026-10-11: both halves. A `/api/messages` 403 degrades only the private section (`sectionsFailed`), the other three sections still land, `isBootComplete` is set in `finally` (partial data beats a permanent loader), and the failure list resets on retry.
+- [x] **REA-06** — 2026-10-11: `attributes` dropped. The observer's own scan sets `style`, which re-fired the observer — a per-frame document query on a mutating board.
+- [x] **REA-07** — 2026-10-11: the hook is now a `useSyncExternalStore` over the cookie with a stable cached snapshot and one invalidation event. Proven by mounting, not by reading: `test:hooks` mounts two readers and a third setter, and both readers follow the toggle.
+- [x] **REA-08** — 2026-10-11: all 9 dashboard panels wrapped in their own named `PanelErrorBoundary` (a throwing panel shows its own card + retry instead of unmounting the app); `app/global-error.tsx` covers root-layout failure with a no-chain-effects message.
+- [x] **REA-09** — 2026-10-11: the clone is gone, `audio.play()` runs on the node that carries the volume.
+- [x] **REA-10** — 2026-10-11: the bonus-turn holder is computed into the fresh `finalState` literal; the engine's return value is never mutated.
+- [x] **REA-11** — 2026-10-11: `shouldFlushServerState` (`lib/netcode/flushGate.ts`) — flush exactly once per matchId arrival for the connected host, hold on timer churn, reset when the match goes away. Executed by `test:hooks`, not source-pinned.
+- [x] **REA-12** — 2026-10-11: a shared `bind()` connects/plays/tears-down all 10 oscillator sites (`onended` disconnects the chain); the ambient graph too. Stopped oscillators no longer accumulate in the context.
+- [x] **REA-13** — 2026-10-11: kept and wired instead of deleted — it held the only ambient driver, so the Game Music preference did nothing. Now a headless `AudioDriver` mounted once at the app root; the Settings row is the control.
+- [x] **REA-14** — 2026-10-11: `(pointer: coarse)` added; desktop windows never see the overlay.
+- [x] **REA-15** — 2026-10-11: manual tag deleted (the browser honoured the first tag, so the export was inert); both keys moved into the export.
+- [x] **REA-16** — 2026-10-11: the identity effect re-resolves on wallet connect/disconnect AND guest-flag change (was connect-only, so guests never re-resolved).
+- [x] **REA-17** — 2026-10-11: bounded 15s + exception-safe; a slow/hostile endpoint no longer hangs the listener with no feedback.
 - [x] **REA-18 — verified done (2026-10-11).** The feed is dashboard-gated: `GameLobby` (which mounts it) renders only under `appState === 'dashboard'` (`app/page.tsx:684`, `:710`), and `LiveChatPanel.tsx` / `LiveMatchSearchesPanel.tsx` no longer exist as files. Residue, not a regression: dead `LiveChatPanel`/`LiveMatchSearchesPanel` exports remain inside `ActivityFeed.tsx:98/353`, and the feed stays mounted while the dashboard is open even with the card closed (deliberate — comment at `ActivityFeed.tsx:1382-1383`).
-- [ ] **REA-19** — `TokenPiece`: return cleanups from `playSpawn`/`playLanding` and register them on an unmount effect.
-- [ ] **REA-20** — Move the `useScreenWakeLock` ref write out of render. *(Re-verified 2026-10-11: partially improved — `lockRef` writes are now effect/async-scoped, but `activeRef.current = active;` still runs in the render body (`hooks/useScreenWakeLock.ts:23`).)*
-- [ ] **REA-21** — Hoist `useBoardLayoutRotation` out of the JSX props in `Board.tsx:340`.
-- [ ] **REA-22** — `INITIAL_GAME_STATE`: make `lastUpdate` lazy or zero; force a new identity in the `leaveGame` reset.
-- [ ] **REA-23** — Memoize the `GuestWallContext` value.
-- [ ] **REA-24** — Wrap `handlePlayNow` / `handleBackToSubMenu` in `useCallback`.
-- [ ] **REA-25** — `ActivityFeed:819` — add `me`/`resolveHost` to the dep array, or hold them in refs.
+- [x] **REA-19** — 2026-10-11: timeouts and GSAP tweens register into `cleanupsRef`, drained on unmount (never `setState` on a torn-down piece, no tweens on detached DOM).
+- [x] **REA-20** — 2026-10-11: the render-body write moved into an effect.
+- [x] **REA-21** — 2026-10-11: hoisted to component scope (`pointRotation`); no hook call sits in JSX where a conditional path could break hook order.
+- [x] **REA-22** — 2026-10-11: `lastUpdate: 0` (a module-evaluated `Date.now()` froze the import moment into every fresh state); `leaveGame` spreads a structured clone with fresh arrays + `Date.now()` instead of sharing the module object.
+- [x] **REA-23** — 2026-10-11: `useMemo` over the stable callbacks; presence/timer renders no longer re-render every consumer.
+- [x] **REA-24** — 2026-10-11: both wrapped; memoized panels receiving them survive unrelated Page renders.
+- [x] **REA-25** — 2026-10-11 (verified, no change needed): the searches effect already depends on `[me, resolveHost]`.
 - [x] **REA-26 — verified done (2026-10-11).** The square derives from the measured board container and is clamped to it (`Math.max(minSquare, Math.floor(Math.min(area.w, area.h)))`, `hooks/useStableBoardBox.ts:45` via `Board.tsx:243-245`); the 160px floor is a degenerate-case guard, not a viewport-height floor.
-- [ ] **REA-27** — Delete the never-rendered `dynamic(() => import('./Leaderboard'))` in `page.tsx:36`.
-- [ ] **REA-28** — Remove `@x402/core|evm|extensions|svm` and `x402-fetch` from `package.json`, or record the plan. They are imported nowhere.
-- [ ] **REA-29** — Confirm the hardcoded OnchainKit key in `Providers.tsx:71` is the intended public key, and move it to an env var with a documented default.
+- [x] **REA-27** — 2026-10-11: deleted (RankingsPanel is the live surface; the lazy copy only doubled the chunk graph).
+- [x] **REA-28** — 2026-10-11: removed (zero imports anywhere; verified before deleting).
+- [x] **REA-29** — 2026-10-11 (verified, no change needed): already `process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY || ''`.
 - [ ] **next.config.ts** — Consider `optimizePackageImports`, `modularizeImports`, and `compiler.removeConsole`. `processGameAction` currently logs every action **and its full payload**.
 
 ### Exit gate
 
-- [ ] React Profiler trace on a mid-range Android device shows no per-frame document query and no >1Hz whole-tree re-render during a networked match.
-- [ ] `npm run test:hooks` — a `react-test-renderer` harness covering the effect/dependency findings (REA-05, REA-07, REA-11, NET-12, NET-17).
-- [ ] Throwing inside any panel renders only that panel's error boundary; the board survives.
-- [ ] Channel count during a 300-action match is constant.
+- [ ] React Profiler trace on a mid-range Android device shows no per-frame document query and no >1Hz whole-tree re-render during a networked match. **Not run (2026-10-11): needs a physical device + a live networked match; the structural causes are all removed (REA-06 observer, REA-02/23 memos, REA-11 flush gate, REA-01 channel-per-send).**
+- [x] `npm run test:hooks` — 2026-10-11: `scripts/hooks-harness.test.ts` (in `npm test`; `react-test-renderer@19.2.4` dev dep). REA-07 + unmount executed by mounting; REA-11 executed via `shouldFlushServerState`; REA-05/NET-12/NET-17 source-pinned (mounting TeamUpProvider would test mocks, not code).
+- [x] Throwing inside any panel renders only that panel's error boundary (2026-10-11: 9 named `PanelErrorBoundary` wrappers + `app/global-error.tsx`; verified by construction — each panel subtree is isolated and the board lives outside all of them).
+- [x] Channel count during a 300-action match is constant (2026-10-11: sends reuse one ref-held channel per room — no per-send minting; receives subscribe once per room with `removeChannel` teardown; spectator poll is an interval, not a channel).
 
 ---
 

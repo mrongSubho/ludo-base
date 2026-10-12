@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+.open-next/
 
 # cloudflare workers (opennext adapter output + local-only vars)
 .open-next/

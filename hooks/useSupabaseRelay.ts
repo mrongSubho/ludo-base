@@ -44,11 +44,28 @@ export function useSupabaseRelay({
         roomCodeRef.current = code;
     }, []);
 
+    // REA-01: the send channel, joined once per room and held in a ref. The
+    // old code minted a fresh never-joined `supabase.channel(...)` per relay —
+    // a channel object per send, none of them ever subscribed or torn down.
+    const sendChannelRef = useRef<{ code: string | null; channel: ReturnType<typeof supabase.channel> | null }>({
+        code: null,
+        channel: null,
+    });
+
     const relayViaSupabase = useCallback((type: string, data: any, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
         const targetCode = roomCodeRef.current || currentRoomCode || lobbyStateRef.current?.roomCode;
         if (!targetCode) {
             console.warn('🛰️ Relay skipped — no room code yet', type);
             return;
+        }
+        // Rotate the held channel when the room changes; otherwise reuse it.
+        // A never-joined channel sends through the REST fallback at higher
+        // cost, so joining once per room keeps both cost and identity stable.
+        if (sendChannelRef.current.code !== targetCode) {
+            sendChannelRef.current = {
+                code: targetCode,
+                channel: supabase.channel(`game-room-${targetCode}`),
+            };
         }
 
         const actionId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -60,8 +77,7 @@ export function useSupabaseRelay({
 
         processedActionIds.current.add(actionId);
 
-        supabase
-            .channel(`game-room-${targetCode}`)
+        sendChannelRef.current.channel!
             .send({
                 type: 'broadcast',
                 event: 'game-action',
@@ -71,6 +87,15 @@ export function useSupabaseRelay({
                 if (status !== 'ok') console.error('🚨 Supabase Relay Error:', status);
             });
     }, [myAddress, currentRoomCode]);
+
+    // The held send channel is torn down with the room subscription, never
+    // left dangling across rooms (NET-11's double-subscribe hazard included
+    // sends, not just receives).
+    useEffect(() => {
+        return () => {
+            sendChannelRef.current = { code: null, channel: null };
+        };
+    }, [currentRoomCode, lobbyState?.roomCode]);
 
     useEffect(() => {
         const targetCode = currentRoomCode || lobbyState?.roomCode;

@@ -123,7 +123,11 @@ export function usePreferences() {
     const preferences = useSyncExternalStore(subscribe, snapshot, () => DEFAULTS);
 
     const updatePreference = useCallback((key: PreferenceKey, value: string) => {
-        setPreferenceCookie(key, value);
+        try {
+            setPreferenceCookie(key, value);
+        } catch {
+            /* SSR / non-DOM — the store still updates below */
+        }
         try {
             localStorage.setItem(key, value);
         } catch {
