@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bumpNet, getNetCounters, resetNetCounters, reconnectDelayMs } from '../lib/netcode/counters';
+import { createDedupStore, rememberIntent } from '../lib/netcode/dedup';
 import { resyncMatch, shouldPauseLocalOrchestration } from '../lib/netcode/resync';
 import { classifyAbandon, ABANDON_GRACE_MS } from '../lib/netcode/abandon';
 import { createMatchFsm } from '../lib/matchFsm';
@@ -30,16 +31,15 @@ const rows: Array<{ id: string; live: boolean; note: string }> = [
 
 test('D5 duplicate join — second JOIN_REQUEST is a no-op seat', () => {
     resetNetCounters();
-    const seen = new Set<string>();
+    const seen = createDedupStore({ max: 512, ttlMs: 10 * 60 * 1000 });
     const first = parseJoinRequest({
         type: 'JOIN_REQUEST',
         intentId: 'j1',
         payload: { name: 'Ada', walletAddress: '0xada' },
     });
     assert.equal(first.ok, true);
-    if (first.ok && !seen.has('0xada')) {
-        seen.add('0xada');
-        bumpNet('net_intent_ok');
+    if (first.ok && rememberIntent(seen, '0xada') === 'new') {
+        // rememberIntent metered net_intent_ok.
     }
     const second = parseJoinRequest({
         type: 'JOIN_REQUEST',
@@ -47,26 +47,22 @@ test('D5 duplicate join — second JOIN_REQUEST is a no-op seat', () => {
         payload: { name: 'Ada', walletAddress: '0xada' },
     });
     assert.equal(second.ok, true);
-    if (second.ok && seen.has('0xada')) {
-        bumpNet('net_intent_dup');
+    if (second.ok) {
+        rememberIntent(seen, '0xada'); // meters net_intent_dup
     }
-    assert.equal(seen.size, 1);
+    assert.equal(seen.size(), 1);
     assert.equal(getNetCounters().net_intent_dup, 1);
     assert.equal(getNetCounters().net_intent_ok, 1);
 });
 
 test('A1 intent flood metered', () => {
     resetNetCounters();
-    const processed = new Set<string>();
+    const processed = createDedupStore({ max: 512, ttlMs: 10 * 60 * 1000 });
     for (let i = 0; i < 40; i++) {
         const intentId = `i-${i % 8}`;
         const ok = parseGameIntent({ type: 'REQUEST_ROLL', payload: {}, intentId }).ok;
         assert.equal(ok, true);
-        if (processed.has(intentId)) bumpNet('net_intent_dup');
-        else {
-            processed.add(intentId);
-            bumpNet('net_intent_ok');
-        }
+        rememberIntent(processed, intentId);
     }
     assert.equal(getNetCounters().net_intent_ok, 8);
     assert.equal(getNetCounters().net_intent_dup, 32);

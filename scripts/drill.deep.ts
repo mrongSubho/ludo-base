@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { bumpNet, getNetCounters, resetNetCounters } from '../lib/netcode/counters';
+import { createDedupStore, rememberIntent } from '../lib/netcode/dedup';
 import { resyncMatch, shouldPauseLocalOrchestration } from '../lib/netcode/resync';
 import { classifyAbandon, ABANDON_GRACE_MS, abandonGraceRemainingMs } from '../lib/netcode/abandon';
 import { createMatchFsm } from '../lib/matchFsm';
@@ -49,16 +50,14 @@ class FakeBus {
 
 class Client {
     seq = 0;
-    processed = new Set<string>();
+    // Phase 4 exit: the drill's ad-hoc Set is the real bounded store, so the
+    // drill measures what production runs instead of a local re-implementation.
+    processed = createDedupStore({ max: 512, ttlMs: 10 * 60 * 1000 });
     fsm = createMatchFsm('idle');
     status: 'connected' | 'reconnecting' | 'syncing' | 'ended' = 'connected';
 
     accept(msg: WireMsg): void {
         const intentId = msg.intentId || msg.actionId;
-        if (intentId && this.processed.has(intentId)) {
-            bumpNet('net_intent_dup');
-            return;
-        }
         if (msg.type === 'GAME_INTENT' || msg.type === 'GAME_ACTION') {
             const parsed = parseGameIntent(msg.action ?? msg.payload);
             if (!parsed.ok) {
@@ -66,8 +65,8 @@ class Client {
                 return;
             }
         }
-        if (intentId) this.processed.add(intentId);
-        bumpNet('net_intent_ok');
+        // rememberIntent meters ok/dup itself; the drill asserts the meters.
+        if (rememberIntent(this.processed, intentId) !== 'new') return;
         this.fsm.send({ type: 'START' });
     }
 

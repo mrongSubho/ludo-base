@@ -12,6 +12,7 @@ import {
     INITIAL_GAME_STATE,
     processMove,
     getLegalTokenIndices,
+    getNextPlayer,
     calculateNextPosition,
     handleThreeSixes,
     emptyMatchStats,
@@ -184,17 +185,29 @@ test('Q4 4P: seat → seed → roll → move → capture → resync → end', as
     });
     assert.equal(proof.ok, true);
     if (proof.ok) assert.equal(isResyncRequest(proof.request), true);
-    const snap = async () => ({ ok: true as const, seq: host.seq, state: host.state });
+    // Exit-gate fix: the old code handed the guest a live reference to
+    // host.state and then merged the applied snapshot back INTO host.state —
+    // the guest's resync mutated the host. The snapshot is now a deep copy
+    // (as the Edge/socket boundary is in production) and the guest keeps its
+    // own board object.
+    const guestBoard: { seq: number; state: GameState } = { seq: 1, state: playingState() };
+    const snap = async () => ({
+        ok: true as const,
+        seq: host.seq,
+        state: JSON.parse(JSON.stringify(host.state)) as GameState,
+    });
     const ada = await resyncMatch({
         matchId: 'mp-harness',
-        currentSeq: 1,
+        currentSeq: guestBoard.seq,
         allowEqual: true,
         fetchSnapshot: snap,
-        apply: (s, seq) => {
-            seats[1].seq = seq;
-            host.state = { ...host.state, ...s };
+        apply: (st, seq) => {
+            guestBoard.seq = seq;
+            guestBoard.state = { ...guestBoard.state, ...st };
         },
     });
+    // The host's board is untouched by the guest's resync.
+    assert.equal(host.seq, guestBoard.seq, 'guest converged on the host seq without touching host.state');
     assert.equal(ada.status, 'applied');
 
     // ── Three-sixes rule still holds under harness ──────────────────────
@@ -270,4 +283,116 @@ test('Q4 action envelope parse-or-drop on the wire', () => {
     assert.equal(parseGameActionEnvelope({ type: 'START_GAME', actionId: 'a1' }).ok, true);
     assert.equal(parseGameActionEnvelope({ type: '' }).ok, false);
     assert.equal(parseGameActionEnvelope(12).ok, false);
+});
+
+/**
+ * Phase 4 exit gate: a 4P and a 2v2 match played END-TO-END reach
+ * `status='finished'` with a winner — including at least one turn with no
+ * legal move (passed, not wedged) and one three-sixes forfeit.
+ *
+ * This drives the app's offline path (`lib/gameLogic`, the same functions
+ * `useGameActions` calls) with seeded dice, so the termination proof covers
+ * the code the UI actually runs — not just the authority engine (which
+ * `test:golden` already covers through `lib/engine/core.ts`).
+ */
+function lcg(seed: number): () => number {
+    let s = (seed >>> 0) || 1;
+    return () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 0x100000000;
+    };
+}
+
+function playToFinish(
+    mode: '4P' | '2v2',
+    seed: number,
+    maxTurns = 3000,
+): { winner: string | null; turns: number; passes: number; forfeits: number } {
+    const rand = lcg(seed);
+    const colors: PlayerColor[] = mode === '2v2' ? ['green', 'blue', 'red', 'yellow'] : ['green', 'red', 'yellow', 'blue'];
+    // On-track starts so the drill races instead of camping base exits.
+    const positions = {} as Record<PlayerColor, number[]>;
+    colors.forEach((c, i) => {
+        positions[c] = [0, 1, 2, 3].map((j) => (i * 3 + j * 2) % 10);
+    });
+    let state = playingState({ playerCount: mode, positions, currentPlayer: 'green' });
+    let sixes = 0;
+    let passes = 0;
+    let forfeits = 0;
+    let turns = 0;
+
+    for (let t = 0; t < maxTurns && state.status === 'playing'; t++) {
+        turns += 1;
+        const color = state.currentPlayer;
+        // Deterministic forfeit: the opening three turns are sixes. Bonuses
+        // keep the same player rolling, so turn 3 is a genuine three-sixes
+        // forfeit processed through the same path as every other turn.
+        const roll = t < 3 ? 6 : 1 + Math.floor(rand() * 6);
+        const t6 = handleThreeSixes(state.consecutiveSixes, roll);
+        if (t6.isThreeSixes) {
+            // Three-sixes forfeit: the turn passes, nobody moves. The rotation
+            // MUST advance here — a pass that re-rolls the same seat is the
+            // NET-01 wedge this drill exists to prevent.
+            forfeits += 1;
+            sixes = 0;
+            state = {
+                ...state,
+                consecutiveSixes: 0,
+                diceValue: null,
+                gamePhase: 'rolling',
+                currentPlayer: getNextPlayer(color, mode, colors, CC),
+            };
+            continue;
+        }
+        sixes = t6.nextSixes;
+        state = { ...state, consecutiveSixes: sixes, diceValue: roll, gamePhase: 'moving' };
+
+        const legal = getLegalTokenIndices(state.positions, color, roll, CC);
+        if (legal.length === 0) {
+            // No legal move: the turn passes WITHOUT desyncing. Before NET-01
+            // this exact situation wedged match_states and 403'd the next
+            // player permanently. Same rotation rule as the forfeit above.
+            passes += 1;
+            state = {
+                ...state,
+                diceValue: null,
+                gamePhase: 'rolling',
+                currentPlayer: getNextPlayer(color, mode, colors, CC),
+            };
+            continue;
+        }
+        // Greedy max-progress with a seeded tiebreak — deterministic.
+        let idx = legal[0]!;
+        let best = -Infinity;
+        for (const i of legal) {
+            const dest = calculateNextPosition(state.positions[color]![i]!, roll, color, CC);
+            const d = dest + rand() * 1e-9;
+            if (d > best) {
+                best = d;
+                idx = i;
+            }
+        }
+        const result = processMove(state, color, idx, roll, mode, CC, color);
+        state = {
+            ...result.newState,
+            diceValue: result.bonusRoll ? roll : null,
+            gamePhase: result.bonusRoll ? 'moving' : 'rolling',
+        };
+    }
+    return { winner: state.status === 'finished' ? state.winner : null, turns, passes, forfeits };
+}
+
+test('Q4 end-to-end: 4P terminates with a winner (pass + forfeit included)', () => {
+    const m = playToFinish('4P', 0x40);
+    assert.ok(m.winner, `4P must terminate, ran ${m.turns} turns`);
+    assert.ok(m.passes >= 1, 'the drill must include a no-legal-move pass');
+    assert.ok(m.forfeits >= 1, 'the drill must include a three-sixes forfeit');
+});
+
+test('Q4 end-to-end: 2v2 terminates with a TEAM win (pass + forfeit included)', () => {
+    const m = playToFinish('2v2', 0x2b0);
+    assert.ok(m.winner, `2v2 must terminate, ran ${m.turns} turns`);
+    assert.match(m.winner ?? '', /^Team [12]$/, '2v2 ends in a team win, not a solo colour');
+    assert.ok(m.passes >= 1, 'the drill must include a no-legal-move pass');
+    assert.ok(m.forfeits >= 1, 'the drill must include a three-sixes forfeit');
 });

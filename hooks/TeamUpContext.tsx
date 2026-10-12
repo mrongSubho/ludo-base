@@ -35,6 +35,7 @@ import {
 } from '@/lib/types';
 import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
 import { createDedupStore, rememberIntent, type DedupStore } from '@/lib/netcode/dedup';
+import { shouldApplyGameAction } from '@/lib/netcode/authorityGate';
 import {
     classifyAbandon,
     recordAbandonAttempt,
@@ -734,6 +735,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // networked match's rules state. Guests' boards follow the seq-gated
         // `stateOverride` path below, which is the same authority source
         // move-auth persists.
+        // NET-03, via the same gate (kept as a readable local for the
+        // three verb branches below).
         const isMatchAuthority = isHost || isComputeHost;
 
         // G5 — preset emote float (lightweight; not a DM)
@@ -822,15 +825,22 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         // 🌟 Networked match snapshots are authoritative only when they are
         // explicitly emitted by move-auth. Peer/host state broadcasts remain
-        // transport hints and must not advance a guest's rules state.
-        if (stateOverride && !isHost && data.source === 'match_states') {
-            const payloadSeq = typeof data.seq === 'number' ? data.seq : null;
-            const known = serverSeqRef.current;
-            if (payloadSeq !== null && payloadSeq > known) {
-                applyServerState(stateOverride as GameState, payloadSeq);
-            } else {
-                console.log('🌟 [P4] Ignoring host override (server seq', known, '>= payload', payloadSeq, ')');
-            }
+        // transport hints and must not advance a guest's rules state. The
+        // decision is `shouldApplyGameAction` (lib/netcode/authorityGate.ts)
+        // so `test:netcode` executes it instead of mounting this provider.
+        const gate = shouldApplyGameAction({
+            type,
+            isHost,
+            isComputeHost,
+            source: data.source,
+            hasOverride: stateOverride !== undefined && stateOverride !== null,
+            seq: data.seq,
+            knownSeq: serverSeqRef.current,
+        });
+        if (gate.apply && gate.via === 'snapshot') {
+            applyServerState(stateOverride as GameState, data.seq as number);
+        } else if (stateOverride && !isHost) {
+            console.log('🌟 [P4] Ignoring host override:', gate.via);
         }
 
         if (type === 'START_GAME') {

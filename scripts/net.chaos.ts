@@ -12,6 +12,7 @@ import {
     resetNetCounters,
     reconnectDelayMs,
 } from '../lib/netcode/counters';
+import { createDedupStore, rememberIntent } from '../lib/netcode/dedup';
 import { resyncMatch, shouldPauseLocalOrchestration } from '../lib/netcode/resync';
 import { classifyAbandon, ABANDON_GRACE_MS } from '../lib/netcode/abandon';
 import { createMatchFsm } from '../lib/matchFsm';
@@ -65,7 +66,8 @@ function stubState(seqPositions: number): GameState {
 
 test('chaos: intent flood + duplicates are metered, not applied twice', () => {
     resetNetCounters();
-    const processed = new Set<string>();
+    // Phase 4 exit: the flood is metered by the real store, not a local Set.
+    const processed = createDedupStore({ max: 512, ttlMs: 10 * 60 * 1000 });
     const accepted: string[] = [];
     for (let i = 0; i < 100; i++) {
         const intentId = `intent-${i % 10}`; // 10 unique, 10x duplicate flood
@@ -76,12 +78,9 @@ test('chaos: intent flood + duplicates are metered, not applied twice', () => {
             sender: 'guest',
         });
         assert.equal(parsed.ok, true);
-        if (processed.has(intentId)) {
-            bumpNet('net_intent_dup');
+        if (rememberIntent(processed, intentId) !== 'new') {
             continue;
         }
-        processed.add(intentId);
-        bumpNet('net_intent_ok');
         accepted.push(intentId);
     }
     assert.equal(accepted.length, 10);

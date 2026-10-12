@@ -23,6 +23,7 @@ import {
 import { activeColorsForTurns } from '@/lib/engine';
 import { resetNetCounters } from '@/lib/netcode/counters';
 import { shouldFlushServerState } from '@/lib/netcode/flushGate';
+import { computeAuthority } from '@/lib/netcode/authorityGate';
 import { hostActionForIntent } from '@/lib/hostIntent';
 
 // Specialized Hooks
@@ -121,10 +122,15 @@ export function useGameEngine({
     // NET-07: a compute host orchestrates only when it can PROVE it knows the
     // current board. A snapshot-less election would otherwise let a client
     // that merely joined the presence channel drive AI/AFK turns from an empty
-    // state — which is how a match gets wedged rather than saved.
-    const isAuthority = isNetworkedMatch
-        ? isHost || (isComputeHost && matchConnectionStatus === 'connected' && hasAuthoritativeSnapshot)
-        : true;
+    // state — which is how a match gets wedged rather than saved. Executed by
+    // `test:netcode` through `computeAuthority`, not re-derived here.
+    const isAuthority = computeAuthority({
+        isNetworkedMatch,
+        isHost,
+        isComputeHost,
+        connectionStatus: matchConnectionStatus,
+        hasAuthoritativeSnapshot,
+    });
 
     const [localGameState, setLocalGameState] = useState<GameState>({
         ...INITIAL_GAME_STATE,
