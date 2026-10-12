@@ -103,7 +103,11 @@ export function useGameEngine({
         serverSeq,
         applyServerState,
         matchConnectionStatus,
-        hasAuthoritativeSnapshot
+        hasAuthoritativeSnapshot,
+        classifyAndRecordAbandon,
+        recordDisconnect,
+        clearDisconnect,
+        abandonGraceFor
     } = useTeamUpContext();
     
     // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
@@ -113,8 +117,12 @@ export function useGameEngine({
         || isHost
         || isComputeHost
         || Boolean(networkGameState?.matchId && networkGameState.matchId !== 'local');
+    // NET-07: a compute host orchestrates only when it can PROVE it knows the
+    // current board. A snapshot-less election would otherwise let a client
+    // that merely joined the presence channel drive AI/AFK turns from an empty
+    // state — which is how a match gets wedged rather than saved.
     const isAuthority = isNetworkedMatch
-        ? isHost || (isComputeHost && matchConnectionStatus === 'connected')
+        ? isHost || (isComputeHost && matchConnectionStatus === 'connected' && hasAuthoritativeSnapshot)
         : true;
 
     const [localGameState, setLocalGameState] = useState<GameState>({
@@ -275,7 +283,17 @@ export function useGameEngine({
         serverSeqRef,
         lastRollIdRef,
         applyServerState,
-        isLobbyConnected
+        isLobbyConnected,
+        // NET-07: the kick IS the abandon signal — classify and record it from
+        // the context's single classifier (grace clock + dual-sign policy).
+        onAbandon: ({ seat, matchEnded }) => {
+            classifyAndRecordAbandon({
+                accusedSeat: seat,
+                hasEdgeSig: isLobbyConnected,
+                hasHostSig: isAuthority,
+                matchEnded,
+            });
+        }
     });
 
     useAIBrain({
@@ -293,8 +311,15 @@ export function useGameEngine({
 
     // 🔧 FIX 4: Safety net — if gamePhase is stuck at 'landing' for >3s, force transition.
     // This catches edge cases where moveToken's turn-switch setTimeout fails to fire.
+    //
+    // NET-14: OFFLINE ONLY. On a networked match the landing phase is cleared by
+    // the authority's response (move-auth advances `seq`), so flipping the turn
+    // locally here desynced match_states from every client's board — the next
+    // player's move was then refused with 403 'Not this color turn' and the
+    // match wedged. Networked boards re-render from the snapshot instead.
     useEffect(() => {
         if (localGameState.gamePhase !== 'landing' || localGameState.winner) return;
+        if (isNetworkedMatch) return;
         const safetyTimer = setTimeout(() => {
             setLocalGameState((prev) => {
                 if (prev.gamePhase !== 'landing') return prev; // Already resolved
@@ -311,7 +336,7 @@ export function useGameEngine({
             });
         }, 3000);
         return () => clearTimeout(safetyTimer);
-    }, [localGameState.gamePhase, localGameState.winner, getNextPlayer, setLocalGameState]);
+    }, [localGameState.gamePhase, localGameState.winner, getNextPlayer, setLocalGameState, isNetworkedMatch]);
 
     // NET-12: the blanket guest sync above (setLocalGameState(networkGameState)
     // with no seq/timestamp guard) was deleted. It fired on the same commit as
@@ -390,7 +415,10 @@ export function useGameEngine({
 
     // 📬 Listen for Guest Intents (Host only)
     useEffect(() => {
-        if (isHost && lastIntent) {
+        // NET-07: `isAuthority`, not raw `isHost` — a compute host that is
+        // serving as the authority during a host outage must consume intents,
+        // or guests' actions are silently dropped for the whole outage.
+        if (isAuthority && lastIntent) {
             // The roll/move decision is hostActionForIntent (lib/hostIntent.ts),
             // executed under scripts/host-intent.test.ts. No face is ever read
             // from the payload here — see that module for the invariant.
@@ -414,7 +442,7 @@ export function useGameEngine({
 
             clearIntent();
         }
-    }, [isHost, lastIntent, handleRoll, moveToken, toggleAutoPlay, clearIntent, localGameState.diceValue]);
+    }, [isAuthority, lastIntent, handleRoll, moveToken, toggleAutoPlay, clearIntent, localGameState.diceValue]);
 
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');

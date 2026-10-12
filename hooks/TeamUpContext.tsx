@@ -35,6 +35,13 @@ import {
 } from '@/lib/types';
 import { createGameIntent, isGameIntent } from '@/lib/gameProtocol';
 import { createDedupStore, rememberIntent, type DedupStore } from '@/lib/netcode/dedup';
+import {
+    classifyAbandon,
+    recordAbandonAttempt,
+    abandonGraceRemainingMs,
+    ABANDON_GRACE_MS,
+    type AbandonOutcome,
+} from '@/lib/netcode/abandon';
 import { bumpNet, resetNetCounters } from '@/lib/netcode/counters';
 import { track } from '@/lib/telemetry';
 import { createMatchFsm, type MatchFsmEvent, type MatchPhase } from '@/lib/matchFsm';
@@ -89,6 +96,22 @@ export interface TeamUpContextType {
     intentQueue: readonly GameIntent[];
     /** NET-04: drop the QUEUE HEAD only. Never clears a whole queue. */
     clearIntent: () => void;
+    /**
+     * NET-07: abandon classification. `classifyAndRecordAbandon` is the single
+     * entry point for the disconnect path — it stamps nothing itself, it
+     * reads the disconnect clock below and records the outcome for the audit
+     * trail (no funds move while ABANDON_BURN_SPLIT_ENABLED is false).
+     */
+    recordDisconnect: (wallet: string | undefined) => void;
+    clearDisconnect: (wallet: string | undefined) => void;
+    classifyAndRecordAbandon: (params: {
+        accusedSeat: string;
+        hasEdgeSig: boolean;
+        hasHostSig: boolean;
+        matchEnded?: boolean;
+    }) => AbandonOutcome;
+    /** Remaining grace for a disconnected seat, or null if connected. */
+    abandonGraceFor: (wallet: string | undefined) => number | null;
     leaveGame: () => void;
     validationToken?: string;
     /** Host join secret for invite links (`?s=`). Null when not hosting. */
@@ -265,6 +288,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             peerRef.current.destroy();
             peerRef.current = null;
         }
+        // NET-07: a peer teardown is a disconnect — stamp it, or an abandon
+        // classified afterwards looks like it was never disconnected.
+        recordDisconnect(myAddress);
         connectionsRef.current.forEach(c => c.close());
         connectionsRef.current.clear();
         setConnections(new Map());
@@ -306,26 +332,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         getRoomSecret: () => expectedValidationTokenRef.current
     });
 
-    // NET-08: the dedup stores are keyed by an id space that belongs to a
-    // room, not a session. Joining a new room with a resident store drops
-    // every action as a "duplicate" of the previous room's, so the stores and
-    // the pending-intent watches reset whenever the room code changes.
-    const roomKeyRef = useRef<string | null>(null);
-    useEffect(() => {
-        const room = currentRoomCode || lobbyState?.roomCode || null;
-        if (roomKeyRef.current === room) return;
-        roomKeyRef.current = room;
-        if (room === null) return;
-        processedActionIds.current.clear();
-        processedIntentIds.current.clear();
-        processedJoinRequestIds.current.clear();
-        clearAllMoveSessions();
-        intentAckTimers.current.forEach(t => clearTimeout(t));
-        intentAckTimers.current.clear();
-        pendingIntentAcks.current.clear();
-        unsentIntentRef.current = null;
-        setIntentQueue([]);
-    }, [currentRoomCode, lobbyState?.roomCode]);
+
 
     // 2. Supabase Relay (define relayViaSupabase early)
     const { relayViaSupabase, setRelayRoom, processedActionIds } = useSupabaseRelay({
@@ -355,8 +362,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { isComputeHost, activePlayers } = useGamePresence(currentRoomCode, myAddress, onPresenceNetEvent);
 
     // 3. Broadcast Helpers
+    //
+    // NET-06: gated on `isHost` ALONE. The election in useGamePresence is
+    // client-clock ordered (joinedAt), so a compute host has not been proven
+    // the legitimate failover — letting it push room state would hand a
+    // guest the ability to rewrite every other client's board. "Until then"
+    // from the checklist: a compute host still orchestrates AI/AFK locally
+    // (that is what useGameEngine's isAuthority gate is for) but does not
+    // broadcast, and the host-claim handshake is required before it may.
     const broadcastAction = useCallback(<T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => {
-        if (!isHost && !isComputeHost) return;
+        if (!isHost) return;
         
         // Only the original P2P Host handles START_GAME logic
         if (type === 'START_GAME' && isHost) {
@@ -508,7 +523,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // relayViaSupabase reaches everyone.
         broadcastToAll(actionData);
         relayViaSupabase('game-action', actionData, lobbyStateRef);
-    }, [isHost, isComputeHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
+    }, [isHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
 
     const broadcastLobbyAction = useCallback((type: LobbyActionType, payload: Record<string, unknown> = {}) => {
         if (!isHost) return;
@@ -628,6 +643,47 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const unsentIntentRef = useRef<GameIntent | null>(null);
     const pendingIntentAcks = useRef<Map<string, number>>(new Map());
     const intentAckTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    /**
+     * NET-15: every retry-ladder timeout id lands here. Retries were fire-and-forget,
+     * so leaving a room (or the ladder's own room changing under it) left a pending
+     * timer that fired against a torn-down board and re-seated a guest into a room
+     * we had already left. `scheduleRetry` registers; `clearRetryLadders` aborts.
+     */
+    const retryLadderTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+    const scheduleRetry = useCallback((fn: () => void, delayMs: number) => {
+        const id = setTimeout(() => {
+            retryLadderTimers.current.delete(id);
+            fn();
+        }, delayMs);
+        retryLadderTimers.current.add(id);
+        return id;
+    }, []);
+    const clearRetryLadders = useCallback(() => {
+        retryLadderTimers.current.forEach(id => clearTimeout(id));
+        retryLadderTimers.current.clear();
+    }, []);
+
+    // NET-08: the dedup stores are keyed by an id space that belongs to a
+    // room, not a session. Joining a new room with a resident store drops
+    // every action as a "duplicate" of the previous room's, so the stores and
+    // the pending-intent watches reset whenever the room code changes.
+    const roomKeyRef = useRef<string | null>(null);
+    useEffect(() => {
+        const room = currentRoomCode || lobbyState?.roomCode || null;
+        if (roomKeyRef.current === room) return;
+        roomKeyRef.current = room;
+        if (room === null) return;
+        processedActionIds.current.clear();
+        processedIntentIds.current.clear();
+        processedJoinRequestIds.current.clear();
+        clearAllMoveSessions();
+        intentAckTimers.current.forEach(t => clearTimeout(t));
+        intentAckTimers.current.clear();
+        clearRetryLadders();
+        pendingIntentAcks.current.clear();
+        unsentIntentRef.current = null;
+        setIntentQueue([]);
+    }, [currentRoomCode, lobbyState?.roomCode, clearRetryLadders]);
     const resendIntent = useRef<(action: GameIntent) => void>(() => {});
     const scheduleIntentAckWatch = useCallback((intentId: string) => {
         if (intentAckTimers.current.has(intentId)) return;
@@ -730,10 +786,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 const retry = () => {
                     tries += 1;
                     if (seatGuestPlayer(payload)) return;
-                    if (tries < 6) setTimeout(retry, 800);
+                    if (tries < 6) scheduleRetry(retry, 800);
                     else console.warn('🪑 [Host] Could not seat JOIN_REQUEST', payload.address);
                 };
-                setTimeout(retry, 400);
+                scheduleRetry(retry, 400);
             }
             return;
         }
@@ -1035,7 +1091,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 attempts += 1;
                 relayViaSupabase('lobby-action', joinPayload, lobbyStateRef);
                 // Host channel may come up after us — keep retrying through the 8s UI window.
-                if (attempts < 8) setTimeout(sendJoin, 1200);
+                if (attempts < 8) scheduleRetry(sendJoin, 1200);
             };
             sendJoin();
             // REST third path — survives realtime + PeerJS both being blocked.
@@ -1086,10 +1142,14 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 conn.on('data', (d: unknown) => handleGuestData(d as Parameters<typeof handleGuestData>[0], conn as unknown as DataConnection));
                 conn.on('close', () => {
                     console.warn('🚪 [Guest] Connection closed by host');
+                    // NET-07: stamp the disconnect so a later abandon
+                    // classification has a real grace clock.
+                    recordDisconnect(myAddress);
+                    clearRetryLadders();
                     setIsLobbyConnected(false);
                 });
                 conn.on('error', () => {
-                    if (att < 5) setTimeout(() => connect(att + 1), 1500 * att);
+                    if (att < 5) scheduleRetry(() => connect(att + 1), 1500 * att);
                 });
             };
 
@@ -1253,6 +1313,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         clearAllMoveSessions();
         intentAckTimers.current.forEach(t => clearTimeout(t));
         intentAckTimers.current.clear();
+        clearRetryLadders();
         pendingIntentAcks.current.clear();
         unsentIntentRef.current = null;
         setIntentQueue([]);
@@ -1263,7 +1324,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 body: JSON.stringify({ walletAddress: myAddress, sessionId, status: 'Online' })
             }) : null);
         }
-    }, [destroyPeer, setIsHost, setIsLobbyConnected, setRoomId, setConnections, setGameState, setLobbyState, setParticipants, myAddress]);
+    }, [destroyPeer, setIsHost, setIsLobbyConnected, setRoomId, setConnections, setGameState, setLobbyState, setParticipants, myAddress, clearRetryLadders]);
 
     const acceptInvite = useCallback(() => { if (pendingInvite) { joinGame(pendingInvite.roomCode); setPendingInvite(null); } }, [pendingInvite, joinGame, setPendingInvite]);
     const rejectInvite = useCallback(() => setPendingInvite(null), [setPendingInvite]);
@@ -1321,6 +1382,52 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const updateGameState = useCallback((s: Partial<GameState>) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
     /**
+     * NET-07: the abandon path.
+     *
+     * `lib/netcode/abandon.ts` was fully implemented and had ZERO call sites —
+     * its grace window, dual-sign classification and refund/burn policy were
+     * unobservable. Disconnect timestamps are recorded here and
+     * `classifyAndRecordAbandon` is the single entry point a caller uses to
+     * produce an AbandonOutcome. No funds move: ABANDON_BURN_SPLIT_ENABLED is
+     * false, so this is classification + evidence only (which is the artifact
+     * the settlement path will later need).
+     */
+    const disconnectSinceRef = useRef<Map<string, number>>(new Map());
+    const recordDisconnect = useCallback((wallet: string | undefined) => {
+        if (!wallet) return;
+        disconnectSinceRef.current.set(String(wallet).toLowerCase(), Date.now());
+    }, []);
+    const clearDisconnect = useCallback((wallet: string | undefined) => {
+        if (!wallet) return;
+        disconnectSinceRef.current.delete(String(wallet).toLowerCase());
+    }, []);
+    const classifyAndRecordAbandon = useCallback((params: {
+        accusedSeat: string;
+        hasEdgeSig: boolean;
+        hasHostSig: boolean;
+        matchEnded?: boolean;
+    }): AbandonOutcome => {
+        const seat = String(params.accusedSeat || '').toLowerCase();
+        const since = disconnectSinceRef.current.get(seat);
+        const sinceMs = since === undefined ? ABANDON_GRACE_MS + 1 : Date.now() - since;
+        const outcome = classifyAbandon({
+            hasEdgeSig: params.hasEdgeSig,
+            hasHostSig: params.hasHostSig,
+            sinceDisconnectMs: sinceMs,
+            matchEnded: params.matchEnded,
+        });
+        recordAbandonAttempt(outcome, gameStateRef.current.matchId);
+        return outcome;
+    }, []);
+    /** Remaining grace for a disconnected seat (UI countdown). */
+    const abandonGraceFor = useCallback((wallet: string | undefined): number | null => {
+        if (!wallet) return null;
+        const since = disconnectSinceRef.current.get(String(wallet).toLowerCase());
+        if (since === undefined) return null;
+        return abandonGraceRemainingMs(Date.now() - since);
+    }, []);
+
+    /**
      * Guest → host intent. Dual-path: PeerJS when open, always also via
      * Supabase broadcast so NAT/firewall drops on PeerJS don't mute the guest.
      * Both paths share `intentId` so the host applies each intent once.
@@ -1359,6 +1466,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
         swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
         participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
+        recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
         matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
@@ -1366,7 +1474,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
         sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
         startQuickMatch, myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
-        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
+        recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
+        roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 

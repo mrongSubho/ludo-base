@@ -32,6 +32,8 @@ interface UseAFKManagerProps {
     lastRollIdRef?: React.MutableRefObject<string | null>;
     applyServerState?: (state: GameState, seq: number) => void;
     isLobbyConnected?: boolean;
+    /** NET-07: called with the kicked seat so the abandon is classified. */
+    onAbandon?: (args: { seat: string; matchEnded: boolean }) => void;
 }
 
 export function useAFKManager({
@@ -49,7 +51,9 @@ export function useAFKManager({
     serverSeqRef,
     lastRollIdRef,
     applyServerState,
-    isLobbyConnected
+    isLobbyConnected,
+    /** NET-07: records the abandon evidence when a seat is kicked. */
+    onAbandon,
 }: UseAFKManagerProps) {
     useEffect(() => {
         if (localGameState.winner || localGameState.idleWarning ||
@@ -80,6 +84,10 @@ export function useAFKManager({
                 if (nextStats.totalTriggers >= 3) {
                     nextStats.isKicked = true;
                     nextStats.isAutoPlaying = false;
+                    // NET-07: the kick IS the abandon signal. Classify and
+                    // record it here — the classifier had no caller, so the
+                    // grace window and dual-sign policy were unobservable.
+                    onAbandon?.({ seat: color, matchEnded: prev.winner !== null || prev.status === 'finished' });
                 } else if (nextStats.consecutiveTurns >= 4) {
                     nextWarning = { player: color as PlayerColor, timeLeft: 10 };
                 }

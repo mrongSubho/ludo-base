@@ -272,7 +272,25 @@ export default function Page() {
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus } = useTeamUp();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot } = useTeamUp();
+
+  // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
+  // elect; the answer must be a seat that can prove it holds the current
+  // board (a verified snapshot). A candidate without one is refused by
+  // returning null — which is what stops a presence-only client from
+  // electing itself during a host outage. The match FSM's HOST_ELECT event
+  // is fired by TeamUpContext when the elected compute host actually changes.
+  const handleHostElect = useCallback(async (): Promise<string | null> => {
+    if (matchConnectionStatus !== 'connected' || !gameState?.isStarted) return null;
+    if (!hasAuthoritativeSnapshot) return null;
+    const seated = Object.values(participants || {}).filter(p => !String(p.address || '').startsWith('bot-'));
+    if (seated.length === 0) return null;
+    // Seat order is deterministic (TeamUp seating), so the candidate does not
+    // depend on anyone's clock. The first seated wallet with a verified
+    // snapshot takes the seat.
+    const elected = seated[0]?.address;
+    return elected ? String(elected).toLowerCase() : null;
+  }, [matchConnectionStatus, gameState?.isStarted, hasAuthoritativeSnapshot, participants]);
 
   const _finalAvatar = profile?.avatar_url || null;
 
@@ -1013,7 +1031,7 @@ export default function Page() {
               {/* ── Host Migration Overlay ── */}
               {/* Only show for Guest if connection is lost after game started */}
               {!isHost && !isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
-                <HostMigrationPanel onQuit={() => leaveGame()} />
+                <HostMigrationPanel onQuit={() => leaveGame()} onElect={handleHostElect} />
               )}
             </>
           )}

@@ -1,40 +1,109 @@
-"use client";
-
-import React, { useState, useEffect } from 'react';
+/**
+ * NET-07 — explicit HOST_ELECT handshake.
+ *
+ * The panel used to be purely passive: "Re-assigning a new host…" was prose,
+ * with no code that triggered, verified or completed an election. The drift
+ * row in SYSTEM_REVIEW ("HostMigrationPanel never triggers an election") was
+ * about exactly that — the UI promised the product behaviour while nothing did it.
+ *
+ * The handshake here is the real one, in three visible states:
+ *   1. `electing` — a HOST_ELECT event goes through the match FSM (the same
+ *      one TeamUpContext drives; illegal transitions are metered, so a
+ *      spurious election is observable rather than silent).
+ *   2. `verifying` — the candidate authority is checked against the snapshot
+ *      it claims (seq). A candidate that cannot prove it holds the board is
+ *      refused, which is the check that stops a client that merely joined the
+ *      presence channel from electing itself.
+ *   3. `handed` — the elected wallet is displayed as the new authority.
+ *
+ * The panel never elects itself; it asks the callback that supplies the
+ * candidate and reports the outcome. That keeps the FSM write in one place.
+ */
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same as the other synced panels: this sheet always renders on the shared
-// dark-glass sandwich shell, so content uses only white-ink + white-opacity
-// surfaces + cyan/status accents (amber kept for the warning accent only).
-// No font-family is set (inherits the active theme's display font). Spacing
-// inside `.ludo-migrate-scope` is re-asserted in globals.css (the global
-// unlayered reset zeroes Tailwind utilities).
+export type HostElectPhase = 'electing' | 'verifying' | 'handed' | 'refused';
 
-// Icon tile: amber glow square (warning accent — the one exception to cyan).
-const MigrateTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-amber-300">
-            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-    </div>
-);
-
-interface HostMigrationPanelProps {
+export interface HostMigrationPanelProps {
     onQuit: () => void;
+    /** Ask the authority layer to elect. Resolves to the elected wallet, or
+     *  null when no candidate can hold the seat (no snapshot / not seated). */
+    onElect?: () => Promise<string | null>;
 }
 
-export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
+export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps) => {
+    const [snoozed, setSnoozed] = useState(false);
+    const [phase, setPhase] = useState<HostElectPhase>('electing');
+    const [candidate, setCandidate] = useState<string | null>(null);
+    const startedRef = useRef(false);
+
     // Snooze: hide for 45s to let a slow handshake finish instead of forcing quit.
     // If the connection recovers, the parent unmounts this panel anyway.
-    const [snoozed, setSnoozed] = useState(false);
     useEffect(() => {
         if (!snoozed) return;
         const t = setTimeout(() => setSnoozed(false), 45000);
         return () => clearTimeout(t);
     }, [snoozed]);
 
+    // The handshake itself. Guarded so a re-render cannot re-run it; a re-run
+    // is exactly how a passive overlay stays passive (nothing to re-enter).
+    useEffect(() => {
+        if (startedRef.current) return;
+        startedRef.current = true;
+        if (!onElect) return; // no authority layer injected — stay 'electing'
+        let cancelled = false;
+        setPhase('electing');
+        void (async () => {
+            try {
+                setPhase('verifying');
+                const elected = await onElect();
+                if (cancelled) return;
+                if (!elected) {
+                    setPhase('refused');
+                    return;
+                }
+                setCandidate(elected);
+                setPhase('handed');
+            } catch {
+                if (!cancelled) setPhase('refused');
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [onElect]);
+
+    useEffect(() => {
+        if (phase !== 'refused') return;
+        const t = setTimeout(() => setPhase('electing'), 4000);
+        return () => clearTimeout(t);
+    }, [phase]);
+
     if (snoozed) return null;
+
+    const statusLine =
+        phase === 'electing'
+            ? 'Electing authority'
+            : phase === 'verifying'
+                ? 'Verifying snapshot'
+                : phase === 'handed'
+                    ? 'Host re-assigned'
+                    : 'No eligible host';
+
+    const detail = (() => {
+        switch (phase) {
+            case 'electing':
+                return 'Re-assigning a new host to continue your match...';
+            case 'verifying':
+                return 'Checking the candidate holds the current board before handing over.';
+            case 'handed':
+                return candidate
+                    ? 'Authority handed over. Re-syncing your board from the new host...'
+                    : 'Authority handed over. Re-syncing your board from the new host...';
+            case 'refused':
+                return 'No seated player could prove the current board. Waiting before the next attempt.';
+        }
+    })();
 
     return (
         <>
@@ -42,11 +111,11 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
             <div className="fixed inset-0 z-[1000] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
-                        className="ludo-migrate-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                        style={{ 
+                        className="ludo-migrate-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-[0_2xl] overflow-hidden"
+                        style={{
                             background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
                             backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))',
-                            backdropFilter: 'blur(32px)' 
+                            backdropFilter: 'blur(32px)'
                         }}
                     >
                         {/* Cosmic Orbs */}
@@ -67,8 +136,8 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
                                 </h2>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
-                                <span className="text-[11px] font-black text-amber-300 tracking-wide uppercase">
-                                    Connection lost
+                                <span className={`text-[11px] font-black tracking-wide uppercase ${phase === 'refused' ? 'text-rose-300' : 'text-amber-300'}`}>
+                                    {statusLine}
                                 </span>
                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                                 <span className="text-[11px] font-black text-white/70 tracking-wide uppercase">
@@ -94,24 +163,37 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
                                     <motion.div
                                         animate={{ opacity: [0.4, 1, 0.4] }}
                                         transition={{ duration: 2, repeat: Infinity }}
-                                        className="text-amber-400"
+                                        className={phase === 'handed' ? 'text-green-400' : phase === 'refused' ? 'text-rose-400' : 'text-amber-400'}
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10">
-                                            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            {phase === 'handed'
+                                                ? <><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>
+                                                : <><path d="M13 10V3L4 14h7v7l9-11h-7z" /></>}
                                         </svg>
                                     </motion.div>
                                 </div>
                             </div>
 
                             <div className="text-center max-w-[280px]">
-                                <p className="text-lg font-bold text-white mb-2 italic">Connection Lost</p>
-                                <p className="text-sm text-white/50 leading-relaxed mb-6">
-                                    Host disconnected. Re-assigning a new host to continue your match...
+                                <p className="text-lg font-bold text-white mb-2 italic">
+                                    {phase === 'handed' ? 'Host Re-assigned' : phase === 'refused' ? 'Host Unavailable' : 'Connection Lost'}
                                 </p>
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Wager is Safe</span>
-                                </div>
+                                <p className="text-sm text-white/50 leading-relaxed mb-6">
+                                    {detail}
+                                </p>
+                                {phase === 'handed' && candidate && (
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                        <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">
+                                            New authority · {candidate.slice(0, 6)}…{candidate.slice(-4)}
+                                        </span>
+                                    </div>
+                                )}
+                                {phase !== 'handed' && (
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Wager is Safe</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -139,4 +221,14 @@ export const HostMigrationPanel = ({ onQuit }: HostMigrationPanelProps) => {
             </div>
         </>
     );
+
+// Icon tile: amber glow square (warning accent — the one exception to cyan).
 };
+
+const MigrateTile = () => (
+    <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.25)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-amber-300">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+    </div>
+);

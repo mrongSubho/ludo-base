@@ -211,9 +211,17 @@ export function useGameActions({
                     applyServerState?.(result.state, result.seq);
                 }
 
+                // NET-16: merge ONLY what the response actually changed —
+                // positions, stats and the win bookkeeping. Turn/auth fields
+                // stay local until the turn switch resolves (NET-01's passTurn
+                // path owns them), so a response carrying an intermediate turn
+                // cannot rewrite whose turn the client thinks it is.
                 const nextState: GameState = {
                     ...currentState0,
-                    ...result.state,
+                    positions: result.state.positions,
+                    matchStats: result.state.matchStats ?? currentState0.matchStats,
+                    winner: result.state.winner,
+                    winners: result.state.winners ?? currentState0.winners,
                     captureMessage: result.captured ? `Captured! Bonus roll for ${color}!` : currentState0.captureMessage,
                     gamePhase: 'landing',
                     timeLeft: 15,
