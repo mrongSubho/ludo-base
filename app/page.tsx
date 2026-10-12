@@ -265,7 +265,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
-  const { profile, address, isConnected, displayName: finalName } = useCurrentUser();
+  const { profile, address, isConnected, displayName: finalName, isGuest } = useCurrentUser();
   // Needed to prove the canonical host to /api/match/start (SEC-06). Best-effort:
   // offline/bot games still post the anonymous marker and are simply not settleable.
   const { ensureAppSession, peekAppSession } = useAppSession();
@@ -368,6 +368,8 @@ export default function Page() {
   const [arenaIsHost, setArenaIsHost] = useState(false);
 
   const handleWatchMatch = useCallback(async (roomCode: string) => {
+    // REA-17: the arena bootstrap was unguarded, so a slow/hostile endpoint hung
+    // the listener on an icon with no feedback. Bounded + exception-safe.
     let resolvedRoom = roomCode;
     if (roomCode === 'ARENA-POWER-4P') {
       const sid = await ensureAppSession();
@@ -376,7 +378,7 @@ export default function Page() {
         walletAddress: address.toLowerCase(),
         sessionId: sid,
       });
-      const response = await fetch(`/api/live-arena/power4p?${qs.toString()}`, { method: 'POST' });
+      const response = await fetch(`/api/live-arena/power4p?${qs.toString()}`, { method: 'POST', signal: AbortSignal.timeout(15000) });
       const data = await response.json();
       if (!response.ok || !data.roomCode) return;
       resolvedRoom = data.roomCode;
@@ -489,10 +491,14 @@ export default function Page() {
   const [burnOpen, setBurnOpen] = useState(false);
   const toggle = (tab: Tab) => setActiveTab(prev => prev === tab ? null : tab);
 
-  // First-run setup: re-check whenever identity flips (fresh connect / guest).
+  // REA-16: re-check whenever identity flips — wallet connect, disconnect, OR
+  // guest mode. The old effect fired only on `isConnected`, so a returning guest
+  // (local storage already completed onboarding) was shown the setup again when
+  // the flag for the current identity said otherwise, and a fresh guest never got
+  // it. `isGuest` comes from the same identity source, so both paths re-resolve.
   useEffect(() => {
-    if (isConnected) setOnboarded(hasOnboarded());
-  }, [isConnected]);
+    setOnboarded(hasOnboarded());
+  }, [isConnected, isGuest]);
 
    const handlePlayNow = async (isBotOverride?: boolean) => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
