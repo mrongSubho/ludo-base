@@ -1,6 +1,13 @@
 "use client";
 
-import "@coinbase/onchainkit/styles.css";
+// NOTE: `@coinbase/onchainkit/styles.css` was deliberately removed. Nothing in
+// the app renders an OnchainKit component — WalletConnectCard uses our own
+// LudoWalletModal, and the only OnchainKit surface left is `useName` /
+// `useAvatar` in ProfileSyncer (ENS/Base name lookup, the third fallback behind
+// Farcaster SDK and Neynar). That stylesheet pulled in four extra Google Fonts
+// `@import`s (Inter, Inter 700, Noto Sans Mono, Oxanium) — four render-blocking
+// third-party requests Cloudflare flagged as the top opportunity. Re-add this
+// import if an OnchainKit component is ever rendered.
 import { OnchainKitProvider } from "@coinbase/onchainkit";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { baseSepolia } from "wagmi/chains";

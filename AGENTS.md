@@ -5,7 +5,7 @@ Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wag
 ## Commands
 
 - `npm run dev` — dev server (Turbopack) at `http://localhost:3000`. This is the only reliable dev command.
-- `npm run build` && `npm start` — production. TypeScript errors **fail the build** (`ignoreBuildErrors: false`).
+- `npm run build` && `npm start` — production, built with **webpack** (`next build --webpack`), deliberately not Turbopack: Turbopack's unbundled output duplicated modules across chunks (142 of 278 module ids in >1 chunk) and cost **~20% more gzip on the critical path** than webpack's consolidated vendor chunks (1.00 MB → 0.80 MB, 32 → 21 requests). It also activates the `webpack:` block in `next.config.ts` (the `pino-pretty`/`lokijs`/async-storage fallbacks), which Turbopack ignores. Keep dev on Turbopack for HMR. TypeScript errors **fail the build** (`ignoreBuildErrors: false`).
 - `npm run lint` — **ESLint 9** (`eslint.config.mjs`). Rules for unused-vars / prefer-const / no-explicit-any are `error`; a few legacy modules keep file-level disables. Do not reintroduce `next lint`.
 - `npm test` — engine + foundation + netcode + MP harness tests via `npx tsx --test` (2v2 teams, gate-crossing legality, three sixes, capture, properties, chaos). Run this after any `lib/gameLogic` / `lib/boardLayout` / `lib/constants` change.
 - `npx tsc -p tsconfig.json --noEmit` — **must be 0 errors**. Deno edge functions excluded (`supabase/functions` in tsconfig). Do not reintroduce broad `any` on the game surface without a burn-down.

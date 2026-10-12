@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect } from 'react';
-import { Wallet, ConnectWallet } from '@coinbase/onchainkit/wallet';
 import LudoWalletModal from './LudoWalletModal';
 import { acceptTos } from '@/lib/onboarding';
 

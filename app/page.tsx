@@ -44,7 +44,6 @@ const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
-import { useName, useAvatar } from '@coinbase/onchainkit/identity';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
