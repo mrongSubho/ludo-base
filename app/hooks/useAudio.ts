@@ -43,6 +43,37 @@ export const useAudio = () => {
         return audioCtx.current;
     };
 
+    /**
+     * REA-12: every oscillator used to start()/stop() without ever
+     * disconnecting. A stopped oscillator with a live connection stays in the
+     * AudioContext's graph, so a long match accumulated nodes until the
+     * context was unusable. `bind` connects, plays, and tears the whole chain
+     * down when the sound ends.
+     */
+    const bind = useCallback((
+        osc: OscillatorNode,
+        gain: GainNode,
+        dest: AudioNode,
+        startAt: number,
+        stopAt: number,
+        extra: AudioNode[] = [],
+    ) => {
+        osc.connect(gain);
+        gain.connect(dest);
+        for (const n of extra) {
+            try { gain.connect(n); } catch { /* not every graph has a sidechain */ }
+        }
+        osc.onended = () => {
+            try { osc.disconnect(); } catch { /* already torn down */ }
+            try { gain.disconnect(); } catch { /* already torn down */ }
+            for (const n of extra) {
+                try { n.disconnect(); } catch { /* already torn down */ }
+            }
+        };
+        osc.start(startAt);
+        osc.stop(stopAt);
+    }, []);;
+
     const triggerHaptic = useCallback((pattern: number | number[] = 10) => {
         if (typeof window !== 'undefined' && preferences.haptics && navigator.vibrate) {
             navigator.vibrate(pattern);
@@ -62,11 +93,7 @@ export const useAudio = () => {
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + 0.05);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.05);
         
         triggerHaptic(5); // Ultra-short subtle click
     }, [preferences.sfx, triggerHaptic]);
@@ -84,11 +111,7 @@ export const useAudio = () => {
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + 0.1);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.1);
         
         triggerHaptic([30, 50, 30]); // Shaky capture feel
     }, [preferences.sfx, triggerHaptic]);
@@ -103,10 +126,7 @@ export const useAudio = () => {
             osc.frequency.setValueAtTime(freq, startTime);
             gain.gain.setValueAtTime(0.1, startTime);
             gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(startTime);
-            osc.stop(startTime + 0.4);
+            bind(osc, gain, ctx.destination, startTime, startTime + 0.4);
         };
 
         const now = ctx.currentTime;
@@ -202,11 +222,7 @@ export const useAudio = () => {
         gain.gain.setValueAtTime(0.05, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.2);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.2);
         
         triggerHaptic(10); // Subtle notification
     }, [preferences.sfx, triggerHaptic]);
@@ -224,11 +240,7 @@ export const useAudio = () => {
         gain.gain.setValueAtTime(0.2, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.3);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.3);
         
         triggerHaptic(50); // Warning strike
     }, [preferences.sfx, triggerHaptic]);
@@ -247,10 +259,7 @@ export const useAudio = () => {
             osc.frequency.linearRampToValueAtTime(i % 2 === 0 ? 800 : 600, ctx.currentTime + start + 0.32);
             gain.gain.setValueAtTime(0.06, ctx.currentTime + start);
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + 0.33);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + 0.34);
+            bind(osc, gain, ctx.destination, ctx.currentTime + start, ctx.currentTime + start + 0.34);
         });
         const boom = ctx.createOscillator();
         const boomGain = ctx.createGain();
@@ -276,10 +285,7 @@ export const useAudio = () => {
         osc.frequency.linearRampToValueAtTime(1320, ctx.currentTime + 0.25);
         gain.gain.setValueAtTime(0.08, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.3);
         triggerHaptic(15);
     }, [preferences.sfx, triggerHaptic]);
 
@@ -293,10 +299,7 @@ export const useAudio = () => {
         osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.2);
         gain.gain.setValueAtTime(0.07, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.22);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.22);
         triggerHaptic(20);
     }, [preferences.sfx, triggerHaptic]);
 
@@ -310,10 +313,7 @@ export const useAudio = () => {
             osc.frequency.setValueAtTime(freq, ctx.currentTime + (start as number));
             gain.gain.setValueAtTime(0.06, ctx.currentTime + (start as number));
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (start as number) + 0.08);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime + (start as number));
-            osc.stop(ctx.currentTime + (start as number) + 0.09);
+            bind(osc, gain, ctx.destination, ctx.currentTime + (start as number), ctx.currentTime + (start as number) + 0.09);
         });
         triggerHaptic([10, 40, 10]);
     }, [preferences.sfx, triggerHaptic]);
@@ -328,10 +328,7 @@ export const useAudio = () => {
         osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
         gain.gain.setValueAtTime(0.09, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
+        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.15);
         triggerHaptic(10);
     }, [preferences.sfx, triggerHaptic]);
 

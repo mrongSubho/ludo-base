@@ -35,10 +35,16 @@ export const metadata: Metadata = {
   },
 };
 
+// REA-15: the manual <meta name="viewport"> in the body is deleted. Keeping
+// both meant two viewport tags, and the browser honours the FIRST one — the
+// hardcoded one — so this export was inert. `maximumScale` +
+// `interactiveWidget` move here, where Next actually emits and controls them.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
 };
 
 export default async function RootLayout({
@@ -57,7 +63,6 @@ export default async function RootLayout({
     return (
         <html lang="en" className={fontVariables}>
             <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=overlays-content" />
             </head>
             <body className={themeClass} suppressHydrationWarning>
                 <Providers>{children}</Providers>

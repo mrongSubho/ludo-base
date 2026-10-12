@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
 import { PanelErrorBoundary } from './components/PanelErrorBoundary';
+const AudioDriver = dynamic(() => import('./components/AudioToggle'));
 import NoticeStrip from './components/NoticeStrip';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BurnPanel } from './components/BurnPanel';
@@ -693,6 +694,11 @@ export default function Page() {
       {showSplash && <SplashScreen />}
 
       <PresenceManager />
+
+      {/* REA-13: the ambient-audio driver. Mounted once at the app root, next to
+          the presence manager (same "app-wide, no DOM" role), so the Game Music
+          preference finally plays something. */}
+      <AudioDriver />
 
       <div className={`fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]${appState !== 'dashboard' ? ' orbs-calm' : ''}`}>
         {/* Subdued orbs to prevent washout while keeping depth */}

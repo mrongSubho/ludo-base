@@ -8,7 +8,12 @@ import { useEffect, useState } from 'react';
 // board layout, so this guard is the failsafe: it covers the broken board,
 // tells the player to rotate back, and — critically — never touches game
 // state. Timers, netcode and spectators keep running underneath.
-const LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 540px)';
+// REA-14: the query was unmetered, so a narrow DESKTOP window (short
+// viewport, landscape) got the "rotate your device" overlay — a message that
+// makes no sense on hardware with no orientation sensor. `(pointer: coarse)`
+// restricts it to real touch devices, where rotating is actually possible and
+// the advice is actionable.
+const LANDSCAPE_QUERY = '(orientation: landscape) and (max-height: 540px) and (pointer: coarse)';
 
 function useIsLandscapeShort(): boolean {
     const [landscape, setLandscape] = useState(false);

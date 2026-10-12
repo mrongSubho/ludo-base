@@ -1,12 +1,19 @@
-'use client';
+"use client";
 
 import { useEffect } from 'react';
 import { useAudio } from '../hooks/useAudio';
 import { usePreferences } from '@/hooks/usePreferences';
 
+/**
+ * REA-13: this component existed but was never rendered anywhere — dead code
+ * that happened to hold the only ambient-audio driver, so the "Game Music"
+ * preference in Settings did nothing. It is now a headless driver mounted once
+ * by `app/page.tsx` (see AudioDriver below), so the preference and the audio
+ * it controls finally move together.
+ */
 export default function AudioToggle() {
     const { playAmbient, stopAmbient } = useAudio();
-    const { preferences, updatePreference } = usePreferences();
+    const { preferences } = usePreferences();
     const isMuted = !preferences.music;
 
     useEffect(() => {
@@ -18,17 +25,6 @@ export default function AudioToggle() {
         }
     }, [isMuted, preferences.theme, playAmbient, stopAmbient]);
 
-    const toggleMute = () => {
-        updatePreference('ludo-music', isMuted ? 'on' : 'off');
-    };
-
-    return (
-        <button
-            className="audio-toggle-btn"
-            onClick={toggleMute}
-            title={isMuted ? "Unmute Ambient" : "Mute Ambient"}
-        >
-            {isMuted ? '🔇' : '🔊'}
-        </button>
-    );
+    // No DOM of its own: the preference row in SettingsPanel is the control.
+    return null;
 }

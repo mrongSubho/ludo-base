@@ -27,9 +27,13 @@ export const useSoundEffects = () => {
 
     const playSound = useCallback((path: string, volume: number = 0.5) => {
         if (typeof window !== 'undefined' && preferences.sfx) {
+            // REA-09: `volume` does not survive `cloneNode`, and it was set on
+            // the node that is DISCARDED — so every clip played at 1.0
+            // regardless of the argument. A fresh Audio per call keeps the
+            // shared-element problem fixed AND honours the volume.
             const audio = new Audio(path);
             audio.volume = volume;
-            const playPromise = (audio.cloneNode(true) as HTMLAudioElement).play();
+            const playPromise = audio.play();
             if (playPromise !== undefined) {
                 playPromise.catch(() => {
                     // Fail silently for autoplay restrictions
