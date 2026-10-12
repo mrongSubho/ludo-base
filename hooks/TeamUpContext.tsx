@@ -1295,7 +1295,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setIsLobbyConnected(false);
         setRoomId('');
         setConnections(new Map());
-        setGameState(INITIAL_GAME_STATE);
+        // REA-22: force a fresh identity on reset. INITIAL_GAME_STATE is a
+        // shared module object — spreading it reuses nested arrays by
+        // reference, so a previous match's positions could leak into the next
+        // match's "initial" state. Structured-clone the arrays that move.
+        setGameState({
+            ...INITIAL_GAME_STATE,
+            positions: Object.fromEntries(
+                Object.entries(INITIAL_GAME_STATE.positions).map(([c, ps]) => [c, [...(ps as number[])]]),
+            ) as GameState['positions'],
+            winners: [],
+            lastUpdate: Date.now(),
+        });
         setLobbyState(null);
         setParticipants({});
         expectedValidationTokenRef.current = null;

@@ -288,14 +288,14 @@ export function useGameActions({
         let pTurnSwitchPending = false;
         let pNextPlayer: PlayerColor | null = null;
         const isBonusTurn = (steps === DICE_ROLL_SIX || captured || newState.winner);
-        
-        if (isBonusTurn && !currentState.winner) {
-            newState.currentPlayer = color;
-        }
 
-        const finalState = {
+        const finalState: GameState = {
             ...currentState,
             ...newState,
+            // REA-10: the bonus-turn holder is written on the FRESH state, not
+            // on the aliased `newState` returned by processMove (mutating the
+            // engine's return value).
+            currentPlayer: (isBonusTurn && !currentState.winner) ? color : newState.currentPlayer,
             diceValue: isBonusTurn ? null : newState.diceValue,
             captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
             strikes: { ...currentState.strikes, [color]: 0 },

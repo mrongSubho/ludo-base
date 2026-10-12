@@ -61,15 +61,27 @@ export function TokenPiece({
     const [showShockwave, setShowShockwave] = React.useState(false);
     const [isMoving, setIsMoving] = React.useState(false);
 
+    // REA-19: every effectful call below returns a cleanup, and the
+    // unmount effect runs all of them. Previously the shockwave timeout fired
+    // setState on a torn-down piece and the GSAP tweens kept animating
+    // detached DOM — invisible in dev, a slow leak in a 200-move match.
+    const cleanupsRef = React.useRef<Array<() => void>>([]);
+    const trackCleanup = (fn: () => void) => {
+        cleanupsRef.current.push(fn);
+        return fn;
+    };
+
     // Entrance for tokens coming OUT of the base: drop in + squash landing
     const playSpawn = React.useCallback(() => {
         console.log('[move-debug] spawn', color, 'at pos', pos);
         setShowShockwave(true);
-        setTimeout(() => setShowShockwave(false), 450);
-        gsap.fromTo(hopRef.current,
+        const shock = setTimeout(() => setShowShockwave(false), 450);
+        trackCleanup(() => clearTimeout(shock));
+        const hop = gsap.fromTo(hopRef.current,
             { y: -46, scaleX: 0.9, scaleY: 1.18, opacity: 0 },
             { y: 0, scaleX: 1, scaleY: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.5)' });
-        gsap.fromTo(shadowRef.current, { opacity: 0 }, { opacity: 0.9, duration: 0.45 });
+        const shadow = gsap.fromTo(shadowRef.current, { opacity: 0 }, { opacity: 0.9, duration: 0.45 });
+        trackCleanup(() => { hop.kill(); shadow.kill(); });
     }, [color, pos]);
 
     // Pixel size of one grid cell — layout units (offsetWidth/Height), NOT
@@ -82,15 +94,17 @@ export function TokenPiece({
 
     const playLanding = React.useCallback(() => {
         setShowShockwave(true);
-        setTimeout(() => setShowShockwave(false), 450);
+        const shock = setTimeout(() => setShowShockwave(false), 450);
+        trackCleanup(() => clearTimeout(shock));
         // Settle: squash -> recover -> rest
-        gsap.timeline()
+        const settle = gsap.timeline()
             .to(hopRef.current, { scaleY: 0.84, scaleX: 1.16, y: 3, duration: 0.12, ease: 'power2.out' })
             .to(hopRef.current, { scaleY: 1.05, scaleX: 0.97, y: -2, duration: 0.14, ease: 'sine.inOut' })
             .to(hopRef.current, { scaleY: 1, scaleX: 1, y: 0, duration: 0.16, ease: 'sine.out' });
-        gsap.timeline()
+        const shade = gsap.timeline()
             .to(shadowRef.current, { opacity: 1, duration: 0.1 })
             .to(shadowRef.current, { opacity: 0.9, duration: 0.25 });
+        trackCleanup(() => { settle.kill(); shade.kill(); });
     }, []);
 
     // Fast-forward any in-flight movement to its end state so a new move
@@ -102,6 +116,18 @@ export function TokenPiece({
         gsap.set([glideRef.current, hopRef.current], { x: 0, y: 0, scaleX: 1, scaleY: 1 });
         gsap.set(shadowRef.current, { opacity: 0.9 });
         setIsMoving(false);
+    }, []);
+
+    // REA-19: unmount drains every pending timeout and tween registered above.
+    React.useEffect(() => () => {
+        for (const fn of cleanupsRef.current) {
+            try {
+                fn();
+            } catch {
+                /* teardown must never throw */
+            }
+        }
+        cleanupsRef.current = [];
     }, []);
 
     // Latest render context, readable from the pos-only effect below without

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { exitGuest, WallAction } from '@/lib/guest';
 import GuestWall from '@/app/components/GuestWall';
@@ -40,8 +40,13 @@ export function GuestWallProvider({ children }: { children: React.ReactNode }) {
         exitGuest();
     }, []);
 
+    // REA-23: a fresh object identity per render re-rendered every consumer
+    // on every provider render (presence ticks, timers). Memoized on the
+    // stable callbacks so context consumers only re-render when `wall` changes.
+    const value = useMemo(() => ({ guard, showWall, closeWall }), [guard, showWall, closeWall]);
+
     return (
-        <GuestWallContext.Provider value={{ guard, showWall, closeWall }}>
+        <GuestWallContext.Provider value={value}>
             {children}
             {wall && (
                 <GuestWall action={wall} onClose={closeWall} onConnect={handleConnect} />

@@ -213,6 +213,11 @@ export default function Board({
     // Timer Animation Logic
     const smoothProgress = useMotionValue(localGameState.timeLeft / 15);
     const prevPlayerRef = useRef(localGameState.currentPlayer);
+    // REA-21: the rotation hook was called inline in the JSX props below
+    // (`pointRotation={useBoardLayoutRotation(...)}`) — legal but fragile (a
+    // conditional render path would break hook order) and re-created per
+    // render. Hoisted to component scope like every other hook.
+    const pointRotation = useBoardLayoutRotation(smoothProgress);
 
     useEffect(() => {
         if (prevPlayerRef.current !== localGameState.currentPlayer) {
@@ -345,7 +350,7 @@ export default function Board({
                         localGameState={localGameState}
                         activeColor={activeColor}
                         sweepProgress={smoothProgress}
-                        pointRotation={useBoardLayoutRotation(smoothProgress)}
+                        pointRotation={pointRotation}
                         counterRotationDeg={counterRotationDeg}
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {

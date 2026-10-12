@@ -490,14 +490,21 @@ export function useGameEngine({
         }
     }, [localGameState.currentPlayer, localGameState.winner, localGameState.afkStats, playTurn, localGameState.gamePhase, initialPlayers]);
 
+    // REA-11: the whole-state write-up used to fire on EVERY localGameState
+    // change — including the ~1Hz timer ticks — pushing the entire board into
+    // TeamUpContext once a second and re-rendering its whole subtree. It now
+    // flushes once, on matchId arrival (the ref-stable transition that means
+    // "this client joined a real match"), and never on timer churn.
+    const flushedMatchIdRef = useRef<string | null | undefined>(null);
     useEffect(() => {
-        const hasServerMatch = Boolean(
-            localGameState.matchId && localGameState.matchId !== 'local'
-        );
-        if (isHost && isLobbyConnected && !hasServerMatch && localGameState.lastUpdate > 0) {
+        const ctxMatchId = localGameState.matchId;
+        const hasServerMatch = Boolean(ctxMatchId && ctxMatchId !== 'local');
+        if (isHost && isLobbyConnected && hasServerMatch && flushedMatchIdRef.current !== ctxMatchId) {
+            flushedMatchIdRef.current = ctxMatchId;
             updateGameState(localGameState);
         }
-    }, [isHost, isLobbyConnected, localGameState, updateGameState]);
+        if (!hasServerMatch) flushedMatchIdRef.current = null;
+    }, [isHost, isLobbyConnected, localGameState.matchId, localGameState.isStarted, updateGameState]);
 
     // Networked guests copy only the server snapshot cached by TeamUpContext.
     useEffect(() => {

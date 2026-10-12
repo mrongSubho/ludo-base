@@ -84,7 +84,12 @@ export const INITIAL_GAME_STATE: GameState = {
     isStarted: false,
     isBotMatch: false,
     botDifficulty: 'pro',
-    lastUpdate: Date.now(),
+    // REA-22: zero, not Date.now(). A module-evaluated timestamp froze the
+    // import moment into every fresh state — and because the object is shared,
+    // one match's `lastUpdate` writes leaked into the next match's "initial"
+    // state. Every creator stamps Date.now() on write; the leaveGame reset
+    // forces a fresh identity (see below).
+    lastUpdate: 0,
     playerCount: '4P',
 };
 

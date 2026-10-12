@@ -36,7 +36,9 @@ const SettingsPanel = dynamic(() => import('./components/SettingsPanel').then(m 
 const WalletPanel = dynamic(() => import('./components/WalletPanel'));
 const UserProfilePanel = dynamic(() => import('./components/UserProfilePanel'));
 const FriendsPanel = dynamic(() => import('./components/FriendsPanel'));
-const _Leaderboard = dynamic(() => import('./components/Leaderboard'));
+// REA-27: the never-rendered dynamic Leaderboard import lived here.
+// RankingsPanel (already imported statically via the dashboard layer) is the
+// live surface; a second lazy copy only doubled the chunk graph.
 const RankingsPanel = dynamic(() => import('./components/RankingsPanel'));
 const ArenaPanel = dynamic(() => import('./components/ArenaPanel'));
 const MissionPanel = dynamic(() => import('./components/MissionPanel'));
@@ -500,7 +502,9 @@ export default function Page() {
     setOnboarded(hasOnboarded());
   }, [isConnected, isGuest]);
 
-   const handlePlayNow = async (isBotOverride?: boolean) => {
+   // REA-24: useCallback so memoized panels receiving these handlers (lobby,
+  // arena, board chrome) don't re-render on every unrelated Page render.
+  const handlePlayNow = useCallback(async (isBotOverride?: boolean) => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
     // Lobby ticket is the source of truth for seat count — never the UI selector.
     const effectiveMatchType = (lobbyState?.matchType || playerCount) as '1v1' | '2v2' | '4P';
@@ -648,9 +652,9 @@ export default function Page() {
       });
 
     setAppState('game');
-  };
+  }, [isBotMatch, isHost, lobbyState, playerCount, address, broadcastAction, signMessageAsync, setAppState]);
 
-  const handleBackToSubMenu = async () => {
+  const handleBackToSubMenu = useCallback(async () => {
     // Host leaving a live stream should drop the Live Arena row.
     if (isHost && gameState?.matchId && lobbyState?.roomCode) {
       try {
@@ -687,7 +691,7 @@ export default function Page() {
     leaveGame();
     setBoardSeed(null);
     setAppState('dashboard');
-  };
+  }, [isHost, gameState, lobbyState, address, signMessageAsync, leaveGame]);
 
   const onStartGame = useCallback((isBot?: boolean, difficulty: import('@/lib/types').BotDifficulty = 'pro') => {
     setIsBotMatch(!!isBot);

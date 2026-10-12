@@ -20,7 +20,11 @@ type WakeLockNavigator = Navigator & {
 export function useScreenWakeLock(active: boolean) {
     const lockRef = useRef<WakeLockSentinelLike | null>(null);
     const activeRef = useRef(active);
-    activeRef.current = active;
+    // REA-20: ref writes during render are a side effect in the render path —
+    // concurrent renders can tear it. Sync in an effect instead.
+    useEffect(() => {
+        activeRef.current = active;
+    }, [active]);
 
     useEffect(() => {
         if (!active) return;
