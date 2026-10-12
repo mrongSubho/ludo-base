@@ -43,6 +43,16 @@ jobs:
         run: npm test
       - name: Golden replay corpus (≥50 deterministic matches)
         run: npm run test:golden
+      - name: Engine diff harness (core vs legacy, 1200 seeded matches)
+        run: npm run test:engine-diff
+      - name: Authority engine unit tests
+        run: npm run test:engine-core
+      - name: Netcode decision harness (dual-transport, retry, gates)
+        run: npm run test:netcode
+      - name: Protocol hostile-payload table (both transports)
+        run: npm run test:protocol
+      - name: Hooks harness (store sync, flush gate, effect pins)
+        run: npm run test:hooks
       - name: Edge engine sync
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate

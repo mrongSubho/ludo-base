@@ -534,7 +534,7 @@ self-contained, and a repo-wide sweep for published anvil keys went with it.
 ### Exit gate
 
 - [x] `npm run check:drift` green and wired into CI (10/10, in `engine-tests`).
-- [ ] `check:schema`, `check:rpc-args`, `test:engine-diff`, `test:engine-core`, `test:golden`, `test:netcode`, `test:protocol` all in `.github/workflows/ci.yml`. **Present:** `test:golden`, `check:engine`, `check:rls`, `check:routes`, `test:concurrency`, `npm test`, `typecheck`, `lint`, `check:schema`. **Open:** nothing Phase-4-owned except the `private:true` channel item (needs a JWT mint) and the mainnet deferral. `test:netcode` + `test:protocol` landed 2026-10-11; `check:rpc-args` is folded into `check:schema` (A2) rather than a separate step.
+- [x] `check:schema`, `check:rpc-args`, `test:engine-diff`, `test:engine-core`, `test:golden`, `test:netcode`, `test:protocol` all in `.github/workflows/ci.yml` (2026-10-11: named steps for engine-diff, engine-core, netcode, protocol and hooks alongside the existing golden/concurrency/routes/schema gates; `check:rpc-args` is folded into `check:schema` A2 rather than a separate step).
 - [x] All doc claims in the table above match the code (re-verified 2026-10-11).
 - [ ] 154/154 findings closed or signed off. **Phase 6 code tasks are all closed;** remaining OPEN items are Phase 4/5 work plus the explicit, dated risk acceptances recorded in this file (CRY-02, ECO-04, mainnet deferral) — none silently untracked.
 
