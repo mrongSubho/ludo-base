@@ -19,6 +19,19 @@ const getBuildNumber = () => {
 };
 
 const nextConfig: NextConfig = {
+  // Phase 6 hygiene: trim the client bundle at the import level. react-icons
+  // and framer-motion are barrel packages — without this, one icon import
+  // pulls every icon. canvas-confetti is single-entry but listed for intent.
+  experimental: {
+    optimizePackageImports: ['react-icons', 'framer-motion', 'canvas-confetti'],
+  },
+  // Strip console.* from production builds, keeping error/warn for the
+  // telemetry pipeline (captureException paths log through those).
+  compiler: {
+    removeConsole: {
+      exclude: ['error', 'warn'],
+    },
+  },
   env: {
     NEXT_PUBLIC_GIT_HASH: getGitHash(),
     NEXT_PUBLIC_BUILD_NUMBER: getBuildNumber(),

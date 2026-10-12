@@ -724,7 +724,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (actionId && processedActionIds.current.has(actionId)) return;
         if (actionId) processedActionIds.current.add(actionId);
 
-        console.log('🕹️ Processing action:', type, data);
+        // Phase 6 hygiene: log the type + id only, never the full payload.
+        // The old line printed `data` verbatim — every action AND its full
+        // payload (seats, wallets, state) into every console, including
+        // production until compiler.removeConsole strips it.
+        console.log('🕹️ Processing action:', type, actionId ?? '(no id)');
 
         // NET-03: only the authority (host or compute host) may drive a
         // networked match's rules state. Guests' boards follow the seq-gated
