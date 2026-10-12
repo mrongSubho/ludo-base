@@ -7,6 +7,23 @@ import { UserProfile, LeaderboardEntry, Friend, MessageData } from './GameDataCo
 import { supabase } from '@/lib/supabase';
 import { useAppSession } from './useAppSession';
 
+/**
+ * REA-03: cheap structural compare for the identity fields the realtime
+ * channel can change. Deliberately not a deep equal — the context only
+ * re-renders on identity, and this is the hot path.
+ */
+function profilesEqual(a: UserProfile, b: UserProfile): boolean {
+    return a.wallet_address === b.wallet_address
+        && (a.username ?? null) === (b.username ?? null)
+        && (a.avatar_url ?? null) === (b.avatar_url ?? null)
+        && (a.status ?? null) === (b.status ?? null)
+        && (a.lxp ?? null) === (b.lxp ?? null)
+        && (a.rxp ?? null) === (b.rxp ?? null)
+        && (a.total_wins ?? null) === (b.total_wins ?? null)
+        && (a.coins ?? null) === (b.coins ?? null)
+        && (a.peer_id ?? null) === (b.peer_id ?? null);
+}
+
 export const useDataBoot = (address: string | undefined) => {
     const { peekAppSession } = useAppSession();
     const [isBooting, setIsBooting] = useState(false);
@@ -17,6 +34,8 @@ export const useDataBoot = (address: string | undefined) => {
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [rawConversations, setRawConversations] = useState<any[]>([]);
     const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({});
+    /** REA-04: section keys that failed, for the retry affordance. */
+    const [sectionsFailed, setSectionsFailed] = useState<string[]>([]);
 
     // --- DECRYPTION HELPER (Proxy) ---
     // Note: The context will provide the actual decrypt helper to avoid circular deps if needed, 
@@ -26,15 +45,25 @@ export const useDataBoot = (address: string | undefined) => {
         if (!address) return;
         const lowerAddr = address.toLowerCase();
         setIsBooting(true);
+        // REA-04: a retry starts from a clean slate, not the last attempt's scars.
+        setSectionsFailed([]);
 
         console.log("🚀 [GameData] Initiating Boot Sequence Payload...");
         try {
             // Boot must never open a wallet popup — cached session only.
             const sessionId = peekAppSession();
+            // REA-04: this used to throw on a 403 and abort ALL FOUR sections
+            // below (Promise.all rejects on the first), leaving the dashboard
+            // permanently on its boot loader with no data and no retry. Scoped:
+            // a private-section failure degrades to empty, everything else
+            // still lands, and the caller learns it failed via `sectionsFailed`.
             const privateData = sessionId
                 ? fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`).then(async res => {
                     if (!res.ok) throw new Error(`Messages API failed: ${res.status}`);
                     return res.json();
+                }).catch((err) => {
+                    console.warn('[GameData] private section degraded:', err);
+                    return { conversations: [], messages: [], __failed: true };
                 })
                 : Promise.resolve({ conversations: [], messages: [] });
             const [
@@ -92,9 +121,22 @@ export const useDataBoot = (address: string | undefined) => {
                 localStorage.setItem(`cache_leaderboard`, JSON.stringify(formattedLeaders));
 
                 const pMap: Record<string, UserProfile> = {};
+                // REA-03: bounded projection — the leaderboard query is already
+                // `.limit(50)`, so this map is capped by construction. Without
+                // the cap an unbounded directory map was the perf failure.
                 formattedLeaders.forEach((l: LeaderboardEntry) => pMap[l.wallet_address] = l);
                 if (profileRes.data) pMap[lowerAddr] = profileRes.data;
-                setProfilesMap(prev => ({ ...prev, ...pMap }));
+                // REA-03: equality guard. `{ ...prev, ...pMap }` allocates a new
+                // object on EVERY boot even when nothing changed, re-rendering
+                // every consumer of the context ~1Hz.
+                setProfilesMap(prev => {
+                    const entries = Object.entries(pMap);
+                    const unchanged = entries.every(([addr, row]) => {
+                        const cur = prev[addr];
+                        return cur !== undefined && profilesEqual(cur, row);
+                    });
+                    return unchanged ? prev : { ...prev, ...pMap };
+                });
             }
 
             // Process Friends
@@ -105,12 +147,21 @@ export const useDataBoot = (address: string | undefined) => {
                 });
                 const fMap: Record<string, UserProfile> = {};
                 (friendsRes.gameFriends || []).forEach((f: any) => fMap[f.wallet_address] = f);
-                setProfilesMap(prev => ({ ...prev, ...fMap }));
+                setProfilesMap(prev => {
+                    const unchanged = Object.entries(fMap).every(([addr, row]) => {
+                        const cur = prev[addr];
+                        return cur !== undefined && profilesEqual(cur, row);
+                    });
+                    return unchanged ? prev : { ...prev, ...fMap };
+                });
             }
 
             // Process Conversations
             if (privateRes.conversations) {
                 setRawConversations(privateRes.conversations);
+            }
+            if ((privateRes as { __failed?: boolean }).__failed) {
+                setSectionsFailed(prev => (prev.includes('messages') ? prev : [...prev, 'messages']));
             }
 
             // Process Messages
@@ -133,12 +184,17 @@ export const useDataBoot = (address: string | undefined) => {
                 setMessages(visible);
             }
 
-            setIsBootComplete(true);
             console.log("✅ [GameData] Boot Sequence Complete");
 
         } catch (err) {
+            // REA-04: an aborted boot used to leave isBootComplete false
+            // forever — the loader never resolves and no panel ever renders.
             console.error("❌ [GameData] Boot Sequence Failed:", err);
+            setSectionsFailed(prev => (prev.includes('boot') ? prev : [...prev, 'boot']));
         } finally {
+            // REA-04: complete in `finally`, whatever happened. A boot that
+            // returns partial data is strictly better than a permanent loader.
+            setIsBootComplete(true);
             setIsBooting(false);
         }
     }, [address, peekAppSession]);
@@ -161,6 +217,7 @@ export const useDataBoot = (address: string | undefined) => {
     return {
         isBooting,
         isBootComplete,
+        sectionsFailed,
         myProfile,
         leaderboard,
         friends,

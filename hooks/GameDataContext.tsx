@@ -384,7 +384,12 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [address]);
 
-    const value: GameDataContextType = {
+    // REA-02: memoize the value. Every field above was recreated on each
+    // provider render, so a 1Hz state change (presence tick, timer, chat)
+    // re-rendered all 18 consumers tree-wide. Referentially stable fields
+    // (the useCallbacks) keep their identity across renders, so the memo only
+    // breaks when a real value changes.
+    const value = useMemo<GameDataContextType>(() => ({
         isBooting,
         isBootComplete,
         myProfile,
@@ -402,7 +407,25 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         markChatAsRead,
         deleteMessageLocal,
         ensureEcdhPublished
-    };
+    }), [
+        isBooting,
+        isBootComplete,
+        myProfile,
+        leaderboard,
+        friends,
+        messages,
+        conversations,
+        totalUnreadCount,
+        isP2PActive,
+        markThreadSeen,
+        threadHasUnread,
+        unreadThreadCount,
+        updateMyProfileOptimistic,
+        sendMessage,
+        markChatAsRead,
+        deleteMessageLocal,
+        ensureEcdhPublished,
+    ]);
 
     return (
         <GameDataContext.Provider value={value}>

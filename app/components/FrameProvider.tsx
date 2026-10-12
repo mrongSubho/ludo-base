@@ -179,11 +179,14 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
         const blurT = window.setTimeout(stripBlur, 400);
         const blurT2 = window.setTimeout(stripBlur, 1500);
         const mo = new MutationObserver(() => stripBlur());
+        // REA-06: `attributes` was included, so the observer re-scanned every
+        // element on the page for EACH attribute mutation — and the scan itself
+        // sets `style`, which is a mutation, which re-fires the observer. On a
+        // board that mutates per frame this is a per-frame document query.
+        // Mount-time stripping only needs node structure: `childList` alone.
         mo.observe(document.body, {
             subtree: true,
             childList: true,
-            attributes: true,
-            attributeFilter: ['style', 'class'],
         });
         mobileMq.addEventListener('change', stripBlur);
 

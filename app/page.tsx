@@ -6,6 +6,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
+import { PanelErrorBoundary } from './components/PanelErrorBoundary';
 import NoticeStrip from './components/NoticeStrip';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BurnPanel } from './components/BurnPanel';
@@ -769,63 +770,81 @@ export default function Page() {
               {/* Universal Panel Layer (Sandwich Layout) */}
               <>
                 {activeTab === 'profile' && (
-                  <UserProfilePanel
-                    key="profile"
-                    onClose={closeTab}
-                    onOpenMarketplace={() => toggle('marketplace')}
-                    onOpenWallet={() => toggle('wallet')}
-                  />
-                )}
+                <PanelErrorBoundary name="profile" onClose={closeTab}>
+                    <UserProfilePanel
+                      key="profile"
+                      onClose={closeTab}
+                      onOpenMarketplace={() => toggle('marketplace')}
+                      onOpenWallet={() => toggle('wallet')}
+                    />
+                </PanelErrorBoundary>
+              )}
                 {activeTab === 'friends' && (
-                  <FriendsPanel
-                    key="friends"
-                    onClose={closeTab}
-                    onDM={(friendId: string) => {
-                      setSelectedChatId(friendId);
-                      toggle('messages');
-                    }}
-                    onSpectate={(roomCode: string) => {
-                      setSpectatingRoomCode(roomCode);
-                      setAppState('spectating');
-                      closeTab();
-                    }}
-                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
-                  />
-                )}
-                {activeTab === 'leaderboard' && (
-                  <RankingsPanel
-                    key="rankings"
-                    isOpen={true}
-                    onClose={closeTab}
-                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
-                  />
-                )}
-                {activeTab === 'mission' && (
-                  <MissionPanel key="mission" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
-                )}
-                {activeTab === 'arena' && (
-                  <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} />
-                )}
-                {activeTab === 'marketplace' && (
-                  <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />
-                )}
-                {activeTab === 'messages' && (
-                  <MessagesPanel
-                    key="messages"
-                    onClose={() => {
+                <PanelErrorBoundary name="friends" onClose={closeTab}>
+                    <FriendsPanel
+                      key="friends"
+                      onClose={closeTab}
+                      onDM={(friendId: string) => {
+                        setSelectedChatId(friendId);
+                        toggle('messages');
+                      }}
+                      onSpectate={(roomCode: string) => {
+                        setSpectatingRoomCode(roomCode);
+                        setAppState('spectating');
                         closeTab();
-                        setSelectedChatId(null);
-                    }}
-                    initialChatId={selectedChatId}
-                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
-                  />
-                )}
+                      }}
+                      onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                    />
+                </PanelErrorBoundary>
+              )}
+                {activeTab === 'leaderboard' && (
+                <PanelErrorBoundary name="leaderboard" onClose={closeTab}>
+                    <RankingsPanel
+                      key="rankings"
+                      isOpen={true}
+                      onClose={closeTab}
+                      onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                    />
+                </PanelErrorBoundary>
+              )}
+                {activeTab === 'mission' && (
+                <PanelErrorBoundary name="mission" onClose={closeTab}>
+                    <MissionPanel key="mission" isOpen={true} onClose={closeTab} onSwitchTab={toggle} />
+                </PanelErrorBoundary>
+              )}
+                {activeTab === 'arena' && (
+                <PanelErrorBoundary name="arena" onClose={closeTab}>
+                    <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} />
+                </PanelErrorBoundary>
+              )}
+                {activeTab === 'marketplace' && (
+                <PanelErrorBoundary name="marketplace" onClose={closeTab}>
+                    <MarketplacePanel key="marketplace" isOpen={true} onClose={closeTab} />
+                </PanelErrorBoundary>
+              )}
+                {activeTab === 'messages' && (
+                <PanelErrorBoundary name="messages" onClose={closeTab}>
+                    <MessagesPanel
+                      key="messages"
+                      onClose={() => {
+                          closeTab();
+                          setSelectedChatId(null);
+                      }}
+                      initialChatId={selectedChatId}
+                      onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                    />
+                </PanelErrorBoundary>
+              )}
                 {activeTab === 'settings' && (
-                  <SettingsPanel key="settings" onClose={closeTab} onOpenWallet={() => toggle('wallet')} />
-                )}
+                <PanelErrorBoundary name="settings" onClose={closeTab}>
+                    <SettingsPanel key="settings" onClose={closeTab} onOpenWallet={() => toggle('wallet')} />
+                </PanelErrorBoundary>
+              )}
                 {activeTab === 'wallet' && (
-                  <WalletPanel key="wallet" onClose={closeTab} />
-                )}
+                <PanelErrorBoundary name="wallet" onClose={closeTab}>
+                    <WalletPanel key="wallet" onClose={closeTab} />
+                </PanelErrorBoundary>
+              )}
                 {burnOpen && (
                   <BurnPanel key="burn" onClose={() => setBurnOpen(false)} />
                 )}
