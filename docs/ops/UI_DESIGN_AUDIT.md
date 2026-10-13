@@ -350,8 +350,8 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.4 Delete the dead theme switcher (fixes P1-8)
 
-- [ ] 1.4.1 `grep -rln "ThemeSwitcher" app --include="*.tsx"` → must list only `ThemeSwitcher.tsx` itself (currently 0 importers).
-- [ ] 1.4.2 Delete `app/components/ThemeSwitcher.tsx`.
+- [x] 1.4.1 `grep -rln "ThemeSwitcher" app --include="*.tsx"` → must list only `ThemeSwitcher.tsx` itself (re-verified 0 importers 2026-10-13, incl. dynamic + string refs).
+- [x] 1.4.2 Delete `app/components/ThemeSwitcher.tsx`. **Done 2026-10-13** (49 lines, one `usePreferences` import; theming is the REA-07 cookie store).
 - [ ] 1.4.3 Add a code comment in `SettingsPanel.tsx` near the Appearance section marking it as the single theme entry point, so the next person does not grow a fifth.
 
 **Acceptance:** exactly one user-reachable theme control (Settings → Appearance); onboarding/nudge/marketplace write the same preference but are intentional touchpoints, not competing UIs.
