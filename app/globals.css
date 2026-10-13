@@ -2000,6 +2000,13 @@ body.theme-daybreak .header {
 
 /* ─── Footer Navigation ─── */
 :root {
+  /* Bottom safe-area policy (CSS_LAYOUT_ANIMATION_PLAN §3.2): every
+     fixed-bottom surface consumes THIS token, never raw
+     env(safe-area-inset-bottom). FrameProvider measures a probe element and
+     writes the clamped value here — 0 when the reported inset is > 48px,
+     which is an empty host-webview toolbar (80–200px), not a real home
+     indicator (≤ 48px). Raw env would over-reserve by up to 200px there.
+     This declaration is the pre-JS fallback only. */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --vv-dead-bottom: 0px;
   --app-vh: 100dvh;
@@ -3957,7 +3964,7 @@ body.theme-retro-futurism .token-dot-placeholder {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(16px, var(--safe-bottom, 0px));
   background: rgba(2, 4, 10, 0.55);
 }
 
@@ -6309,8 +6316,8 @@ body.keyboard-open :is(
   .ludo-live-chat-scope
 ) .overflow-y-auto {
   overscroll-behavior: contain;
-  padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px)) !important;
-  scroll-padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(24px, var(--kb-inset), var(--safe-bottom, 0px)) !important;
+  scroll-padding-bottom: max(24px, var(--kb-inset), var(--safe-bottom, 0px));
 }
 
 /* ─── Mobile / short viewports: lobby FITS, never scrolls ─── */
@@ -10472,7 +10479,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  padding: 2px 4px max(6px, env(safe-area-inset-bottom, 0px));
+  padding: 2px 4px max(6px, var(--safe-bottom, 0px));
   z-index: 55;
 }
 .match-footer-slot {
@@ -10501,7 +10508,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   right: 0;
   bottom: 0;
   display: block;
-  padding: 6px 10px max(6px, env(safe-area-inset-bottom, 0px));
+  padding: 6px 10px max(6px, var(--safe-bottom, 0px));
   pointer-events: none;
 }
 .match-chat-composer {
@@ -11098,7 +11105,7 @@ body.theme-daybreak .match-foot-pill.on {
 /* ─── Board sheets — shared emote/chat surface ─── */
 .board-sheet {
   position: absolute;
-  bottom: calc(52px + max(6px, env(safe-area-inset-bottom, 0px)) + 10px);
+  bottom: calc(52px + max(6px, var(--safe-bottom, 0px)) + 10px);
   width: min(300px, calc(100% - 24px));
   z-index: 80;
   padding: 12px;

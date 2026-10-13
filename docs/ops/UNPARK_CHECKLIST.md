@@ -109,8 +109,9 @@ The P0 motion/a11y slice of [`CSS_LAYOUT_ANIMATION_PLAN.md`](./CSS_LAYOUT_ANIMAT
 | Item | Blocker | Owner |
 | --- | --- | --- |
 | Real-device frame-time evidence (mid-tier Android, iPhone SE) — same need as gate 1 above | hardware; proxy = 4× CPU-throttle traces | — |
-| Playwright visual-diff harness (8 scenes × 2 themes) | no browser toolchain in the remediating environment; blocks the reset-layering, module-split, fluid-board, container-query and img-codemod phases | — |
+| Playwright visual-diff harness (8 scenes × 2 themes) | no browser toolchain in the remediating environment; blocks the reset-layering, module-split, fluid-board and container-query phases (the img codemod shipped 2026-10-13 — 34 tags sized, `check:img` gate in CI) | — |
 | Lighthouse mobile baseline (Perf/LCP/INP/CLS) | same harness dependency | — |
+| Safe-area insets in a real Farcaster/Coinbase webview | code verified + unified on the clamped `--safe-bottom` token 2026-10-13; device pass needs hardware/webview | — |
 | Screen-reader pass + focus-ring unification (`--ludo-focus-ring`) | Phase 4 work, sequenced | — |
 | GSAP→framer consolidation | census says GSAP serves exactly 2 timelines; collapse once motion-scale usage data exists | — |
 | Optional in-settings motion preference toggle | ship only if Phase 3 has slack | — |
