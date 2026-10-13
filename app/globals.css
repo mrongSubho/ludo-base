@@ -2311,6 +2311,23 @@ body.keyboard-open .app-shell {
   min-height: 56px;
 }
 
+/* In-game dice slot (CSS_LAYOUT_ANIMATION_PLAN §3.1 P0/S — reserve space).
+   PlayerInfoRow mounts <LudoDice> only on the active player's turn. The row
+   above reserves 56px (48px on the mobile breakpoint) for it, so mounting
+   can never grow the row and recenter the board cluster.
+
+   The dice box is pinned to its effective size here rather than left to the
+   unlayered `* { padding: 0 }` reset (plan G2) happening to neutralize the
+   component's Tailwind `p-4`: that accident is load-bearing, and the plan's
+   own deferred reset-layering change would restore the 16px padding and
+   silently inflate this box to 80px — reopening a ~24px row shift on every
+   turn change. Pinning it at 48px keeps the reservation true either way. */
+.ludo-dice-container {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+}
+
 .player-wrapper {
   position: relative;
   z-index: 10;
