@@ -681,4 +681,6 @@ Reference-analyzed all 85 files in `scripts/`: **83 are load-bearing** (44 run i
 
 ### Gates
 
-`npm run check:motion` clean (compositor-only, 5/5 reduced-motion census) · `npm run check:img` clean (40 raw `<img>` / 104 tsx scanned, 0 unsized) · `npm run bench:css` advisory (text-ludo-* 9 · hardcoded text-[Npx] 589). `tsc` / `lint` / `npm test` did **not** run in the remediating environment: `npm ci` fails on pre-existing lockfile drift (`zod@3.25.76` missing from `package-lock.json`, unrelated to these changes) and a `--no-save` network install timed out. The CI gates cover them on push; every change here is CSS or JSX-attribute only.
+`npm run check:motion` clean (compositor-only, 5/5 reduced-motion census) · `npm run check:img` clean (40 raw `<img>` / 104 tsx scanned, 0 unsized) · `npm run bench:css` advisory (text-ludo-* 9 · hardcoded text-[Npx] 589).
+
+Local toolchain: the dependency tree could not be completed — the sandbox denies writes into `node_modules/.bin` (`CODEBUDDY_BROKER_DENY` on the acorn link), and `npm ci` fails on pre-existing lockfile drift (`zod@3.25.76` missing from `package-lock.json`, unrelated to these changes). With the partial tree present: `tsc -p tsconfig.json --noEmit` reports **3 errors, all in `app/api/**`** (Supabase `RejectExcessProperties` typing, environmental — none in a file this branch touched), and `eslint` on the three changed components **exits clean**. `npm test` did not run (no `tsx`); CI runs all three gates on push, and every change here is CSS or JSX-attribute only.
