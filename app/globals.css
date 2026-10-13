@@ -25,6 +25,24 @@
   --color-ludo-border: var(--ludo-border);
 
   --image-ludo-bg: var(--ludo-bg-image);
+
+  /* ── Fluid type scale (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S) ──
+     Every step's max is a size the app already used as a hardcoded px
+     value, so adopting a step is rendering-neutral at >= 440px and narrows
+     fluidly toward 320px — which is what lets a per-breakpoint font-size
+     override be deleted rather than kept in sync.
+     The micro steps (6/7/8px) are deliberately FIXED: they are already at
+     the legibility floor, and a fluid shrink below 6px would hurt reading,
+     not help fitting. */
+  --text-ludo-3xs: 6px;
+  --text-ludo-2xs: 7px;
+  --text-ludo-xs: 8px;
+  --text-ludo-sm: clamp(8px, calc(8px + (100vw - 320px) / 120), 9px);
+  --text-ludo-md: clamp(9px, calc(9px + (100vw - 320px) / 120), 10px);
+  --text-ludo-lg: clamp(10px, calc(10px + (100vw - 320px) / 120), 11px);
+  --text-ludo-xl: clamp(11px, calc(11px + 2 * (100vw - 320px) / 120), 13px);
+  --text-ludo-2xl: clamp(13px, calc(13px + 2 * (100vw - 320px) / 120), 15px);
+  --text-ludo-3xl: clamp(17px, calc(17px + 3 * (100vw - 320px) / 120), 20px);
 }
 
 :root {
@@ -2111,7 +2129,10 @@ body.keyboard-open .app-shell {
 }
 
 .nav-item .nav-label {
-  font-size: 10px;
+  /* Fluid (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S): 10px from 440px up, easing
+     to 9px at 320px — which is why the old max-width:430px font-size
+     override is deleted rather than kept in sync with this value. */
+  font-size: var(--text-ludo-md);
   font-weight: 500;
   /* Default to white (subtle) - forced override */
   color: rgba(255, 255, 255, 0.7) !important;
@@ -2136,9 +2157,6 @@ body.keyboard-open .app-shell {
   .nav-item .nav-icon {
     width: 20px;
     height: 20px;
-  }
-  .nav-item .nav-label {
-    font-size: 9px;
   }
 }
 

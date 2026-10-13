@@ -47,10 +47,17 @@ let inlineStyles = 0;
 let rawImgs = 0;
 let framerAnimateLayout = 0;
 let mediaQueries = 0;
+// Type-scale adoption (plan §3.2 P1/S): hardcoded `text-[Npx]` sites vs.
+// sites on the fluid `text-ludo-*` scale. The burn-down target is
+// hardcodedTextPx → 0 as surfaces are migrated; reported, never enforced.
+let hardcodedTextPx = 0;
+let scaleTextUtilities = 0;
 for (const f of tsxFiles) {
     const src = readFileSync(f, 'utf8');
     inlineStyles += (src.match(/style=\{\{/g) || []).length;
     rawImgs += (src.match(/<img\b/g) || []).length;
+    hardcodedTextPx += (src.match(/text-\[[0-9]+px\]/g) || []).length;
+    scaleTextUtilities += (src.match(/text-ludo-(?:3xs|2xs|xs|sm|md|lg|xl|2xl|3xl)\b/g) || []).length;
     for (const m of src.matchAll(/animate=\{\{\s*([^}]*)\}\}/g)) {
         if (/\b(width|height)\s*:/.test(m[1])) framerAnimateLayout++;
     }
@@ -79,6 +86,8 @@ const report = {
         inlineStyles,
         rawImgs,
         framerAnimateLayout,
+        hardcodedTextPx,
+        scaleTextUtilities,
     },
 };
 
@@ -92,5 +101,6 @@ if (asJson) {
     console.log(`  keyframes            ${report.globals.keyframes} · media queries ${report.globals.mediaQueries} · custom props ${report.globals.customProperties}`);
     console.log(`  reduced-motion       ${report.globals.reducedMotionBlocks} @media blocks (css kill-switch)`);
     console.log(`  surface              inline style={{} ${report.surface.inlineStyles} · raw <img> ${report.surface.rawImgs} · framer layout anims ${report.surface.framerAnimateLayout}`);
+    console.log(`  type scale           text-ludo-* ${report.surface.scaleTextUtilities} · hardcoded text-[Npx] ${report.surface.hardcodedTextPx}`);
     console.log('  targets (plan §6):   inline ≤ 100 dynamic-only · raw img 0 · keyframes declining · css −30% after Phase 2');
 }
