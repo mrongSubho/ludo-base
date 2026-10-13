@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# visual-diff harness — failure artifacts are transient; the baselines in
+# tests/visual/baselines/ ARE committed (they are the reference).
+/tests/visual/diffs/
+
 # next.js
 /.next/
 /out/

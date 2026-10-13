@@ -684,3 +684,32 @@ Reference-analyzed all 85 files in `scripts/`: **83 are load-bearing** (44 run i
 `npm run check:motion` clean (compositor-only, 5/5 reduced-motion census) · `npm run check:img` clean (40 raw `<img>` / 104 tsx scanned, 0 unsized) · `npm run bench:css` advisory (text-ludo-* 9 · hardcoded text-[Npx] 589).
 
 Local toolchain: the dependency tree could not be completed — the sandbox denies writes into `node_modules/.bin` (`CODEBUDDY_BROKER_DENY` on the acorn link), and `npm ci` fails on pre-existing lockfile drift (`zod@3.25.76` missing from `package-lock.json`, unrelated to these changes). With the partial tree present: `tsc -p tsconfig.json --noEmit` reports **3 errors, all in `app/api/**`** (Supabase `RejectExcessProperties` typing, environmental — none in a file this branch touched), and `eslint` on the three changed components **exits clean**. `npm test` did not run (no `tsx`); CI runs all three gates on push, and every change here is CSS or JSX-attribute only.
+
+---
+
+## Part VII — Visual-diff harness (Phase 0 gate) (2026-10-13, `feat/css-layout-phase-1`)
+
+*Source: [`CSS_LAYOUT_ANIMATION_PLAN.md`](./CSS_LAYOUT_ANIMATION_PLAN.md) Phase 0 — "Playwright screenshots of 8 scenes (lobby, board mid-game, spectate × Retro/Daybreak)". This is the artefact the plan names as the precondition for every layout-shifting phase: reset layering, the `globals.css` module split, fluid board `clamp()` sizing, container queries and the mass type migration were all deferred on it.*
+
+### What landed
+
+- **`scripts/visual-diff.mjs` + `npm run visual:baseline` / `visual:diff`** — 8 scenes: `setup` / `lobby` / `offline-panel` / `board`, each in Retro and Daybreak. Baselines are committed in `tests/visual/baselines/` (6 of the 8 — see below); a failure writes `diff` **and** `current` PNGs to the gitignored `tests/visual/diffs/` so a regression is diagnosable.
+- **Determinism — the whole job.** Every item below was a flake measured against this app, and each is now closed:
+  - deterministic guest identity (`ludo-guest-id` seeded; the app otherwise mints a random handle per run — measured **5.9%** of the frame);
+  - the theme is asserted against `<body>` through the app's own control (the first-run panel commits its own default on "Enter the lobby" and silently overrode a seeded cookie — **23.6%**);
+  - coach marks are dismissed in a retry loop *after* navigation and *before* settle (they appear late and auto-dismiss on a timer — **~24%**);
+  - webfonts are awaited (`document.fonts.ready`) plus a warm-up reload (a dev server serves them lazily — **27%**, text-only);
+  - volatile regions are masked (remote avatars, ambient pulses, the turn countdown, the live-broadcast card);
+  - capture uses `animations: 'disabled'` and a settle loop that requires two byte-identical frames; a failed scene is retried once.
+- **No new dependency for diffing** — the comparison runs in the browser on a canvas (per-channel tolerance 12; fails above 0.2% of the frame). `@playwright/test` is not installed here, so `toHaveScreenshot` was unavailable; `pngjs` exists only transitively and was not relied on.
+
+### Constraints found while building it
+
+- **The two `board` scenes need a production build.** On the Turbopack dev server, starting an offline match crashes the app into its error boundary with **"Invalid hook call … more than one copy of React"**, on both the AI and Pass-&-Play paths. There is exactly one `react@19.2.4` in `node_modules`, so this is the module duplication AGENTS.md already documents as the reason production builds with webpack. The harness detects a dev server (Next's dev overlay) and **skips** those scenes with a stated reason rather than capturing an error page; `--strict` turns a skip into a failure.
+- **`spectate` is deliberately not a scene** — it needs a live networked match (PeerJS + Edge), which no deterministic harness can conjure.
+- **CI wiring is deferred**: the app needs `.env.local` to boot, so a CI job would require those secrets. Until then this is the local gate for layout-shifting work — which is exactly what the Phase 1–2 deferrals were waiting on.
+- **The production build cannot run in the remediating environment** (the fs shim denies `mkdir` under `.next`), so the committed baselines were captured against the dev server. Re-baseline against a production build if a first such run diffs: same surfaces, but dev/prod asset and font handling can differ by a few pixels.
+
+### Gates
+
+`npm run visual:baseline` → 6 baselines written · `npm run visual:diff` ×2 → **6/6 runnable scenes match at 0.000%**, 2 skipped (need a production build).
