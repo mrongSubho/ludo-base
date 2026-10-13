@@ -113,6 +113,8 @@ export const ChessPiece = ({ color, rank: _rank, className = '', size = 'home' }
                     position: 'relative',
                     zIndex: 2,
                 }}
+                width={128}
+                height={128}
             />
 
         </div>

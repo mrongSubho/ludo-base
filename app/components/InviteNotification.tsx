@@ -310,6 +310,8 @@ export const InviteNotification = () => {
                                             src={hostProfile.avatar_url}
                                             alt=""
                                             className="w-full h-full object-cover"
+                                            width={96}
+                                            height={96}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-xl font-black text-cyan-400">

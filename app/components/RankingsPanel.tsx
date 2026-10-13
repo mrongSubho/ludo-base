@@ -140,7 +140,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
     const avatar = (p: any, box: string, text: string) => (
         <div className={`${box} rounded-full border-2 border-white/10 overflow-hidden bg-cyan-900/50 flex-shrink-0`}>
             {p.avatar_url ? (
-                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" width={96} height={96} />
             ) : (
                 <div className={`w-full h-full flex items-center justify-center text-white/30 font-black ${text}`}>{p.username?.[0]?.toUpperCase() || 'L'}</div>
             )}
@@ -303,7 +303,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                         {lead && <LuTrophy className="w-3.5 h-3.5 mb-1" style={{ color: MEDAL[0] }} />}
                                                         <div className={`${lead ? 'w-14 h-14' : 'w-11 h-11'} rounded-full overflow-hidden border-2 bg-cyan-900/50`} style={{ borderColor: `${MEDAL[rank - 1]}66` }}>
                                                             {p.avatar_url ? (
-                                                                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" width={96} height={96} />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center text-white/30 font-black text-base">{p.username?.[0]?.toUpperCase() || 'L'}</div>
                                                             )}

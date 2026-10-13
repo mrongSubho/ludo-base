@@ -81,7 +81,7 @@ const AvatarFace = ({ def, letter, box = 'w-14 h-14' }: {
     if (def?.kind === 'image' && def.src) {
         return (
             <div className={`${box} rounded-full overflow-hidden shrink-0 bg-cyan-900/50 ${def.series === 'trophy' ? 'ring-2 ring-amber-400/70' : ''}`}>
-                <img src={def.src} alt={def.label} className="w-full h-full object-cover" />
+                <img src={def.src} alt={def.label} className="w-full h-full object-cover" width={96} height={96} />
             </div>
         );
     }
@@ -357,7 +357,7 @@ export default function UserProfilePanel({
                             >
                                 <div className="w-full h-full bg-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
                                     {finalAvatar && isDirectImage(finalAvatar) ? (
-                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
+                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
                                     ) : (
                                         <span className="text-2xl font-black text-white/80">
                                             {(finalName?.[0] || 'U').toUpperCase()}
@@ -445,7 +445,7 @@ export default function UserProfilePanel({
                                                                 className={`relative aspect-square rounded-xl overflow-hidden border transition-all flex items-center justify-center ${selected ? 'border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)] scale-105' : ok ? 'border-white/10 hover:border-white/30' : 'border-white/5 opacity-40 cursor-not-allowed'}`}
                                                             >
                                                                 {item.kind === 'image' && item.src ? (
-                                                                    <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+                                                                    <img src={item.src} alt={item.label} className="w-full h-full object-cover" width={96} height={96} />
                                                                 ) : (
                                                                     <span className={`w-full h-full bg-gradient-to-tr ${item.bg} flex items-center justify-center text-white font-black text-sm`}>
                                                                         {(draftName?.[0] || finalName?.[0] || 'U').toUpperCase()}

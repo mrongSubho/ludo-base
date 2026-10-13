@@ -76,6 +76,8 @@ export function PlayerCard({
                             src={player.avatar}
                             alt={player.name}
                             className="w-full h-full object-cover rounded-full"
+                            width={96}
+                            height={96}
                         />
                     ) : (
                         player.avatar ? (

@@ -522,6 +522,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                     src={displayAvatar}
                                                     alt={displayName}
                                                     className="w-full h-full object-cover"
+                                                    width={96}
+                                                    height={96}
                                                 />
                                             ) : (
                                                 <span className="text-3xl font-black text-white/60">

@@ -257,7 +257,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                                         className="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-cyan-400/60 transition-all"
                                     >
                                         {m.avatar_url ? (
-                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                         ) : (
                                             <span className="text-white/50 font-black text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
                                         )}
@@ -564,7 +564,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                             >
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
                                     {r.avatar ? (
-                                        <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                        <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                     ) : (
                                         <span className="text-white/50 font-black text-sm pointer-events-none">{r.hostName[0]?.toUpperCase()}</span>
                                     )}
@@ -593,7 +593,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                         >
                             <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
                                 {s.avatar ? (
-                                    <img loading="lazy" decoding="async" src={s.avatar} alt={s.hostName} className="w-full h-full object-cover" />
+                                    <img loading="lazy" decoding="async" src={s.avatar} alt={s.hostName} className="w-full h-full object-cover" width={96} height={96} />
                                 ) : (
                                     <span className="text-white/50 font-black text-sm">{s.hostName[0]?.toUpperCase()}</span>
                                 )}
@@ -649,6 +649,8 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                                     src={activity.actor?.avatar_url || `https://avatar.vercel.sh/${activity.actor_id}`}
                                     alt="avatar"
                                     className="w-full h-full object-cover"
+                                    width={96}
+                                    height={96}
                                 />
                             </div>
                             <div className="flex flex-col min-w-0">
@@ -1065,7 +1067,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                         >
                                             <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
                                                 {r.avatar ? (
-                                                    <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                                    <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                                 ) : (
                                                     <span className="text-white/50 font-black text-sm pointer-events-none">{r.hostName[0]?.toUpperCase()}</span>
                                                 )}
@@ -1091,7 +1093,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                     >
                                         <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
                                             {r.avatar ? (
-                                                <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                                <img loading="lazy" decoding="async" src={r.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                             ) : (
                                                 <span className="text-white/50 font-black text-sm pointer-events-none">{r.hostName[0]?.toUpperCase()}</span>
                                             )}
@@ -1123,7 +1125,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                         >
                                             <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
                                                 {s.avatar ? (
-                                                    <img loading="lazy" decoding="async" src={s.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                                    <img loading="lazy" decoding="async" src={s.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                                 ) : (
                                                     <span className="text-white/50 font-black text-sm pointer-events-none">{s.hostName[0]?.toUpperCase()}</span>
                                                 )}
@@ -1152,7 +1154,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                     >
                                         <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center">
                                             {s.avatar ? (
-                                                <img loading="lazy" decoding="async" src={s.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                                <img loading="lazy" decoding="async" src={s.avatar} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                             ) : (
                                                 <span className="text-white/50 font-black text-sm pointer-events-none">{s.hostName[0]?.toUpperCase()}</span>
                                             )}
@@ -1190,6 +1192,8 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                                 src={activity.actor?.avatar_url || `https://avatar.vercel.sh/${activity.actor_id}`}
                                                 alt="avatar"
                                                 className="w-full h-full object-cover"
+                                                width={96}
+                                                height={96}
                                             />
                                         </div>
                                         <div className="flex flex-col min-w-0">
@@ -1220,7 +1224,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                         className="w-8 h-8 rounded-full overflow-hidden bg-cyan-900/50 shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-cyan-400/60 transition-all"
                                     >
                                         {m.avatar_url ? (
-                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" />
+                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
                                         ) : (
                                             <span className="text-white/50 font-black text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
                                         )}

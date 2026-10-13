@@ -81,6 +81,8 @@ const Avatar = ({ url, name, box = 'w-11 h-11', dot }: {
                     aria-hidden
                     onError={() => setFailed(true)}
                     className="w-full h-full object-cover"
+                    width={96}
+                    height={96}
                 />
             ) : (
                 <div className="w-full h-full flex items-center justify-center text-white/40 font-black text-base">

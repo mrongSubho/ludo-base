@@ -73,6 +73,12 @@ jobs:
         # CSS, inline styles, or framer-motion animate objects) outside the
         # documented KNOWN allowlist; reports the reduced-motion census.
         run: npm run check:motion
+      - name: Image dimensions gate (no CLS-prone raw <img>)
+        # CSS_LAYOUT_ANIMATION_PLAN §3.1 (G5): every raw <img> must carry
+        # width/height attributes or style dims, so the browser reserves the
+        # box before decode (CLS target ≤ 0.05 in-game). Closes the "static
+        # gate (not yet built)" entry in plan §6.
+        run: npm run check:img
       - name: CSS budget baseline (advisory)
         # Plan §6: advisory until Phase 2 — prints the payload/surface numbers
         # the merge gates will enforce later; never blocks.

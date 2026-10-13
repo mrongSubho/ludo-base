@@ -245,7 +245,7 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
             >
                 <span className={`relative w-16 h-16 rounded-full overflow-hidden flex items-center justify-center border-2 transition-all ${ring} bg-slate-800 ${selected ? 'scale-105' : ''}`}>
                     {filled && slot?.playerAvatar ? (
-                        <img src={slot.playerAvatar} alt={slot.playerName || 'player'} className="w-full h-full object-cover" />
+                        <img src={slot.playerAvatar} alt={slot.playerName || 'player'} className="w-full h-full object-cover" width={96} height={96} />
                     ) : filled ? (
                         <span className="text-xl font-black text-white/40 uppercase">{slot?.playerName?.[0] || 'P'}</span>
                     ) : invited ? (
@@ -1057,7 +1057,7 @@ export const TeamUpMatchPanel = ({
                                                         <div className="flex items-center gap-3 min-w-0">
                                                             <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden border border-white/10 shrink-0">
                                                                 {f.avatar_url ? (
-                                                                    <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" />
+                                                                    <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" width={96} height={96} />
                                                                 ) : (
                                                                     <div className="w-full h-full flex items-center justify-center text-white/20 font-black">{(f.username?.[0] || '?').toUpperCase()}</div>
                                                                 )}

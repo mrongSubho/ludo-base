@@ -128,7 +128,7 @@ const Avatar = ({ url, name, box = 'w-11 h-11', ring = '', dot }: {
 }) => (
     <div className={`${box} rounded-full overflow-hidden bg-cyan-900/50 shrink-0 relative ${ring}`}>
         {url ? (
-            <img loading="lazy" decoding="async" src={url} alt={name} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={url} alt={name} className="w-full h-full object-cover" width={96} height={96} />
         ) : (
             <div className="w-full h-full flex items-center justify-center text-white/40 font-black text-base">
                 {(name?.[0] || 'L').toUpperCase()}

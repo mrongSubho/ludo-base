@@ -93,7 +93,7 @@ export const HeaderNavPanel = ({
                     <div className="relative flex-shrink-0">
                         <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1a1c29] shadow-[0_0_15px_rgba(34,211,238,0.4)]">
                             {finalAvatar ? (
-                                <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
+                                <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-cyan-300">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>

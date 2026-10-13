@@ -85,7 +85,7 @@ export function EmojiPackGrid({ packs, tab, onTabChange, onSelect, className = '
                         aria-label={emote.label}
                         title={emote.label}
                     >
-                        {emote.assetUrl ? <img src={emote.assetUrl} alt="" loading="lazy" /> : emote.glyph}
+                        {emote.assetUrl ? <img src={emote.assetUrl} alt="" loading="lazy" width={64} height={64} /> : emote.glyph}
                     </button>
                 ))}
             </div>
@@ -143,6 +143,8 @@ export function ChatContent({ value, className = '' }: { value: string; classNam
                     src={part.assetUrl}
                     alt={part.glyph || 'Emote'}
                     loading="lazy"
+                    width={64}
+                    height={64}
                 />
             ) : (
                 <span key={`text-${index}`}>{part.text}</span>

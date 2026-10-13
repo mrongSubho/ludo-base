@@ -41,6 +41,7 @@
     "test:pool-authority": "npx --yes tsx --test scripts/pool-authority.test.ts",
     "check:routes": "node scripts/check-routes.mjs",
     "check:motion": "node scripts/check-motion.mjs",
+    "check:img": "node scripts/check-img-dimensions.mjs",
     "bench:css": "node scripts/bench-css.mjs",
     "setup:foundry": "bash scripts/setup-foundry.sh",
     "test:contracts": "bash scripts/anvil-e2e.sh",

@@ -282,6 +282,8 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                                     src={entry.avatar}
                                                                     alt={entry.name}
                                                                     className="w-full h-full object-cover"
+                                                                    width={96}
+                                                                    height={96}
                                                                 />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center text-white/20">

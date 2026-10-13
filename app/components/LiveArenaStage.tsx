@@ -52,6 +52,8 @@ export function LiveArenaStage({
                     onError={(e) => {
                         (e.currentTarget as HTMLImageElement).style.display = 'none';
                     }}
+                    width={1024}
+                    height={1536}
                 />
 
                 {/* ── LED monitor bounds — all broadcast UI lives here ── */}
