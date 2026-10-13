@@ -6268,6 +6268,22 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   padding-bottom: calc(var(--footer-h, 76px) + 8px);
 }
 
+/* ─── Containment for transient surfaces ───
+   CSS_LAYOUT_ANIMATION_PLAN §3.1 (P1/M, G9). Toasts are small, self-contained
+   and re-render in bursts; `contain: layout paint` stops one toast's update
+   from invalidating layout/paint for the panel around it. Safe here because
+   both class hooks carry no other declarations and their content is a text
+   string — nothing absolutely-positioned to clip.
+   NOT applied to the long live lists, contrary to G9's premise: the
+   Leaderboard paginates (bounded, so containment buys nothing) and its rows
+   are framer `layout` elements (containment breaks layout measurement), while
+   ActivityFeed sticks to the bottom on every insert (content-visibility makes
+   that scroll estimate imprecise). See plan §7 for the recorded finding. */
+.capture-toast,
+.wl-toast {
+  contain: layout paint;
+}
+
 /* ─── Footer-aware sandwich geometry (all overlay panels) ───
    Every overlay panel is `absolute top-[64px] bottom-[80px]` while the fixed
    .footer-nav (z-200) renders ABOVE panels (z-110). FooterNavPanel measures
