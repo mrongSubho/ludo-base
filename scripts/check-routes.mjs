@@ -47,8 +47,10 @@ const MATRIX = {
     // ── Lobbies ───────────────────────────────────────────────────────────
     'lobby/invite':           { methods: ['POST'], auth: 'session', resource: 'host', serviceRole: true },
     'lobby/invites':          { methods: ['GET'],          auth: 'session', resource: 'self', serviceRole: true },
-    // SEC-12: POST is unauthenticated and seat-verified only by a room secret.
-    'lobby/join':             { methods: ['POST', 'GET', 'DELETE'], auth: 'session*', resource: 'none', serviceRole: true },
+    // SEC-12: CLOSED 2026-10-06 — a session is required and the wallet comes
+    // from the verified session (route.ts:55/150/187). Left starred until then;
+    // reconciled 2026-10-13.
+    'lobby/join':             { methods: ['POST', 'GET', 'DELETE'], auth: 'session', resource: 'self', serviceRole: true },
     // SEC-12: the host declares the door, and only for a room it already hosts
     // (the route re-checks room ownership rather than trusting `resource`).
     'lobby/policy':           { methods: ['POST'], auth: 'session', resource: 'host', serviceRole: true },
@@ -71,8 +73,9 @@ const MATRIX = {
 
     // ── Social ────────────────────────────────────────────────────────────
     'friendships':            { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
-    // SEC-08: no format validation on `wallet`, interpolated into .or()
-    'friends':                { methods: ['GET'], auth: 'none*', resource: 'none', serviceRole: true },
+    // SEC-08: CLOSED 2026-10-06 — session required, answers only for the
+    // caller's own wallet, no interpolated `.or()`. Reconciled 2026-10-13.
+    'friends':                { methods: ['GET'], auth: 'session', resource: 'self', serviceRole: true },
     'social/moderation':      { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
     'social/poke':            { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
 
@@ -94,7 +97,12 @@ const MATRIX = {
 
     // ── Live / spectator ──────────────────────────────────────────────────
     'live-matches/window':    { methods: ['POST'], auth: 'session', resource: 'host', serviceRole: true },
-    'live-arena/power4p':     { methods: ['POST', 'PATCH'], auth: 'none*', resource: 'none', serviceRole: true },
+    // SEC-07: CLOSED 2026-10-06 — session required, host-gated (`NOT_HOST`
+    // at route.ts:170). Reconciled 2026-10-13.
+    'live-arena/power4p':     { methods: ['POST', 'PATCH'], auth: 'session', resource: 'host', serviceRole: true },
+    // Spectator chat is public by intent (SEC-34 classified); the POST write
+    // path is throttled 60/min via `lib/rateLimitRoutes.ts`. The one remaining
+    // `none*` route, tracked here by decision, not by oversight.
     'live-chat':              { methods: ['GET', 'POST'], auth: 'none*', resource: 'none', serviceRole: true },
     'predictors/board':       { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
 
@@ -120,11 +128,11 @@ const MATRIX = {
  * finding ID. Closing one means removing it from this list AND fixing the code.
  */
 const KNOWN_UNAUTHENTICATED = new Set([
-    'friends',            // SEC-08: no format validation on `wallet`, interpolated into .or()
-    'live-arena/power4p', // SEC-07: authority claim is unauthenticated by design; needs a gate
-    'lobby/join',         // SEC-12: POST seat request has no session
-    'live-chat',          // no session guard on either verb; spectator chat is public
-                           // by intent, but the write path is unrated/unthrottled
+    // Reconciled 2026-10-13: the SEC-07/08/12 entries were removed — those
+    // routes are session-gated in code (the fixes landed 2026-10-06 and only
+    // this allowlist was never updated). One entry remains, by decision:
+    'live-chat',          // spectator chat is public by intent; the POST write
+                         // is throttled 60/min (rateLimitRoutes.ts). Not a defect.
 ]);
 
 let failures = 0;

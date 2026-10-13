@@ -10,7 +10,7 @@ states of the single-page shell in `app/page.tsx`.
 - [Engine and rules reference](./ENGINE_LOGIC.md)
 - [Game Design Document](./docs/gdd/GAME_DESIGN_DOCUMENT.md)
 - [Netcode drills + multiplayer smoke](./docs/ops/NETCODE_DRILLS.md)
-- [Un-park checklist](./docs/ops/UNPARK_CHECKLIST.md) · [Implementation plan](./docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md)
+- [Un-park checklist](./docs/ops/UNPARK_CHECKLIST.md) · [Implementation record](./docs/ops/IMPLEMENTATION_RECORD.md)
 - [Betting-window protocol ADR](./docs/architecture/adr-001-betting-window-protocol.md)
 - [GDD visual asset guide](./docs/gdd/README.md)
 

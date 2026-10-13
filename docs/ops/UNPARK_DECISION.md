@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Doc** | Dated decision — **stable-build sign-off** (device + drills + Sentry) |
-| **Companion** | `docs/ops/UNPARK_CHECKLIST.md` · [`RECOMMENDED_IMPLEMENTATION_PLAN.md` §2](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md) |
+| **Companion** | `docs/ops/UNPARK_CHECKLIST.md` · [`IMPLEMENTATION_RECORD.md` Part IV](../ops/IMPLEMENTATION_RECORD.md) |
 | **Status** | **TEMPLATE — fill and flip to DECIDED** |
 | **Decision date** | YYYY-MM-DD |
 | **Decider(s)** | |
@@ -21,7 +21,7 @@
 | **Q2 phone hop** | [`docs/ops/DEVICE_PASS.md`](./DEVICE_PASS.md) — steps + `__ludoPerf.markdown()` | This file §1.1 |
 | **N3 live D1–D4** | [`docs/ops/NETCODE_DRILLS.md`](./NETCODE_DRILLS.md) §Manual — two clients | This file §1.2 |
 | **Sentry** | `.env.local` → `NEXT_PUBLIC_SENTRY_DSN` · code: [`lib/telemetrySentry.ts`](../lib/telemetrySentry.ts) | This file §1.3 |
-| Status rollup | [`docs/ops/UNPARK_CHECKLIST.md`](./UNPARK_CHECKLIST.md) | Plan [§0b](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md#0b-live-status-checklist--whats-next) |
+| Status rollup | [`docs/ops/UNPARK_CHECKLIST.md`](./UNPARK_CHECKLIST.md) | Open work: [record Part IV](../ops/IMPLEMENTATION_RECORD.md) |
 
 ### Auto evidence — 2026-09-23 (CI)
 
@@ -102,7 +102,7 @@ Pick one:
 
 | Action | Owner | Due |
 | --- | --- | --- |
-| Update `RECOMMENDED_IMPLEMENTATION_PLAN.md` §8 / decision table with this date | | |
+| Update `docs/ops/IMPLEMENTATION_RECORD.md` Part IV with this date | | |
 | Tick `UNPARK_CHECKLIST.md` items 1–3 with evidence links | | |
 | File first growth-slice ticket / task list | | |
 | Optional: lint burn-down ticket (336 warnings) | | |

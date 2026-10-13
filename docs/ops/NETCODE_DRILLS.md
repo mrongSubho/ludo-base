@@ -42,7 +42,7 @@ All ten are bumped by **production code paths** as well as the drills (2026-10-1
 
 **Per-match reset (NET-27):** `resetNetCounters()` runs on networked `START_GAME` and on rematch, so a receipt's `net` section describes one match, not the session.
 
-See `lib/netcode/counters.ts` and `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` Track N.
+See `lib/netcode/counters.ts` and `docs/ops/IMPLEMENTATION_RECORD.md` Part I.2.
 
 ## Un-park note
 

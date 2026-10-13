@@ -6,7 +6,7 @@
 | **Document type** | Product + implementation plan — **the** wallet plan |
 | **Consolidates** | `SMART_WALLET_PLAN.md` (CDP/auth technical notes) · `DUAL_PATH_WALLET_PLAN.md` (modes W0–W5) · `REAL_WALLET_PLAN.md` (wallet product R0–R5) — merged **2026-09-28** after all three recommendation tracks landed |
 | **Status** | **Implemented** (W0–W5 + R0–R5 + hard QA 2026-09-28). Residual work in §12 |
-| **Companions** | `docs/tokenomics/CHIPS_PLANNING.md` §4.6 / §8.7 / §8.9 · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` · `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md` · `docs/tokenomics/CHIPS_PLANNING.md` |
+| **Companions** | `docs/tokenomics/CHIPS_PLANNING.md` §4.6 / §8.7 / §8.9 · `docs/ops/IMPLEMENTATION_RECORD.md` · `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md` · `docs/tokenomics/CHIPS_PLANNING.md` |
 | **Last updated** | 2026-09-28 |
 
 > **Network (2026-09-28):** app runs on **Base Sepolia (84532) only** until mainnet launch. Wagmi / OnchainKit / WC / SIWE / match sessions all pin 84532. CDP swap (mainnet-only) is parked behind a “ships with Base mainnet” empty state.

@@ -8,9 +8,17 @@
 | **Method** | 8 parallel subsystem reviews + independent verification of every Critical claim (2 empirical engine repros, 1 proven-against-live-Postgres migration replay) |
 | **Findings** | 154 (16 Critical · 39 High · 59 Medium · 40 Low) |
 | **Baseline gates** | `tsc` **0 errors** · `eslint` **clean** · `npm test` **91/91** · `check:engine` **in sync** · `check:rls` **clean** |
-| **Verdict** | **Do not ship wagered/2v2 play until Phase 0–2 close.** See [`REMEDIATION_CHECKLIST.md`](./REMEDIATION_CHECKLIST.md). |
+| **Status** | **Closed — 154/154 findings closed or signed off** (last item DB-22, 2026-10-13). Closures and gate evidence: [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md). |
+| **Verdict** | **Do not ship wagered/2v2 play until Phase 0–2 close.** *Condition met 2026-10-11 — Phase 0–2 closed; see the record's Sign-off for the ship-rule disposition.* |
 
-**Explicit links:** remediation tracker → [`REMEDIATION_CHECKLIST.md`](./REMEDIATION_CHECKLIST.md) · netcode drills → [`NETCODE_DRILLS.md`](./NETCODE_DRILLS.md) · rules spec → [`ENGINE_LOGIC.md`](../../ENGINE_LOGIC.md) · agent contract → [`AGENTS.md`](../../AGENTS.md)
+> **This document is the point-in-time audit at `e49600a` and is kept as the
+> forensic record.** Its code line-references, gate results and "as-found"
+> states describe the audited commit, not the current tree — where they
+> disagree with today's code, the audit is what the review *found* on
+> 2026-10-05, not a description of present behaviour. What was done about
+> each finding lives in the implementation record.
+
+**Explicit links:** implementation record → [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md) · netcode drills → [`NETCODE_DRILLS.md`](./NETCODE_DRILLS.md) · rules spec → [`ENGINE_LOGIC.md`](../../ENGINE_LOGIC.md) · agent contract → [`AGENTS.md`](../../AGENTS.md)
 
 ---
 
@@ -53,7 +61,7 @@
 | **Medium** | Correctness or operability defect with a workaround. |
 | **Low** | Hygiene, drift risk, or defence-in-depth. |
 
-**Status** — track in [`REMEDIATION_CHECKLIST.md`](./REMEDIATION_CHECKLIST.md). Defaults to `open`.
+**Status** — every finding's closure is recorded in [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md) (Part II; all 154 findings closed or signed off, last item DB-22 on 2026-10-13).
 
 **Evidence tags** — `✅ verified` means I read the code path and confirmed it independently. `◐ reported` means a subsystem reviewer found it and it is internally consistent but I did not personally re-verify.
 
@@ -784,7 +792,7 @@ supabase.channel(`game-room-${targetCode}`)
 
 ## 6. Remediation phases
 
-Full tracker with per-item checkboxes: **[`REMEDIATION_CHECKLIST.md`](./REMEDIATION_CHECKLIST.md)**.
+Full implementation record, per finding, with gate evidence: **[`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md)** (Part II; merged with the pre-audit baseline on 2026-10-13 when the last finding closed).
 
 | Phase | Goal | Findings | Gate to exit |
 | --- | --- | --- | --- |
@@ -797,11 +805,15 @@ Full tracker with per-item checkboxes: **[`REMEDIATION_CHECKLIST.md`](./REMEDIAT
 | **6 — Client architecture** | No render storms, no leaks, real error isolation | REA-01…19 | `react-test-renderer` harness; profiler trace on a mid-range device |
 | **7 — Hygiene** | Drift and dead code | ENG-15…20, NET-20…27, REA-20…29, SEC-29…35, ECO-04…07, CRY-04…08 | `check-rls` + a new `check:drift` gate |
 
+*All eight gates were exited during remediation — dates and evidence per phase are in the record's Sign-off table. The "Gate to exit" column is this audit's original plan, not current state.*
+
 ---
 
 ## 7. Verification plan — new gates
 
 The current suite cannot detect any Critical finding. These are the gates that would have.
+
+*(All ten were built during remediation; their current state — with the command and output per gate — is in the record's per-phase Gate results. The table below is the audit's plan as written on 2026-10-05.)*
 
 | Gate | Catches | Implementation sketch |
 | --- | --- | --- |
@@ -859,6 +871,8 @@ These were checked adversarially and are sound. Any change here needs the same s
 ---
 
 ## 9. Test coverage gaps
+
+*(Audit-time baseline, kept as the as-found state. Most of these gaps were closed during remediation — the engine-core/diff/golden harnesses, the netcode/protocol/hooks harnesses, the payout-plan and AI scoring tests are in `npm test` now; see the record's Phase 2/4/5 gate results. What the audit-time suite did not execute is exactly what items 1–13 below describe.)*
 
 Structural gaps first — these are why the suite is green.
 
@@ -1042,6 +1056,8 @@ Run with `npx tsx`. The DB findings (DB-01, DB-02, DB-09, DB-22, §10.4) were pr
 ---
 
 ## 12. Doc-drift items to reconcile alongside
+
+*(All of these were reconciled in the 2026-10-11 doc-drift pass; see the record's Phase 6 "Doc-drift reconciliation" list for the per-doc outcome. The table below is the audit's as-found state.)*
 
 Fixing these findings changes documented behaviour. Update in the same PR:
 

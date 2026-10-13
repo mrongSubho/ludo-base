@@ -43,9 +43,11 @@ These landed in commits `565ede5` / `e3cbadf`. Treat as invariants:
 `ENGINE_LOGIC.md` is the living rules/spec doc — update it when engine or settlement behavior changes.
 
 **Finding register:** `docs/ops/SYSTEM_REVIEW.md` is the audit that produced the
-security/engine/netcode findings above, and `docs/ops/REMEDIATION_CHECKLIST.md`
-tracks each one to closure with an exit gate. Consult both before touching any
-invariant above — the checklist states *why* each rule exists and what test
+security/engine/netcode findings above, and
+`docs/ops/IMPLEMENTATION_RECORD.md` is the implementation record — the pre-audit
+baseline (Part I), how each finding closed with its gate evidence (Part II), the
+dated risk acceptances and deferrals (Part III), and the open work (Part IV). Consult both before touching
+any invariant above — the record states *why* each rule exists and what test
 closes it.
 
 ### Wallet locking and authentication boundary

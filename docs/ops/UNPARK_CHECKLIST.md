@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | **Status note** | Engineering complete — human sign-off remaining |
-| **Scope** | Device perf · live netcode drills · Sentry (plan [`RECOMMENDED_IMPLEMENTATION_PLAN.md` §2](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md)) |
+| **Scope** | Device perf · live netcode drills · Sentry (open-work record: [`IMPLEMENTATION_RECORD.md` Part IV](../ops/IMPLEMENTATION_RECORD.md)) |
 | **Last verified** | 2026-09-28 |
 | **Verdict** | **Code gate green** — needs **device + live-drill** sign-off |
 
@@ -29,7 +29,7 @@
 > engine-only. What it still does **not** cover: a literal `supabase db reset`
 > (proven file-by-file against PostgreSQL 16 instead — Docker unavailable),
 > live device/latency drills, and the device-measured hop frame budget. See
-> `docs/ops/REMEDIATION_CHECKLIST.md` for per-finding status.
+> `docs/ops/IMPLEMENTATION_RECORD.md` for per-finding status.
 
 ---
 
@@ -96,7 +96,7 @@ CHIPS value traffic (plan §2.3) · predict (own legal gate) · paymaster fundin
 | 2 | N3 live D1–D4 (two clients) | **[`NETCODE_DRILLS.md`](./NETCODE_DRILLS.md)** | [`UNPARK_DECISION.md` §1.2](./UNPARK_DECISION.md) |
 | 3 | Sentry DSN | **Done** — project `4512138573053952` · `NEXT_PUBLIC_SENTRY_DSN` in `.env.local` | [`UNPARK_DECISION.md` §1.3](./UNPARK_DECISION.md) |
 
-Then flip decision in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md) and mirror in the plan [§0b](../planning/RECOMMENDED_IMPLEMENTATION_PLAN.md#0b-live-status-checklist--whats-next).
+Then flip decision in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md) and mirror in the [record Part IV](../ops/IMPLEMENTATION_RECORD.md).
 4. **Optional style burn-down** — lint warnings → 0 before turning rules back to `error`.
 5. **C0 freeze pack** — `TOKEN_PARAMS.md` exists; Sybil model + legal issue-spot if CHIPS resumes.
 

@@ -7,7 +7,7 @@
 | **Subjects** | Ludo World (Tencent, `com.tencent.ludosuperstar` v2.1.10) · Ludo King (Gametion, `com.ludo.king` v10.1.0.388) · Ludo Base (this repo) |
 | **Evidence roots** | `ludo-apkresearch/research/apk-analysis/ludo-world` · `ludo-apkresearch/research/apk-analysis/ludo-king` |
 | **Companion plan** | `docs/tokenomics/CHIPS_PLANNING.md` (v4.3 — read in full for this report) |
-| **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` · `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (engine/gaps first → stable build → then CHIPS/growth) |
+| **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` · `docs/ops/IMPLEMENTATION_RECORD.md` (engine/gaps first → stable build → then CHIPS/growth) |
 | **Status** | Research baseline + gap/lessons synthesis (section section 10–13) |
 | **Last updated** | 2026-09-22 |
 
@@ -343,7 +343,7 @@ Backlog grouped by delivery band. Every row preserves `AGENTS.md` invariants. "D
 
 ### 11.3 Phase 2+ — growth and session depth
 
-**Status note (2026-09-22):** Voice, i18n, and ads are **parked until after a stable build** — see `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` section 8. Do not staff C1/C2/C4 until the stable-build gate is green and those tracks are explicitly un-parked.
+**Status note (2026-09-22):** Voice, i18n, and ads are **parked until after a stable build** — see `docs/ops/IMPLEMENTATION_RECORD.md` Part IV. Do not staff C1/C2/C4 until the stable-build gate is green and those tracks are explicitly un-parked.
 
 | # | Add | Why | Differentiator? | Status |
 | --- | --- | --- | --- | --- |
@@ -410,11 +410,11 @@ section 6 remains the engineering shopping list. This is the **priority board** 
 
 ### 13.3 Do after Phase-1 proves settle
 
-10. Emotes/local room (B7, B8) only — **voice (C1) and i18n (C2) stay parked** until the stable-build gate in `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` section 10 is green and explicitly un-parked.
+10. Emotes/local room (B7, B8) only — **voice (C1) and i18n (C2) stay parked** until the stable-build gate in `docs/ops/IMPLEMENTATION_RECORD.md` (met 2026-10-11 — see its Sign-off) is explicitly re-affirmed.
 11. Cosmetics cadence after the CHIPS value track; **rewarded-ads seam (C4) parked** with the other monetization gaps.
 12. Frames + predict + paymaster (C6, C3, plan section 8.9) only with their gates intact.
 
-> **Sequencing update (2026-09-22):** Current execution order is **engine + gaps first** (stable build), then CHIPS value, then growth. See `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md`.
+> **Sequencing update (2026-09-22):** Current execution order is **engine + gaps first** (stable build), then CHIPS value, then growth. See `docs/ops/IMPLEMENTATION_RECORD.md`.
 
 ### 13.4 Refuse (even when competitors have them)
 
