@@ -41,6 +41,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ status: 'matched', match_id: matchId, players });
         }
         // 1. Primary check by specific ticket ID (must belong to the session wallet).
+        // Unreachable via the guards above; kept as a fail-closed type guard.
+        if (!ticketId) return NextResponse.json({ error: 'Missing or invalid ticketId/matchId' }, { status: 400 });
         const { data, error } = await db
             .from('matchmaking_queue')
             .select('status, match_id, room_code, validation_token, player_id, created_at')

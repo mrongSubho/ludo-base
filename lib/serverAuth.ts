@@ -1,13 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 
-let admin: SupabaseClient | null = null;
+let admin: SupabaseClient<Database> | null = null;
 
 export function serviceDb() {
     if (admin) return admin;
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) throw new Error('Supabase service role is not configured');
-    admin = createClient(url, key);
+    // DB-22: the client carries the regenerated Database types, so `.from()` and
+    // `.rpc()` payloads are checked against the migration chain, not `any`.
+    admin = createClient<Database>(url, key);
     return admin;
 }
 export async function requireAppSession(walletAddress: unknown, sessionId: unknown) {

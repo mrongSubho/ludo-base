@@ -7,29 +7,453 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.4"
-  }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          actor_id: string
+          created_at: string
+          id: string
+          metadata: NonNullable<Json>
+          type: string
+        }
+        ComputedFields: never
+        Insert: {
+          actor_id: string
+          created_at?: string
+          id?: string
+          metadata?: NonNullable<Json>
+          type: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          id?: string
+          metadata?: NonNullable<Json>
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      app_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          nonce: string
+          revoked_at: string | null
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          nonce: string
+          revoked_at?: string | null
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          nonce?: string
+          revoked_at?: string | null
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_sessions_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      chips_claimable: {
+        Row: {
+          amount: number
+          claim_tx: string | null
+          claimed_at: string | null
+          credited_at: string
+          ref_id: string
+          source: string
+          status: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          amount: number
+          claim_tx?: string | null
+          claimed_at?: string | null
+          credited_at?: string
+          ref_id: string
+          source: string
+          status?: string
+          wallet_address: string
+        }
+        Update: {
+          amount?: number
+          claim_tx?: string | null
+          claimed_at?: string | null
+          credited_at?: string
+          ref_id?: string
+          source?: string
+          status?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      chips_escrow_accounts: {
+        Row: {
+          balance: number
+          updated_at: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          balance?: number
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          balance?: number
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chips_escrow_accounts_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: true
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      chips_escrow_config: {
+        Row: {
+          allow_self_bets: boolean
+          enabled: boolean
+          id: boolean
+          max_bet_base: number
+          min_bet_base: number
+          rake_bps: number
+          treasury_wallet: string | null
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          allow_self_bets?: boolean
+          enabled?: boolean
+          id?: boolean
+          max_bet_base?: number
+          min_bet_base?: number
+          rake_bps?: number
+          treasury_wallet?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allow_self_bets?: boolean
+          enabled?: boolean
+          id?: boolean
+          max_bet_base?: number
+          min_bet_base?: number
+          rake_bps?: number
+          treasury_wallet?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chips_escrow_ledger: {
+        Row: {
+          created_at: string
+          delta: number
+          id: number
+          reason: string
+          ref: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: number
+          reason: string
+          ref: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: number
+          reason?: string
+          ref?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chips_escrow_ledger_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      chips_events: {
+        Row: {
+          amount: number | null
+          chain_id: number
+          event_name: string
+          ingested_at: string
+          log_index: number
+          memo_bytes32: string | null
+          memo_tag: string | null
+          payload: NonNullable<Json>
+          tx_hash: string
+          wallet_address: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          amount?: number | null
+          chain_id: number
+          event_name: string
+          ingested_at?: string
+          log_index: number
+          memo_bytes32?: string | null
+          memo_tag?: string | null
+          payload?: NonNullable<Json>
+          tx_hash: string
+          wallet_address?: string | null
+        }
+        Update: {
+          amount?: number | null
+          chain_id?: number
+          event_name?: string
+          ingested_at?: string
+          log_index?: number
+          memo_bytes32?: string | null
+          memo_tag?: string | null
+          payload?: NonNullable<Json>
+          tx_hash?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      chips_marketplace_purchases: {
+        Row: {
+          created_at: string
+          id: string
+          item_ids: NonNullable<Json>
+          request_id: string
+          total_base: number
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          item_ids: NonNullable<Json>
+          request_id: string
+          total_base: number
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_ids?: NonNullable<Json>
+          request_id?: string
+          total_base?: number
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chips_marketplace_purchases_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      chips_pool_seats: {
+        Row: {
+          claimed_tx: string | null
+          credited_amount: number | null
+          entry_amount: number | null
+          join_tx: string | null
+          pool_id: string
+          seat_index: number
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          claimed_tx?: string | null
+          credited_amount?: number | null
+          entry_amount?: number | null
+          join_tx?: string | null
+          pool_id: string
+          seat_index: number
+          wallet_address: string
+        }
+        Update: {
+          claimed_tx?: string | null
+          credited_amount?: number | null
+          entry_amount?: number | null
+          join_tx?: string | null
+          pool_id?: string
+          seat_index?: number
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      chips_pools: {
+        Row: {
+          burn: number | null
+          chain_id: number | null
+          claim_unlock_at: string | null
+          entry_fee: number | null
+          filled_seats: number | null
+          game_mode: string | null
+          gross: number | null
+          host_bond: number | null
+          match_id: string | null
+          max_seats: number | null
+          pool_id: string
+          prize_fund: number | null
+          protocol_fee: number | null
+          result_hash: string | null
+          room_code: string | null
+          settle_by: string | null
+          settle_tx: string | null
+          settled_at: string | null
+          status: string | null
+          tx_create: string | null
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          burn?: number | null
+          chain_id?: number | null
+          claim_unlock_at?: string | null
+          entry_fee?: number | null
+          filled_seats?: number | null
+          game_mode?: string | null
+          gross?: number | null
+          host_bond?: number | null
+          match_id?: string | null
+          max_seats?: number | null
+          pool_id: string
+          prize_fund?: number | null
+          protocol_fee?: number | null
+          result_hash?: string | null
+          room_code?: string | null
+          settle_by?: string | null
+          settle_tx?: string | null
+          settled_at?: string | null
+          status?: string | null
+          tx_create?: string | null
+          updated_at?: string
+        }
+        Update: {
+          burn?: number | null
+          chain_id?: number | null
+          claim_unlock_at?: string | null
+          entry_fee?: number | null
+          filled_seats?: number | null
+          game_mode?: string | null
+          gross?: number | null
+          host_bond?: number | null
+          match_id?: string | null
+          max_seats?: number | null
+          pool_id?: string
+          prize_fund?: number | null
+          protocol_fee?: number | null
+          result_hash?: string | null
+          room_code?: string | null
+          settle_by?: string | null
+          settle_tx?: string | null
+          settled_at?: string | null
+          status?: string | null
+          tx_create?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coin_ledger: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          metadata: NonNullable<Json>
+          player_id: string
+          reason: string
+          reference_id: string | null
+          reference_type: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          metadata?: NonNullable<Json>
+          player_id: string
+          reason: string
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          metadata?: NonNullable<Json>
+          player_id?: string
+          reason?: string
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coin_ledger_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           id: string
           last_message_at: string | null
           last_message_content: string | null
-          unread_count_a: number | null
-          unread_count_b: number | null
+          unread_count_a: number
+          unread_count_b: number
           user_a: string
           user_b: string
         }
+        ComputedFields: never
         Insert: {
           id?: string
           last_message_at?: string | null
           last_message_content?: string | null
-          unread_count_a?: number | null
-          unread_count_b?: number | null
+          unread_count_a?: number
+          unread_count_b?: number
           user_a: string
           user_b: string
         }
@@ -37,8 +461,8 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_message_content?: string | null
-          unread_count_a?: number | null
-          unread_count_b?: number | null
+          unread_count_a?: number
+          unread_count_b?: number
           user_a?: string
           user_b?: string
         }
@@ -59,6 +483,31 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          message: string
+          topic: string
+        }
+        ComputedFields: never
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          topic: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          topic?: string
+        }
+        Relationships: []
+      }
       friendships: {
         Row: {
           created_at: string
@@ -67,6 +516,7 @@ export type Database = {
           status: string
           user_address: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           friend_address: string
@@ -100,36 +550,37 @@ export type Database = {
       }
       game_invites: {
         Row: {
-          created_at: string | null
-          entry_fee: number | null
+          created_at: string
+          entry_fee: number
           guest_address: string
           host_address: string
           id: string
           match_type: string | null
           room_code: string
-          status: string | null
+          status: string
           validation_token: string | null
         }
+        ComputedFields: never
         Insert: {
-          created_at?: string | null
-          entry_fee?: number | null
+          created_at?: string
+          entry_fee?: number
           guest_address: string
           host_address: string
           id?: string
           match_type?: string | null
           room_code: string
-          status?: string | null
+          status?: string
           validation_token?: string | null
         }
         Update: {
-          created_at?: string | null
-          entry_fee?: number | null
+          created_at?: string
+          entry_fee?: number
           guest_address?: string
           host_address?: string
           id?: string
           match_type?: string | null
           room_code?: string
-          status?: string | null
+          status?: string
           validation_token?: string | null
         }
         Relationships: [
@@ -149,44 +600,109 @@ export type Database = {
           },
         ]
       }
+      live_chat: {
+        Row: {
+          avatar_url: string | null
+          content: string
+          country: string | null
+          created_at: string
+          id: string
+          room_code: string | null
+          room_open: boolean
+          sender_id: string
+          username: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          avatar_url?: string | null
+          content: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          room_code?: string | null
+          room_open?: boolean
+          sender_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          content?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          room_code?: string | null
+          room_open?: boolean
+          sender_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_chat_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
       live_matches: {
         Row: {
+          arena_key: string | null
+          authority_heartbeat: string | null
+          authority_id: string | null
           bet_window_status: string
           created_at: string
           current_bet_type: string | null
+          host_address: string | null
+          join_secret_hash: string | null
           match_id: string
           room_code: string
           spectator_count: number
           updated_at: string
           window_closed_at: string | null
           window_opened_at: string | null
-          host_address: string | null
         }
+        ComputedFields: never
         Insert: {
+          arena_key?: string | null
+          authority_heartbeat?: string | null
+          authority_id?: string | null
           bet_window_status?: string
           created_at?: string
           current_bet_type?: string | null
+          host_address?: string | null
+          join_secret_hash?: string | null
           match_id: string
           room_code: string
           spectator_count?: number
           updated_at?: string
           window_closed_at?: string | null
           window_opened_at?: string | null
-          host_address?: string | null
         }
         Update: {
+          arena_key?: string | null
+          authority_heartbeat?: string | null
+          authority_id?: string | null
           bet_window_status?: string
           created_at?: string
           current_bet_type?: string | null
+          host_address?: string | null
+          join_secret_hash?: string | null
           match_id?: string
           room_code?: string
           spectator_count?: number
           updated_at?: string
           window_closed_at?: string | null
           window_opened_at?: string | null
-          host_address?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "live_matches_host_address_fkey"
+            columns: ["host_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
           {
             foreignKeyName: "live_matches_match_id_fkey"
             columns: ["match_id"]
@@ -196,41 +712,349 @@ export type Database = {
           },
         ]
       }
+      lobby_join_policies: {
+        Row: {
+          created_at: string
+          credential_hash: string | null
+          host_address: string
+          join_policy: string
+          room_code: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          credential_hash?: string | null
+          host_address: string
+          join_policy?: string
+          room_code: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credential_hash?: string | null
+          host_address?: string
+          join_policy?: string
+          room_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lobby_join_requests: {
+        Row: {
+          avatar_url: string | null
+          coins: number | null
+          created_at: string
+          desired_seat: number | null
+          id: string
+          room_code: string
+          username: string | null
+          validation_token: string | null
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          avatar_url?: string | null
+          coins?: number | null
+          created_at?: string
+          desired_seat?: number | null
+          id?: string
+          room_code: string
+          username?: string | null
+          validation_token?: string | null
+          wallet_address: string
+        }
+        Update: {
+          avatar_url?: string | null
+          coins?: number | null
+          created_at?: string
+          desired_seat?: number | null
+          id?: string
+          room_code?: string
+          username?: string | null
+          validation_token?: string | null
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lobby_join_requests_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      marketplace_purchases: {
+        Row: {
+          created_at: string
+          id: string
+          item_ids: NonNullable<Json>
+          request_id: string
+          total: number
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          item_ids: NonNullable<Json>
+          request_id: string
+          total: number
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_ids?: NonNullable<Json>
+          request_id?: string
+          total?: number
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_purchases_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      match_moves: {
+        Row: {
+          actor: string
+          bonus_roll: boolean
+          captured: boolean
+          color: string | null
+          created_at: string
+          dice: number | null
+          from_pos: number | null
+          id: string
+          match_id: string
+          roll_id: string | null
+          seq: number
+          to_pos: number | null
+          token_index: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          actor: string
+          bonus_roll?: boolean
+          captured?: boolean
+          color?: string | null
+          created_at?: string
+          dice?: number | null
+          from_pos?: number | null
+          id?: string
+          match_id: string
+          roll_id?: string | null
+          seq: number
+          to_pos?: number | null
+          token_index?: number | null
+        }
+        Update: {
+          actor?: string
+          bonus_roll?: boolean
+          captured?: boolean
+          color?: string | null
+          created_at?: string
+          dice?: number | null
+          from_pos?: number | null
+          id?: string
+          match_id?: string
+          roll_id?: string | null
+          seq?: number
+          to_pos?: number | null
+          token_index?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_moves_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      match_rolls: {
+        Row: {
+          action_id: string | null
+          consumed_seq: number | null
+          created_at: string
+          id: string
+          match_id: string
+          result: number
+          seat_color: string | null
+          status: string
+          turn_seq: number | null
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          action_id?: string | null
+          consumed_seq?: number | null
+          created_at?: string
+          id?: string
+          match_id: string
+          result: number
+          seat_color?: string | null
+          status?: string
+          turn_seq?: number | null
+          wallet_address: string
+        }
+        Update: {
+          action_id?: string | null
+          consumed_seq?: number | null
+          created_at?: string
+          id?: string
+          match_id?: string
+          result?: number
+          seat_color?: string | null
+          status?: string
+          turn_seq?: number | null
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_rolls_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      match_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          match_id: string
+          revoked_at: string | null
+          room_code: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          match_id: string
+          revoked_at?: string | null
+          room_code: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          match_id?: string
+          revoked_at?: string | null
+          room_code?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_sessions_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      match_states: {
+        Row: {
+          color_corner: NonNullable<Json>
+          host_address: string
+          match_id: string
+          player_seats: NonNullable<Json>
+          room_code: string
+          seq: number
+          state: NonNullable<Json>
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          color_corner?: NonNullable<Json>
+          host_address: string
+          match_id: string
+          player_seats?: NonNullable<Json>
+          room_code: string
+          seq?: number
+          state?: NonNullable<Json>
+          updated_at?: string
+        }
+        Update: {
+          color_corner?: NonNullable<Json>
+          host_address?: string
+          match_id?: string
+          player_seats?: NonNullable<Json>
+          room_code?: string
+          seq?: number
+          state?: NonNullable<Json>
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_states_host_address_fkey"
+            columns: ["host_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
       matches: {
         Row: {
-          created_at: string | null
-          game_mode: string | null
+          created_at: string
+          finished_at: string | null
+          game_mode: string
+          game_mode_code: number | null
+          host_proven: boolean
           id: string
-          metadata: Json | null
-          participants: string[] | null
+          match_shape: string | null
+          metadata: NonNullable<Json>
+          participants: string[]
           room_code: string | null
-          spectator_count: number | null
-          streaming_enabled: boolean | null
-          total_bet_volume: number | null
+          spectator_count: number
+          streaming_enabled: boolean
+          total_bet_volume: number
           winner_address: string | null
         }
+        ComputedFields: never
         Insert: {
-          created_at?: string | null
-          game_mode?: string | null
+          created_at?: string
+          finished_at?: string | null
+          game_mode?: string
+          game_mode_code?: number | null
+          host_proven?: boolean
           id?: string
-          metadata?: Json | null
-          participants?: string[] | null
+          match_shape?: string | null
+          metadata?: NonNullable<Json>
+          participants?: string[]
           room_code?: string | null
-          spectator_count?: number | null
-          streaming_enabled?: boolean | null
-          total_bet_volume?: number | null
+          spectator_count?: number
+          streaming_enabled?: boolean
+          total_bet_volume?: number
           winner_address?: string | null
         }
         Update: {
-          created_at?: string | null
-          game_mode?: string | null
+          created_at?: string
+          finished_at?: string | null
+          game_mode?: string
+          game_mode_code?: number | null
+          host_proven?: boolean
           id?: string
-          metadata?: Json | null
-          participants?: string[] | null
+          match_shape?: string | null
+          metadata?: NonNullable<Json>
+          participants?: string[]
           room_code?: string | null
-          spectator_count?: number | null
-          streaming_enabled?: boolean | null
-          total_bet_volume?: number | null
+          spectator_count?: number
+          streaming_enabled?: boolean
+          total_bet_volume?: number
           winner_address?: string | null
         }
         Relationships: [
@@ -245,7 +1069,7 @@ export type Database = {
       }
       matchmaking_queue: {
         Row: {
-          created_at: string | null
+          created_at: string
           expires_at: string
           game_mode: string
           id: string
@@ -253,25 +1077,30 @@ export type Database = {
           match_type: string
           player_id: string
           room_code: string | null
-          status: string | null
+          status: string
           validation_token: string | null
-          wager: number | null
+          wager: number
+          wager_max: number | null
+          wager_min: number | null
         }
+        ComputedFields: never
         Insert: {
-          created_at?: string | null
-          expires_at: string
+          created_at?: string
+          expires_at?: string
           game_mode: string
           id?: string
           match_id?: string | null
           match_type: string
           player_id: string
           room_code?: string | null
-          status?: string | null
+          status?: string
           validation_token?: string | null
-          wager?: number | null
+          wager?: number
+          wager_max?: number | null
+          wager_min?: number | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           expires_at?: string
           game_mode?: string
           id?: string
@@ -279,9 +1108,11 @@ export type Database = {
           match_type?: string
           player_id?: string
           room_code?: string | null
-          status?: string | null
+          status?: string
           validation_token?: string | null
-          wager?: number | null
+          wager?: number
+          wager_max?: number | null
+          wager_min?: number | null
         }
         Relationships: [
           {
@@ -302,30 +1133,40 @@ export type Database = {
       }
       messages: {
         Row: {
+          ciphertext: string | null
           content: string
           created_at: string
-          deleted_by_receiver: boolean | null
-          deleted_by_sender: boolean | null
+          deleted_by_receiver: boolean
+          deleted_by_sender: boolean
+          encryption_nonce: string | null
+          encryption_version: number
           id: string
           is_read: boolean
           receiver_id: string
           sender_id: string
         }
+        ComputedFields: never
         Insert: {
+          ciphertext?: string | null
           content: string
           created_at?: string
-          deleted_by_receiver?: boolean | null
-          deleted_by_sender?: boolean | null
+          deleted_by_receiver?: boolean
+          deleted_by_sender?: boolean
+          encryption_nonce?: string | null
+          encryption_version?: number
           id?: string
           is_read?: boolean
           receiver_id: string
           sender_id: string
         }
         Update: {
+          ciphertext?: string | null
           content?: string
           created_at?: string
-          deleted_by_receiver?: boolean | null
-          deleted_by_sender?: boolean | null
+          deleted_by_receiver?: boolean
+          deleted_by_sender?: boolean
+          encryption_nonce?: string | null
+          encryption_version?: number
           id?: string
           is_read?: boolean
           receiver_id?: string
@@ -348,123 +1189,468 @@ export type Database = {
           },
         ]
       }
-      players: {
+      mission_catalog: {
         Row: {
-          ai_played: number | null
-          avatar_url: string | null
-          classic_played: number | null
-          coins: number | null
-          created_at: string | null
-          id: string
-          last_played_at: string | null
-          last_seen_at: string | null
-          peer_id: string | null
-          power_played: number | null
-          rxp: number | null
-          season_id: number | null
-          status: string | null
-          total_games: number | null
-          total_wins: number | null
-          username: string | null
-          wallet_address: string
-          lxp: number | null
-          ecdh_pubkey: Json | null
-          current_room_code: string | null
+          active: boolean
+          category: string
+          description: string
+          mission_id: string
+          period: string
+          reward_chips: number
+          sort_order: number
+          target: number
+          title: string
+          updated_at: string
         }
+        ComputedFields: never
         Insert: {
-          ai_played?: number | null
-          avatar_url?: string | null
-          classic_played?: number | null
-          coins?: number | null
-          created_at?: string | null
-          id?: string
-          last_played_at?: string | null
-          last_seen_at?: string | null
-          peer_id?: string | null
-          power_played?: number | null
-          rxp?: number | null
-          season_id?: number | null
-          status?: string | null
-          total_games?: number | null
-          total_wins?: number | null
-          username?: string | null
-          wallet_address: string
-          lxp?: number | null
-          ecdh_pubkey?: Json | null
-          current_room_code?: string | null
+          active?: boolean
+          category: string
+          description?: string
+          mission_id: string
+          period: string
+          reward_chips: number
+          sort_order?: number
+          target?: number
+          title: string
+          updated_at?: string
         }
         Update: {
-          ai_played?: number | null
-          avatar_url?: string | null
-          classic_played?: number | null
-          coins?: number | null
-          created_at?: string | null
-          id?: string
-          last_played_at?: string | null
-          last_seen_at?: string | null
-          peer_id?: string | null
-          power_played?: number | null
-          rxp?: number | null
-          season_id?: number | null
-          status?: string | null
-          total_games?: number | null
-          total_wins?: number | null
-          username?: string | null
-          wallet_address?: string
-          lxp?: number | null
-          ecdh_pubkey?: Json | null
-          current_room_code?: string | null
+          active?: boolean
+          category?: string
+          description?: string
+          mission_id?: string
+          period?: string
+          reward_chips?: number
+          sort_order?: number
+          target?: number
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
+      mission_vouchers: {
+        Row: {
+          amount: number
+          claimed_tx: string | null
+          created_at: string
+          deadline: string
+          id: string
+          mission_id: string
+          period_id: string
+          reserved_at: string
+          signature: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          amount: number
+          claimed_tx?: string | null
+          created_at?: string
+          deadline: string
+          id?: string
+          mission_id: string
+          period_id: string
+          reserved_at?: string
+          signature: string
+          wallet_address: string
+        }
+        Update: {
+          amount?: number
+          claimed_tx?: string | null
+          created_at?: string
+          deadline?: string
+          id?: string
+          mission_id?: string
+          period_id?: string
+          reserved_at?: string
+          signature?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_vouchers_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      onboarding_progress: {
+        Row: {
+          is_claimed: boolean
+          progress: number
+          target: number
+          track: string
+          updated_at: string
+          voucher_id: string | null
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          is_claimed?: boolean
+          progress?: number
+          target?: number
+          track: string
+          updated_at?: string
+          voucher_id?: string | null
+          wallet_address: string
+        }
+        Update: {
+          is_claimed?: boolean
+          progress?: number
+          target?: number
+          track?: string
+          updated_at?: string
+          voucher_id?: string | null
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      player_missions: {
+        Row: {
+          created_at: string
+          id: string
+          is_claimed: boolean
+          last_updated: string
+          mission_id: string
+          period_id: string
+          player_id: string
+          progress: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          is_claimed?: boolean
+          last_updated?: string
+          mission_id: string
+          period_id?: string
+          player_id: string
+          progress?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_claimed?: boolean
+          last_updated?: string
+          mission_id?: string
+          period_id?: string
+          player_id?: string
+          progress?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_missions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          ai_played: number
+          avatar_url: string | null
+          classic_played: number
+          coins: number
+          created_at: string
+          current_room_code: string | null
+          ecdh_pubkey: Json | null
+          id: string
+          last_played_at: string | null
+          last_seen_at: string
+          lxp: number
+          peer_id: string | null
+          power_played: number
+          rank_tier: string
+          rxp: number
+          season_id: number
+          status: string
+          total_games: number | null
+          total_wins: number
+          username: string | null
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          ai_played?: number
+          avatar_url?: string | null
+          classic_played?: number
+          coins?: number
+          created_at?: string
+          current_room_code?: string | null
+          ecdh_pubkey?: Json | null
+          id?: string
+          last_played_at?: string | null
+          last_seen_at?: string
+          lxp?: number
+          peer_id?: string | null
+          power_played?: number
+          rank_tier?: string
+          rxp?: number
+          season_id?: number
+          status?: string
+          total_games?: never
+          total_wins?: number
+          username?: string | null
+          wallet_address: string
+        }
+        Update: {
+          ai_played?: number
+          avatar_url?: string | null
+          classic_played?: number
+          coins?: number
+          created_at?: string
+          current_room_code?: string | null
+          ecdh_pubkey?: Json | null
+          id?: string
+          last_played_at?: string | null
+          last_seen_at?: string
+          lxp?: number
+          peer_id?: string | null
+          power_played?: number
+          rank_tier?: string
+          rxp?: number
+          season_id?: number
+          status?: string
+          total_games?: never
+          total_wins?: number
+          username?: string | null
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      pokes: {
+        Row: {
+          created_at: string
+          id: string
+          poked_back_at: string | null
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          poked_back_at?: string | null
+          receiver_id: string
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          poked_back_at?: string | null
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pokes_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+          {
+            foreignKeyName: "pokes_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      provisional_match_sessions: {
+        Row: {
+          authorization_key: string
+          created_at: string
+          expires_at: string
+          id: string
+          room_code: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          authorization_key: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          room_code: string
+          wallet_address: string
+        }
+        Update: {
+          authorization_key?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          room_code?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provisional_match_sessions_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_used_at: string
+          p256dh: string
+          user_agent: string | null
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_used_at?: string
+          p256dh: string
+          user_agent?: string | null
+          wallet_address: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_used_at?: string
+          p256dh?: string
+          user_agent?: string | null
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      referral_links: {
+        Row: {
+          claim_tx: string | null
+          code: string
+          completed_at: string | null
+          created_at: string
+          referee_wallet: string
+          referrer_wallet: string
+          status: string
+          tier_paid: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          claim_tx?: string | null
+          code: string
+          completed_at?: string | null
+          created_at?: string
+          referee_wallet: string
+          referrer_wallet: string
+          status?: string
+          tier_paid?: number | null
+        }
+        Update: {
+          claim_tx?: string | null
+          code?: string
+          completed_at?: string | null
+          created_at?: string
+          referee_wallet?: string
+          referrer_wallet?: string
+          status?: string
+          tier_paid?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_links_referee_wallet_fkey"
+            columns: ["referee_wallet"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+          {
+            foreignKeyName: "referral_links_referrer_wallet_fkey"
+            columns: ["referrer_wallet"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
       spectator_bets: {
         Row: {
-          action_id: string | null
+          action_id: string
           amount: number
-          bet_metadata: Json | null
+          bet_metadata: NonNullable<Json>
           bet_type: string
           bet_value: string
           created_at: string
+          escrow_ref: string | null
           id: string
           match_id: string
-          odds: number | null
+          odds: number
+          payout_amount: number | null
           player_id: string
-          potential_payout: number | null
+          potential_payout: number
           resolved_at: string | null
+          stake_settled: boolean
           status: string
-          window_closed_at: string
+          window_closed_at: string | null
         }
+        ComputedFields: never
         Insert: {
-          action_id?: string | null
+          action_id: string
           amount: number
-          bet_metadata?: Json | null
+          bet_metadata?: NonNullable<Json>
           bet_type: string
           bet_value: string
           created_at?: string
+          escrow_ref?: string | null
           id?: string
           match_id: string
-          odds?: number | null
+          odds: number
+          payout_amount?: number | null
           player_id: string
-          potential_payout?: number | null
+          potential_payout: number
           resolved_at?: string | null
+          stake_settled?: boolean
           status?: string
-          window_closed_at: string
+          window_closed_at?: string | null
         }
         Update: {
-          action_id?: string | null
+          action_id?: string
           amount?: number
-          bet_metadata?: Json | null
+          bet_metadata?: NonNullable<Json>
           bet_type?: string
           bet_value?: string
           created_at?: string
+          escrow_ref?: string | null
           id?: string
           match_id?: string
-          odds?: number | null
+          odds?: number
+          payout_amount?: number | null
           player_id?: string
-          potential_payout?: number | null
+          potential_payout?: number
           resolved_at?: string | null
+          stake_settled?: boolean
           status?: string
-          window_closed_at?: string
+          window_closed_at?: string | null
         }
         Relationships: [
           {
@@ -483,331 +1669,250 @@ export type Database = {
           },
         ]
       }
-
-      live_chat: {
+      tournament_matches: {
         Row: {
-          id: string
-          sender_id: string
-          username: string | null
-          avatar_url: string | null
-          content: string
-          country: string | null
-          room_code: string | null
-          room_open: boolean | null
+          bracket_col: number
+          bracket_row: number
           created_at: string
-        }
-        Insert: {
-          id?: string
-          sender_id: string
-          username?: string | null
-          avatar_url?: string | null
-          content: string
-          country?: string | null
-          room_code?: string | null
-          room_open?: boolean | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          sender_id?: string
-          username?: string | null
-          avatar_url?: string | null
-          content?: string
-          country?: string | null
-          room_code?: string | null
-          room_open?: boolean | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      player_missions: {
-        Row: {
           id: string
-          player_id: string
-          mission_id: string
-          progress: number
-          is_claimed: boolean
-          last_updated: string
+          match_id: string
+          round_number: number
+          status: string
+          tournament_id: string
+          winner_id: string | null
         }
+        ComputedFields: never
         Insert: {
+          bracket_col: number
+          bracket_row: number
+          created_at?: string
           id?: string
-          player_id: string
-          mission_id: string
-          progress?: number
-          is_claimed?: boolean
-          last_updated?: string
+          match_id: string
+          round_number: number
+          status?: string
+          tournament_id: string
+          winner_id?: string | null
         }
         Update: {
+          bracket_col?: number
+          bracket_row?: number
+          created_at?: string
           id?: string
+          match_id?: string
+          round_number?: number
+          status?: string
+          tournament_id?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_matches_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_matches_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      tournament_participants: {
+        Row: {
+          final_rank: number | null
+          id: string
+          joined_at: string
+          player_id: string
+          seed: number | null
+          tournament_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          final_rank?: number | null
+          id?: string
+          joined_at?: string
+          player_id: string
+          seed?: number | null
+          tournament_id: string
+        }
+        Update: {
+          final_rank?: number | null
+          id?: string
+          joined_at?: string
           player_id?: string
-          mission_id?: string
-          progress?: number
-          is_claimed?: boolean
-          last_updated?: string
+          seed?: number | null
+          tournament_id?: string
         }
-        Relationships: []
-      }
-      pokes: {
-        Row: {
-          id: string
-          sender_id: string
-          receiver_id: string
-          status: string | null
-          poked_back_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          sender_id: string
-          receiver_id: string
-          status?: string | null
-          poked_back_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          sender_id?: string
-          receiver_id?: string
-          status?: string | null
-          poked_back_at?: string | null
-          created_at?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tournament_participants_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+          {
+            foreignKeyName: "tournament_participants_tournament_id_fkey"
+            columns: ["tournament_id"]
+            isOneToOne: false
+            referencedRelation: "tournaments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tournaments: {
         Row: {
-          id: string
-          prize_pool: number | null
-          status: string | null
-        }
-        Insert: {
-          id?: string
-          prize_pool?: number | null
-          status?: string | null
-        }
-        Update: {
-          id?: string
-          prize_pool?: number | null
-          status?: string | null
-        }
-        Relationships: []
-      }
-      activities: {
-        Row: {
-          id: string
-          actor_id: string | null
-          type: string | null
-          metadata: Json | null
           created_at: string
-        }
-        Insert: {
-          id?: string
-          actor_id?: string | null
-          type?: string | null
-          metadata?: Json | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          actor_id?: string | null
-          type?: string | null
-          metadata?: Json | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      feedback: {
-        Row: {
+          description: string | null
+          entry_fee: number
           id: string
-          topic: string
-          message: string
-          address: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          topic?: string
-          message: string
-          address?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          topic?: string
-          message?: string
-          address?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      match_rolls: {
-        Row: {
-          id: string
-          match_id: string
-          wallet_address: string
-          action_id: string | null
-          result: number
-          created_at: string
+          max_players: number
+          min_players: number
+          prize_pool: number
+          start_at: string | null
           status: string
-          consumed_seq: number | null
-        }
-        Insert: {
-          id?: string
-          match_id: string
-          wallet_address: string
-          action_id?: string | null
-          result: number
-          created_at?: string
-          status?: string
-          consumed_seq?: number | null
-        }
-        Update: {
-          id?: string
-          match_id?: string
-          wallet_address?: string
-          action_id?: string | null
-          result?: number
-          created_at?: string
-          status?: string
-          consumed_seq?: number | null
-        }
-        Relationships: []
-      }
-      match_states: {
-        Row: {
-          match_id: string
-          room_code: string | null
-          host_address: string | null
-          seq: number
-          state: Json
-          color_corner: Json
-          player_seats: Json
+          title: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
-          match_id: string
-          room_code?: string | null
-          host_address?: string | null
-          seq?: number
-          state: Json
-          color_corner: Json
-          player_seats: Json
+          created_at?: string
+          description?: string | null
+          entry_fee?: number
+          id?: string
+          max_players: number
+          min_players?: number
+          prize_pool?: number
+          start_at?: string | null
+          status?: string
+          title: string
           updated_at?: string
         }
         Update: {
-          match_id?: string
-          room_code?: string | null
-          host_address?: string | null
-          seq?: number
-          state?: Json
-          color_corner?: Json
-          player_seats?: Json
+          created_at?: string
+          description?: string | null
+          entry_fee?: number
+          id?: string
+          max_players?: number
+          min_players?: number
+          prize_pool?: number
+          start_at?: string | null
+          status?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []
       }
-      match_moves: {
+      user_blocks: {
         Row: {
-          id: string
-          match_id: string
-          seq: number
-          actor: string
-          color: string
-          token_index: number
-          dice: number
-          roll_id: string | null
-          from_pos: number | null
-          to_pos: number | null
-          captured: boolean | null
-          bonus_roll: boolean | null
+          blocked_address: string
+          blocker_address: string
           created_at: string
+          id: string
         }
+        ComputedFields: never
         Insert: {
-          id?: string
-          match_id: string
-          seq: number
-          actor: string
-          color: string
-          token_index: number
-          dice: number
-          roll_id?: string | null
-          from_pos?: number | null
-          to_pos?: number | null
-          captured?: boolean | null
-          bonus_roll?: boolean | null
+          blocked_address: string
+          blocker_address: string
           created_at?: string
+          id?: string
         }
         Update: {
-          id?: string
-          match_id?: string
-          seq?: number
-          actor?: string
-          color?: string
-          token_index?: number
-          dice?: number
-          roll_id?: string | null
-          from_pos?: number | null
-          to_pos?: number | null
-          captured?: boolean | null
-          bonus_roll?: boolean | null
+          blocked_address?: string
+          blocker_address?: string
           created_at?: string
+          id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_address_fkey"
+            columns: ["blocked_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_address_fkey"
+            columns: ["blocker_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
       }
-      match_sessions: {
+      user_reports: {
         Row: {
-          id: string
-          match_id: string
-          wallet_address: string
-          room_code: string | null
-          expires_at: string
-          revoked_at: string | null
           created_at: string
+          id: string
+          reason: string
+          reported_address: string
+          reporter_address: string
         }
+        ComputedFields: never
         Insert: {
-          id?: string
-          match_id: string
-          wallet_address: string
-          room_code?: string | null
-          expires_at: string
-          revoked_at?: string | null
           created_at?: string
+          id?: string
+          reason: string
+          reported_address: string
+          reporter_address: string
         }
         Update: {
-          id?: string
-          match_id?: string
-          wallet_address?: string
-          room_code?: string | null
-          expires_at?: string
-          revoked_at?: string | null
           created_at?: string
+          id?: string
+          reason?: string
+          reported_address?: string
+          reporter_address?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_reports_reported_address_fkey"
+            columns: ["reported_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+          {
+            foreignKeyName: "user_reports_reporter_address_fkey"
+            columns: ["reporter_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
       }
-      app_sessions: {
+      wallet_links: {
         Row: {
-          id: string
-          wallet_address: string
-          nonce: string
-          expires_at: string
-          revoked_at: string | null
           created_at: string
+          id: string
+          link_type: string
+          linked_wallet: string
+          primary_wallet: string
         }
+        ComputedFields: never
         Insert: {
-          id?: string
-          wallet_address: string
-          nonce: string
-          expires_at: string
-          revoked_at?: string | null
           created_at?: string
+          id?: string
+          link_type?: string
+          linked_wallet: string
+          primary_wallet: string
         }
         Update: {
-          id?: string
-          wallet_address?: string
-          nonce?: string
-          expires_at?: string
-          revoked_at?: string | null
           created_at?: string
+          id?: string
+          link_type?: string
+          linked_wallet?: string
+          primary_wallet?: string
         }
         Relationships: []
       }
@@ -816,41 +1921,98 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_matchmaking_queue: { Args: never; Returns: undefined }
-      cleanup_stale_data: { Args: never; Returns: undefined }
+      cash_out_bet: {
+        Args: { p_bet_id: string; p_player_id: string }
+        Returns: Json
+      }
+      chips_escrow_deposit: {
+        Args: { p_amount: number; p_ref: string; p_wallet: string }
+        Returns: Json
+      }
+      chips_escrow_place_bet: {
+        Args: {
+          p_action_id: string
+          p_amount: number
+          p_bet_type: string
+          p_bet_value: string
+          p_match_id: string
+          p_player: string
+        }
+        Returns: Json
+      }
+      chips_escrow_settle_bets: {
+        Args: { p_bet_type: string; p_match_id: string; p_result: string }
+        Returns: Json
+      }
+      chips_escrow_solvency: { Args: Record<PropertyKey, never>; Returns: Json }
+      chips_escrow_spend_purchase: {
+        Args: {
+          p_item_ids: string[]
+          p_request_id: string
+          p_total_base: number
+          p_wallet: string
+        }
+        Returns: Json
+      }
+      chips_escrow_touch: { Args: { p_wallet: string }; Returns: undefined }
+      chips_escrow_withdraw: {
+        Args: { p_amount: number; p_ref: string; p_wallet: string }
+        Returns: Json
+      }
+      cleanup_matchmaking_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_stale_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       join_matchmaking: {
         Args: {
           p_game_mode: string
           p_match_type: string
           p_player_id: string
-          p_wager: number
+          p_wager?: number
           p_wager_max?: number
           p_wager_min?: number
         }
+        Returns: Json
+      }
+      join_matchmaking_hybrid: {
+        Args: {
+          p_game_mode: string
+          p_match_type: string
+          p_player_id: string
+          p_room_code?: string
+          p_wager?: number
+          p_wager_max?: number
+          p_wager_min?: number
+        }
+        Returns: Json
+      }
+      join_tournament: {
+        Args: { p_player_id: string; p_tournament_id: string }
         Returns: Json
       }
       mark_conversation_read: {
         Args: { friend: string; me: string }
         Returns: undefined
       }
-      cash_out_bet: {
-        Args: { p_bet_id: string; p_player_id: string }
+      next_mission_voucher_nonce: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      purchase_marketplace: {
+        Args: {
+          p_item_ids: string[]
+          p_request_id: string
+          p_total: number
+          p_wallet: string
+        }
         Returns: Json
       }
       settle_match_bets: {
-        Args: { p_match_id: string; p_result: string; p_bet_type: string }
-        Returns: Json
-      }
-      join_matchmaking_hybrid: {
-        Args: {
-          p_player_id: string
-          p_game_mode: string
-          p_match_type: string
-          p_wager?: number
-          p_wager_min?: number
-          p_wager_max?: number
-          p_room_code?: string
-        }
+        Args: { p_bet_type: string; p_match_id: string; p_result: string }
         Returns: Json
       }
     }
@@ -871,12 +2033,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -898,13 +2060,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -923,13 +2084,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -948,13 +2108,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -967,11 +2126,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

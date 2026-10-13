@@ -52,11 +52,13 @@ export async function POST(request: Request) {
             }
 
             const ref = `bet:${betId}`;
-            const { data: out, error: wdErr } = await db.rpc('chips_escrow_withdraw' as never, {
+            // Typed by the DB-22 regen; numeric params cross as exact decimal
+            // strings (1e18-scale payouts lose precision as JSON numbers).
+            const { data: out, error: wdErr } = await db.rpc('chips_escrow_withdraw', {
                 p_wallet: wallet,
-                p_amount: String(payout),
+                p_amount: String(payout) as unknown as number,
                 p_ref: ref,
-            } as never);
+            });
             if (wdErr) return NextResponse.json({ error: wdErr.message }, { status: 409 });
 
             const { error: flagErr } = await db
@@ -79,14 +81,15 @@ export async function POST(request: Request) {
         // debit, and idempotency on action_id. The client cannot supply
         // window_closedAt or influence any of it (SYSTEM_REVIEW.md SEC-05).
         const actionId = String(actionId0 ?? crypto.randomUUID());
-        const { data, error } = await db.rpc('chips_escrow_place_bet' as never, {
+        // Typed by the DB-22 regen; the amount crosses as an exact decimal string.
+        const { data, error } = await db.rpc('chips_escrow_place_bet', {
             p_player: wallet,
             p_match_id: String(matchId),
             p_bet_type: String(betType),
             p_bet_value: String(betValue ?? ''),
-            p_amount: String(numericAmount),
+            p_amount: String(numericAmount) as unknown as number,
             p_action_id: actionId,
-        } as never);
+        });
         if (error) {
             const msg = error.message || 'bet rejected';
             const known = [

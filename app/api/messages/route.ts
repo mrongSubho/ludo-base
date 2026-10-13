@@ -69,8 +69,8 @@ export async function POST(request: Request) {
             if (error) return NextResponse.json({ error: error.message }, { status: 500 });
             try {
                 const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
-                await recordSocialOnboarding(db as never, wallet, 'friend_dm', 1);
-                await recordSocialOnboarding(db as never, receiver, 'friend_dm', 1);
+                await recordSocialOnboarding(db, wallet, 'friend_dm', 1);
+                await recordSocialOnboarding(db, receiver, 'friend_dm', 1);
             } catch (onbErr) {
                 console.error('[onboarding] friend_dm writer failed:', onbErr);
             }

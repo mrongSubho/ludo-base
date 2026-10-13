@@ -3,13 +3,14 @@
  * Service-role only — claim flags stay server-owned (see lib/onboardingServer.ts).
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
 import {
     ONBOARDING_TRACKS,
     isOnboardingTrack,
     type OnboardingTrack,
 } from './onboardingServer';
 
-type Db = SupabaseClient;
+type Db = SupabaseClient<Database>;
 
 /** Upsert a track increment, clamped to target. Never touches is_claimed. */
 export async function bumpOnboardingProgress(

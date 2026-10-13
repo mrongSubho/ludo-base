@@ -68,10 +68,14 @@ export async function POST(request: Request) {
         }
 
         const totalBase = (BigInt(totalChips) * E18).toString();
-        const { data, error } = await serviceDb().rpc('chips_escrow_spend_purchase' as never, {
+        // Typed from the migration chain (DB-22 regen: the RPC now resolves in
+        // types/database.types.ts, so the `as never` blanket cast is gone).
+        const { data, error } = await serviceDb().rpc('chips_escrow_spend_purchase', {
             p_wallet: wallet, p_request_id: id.slice(0, 100), p_item_ids: ids,
-            p_total_base: totalBase,
-        } as never);
+            // numeric param; the value is 1e18-scale exact (string), a JSON
+            // number would lose precision above 2^53.
+            p_total_base: totalBase as unknown as number,
+        });
         if (error) {
             const msg = error.message || '';
             if (msg.includes('ESCROW_DISABLED')) {
@@ -88,7 +92,10 @@ export async function POST(request: Request) {
             }
             return NextResponse.json({ error: msg }, { status: 409 });
         }
-        return NextResponse.json({ success: true, balance: data?.balance, itemIds: ids });
+        // The RPC returns jsonb `{balance, idempotent}` — the schema types the
+        // return as Json, so narrow once at the boundary.
+        const balance = (data as { balance?: number } | null)?.balance;
+        return NextResponse.json({ success: true, balance, itemIds: ids });
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }

@@ -190,19 +190,25 @@ export async function POST(request: Request) {
 
         const { data: player, error: fetchError } = winnerAddress ? await supabase
             .from('players')
-            .select('total_wins, total_games, lxp, rxp, season_id')
+            .select('total_wins, classic_played, power_played, lxp, rxp, season_id')
             .ilike('wallet_address', winnerAddress)
             .single() : { data: null, error: null };
 
         if (!fetchError && player) {
             const isNewSeason = (player.season_id || 0) < currentSeasonId;
             const currentRxp = isNewSeason ? 0 : (player.rxp || 0);
+            // DB-22: total_games is a stored generated column
+            // (classic_played + power_played + ai_played) — an UPDATE that names
+            // it fails with 428C9. Count the game on its mode counter instead.
+            const playedCounter = gameMode === 'power'
+                ? { power_played: (player.power_played || 0) + 1 }
+                : { classic_played: (player.classic_played || 0) + 1 };
 
             await supabase
                 .from('players')
                 .update({
                     total_wins: (player.total_wins || 0) + 1,
-                    total_games: (player.total_games || 0) + 1,
+                    ...playedCounter,
                     lxp: (player.lxp || 0) + winLxpGain,
                     rxp: currentRxp + winRxpGain,
                     season_id: currentSeasonId,
@@ -222,18 +228,22 @@ export async function POST(request: Request) {
         for (const addr of others) {
             const { data: op, error: ef } = await supabase
                 .from('players')
-                .select('total_games, lxp, rxp, season_id')
+                .select('classic_played, power_played, lxp, rxp, season_id')
                 .ilike('wallet_address', addr)
                 .single();
 
             if (!ef && op) {
                 const isNewSeason = (op.season_id || 0) < currentSeasonId;
                 const currentRxp = isNewSeason ? 0 : (op.rxp || 0);
+                // total_games is generated (see the winner branch above).
+                const playedCounter = gameMode === 'power'
+                    ? { power_played: (op.power_played || 0) + 1 }
+                    : { classic_played: (op.classic_played || 0) + 1 };
 
                 await supabase
                     .from('players')
                     .update({
-                        total_games: (op.total_games || 0) + 1,
+                        ...playedCounter,
                         lxp: (op.lxp || 0) + baseLxpGain,
                         rxp: Math.max(0, currentRxp - lossRxpPenalty),
                         season_id: currentSeasonId,
@@ -251,7 +261,7 @@ export async function POST(request: Request) {
         // Onboarding tracks (server-owned progress; claims stay pull-based).
         try {
             const { recordMatchOnboarding } = await import('@/lib/onboardingProgressWriter');
-            await recordMatchOnboarding(supabase as never, {
+            await recordMatchOnboarding(supabase, {
                 participants: lowerParts,
                 gameMode: gameMode || 'classic',
             });

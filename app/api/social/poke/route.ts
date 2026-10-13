@@ -134,8 +134,8 @@ export async function POST(request: Request) {
 
             try {
                 const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
-                await recordSocialOnboarding(supabase as never, s, 'social', 1);
-                await recordSocialOnboarding(supabase as never, r, 'social', 1);
+                await recordSocialOnboarding(supabase, s, 'social', 1);
+                await recordSocialOnboarding(supabase, r, 'social', 1);
             } catch (onbErr) {
                 console.error('[onboarding] social writer failed:', onbErr);
             }
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
 
         try {
             const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
-            await recordSocialOnboarding(supabase as never, s, 'social', 1);
+            await recordSocialOnboarding(supabase, s, 'social', 1);
         } catch (onbErr) {
             console.error('[onboarding] social writer failed:', onbErr);
         }

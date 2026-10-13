@@ -89,9 +89,9 @@ export async function POST(request: Request) {
                 p_game_mode: gameMode,
                 p_match_type: matchType,
                 p_wager: wager || 0,
-                p_wager_min: wagerMin ?? null,
-                p_wager_max: wagerMax ?? null,
-                p_room_code: roomCode || null
+                p_wager_min: wagerMin ?? undefined,
+                p_wager_max: wagerMax ?? undefined,
+                p_room_code: roomCode || undefined
             });
 
             if (error) {

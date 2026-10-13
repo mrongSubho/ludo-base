@@ -3,6 +3,7 @@ import { buildEcdhMessage, ecdhKeyFingerprint, isFreshIssuedAt } from '@/lib/mat
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { canonicalizeP256Jwk } from '@/lib/validation/ecdhJwk';
+import type { Json } from '@/types/database.types';
 
 /** Recipient ECDH pubkey lookup for DM sealing (service role: ecdh_pubkey is server-only). */
 export async function GET(request: Request) {
@@ -59,7 +60,13 @@ export async function POST(request: Request) {
         // Service role: players writes are default-deny; proof is the wallet
         // signature above. Only the canonical key is stored.
         const { error } = await serviceDb().from('players').upsert(
-            { wallet_address: recovered, ecdh_pubkey: canonical.key },
+            {
+                wallet_address: recovered,
+                // ecdh_pubkey is jsonb; CanonicalP256Jwk is a closed interface,
+                // so it is widened once, here, rather than given an index
+                // signature everywhere it is used.
+                ecdh_pubkey: canonical.key as unknown as Json,
+            },
             { onConflict: 'wallet_address' },
         );
         if (error) {

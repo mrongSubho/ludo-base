@@ -97,7 +97,11 @@ export async function issueMissionVoucher(
         wallet_address: wallet,
         mission_id: missionId,
         period_id: periodId,
-        amount: amount.toString(),
+        // mission_vouchers.amount is numeric; the value is a 1e18-scale exact
+        // integer from chipsToBaseUnits, so it crosses as a decimal string.
+        // Postgres casts text->numeric on the way in; a JSON number would
+        // silently lose precision above 2^53.
+        amount: amount.toString() as unknown as number,
         signature: "pending",
         deadline: new Date(Number(deadline) * 1000).toISOString(),
     });
