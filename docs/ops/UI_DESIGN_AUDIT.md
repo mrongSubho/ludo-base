@@ -156,6 +156,8 @@ Ratios computed against the **page background** (worst case) and the **panel sur
 
 **Actions:** deepen the Daybreak accent to `#0d6d87` (Phase 1.1); document faint inks as decorative; never place required text on the white/40-mapped ink.
 
+**Correction (2026-10-13, found while implementing 1.1):** the three Daybreak status values proposed in §5.2 **fail AA on the page background** when actually measured — `#b45309` 4.09:1, `#15803d` 4.09:1, `#dc2626` 3.94:1 (all < 4.5). Phase 2 must ship `#92400e` (5.78:1), `#166534` (5.81:1) and `#b91c1c` (5.27:1) instead. The gate is `node scripts/contrast.mjs --pairs` (15 pairs, added with 1.1) — run it after any token change.
+
 ---
 
 ## 5. Target architecture

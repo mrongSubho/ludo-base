@@ -284,7 +284,7 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 body.theme-daybreak .ludo-quick-scope .diag-chip {
   color: rgba(23, 23, 23, 0.62);
 }
-body.theme-daybreak .ludo-quick-scope .diag-status-info { color: #0e7490; }
+body.theme-daybreak .ludo-quick-scope .diag-status-info { color: #0d6d87; }
 body.theme-daybreak .ludo-quick-scope .diag-status-warn { color: #b45309; }
 body.theme-daybreak .ludo-quick-scope .diag-status-ok { color: #15803d; }
 .ludo-lobby-scope .pt-8 { padding-top: 2rem; }
@@ -315,7 +315,7 @@ body.theme-daybreak .ludo-broadcast-scope :is(.text-amber-300) { color: #b45309;
 /* ─── Daybreak chat: ink own-bubbles, solid send tile ─── */
 body.theme-daybreak .ludo-broadcast-scope .chat-own { background-color: #171717; color: #ffffff; box-shadow: 0 8px 20px rgba(23, 23, 23, 0.25); }
 body.theme-daybreak .ludo-broadcast-scope div.chat-own.text-white { color: #ffffff; }
-body.theme-daybreak .ludo-broadcast-scope .chat-send { background-color: #0e7490; color: #ffffff; box-shadow: 0 6px 16px rgba(14, 116, 144, 0.35); }
+body.theme-daybreak .ludo-broadcast-scope .chat-send { background-color: #0d6d87; color: #ffffff; box-shadow: 0 6px 16px rgba(13, 109, 135, 0.35); }
 body.theme-daybreak .ludo-broadcast-scope .chat-send:disabled { background-color: rgba(23, 23, 23, 0.08); color: rgba(23, 23, 23, 0.35); box-shadow: none; }
 .ludo-lobby-scope .py-2 { padding-block: 0.5rem; }
 .ludo-lobby-scope .py-2\.5 { padding-block: 0.625rem; }
@@ -372,8 +372,8 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.ring-white\/10) { --tw-ring-color: rgba(23, 23, 23, 0.14); }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
 /* Daybreak accents: neon-on-black tones deepen to saturated-on-white tones */
-body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-100, .text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0e7490; }
-body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-300\/60, .text-cyan-300\/80, .text-cyan-400\/40, .text-cyan-400\/60, .text-cyan-400\/80, .text-cyan-400\/90, .text-cyan-500\/80) { color: color-mix(in srgb, #0e7490 70%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-100, .text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0d6d87; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-300\/60, .text-cyan-300\/80, .text-cyan-400\/40, .text-cyan-400\/60, .text-cyan-400\/80, .text-cyan-400\/90, .text-cyan-500\/80) { color: color-mix(in srgb, #0d6d87 70%, transparent); }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-amber-300, .text-amber-400, .text-amber-500, .text-yellow-300, .text-yellow-400, .text-yellow-500) { color: #b45309; }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-200, .text-green-300, .text-green-400, .text-emerald-400) { color: #15803d; }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-200\/60) { color: color-mix(in srgb, #15803d 65%, transparent); }
@@ -389,11 +389,11 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 
 /* ─── Daybreak chrome: footer nav ─── */
 body.theme-daybreak .nav-item .nav-icon { color: rgba(23, 23, 23, 0.45) !important; }
-body.theme-daybreak .nav-item.active .nav-icon { color: #0e7490 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
-body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0e7490 !important; }
+body.theme-daybreak .nav-item.active .nav-icon { color: #0d6d87 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0d6d87 !important; }
 body.theme-daybreak .nav-item .nav-label { color: rgba(23, 23, 23, 0.55) !important; }
-body.theme-daybreak .nav-item.active .nav-label { color: #0e7490 !important; }
-body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: #0e7490 !important; }
+body.theme-daybreak .nav-item.active .nav-label { color: #0d6d87 !important; }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: #0d6d87 !important; }
 body.theme-daybreak .footer-nav :is(.border-white\/10) { border-color: rgba(14, 165, 183, 0.35); }
 body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rgba(14, 165, 183, 0.08); }
 body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 165, 183, 0.20); }
@@ -402,13 +402,13 @@ body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 1
 body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
 body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
-body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0e7490; }
+body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0d6d87; }
 body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { background-color: rgba(23, 23, 23, 0.06); }
 /* Board compact header: mode-strip inner pill + text stay legible on light glass */
 body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
-body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
+body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0d6d87; }
 /* Invite notification accents (not covered by the shared cyan-in-cyan rule) */
-body.theme-daybreak .ludo-invite-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-invite-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-invite-scope :is(.text-amber-400) { color: #b45309; }
 /* TeamUp announce button: amber/emerald washes legible on both themes */
 body.theme-daybreak .ludo-teamup-scope .announce-btn {
@@ -421,15 +421,15 @@ body.theme-daybreak .ludo-teamup-scope .announce-btn.announce-live {
   background-color: rgba(4, 120, 87, 0.08) !important;
   color: #047857 !important;
 }
-body.theme-daybreak .ludo-teamup-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-teamup-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 /* Broadcast room rows: joinable card legible on both themes */
 body.theme-daybreak .ludo-broadcast-scope .room-join-row {
-  background-color: rgba(14, 116, 144, 0.08) !important;
-  border-color: rgba(14, 116, 144, 0.35) !important;
+  background-color: rgba(13, 109, 135, 0.08) !important;
+  border-color: rgba(13, 109, 135, 0.35) !important;
   color: #171717 !important;
 }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/90) { color: #171717 !important; }
-body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-cyan-300) { color: #0e7490 !important; }
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-cyan-300) { color: #0d6d87 !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white) { color: #171717 !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/40) { color: rgba(23, 23, 23, 0.6) !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/50) { color: rgba(23, 23, 23, 0.6) !important; }
@@ -440,7 +440,7 @@ body.theme-daybreak .ludo-broadcast-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/90, .text-white\/80, .text-white\/75, .text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/60, .text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10, .text-white\/5) { color: color-mix(in srgb, #171717 45%, transparent); }
-body.theme-daybreak .ludo-broadcast-scope :is(.text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-green-300, .text-green-400) { color: #15803d; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-red-400) { color: #b91c1c; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-amber-300) { color: #b45309; }
@@ -502,8 +502,8 @@ body.theme-daybreak .ludo-onboard-scope :is(.text-white\/40) { color: color-mix(
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/35) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/60) { color: color-mix(in srgb, #171717 58%, transparent); }
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
-body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
-body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
+body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0d6d87; }
+body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0d6d87; }
 body.theme-daybreak .ludo-onboard-scope :is(.border-white\/10) { border-color: rgba(23, 23, 23, 0.14); }
 body.theme-daybreak .ludo-onboard-scope .onboard-row-label { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-onboard-scope .onboard-appearance {
@@ -523,7 +523,7 @@ body.theme-daybreak .ludo-onboard-scope :is(.bg-white\/\[0\.07\]) { background-c
 body.theme-daybreak .ludo-onboard-scope :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
 body.theme-daybreak .ludo-onboard-scope .onboard-cta {
   color: #0b0f19;
-  box-shadow: 0 0 24px rgba(14, 116, 144, 0.28);
+  box-shadow: 0 0 24px rgba(13, 109, 135, 0.28);
 }
 body.theme-daybreak .ludo-onboard-scope .onboard-cta:hover { background-color: #22d3ee; }
 
@@ -552,7 +552,7 @@ body.theme-daybreak .ludo-lobby-scope :is(.text-white\/60, .text-white\/50, .tex
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/35, .text-white\/30, .text-white\/20) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-green-300) { color: #15803d; }
-body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-lobby-scope :is(.text-yellow-400, .text-yellow-500) { color: #b45309; }
 body.theme-daybreak .ludo-lobby-scope :is(.hover\:text-white:hover) { color: #171717; }
 body.theme-daybreak .ludo-lobby-scope :is(.ring-white\/10) { --tw-ring-color: rgba(23, 23, 23, 0.14); }
@@ -589,7 +589,7 @@ body.theme-daybreak .ludo-ticker-scope :is(.text-white\/80) { color: color-mix(i
 body.theme-daybreak .ludo-ticker-scope :is(.text-white\/30) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-300) { color: #171717; }
 body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-500\/70, .text-cyan-500\/50) { color: color-mix(in srgb, #171717 60%, transparent); }
-body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-ticker-scope :is(.bg-cyan-950\/50) { background-color: rgba(14, 165, 183, 0.12); }
 body.theme-daybreak .ludo-ticker-scope :is(.border-cyan-500\/30) { border-color: rgba(23, 23, 23, 0.16); }
 body.theme-daybreak .ludo-ticker-scope :is(.from-black\/60) { --tw-gradient-from: rgba(255, 255, 255, 0.9); }
@@ -1049,7 +1049,7 @@ body.theme-daybreak .ludo-invite-scope .invite-accept-btn {
   box-shadow: 0 8px 24px rgba(8, 145, 178, 0.25);
 }
 body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
-  background-color: #0e7490;
+  background-color: #0d6d87;
 }
 /* Scoped spacing repair (wallet entrance card only): scoped re-assertions.
    Zero blast radius on the rest of the app. (LudoWalletModal uses inline
@@ -2440,7 +2440,7 @@ body.keyboard-open .app-shell {
 .home-player-label.team-a-label {
   gap: 6px !important;
   border-color: rgba(34, 211, 238, 0.62);
-  background: linear-gradient(90deg, rgba(14, 116, 144, 0.9), rgba(37, 99, 235, 0.78));
+  background: linear-gradient(90deg, rgba(13, 109, 135, 0.9), rgba(37, 99, 235, 0.78));
   box-shadow: 0 4px 14px rgba(14, 165, 233, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
@@ -4020,7 +4020,7 @@ body.theme-retro-futurism .token-dot-placeholder {
 body.theme-daybreak .match-stats-card {
   background-color: #f4f6f9;
   background-image:
-    radial-gradient(circle at 50% 0%, rgba(14, 116, 144, 0.08) 0%, transparent 48%),
+    radial-gradient(circle at 50% 0%, rgba(13, 109, 135, 0.08) 0%, transparent 48%),
     radial-gradient(circle at 90% 100%, rgba(37, 99, 235, 0.06) 0%, transparent 40%);
   color: #0f172a;
   border-color: rgba(23, 23, 23, 0.12);
@@ -4146,9 +4146,9 @@ body.theme-daybreak .match-stats-xp {
   border: 1px solid rgba(34, 211, 238, 0.35);
 }
 body.theme-daybreak .match-stats-lv {
-  background: rgba(14, 116, 144, 0.1);
-  color: #0e7490;
-  border-color: rgba(14, 116, 144, 0.3);
+  background: rgba(13, 109, 135, 0.1);
+  color: #0d6d87;
+  border-color: rgba(13, 109, 135, 0.3);
 }
 .match-stats-xp-track {
   flex: 1;
@@ -4208,8 +4208,8 @@ body.theme-daybreak .match-stats-row {
   border-color: rgba(23, 23, 23, 0.08);
 }
 body.theme-daybreak .match-stats-row.won {
-  border-color: rgba(14, 116, 144, 0.3);
-  background: rgba(14, 116, 144, 0.06);
+  border-color: rgba(13, 109, 135, 0.3);
+  background: rgba(13, 109, 135, 0.06);
 }
 
 .match-stats-rank {
@@ -4238,8 +4238,8 @@ body.theme-daybreak .match-stats-rank {
 }
 body.theme-daybreak .match-stats-rank.won {
   color: #fff;
-  background: #0e7490;
-  border-color: #0e7490;
+  background: #0d6d87;
+  border-color: #0d6d87;
   box-shadow: none;
 }
 
@@ -4329,9 +4329,9 @@ body.theme-daybreak .match-stats-avatar {
   border-color: rgba(239, 68, 68, 0.3);
 }
 body.theme-daybreak .match-stats-chip.kick {
-  color: #0e7490;
-  background: rgba(14, 116, 144, 0.1);
-  border-color: rgba(14, 116, 144, 0.28);
+  color: #0d6d87;
+  background: rgba(13, 109, 135, 0.1);
+  border-color: rgba(13, 109, 135, 0.28);
 }
 body.theme-daybreak .match-stats-chip.kicked {
   color: #b91c1c;
@@ -4377,7 +4377,7 @@ body.theme-daybreak .match-stats-outcome-label {
   color: rgba(255, 255, 255, 0.4);
 }
 body.theme-daybreak .match-stats-outcome-val {
-  color: #0e7490;
+  color: #0d6d87;
 }
 body.theme-daybreak .match-stats-outcome-val.muted {
   color: rgba(23, 23, 23, 0.4);
@@ -4405,8 +4405,8 @@ body.theme-daybreak .match-stats-claim {
   border-color: rgba(23, 23, 23, 0.1);
 }
 body.theme-daybreak .match-stats-claim.ready {
-  border-color: rgba(14, 116, 144, 0.35);
-  background: rgba(14, 116, 144, 0.06);
+  border-color: rgba(13, 109, 135, 0.35);
+  background: rgba(13, 109, 135, 0.06);
 }
 
 .match-stats-claim-head {
@@ -4429,7 +4429,7 @@ body.theme-daybreak .match-stats-claim.ready {
   font-variant-numeric: tabular-nums;
 }
 body.theme-daybreak .match-stats-claim-amount {
-  color: #0e7490;
+  color: #0d6d87;
 }
 .match-stats-claim-note {
   margin: 0;
@@ -7002,10 +7002,10 @@ textarea:focus-visible {
 
 /* ─── Daybreak: cyan text needs more weight on light glass ─── */
 body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) {
-  color: #0e7490;
+  color: #0d6d87;
 }
 body.theme-daybreak .fee-tier :is(.text-cyan-300) {
-  color: #0e7490;
+  color: #0d6d87;
 }
 
 /* ─── Live Arena: venue plate + on-screen broadcast HUD ─── */
@@ -7290,7 +7290,7 @@ body.theme-daybreak .arena-screen-watch {
 
 body.theme-daybreak .arena-screen-stats {
   background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(14, 116, 144, 0.25);
+  border-color: rgba(13, 109, 135, 0.25);
 }
 
 body.theme-daybreak .arena-screen-stat {
@@ -7299,16 +7299,16 @@ body.theme-daybreak .arena-screen-stat {
 
 body.theme-daybreak .arena-bug-live {
   background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(14, 116, 144, 0.35);
-  color: #0e7490;
+  border-color: rgba(13, 109, 135, 0.35);
+  color: #0d6d87;
   text-shadow: none;
 }
 
 body.theme-daybreak .arena-bug-net,
 body.theme-daybreak .arena-screen-side {
   background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(14, 116, 144, 0.3);
-  color: #0e7490;
+  border-color: rgba(13, 109, 135, 0.3);
+  color: #0d6d87;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7352,10 +7352,10 @@ body.theme-daybreak .ludo-wallet-scope :is(.text-cyan-50, .text-cyan-100, .text-
   color: #0E7490;
 }
 body.theme-daybreak .ludo-wallet-scope :is(.bg-cyan-500\/20, .bg-cyan-500\/15, .bg-cyan-500\/30, .bg-cyan-400\/30) {
-  background-color: rgba(14, 116, 144, 0.14);
+  background-color: rgba(13, 109, 135, 0.14);
 }
 body.theme-daybreak .ludo-wallet-scope :is(.border-cyan-400\/50, .border-cyan-400\/40, .border-cyan-500\/50) {
-  border-color: rgba(14, 116, 144, 0.45);
+  border-color: rgba(13, 109, 135, 0.45);
 }
 body.theme-daybreak .ludo-wallet-scope :is(.bg-white\/5, .bg-white\/10) {
   background-color: #FFFFFF;
@@ -7452,8 +7452,8 @@ body.theme-daybreak .chips-wallet-panel .cw-btn {
   color: #0A0B0D;
 }
 body.theme-daybreak .chips-wallet-panel .cw-btn-primary {
-  background: rgba(14, 116, 144, 0.12);
-  border-color: rgba(14, 116, 144, 0.4);
+  background: rgba(13, 109, 135, 0.12);
+  border-color: rgba(13, 109, 135, 0.4);
   color: #0E7490;
 }
 /* Belt-and-suspenders: any residual white-text utility inside these panels */
@@ -9762,7 +9762,7 @@ body.theme-daybreak .ingame-input:focus {
   flex-shrink: 0;
 }
 body.theme-daybreak .ingame-link {
-  color: #0e7490;
+  color: #0d6d87;
 }
 .ingame-err {
   margin: 0;

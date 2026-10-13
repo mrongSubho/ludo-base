@@ -42,6 +42,11 @@
  *
  * The diff runs in the browser (canvas), so the harness needs no image
  * dependency beyond the Playwright chromium already in devDependencies.
+ *
+ * What it does NOT catch: colour changes smaller than CHANNEL_TOLERANCE (12 per
+ * channel). The Phase 1.1 accent deepening (#0e7490 → #0d6d87) is a 1–9 channel
+ * delta and produced 0.000% here — colour is the contrast gate's job
+ * (`scripts/contrast.mjs --pairs`), layout and structure are this one's.
  */
 import { chromium } from 'playwright';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
