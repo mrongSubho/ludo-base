@@ -113,6 +113,7 @@ const SplashScreen = () => (
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useNotifications } from '@/hooks/useNotifications';
+import { prefersReducedMotion } from '@/lib/motion';
 
 const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
    matchId?: string;
@@ -317,8 +318,12 @@ export default function Page() {
     if (level > prevLevelRef.current) {
       prevLevelRef.current = level;
 
+      // Reduced motion: no level-up particles (CSS_LAYOUT_ANIMATION_PLAN §3.4).
+      if (prefersReducedMotion()) return;
+
       void import('canvas-confetti').then(({ default: confetti }) => {
-        const duration = 2 * 1000;
+        // §3.3: confetti capped at 1.5s, single loop, auto-disposed.
+        const duration = 1.5 * 1000;
         const end = Date.now() + duration;
         const colors = ['#00E5FF', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ffffff'];
         (function frame() {

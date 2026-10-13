@@ -102,6 +102,19 @@ Then flip decision in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md) and mirror in
 
 ---
 
+## Deferred from the CSS layout & animation plan (2026-10-13)
+
+The P0 motion/a11y slice of [`CSS_LAYOUT_ANIMATION_PLAN.md`](./CSS_LAYOUT_ANIMATION_PLAN.md) landed (reduced-motion across all JS motion, motion tokens, dvh/overscroll, `check-motion` gate). Deferred items, with their blockers, per that plan's Phase 4:
+
+| Item | Blocker | Owner |
+| --- | --- | --- |
+| Real-device frame-time evidence (mid-tier Android, iPhone SE) — same need as gate 1 above | hardware; proxy = 4× CPU-throttle traces | — |
+| Playwright visual-diff harness (8 scenes × 2 themes) | no browser toolchain in the remediating environment; blocks the reset-layering, module-split, fluid-board, container-query and img-codemod phases | — |
+| Lighthouse mobile baseline (Perf/LCP/INP/CLS) | same harness dependency | — |
+| Screen-reader pass + focus-ring unification (`--ludo-focus-ring`) | Phase 4 work, sequenced | — |
+| GSAP→framer consolidation | census says GSAP serves exactly 2 timelines; collapse once motion-scale usage data exists | — |
+| Optional in-settings motion preference toggle | ship only if Phase 3 has slack | — |
+
 ## Sign-off
 
 Record outcome in [`UNPARK_DECISION.md`](./UNPARK_DECISION.md), then tick plan §2.1.

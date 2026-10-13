@@ -8,6 +8,7 @@ import { PlayerColor, GameState } from '@/lib/types';
 import { Point, getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
 import { getIntermediatePathCoords, calculateNextPosition } from '@/lib/gameLogic';
 import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
+import { prefersReducedMotion } from '@/lib/motion';
 import { ChessRank, ChessPiece, COLOR_PIECE, RANK_ORDER, shade } from '../ChessTokens';
 import { Token, ShatterFX, RunHomeGhost, colorMapSafe, alphaHex } from './TokenVisual';
 
@@ -77,6 +78,9 @@ export function TokenPiece({
         setShowShockwave(true);
         const shock = setTimeout(() => setShowShockwave(false), 450);
         trackCleanup(() => clearTimeout(shock));
+        // CSS_LAYOUT_ANIMATION_PLAN §5: reduced motion removes translation,
+        // never information — the token is already at its engine position.
+        if (prefersReducedMotion()) return;
         const hop = gsap.fromTo(hopRef.current,
             { y: -46, scaleX: 0.9, scaleY: 1.18, opacity: 0 },
             { y: 0, scaleX: 1, scaleY: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.5)' });
@@ -96,6 +100,7 @@ export function TokenPiece({
         setShowShockwave(true);
         const shock = setTimeout(() => setShowShockwave(false), 450);
         trackCleanup(() => clearTimeout(shock));
+        if (prefersReducedMotion()) return;
         // Settle: squash -> recover -> rest
         const settle = gsap.timeline()
             .to(hopRef.current, { scaleY: 0.84, scaleX: 1.16, y: 3, duration: 0.12, ease: 'power2.out' })
@@ -199,6 +204,16 @@ export function TokenPiece({
                 // this paint, or the token flashes at its destination cell.
                 // (tl.set would defer to the timeline's first tick — too late.)
                 gsap.set(glideRef.current, { x: xs[0], y: ys[0] });
+
+                // Reduced motion: collapse the hop to an instant repositioning.
+                // Same task as the offset write above, so no intermediate paint
+                // is possible; engine state remains the single source of truth.
+                if (prefersReducedMotion()) {
+                    gsap.set(glideRef.current, { x: 0, y: 0 });
+                    isAnimatingRef.current = false;
+                    setIsMoving(false);
+                    return;
+                }
 
                 // ONE GSAP timeline: DISCRETE cell-by-cell hops.
                 // Each cell = leap (travel while airborne) -> land -> beat.

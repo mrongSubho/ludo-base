@@ -621,3 +621,34 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 | **Wagered + 2v2 play** | owner | 2026-10-11 | **Ship-rule condition met** — Phase 0–2 closed on 2026-10-11, which is what the rule required; whether wagered play is enabled is an owner call (the arming pair is deployed and verified on Sepolia) |
 
 **Ship rule.** Wagered pools and 2v2 mode stayed disabled until Phase 0–2 closed; that condition was met on 2026-10-11. Non-wagered 4P offline play was blocked on ENG-01 only (one engine must be authoritative), which closed with the engine-diff harness and golden corpus above.
+
+---
+
+## Part V — CSS layout & animation plan integration (2026-10-13)
+
+*Source: [`CSS_LAYOUT_ANIMATION_PLAN.md`](./CSS_LAYOUT_ANIMATION_PLAN.md) (found in the tree, reviewed, and integrated in part). The plan is Phase 0–4 over weeks; this is the P0 motion/a11y slice plus the Phase 0 instrumentation. Layout-shifting phases are deferred with reasons (below and in the plan's §7).*
+
+### What landed
+
+- **`lib/motion.ts` (new)** — the single JS-side source of truth for `prefers-reduced-motion`: `prefersReducedMotion()`, `onReducedMotionChange()`. Before this, the CSS kill-switch (4 `@media` blocks in `globals.css`) did not reach any JS motion — framer components, the GSAP token timelines, and confetti all ran regardless of the OS setting.
+- **All JS motion now honors the preference (5/5 census — 2 GSAP + 3 confetti):** `<MotionConfig reducedMotion="user">` wraps the app (`app/Providers.tsx`) for the 34 framer files; the two GSAP sites (`board/TokenPiece.tsx`, `board/TokenVisual.tsx`) collapse their timelines to instant repositionings — translation is removed, information is not, because board positions are engine state rendered from `lib/boardLayout` coordinates; the three confetti sites (`app/page.tsx`, `BoardHome.tsx`, `SnakesBoard.tsx`) skip particle bursts. Confetti loops capped at 1.5s (were 2s and 5s).
+- **Motion scale tokens** (`--ludo-motion-fast/base/slow/token-hop` + two easings) added to the `:root` block in `globals.css`, with the library-ownership convention documented inline: CSS keyframes for one-shot ≤ 320ms · framer-motion for React orchestration/gesture · GSAP only for engine-driven token movement.
+- **Responsive/paint cheap wins:** `overscroll-behavior: contain` on the shared `.no-scrollbar` scroll-panel utility; `dvh` progressive-enhancement pairs on the remaining fixed `100vh`/`75vh` rules and in `page.module.css` (the footer already had `--app-vh: 100dvh` + `env(safe-area-inset-bottom)` — the plan's G7 claim was partially stale and is corrected in the plan doc).
+- **`scripts/check-motion.mjs` (new, blocking in CI)** — the compositor-only gate: fails on NEW `transition`/`animation`/`@keyframes`/framer `animate` objects targeting layout properties (width/height/top/left/right/bottom/margin/padding) outside a documented allowlist (2 keyframes + 4 framer animate sites, each with its reason), and on any `will-change` declaration (plan keeps it at zero). Reports the reduced-motion census.
+- **`scripts/bench-css.mjs` (new, advisory in CI)** — the Phase 0 baseline: CSS bytes raw/gzip, `globals.css` rule/keyframe/media/custom-prop counts, and the JS surface (inline styles, raw `<img>`, framer layout animations). Measured: 335,877 B raw / 57,961 B gzip CSS · globals.css 11,791 lines · 34 keyframes · 295 inline styles · 40 raw `<img>`.
+- **`npm run check:motion` / `bench:css` / `test:contracts` / `setup:foundry`** added; the motion gate and the bench run as named steps in `engine-tests`.
+
+### Deferred (with reasons)
+
+- **Reset layering (`@layer base`)** — app-wide spacing shift; needs the Playwright visual-diff harness the plan specifies, and no browser toolchain exists in this environment.
+- **`globals.css` module split, fluid board `clamp()` sizing, container queries** — layout-shifting; same harness dependency.
+- **`<img>` dimension codemod (40 tags / 23 files)** — per-site dimensions need verification; wrong numbers distort art, so it waits for the harness rather than guessing.
+- **`content-visibility` on feeds, focus-ring unification, screen-reader pass, GSAP→framer consolidation, ambient-loop pausing, optional motion toggle** — Phase 1–4 items the plan sequences after measurement.
+
+### Scripts directory evaluation (same pass)
+
+Reference-analyzed all 85 files in `scripts/`: **83 are load-bearing** (44 run inside `npm test`, the rest are gates, drills, deploy/verify tooling, or referenced by docs). **Retain the directory** — it is the repo's gate harness. The 2 unreferenced files were dev tooling with a real purpose, so they were wired in rather than deleted: `setup-foundry.sh` (foundry + keystore bootstrap) and `anvil-e2e.sh` (runs the local `E2EFundSettleClaim` Foundry test) are now `npm run setup:foundry` / `npm run test:contracts` — which also gives Part IV's "forge test in CI" gap a local runner until the CI step lands.
+
+### Gates
+
+`tsc` 0 errors · `lint` clean · `npm test` 406 pass / 0 fail / 11 skipped · `npm run check:motion` clean (compositor-only, 5/5 reduced-motion census) · `npm run bench:css` baseline recorded in the plan's §6.

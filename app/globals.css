@@ -2006,6 +2006,16 @@ body.theme-daybreak .header {
   --layout-vh: 100dvh;
   --visible-vh: 100dvh;
   --kb-inset: 0px;
+  /* ── Motion scale (CSS_LAYOUT_ANIMATION_PLAN §3.3) ──
+     Convention: CSS keyframes for one-shot <= 320ms · framer-motion for React
+     orchestration/gesture · GSAP only for engine-driven token movement.
+     Durations/easings live here so no component hardcodes its own. */
+  --ludo-motion-fast: 120ms;
+  --ludo-motion-base: 200ms;
+  --ludo-motion-slow: 320ms;
+  --ludo-motion-token-hop: 450ms;
+  --ludo-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ludo-ease-emphasis: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .footer-nav {
   position: fixed;
@@ -4730,6 +4740,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   width: 280px;
   max-width: 80vw;
   height: 100vh;
+  height: 100dvh; /* CSS_LAYOUT_ANIMATION_PLAN §3.2: URL-bar show/hide */
   background: var(--ludo-bg, #f8f6f0);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   display: flex;
@@ -4997,6 +5008,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   display: flex;
   flex-direction: column;
   max-height: 75vh;
+  max-height: 75dvh;
   animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
@@ -6197,6 +6209,9 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* CSS_LAYOUT_ANIMATION_PLAN §3.1: in-panel scroll must not chain to the page
+     (rubber-band the whole app from a feed). */
+  overscroll-behavior: contain;
 }
 
 .no-scrollbar::-webkit-scrollbar {

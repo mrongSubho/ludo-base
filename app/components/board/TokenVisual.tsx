@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { PlayerColor } from '@/lib/types';
 import { Point, getBoardCoordinate, ColorCorner, CORNER_SLOTS } from '@/lib/boardLayout';
+import { prefersReducedMotion } from '@/lib/motion';
 import { ChessRank, ChessPiece, COLOR_PIECE, RANK_ORDER, shade } from '../ChessTokens';
 
 function alphaHex(hex: string, a: number): string {
@@ -321,6 +322,17 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
         const step = Math.min(0.09, 2.2 / m); // fast run, bounded total time
 
         gsap.set(travelRef.current, { xPercent: xP[0], yPercent: yP[0] });
+
+        // Reduced motion: no reverse walk — the ghost renders at its end state
+        // (travel at the final cell, dive into the base pad complete) and the
+        // parent removes it. Engine state stays authoritative either way.
+        if (prefersReducedMotion()) {
+            gsap.set(travelRef.current, { xPercent: xP[m], yPercent: yP[m] });
+            gsap.set(hopRef.current, { y: 0, opacity: 0, scale: 0.35 });
+            doneRef.current();
+            return () => {};
+        }
+
         const tl = gsap.timeline({ onComplete: () => doneRef.current() });
         for (let i = 0; i < m; i++) {
             const t0 = i * step;

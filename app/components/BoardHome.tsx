@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { prefersReducedMotion } from '@/lib/motion';
 import { Token } from './BoardTokens';
 import { Corner, ColorCorner, CORNER_SLOTS } from '@/lib/boardLayout';
 
@@ -196,6 +197,9 @@ export function HomeBlock({
                     blue: [59, 130, 246],
                 };
                 const rgb = colorMap[color] || [255, 255, 255];
+                // CSS_LAYOUT_ANIMATION_PLAN §3.4: confetti is motion-only feedback;
+                // the win state itself is announced by the overlay.
+                if (prefersReducedMotion()) return;
                 confetti({
                     particleCount: 60,
                     spread: 70,

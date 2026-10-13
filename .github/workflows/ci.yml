@@ -67,6 +67,16 @@ jobs:
         # mismatch, any route claiming session auth without a guard, and any
         # newly-unauthenticated mutation.
         run: npm run check:routes
+      - name: Motion gate (compositor-only + reduced-motion census)
+        # CSS_LAYOUT_ANIMATION_PLAN §3.3: fails on NEW layout-property
+        # animations (width/height/top/left/right/bottom/margin/padding in
+        # CSS, inline styles, or framer-motion animate objects) outside the
+        # documented KNOWN allowlist; reports the reduced-motion census.
+        run: npm run check:motion
+      - name: CSS budget baseline (advisory)
+        # Plan §6: advisory until Phase 2 — prints the payload/surface numbers
+        # the merge gates will enforce later; never blocks.
+        run: npm run bench:css
       - name: Schema contract gate (static A1-A4 + DB-mode grants/defaults)
         # Static: catches the DB-01 class (CREATE OR REPLACE renaming input
         # parameters, silently truncating a non-transactional migration) and the

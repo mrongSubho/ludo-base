@@ -13,6 +13,7 @@ import { WagmiProvider, createConfig, http } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { baseAccount, coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { MotionConfig } from "framer-motion";
 import { ReactNode, useEffect } from "react";
 import { DATA_SUFFIX } from "@/lib/builderCode";
 import { initTelemetry } from "@/lib/telemetry";
@@ -71,7 +72,12 @@ export function Providers({ children }: { children: ReactNode }) {
         prefetchSiweNonce();
     }, []);
     return (
-        <WagmiProvider config={config}>
+        // CSS_LAYOUT_ANIMATION_PLAN §3.4: the CSS reduced-motion kill-switch does
+        // not reach framer-motion; `reducedMotion="user"` makes every motion.*
+        // component honor the OS setting (lib/motion.ts carries the same query
+        // for the GSAP token timelines and canvas-confetti).
+        <MotionConfig reducedMotion="user">
+            <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
                 <CdpAuthProvider>
                 <OnchainKitProvider
@@ -97,6 +103,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 </OnchainKitProvider>
                 </CdpAuthProvider>
             </QueryClientProvider>
-        </WagmiProvider>
+            </WagmiProvider>
+        </MotionConfig>
     );
 }

@@ -8,6 +8,7 @@ import Dice from './Dice';
 import { useAudio } from '../hooks/useAudio';
 import { calculateSnakesMove } from '@/lib/snakesLogic';
 import { BOT_TEMPLATES } from '@/lib/boardLayout';
+import { prefersReducedMotion } from '@/lib/motion';
 
 type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
@@ -193,7 +194,10 @@ export default function SnakesBoard({
     }, []);
 
     const triggerWinConfetti = useCallback(() => {
-        const duration = 5 * 1000;
+        // Reduced motion: no particle burst — the win message is the signal.
+        if (prefersReducedMotion()) return;
+        // CSS_LAYOUT_ANIMATION_PLAN §3.3: confetti capped at 1.5s.
+        const duration = 1.5 * 1000;
         const animationEnd = Date.now() + duration;
         const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
         const interval: any = setInterval(function () {

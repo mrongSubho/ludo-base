@@ -69,3 +69,4 @@ design-system/
 # agent tool scaffolds (local-only)
 .commandcode/
 .agent/
+.workbuddy-ai/
