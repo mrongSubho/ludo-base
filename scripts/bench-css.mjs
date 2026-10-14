@@ -57,7 +57,7 @@ for (const f of tsxFiles) {
     inlineStyles += (src.match(/style=\{\{/g) || []).length;
     rawImgs += (src.match(/<img\b/g) || []).length;
     hardcodedTextPx += (src.match(/text-\[[0-9]+px\]/g) || []).length;
-    scaleTextUtilities += (src.match(/text-ludo-(?:3xs|2xs|xs|sm|md|lg|xl|2xl|3xl)\b/g) || []).length;
+    scaleTextUtilities += (src.match(/text-ludo-(?:xs|sm|md|lg|xl|2xl|3xl)\b/g) || []).length;
     for (const m of src.matchAll(/animate=\{\{\s*([^}]*)\}\}/g)) {
         if (/\b(width|height)\s*:/.test(m[1])) framerAnimateLayout++;
     }

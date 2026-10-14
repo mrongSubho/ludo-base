@@ -812,7 +812,7 @@ export function SettingsPanel({
                                     {isGuest ? 'Sign In' : 'Sign Out'}
                                 </span>
                                 {!isGuest && player.address && (
-                                    <span className="settings-signout-addr max-w-full px-3 text-[9px] font-mono leading-tight break-all">
+                                    <span className="settings-signout-addr max-w-full px-3 text-[10px] font-mono leading-tight break-all">
                                         {player.address}
                                     </span>
                                 )}

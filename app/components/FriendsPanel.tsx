@@ -770,14 +770,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                         <div className="flex items-center gap-1.5">
                                             <button
                                                 onClick={() => setOnlineOnly(v => !v)}
-                                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${onlineOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${onlineOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
                                             >
                                                 <span className={`w-1 h-1 rounded-full ${onlineOnly ? 'bg-green-400 animate-pulse' : 'bg-white/30'}`} />
                                                 Online
                                             </button>
                                             <button
                                                 onClick={() => setActiveOnly(v => !v)}
-                                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${activeOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${activeOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
                                             >
                                                 Active
                                             </button>

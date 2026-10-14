@@ -26,23 +26,21 @@
 
   --image-ludo-bg: var(--ludo-bg-image);
 
-  /* ── Fluid type scale (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S) ──
-     Every step's max is a size the app already used as a hardcoded px
-     value, so adopting a step is rendering-neutral at >= 440px and narrows
-     fluidly toward 320px — which is what lets a per-breakpoint font-size
-     override be deleted rather than kept in sync.
-     The micro steps (6/7/8px) are deliberately FIXED: they are already at
-     the legibility floor, and a fluid shrink below 6px would hurt reading,
-     not help fitting. */
-  --text-ludo-3xs: 6px;
-  --text-ludo-2xs: 7px;
-  --text-ludo-xs: 8px;
-  --text-ludo-sm: clamp(8px, calc(8px + (100vw - 320px) / 120), 9px);
-  --text-ludo-md: clamp(9px, calc(9px + (100vw - 320px) / 120), 10px);
-  --text-ludo-lg: clamp(10px, calc(10px + (100vw - 320px) / 120), 11px);
-  --text-ludo-xl: clamp(11px, calc(11px + 2 * (100vw - 320px) / 120), 13px);
-  --text-ludo-2xl: clamp(13px, calc(13px + 2 * (100vw - 320px) / 120), 15px);
-  --text-ludo-3xl: clamp(17px, calc(17px + 3 * (100vw - 320px) / 120), 20px);
+  /* ── Fluid type scale (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S; floor per
+     UI_DESIGN_AUDIT P1-7 / §4.4) ──
+     Six steps on the audit's target scale — 10 / 11 / 13 / 15 / 17 / 20 / 22 —
+     with a hard 10px FLOOR: the audit measured 135 usages below it (6px chips
+     are unreadable on any device), so no step may resolve below 10px. Each
+     step's max is a size the app already used as a hardcoded px value, so
+     adopting one is rendering-neutral at >= 440px and narrows toward 320px —
+     which is what lets a per-breakpoint override be deleted rather than synced. */
+  --text-ludo-xs: 10px;
+  --text-ludo-sm: clamp(10px, calc(10px + (100vw - 320px) / 120), 11px);
+  --text-ludo-md: clamp(11px, calc(11px + 2 * (100vw - 320px) / 120), 13px);
+  --text-ludo-lg: clamp(13px, calc(13px + 2 * (100vw - 320px) / 120), 15px);
+  --text-ludo-xl: clamp(15px, calc(15px + 2 * (100vw - 320px) / 120), 17px);
+  --text-ludo-2xl: clamp(17px, calc(17px + 3 * (100vw - 320px) / 120), 20px);
+  --text-ludo-3xl: clamp(20px, calc(20px + 2 * (100vw - 320px) / 120), 22px);
 }
 
 :root {
@@ -271,7 +269,8 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 
 /* ─── QuickMatch diagnostic chips: readable in both themes ─────────────── */
 .ludo-quick-scope .diag-chip {
-  font-size: 6px;
+  /* 10px floor (UI_DESIGN_AUDIT P1-7): 6px is unreadable on any device. */
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -279,7 +278,11 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
   white-space: nowrap;
 }
 .ludo-quick-scope .diag-status-info { color: #67e8f9; }
-.ludo-quick-scope .diag-status-warn { color: #fbbf24; animation: pulse 1s infinite; }
+/* Bounded attention flash (UI_DESIGN_AUDIT Phase 1.5.2). Was `pulse 1s infinite`
+   — a diagnostic chip that blinks forever is noise; three flashes, then settle.
+   Opacity only, so the compositor-only motion gate stays satisfied. */
+@keyframes diag-warn-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.ludo-quick-scope .diag-status-warn { color: #fbbf24; animation: diag-warn-flash 900ms ease-in-out 3; }
 .ludo-quick-scope .diag-status-ok { color: #4ade80; }
 body.theme-daybreak .ludo-quick-scope .diag-chip {
   color: rgba(23, 23, 23, 0.62);
@@ -2129,10 +2132,11 @@ body.keyboard-open .app-shell {
 }
 
 .nav-item .nav-label {
-  /* Fluid (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S): 10px from 440px up, easing
-     to 9px at 320px — which is why the old max-width:430px font-size
-     override is deleted rather than kept in sync with this value. */
-  font-size: var(--text-ludo-md);
+  /* 10px floor, FIXED — not the fluid sm step. The 5-item footer at 390px is at
+     its width limit: at 10.6px (sm) "Leaderboard" truncated to "Leaderbo…", and
+     the baseline proves it fits at exactly 10px. UI_DESIGN_AUDIT 1.3.4 warned
+     the tabs/labels were the risk of the floor bump; this is that case. */
+  font-size: var(--text-ludo-xs);
   font-weight: 500;
   /* Default to white (subtle) - forced override */
   color: rgba(255, 255, 255, 0.7) !important;
@@ -2157,6 +2161,21 @@ body.keyboard-open .app-shell {
   .nav-item .nav-icon {
     width: 20px;
     height: 20px;
+  }
+}
+
+/* 320px class (iPhone SE 1st gen / small Androids): the 10px type floor is
+   non-negotiable (UI_DESIGN_AUDIT P1-7), so buy the label room with chrome
+   padding instead of font-size. "Leaderboard" needs 61px; 5 items off a 312px
+   bar give 58px with the 430px padding. Verified: 61 < 63 after this. */
+@media (max-width: 340px) {
+  .footer-nav {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .nav-item {
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
@@ -2462,7 +2481,7 @@ body.keyboard-open .app-shell {
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 950;
   letter-spacing: 0;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.18);
@@ -2482,7 +2501,7 @@ body.keyboard-open .app-shell {
 
 .team-label {
   color: rgba(255, 255, 255, 0.78);
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 950;
   letter-spacing: 0.1em;
 }
@@ -2511,7 +2530,7 @@ body.keyboard-open .app-shell {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   color: white;
   border: 2px solid white;
@@ -2577,7 +2596,7 @@ body.keyboard-open .app-shell {
   bottom: -4px;
   background: rgba(0, 0, 0, 0.65);
   color: white;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   width: 18px;
   height: 18px;
@@ -2646,7 +2665,7 @@ body.keyboard-open .app-shell {
   background: rgba(8, 13, 24, 0.72);
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.2);
   color: rgba(255, 255, 255, 0.58);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.14em;
   pointer-events: none;
@@ -2694,7 +2713,7 @@ body.keyboard-open .app-shell {
   color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
   font: inherit;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2741,7 +2760,7 @@ body.keyboard-open .app-shell {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.8);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.1em;
 }
 
@@ -2807,7 +2826,7 @@ body.keyboard-open .app-shell {
 
 .match-status-spectator-count {
   color: #c4b5fd;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .match-status-stream {
@@ -3741,7 +3760,7 @@ body.theme-retro-futurism .home-pad {
   }
 
   .player-level {
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
   .footer-nav {
@@ -4275,7 +4294,7 @@ body.theme-daybreak .match-stats-avatar {
   gap: 6px;
 }
 .match-stats-ai {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   padding: 1px 5px;
   border-radius: 4px;
@@ -4357,7 +4376,7 @@ body.theme-daybreak .match-stats-chip.kicked {
 }
 .match-stats-outcome-label {
   display: block;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -5239,7 +5258,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 }
 
 .pp-ai-tag {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   background: rgba(124, 58, 237, 0.1);
   color: #7c3aed;
@@ -5272,7 +5291,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 }
 
 .pp-stat span {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-ludo-faint);
   text-transform: uppercase;
@@ -5303,7 +5322,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   border: 1px solid var(--color-ludo-border);
   background: var(--color-ludo-background);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--color-ludo-text);
   transition: all 0.18s ease;
@@ -6183,7 +6202,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 }
 
 .donut-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--ludo-faint);
   text-transform: uppercase;
@@ -7079,7 +7098,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(52, 211, 153, 0.4);
   color: #34d399;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.2em;
   text-shadow: 0 0 8px rgba(52, 211, 153, 0.65);
@@ -7116,7 +7135,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(34, 211, 238, 0.22);
   color: rgba(103, 232, 249, 0.7);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -7165,7 +7184,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   border: 1px solid rgba(34, 211, 238, 0.28);
   background: rgba(0, 0, 0, 0.5);
   color: #67e8f9;
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -7203,7 +7222,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.6);
@@ -7266,7 +7285,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
 }
 
 .arena-stat-lab {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -7850,7 +7869,7 @@ body.theme-daybreak .cb-asset-icon.neutral {
   text-overflow: ellipsis;
 }
 .cb-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -8393,7 +8412,7 @@ body.theme-daybreak .cb-mode-pill.testnet {
   border-radius: 999px;
 }
 .cb-asset-pill-tag {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -10209,7 +10228,7 @@ body.theme-daybreak .boot-lock-alert {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .wl-addr-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -10903,7 +10922,7 @@ body.theme-daybreak .chat-emoji-picker button {
   top: -22px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -10994,7 +11013,7 @@ body.theme-daybreak .match-status-connection-pill {
     top: 28px;
     min-height: 22px;
     padding-inline: 8px;
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .match-status-strip {

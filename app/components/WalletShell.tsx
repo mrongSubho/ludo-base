@@ -132,7 +132,7 @@ export default function WalletShell() {
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold text-white/90">{t.label}</span>
                                         {t.unpriced && (
-                                            <span className="rounded-full border border-white/20 px-1.5 py-0.5 text-[9px] uppercase text-white/50">
+                                            <span className="rounded-full border border-white/20 px-1.5 py-0.5 text-[10px] uppercase text-white/50">
                                                 unpriced
                                             </span>
                                         )}

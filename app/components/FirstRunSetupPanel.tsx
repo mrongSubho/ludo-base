@@ -73,7 +73,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                 style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
             >
                 <div className="text-center flex flex-col gap-1">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
                         First time setup
                     </p>
                     <h2 className="text-lg font-black text-white uppercase tracking-tight">
@@ -121,7 +121,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                 >
                     Enter the lobby
                 </button>
-                <p className="text-center text-[9px] font-bold text-white/35 -mt-2">
+                <p className="text-center text-[10px] font-bold text-white/35 -mt-2">
                     Change anytime in Settings
                 </p>
             </div>

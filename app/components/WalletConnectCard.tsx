@@ -140,7 +140,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
                                 >
                                     Continue as Guest
                                 </button>
-                                <span className="text-[9px] font-bold text-white/25 tracking-wide">
+                                <span className="text-[10px] font-bold text-white/25 tracking-wide">
                                     No wallet needed · practice vs AI
                                 </span>
                             </div>

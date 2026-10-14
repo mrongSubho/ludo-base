@@ -44,7 +44,7 @@ export default function GuestWall({ action, onClose, onConnect }: GuestWallProps
                             <div className="flex items-center gap-2">
                                 <h2 className="text-base font-bold text-white leading-tight">{copy.title}</h2>
                             </div>
-                            <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-[9px] font-black text-amber-300 uppercase tracking-widest">
+                            <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-[10px] font-black text-amber-300 uppercase tracking-widest">
                                 <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
                                 Guest Pass limit
                             </span>

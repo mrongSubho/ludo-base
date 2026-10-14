@@ -84,16 +84,16 @@ export const BoardHeaderCompact = ({
                                 <span className="absolute -bottom-0 -right-0 w-2 h-2 bg-green-500 border border-[#0b0f19] rounded-full shadow-[0_0_12px_rgba(34,197,94,1)] animate-pulse"></span>
 
                                 {/* Level anchored to bottom of avatar */}
-                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-ludo-3xs font-black px-1 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap leading-tight">
+                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-ludo-xs font-black px-1 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap leading-tight">
                                     LV.{level}
                                 </div>
                             </div>
 
                             <div className="flex flex-col items-start min-w-0 pr-1 max-w-[72px]">
-                                <span className="text-ludo-sm font-black text-white italic tracking-tighter uppercase truncate w-full">
+                                <span className="text-ludo-xs font-black text-white italic tracking-tighter uppercase truncate w-full">
                                     {finalName}
                                 </span>
-                                <span className="text-ludo-3xs font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
+                                <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
                                     {tier}
                                 </span>
                             </div>
@@ -152,7 +152,7 @@ export const BoardHeaderCompact = ({
                         <span className="w-6 flex-none" />
                     )}
 
-                    <span className="mode-strip-text text-ludo-2xs font-black uppercase tracking-[0.3em] text-cyan-300 whitespace-nowrap overflow-hidden text-ellipsis px-2">
+                    <span className="mode-strip-text text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300 whitespace-nowrap overflow-hidden text-ellipsis px-2">
                         {modeLabel}
                     </span>
 
@@ -160,7 +160,7 @@ export const BoardHeaderCompact = ({
                         <ConnectionBadge status={matchConnectionStatus} compact />
                         {spectators > 0 && (
                             <span
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-ludo-2xs font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 whitespace-nowrap"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-ludo-xs font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 whitespace-nowrap"
                                 title="Spectators watching this match"
                             >
                                 <span className="w-1 h-1 rounded-full bg-pink-400 animate-pulse" />

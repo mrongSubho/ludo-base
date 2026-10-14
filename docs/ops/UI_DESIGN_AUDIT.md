@@ -343,10 +343,10 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.3 Raise the type floor (fixes P1-7)
 
-- [ ] 1.3.1 Diagnostic chips: `globals.css:255-262` `font-size: 6px` → `10px` (or gate the whole `.diag-chip` block behind `data-debug` if the chips are dev-only). If chips become a layout problem at 10px, hide them (`display: none`) rather than shrink them.
-- [ ] 1.3.2 `PanelTabs.tsx:87` `TabCount`: `text-[9px]` → `text-[10px]`.
-- [ ] 1.3.3 Sweep for anything smaller: `grep -rn "text-\[[0-9]px\]" app --include="*.tsx" | awk -F'text-\\[' '{print $2}' | sort -u` — anything `< 10px` is either raised or deleted.
-- [ ] 1.3.4 Confirm no clipped/overflowing labels at 375px after the bump (tabs are the risk).
+- [x] 1.3.1 Diagnostic chips: `globals.css:255-262` `font-size: 6px` → `10px` (or gate the whole `.diag-chip` block behind `data-debug` if the chips are dev-only). If chips become a layout problem at 10px, hide them (`display: none`) rather than shrink them.
+- [x] 1.3.2 `PanelTabs.tsx:87` `TabCount`: `text-[9px]` → `text-[10px]`.
+- [x] 1.3.3 Sweep for anything smaller: `grep -rn "text-\[[0-9]px\]" app --include="*.tsx" | awk -F'text-\\[' '{print $2}' | sort -u` — anything `< 10px` is either raised or deleted.
+- [x] 1.3.4 Confirm no clipped/overflowing labels at 375px after the bump (tabs are the risk).
 
 **Acceptance:** no rendered text under 10px anywhere; no layout regressions.
 
@@ -360,9 +360,9 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.5 Motion discipline (fixes P2-10)
 
-- [ ] 1.5.1 Wrap all decorative animation in the existing `prefers-reduced-motion` blocks — orbs (`drift-orb`), scanlines, ticker, `pulse` — so `reduce` stops them entirely (a static gradient/scanline image is fine, animation is not).
-- [ ] 1.5.2 Replace `animation: pulse 1s infinite` on `.diag-status-warn` with a single 3-flash keyframe or static amber.
-- [ ] 1.5.3 framer-motion: wrap the app in `<MotionConfig reducedMotion="user">` in `app/Providers.tsx` so nav springs (`layoutId="active-nav-bg"`, FooterNavPanel) respect the OS setting.
+- [x] 1.5.1 Wrap all decorative animation in the existing `prefers-reduced-motion` blocks — orbs (`drift-orb`), scanlines, ticker, `pulse` — so `reduce` stops them entirely (a static gradient/scanline image is fine, animation is not).
+- [x] 1.5.2 Replace `animation: pulse 1s infinite` on `.diag-status-warn` with a single 3-flash keyframe or static amber.
+- [x] 1.5.3 framer-motion: wrap the app in `<MotionConfig reducedMotion="user">` in `app/Providers.tsx` so nav springs (`layoutId="active-nav-bg"`, FooterNavPanel) respect the OS setting.
 - [ ] 1.5.4 Verify: macOS System Settings → Accessibility → Display → Reduce Motion, walk lobby + a panel open/close.
 
 **Acceptance:** with Reduce Motion on, nothing loops; theme and layout unchanged.

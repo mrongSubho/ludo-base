@@ -470,7 +470,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 {isP2PActive && activeChat.status === 'Online' && (
                                                     <span className="flex items-center gap-1 bg-cyan-500/15 px-1.5 py-px rounded-full border border-cyan-500/30">
                                                         <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
-                                                        <span className="text-[8px] font-black text-cyan-300 tracking-widest uppercase">P2P</span>
+                                                        <span className="text-[10px] font-black text-cyan-300 tracking-widest uppercase">P2P</span>
                                                     </span>
                                                 )}
                                             </span>

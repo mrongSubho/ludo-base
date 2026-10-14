@@ -330,10 +330,10 @@ export const InviteNotification = () => {
                                     {hostName} <span className="text-white/40 font-medium">invites you</span>
                                 </h4>
                                 <div className="flex gap-3 mt-1">
-                                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">
+                                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                                         {matchLabel}
                                     </span>
-                                    <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">
+                                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
                                         {feeLabel}
                                     </span>
                                 </div>

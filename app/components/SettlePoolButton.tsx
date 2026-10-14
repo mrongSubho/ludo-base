@@ -87,7 +87,7 @@ export function SettlePoolButton({
                 {label}
                 {step === "idle" && total > BigInt(0) ? ` · ${formatChips(total)}` : ""}
             </button>
-            <p className="text-[9px] font-mono text-white/30 text-center">
+            <p className="text-[10px] font-mono text-white/30 text-center">
                 Pool {shortHex(poolId)}
                 {resolvedPlan.length > 1 ? ` · ${resolvedPlan.length} winners` : ""}
             </p>

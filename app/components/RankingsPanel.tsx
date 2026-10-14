@@ -166,17 +166,17 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                         <div className="flex items-center gap-1.5">
                             <h4 className="text-white font-bold truncate text-[13px]">{p.username || `${p.wallet_address.slice(0, 6)}...`}</h4>
                             {isMe && (
-                                <span className="shrink-0 bg-cyan-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
+                                <span className="shrink-0 bg-cyan-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className={`text-[10px] font-black uppercase tracking-widest ${getTierColor(p.rank_tier || 'Bronze')}`}>{p.rank_tier || 'Bronze'} {p.subRank}</span>
-                            <span className="text-[9px] text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
+                            <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
                         </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
                         <div className="text-lg font-black text-white tracking-tighter leading-none font-mono">{p.rxp || 1200}</div>
-                        <div className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
+                        <div className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
                     </div>
                     <LuChevronRight className="w-4 h-4 shrink-0 text-white/10 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
                 </div>
@@ -360,7 +360,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                         >
                                             {avatar(myEntry, 'w-9 h-9', 'text-xs')}
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/80">Your rank</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80">Your rank</div>
                                                 <div className="text-xs font-black text-white truncate">
                                                     #{myRank} · <span className={getTierColor(myEntry.rank_tier || 'Bronze')}>{myEntry.rank_tier || 'Bronze'}</span>
                                                 </div>

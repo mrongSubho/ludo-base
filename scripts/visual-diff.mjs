@@ -214,6 +214,31 @@ async function settle(page) {
   // Webfonts are the classic visual-test flake: the same markup renders with
   // fallback metrics until they land. Wait for them explicitly first.
   await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())).catch(() => {});
+  // The app derives its shell height and every fixed-bottom offset from the
+  // visual viewport. A fractional visualViewport.height (headless browsers
+  // report 843.x for an 844px viewport) used to round into a full pixel of
+  // chrome movement — footer down 1px, centered content half a pixel — which
+  // reads as a ~2% frame diff on an unchanged page. FrameProvider now snaps
+  // sub-pixel noise away; assert the invariants so a future regression in that
+  // logic fails as an environment error with this message instead of masquer-
+  // ading as a visual diff.
+  const vv = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      inner: window.innerHeight,
+      height: window.visualViewport ? +window.visualViewport.height.toFixed(3) : null,
+      appVh: cs.getPropertyValue('--app-vh').trim(),
+      dead: cs.getPropertyValue('--vv-dead-bottom').trim(),
+      safe: cs.getPropertyValue('--safe-bottom').trim(),
+    };
+  });
+  const problems = [];
+  if (vv.appVh !== `${vv.inner}px`) problems.push(`--app-vh=${vv.appVh} but innerHeight=${vv.inner}`);
+  if (vv.dead !== '0px') problems.push(`--vv-dead-bottom=${vv.dead}`);
+  if (vv.safe !== '0px') problems.push(`--safe-bottom=${vv.safe}`);
+  if (problems.length) {
+    throw new Error(`viewport metrics not settled: ${problems.join('; ')} — re-run (FrameProvider snaps sub-pixel noise)`);
+  }
   let prev = null;
   for (let i = 0; i < 14; i++) {
     const shot = await page.screenshot({ animations: 'disabled' });

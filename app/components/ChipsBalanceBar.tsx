@@ -69,7 +69,7 @@ export function ChipsBalanceBar({ claimablePoolIds, compact = false, className =
                 <button
                     type="button"
                     onClick={() => void bal.refresh()}
-                    className="text-[9px] uppercase text-white/50 hover:text-cyan-300"
+                    className="text-[10px] uppercase text-white/50 hover:text-cyan-300"
                     title="Refresh balance"
                 >
                     {bal.refreshing ? "…" : "↻"}
@@ -137,7 +137,7 @@ export function ChipsBalanceBar({ claimablePoolIds, compact = false, className =
             )}
 
             {bal.token && (
-                <div className="w-full text-[9px] font-mono text-white/35">
+                <div className="w-full text-[10px] font-mono text-white/35">
                     token {shortHex(bal.token)}
                 </div>
             )}

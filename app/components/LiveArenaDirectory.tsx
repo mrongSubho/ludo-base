@@ -109,7 +109,7 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
                         {/* Bet window open indicator */}
                         {match.bet_window_status === 'open' && (
                             <span
-                                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
                                 style={{ background: '#10b98120', color: '#10b981', border: '1px solid #10b98140' }}
                             >
                                 <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
@@ -118,7 +118,7 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
                         )}
                         {match.bet_window_status === 'resolving' && (
                             <span
-                                className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full"
                                 style={{ background: '#f59e0b20', color: '#f59e0b', border: '1px solid #f59e0b40' }}
                             >
                                 <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
@@ -132,7 +132,7 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
                         <span className="flex items-center gap-1 text-[10px] font-black" style={{ color: tier.color }}>
                             <FiDollarSign className="w-3 h-3" />
                             {(match.total_bet_volume ?? 0).toLocaleString()}
-                            <span className="text-[9px] font-medium text-white/30 ml-0.5">{tier.label}</span>
+                            <span className="text-[10px] font-medium text-white/30 ml-0.5">{tier.label}</span>
                         </span>
 
                         <span className="text-white/10 text-xs">·</span>
@@ -147,7 +147,7 @@ function ArenaCard({ match, onWatch }: ArenaCardProps) {
 
                         <span className="text-white/10 text-xs">·</span>
 
-                        <span className="text-[9px] font-medium text-white/25 uppercase">
+                        <span className="text-[10px] font-medium text-white/25 uppercase">
                             {elapsed < 1 ? 'Just started' : `${elapsed}m live`}
                         </span>
                     </div>
@@ -196,13 +196,13 @@ const PredictorsStrip = () => {
     return (
         <div className="px-5 pt-3 relative z-10">
             <div className="flex items-center gap-2 rounded-2xl border border-pink-500/20 bg-pink-500/[0.06] px-3 py-2">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-pink-300 shrink-0">Sharpest</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-300 shrink-0">Sharpest</span>
                 <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
                     {board.map(p => (
                         <div key={p.player_id} className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-[9px] font-black text-pink-300/70 tabular-nums">#{p.rank}</span>
+                            <span className="text-[10px] font-black text-pink-300/70 tabular-nums">#{p.rank}</span>
                             <span className="text-[10px] font-bold text-white/80 truncate max-w-[80px]">{p.username}</span>
-                            <span className={`text-[9px] font-black tabular-nums ${p.profit >= 0 ? 'text-emerald-400' : 'text-white/35'}`}>
+                            <span className={`text-[10px] font-black tabular-nums ${p.profit >= 0 ? 'text-emerald-400' : 'text-white/35'}`}>
                                 {p.profit >= 0 ? '+' : ''}{p.profit.toLocaleString()}
                             </span>
                             {address && (
@@ -348,7 +348,7 @@ export const LiveArenaContent = ({ onWatchMatch, onStats }: LiveArenaContentProp
                     </div>
 
                     <div className="w-full px-5 py-3 bg-black/20 border-t border-white/10 text-center relative z-20 flex flex-col gap-1 items-center">
-                        <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
+                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">
                             Spectating is read-only • Wagers stay safe
                         </span>
                     </div>

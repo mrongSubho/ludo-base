@@ -67,27 +67,40 @@ export default function FrameProvider({ children }: { children: ReactNode }) {
             const visH = vv ? vv.height : layoutH;
             const offsetTop = vv ? vv.offsetTop : 0;
             const measuredVisH = Date.now() < ignoreVisualResizeUntil ? layoutH : visH;
+            // Sub-pixel noise: the layout viewport and the visual viewport can
+            // disagree by less than a pixel (headless browsers report 843.x for
+            // an 844px viewport; a mid-collapse URL bar animates through
+            // fractional heights). Rounding that gap directly -- as this did
+            // with Math.round -- promotes 0.6px of noise into a FULL pixel of
+            // chrome movement: the shell shrinks by 1px (centered content jumps
+            // half a pixel, anti-aliasing everywhere) and the footer plus every
+            // element anchored above it shifts a full pixel. A real dead zone is
+            // never sub-pixel, so snap discrepancies under 1px away first.
+            const snapNoise = (h: number) => (Math.abs(h - layoutH) < 1 ? layoutH : h);
+            const snappedVisH = snapNoise(measuredVisH);
             // Layout pixels below the painted visual viewport (host chrome).
-            const deadBottom = Math.max(0, Math.round(layoutH - measuredVisH - offsetTop));
+            const rawGap = layoutH - snappedVisH - offsetTop;
+            const deadBottom = rawGap >= 1 ? Math.round(rawGap) : 0;
             // Empty webview toolbars report 80–200px insets; real home-indicator
             // insets are ≤48px. Anything above is host chrome we must not reserve.
             const rawSab = probe.getBoundingClientRect().height;
             const safeBottom = rawSab > 48 ? 0 : Math.round(rawSab);
-            const currentDeadBottom = Math.max(0, Math.round(layoutH - visH - offsetTop));
+            const currentRawGap = layoutH - snapNoise(visH) - offsetTop;
+            const currentDeadBottom = currentRawGap >= 1 ? Math.round(currentRawGap) : 0;
             const rawKeyboardInset = Math.max(
                 0,
-                stableLayoutHeight - Math.round(measuredVisH) - offsetTop - stableDeadBottom
+                stableLayoutHeight - Math.round(snappedVisH) - offsetTop - stableDeadBottom
             );
             const kbInset = keyboardOpen && rawKeyboardInset > 120 ? rawKeyboardInset : 0;
             // Once an editable control is focused, freeze the app at the
             // pre-IME layout height. The visual viewport may shrink, but the
             // board composition must not reflow with it.
-            const appHeight = keyboardOpen ? stableLayoutHeight : Math.round(measuredVisH);
+            const appHeight = keyboardOpen ? stableLayoutHeight : Math.round(snappedVisH);
             const layoutViewportHeight = keyboardOpen ? stableLayoutHeight : layoutH;
 
             root.style.setProperty('--app-vh', `${appHeight}px`);
             root.style.setProperty('--layout-vh', `${layoutViewportHeight}px`);
-            root.style.setProperty('--visible-vh', `${Math.round(measuredVisH)}px`);
+            root.style.setProperty('--visible-vh', `${Math.round(snappedVisH)}px`);
             root.style.setProperty('--safe-bottom', `${safeBottom}px`);
             root.style.setProperty('--vv-dead-bottom', `${deadBottom}px`);
             root.style.setProperty('--kb-inset', `${kbInset}px`);

@@ -84,7 +84,7 @@ export function PanelChildTabs<T extends string>({ options, value, onPick, ariaL
 
 // Standard count pill used inside tab badges.
 export const TabCount = ({ active, children }: { active: boolean; children: React.ReactNode }) => (
-    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
+    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
         {children}
     </span>
 );

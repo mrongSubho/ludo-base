@@ -222,7 +222,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             {/* TIER 1: The Camera (Perspective) */}
 
             <div className="absolute top-0 w-full flex items-center justify-center gap-2">
-                <span className="text-white/50 text-ludo-md uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
+                <span className="text-white/50 text-ludo-xs uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
             </div>
 
             <div className="lobby-dice-cube relative w-28 h-28 mt-8 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
@@ -288,7 +288,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             {/* Active mode blurb — what this choice means */}
             <div className="mt-2 h-4 flex items-center justify-center pointer-events-none">
                 {!isRolling && (
-                    <span className="text-white/40 text-ludo-md uppercase font-bold tracking-[0.25em] text-center">
+                    <span className="text-white/40 text-ludo-xs uppercase font-bold tracking-[0.25em] text-center">
                         {MODE_BLURB[activeId]}
                     </span>
                 )}

@@ -887,7 +887,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
                                                 {activeFilterCount > 0 && (
-                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[9px] font-black flex items-center justify-center">{activeFilterCount}</span>
+                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[10px] font-black flex items-center justify-center">{activeFilterCount}</span>
                                                 )}
                                             </button>
                                             <div className="flex shrink-0 items-center bg-black/40 border border-white/10 rounded-lg p-0.5 h-9">
@@ -987,7 +987,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-500/10 animate-pulse pointer-events-none" />}
                                                             {previewStage(density === 'comfort' ? '120px' : '88px', item.rarity)}
                                                             {/* rarity sigil floats on the art — frees the full row for the name */}
-                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-[10px]' : 'w-4 h-4 text-[8px]'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
+                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-[10px]' : 'w-4 h-4 text-[10px]'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
                                                                 {item.rarity === 'common' ? 'C' : item.rarity === 'rare' ? 'R' : 'L'}
                                                             </div>
                                                             <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">
@@ -995,14 +995,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                             {/* store: tiny owned badge (no equipped tag, no tick) */}
                                                             {!isLoadout && owned && (
-                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-[8px] font-black tracking-[0.14em] text-white/75">
+                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-[10px] font-black tracking-[0.14em] text-white/75">
                                                                     OWNED
                                                                 </div>
                                                             )}
                                                             {/* loadout mark: active gear or showcased relic */}
                                                             {marked && (
                                                                 <>
-                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[8px] font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
+                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
                                                                         {equipped ? 'Active' : 'Showcasing'}
                                                                     </div>
                                                                     <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
@@ -1129,17 +1129,17 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <div className={`w-14 h-14 rounded-2xl ${current?.previewColor ?? 'bg-white/5'} border border-white/10 flex items-center justify-center overflow-hidden opacity-60`}>
                                                             {current ? itemPreview(current, 34) : null}
                                                         </div>
-                                                        <span className="text-[9px] font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
+                                                        <span className="text-[10px] font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
                                                     </div>
                                                     <div className="flex flex-col items-center gap-1 pb-4">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-cyan-300"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">replaces</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">replaces</span>
                                                     </div>
                                                     <div className="flex flex-col items-center gap-1.5">
                                                         <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-cyan-400/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(34,211,238,0.3)]`}>
                                                             {itemPreview(confirmItem, 34)}
                                                         </div>
-                                                        <span className="text-[9px] font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
+                                                        <span className="text-[10px] font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
                                                     </div>
                                                 </div>
                                                 <p className="text-center text-[11px] font-bold text-white/45 mb-4 px-4">
@@ -1317,7 +1317,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <h4 className="text-[10px] text-cyan-300 font-black uppercase tracking-widest">In match</h4>
                                                         <span className="flex items-center gap-1.5">
                                                             <span className={`w-1.5 h-1.5 rounded-full ${statusLive ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]' : owned ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]' : 'bg-white/25'}`} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-white/45">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/45">
                                                                 {statusLive ? 'Live' : owned ? 'In vault' : 'Not owned'}
                                                             </span>
                                                         </span>
@@ -1358,9 +1358,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <div className="grid grid-cols-3 gap-2">
                                                             {selectedItem.traits.map((trait, i) => (
                                                                 <div key={i} className="bg-white/5 border border-cyan-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
-                                                                    <span className="text-[8px] text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
+                                                                    <span className="text-[10px] text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
                                                                     <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
-                                                                    <span className="text-[9px] text-cyan-400 font-mono">{trait.rarity_percent}%</span>
+                                                                    <span className="text-[10px] text-cyan-400 font-mono">{trait.rarity_percent}%</span>
                                                                 </div>
                                                             ))}
                                                         </div>
