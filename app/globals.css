@@ -13,7 +13,6 @@
   --color-ludo-card: var(--ludo-card);
   --color-ludo-green: var(--ludo-sage);
   --color-ludo-red: var(--ludo-rose);
-  --color-ludo-blue: var(--ludo-sky);
   --color-ludo-yellow: var(--ludo-amber);
   --color-ludo-slate: var(--ludo-slate);
 
@@ -41,6 +40,39 @@
   --text-ludo-xl: clamp(15px, calc(15px + 2 * (100vw - 320px) / 120), 17px);
   --text-ludo-2xl: clamp(17px, calc(17px + 3 * (100vw - 320px) / 120), 20px);
   --text-ludo-3xl: clamp(20px, calc(20px + 2 * (100vw - 320px) / 120), 22px);
+}
+
+/* ── Semantic UI tokens (UI_DESIGN_AUDIT §5.1 / Phase 2) ──
+   One semantic layer on top of the existing --ludo- and --panel- variables.
+   Registered as a SEPARATE `@theme inline` block (not inside the @theme above)
+   and `inline` is load-bearing: a plain registration emits
+   `--color-surface-recessed: var(--surface-recessed)` into :root, where it is
+   substituted ONCE using :root's (Retro) value and then INHERITED as a frozen
+   colour — so `bg-surface-recessed` painted Retro ink even under
+   body.theme-daybreak (measured: the utility never flipped).
+   `@theme inline` emits the reference itself into each utility
+   (`.bg-surface-recessed { background-color: var(--surface-recessed) }`), so
+   the var resolves on the element and follows the theme.
+   Nothing consumes these yet (Phase 4 migrates panels in), so this block
+   cannot change rendering — the Daybreak values are the ones its patch layer
+   already paints. */
+@theme inline {
+  --color-surface-page: var(--surface-page);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-recessed: var(--surface-recessed);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-ink-strong: var(--ink-strong);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-warn: var(--warn);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
 }
 
 :root {
@@ -113,6 +145,33 @@
   --panel-bg-image: var(--ludo-bg-cosmic);
 }
 
+/* ─── Semantic UI tokens — Retro (default) ───
+   UI_DESIGN_AUDIT §5.1. These are the ONLY names panels should reach for:
+   surface/ink/line/accent, not bg-white/40 or #fbbf24. Values match what
+   Retro already painted, so adopting one is a no-op in this theme. */
+:root {
+  --surface-page: var(--ludo-bg);             /* app background            */
+  --surface-panel: var(--panel-bg);           /* sandwich panels / sheets  */
+  --surface-recessed: rgba(255, 255, 255, 0.06); /* rows, wells, insets    */
+  --surface-hover: rgba(255, 255, 255, 0.10); /* hover fill                */
+  --surface-active: rgba(255, 255, 255, 0.14);/* pressed/selected fill     */
+  --ink-strong: #ffffff;                      /* primary ink               */
+  --ink-muted: rgba(255, 255, 255, 0.60);     /* secondary ink             */
+  --ink-faint: rgba(255, 255, 255, 0.40);     /* hints, decorative         */
+  --line-soft: rgba(255, 255, 255, 0.10);     /* hairline borders          */
+  --line-strong: rgba(255, 255, 255, 0.25);
+  --accent: #22d3ee;                          /* brand accent              */
+  --accent-soft: rgba(34, 211, 238, 0.15);    /* accent wash / chip fill   */
+  --accent-ink: #06282f;                      /* text on accent fill       */
+  --shadow-panel: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
+  --radius-card: 16px;
+  --radius-chip: 12px;
+  /* Status family — used by win/lose ribbons, burn state, wager callouts. */
+  --warn: #fbbf24;
+  --positive: #4ade80;
+  --negative: #f87171;
+}
+
 /* ─── Daybreak: the true light theme ───
    Porcelain terminal — frosted white glass, slate ink, cyan-700 accents,
    hairline borders, soft shadows instead of neon glows. */
@@ -135,6 +194,32 @@ body.theme-daybreak {
   --shadow-card: 0 20px 45px -12px rgba(15, 23, 42, 0.18);
   color: var(--ludo-text);
   background-color: var(--ludo-bg);
+
+  /* ─── Semantic UI tokens — Daybreak (§5.1) ───
+     Real light values, not patches: the point of the token layer is that a
+     panel can name `--surface-recessed` and be correct in both themes. The
+     three status values are the AA-safe set recorded in the audit's §4
+     (its originally proposed #b45309/#15803d/#dc2626 measured 4.09/4.09/3.94
+     on the #e6e8ec page — below AA). */
+  --surface-page: #e6e8ec;
+  --surface-panel: rgba(255, 255, 255, 0.88);
+  --surface-recessed: rgba(23, 23, 23, 0.05);
+  --surface-hover: #f1f5f9;
+  --surface-active: rgba(23, 23, 23, 0.12);
+  --ink-strong: #0f172a;
+  --ink-muted: rgba(15, 23, 42, 0.62);
+  --ink-faint: rgba(15, 23, 42, 0.42);
+  --line-soft: rgba(15, 23, 42, 0.12);
+  --line-strong: rgba(15, 23, 42, 0.24);
+  --accent: #0d6d87;                          /* AA-safe on #e6e8ec */
+  --accent-soft: rgba(13, 109, 135, 0.12);
+  --accent-ink: #ffffff;
+  --shadow-panel: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
+  --radius-card: 18px;
+  --radius-chip: 12px;
+  --warn: #92400e;
+  --positive: #166534;
+  --negative: #b91c1c;
 }
 
 body.theme-daybreak .cosmic-orb { display: block; }

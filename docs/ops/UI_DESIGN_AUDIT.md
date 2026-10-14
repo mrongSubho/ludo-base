@@ -369,7 +369,7 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 ### Phase 2 — Semantic token layer (visually neutral, ~1 day)
 
-- [ ] 2.1 Add the §5.1 token block to `globals.css` immediately after the existing `:root` panel-shell variables (`globals.css:93-98`), plus the `--warn/--positive/--negative` status tokens:
+- [x] 2.1 Add the §5.1 token block to `globals.css` immediately after the existing `:root` panel-shell variables (`globals.css:93-98`), plus the `--warn/--positive/--negative` status tokens:
   ```css
   :root {
     --warn: #fbbf24;  --positive: #4ade80;  --negative: #f87171;
@@ -378,14 +378,14 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
     --warn: #b45309;  --positive: #15803d;  --negative: #dc2626;
   }
   ```
-- [ ] 2.2 Append the §5.1 `@theme` registrations **into** the existing `@theme` block (`globals.css:11-28`) — including `--color-warn/positive/negative`. Do not create a second `@theme`.
-- [ ] 2.3 Fix the duplicate key already in `@theme` (`--color-ludo-blue` is declared twice, lines 16-17 and 20-21 — keep one).
-- [ ] 2.4 Verify tokens resolve: dev server, then in the browser console:
+- [x] 2.2 Append the §5.1 `@theme` registrations **into** the existing `@theme` block (`globals.css:11-28`) — including `--color-warn/positive/negative`. Do not create a second `@theme`.
+- [x] 2.3 Fix the duplicate key already in `@theme` (`--color-ludo-blue` is declared twice, lines 16-17 and 20-21 — keep one).
+- [x] 2.4 Verify tokens resolve: dev server, then in the browser console:
   ```js
   getComputedStyle(document.body).getPropertyValue('--surface-panel');
   ```
   must return the panel value in both themes (toggle and re-read).
-- [ ] 2.5 Smoke-test one utility end-to-end on a scratch branch: change any element to `bg-surface-recessed text-ink-muted` and confirm it flips with the theme. Revert the scratch edit.
+- [x] 2.5 Smoke-test one utility end-to-end on a scratch branch: change any element to `bg-surface-recessed text-ink-muted` and confirm it flips with the theme. Revert the scratch edit.
 - [ ] 2.6 `npm run lint` + `npx tsc -p tsconfig.json --noEmit` (no component changed, but CSS typos surface here only via build — also run `npm run build` once).
 
 **Acceptance:** all 16 utilities exist and are theme-reactive; no visual diff vs baseline (this phase touches CSS variables only, and their values equal today's resolved values).
