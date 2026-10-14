@@ -83,6 +83,20 @@ const SCENES = [
   { name: 'lobby-daybreak', theme: 'light', mask: [...ALWAYS_MASK, '.broadcast-anchor'], drive: driveLobby },
   { name: 'offline-panel-retro', theme: 'retro', mask: ALWAYS_MASK, drive: driveOfflinePanel },
   { name: 'offline-panel-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: driveOfflinePanel },
+  // Footer-nav panels — the wallet-free entry to each `.ludo-*-scope` subtree.
+  // These exist so UI_DESIGN_AUDIT 1.2 (reset layering / spacing-repair
+  // deletion) is provable: 457 panel-scoped spacing re-assertions live in
+  // these subtrees and the six scenes above never open them.
+  { name: 'panel-friends-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Friends', 'ludo-friends-scope'), settle: 'panel' },
+  { name: 'panel-friends-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Friends', 'ludo-friends-scope'), settle: 'panel' },
+  { name: 'panel-rankings-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Leaderboard', 'ludo-rankings-scope'), settle: 'panel' },
+  { name: 'panel-rankings-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Leaderboard', 'ludo-rankings-scope'), settle: 'panel' },
+  { name: 'panel-mission-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Mission', 'ludo-mission-scope'), settle: 'panel' },
+  { name: 'panel-mission-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Mission', 'ludo-mission-scope'), settle: 'panel' },
+  { name: 'panel-arena-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Arena', 'ludo-arena-scope'), settle: 'panel' },
+  { name: 'panel-arena-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Arena', 'ludo-arena-scope'), settle: 'panel' },
+  { name: 'panel-market-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Market', 'ludo-market-scope'), settle: 'panel' },
+  { name: 'panel-market-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Market', 'ludo-market-scope'), settle: 'panel' },
   // The board only renders reliably against the webpack production build: on a
   // Turbopack dev server, starting an offline match trips this repo's known
   // module-duplication issue ("Invalid hook call / more than one copy of
@@ -163,6 +177,43 @@ async function driveBoard(page, scene) {
   await page.locator('.board-grid').first().waitFor({ state: 'visible', timeout: 90000 });
   await dismissCoachMark(page);
   await page.waitForTimeout(1200);
+}
+
+/**
+ * Footer-nav panels: Friends / Leaderboard / Mission / Arena / Market. Each is
+ * the only wallet-free entry to a `.ludo-<panel>-scope` subtree, and those
+ * scopes are exactly where the "Scoped spacing repair" re-assertions live
+ * (UI_DESIGN_AUDIT 1.2). Without these the reset-layering change — which
+ * touches every panel — would be unverifiable against the committed baselines.
+ * Click by index-derived label, not role name: the buttons' accessible names
+ * include the SVG, and the Next dev portal used to swallow the first two.
+ */
+async function drivePanel(page, scene, label, scopeClass) {
+  await driveLobby(page, scene);
+  const item = page
+    .locator('.nav-item')
+    .filter({ has: page.locator('.nav-label', { hasText: new RegExp(`^${label}$`) }) })
+    .first();
+  await item.click({ timeout: 20000 });
+  await page.waitForSelector(`.${scopeClass}`, { state: 'visible', timeout: 30000 });
+  await page.waitForTimeout(1200);
+}
+
+/**
+ * Panels carry async data that settles after the scope mounts. Poll for two
+ * identical frames on the panel's own rows rather than a fixed timeout, so a
+ * slow fetch cannot bake a half-populated list into a baseline.
+ */
+async function settlePanel(page, scopeClass) {
+  await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())).catch(() => {});
+  let prev = null;
+  for (let i = 0; i < 14; i++) {
+    const shot = await page.screenshot({ animations: 'disabled' });
+    if (prev && shot.equals(prev)) return true;
+    prev = shot;
+    await page.waitForTimeout(300);
+  }
+  return false;
 }
 
 // ── Page helpers ──────────────────────────────────────────────────────────
@@ -414,7 +465,7 @@ for (const scene of scenes) {
       // Late coach marks: wait for them to appear, then clear them, THEN settle.
       await page.waitForTimeout(1500);
       await dismissCoachMark(page);
-      const stable = await settle(page);
+      const stable = scene.settle === 'panel' ? await settlePanel(page, scene) : await settle(page);
       const captured = await capture(page, scene);
       return { shot: captured, error: stable ? null : 'frame never stabilised (captured the last of 14 attempts)' };
     } catch (err) {
