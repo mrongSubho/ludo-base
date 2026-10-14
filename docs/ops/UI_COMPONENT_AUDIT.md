@@ -204,12 +204,12 @@ Order mirrors `UI_DESIGN_AUDIT.md` Phase 1–4: primitives first, then the same 
 
 ### Phase B — Adopt in shell + settings (the reference surfaces, ~1 day)
 
-- [ ] B.1 `GamePanelShell` close button → `<Button variant="ghost" size="icon">` (keeps the 44×44 look).
-- [ ] B.2 `EmptyState` CTA → `<Button variant="primary" size="lg">` (accent replaces white-fill — this is the intentional visual change that retires the white CTA flavor; verify both themes).
-- [ ] B.3 SettingsPanel: every action button → `Button`; every pref row → `ListRow`; segment controls stay `PanelTabs`; toggles → shared `Switch`.
-- [ ] B.4 `FirstRunSetupPanel` + `ThemeNudge` chips → `Chip`/`Button`.
-- [ ] B.5 Delete now-dead CSS families if nothing else uses them: `settings-action-btn`, `theme-inline-btn` (keep ThemeNudge chips if still referenced — check `grep -rn` first).
-- [ ] B.6 **Acceptance:** Settings is the reference implementation; diff vs baseline shows only the intended CTA accent change.
+- [x] B.1 `GamePanelShell` close button → `<Button variant="ghost" size="icon">` (keeps the 44×44 look).
+- [x] B.2 `EmptyState` CTA → `<Button variant="primary" size="lg">` (accent replaces white-fill — this is the intentional visual change that retires the white CTA flavor; verify both themes).
+- [x] B.3 SettingsPanel: every action button → `Button`; every pref row → `ListRow`; segment controls stay `PanelTabs`; toggles → shared `Switch`.
+- [x] B.4 `FirstRunSetupPanel` + `ThemeNudge` chips → `Chip`/`Button`.
+- [x] B.5 Delete now-dead CSS families if nothing else uses them: `settings-action-btn`, `theme-inline-btn` (keep ThemeNudge chips if still referenced — check `grep -rn` first).
+- [x] B.6 **Acceptance:** Settings is the reference implementation; diff vs baseline shows only the intended CTA accent change.
 
 ### Phase C — Panel sweep (one PR per group, ~3–4 days)
 

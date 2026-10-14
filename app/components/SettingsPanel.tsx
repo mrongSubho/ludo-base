@@ -146,6 +146,7 @@ const SunIcon = (
 // one row in the app.
 import { Switch } from "./Switch";
 import { ListRow } from "./ListRow";
+import { Button } from "./Button";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
@@ -314,12 +315,14 @@ function FeedbackView() {
                     <p className="mt-1 text-[12px] font-medium text-white/60">
                         Thanks — the crew reads every note. Send another any time.
                     </p>
-                    <button
+                    <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => setStatus('idle')}
-                        className="mt-3 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all"
+                        className="mt-3 rounded-full uppercase tracking-[0.15em]"
                     >
                         Write another
-                    </button>
+                    </Button>
                 </div>
             ) : (
                 <>
@@ -348,13 +351,17 @@ function FeedbackView() {
                             Couldn&apos;t send — check your connection and try again.
                         </p>
                     )}
-                    <button
+                    <Button
+                        variant="primary"
+                        size="lg"
+                        fullWidth
+                        loading={status === 'sending'}
+                        disabled={!message.trim()}
                         onClick={send}
-                        disabled={!message.trim() || status === 'sending'}
-                        className="w-full py-3.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.18em] hover:bg-white/90 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded-2xl uppercase tracking-[0.18em]"
                     >
                         {status === 'sending' ? 'Sending…' : 'Send feedback'}
-                    </button>
+                    </Button>
                 </>
             )}
         </section>
@@ -463,13 +470,15 @@ export function SettingsPanel({
                             <div className="flex items-center justify-between mb-1 mt-1">
                                 <div className="flex items-center gap-2">
                                     {view !== 'main' && (
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             onClick={() => setView('main')}
                                             aria-label="Back to settings"
-                                            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10"
+                                            className="bg-surface-hover border border-line-soft"
                                         >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                        </button>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                        </Button>
                                     )}
                                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                         {view === 'main' && (
@@ -483,13 +492,15 @@ export function SettingsPanel({
                                         {view === 'about' && 'About'}
                                     </h2>
                                 </div>
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={onClose}
                                     aria-label="Close settings"
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    className="bg-surface-hover border border-line-soft"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </button>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">Tuned per wallet</span>
@@ -765,24 +776,35 @@ export function SettingsPanel({
                             </>
                             )}
 
-                            {/* Leave match (in-game only) */}
+                            {/* Leave match (in-game only). `secondary` + the warn
+                                tokens keeps the amber read while removing the
+                                hardcoded amber-500 triple (Phase B.3). */}
                             {onLeaveMatch && (
-                                <button
-                                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20 active:scale-[0.99] transition-all text-amber-300 text-xs font-black uppercase tracking-[0.18em]"
+                                <Button
+                                    variant="secondary"
+                                    size="lg"
+                                    fullWidth
+                                    leftIcon={<LogOutIcon />}
+                                    className="rounded-2xl bg-warn/10 border-warn/25 text-warn hover:bg-warn/20 uppercase tracking-[0.18em]"
                                     onClick={() => {
                                         onClose();
                                         onLeaveMatch();
                                     }}
                                 >
-                                    <LogOutIcon />
-                                    <span>Leave Match</span>
-                                </button>
+                                    Leave Match
+                                </Button>
                             )}
 
-                            {/* Sign out: lobby only — mid-match exits go via Leave Match */}
+                            {/* Sign out: lobby only — mid-match exits go via Leave Match.
+                                Deliberately NOT the shared Button (Phase B.3 exception):
+                                it is a two-line control whose second line is a
+                                monospace address, and Button wraps children in a
+                                truncating single-line span. Colours are the negative
+                                tokens and it now carries the disabled treatment it
+                                was missing. Revisit in Phase C if the shape recurs. */}
                             {!inGame && (
                             <button
-                                className="w-full flex flex-col items-center justify-center gap-1 py-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 active:scale-[0.99] transition-all text-red-400"
+                                className="w-full flex flex-col items-center justify-center gap-1 py-3.5 rounded-2xl bg-negative/10 border border-negative/25 hover:bg-negative/20 active:scale-[0.99] transition-all text-negative disabled:opacity-45 disabled:cursor-not-allowed"
                                 onClick={() => {
                                     // Guests hold no wallet: dropping the guest flag
                                     // flips isConnected false → sign-in wall.

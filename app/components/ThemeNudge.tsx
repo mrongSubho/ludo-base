@@ -3,11 +3,18 @@
 /**
  * Light post-arena theme nudge — shown once after unlock.
  * Two chips (Retro / Daybreak) + dismiss. Never blocks play.
+ *
+ * The chips are the shared `Chip` filter type and the dismiss is a ghost
+ * `Button` (UI_COMPONENT_AUDIT B.4): they used to be three bespoke
+ * `theme-nudge-*` classes, which is how a one-off toast grows its own design
+ * system. `active` replaces the old `.on` modifier.
  */
 
 import { useEffect, useState } from "react";
 import { usePreferences } from "@/hooks/usePreferences";
 import { hasSeenThemeNudge, markThemeNudged } from "@/lib/walletOnboarding";
+import { Chip } from "./Chip";
+import { Button } from "./Button";
 
 export default function ThemeNudge() {
     const { preferences, updatePreference } = usePreferences();
@@ -40,23 +47,15 @@ export default function ThemeNudge() {
                 <span>Pick a look — anytime in Settings.</span>
             </div>
             <div className="theme-nudge-actions">
-                <button
-                    type="button"
-                    className={`theme-nudge-chip ${preferences.theme === "retro" ? "on" : ""}`}
-                    onClick={() => pick("retro")}
-                >
+                <Chip type="filter" active={preferences.theme === "retro"} onClick={() => pick("retro")}>
                     Retro
-                </button>
-                <button
-                    type="button"
-                    className={`theme-nudge-chip ${preferences.theme === "light" ? "on" : ""}`}
-                    onClick={() => pick("light")}
-                >
+                </Chip>
+                <Chip type="filter" active={preferences.theme === "light"} onClick={() => pick("light")}>
                     Daybreak
-                </button>
-                <button type="button" className="theme-nudge-close" onClick={dismiss} aria-label="Dismiss theme hint">
+                </Chip>
+                <Button variant="ghost" size="sm" onClick={dismiss} aria-label="Dismiss theme hint">
                     Later
-                </button>
+                </Button>
             </div>
         </div>
     );

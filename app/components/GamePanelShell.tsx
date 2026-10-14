@@ -2,6 +2,7 @@
 
 import React, { ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { Button } from "./Button";
 
 type Props = {
     scopeClass?: string;
@@ -83,21 +84,23 @@ export function GamePanelShell({
                                 >
                                     {title}
                                 </h2>
-                                <button
+                                {/* The panel's close control is the shared Button
+                                    (UI_COMPONENT_AUDIT B.1): size="icon" is the
+                                    44×44 target, and the recessed fill + hairline
+                                    come from tokens so both themes are correct
+                                    without a patch rule. */}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={onClose}
                                     aria-label="Close panel"
-                                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all"
-                                    style={{
-                                        background: "var(--surface-recessed)",
-                                        color: "var(--ink-muted)",
-                                        border: "1px solid var(--line-soft)",
-                                    }}
+                                    className="bg-surface-recessed border border-line-soft"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md">
                                         <line x1="18" y1="6" x2="6" y2="18"></line>
                                         <line x1="6" y1="6" x2="18" y2="18"></line>
                                     </svg>
-                                </button>
+                                </Button>
                             </div>
                             {subtitle && (
                                 <div className="flex items-center gap-2 px-0.5" style={{ color: "var(--ink-muted)" }}>

@@ -4637,28 +4637,9 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   margin-top: 4px !important;
 }
 
-/* ─── Settings Action Buttons ─── */
-.settings-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 10px;
-  margin: 2px 0;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-ludo-text);
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.2s;
-}
-
-.settings-action-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
+/* ─── Settings Action Buttons ───
+   `.settings-action-btn` deleted (UI_COMPONENT_AUDIT B.5): 0 references in
+   app/ — Settings' actions are the shared Button now. */
 
 .text-danger {
   color: #ef4444 !important;
@@ -9677,44 +9658,10 @@ body.theme-daybreak .theme-nudge-copy span { color: rgba(23, 23, 23, 0.55); }
   gap: 6px;
   flex-wrap: wrap;
 }
-.theme-nudge-chip {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 11px;
-  font-weight: 750;
-  padding: 7px 12px;
-  cursor: pointer;
-}
-.theme-nudge-chip.on {
-  background: rgba(0, 82, 255, 0.28);
-  border-color: rgba(0, 82, 255, 0.5);
-  color: #fff;
-}
-body.theme-daybreak .theme-nudge-chip {
-  background: rgba(23, 23, 23, 0.05);
-  border-color: rgba(23, 23, 23, 0.12);
-  color: rgba(23, 23, 23, 0.8);
-}
-body.theme-daybreak .theme-nudge-chip.on {
-  background: rgba(0, 82, 255, 0.14);
-  border-color: rgba(0, 82, 255, 0.4);
-  color: #0052FF;
-}
-.theme-nudge-close {
-  border: none;
-  background: none;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 11px;
-  font-weight: 650;
-  cursor: pointer;
-  padding: 6px 8px;
-}
-body.theme-daybreak .theme-nudge-close {
-  color: rgba(23, 23, 23, 0.45);
-}
-
+/* `.theme-nudge-chip` / `.theme-nudge-close` deleted (UI_COMPONENT_AUDIT B.5):
+   ThemeNudge now renders the shared Chip (filter) and Button (ghost), so the
+   six rules that gave a one-off toast its own chip + close-button design —
+   including a Daybreak override pair — are gone. */
 
 /* ── Boot lock ───────────────────────────────────────────────────────── */
 .boot-lock {
