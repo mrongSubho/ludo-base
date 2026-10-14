@@ -549,6 +549,14 @@ export function SettingsPanel({
 
                             {/* Appearance */}
                             <section>
+                                {/* ── SINGLE THEME ENTRY POINT (UI_DESIGN_AUDIT 1.4.3) ──
+                                    This is the only user-reachable theme CONTROL. FirstRunSetup,
+                                    ThemeNudge and the Marketplace also WRITE `ludo-theme`
+                                    (updatePreference('ludo-theme', …)) — those are intentional
+                                    touchpoints, not competing UIs; do not add a fifth. The old
+                                    standalone ThemeSwitcher.tsx component was deleted in 1.4 for
+                                    being dead (0 importers); if a second theme UI is ever needed,
+                                    extract a shared control from here instead of forking one. */}
                                 <SectionLabel>Appearance</SectionLabel>
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                                     <div className="p-3.5">
