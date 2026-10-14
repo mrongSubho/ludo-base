@@ -185,6 +185,56 @@ body {
   --surface-panel: var(--panel-bg);
 }
 
+/* ─── Scale tokens (UI_COMPONENT_AUDIT §4.4) ───
+   The enforcement surface: icon sizes, motion durations and the shared easing
+   curve. `--icon-*` pairs with `.icon-*` so an SVG is sized by role instead of
+   an ad-hoc `w-4 h-4`; the motion tokens exist so a duration is a decision
+   ("control", 200ms) rather than a number someone typed. Nothing consumes
+   these yet — Phase A is deliberately inert (A.6). */
+:root {
+  --icon-sm: 14px;   /* inline, next to text            */
+  --icon-md: 16px;   /* standalone action                */
+  --icon-lg: 20px;   /* feature / header                 */
+  --motion-micro: 150ms;    /* colour, opacity           */
+  --motion-control: 200ms;  /* buttons, toggles          */
+  --motion-surface: 300ms;  /* panels, sheets            */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+.icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+.icon-md { width: var(--icon-md); height: var(--icon-md); }
+.icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
+
+/* ─── .chip base (UI_COMPONENT_AUDIT §4.2) ───
+   One base replacing seven families (bet-chip, cb-filter-chip, tk-chip,
+   dapp-chip, wl-addr-chip, match-status-*, cb-status-pill). Three TYPES sit on
+   it: filter (add aria-pressed), status (add .chip-status-*), info tag.
+   Token-driven, so both themes are correct with no patch rules. Legacy
+   families are NOT deleted here — panels adopt in Phase C. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-recessed);
+  color: var(--ink-muted);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.chip-sm { padding: 2px 8px; font-size: 10px; }
+.chip.active,
+.chip[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.chip-status-ok { color: var(--positive); }
+.chip-status-warn { color: var(--warn); }
+.chip-status-off { color: var(--ink-faint); }
+.chip-address { font-family: ui-monospace, monospace; }
+
 /* ─── Daybreak: the true light theme ───
    Porcelain terminal — frosted white glass, slate ink, cyan-700 accents,
    hairline borders, soft shadows instead of neon glows. */

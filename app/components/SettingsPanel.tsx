@@ -9,7 +9,6 @@ import {
     useListPasskeys,
     useSignOut,
 } from '@coinbase/cdp-hooks';
-import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useSecurityPrefs } from '@/hooks/useSecurityPrefs';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -141,6 +140,13 @@ const SunIcon = (
     </svg>
 );
 
+// iOS-style switch + row rhythm now live in the shared primitives
+// (UI_COMPONENT_AUDIT Phase A: Switch.tsx, ListRow.tsx). Settings is their
+// first consumer; the local copies are gone so there is exactly one switch and
+// one row in the app.
+import { Switch } from "./Switch";
+import { ListRow } from "./ListRow";
+
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
         <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
@@ -150,40 +156,18 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     </div>
 );
 
-// iOS-style switch, single cyan accent (theme-agnostic on the dark shell)
-const Switch = ({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) => (
-    <button
-        onClick={onToggle}
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${on ? 'bg-cyan-500' : 'bg-white/10'}`}
-    >
-        <motion.div
-            layout
-            className="w-[18px] h-[18px] bg-white rounded-full shadow"
-            animate={{ x: on ? 20 : 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-        />
-    </button>
-);
-
 const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
     icon: React.ReactNode; tint: string; label: string; hint: string;
     on: boolean; onToggle: () => void; last?: boolean;
 }) => (
-    <div className={`flex items-center justify-between p-3.5 ${last ? '' : 'border-b border-white/5'}`}>
-        <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-                {icon}
-            </div>
-            <div className="flex flex-col min-w-0">
-                <span className="text-[13px] font-bold text-white truncate">{label}</span>
-                <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>
-            </div>
-        </div>
-        <Switch on={on} onToggle={onToggle} label={label} />
-    </div>
+    <ListRow
+        icon={icon}
+        tint={tint}
+        label={label}
+        hint={hint}
+        last={last}
+        trailing={<Switch on={on} onToggle={onToggle} label={label} />}
+    />
 );
 
 const LockIcon = () => (
@@ -204,16 +188,15 @@ const WalletGlyph = () => (
 const NavRow = ({ icon, tint, label, hint, last = false, onClick }: {
     icon: React.ReactNode; tint: string; label: string; hint?: string; last?: boolean; onClick?: () => void;
 }) => (
-    <button onClick={onClick} className={`w-full flex items-center gap-3 p-3.5 hover:bg-white/5 active:bg-white/10 transition-colors text-left ${last ? '' : 'border-b border-white/5'}`}>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-            {icon}
-        </div>
-        <div className="flex-1 flex flex-col min-w-0">
-            <span className="text-[13px] font-bold text-white truncate">{label}</span>
-            {hint && <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>}
-        </div>
-        <ChevronIcon />
-    </button>
+    <ListRow
+        icon={icon}
+        tint={tint}
+        label={label}
+        hint={hint}
+        last={last}
+        onClick={onClick}
+        trailing={<ChevronIcon />}
+    />
 );
 
 function passkeyName(credentialId: string, index: number): string {

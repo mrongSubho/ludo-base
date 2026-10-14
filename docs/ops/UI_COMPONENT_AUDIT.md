@@ -195,12 +195,12 @@ Order mirrors `UI_DESIGN_AUDIT.md` Phase 1–4: primitives first, then the same 
 
 ### Phase A — Build the primitives (~2 days, no UI change yet)
 
-- [ ] A.1 Create `app/components/Button.tsx` per §4.1 (variants/sizes/states/loading, `forwardRef`, `type="button"` default). Unit-test the variant→class map if a component test harness exists; otherwise a Story-like scratch page under `app/spike/`.
-- [ ] A.2 Create `app/components/Chip.tsx` per §4.2 (filter/status/info types, `aria-pressed` wiring).
-- [ ] A.3 Promote the Settings `Switch` to `app/components/Switch.tsx` (same API + tokens), import it back into SettingsPanel — zero visual diff proves the promotion.
-- [ ] A.4 Create `app/components/ListRow.tsx` from PrefRow/NavRow; refactor SettingsPanel to use it (zero visual diff).
-- [ ] A.5 Add the scale tokens to `globals.css`: `--icon-sm/md/lg` + `.icon-sm/md/lg` utilities, motion durations + easing token, and the §4.2 `.chip` base. **Do not delete any legacy family yet.**
-- [ ] A.6 Gate: new primitives unused in production paths is fine — this phase must be visually inert.
+- [x] A.1 Create `app/components/Button.tsx` per §4.1 (variants/sizes/states/loading, `forwardRef`, `type="button"` default). Unit-test the variant→class map if a component test harness exists; otherwise a Story-like scratch page under `app/spike/`.
+- [x] A.2 Create `app/components/Chip.tsx` per §4.2 (filter/status/info types, `aria-pressed` wiring).
+- [x] A.3 Promote the Settings `Switch` to `app/components/Switch.tsx` (same API + tokens), import it back into SettingsPanel — zero visual diff proves the promotion.
+- [x] A.4 Create `app/components/ListRow.tsx` from PrefRow/NavRow; refactor SettingsPanel to use it (zero visual diff).
+- [x] A.5 Add the scale tokens to `globals.css`: `--icon-sm/md/lg` + `.icon-sm/md/lg` utilities, motion durations + easing token, and the §4.2 `.chip` base. **Do not delete any legacy family yet.**
+- [x] A.6 Gate: new primitives unused in production paths is fine — this phase must be visually inert.
 
 ### Phase B — Adopt in shell + settings (the reference surfaces, ~1 day)
 
