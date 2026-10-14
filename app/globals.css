@@ -172,6 +172,19 @@
   --negative: #f87171;
 }
 
+/* The two tokens that CHAIN to another theme variable must be declared on
+   `body`, not `:root`. Custom-property substitution happens where the property
+   is DECLARED, so a `:root { --surface-page: var(--ludo-bg) }` resolves against
+   the base --ludo-bg once and inherits that frozen colour into every theme —
+   measured as the /burn route rendering Daybreak's page surface while the
+   Retro theme class was active. `body` carries the theme class, so declaring
+   the chain there resolves against the theme's own --ludo-bg / --panel-bg.
+   The :root copies above stay as the pre-hydration fallback. */
+body {
+  --surface-page: var(--ludo-bg);
+  --surface-panel: var(--panel-bg);
+}
+
 /* ─── Daybreak: the true light theme ───
    Porcelain terminal — frosted white glass, slate ink, cyan-700 accents,
    hairline borders, soft shadows instead of neon glows. */
@@ -220,6 +233,12 @@ body.theme-daybreak {
   --warn: #92400e;
   --positive: #166534;
   --negative: #b91c1c;
+  /* Panel chrome tokens (UI_DESIGN_AUDIT Phase 3.1). Retro defines these in
+     `body.theme-retro-futurism` (violet glow); without a Daybreak counterpart,
+     GamePanelShell had to branch in JS. Values match its patch-layer shell
+     rule so the shell paints identically once it reads the tokens. */
+  --panel-border: rgba(15, 23, 42, 0.12);
+  --panel-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
 }
 
 body.theme-daybreak .cosmic-orb { display: block; }

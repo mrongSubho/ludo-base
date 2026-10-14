@@ -97,6 +97,10 @@ const SCENES = [
   { name: 'panel-arena-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Arena', 'ludo-arena-scope'), settle: 'panel' },
   { name: 'panel-market-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Market', 'ludo-market-scope'), settle: 'panel' },
   { name: 'panel-market-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Market', 'ludo-market-scope'), settle: 'panel' },
+  // /burn renders BurnFeed standalone — the only wallet-free capture of a
+  // component that was themed in JS (UI_DESIGN_AUDIT Phase 3).
+  { name: 'burn-retro', theme: 'retro', mask: ALWAYS_MASK, path: '/burn', drive: driveBurnRoute, settle: 'panel' },
+  { name: 'burn-daybreak', theme: 'light', mask: ALWAYS_MASK, path: '/burn', drive: driveBurnRoute, settle: 'panel' },
   // The board only renders reliably against the webpack production build: on a
   // Turbopack dev server, starting an offline match trips this repo's known
   // module-duplication issue ("Invalid hook call / more than one copy of
@@ -197,6 +201,11 @@ async function drivePanel(page, scene, label, scopeClass) {
   await item.click({ timeout: 20000 });
   await page.waitForSelector(`.${scopeClass}`, { state: 'visible', timeout: 30000 });
   await page.waitForTimeout(1200);
+}
+
+/** Route scenes (`path`) need no driving — just let the route settle. */
+async function driveBurnRoute(page) {
+  await page.waitForTimeout(1500);
 }
 
 /**
@@ -454,7 +463,10 @@ for (const scene of scenes) {
 
     const page = await context.newPage();
     try {
-      await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      // `path` lets a scene target a real route instead of the SPA root —
+      // /burn renders BurnFeed standalone, which is the only wallet-free way
+      // to capture it (in-app it opens from the chips chip behind a connect).
+      await page.goto(BASE_URL + (scene.path ?? ''), { waitUntil: 'domcontentloaded', timeout: 120000 });
       await page.waitForTimeout(2500);
       // Warm-up reload: a dev server compiles the route and serves webfonts
       // lazily, so a first paint can land before the display font is applied —

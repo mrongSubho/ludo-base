@@ -3,27 +3,35 @@
 import React, { useMemo } from "react";
 import { useReadContract, useAccount } from "wagmi";
 import { CHIPS_ERC20_ABI, chipsAddress, matchPoolAddress, formatChips, shortHex } from "@/lib/chips";
-import { useIsDaybreak } from "./GamePanelShell";
 
-function useBurnPaint() {
-    const daybreak = useIsDaybreak();
-    return {
-        daybreak,
-        ink: daybreak ? "#0A0B0D" : "#F5F7FA",
-        muted: daybreak ? "#5B616E" : "#9AA3B2",
-        faint: daybreak ? "rgba(10,11,13,0.45)" : "rgba(245,247,250,0.38)",
-        card: daybreak ? "#FFFFFF" : "#161B24",
-        line: daybreak ? "rgba(10,11,13,0.10)" : "rgba(255,255,255,0.10)",
-        blue: daybreak ? "#0052FF" : "#3B82F6",
-        blueSoft: daybreak ? "rgba(0,82,255,0.10)" : "rgba(59,130,246,0.14)",
-        red: daybreak ? "#C62828" : "#F87171",
-        redSoft: daybreak ? "rgba(198,40,40,0.10)" : "rgba(248,113,113,0.12)",
-        amber: daybreak ? "#B45309" : "#FBBF24",
-        amberSoft: daybreak ? "rgba(180,83,9,0.10)" : "rgba(251,191,36,0.12)",
-    };
-}
+/**
+ * Burn / supply explorer — dual-theme (daybreak porcelain / retro night).
+ *
+ * Paint used to come from `useIsDaybreak()` + a body.classList MutationObserver
+ * feeding inline hex ternaries (UI_DESIGN_AUDIT P0-3) whose values had already
+ * drifted from the CSS tokens. It is now a static table of custom-property
+ * references: each theme block owns the resolved value, so the feed follows the
+ * theme through the cascade — no JS branching, no second render, no observer.
+ * The `color-mix(...)` entries are the 10-12% washes that used to be hardcoded
+ * per theme; mixing from the semantic colour keeps them in lockstep with it.
+ */
+const BURN_PAINT = {
+    ink: "var(--ink-strong)",
+    muted: "var(--ink-muted)",
+    faint: "var(--ink-faint)",
+    card: "var(--surface-recessed)",
+    line: "var(--line-soft)",
+    blue: "var(--accent)",
+    blueSoft: "var(--accent-soft)",
+    red: "var(--negative)",
+    redSoft: "color-mix(in srgb, var(--negative) 12%, transparent)",
+    amber: "var(--warn)",
+    amberSoft: "color-mix(in srgb, var(--warn) 12%, transparent)",
+} as const;
 
-function SectionLabel({ children, p }: { children: React.ReactNode; p: ReturnType<typeof useBurnPaint> }) {
+type BurnPaint = typeof BURN_PAINT;
+
+function SectionLabel({ children, p }: { children: React.ReactNode; p: BurnPaint }) {
     return (
         <div className="flex items-center gap-2.5 mb-2">
             <span
@@ -53,7 +61,7 @@ function MetricRow({
     icon?: React.ReactNode;
     iconBg?: string;
     iconColor?: string;
-    p: ReturnType<typeof useBurnPaint>;
+    p: BurnPaint;
     last?: boolean;
 }) {
     return (
@@ -89,7 +97,7 @@ function MetricRow({
     );
 }
 
-function Card({ children, p }: { children: React.ReactNode; p: ReturnType<typeof useBurnPaint> }) {
+function Card({ children, p }: { children: React.ReactNode; p: BurnPaint }) {
     return (
         <div
             className="rounded-2xl overflow-hidden"
@@ -102,7 +110,7 @@ function Card({ children, p }: { children: React.ReactNode; p: ReturnType<typeof
 
 /** Burn / supply explorer — dual-theme (daybreak porcelain / retro night). */
 export function BurnFeed() {
-    const p = useBurnPaint();
+    const p = BURN_PAINT;
     const { address } = useAccount();
     const chips = chipsAddress();
     const pool = matchPoolAddress();

@@ -394,8 +394,8 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 ### Phase 3 — Kill JS theming (fixes P0-3, ~0.5 day)
 
-- [ ] 3.1 Add `--panel-border` + `--panel-shadow` to the Daybreak block (Retro already has them at `globals.css:1136-1138`); values: border `rgba(15,23,42,0.12)`, shadow `0 24px 60px -12px rgba(15,23,42,0.22)` — matching the patch-layer shell rule (`globals.css:352`).
-- [ ] 3.2 `GamePanelShell.tsx`: delete `useIsDaybreak` and the ternaries (lines 17-32, 44, 48-53, 70-72, 88, 94). Replace with:
+- [x] 3.1 Add `--panel-border` + `--panel-shadow` to the Daybreak block (Retro already has them at `globals.css:1136-1138`); values: border `rgba(15,23,42,0.12)`, shadow `0 24px 60px -12px rgba(15,23,42,0.22)` — matching the patch-layer shell rule (`globals.css:352`).
+- [x] 3.2 `GamePanelShell.tsx`: delete `useIsDaybreak` and the ternaries (lines 17-32, 44, 48-53, 70-72, 88, 94). Replace with:
   ```tsx
   style={{
     background: "var(--panel-bg)",
@@ -407,10 +407,10 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
   }}
   ```
   and the grabber/divider colors → `var(--line-strong)` / `var(--line-soft)`.
-- [ ] 3.3 `BurnPanel.tsx`, `BurnFeed.tsx`, `ChipsWalletPanel.tsx`: same conversion — remove the `useIsDaybreak` import/call, swap every inline ternary for the §5.1 token `var()` (or the new token utilities if the value lives in `className`).
-- [ ] 3.4 Delete the `useIsDaybreak` export; confirm `grep -rn "useIsDaybreak" app` → 0.
-- [ ] 3.5 Perf check: no MutationObserver on `body.classList` remains (`grep -rn "attributeFilter" app` → 0 in these files). Theme toggles now update panels instantly via CSS — verify mid-panel.
-- [ ] 3.6 Two-theme visual diff for all four surfaces (shell, burn panel, burn feed, chips wallet), including the panel-opening animation.
+- [x] 3.3 `BurnPanel.tsx`, `BurnFeed.tsx`, `ChipsWalletPanel.tsx`: same conversion — remove the `useIsDaybreak` import/call, swap every inline ternary for the §5.1 token `var()` (or the new token utilities if the value lives in `className`).
+- [x] 3.4 Delete the `useIsDaybreak` export; confirm `grep -rn "useIsDaybreak" app` → 0.
+- [x] 3.5 Perf check: no MutationObserver on `body.classList` remains (`grep -rn "attributeFilter" app` → 0 in these files). Theme toggles now update panels instantly via CSS — verify mid-panel.
+- [x] 3.6 Two-theme visual diff for all four surfaces (shell, burn panel, burn feed, chips wallet), including the panel-opening animation.
 
 **Acceptance:** zero JS theme branching; chrome/content drift impossible; diff clean.
 
