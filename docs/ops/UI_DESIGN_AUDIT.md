@@ -319,7 +319,7 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.2 Fix the reset, delete all spacing repairs (fixes P0-4)
 
-- [ ] 1.2.1 Wrap the reset in `@layer base` at `globals.css:584-591`:
+- [x] 1.2.1 Wrap the reset in `@layer base` at `globals.css:584-591`:
   ```css
   /* ─── Step 2: Base styles ─── */
   @layer base {
@@ -332,10 +332,10 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
     }
   }
   ```
-- [ ] 1.2.2 Run dev and walk every panel in **both themes**: all padding/margin utilities must now come from Tailwind itself. Diff against Phase 0 screenshots. Fix any *genuine* layout bug this exposes (there may be a few places that quietly relied on zeroed spacing) before continuing.
-- [ ] 1.2.3 Delete all 22 repair sections. They start at lines 209, 281, 593, 664, 689, 720, 748, 785, 817, 845, 861, 877, 902, 934, 963, 983, 1009, 1036, 1046, 4590, 4595, 4600 — each runs until the next `/* ───` banner or blank-line-separated unrelated rule. Locate programmatically: `grep -n "Scoped spacing repair" app/globals.css`. Delete section-by-section, reloading the affected panel after each.
-- [ ] 1.2.4 Also delete the inline lobby-scope utility re-assertions that are *not* under a "Scoped spacing repair" banner (the bare `.ludo-lobby-scope .p-2 { … }` runs at 211-225, 272-310 and `.ludo-broadcast-scope .px-6 { … }` at 292-295) — same landmine, same fix.
-- [ ] 1.2.5 Re-walk every panel in both themes; diff screenshots again.
+- [x] 1.2.2 Run dev and walk every panel in **both themes**: all padding/margin utilities must now come from Tailwind itself. Diff against Phase 0 screenshots. Fix any *genuine* layout bug this exposes (there may be a few places that quietly relied on zeroed spacing) before continuing.
+- [x] 1.2.3 Delete all 22 repair sections. They start at lines 209, 281, 593, 664, 689, 720, 748, 785, 817, 845, 861, 877, 902, 934, 963, 983, 1009, 1036, 1046, 4590, 4595, 4600 — each runs until the next `/* ───` banner or blank-line-separated unrelated rule. Locate programmatically: `grep -n "Scoped spacing repair" app/globals.css`. Delete section-by-section, reloading the affected panel after each.
+- [x] 1.2.4 Also delete the inline lobby-scope utility re-assertions that are *not* under a "Scoped spacing repair" banner (the bare `.ludo-lobby-scope .p-2 { … }` runs at 211-225, 272-310 and `.ludo-broadcast-scope .px-6 { … }` at 292-295) — same landmine, same fix.
+- [x] 1.2.5 Re-walk every panel in both themes; diff screenshots again.
 
 **Acceptance:** `grep -c "Scoped spacing repair" app/globals.css` → 0; spacing identical to baseline; `globals.css` shrinks by ~600+ lines.
 
