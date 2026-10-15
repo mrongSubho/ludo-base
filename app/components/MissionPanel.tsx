@@ -11,7 +11,8 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelChildTabs, TabCount } from './PanelTabs';
 import { OnboardingPanel } from './OnboardingPanel';
-import { LuX, LuShieldCheck, LuListChecks } from 'react-icons/lu';
+import { LuX, LuShieldCheck, LuListChecks, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget } from 'react-icons/lu';
+import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
@@ -35,9 +36,32 @@ const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: 
     </div>
 );
 
+/**
+ * Icon per badge key. The *style* (bg/color) comes from the pure, unit-tested
+ * `missionBadgeFor()` in lib/missionBadge.ts — keyed off `mission_id` and total
+ * by construction (it always ends in a default).
+ *
+ * Regression history: this panel used to switch on a `type` wire field left
+ * over from the old hardcoded DAILY_MISSIONS table. Commit 1084c72 ("missions
+ * on CHIPS, single reward source") replaced that source with `mission_catalog`
+ * (migration 202609300003), which has no `type` column — so the switch fell
+ * through for every mission, the badge was undefined, and `badge.bg` threw
+ * "Cannot read properties of undefined (reading 'bg')" on the first mission
+ * row, taking the whole Mission panel down for signed-in users.
+ */
+const MISSION_BADGE_ICON: Record<MissionBadgeKey, React.ReactNode> = {
+    bonus: <LuGift className="w-[22px] h-[22px]" />,
+    play: <LuDices className="w-[22px] h-[22px]" />,
+    win: <LuTrophy className="w-[22px] h-[22px]" />,
+    capture: <LuSwords className="w-[22px] h-[22px]" />,
+    poke: <LuBell className="w-[22px] h-[22px]" />,
+    predict: <LuEye className="w-[22px] h-[22px]" />,
+    social: <LuUsers className="w-[22px] h-[22px]" />,
+    default: <LuTarget className="w-[22px] h-[22px]" />,
+};
+
 interface Mission {
     id: string;
-    type: 'play' | 'win' | 'streak' | 'social' | 'predict';
     title: string;
     description: string;
     target: number;
@@ -135,65 +159,6 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         onClose();
         if (missionId.includes('social') || missionId.includes('poke')) {
             onSwitchTab?.('friends');
-        }
-    };
-
-    const getTypeBadge = (type: Mission['type']) => {
-        switch (type) {
-            case 'play':
-                return {
-                    icon: (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01" />
-                        </svg>
-                    ),
-                    color: 'text-cyan-400',
-                    bg: 'bg-white/5',
-                };
-            case 'win':
-                return {
-                    icon: (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4M3 5h4v4A5 5 0 0 1 3 5M21 5h-4v4a5 5 0 0 0 4-4" />
-                        </svg>
-                    ),
-                    color: 'text-yellow-400',
-                    bg: 'bg-yellow-500/20',
-                };
-            case 'streak':
-                return {
-                    icon: (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M17 10C15 8 13.97 3 13.97 3 10 5.25 10 10 10 10c-3-2-2.5-6.5-2.5-6.5C4 6.5 4 11 4 14a8 8 0 0 0 16 0c0-2.5-1.5-4-3-4z" />
-                        </svg>
-                    ),
-                    color: 'text-orange-400',
-                    bg: 'bg-orange-500/20',
-                };
-            case 'social':
-                return {
-                    icon: (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                    ),
-                    color: 'text-cyan-400',
-                    bg: 'bg-white/5',
-                };
-            case 'predict':
-                return {
-                    icon: (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                    ),
-                    color: 'text-pink-400',
-                    bg: 'bg-pink-500/20',
-                };
         }
     };
 
@@ -346,7 +311,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                     ((mission.progress || 0) / mission.target) * 100,
                                                                     100
                                                                 );
-                                                                const badge = getTypeBadge(mission.type);
+                                                                const badge = missionBadgeFor(mission.id);
 
                                                                 return (
                                                                     <motion.div
@@ -364,7 +329,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                             <div
                                                                                 className={`w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 ${badge.bg} ${badge.color} text-2xl shadow-inner border border-white/5`}
                                                                             >
-                                                                                {badge.icon}
+                                                                                {MISSION_BADGE_ICON[badge.key]}
                                                                             </div>
                                                                             <div className="flex flex-col flex-1 min-w-0 pt-0.5">
                                                                                 <div className="flex items-start justify-between gap-2">

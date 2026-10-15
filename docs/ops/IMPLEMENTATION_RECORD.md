@@ -713,3 +713,25 @@ Local toolchain: the dependency tree could not be completed — the sandbox deni
 ### Gates
 
 `npm run visual:baseline` → 6 baselines written · `npm run visual:diff` ×2 → **6/6 runnable scenes match at 0.000%**, 2 skipped (need a production build).
+
+---
+
+## Part VIII — Post-audit production regression: Mission panel badge (2026-10-15)
+
+*Reported from production (`www.ludobase.live`): opening the Mission panel shows the panel error boundary — "mission · Something broke … Cannot read properties of undefined (reading 'bg')" — with `badge.bg` as the throwing frame inside the lazily-loaded panel chunk.*
+
+### Root cause
+
+The panel's badge mapper, `getTypeBadge()` in `app/components/MissionPanel.tsx`, switched on a `type` wire field — `'play' | 'win' | 'streak' | 'social' | 'predict'` — carried over from the old hardcoded `DAILY_MISSIONS` table. Commit `1084c72` ("missions on CHIPS, single reward source") replaced that source with `mission_catalog` (migration `202609300003`), which has **no `type` column**, and `/api/missions/list` was rewritten to map the catalog rows directly. The API therefore stopped sending `type`, but the panel's local `Mission` interface kept declaring it and `setMissions(await response.json())` cast the response into that interface without validation, so TypeScript was none the wiser.
+
+At runtime every mission had `type === undefined`, the 5-case switch fell through and returned `undefined`, and `badge.bg` threw on the first mission row — taking the whole panel down. The crash only rendered for **signed-in** users: guests and session-less callers hit the "connect wallet"/"sign in" branches before the list maps, which is why the guest-state `panel-mission-*` visual scenes never caught it.
+
+### Fix
+
+- **`lib/missionBadge.ts` (new)** — `missionBadgeFor(missionId)`, a pure browser-safe mapper keyed off `mission_id` (a field the catalog actually has), **total by construction**: it ends in a neutral default badge, so an unknown or future catalog id can never produce `undefined`.
+- **`app/components/MissionPanel.tsx`** — the phantom `type` field removed from the local `Mission` interface; the render loop now calls `missionBadgeFor(mission.id)`; icons live in a module-scope `Record<MissionBadgeKey, ReactNode>` beside the mapper. All 12 seeded catalog ids keep their intended icons (`daily_bonus` → gift, `*play*` → dice, `*win*` → trophy, `*capture*`/`*pvp*` → swords, `*poke*` → bell, `*predict*`/`*spectate*` → eye, `*dm*`/`*friend*` → users).
+- **`scripts/mission-badge.test.ts` (new, wired into `npm test`)** — pins the totality property (every seeded id, plus unknown/empty/non-string ids, yields a defined badge with `bg-`/`text-` classes), the per-id icon mapping, and the API/panel agreement that broke: the route must not reintroduce a `type:` payload key, and the panel must not read `mission.type`.
+
+### Gates
+
+`tsc` 0 errors · `eslint` clean on all touched files · `npm test` **422 pass / 0 fail / 11 skipped** (406 → 411 executable pass, +5 new) · the change is render-only for rows that previously crashed, so the committed panel-mission visual baselines (guest state) are unaffected.
