@@ -215,7 +215,7 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
                         role="status"
                     >
                         {event.assetUrl ? (
-                            <img className="emote-float-media" src={event.assetUrl} alt={label} />
+                            <img className="emote-float-media" src={event.assetUrl} alt={label} width={64} height={64} />
                         ) : (
                             <>
                                 <span className="emote-float-glyph" aria-hidden="true">{getEmoteGlyph(event.emoteId)}</span>

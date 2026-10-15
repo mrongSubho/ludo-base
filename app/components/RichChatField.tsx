@@ -80,6 +80,8 @@ export function RichChatField({
                                 src={part.emote.assetUrl}
                                 alt=""
                                 draggable={false}
+                                width={64}
+                                height={64}
                             />
                         </span>
                     ) : (

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { LiveArenaContent, LiveTile } from './LiveArenaDirectory';
 import { LuX } from 'react-icons/lu';
+import { Button } from './Button';
 
 // ─── Live Arena only (missions moved to MissionPanel) ──────────────────────
 // Theme-agnostic sandwich shell — same contract as marketplace/settings.
@@ -69,13 +70,15 @@ export default function ArenaPanel({ isOpen, onClose, onWatchMatch }: ArenaPanel
                                             <LiveTile />
                                             Live Arena
                                         </h2>
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             onClick={onClose}
                                             aria-label="Close arena"
-                                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                            className="bg-surface-hover border border-line-soft shrink-0"
                                         >
-                                            <LuX className="w-4 h-4" />
-                                        </button>
+                                            <LuX className="icon-md" />
+                                        </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
                                         {liveStats.live > 0 && (

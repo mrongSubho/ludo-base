@@ -347,7 +347,7 @@ export function MatchStatsOverlay({
                                             {row.player.avatar &&
                                             (row.player.avatar.startsWith('http') || row.player.avatar.startsWith('/')) ? (
                                                  
-                                                <img src={row.player.avatar} alt="" className="w-full h-full object-cover" />
+                                                <img src={row.player.avatar} alt="" className="w-full h-full object-cover" width={96} height={96} />
                                             ) : (
                                                 <span className="text-sm font-black" style={{ color: accent }}>
                                                     {getDisplayNameHelper(row.player).slice(0, 1)}

@@ -412,7 +412,7 @@ export const SpectatorHUD = ({
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[11px] font-black italic text-cyan-400 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">Live Sync</span>
-                            <span className="text-[8px] font-medium text-cyan-200/50 tracking-widest uppercase">MCP Agent Node Connected</span>
+                            <span className="text-[10px] font-medium text-cyan-200/50 tracking-widest uppercase">MCP Agent Node Connected</span>
                         </div>
                     </div>
                 {onClose && (
@@ -474,7 +474,7 @@ export const SpectatorHUD = ({
                 {windowOpen && <div className="absolute inset-0 bg-[url('/hex-pattern.png')] opacity-[0.02] mix-blend-overlay pointer-events-none" />}
 
                 <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
+                    <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">
                         {windowOpen ? activeBetWindow?.betType?.replace('_', ' ').toUpperCase() ?? 'Bet Live' : 'Next Window'}
                     </span>
                     {windowOpen && (
@@ -517,7 +517,7 @@ export const SpectatorHUD = ({
                                 }}
                             >
                                 {val}
-                                <span className="text-[8px] font-bold opacity-60">5×</span>
+                                <span className="text-[10px] font-bold opacity-60">5×</span>
                             </motion.button>
                         ))}
                     </div>
@@ -555,7 +555,7 @@ export const SpectatorHUD = ({
                             <button
                                 key={p}
                                 onClick={() => setBetAmount(p)}
-                                className="flex-1 py-1 min-h-[44px] rounded-lg text-[9px] font-black uppercase border transition-all"
+                                className="flex-1 py-1 min-h-[44px] rounded-lg text-[10px] font-black uppercase border transition-all"
                                 style={{
                                     background: betAmount === p ? '#ec489920' : 'rgba(255,255,255,0.03)',
                                     borderColor: betAmount === p ? '#ec4899' : 'rgba(255,255,255,0.06)',
@@ -593,7 +593,7 @@ export const SpectatorHUD = ({
             {/* ── Following: one-tap mirror of followed predictors' open picks ── */}
             {followedBets.length > 0 && (
                 <div className="px-4 py-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.04] flex flex-col gap-2">
-                    <span className="text-[9px] font-black text-yellow-300/80 uppercase tracking-[0.2em]">
+                    <span className="text-[10px] font-black text-yellow-300/80 uppercase tracking-[0.2em]">
                         Following · tap to mirror
                     </span>
                     {followedBets.slice(0, 3).map(b => (
@@ -604,7 +604,7 @@ export const SpectatorHUD = ({
                             <button
                                 onClick={() => placeBet(b.bet_value, b.bet_type as BetType)}
                                 disabled={isBetting || !!selectedBetValue || !windowOpen}
-                                className="shrink-0 px-3 min-h-[36px] rounded-lg text-[9px] font-black uppercase tracking-widest bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
+                                className="shrink-0 px-3 min-h-[36px] rounded-lg text-[10px] font-black uppercase tracking-widest bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
                             >
                                 Mirror
                             </button>
@@ -649,7 +649,7 @@ export const SpectatorHUD = ({
                                 className="flex flex-col relative pl-2"
                             >
                                 <div className="absolute left-0 top-1 bottom-1 w-[1px] bg-cyan-500/30" />
-                                <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-0.5">{msg.author}</span>
+                                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-0.5">{msg.author}</span>
                                 <span className="text-[11px] font-medium text-white/90 leading-tight drop-shadow-sm">{msg.text}</span>
                             </motion.div>
                             )
@@ -658,7 +658,7 @@ export const SpectatorHUD = ({
                     {chatMessages.length === 0 && (
                         <div className="h-full flex flex-col items-center justify-center pt-4 opacity-30">
                             <FiMessageSquare className="w-6 h-6 mb-2 text-white" />
-                            <p className="text-[9px] text-white font-bold uppercase tracking-widest text-center leading-relaxed">
+                            <p className="text-[10px] text-white font-bold uppercase tracking-widest text-center leading-relaxed">
                                 Establish uplink<br/>to broadcast
                             </p>
                         </div>

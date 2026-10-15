@@ -81,7 +81,7 @@ const AvatarFace = ({ def, letter, box = 'w-14 h-14' }: {
     if (def?.kind === 'image' && def.src) {
         return (
             <div className={`${box} rounded-full overflow-hidden shrink-0 bg-cyan-900/50 ${def.series === 'trophy' ? 'ring-2 ring-amber-400/70' : ''}`}>
-                <img src={def.src} alt={def.label} className="w-full h-full object-cover" />
+                <img src={def.src} alt={def.label} className="w-full h-full object-cover" width={96} height={96} />
             </div>
         );
     }
@@ -336,7 +336,7 @@ export default function UserProfilePanel({
                                 onClose();
                                 exitGuest();
                             }}
-                            className="flex-none px-2.5 py-1 rounded-full bg-white text-black text-[9px] font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
+                            className="flex-none px-2.5 py-1 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
                         >
                             Connect
                         </button>
@@ -357,7 +357,7 @@ export default function UserProfilePanel({
                             >
                                 <div className="w-full h-full bg-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
                                     {finalAvatar && isDirectImage(finalAvatar) ? (
-                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
+                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
                                     ) : (
                                         <span className="text-2xl font-black text-white/80">
                                             {(finalName?.[0] || 'U').toUpperCase()}
@@ -399,7 +399,7 @@ export default function UserProfilePanel({
                             >
                                 <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                                 <span className="text-xs font-black text-white tabular-nums">{chipsBal.human}</span>
-                                <span className="text-[9px] font-black text-cyan-300/80 uppercase">CHIPS</span>
+                                <span className="text-[10px] font-black text-cyan-300/80 uppercase">CHIPS</span>
                             </button>
                             <div className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10">
                                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
@@ -430,7 +430,7 @@ export default function UserProfilePanel({
                                         if (items.length === 0) return null;
                                         return (
                                             <div key={series} className="mb-2 last:mb-0">
-                                                <div className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1.5 capitalize">{series}</div>
+                                                <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1.5 capitalize">{series}</div>
                                                 <div className="grid grid-cols-6 gap-1.5">
                                                     {items.map((item) => {
                                                         const { ok, hint } = isUnlocked(item, { wins, level: progression.level });
@@ -445,14 +445,14 @@ export default function UserProfilePanel({
                                                                 className={`relative aspect-square rounded-xl overflow-hidden border transition-all flex items-center justify-center ${selected ? 'border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)] scale-105' : ok ? 'border-white/10 hover:border-white/30' : 'border-white/5 opacity-40 cursor-not-allowed'}`}
                                                             >
                                                                 {item.kind === 'image' && item.src ? (
-                                                                    <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+                                                                    <img src={item.src} alt={item.label} className="w-full h-full object-cover" width={96} height={96} />
                                                                 ) : (
                                                                     <span className={`w-full h-full bg-gradient-to-tr ${item.bg} flex items-center justify-center text-white font-black text-sm`}>
                                                                         {(draftName?.[0] || finalName?.[0] || 'U').toUpperCase()}
                                                                     </span>
                                                                 )}
                                                                 {!ok && (
-                                                                    <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[7px] font-black text-amber-300 text-center py-0.5 leading-none">
+                                                                    <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[10px] font-black text-amber-300 text-center py-0.5 leading-none">
                                                                         {hint}
                                                                     </span>
                                                                 )}
@@ -473,7 +473,7 @@ export default function UserProfilePanel({
                                         placeholder={finalName}
                                         className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-500/60 transition-colors"
                                     />
-                                    <div className="text-[9px] font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>
+                                    <div className="text-[10px] font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>
                                     {saveError && (
                                         <div className="text-[11px] font-bold text-red-400 mt-1">{saveError}</div>
                                     )}
@@ -514,7 +514,7 @@ export default function UserProfilePanel({
                                     transition={{ duration: 0.8, ease: 'easeOut' }}
                                 />
                             </div>
-                            <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
+                            <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
                                 {(progression.lxpToNextLevel - progression.currentLxp).toLocaleString()} XP to Lv. {progression.level + 1} • {(profile?.lxp || 0).toLocaleString()} lifetime
                             </div>
                         </div>
@@ -538,7 +538,7 @@ export default function UserProfilePanel({
                                     transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
                                 />
                             </div>
-                            <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest">
+                            <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
                                 {rank.nextLabel === 'MAX' ? 'Top of the arena' : `Next: ${rank.nextLabel} • resets quarterly`}
                             </div>
                         </div>
@@ -559,7 +559,7 @@ export default function UserProfilePanel({
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">
+                                <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
                                     {form.played} matches • {range}
                                 </div>
                             </div>
@@ -597,7 +597,7 @@ export default function UserProfilePanel({
                             {stats.map((s) => (
                                 <div key={s.l} className="rounded-xl bg-white/[0.04] border border-white/10 p-2 flex flex-col items-center justify-center">
                                     <span className={`text-base font-black tabular-nums ${s.c}`}>{s.v}</span>
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-white/30 mt-0.5">{s.l}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-0.5">{s.l}</span>
                                 </div>
                             ))}
                         </div>
@@ -608,7 +608,7 @@ export default function UserProfilePanel({
                         <SectionLabel
                             right={
                                 showcased ? (
-                                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-[9px] font-black text-cyan-300 uppercase tracking-widest">
+                                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black text-cyan-300 uppercase tracking-widest">
                                         Showcasing
                                     </span>
                                 ) : undefined
@@ -626,7 +626,7 @@ export default function UserProfilePanel({
                                 {onOpenMarketplace && (
                                     <button
                                         onClick={onOpenMarketplace}
-                                        className="shrink-0 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:text-white/70 transition-all"
+                                        className="shrink-0 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:text-white/70 transition-all"
                                     >
                                         Change
                                     </button>
@@ -646,7 +646,7 @@ export default function UserProfilePanel({
                                 {onOpenMarketplace && (
                                     <button
                                         onClick={onOpenMarketplace}
-                                        className="shrink-0 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all"
+                                        className="shrink-0 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all"
                                     >
                                         Market
                                     </button>

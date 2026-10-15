@@ -10,6 +10,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
 import { PanelTabs } from './PanelTabs';
+import { Button } from './Button';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings: this panel always renders on the shared
@@ -140,7 +141,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
     const avatar = (p: any, box: string, text: string) => (
         <div className={`${box} rounded-full border-2 border-white/10 overflow-hidden bg-cyan-900/50 flex-shrink-0`}>
             {p.avatar_url ? (
-                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" width={96} height={96} />
             ) : (
                 <div className={`w-full h-full flex items-center justify-center text-white/30 font-black ${text}`}>{p.username?.[0]?.toUpperCase() || 'L'}</div>
             )}
@@ -166,17 +167,17 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                         <div className="flex items-center gap-1.5">
                             <h4 className="text-white font-bold truncate text-[13px]">{p.username || `${p.wallet_address.slice(0, 6)}...`}</h4>
                             {isMe && (
-                                <span className="shrink-0 bg-cyan-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
+                                <span className="shrink-0 bg-cyan-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                             <span className={`text-[10px] font-black uppercase tracking-widest ${getTierColor(p.rank_tier || 'Bronze')}`}>{p.rank_tier || 'Bronze'} {p.subRank}</span>
-                            <span className="text-[9px] text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
+                            <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
                         </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
                         <div className="text-lg font-black text-white tracking-tighter leading-none font-mono">{p.rxp || 1200}</div>
-                        <div className="text-[8px] text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
+                        <div className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
                     </div>
                     <LuChevronRight className="w-4 h-4 shrink-0 text-white/10 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
                 </div>
@@ -225,13 +226,15 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                             </div>
                                             Rankings
                                         </h2>
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             onClick={onClose}
                                             aria-label="Close rankings"
-                                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                            className="bg-surface-hover border border-line-soft"
                                         >
-                                            <LuX className="w-4 h-4" />
-                                        </button>
+                                            <LuX className="icon-md" />
+                                        </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
                                         <span className="flex items-center gap-1">
@@ -297,13 +300,13 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                     <button
                                                         key={p.wallet_address}
                                                         onClick={() => onOpenProfile(p.wallet_address)}
-                                                        className={`relative rounded-2xl border bg-white/[0.04] hover:bg-white/[0.07] transition-all flex flex-col items-center overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${lead ? 'py-3 border-white/20' : 'py-2.5 border-white/10'} ${isMe ? '!border-cyan-500/50' : ''}`}
+                                                        className={`relative rounded-2xl border bg-white/[0.04] hover:bg-white/[0.07] transition-all flex flex-col items-center overflow-hidden ${lead ? 'py-3 border-white/20' : 'py-2.5 border-white/10'} ${isMe ? '!border-cyan-500/50' : ''}`}
                                                     >
                                                         <div className="absolute top-0 inset-x-8 h-[2px] rounded-full" style={{ background: MEDAL[rank - 1], boxShadow: `0 0 12px ${MEDAL[rank - 1]}` }} />
                                                         {lead && <LuTrophy className="w-3.5 h-3.5 mb-1" style={{ color: MEDAL[0] }} />}
                                                         <div className={`${lead ? 'w-14 h-14' : 'w-11 h-11'} rounded-full overflow-hidden border-2 bg-cyan-900/50`} style={{ borderColor: `${MEDAL[rank - 1]}66` }}>
                                                             {p.avatar_url ? (
-                                                                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" width={96} height={96} />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center text-white/30 font-black text-base">{p.username?.[0]?.toUpperCase() || 'L'}</div>
                                                             )}
@@ -360,7 +363,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                         >
                                             {avatar(myEntry, 'w-9 h-9', 'text-xs')}
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/80">Your rank</div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80">Your rank</div>
                                                 <div className="text-xs font-black text-white truncate">
                                                     #{myRank} · <span className={getTierColor(myEntry.rank_tier || 'Bronze')}>{myEntry.rank_tier || 'Bronze'}</span>
                                                 </div>

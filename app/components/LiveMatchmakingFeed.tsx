@@ -112,7 +112,7 @@ export const LiveMatchmakingFeed = () => {
                     <div className="flex items-center gap-4 relative z-10">
                         <div className="h-8 w-px bg-white/5" />
                         <div className="flex flex-col items-end">
-                            <span className="text-[9px] font-black text-white/30 uppercase">Node</span>
+                            <span className="text-[10px] font-black text-white/30 uppercase">Node</span>
                             <span className="text-[10px] font-black text-cyan-400 italic uppercase">Broadcast</span>
                         </div>
                     </div>
@@ -143,7 +143,7 @@ export const LiveMatchmakingFeed = () => {
                                         <h3 className="text-white font-black italic text-3xl tracking-tighter uppercase">Match Browser</h3>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[9px] font-black text-emerald-500 tracking-[0.2em] uppercase">Live_Node: Active</span>
+                                            <span className="text-[10px] font-black text-emerald-500 tracking-[0.2em] uppercase">Live_Node: Active</span>
                                         </div>
                                     </div>
                                     <button 
@@ -169,7 +169,7 @@ export const LiveMatchmakingFeed = () => {
                                                         </span>
                                                         <div className="flex items-center gap-3 mt-0.5">
                                                             <span className="text-[10px] font-black text-cyan-400 uppercase">Wager: <span className="text-white">{s.wager.toLocaleString()}</span></span>
-                                                            <span className="text-[9px] font-medium text-white/20 uppercase">{formatTime(s.created_at)}</span>
+                                                            <span className="text-[10px] font-medium text-white/20 uppercase">{formatTime(s.created_at)}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -192,7 +192,7 @@ export const LiveMatchmakingFeed = () => {
                                 </div>
 
                                 <div className="mt-6 w-full p-8 border-t border-white/5 text-center relative z-10">
-                                    <span className="text-[9px] font-medium text-white/20 uppercase tracking-[0.3em]">Encrypted Real-time Feed | v1.0.4</span>
+                                    <span className="text-[10px] font-medium text-white/20 uppercase tracking-[0.3em]">Encrypted Real-time Feed | v1.0.4</span>
                                 </div>
                             </div>
                         </div>

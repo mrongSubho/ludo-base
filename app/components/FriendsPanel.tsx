@@ -9,6 +9,8 @@ import { ChatIcon } from './icons';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useAppSession } from '@/hooks/useAppSession';
 import { EmptyState } from './EmptyState';
+import { Button } from './Button';
+import { Chip } from './Chip';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings/rankings: this panel always renders on the
@@ -128,7 +130,7 @@ const Avatar = ({ url, name, box = 'w-11 h-11', ring = '', dot }: {
 }) => (
     <div className={`${box} rounded-full overflow-hidden bg-cyan-900/50 shrink-0 relative ${ring}`}>
         {url ? (
-            <img loading="lazy" decoding="async" src={url} alt={name} className="w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={url} alt={name} className="w-full h-full object-cover" width={96} height={96} />
         ) : (
             <div className="w-full h-full flex items-center justify-center text-white/40 font-black text-base">
                 {(name?.[0] || 'L').toUpperCase()}
@@ -147,25 +149,32 @@ const IconBtn = ({ onClick, title, label, tone, children, disabled = false }: {
     tone: 'ghost' | 'poke' | 'poke-back' | 'spectate' | 'dm' | 'accept' | 'reject';
     children: React.ReactNode; disabled?: boolean;
 }) => {
+    // Tone table for the compact row actions. Re-expressed on the semantic
+    // tokens (Phase C.1/C.4): accept/reject/poke-back/dm were raw palette
+    // classes (green-500/red-500/yellow-500/cyan-500), which the Daybreak patch
+    // layer had to remap one by one — now they are positive/negative/warn/accent
+    // and both themes are correct by construction. Geometry is preserved via
+    // className because these are 36px row actions, not the 44px icon target.
     const tones: Record<string, string> = {
-        ghost: 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white',
-        poke: 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white',
-        'poke-back': 'bg-yellow-500 text-black border-yellow-400 hover:bg-yellow-400 animate-pulse',
-        spectate: 'bg-orange-500/15 text-orange-300 border-orange-500/40 hover:bg-orange-500 hover:text-white',
-        dm: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25 hover:bg-cyan-600 hover:text-white',
-        accept: 'bg-green-500/15 text-green-300 border-green-500/30 hover:bg-green-500 hover:text-white',
-        reject: 'bg-red-500/10 text-red-400 border-red-500/25 hover:bg-red-500 hover:text-white',
+        ghost: 'bg-surface-recessed text-ink-muted border-line-soft hover:bg-surface-hover hover:text-ink-strong',
+        poke: 'bg-surface-recessed text-ink-muted border-line-soft hover:bg-surface-hover hover:text-ink-strong',
+        'poke-back': 'bg-warn text-black border-warn hover:brightness-110 animate-pulse',
+        spectate: 'bg-warn/15 text-warn border-warn/40 hover:bg-warn hover:text-black',
+        dm: 'bg-accent-soft text-accent border-accent/25 hover:bg-accent hover:text-accent-ink',
+        accept: 'bg-positive/15 text-positive border-positive/30 hover:bg-positive hover:text-white',
+        reject: 'bg-negative/10 text-negative border-negative/25 hover:bg-negative hover:text-white',
     };
     return (
-        <button
+        <Button
+            size="sm"
             onClick={(e) => { e.stopPropagation(); onClick?.(); }}
             disabled={disabled}
             title={title}
             aria-label={label}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all border shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${tones[tone]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-9 h-9 p-0 rounded-full border ${tones[tone]}`}
         >
             {children}
-        </button>
+        </Button>
     );
 };
 
@@ -566,7 +575,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                 <button
                                     onClick={() => onOpenProfile?.(p.wallet_address)}
                                     aria-label={`Open ${p.displayName} profile`}
-                                    className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
+                                    className="shrink-0 rounded-full hover:scale-105 transition-transform"
                                 >
                                     <Avatar url={p.avatar_url} name={p.displayName} box="w-11 h-11" dot={p.status} />
                                 </button>
@@ -587,13 +596,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                         Pending
                                     </span>
                                 ) : (
-                                    <button
+                                    <Button
+                                        size="sm"
                                         onClick={() => handleAddFriend(p.wallet_address)}
-                                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-cyan-500/15 text-cyan-200 text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500/30 transition-all border border-cyan-500/40 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+                                        leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>}
+                                        className="rounded-full bg-accent-soft text-accent border border-accent/40 hover:bg-accent hover:text-accent-ink uppercase tracking-widest shrink-0"
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
                                         Add
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         </div>
@@ -633,7 +643,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                             <button
                                 onClick={() => onOpenProfile?.(req.wallet_address)}
                                 aria-label={`Open ${req.name} profile`}
-                                className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 hover:scale-105 transition-transform"
+                                className="shrink-0 rounded-full hover:scale-105 transition-transform"
                             >
                                 <Avatar url={resolveAvatar(req.avatar)} name={req.name} box="w-11 h-11" />
                             </button>
@@ -698,13 +708,15 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                     <UsersTile />
                                     Friends
                                 </h2>
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={onClose}
                                     aria-label="Close friends"
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    className="bg-surface-hover border border-line-soft"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </button>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
@@ -763,24 +775,37 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                             {activeMainTab === 'social' && (
                                 <div>
                                     <div className="mt-1 mb-1 flex items-center gap-2.5">
-                                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+                                        {/* Count badge → Chip info type (Phase C.2): a
+                                            rounded bordered pill was chip markup. Keeps
+                                            its mono/uppercase voice via className. */}
+                                        <Chip size="sm" className="font-mono uppercase tracking-[0.18em]">
                                             {visibleSocial.length} friends
-                                        </span>
+                                        </Chip>
                                         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
+                                        {/* Filter chips (Phase C.2). As `Chip type="filter"`
+                                            they get `aria-pressed`, which the raw buttons
+                                            never exposed — a screen reader had no way to
+                                            know these were toggles. */}
                                         <div className="flex items-center gap-1.5">
-                                            <button
+                                            <Chip
+                                                type="filter"
+                                                size="sm"
+                                                active={onlineOnly}
                                                 onClick={() => setOnlineOnly(v => !v)}
-                                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${onlineOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                                                className="uppercase tracking-widest"
+                                                icon={<span className={`w-1 h-1 rounded-full ${onlineOnly ? 'bg-positive animate-pulse' : 'bg-ink-faint'}`} />}
                                             >
-                                                <span className={`w-1 h-1 rounded-full ${onlineOnly ? 'bg-green-400 animate-pulse' : 'bg-white/30'}`} />
                                                 Online
-                                            </button>
-                                            <button
+                                            </Chip>
+                                            <Chip
+                                                type="filter"
+                                                size="sm"
+                                                active={activeOnly}
                                                 onClick={() => setActiveOnly(v => !v)}
-                                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${activeOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                                                className="uppercase tracking-widest"
                                             >
                                                 Active
-                                            </button>
+                                            </Chip>
                                         </div>
                                     </div>
                                     {renderFriendList(visibleSocial)}

@@ -163,7 +163,7 @@ const HuntView = ({ empty, total, isHost, onCancel, expired, timeoutS }: {
         <p className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.25em]">
             {total - empty}/{total} seated · room live
         </p>
-        <p className="text-[9px] font-bold text-white/35 tracking-wide">
+        <p className="text-[10px] font-bold text-white/35 tracking-wide">
             Strangers join straight into this room
         </p>
         {isHost && (
@@ -245,22 +245,22 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
             >
                 <span className={`relative w-16 h-16 rounded-full overflow-hidden flex items-center justify-center border-2 transition-all ${ring} bg-slate-800 ${selected ? 'scale-105' : ''}`}>
                     {filled && slot?.playerAvatar ? (
-                        <img src={slot.playerAvatar} alt={slot.playerName || 'player'} className="w-full h-full object-cover" />
+                        <img src={slot.playerAvatar} alt={slot.playerName || 'player'} className="w-full h-full object-cover" width={96} height={96} />
                     ) : filled ? (
                         <span className="text-xl font-black text-white/40 uppercase">{slot?.playerName?.[0] || 'P'}</span>
                     ) : invited ? (
-                        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-300 px-1 text-center leading-tight">Sent…</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-300 px-1 text-center leading-tight">Sent…</span>
                     ) : (
                         <PersonPlusIcon className="w-6 h-6 text-white/30" />
                     )}
                     {you && (
-                        <span className="absolute bottom-0 inset-x-0 py-px bg-cyan-500/90 text-[7px] font-black uppercase tracking-[0.2em] text-slate-950">
+                        <span className="absolute bottom-0 inset-x-0 py-px bg-cyan-500/90 text-[10px] font-black uppercase tracking-[0.2em] text-slate-950">
                             You
                         </span>
                     )}
                     {lowBalance && (
                         <span
-                            className="absolute top-0 inset-x-0 py-px bg-amber-400/95 text-[7px] font-black uppercase tracking-[0.12em] text-slate-950 text-center"
+                            className="absolute top-0 inset-x-0 py-px bg-amber-400/95 text-[10px] font-black uppercase tracking-[0.12em] text-slate-950 text-center"
                             title={`${slot?.playerName || 'Player'} has ${(slot?.playerCoins ?? 0).toLocaleString()} · entry ${entryFee.toLocaleString()}`}
                         >
                             Low
@@ -270,7 +270,7 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
                 <span className="text-[10px] font-black text-white uppercase tracking-wider truncate max-w-[72px]">
                     {filled ? slot?.playerName : invited ? 'Invited' : 'Invite'}
                 </span>
-                <span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.15em] text-white/35">
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">
                     {slot?.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: COLOR_DOT[slot.color] || '#fff' }} />}
                     {slot?.role === 'teammate' ? 'Partner' : slot?.role === 'opponent' ? 'Rival' : slot?.role === 'host' ? 'Host' : 'Open'}
                 </span>
@@ -336,7 +336,7 @@ const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot, onSwapPlayers, o
 
     const half = (title: string, tone: 'cyan' | 'ember', list: LobbySlot[]) => (
         <div className={`flex-1 min-w-0 rounded-2xl border backdrop-blur-lg px-2 py-3 flex flex-col items-center gap-2.5 ${tone === 'cyan' ? 'bg-cyan-500/[0.07] border-cyan-500/25' : 'bg-rose-500/[0.06] border-rose-500/25'}`}>
-            <span className={`text-[9px] font-black uppercase tracking-[0.25em] ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
                 {title}
             </span>
             <div className="flex items-start justify-center gap-3 flex-wrap">
@@ -811,7 +811,7 @@ export const TeamUpMatchPanel = ({
                                     {isHost && fee > 0 && onLowerFee && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); playSelect(); onLowerFee(); }}
-                                            className="ml-2 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-black uppercase tracking-[0.12em] hover:bg-amber-500/25 transition-all"
+                                            className="ml-2 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-[0.12em] hover:bg-amber-500/25 transition-all"
                                             title="Step entry fee down one preset"
                                         >
                                             Lower fee
@@ -829,7 +829,7 @@ export const TeamUpMatchPanel = ({
                                         {roomSecret && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); playSelect(); copyText(inviteLinkFor(), 'link'); }}
-                                                className="text-[9px] font-bold text-cyan-300/70 hover:text-cyan-200 underline underline-offset-2"
+                                                className="text-[10px] font-bold text-cyan-300/70 hover:text-cyan-200 underline underline-offset-2"
                                             >
                                                 {copiedKey === 'link' ? 'Link copied' : 'Copy invite link'}
                                             </button>
@@ -971,7 +971,7 @@ export const TeamUpMatchPanel = ({
                                             >
                                                 Join Game
                                             </button>
-                                            <button onClick={() => { setRoomCode(''); setJoinSecret(''); setView('console'); }} className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] hover:text-white">
+                                            <button onClick={() => { setRoomCode(''); setJoinSecret(''); setView('console'); }} className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] hover:text-white">
                                                 Back
                                             </button>
                                         </div>
@@ -997,7 +997,7 @@ export const TeamUpMatchPanel = ({
                                     <div className="flex items-center justify-between">
                                         <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
                                             Invite {invitePopup.role === 'teammate' ? 'Partner' : 'Rival'}
-                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[9px] text-white/50">
+                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] text-white/50">
                                                 Seat {invitePopup.seat + 1}
                                             </span>
                                         </span>
@@ -1027,7 +1027,7 @@ export const TeamUpMatchPanel = ({
                                     {roomCodeValue && (
                                         <button
                                             onClick={() => copyText(inviteLinkFor(), 'popup-room-link')}
-                                            className="-mt-1 text-[9px] font-bold text-white/35 hover:text-cyan-300 tracking-wide transition-colors"
+                                            className="-mt-1 text-[10px] font-bold text-white/35 hover:text-cyan-300 tracking-wide transition-colors"
                                         >
                                             {copiedKey === 'popup-room-link' ? 'Room link copied!' : 'Copy room link instead — fills any open seat'}
                                         </button>
@@ -1057,14 +1057,14 @@ export const TeamUpMatchPanel = ({
                                                         <div className="flex items-center gap-3 min-w-0">
                                                             <div className="w-10 h-10 bg-slate-800 rounded-xl overflow-hidden border border-white/10 shrink-0">
                                                                 {f.avatar_url ? (
-                                                                    <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" />
+                                                                    <img src={f.avatar_url} alt="friend" className="w-full h-full object-cover" width={96} height={96} />
                                                                 ) : (
                                                                     <div className="w-full h-full flex items-center justify-center text-white/20 font-black">{(f.username?.[0] || '?').toUpperCase()}</div>
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-col min-w-0">
                                                                 <span className="text-xs font-bold text-white uppercase tracking-tight truncate">{(f.username && !f.username.startsWith('0x')) ? f.username : `User ${f.wallet_address.slice(-4).toUpperCase()}`}</span>
-                                                                <span className={`text-[8px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
                                                             </div>
                                                         </div>
                                                         {(() => {
@@ -1073,7 +1073,7 @@ export const TeamUpMatchPanel = ({
                                                                 <button
                                                                     disabled={inv.disabled}
                                                                     onClick={() => handleInvite(f)}
-                                                                    className={`shrink-0 ml-2 min-w-[72px] px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all tabular-nums ${inv.disabled
+                                                                    className={`shrink-0 ml-2 min-w-[72px] px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all tabular-nums ${inv.disabled
                                                                         ? inv.label === 'Max invites'
                                                                             ? 'bg-rose-500/15 border border-rose-500/40 text-rose-300 cursor-default'
                                                                             : 'bg-amber-500/15 border border-amber-500/40 text-amber-300 cursor-default'
@@ -1088,7 +1088,7 @@ export const TeamUpMatchPanel = ({
                                                 ) : (
                                                     <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-center">
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-white/50">{ftab === 'global' ? 'No players online' : 'No friends online'}</span>
-                                                        <span className="text-[9px] font-bold text-white/30 max-w-[240px]">Only live players list here — free first, in-match second. Share the seat link above instead.</span>
+                                                        <span className="text-[10px] font-bold text-white/30 max-w-[240px]">Only live players list here — free first, in-match second. Share the seat link above instead.</span>
                                                     </div>
                                                 );
                                             })()
@@ -1136,7 +1136,7 @@ export const TeamUpMatchPanel = ({
                                             </>
                                         )}
                                     </span>
-                                    <span className="text-[8px] font-bold tracking-wide text-white/35">
+                                    <span className="text-[10px] font-bold tracking-wide text-white/35">
                                         {announced ? `next in ${announceCd}s` : 'in Live chat'}
                                     </span>
                                         </button>
@@ -1150,7 +1150,7 @@ export const TeamUpMatchPanel = ({
                                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
                                                 Hunt
                                             </span>
-                                            <span className="text-[8px] font-bold tracking-wide text-cyan-400/60">Autofill with online players</span>
+                                            <span className="text-[10px] font-bold tracking-wide text-cyan-400/60">Autofill with online players</span>
                                         </button>
                                     )}
                                 </div>
@@ -1162,7 +1162,7 @@ export const TeamUpMatchPanel = ({
                                     className="w-full py-3 rounded-2xl bg-white/[0.06] border border-white/15 text-white/70 transition-all hover:bg-white/10 hover:text-white active:scale-95 flex flex-col items-center justify-center gap-0.5"
                                 >
                                     <span className="font-black tracking-[0.2em] text-xs uppercase">Cancel hunt</span>
-                                    <span className="text-[9px] font-bold normal-case tracking-wide text-white/35">Back to invites</span>
+                                    <span className="text-[10px] font-bold normal-case tracking-wide text-white/35">Back to invites</span>
                                 </button>
                             )}
 

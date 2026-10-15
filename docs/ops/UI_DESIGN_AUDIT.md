@@ -156,6 +156,8 @@ Ratios computed against the **page background** (worst case) and the **panel sur
 
 **Actions:** deepen the Daybreak accent to `#0d6d87` (Phase 1.1); document faint inks as decorative; never place required text on the white/40-mapped ink.
 
+**Correction (2026-10-13, found while implementing 1.1):** the three Daybreak status values proposed in §5.2 **fail AA on the page background** when actually measured — `#b45309` 4.09:1, `#15803d` 4.09:1, `#dc2626` 3.94:1 (all < 4.5). Phase 2 must ship `#92400e` (5.78:1), `#166534` (5.81:1) and `#b91c1c` (5.27:1) instead. The gate is `node scripts/contrast.mjs --pairs` (15 pairs, added with 1.1) — run it after any token change.
+
 ---
 
 ## 5. Target architecture
@@ -317,7 +319,7 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.2 Fix the reset, delete all spacing repairs (fixes P0-4)
 
-- [ ] 1.2.1 Wrap the reset in `@layer base` at `globals.css:584-591`:
+- [x] 1.2.1 Wrap the reset in `@layer base` at `globals.css:584-591`:
   ```css
   /* ─── Step 2: Base styles ─── */
   @layer base {
@@ -330,10 +332,10 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
     }
   }
   ```
-- [ ] 1.2.2 Run dev and walk every panel in **both themes**: all padding/margin utilities must now come from Tailwind itself. Diff against Phase 0 screenshots. Fix any *genuine* layout bug this exposes (there may be a few places that quietly relied on zeroed spacing) before continuing.
-- [ ] 1.2.3 Delete all 22 repair sections. They start at lines 209, 281, 593, 664, 689, 720, 748, 785, 817, 845, 861, 877, 902, 934, 963, 983, 1009, 1036, 1046, 4590, 4595, 4600 — each runs until the next `/* ───` banner or blank-line-separated unrelated rule. Locate programmatically: `grep -n "Scoped spacing repair" app/globals.css`. Delete section-by-section, reloading the affected panel after each.
-- [ ] 1.2.4 Also delete the inline lobby-scope utility re-assertions that are *not* under a "Scoped spacing repair" banner (the bare `.ludo-lobby-scope .p-2 { … }` runs at 211-225, 272-310 and `.ludo-broadcast-scope .px-6 { … }` at 292-295) — same landmine, same fix.
-- [ ] 1.2.5 Re-walk every panel in both themes; diff screenshots again.
+- [x] 1.2.2 Run dev and walk every panel in **both themes**: all padding/margin utilities must now come from Tailwind itself. Diff against Phase 0 screenshots. Fix any *genuine* layout bug this exposes (there may be a few places that quietly relied on zeroed spacing) before continuing.
+- [x] 1.2.3 Delete all 22 repair sections. They start at lines 209, 281, 593, 664, 689, 720, 748, 785, 817, 845, 861, 877, 902, 934, 963, 983, 1009, 1036, 1046, 4590, 4595, 4600 — each runs until the next `/* ───` banner or blank-line-separated unrelated rule. Locate programmatically: `grep -n "Scoped spacing repair" app/globals.css`. Delete section-by-section, reloading the affected panel after each.
+- [x] 1.2.4 Also delete the inline lobby-scope utility re-assertions that are *not* under a "Scoped spacing repair" banner (the bare `.ludo-lobby-scope .p-2 { … }` runs at 211-225, 272-310 and `.ludo-broadcast-scope .px-6 { … }` at 292-295) — same landmine, same fix.
+- [x] 1.2.5 Re-walk every panel in both themes; diff screenshots again.
 
 **Acceptance:** `grep -c "Scoped spacing repair" app/globals.css` → 0; spacing identical to baseline; `globals.css` shrinks by ~600+ lines.
 
@@ -341,10 +343,10 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.3 Raise the type floor (fixes P1-7)
 
-- [ ] 1.3.1 Diagnostic chips: `globals.css:255-262` `font-size: 6px` → `10px` (or gate the whole `.diag-chip` block behind `data-debug` if the chips are dev-only). If chips become a layout problem at 10px, hide them (`display: none`) rather than shrink them.
-- [ ] 1.3.2 `PanelTabs.tsx:87` `TabCount`: `text-[9px]` → `text-[10px]`.
-- [ ] 1.3.3 Sweep for anything smaller: `grep -rn "text-\[[0-9]px\]" app --include="*.tsx" | awk -F'text-\\[' '{print $2}' | sort -u` — anything `< 10px` is either raised or deleted.
-- [ ] 1.3.4 Confirm no clipped/overflowing labels at 375px after the bump (tabs are the risk).
+- [x] 1.3.1 Diagnostic chips: `globals.css:255-262` `font-size: 6px` → `10px` (or gate the whole `.diag-chip` block behind `data-debug` if the chips are dev-only). If chips become a layout problem at 10px, hide them (`display: none`) rather than shrink them.
+- [x] 1.3.2 `PanelTabs.tsx:87` `TabCount`: `text-[9px]` → `text-[10px]`.
+- [x] 1.3.3 Sweep for anything smaller: `grep -rn "text-\[[0-9]px\]" app --include="*.tsx" | awk -F'text-\\[' '{print $2}' | sort -u` — anything `< 10px` is either raised or deleted.
+- [x] 1.3.4 Confirm no clipped/overflowing labels at 375px after the bump (tabs are the risk).
 
 **Acceptance:** no rendered text under 10px anywhere; no layout regressions.
 
@@ -352,22 +354,22 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 - [x] 1.4.1 `grep -rln "ThemeSwitcher" app --include="*.tsx"` → must list only `ThemeSwitcher.tsx` itself (re-verified 0 importers 2026-10-13, incl. dynamic + string refs).
 - [x] 1.4.2 Delete `app/components/ThemeSwitcher.tsx`. **Done 2026-10-13** (49 lines, one `usePreferences` import; theming is the REA-07 cookie store).
-- [ ] 1.4.3 Add a code comment in `SettingsPanel.tsx` near the Appearance section marking it as the single theme entry point, so the next person does not grow a fifth.
+- [x] 1.4.3 Add a code comment in `SettingsPanel.tsx` near the Appearance section marking it as the single theme entry point, so the next person does not grow a fifth. **Done** — `SettingsPanel.tsx` above the Appearance `<section>`, citing 1.4.3 and naming the three write-only touchpoints (FirstRunSetup, ThemeNudge, Marketplace).
 
 **Acceptance:** exactly one user-reachable theme control (Settings → Appearance); onboarding/nudge/marketplace write the same preference but are intentional touchpoints, not competing UIs.
 
 #### 1.5 Motion discipline (fixes P2-10)
 
-- [ ] 1.5.1 Wrap all decorative animation in the existing `prefers-reduced-motion` blocks — orbs (`drift-orb`), scanlines, ticker, `pulse` — so `reduce` stops them entirely (a static gradient/scanline image is fine, animation is not).
-- [ ] 1.5.2 Replace `animation: pulse 1s infinite` on `.diag-status-warn` with a single 3-flash keyframe or static amber.
-- [ ] 1.5.3 framer-motion: wrap the app in `<MotionConfig reducedMotion="user">` in `app/Providers.tsx` so nav springs (`layoutId="active-nav-bg"`, FooterNavPanel) respect the OS setting.
+- [x] 1.5.1 Wrap all decorative animation in the existing `prefers-reduced-motion` blocks — orbs (`drift-orb`), scanlines, ticker, `pulse` — so `reduce` stops them entirely (a static gradient/scanline image is fine, animation is not).
+- [x] 1.5.2 Replace `animation: pulse 1s infinite` on `.diag-status-warn` with a single 3-flash keyframe or static amber.
+- [x] 1.5.3 framer-motion: wrap the app in `<MotionConfig reducedMotion="user">` in `app/Providers.tsx` so nav springs (`layoutId="active-nav-bg"`, FooterNavPanel) respect the OS setting.
 - [ ] 1.5.4 Verify: macOS System Settings → Accessibility → Display → Reduce Motion, walk lobby + a panel open/close.
 
 **Acceptance:** with Reduce Motion on, nothing loops; theme and layout unchanged.
 
 ### Phase 2 — Semantic token layer (visually neutral, ~1 day)
 
-- [ ] 2.1 Add the §5.1 token block to `globals.css` immediately after the existing `:root` panel-shell variables (`globals.css:93-98`), plus the `--warn/--positive/--negative` status tokens:
+- [x] 2.1 Add the §5.1 token block to `globals.css` immediately after the existing `:root` panel-shell variables (`globals.css:93-98`), plus the `--warn/--positive/--negative` status tokens:
   ```css
   :root {
     --warn: #fbbf24;  --positive: #4ade80;  --negative: #f87171;
@@ -376,14 +378,14 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
     --warn: #b45309;  --positive: #15803d;  --negative: #dc2626;
   }
   ```
-- [ ] 2.2 Append the §5.1 `@theme` registrations **into** the existing `@theme` block (`globals.css:11-28`) — including `--color-warn/positive/negative`. Do not create a second `@theme`.
-- [ ] 2.3 Fix the duplicate key already in `@theme` (`--color-ludo-blue` is declared twice, lines 16-17 and 20-21 — keep one).
-- [ ] 2.4 Verify tokens resolve: dev server, then in the browser console:
+- [x] 2.2 Append the §5.1 `@theme` registrations **into** the existing `@theme` block (`globals.css:11-28`) — including `--color-warn/positive/negative`. Do not create a second `@theme`.
+- [x] 2.3 Fix the duplicate key already in `@theme` (`--color-ludo-blue` is declared twice, lines 16-17 and 20-21 — keep one).
+- [x] 2.4 Verify tokens resolve: dev server, then in the browser console:
   ```js
   getComputedStyle(document.body).getPropertyValue('--surface-panel');
   ```
   must return the panel value in both themes (toggle and re-read).
-- [ ] 2.5 Smoke-test one utility end-to-end on a scratch branch: change any element to `bg-surface-recessed text-ink-muted` and confirm it flips with the theme. Revert the scratch edit.
+- [x] 2.5 Smoke-test one utility end-to-end on a scratch branch: change any element to `bg-surface-recessed text-ink-muted` and confirm it flips with the theme. Revert the scratch edit.
 - [ ] 2.6 `npm run lint` + `npx tsc -p tsconfig.json --noEmit` (no component changed, but CSS typos surface here only via build — also run `npm run build` once).
 
 **Acceptance:** all 16 utilities exist and are theme-reactive; no visual diff vs baseline (this phase touches CSS variables only, and their values equal today's resolved values).
@@ -392,8 +394,8 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 ### Phase 3 — Kill JS theming (fixes P0-3, ~0.5 day)
 
-- [ ] 3.1 Add `--panel-border` + `--panel-shadow` to the Daybreak block (Retro already has them at `globals.css:1136-1138`); values: border `rgba(15,23,42,0.12)`, shadow `0 24px 60px -12px rgba(15,23,42,0.22)` — matching the patch-layer shell rule (`globals.css:352`).
-- [ ] 3.2 `GamePanelShell.tsx`: delete `useIsDaybreak` and the ternaries (lines 17-32, 44, 48-53, 70-72, 88, 94). Replace with:
+- [x] 3.1 Add `--panel-border` + `--panel-shadow` to the Daybreak block (Retro already has them at `globals.css:1136-1138`); values: border `rgba(15,23,42,0.12)`, shadow `0 24px 60px -12px rgba(15,23,42,0.22)` — matching the patch-layer shell rule (`globals.css:352`).
+- [x] 3.2 `GamePanelShell.tsx`: delete `useIsDaybreak` and the ternaries (lines 17-32, 44, 48-53, 70-72, 88, 94). Replace with:
   ```tsx
   style={{
     background: "var(--panel-bg)",
@@ -405,10 +407,10 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
   }}
   ```
   and the grabber/divider colors → `var(--line-strong)` / `var(--line-soft)`.
-- [ ] 3.3 `BurnPanel.tsx`, `BurnFeed.tsx`, `ChipsWalletPanel.tsx`: same conversion — remove the `useIsDaybreak` import/call, swap every inline ternary for the §5.1 token `var()` (or the new token utilities if the value lives in `className`).
-- [ ] 3.4 Delete the `useIsDaybreak` export; confirm `grep -rn "useIsDaybreak" app` → 0.
-- [ ] 3.5 Perf check: no MutationObserver on `body.classList` remains (`grep -rn "attributeFilter" app` → 0 in these files). Theme toggles now update panels instantly via CSS — verify mid-panel.
-- [ ] 3.6 Two-theme visual diff for all four surfaces (shell, burn panel, burn feed, chips wallet), including the panel-opening animation.
+- [x] 3.3 `BurnPanel.tsx`, `BurnFeed.tsx`, `ChipsWalletPanel.tsx`: same conversion — remove the `useIsDaybreak` import/call, swap every inline ternary for the §5.1 token `var()` (or the new token utilities if the value lives in `className`).
+- [x] 3.4 Delete the `useIsDaybreak` export; confirm `grep -rn "useIsDaybreak" app` → 0.
+- [x] 3.5 Perf check: no MutationObserver on `body.classList` remains (`grep -rn "attributeFilter" app` → 0 in these files). Theme toggles now update panels instantly via CSS — verify mid-panel.
+- [x] 3.6 Two-theme visual diff for all four surfaces (shell, burn panel, burn feed, chips wallet), including the panel-opening animation.
 
 **Acceptance:** zero JS theme branching; chrome/content drift impossible; diff clean.
 

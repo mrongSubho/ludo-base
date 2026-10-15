@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FiEye, FiTv, FiList, FiUsers } from 'react-icons/fi';
 import { EmptyState } from './EmptyState';
+import { Button } from './Button';
 
 export type StageRoom = {
     match_id: string;
@@ -52,6 +53,8 @@ export function LiveArenaStage({
                     onError={(e) => {
                         (e.currentTarget as HTMLImageElement).style.display = 'none';
                     }}
+                    width={1024}
+                    height={1536}
                 />
 
                 {/* ── LED monitor bounds — all broadcast UI lives here ── */}
@@ -149,15 +152,16 @@ export function LiveArenaStage({
 
             <div className="mx-1.5 mt-1.5 mb-1.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[9px] font-black uppercase tracking-[0.22em] text-white/40">Arena floor</span>
-                    <button
-                        type="button"
+                    <span className="text-[10px] font-black uppercase tracking-[0.22em] text-white/40">Arena floor</span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={onSwitchToList}
-                        className="flex items-center gap-1 min-h-[32px] px-2 rounded-full border border-white/15 text-[10px] font-black uppercase tracking-[0.12em] text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                        leftIcon={<FiList />}
+                        className="min-h-[32px] px-2 rounded-full border border-line-soft uppercase tracking-[0.12em]"
                     >
-                        <FiList className="w-3 h-3" />
                         List
-                    </button>
+                    </Button>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                     <div className="arena-stat">
@@ -173,7 +177,7 @@ export function LiveArenaStage({
                         <span className="arena-stat-lab">Betting</span>
                     </div>
                 </div>
-                <p className="mt-1.5 text-[9px] font-bold text-white/25 uppercase tracking-wider text-center flex items-center justify-center gap-1.5">
+                <p className="mt-1.5 text-[10px] font-bold text-white/25 uppercase tracking-wider text-center flex items-center justify-center gap-1.5">
                     <FiUsers className="w-3 h-3" />
                     Read-only spectating · wagers stay safe
                 </p>

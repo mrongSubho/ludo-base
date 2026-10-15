@@ -38,7 +38,7 @@ export function ModeBreakdown({
                             <span className="text-[15px] font-black tabular-nums text-white leading-none truncate max-w-full">
                                 {c.v}
                             </span>
-                            <span className="text-[8px] uppercase tracking-widest text-white/35 font-bold">
+                            <span className="text-[10px] uppercase tracking-widest text-white/35 font-bold">
                                 {c.l}
                             </span>
                         </div>

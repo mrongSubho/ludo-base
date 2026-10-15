@@ -73,7 +73,7 @@ export const BoardHeaderCompact = ({
                             <div className="relative flex-shrink-0">
                                 <div className="w-6 h-6 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1a1c29] shadow-[0_0_15px_rgba(34,211,238,0.4)]">
                                     {finalAvatar ? (
-                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" />
+                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-cyan-300">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -84,16 +84,16 @@ export const BoardHeaderCompact = ({
                                 <span className="absolute -bottom-0 -right-0 w-2 h-2 bg-green-500 border border-[#0b0f19] rounded-full shadow-[0_0_12px_rgba(34,197,94,1)] animate-pulse"></span>
 
                                 {/* Level anchored to bottom of avatar */}
-                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-[6px] font-black px-1 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap leading-tight">
+                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-ludo-xs font-black px-1 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap leading-tight">
                                     LV.{level}
                                 </div>
                             </div>
 
                             <div className="flex flex-col items-start min-w-0 pr-1 max-w-[72px]">
-                                <span className="text-[9px] font-black text-white italic tracking-tighter uppercase truncate w-full">
+                                <span className="text-ludo-xs font-black text-white italic tracking-tighter uppercase truncate w-full">
                                     {finalName}
                                 </span>
-                                <span className="text-[6px] font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
+                                <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
                                     {tier}
                                 </span>
                             </div>
@@ -115,7 +115,7 @@ export const BoardHeaderCompact = ({
                                     <span className="absolute top-0 left-0 w-2 h-2 rounded-full bg-amber-400 border border-[#131520] shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-pulse" />
                                 )}
                                 {unreadCount > 0 && (
-                                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-[14px] px-0.5 bg-white text-black text-[8px] font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
+                                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-[14px] px-0.5 bg-white text-black text-ludo-xs font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
                                         {unreadCount > 99 ? '99+' : unreadCount}
                                     </span>
                                 )}
@@ -152,7 +152,7 @@ export const BoardHeaderCompact = ({
                         <span className="w-6 flex-none" />
                     )}
 
-                    <span className="mode-strip-text text-[7px] font-black uppercase tracking-[0.3em] text-cyan-300 whitespace-nowrap overflow-hidden text-ellipsis px-2">
+                    <span className="mode-strip-text text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300 whitespace-nowrap overflow-hidden text-ellipsis px-2">
                         {modeLabel}
                     </span>
 
@@ -160,7 +160,7 @@ export const BoardHeaderCompact = ({
                         <ConnectionBadge status={matchConnectionStatus} compact />
                         {spectators > 0 && (
                             <span
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[7px] font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 whitespace-nowrap"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-ludo-xs font-black bg-pink-500/15 text-pink-300 border border-pink-500/30 whitespace-nowrap"
                                 title="Spectators watching this match"
                             >
                                 <span className="w-1 h-1 rounded-full bg-pink-400 animate-pulse" />

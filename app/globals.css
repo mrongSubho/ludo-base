@@ -13,7 +13,6 @@
   --color-ludo-card: var(--ludo-card);
   --color-ludo-green: var(--ludo-sage);
   --color-ludo-red: var(--ludo-rose);
-  --color-ludo-blue: var(--ludo-sky);
   --color-ludo-yellow: var(--ludo-amber);
   --color-ludo-slate: var(--ludo-slate);
 
@@ -25,6 +24,55 @@
   --color-ludo-border: var(--ludo-border);
 
   --image-ludo-bg: var(--ludo-bg-image);
+
+  /* ── Fluid type scale (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S; floor per
+     UI_DESIGN_AUDIT P1-7 / §4.4) ──
+     Six steps on the audit's target scale — 10 / 11 / 13 / 15 / 17 / 20 / 22 —
+     with a hard 10px FLOOR: the audit measured 135 usages below it (6px chips
+     are unreadable on any device), so no step may resolve below 10px. Each
+     step's max is a size the app already used as a hardcoded px value, so
+     adopting one is rendering-neutral at >= 440px and narrows toward 320px —
+     which is what lets a per-breakpoint override be deleted rather than synced. */
+  --text-ludo-xs: 10px;
+  --text-ludo-sm: clamp(10px, calc(10px + (100vw - 320px) / 120), 11px);
+  --text-ludo-md: clamp(11px, calc(11px + 2 * (100vw - 320px) / 120), 13px);
+  --text-ludo-lg: clamp(13px, calc(13px + 2 * (100vw - 320px) / 120), 15px);
+  --text-ludo-xl: clamp(15px, calc(15px + 2 * (100vw - 320px) / 120), 17px);
+  --text-ludo-2xl: clamp(17px, calc(17px + 3 * (100vw - 320px) / 120), 20px);
+  --text-ludo-3xl: clamp(20px, calc(20px + 2 * (100vw - 320px) / 120), 22px);
+}
+
+/* ── Semantic UI tokens (UI_DESIGN_AUDIT §5.1 / Phase 2) ──
+   One semantic layer on top of the existing --ludo- and --panel- variables.
+   Registered as a SEPARATE `@theme inline` block (not inside the @theme above)
+   and `inline` is load-bearing: a plain registration emits
+   `--color-surface-recessed: var(--surface-recessed)` into :root, where it is
+   substituted ONCE using :root's (Retro) value and then INHERITED as a frozen
+   colour — so `bg-surface-recessed` painted Retro ink even under
+   body.theme-daybreak (measured: the utility never flipped).
+   `@theme inline` emits the reference itself into each utility
+   (`.bg-surface-recessed { background-color: var(--surface-recessed) }`), so
+   the var resolves on the element and follows the theme.
+   Nothing consumes these yet (Phase 4 migrates panels in), so this block
+   cannot change rendering — the Daybreak values are the ones its patch layer
+   already paints. */
+@theme inline {
+  --color-surface-page: var(--surface-page);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-recessed: var(--surface-recessed);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-ink-strong: var(--ink-strong);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-warn: var(--warn);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
 }
 
 :root {
@@ -97,6 +145,96 @@
   --panel-bg-image: var(--ludo-bg-cosmic);
 }
 
+/* ─── Semantic UI tokens — Retro (default) ───
+   UI_DESIGN_AUDIT §5.1. These are the ONLY names panels should reach for:
+   surface/ink/line/accent, not bg-white/40 or #fbbf24. Values match what
+   Retro already painted, so adopting one is a no-op in this theme. */
+:root {
+  --surface-page: var(--ludo-bg);             /* app background            */
+  --surface-panel: var(--panel-bg);           /* sandwich panels / sheets  */
+  --surface-recessed: rgba(255, 255, 255, 0.06); /* rows, wells, insets    */
+  --surface-hover: rgba(255, 255, 255, 0.10); /* hover fill                */
+  --surface-active: rgba(255, 255, 255, 0.14);/* pressed/selected fill     */
+  --ink-strong: #ffffff;                      /* primary ink               */
+  --ink-muted: rgba(255, 255, 255, 0.60);     /* secondary ink             */
+  --ink-faint: rgba(255, 255, 255, 0.40);     /* hints, decorative         */
+  --line-soft: rgba(255, 255, 255, 0.10);     /* hairline borders          */
+  --line-strong: rgba(255, 255, 255, 0.25);
+  --accent: #22d3ee;                          /* brand accent              */
+  --accent-soft: rgba(34, 211, 238, 0.15);    /* accent wash / chip fill   */
+  --accent-ink: #06282f;                      /* text on accent fill       */
+  --shadow-panel: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
+  --radius-card: 16px;
+  --radius-chip: 12px;
+  /* Status family — used by win/lose ribbons, burn state, wager callouts. */
+  --warn: #fbbf24;
+  --positive: #4ade80;
+  --negative: #f87171;
+}
+
+/* The two tokens that CHAIN to another theme variable must be declared on
+   `body`, not `:root`. Custom-property substitution happens where the property
+   is DECLARED, so a `:root { --surface-page: var(--ludo-bg) }` resolves against
+   the base --ludo-bg once and inherits that frozen colour into every theme —
+   measured as the /burn route rendering Daybreak's page surface while the
+   Retro theme class was active. `body` carries the theme class, so declaring
+   the chain there resolves against the theme's own --ludo-bg / --panel-bg.
+   The :root copies above stay as the pre-hydration fallback. */
+body {
+  --surface-page: var(--ludo-bg);
+  --surface-panel: var(--panel-bg);
+}
+
+/* ─── Scale tokens (UI_COMPONENT_AUDIT §4.4) ───
+   The enforcement surface: icon sizes, motion durations and the shared easing
+   curve. `--icon-*` pairs with `.icon-*` so an SVG is sized by role instead of
+   an ad-hoc `w-4 h-4`; the motion tokens exist so a duration is a decision
+   ("control", 200ms) rather than a number someone typed. Nothing consumes
+   these yet — Phase A is deliberately inert (A.6). */
+:root {
+  --icon-sm: 14px;   /* inline, next to text            */
+  --icon-md: 16px;   /* standalone action                */
+  --icon-lg: 20px;   /* feature / header                 */
+  --motion-micro: 150ms;    /* colour, opacity           */
+  --motion-control: 200ms;  /* buttons, toggles          */
+  --motion-surface: 300ms;  /* panels, sheets            */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+.icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+.icon-md { width: var(--icon-md); height: var(--icon-md); }
+.icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
+
+/* ─── .chip base (UI_COMPONENT_AUDIT §4.2) ───
+   One base replacing seven families (bet-chip, cb-filter-chip, tk-chip,
+   dapp-chip, wl-addr-chip, match-status-*, cb-status-pill). Three TYPES sit on
+   it: filter (add aria-pressed), status (add .chip-status-*), info tag.
+   Token-driven, so both themes are correct with no patch rules. Legacy
+   families are NOT deleted here — panels adopt in Phase C. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-recessed);
+  color: var(--ink-muted);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.chip-sm { padding: 2px 8px; font-size: 10px; }
+.chip.active,
+.chip[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.chip-status-ok { color: var(--positive); }
+.chip-status-warn { color: var(--warn); }
+.chip-status-off { color: var(--ink-faint); }
+.chip-address { font-family: ui-monospace, monospace; }
+
 /* ─── Daybreak: the true light theme ───
    Porcelain terminal — frosted white glass, slate ink, cyan-700 accents,
    hairline borders, soft shadows instead of neon glows. */
@@ -119,6 +257,38 @@ body.theme-daybreak {
   --shadow-card: 0 20px 45px -12px rgba(15, 23, 42, 0.18);
   color: var(--ludo-text);
   background-color: var(--ludo-bg);
+
+  /* ─── Semantic UI tokens — Daybreak (§5.1) ───
+     Real light values, not patches: the point of the token layer is that a
+     panel can name `--surface-recessed` and be correct in both themes. The
+     three status values are the AA-safe set recorded in the audit's §4
+     (its originally proposed #b45309/#15803d/#dc2626 measured 4.09/4.09/3.94
+     on the #e6e8ec page — below AA). */
+  --surface-page: #e6e8ec;
+  --surface-panel: rgba(255, 255, 255, 0.88);
+  --surface-recessed: rgba(23, 23, 23, 0.05);
+  --surface-hover: #f1f5f9;
+  --surface-active: rgba(23, 23, 23, 0.12);
+  --ink-strong: #0f172a;
+  --ink-muted: rgba(15, 23, 42, 0.62);
+  --ink-faint: rgba(15, 23, 42, 0.42);
+  --line-soft: rgba(15, 23, 42, 0.12);
+  --line-strong: rgba(15, 23, 42, 0.24);
+  --accent: #0d6d87;                          /* AA-safe on #e6e8ec */
+  --accent-soft: rgba(13, 109, 135, 0.12);
+  --accent-ink: #ffffff;
+  --shadow-panel: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
+  --radius-card: 18px;
+  --radius-chip: 12px;
+  --warn: #92400e;
+  --positive: #166534;
+  --negative: #b91c1c;
+  /* Panel chrome tokens (UI_DESIGN_AUDIT Phase 3.1). Retro defines these in
+     `body.theme-retro-futurism` (violet glow); without a Daybreak counterpart,
+     GamePanelShell had to branch in JS. Values match its patch-layer shell
+     rule so the shell paints identically once it reads the tokens. */
+  --panel-border: rgba(15, 23, 42, 0.12);
+  --panel-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
 }
 
 body.theme-daybreak .cosmic-orb { display: block; }
@@ -206,23 +376,6 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
   --modal-muted: rgba(255, 255, 255, 0.45);
   --nav-active-bg: rgba(13, 13, 13, 0.4);
 }
-/* Scoped spacing repair (lobby only): the unlayered global reset zeroes
-   Tailwind spacing utilities — panel-scoped re-assertions only. */
-.ludo-lobby-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-lobby-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-lobby-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-lobby-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-lobby-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-lobby-scope .mt-8 { margin-top: 2rem; }
-.ludo-lobby-scope .mt-12 { margin-top: 3rem; }
-.ludo-lobby-scope .p-2 { padding: 0.5rem; }
-.ludo-lobby-scope .p-1 { padding: 0.25rem; }
-.ludo-lobby-scope .p-3 { padding: 0.75rem; }
-.ludo-lobby-scope .p-5 { padding: 1.25rem; }
-.ludo-lobby-scope .p-6 { padding: 1.5rem; }
-.ludo-lobby-scope .pb-8 { padding-bottom: 2rem; }
-.ludo-lobby-scope .pb-24 { padding-bottom: 6rem; }
-.ludo-lobby-scope .pb-32 { padding-bottom: 8rem; }
 
 /* ─── Lobby height tiers: short viewports always denser ──────────────────
    Semantic classes (arbitrary [@media] variants don't emit in this setup).
@@ -253,7 +406,8 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
 
 /* ─── QuickMatch diagnostic chips: readable in both themes ─────────────── */
 .ludo-quick-scope .diag-chip {
-  font-size: 6px;
+  /* 10px floor (UI_DESIGN_AUDIT P1-7): 6px is unreadable on any device. */
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -261,52 +415,24 @@ body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-p
   white-space: nowrap;
 }
 .ludo-quick-scope .diag-status-info { color: #67e8f9; }
-.ludo-quick-scope .diag-status-warn { color: #fbbf24; animation: pulse 1s infinite; }
+/* Bounded attention flash (UI_DESIGN_AUDIT Phase 1.5.2). Was `pulse 1s infinite`
+   — a diagnostic chip that blinks forever is noise; three flashes, then settle.
+   Opacity only, so the compositor-only motion gate stays satisfied. */
+@keyframes diag-warn-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.ludo-quick-scope .diag-status-warn { color: #fbbf24; animation: diag-warn-flash 900ms ease-in-out 3; }
 .ludo-quick-scope .diag-status-ok { color: #4ade80; }
 body.theme-daybreak .ludo-quick-scope .diag-chip {
   color: rgba(23, 23, 23, 0.62);
 }
-body.theme-daybreak .ludo-quick-scope .diag-status-info { color: #0e7490; }
+body.theme-daybreak .ludo-quick-scope .diag-status-info { color: #0d6d87; }
 body.theme-daybreak .ludo-quick-scope .diag-status-warn { color: #b45309; }
 body.theme-daybreak .ludo-quick-scope .diag-status-ok { color: #15803d; }
-.ludo-lobby-scope .pt-8 { padding-top: 2rem; }
-.ludo-lobby-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-lobby-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-lobby-scope .px-4 { padding-inline: 1rem; }
-.ludo-lobby-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-lobby-scope .px-8 { padding-inline: 2rem; }
-.ludo-lobby-scope .py-1 { padding-block: 0.25rem; }
-.ludo-lobby-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-lobby-scope .py-0\.5 { padding-block: 0.125rem; }
-/* Scoped spacing repair (broadcast panel only): chrome utilities used by
-   the fixed overlay panel. Theme-agnostic like the rest. */
-.ludo-broadcast-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-broadcast-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-broadcast-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-broadcast-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-broadcast-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-broadcast-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-broadcast-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-broadcast-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-broadcast-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-broadcast-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-broadcast-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-broadcast-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-broadcast-scope .py-16 { padding-block: 4rem; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-amber-300) { color: #b45309; }
 /* ─── Daybreak chat: ink own-bubbles, solid send tile ─── */
 body.theme-daybreak .ludo-broadcast-scope .chat-own { background-color: #171717; color: #ffffff; box-shadow: 0 8px 20px rgba(23, 23, 23, 0.25); }
 body.theme-daybreak .ludo-broadcast-scope div.chat-own.text-white { color: #ffffff; }
-body.theme-daybreak .ludo-broadcast-scope .chat-send { background-color: #0e7490; color: #ffffff; box-shadow: 0 6px 16px rgba(14, 116, 144, 0.35); }
+body.theme-daybreak .ludo-broadcast-scope .chat-send { background-color: #0d6d87; color: #ffffff; box-shadow: 0 6px 16px rgba(13, 109, 135, 0.35); }
 body.theme-daybreak .ludo-broadcast-scope .chat-send:disabled { background-color: rgba(23, 23, 23, 0.08); color: rgba(23, 23, 23, 0.35); box-shadow: none; }
-.ludo-lobby-scope .py-2 { padding-block: 0.5rem; }
-.ludo-lobby-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-lobby-scope .pl-3 { padding-left: 0.75rem; }
-.ludo-lobby-scope .pr-12 { padding-right: 3rem; }
-.ludo-lobby-scope .py-3 { padding-block: 0.75rem; }
-.ludo-lobby-scope .py-4 { padding-block: 1rem; }
-.ludo-lobby-scope .py-5 { padding-block: 1.25rem; }
-.ludo-lobby-scope .py-8 { padding-block: 2rem; }
 body.theme-daybreak {
   --modal-ink: #0f172a;
   --modal-ink-soft: rgba(15, 23, 42, 0.6);
@@ -354,8 +480,8 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.ring-white\/10) { --tw-ring-color: rgba(23, 23, 23, 0.14); }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
 /* Daybreak accents: neon-on-black tones deepen to saturated-on-white tones */
-body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-100, .text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0e7490; }
-body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-300\/60, .text-cyan-300\/80, .text-cyan-400\/40, .text-cyan-400\/60, .text-cyan-400\/80, .text-cyan-400\/90, .text-cyan-500\/80) { color: color-mix(in srgb, #0e7490 70%, transparent); }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-100, .text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0d6d87; }
+body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-cyan-300\/60, .text-cyan-300\/80, .text-cyan-400\/40, .text-cyan-400\/60, .text-cyan-400\/80, .text-cyan-400\/90, .text-cyan-500\/80) { color: color-mix(in srgb, #0d6d87 70%, transparent); }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-amber-300, .text-amber-400, .text-amber-500, .text-yellow-300, .text-yellow-400, .text-yellow-500) { color: #b45309; }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-200, .text-green-300, .text-green-400, .text-emerald-400) { color: #15803d; }
 body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings-scope, .ludo-friends-scope, .ludo-messages-scope, .ludo-arena-scope, .ludo-profile-scope, .ludo-offline-scope, .ludo-migrate-scope, .ludo-teamup-scope, .ludo-quick-scope, .ludo-pubprofile-scope, .ludo-livearena-scope, .ludo-leaderboard-scope, .ludo-invite-scope, .ludo-wallet-scope, .ludo-burn-scope, .ludo-wall-scope, .ludo-quit-scope, .ludo-splash-scope, .ludo-guestpill-scope, .ludo-idle-scope) :is(.text-green-200\/60) { color: color-mix(in srgb, #15803d 65%, transparent); }
@@ -371,11 +497,11 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 
 /* ─── Daybreak chrome: footer nav ─── */
 body.theme-daybreak .nav-item .nav-icon { color: rgba(23, 23, 23, 0.45) !important; }
-body.theme-daybreak .nav-item.active .nav-icon { color: #0e7490 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
-body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0e7490 !important; }
+body.theme-daybreak .nav-item.active .nav-icon { color: #0d6d87 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0d6d87 !important; }
 body.theme-daybreak .nav-item .nav-label { color: rgba(23, 23, 23, 0.55) !important; }
-body.theme-daybreak .nav-item.active .nav-label { color: #0e7490 !important; }
-body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: #0e7490 !important; }
+body.theme-daybreak .nav-item.active .nav-label { color: #0d6d87 !important; }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: #0d6d87 !important; }
 body.theme-daybreak .footer-nav :is(.border-white\/10) { border-color: rgba(14, 165, 183, 0.35); }
 body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rgba(14, 165, 183, 0.08); }
 body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 165, 183, 0.20); }
@@ -384,13 +510,13 @@ body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 1
 body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
 body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
-body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0e7490; }
+body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0d6d87; }
 body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { background-color: rgba(23, 23, 23, 0.06); }
 /* Board compact header: mode-strip inner pill + text stay legible on light glass */
 body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
-body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0e7490; }
+body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0d6d87; }
 /* Invite notification accents (not covered by the shared cyan-in-cyan rule) */
-body.theme-daybreak .ludo-invite-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-invite-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-invite-scope :is(.text-amber-400) { color: #b45309; }
 /* TeamUp announce button: amber/emerald washes legible on both themes */
 body.theme-daybreak .ludo-teamup-scope .announce-btn {
@@ -403,15 +529,15 @@ body.theme-daybreak .ludo-teamup-scope .announce-btn.announce-live {
   background-color: rgba(4, 120, 87, 0.08) !important;
   color: #047857 !important;
 }
-body.theme-daybreak .ludo-teamup-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-teamup-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 /* Broadcast room rows: joinable card legible on both themes */
 body.theme-daybreak .ludo-broadcast-scope .room-join-row {
-  background-color: rgba(14, 116, 144, 0.08) !important;
-  border-color: rgba(14, 116, 144, 0.35) !important;
+  background-color: rgba(13, 109, 135, 0.08) !important;
+  border-color: rgba(13, 109, 135, 0.35) !important;
   color: #171717 !important;
 }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/90) { color: #171717 !important; }
-body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-cyan-300) { color: #0e7490 !important; }
+body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-cyan-300) { color: #0d6d87 !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white) { color: #171717 !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/40) { color: rgba(23, 23, 23, 0.6) !important; }
 body.theme-daybreak .ludo-broadcast-scope .room-join-row :is(.text-white\/50) { color: rgba(23, 23, 23, 0.6) !important; }
@@ -422,7 +548,7 @@ body.theme-daybreak .ludo-broadcast-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/90, .text-white\/80, .text-white\/75, .text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/60, .text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10, .text-white\/5) { color: color-mix(in srgb, #171717 45%, transparent); }
-body.theme-daybreak .ludo-broadcast-scope :is(.text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-broadcast-scope :is(.text-cyan-200, .text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-green-300, .text-green-400) { color: #15803d; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-red-400) { color: #b91c1c; }
 body.theme-daybreak .ludo-broadcast-scope :is(.text-amber-300) { color: #b45309; }
@@ -484,8 +610,8 @@ body.theme-daybreak .ludo-onboard-scope :is(.text-white\/40) { color: color-mix(
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/35) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/60) { color: color-mix(in srgb, #171717 58%, transparent); }
 body.theme-daybreak .ludo-onboard-scope :is(.text-white\/70) { color: color-mix(in srgb, #171717 78%, transparent); }
-body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
-body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0e7490; }
+body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0d6d87; }
+body.theme-daybreak .ludo-onboard-scope :is(.text-cyan-300) { color: #0d6d87; }
 body.theme-daybreak .ludo-onboard-scope :is(.border-white\/10) { border-color: rgba(23, 23, 23, 0.14); }
 body.theme-daybreak .ludo-onboard-scope .onboard-row-label { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-onboard-scope .onboard-appearance {
@@ -505,7 +631,7 @@ body.theme-daybreak .ludo-onboard-scope :is(.bg-white\/\[0\.07\]) { background-c
 body.theme-daybreak .ludo-onboard-scope :is(.from-white\/15) { --tw-gradient-from: rgba(23, 23, 23, 0.16); }
 body.theme-daybreak .ludo-onboard-scope .onboard-cta {
   color: #0b0f19;
-  box-shadow: 0 0 24px rgba(14, 116, 144, 0.28);
+  box-shadow: 0 0 24px rgba(13, 109, 135, 0.28);
 }
 body.theme-daybreak .ludo-onboard-scope .onboard-cta:hover { background-color: #22d3ee; }
 
@@ -534,7 +660,7 @@ body.theme-daybreak .ludo-lobby-scope :is(.text-white\/60, .text-white\/50, .tex
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/10) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/35, .text-white\/30, .text-white\/20) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-green-300) { color: #15803d; }
-body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-lobby-scope :is(.text-yellow-400, .text-yellow-500) { color: #b45309; }
 body.theme-daybreak .ludo-lobby-scope :is(.hover\:text-white:hover) { color: #171717; }
 body.theme-daybreak .ludo-lobby-scope :is(.ring-white\/10) { --tw-ring-color: rgba(23, 23, 23, 0.14); }
@@ -560,18 +686,15 @@ body.theme-daybreak .game-top-bar { background: rgba(255, 255, 255, 0.78); borde
 
 /* ─── Daybreak ticker: cyber widget goes porcelain ───
    Frosted white bar, ink text, one cyan pulse kept as the live signal. */
-body.theme-daybreak .ludo-ticker-scope .mt-0\.5 { margin-top: 0.125rem; }
 .ludo-ticker-scope.mx-auto { margin-inline: auto; }
 .ludo-ticker-scope.mt-6 { margin-top: 1.5rem; }
-body.theme-daybreak .ludo-ticker-scope .ml-6 { margin-left: 1.5rem; }
-body.theme-daybreak .ludo-ticker-scope .px-4 { padding-inline: 1rem; }
 body.theme-daybreak .ludo-ticker-scope > div { background: rgba(255, 255, 255, 0.88); border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 10px 28px rgba(23, 23, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
 body.theme-daybreak .ludo-ticker-scope > div:hover { border-color: rgba(14, 165, 183, 0.45); box-shadow: 0 10px 32px rgba(14, 165, 183, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
 body.theme-daybreak .ludo-ticker-scope :is(.text-white\/80) { color: color-mix(in srgb, #171717 78%, transparent); }
 body.theme-daybreak .ludo-ticker-scope :is(.text-white\/30) { color: color-mix(in srgb, #171717 45%, transparent); }
 body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-300) { color: #171717; }
 body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-500\/70, .text-cyan-500\/50) { color: color-mix(in srgb, #171717 60%, transparent); }
-body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: #0e7490; }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-ticker-scope :is(.bg-cyan-950\/50) { background-color: rgba(14, 165, 183, 0.12); }
 body.theme-daybreak .ludo-ticker-scope :is(.border-cyan-500\/30) { border-color: rgba(23, 23, 23, 0.16); }
 body.theme-daybreak .ludo-ticker-scope :is(.from-black\/60) { --tw-gradient-from: rgba(255, 255, 255, 0.9); }
@@ -581,446 +704,30 @@ body.theme-daybreak .ludo-ticker-scope .ticker-deco { display: none; }
 body.theme-daybreak .footer-nav { background: rgba(255, 255, 255, 0.94) !important; border-top: 1px solid rgba(23, 23, 23, 0.12); box-shadow: 0 -8px 30px rgba(23, 23, 23, 0.10); }
 body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #be185d; }
 
-/* ─── Step 2: Base styles ─── */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ─── Step 2: Base styles ───
+   In @layer base ON PURPOSE. The reset used to sit UNLAYERED, which beats
+   Tailwind v4's layered utilities — so it zeroed every padding/margin utility
+   app-wide. That landmine is what the 22 panel "spacing repair" sections and
+   457 panel-scoped re-assertions existed to patch around; all of them are
+   deleted now. Layered, utilities win and spacing comes from Tailwind itself.
+   UI_DESIGN_AUDIT Phase 1.2 (fixes P0-4). */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
-/* Scoped spacing repair (marketplace only): the unlayered reset above beats
-   Tailwind v4's layered utilities, zeroing every padding/margin utility
-   app-wide. These unlayered, panel-scoped re-assertions restore spacing ONLY
-   inside `.ludo-market-scope` — zero blast radius on the rest of the app. */
-.ludo-market-scope .mb-0\.5 { margin-bottom: 0.125rem; }
-.ludo-market-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-market-scope .mb-1\.5 { margin-bottom: 0.375rem; }
-.ludo-market-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-market-scope .mb-3 { margin-bottom: 0.75rem; }
-.ludo-market-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-market-scope .mb-5 { margin-bottom: 1.25rem; }
-.ludo-market-scope .mb-6 { margin-bottom: 1.5rem; }
-.ludo-market-scope .mb-8 { margin-bottom: 2rem; }
-.ludo-market-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-market-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-market-scope .mt-1\.5 { margin-top: 0.375rem; }
-.ludo-market-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-market-scope .mt-3\.5 { margin-top: 0.875rem; }
-.ludo-market-scope .mt-4 { margin-top: 1rem; }
-.ludo-market-scope .mt-5 { margin-top: 1.25rem; }
-.ludo-market-scope .my-2 { margin-block: 0.5rem; }
-.ludo-market-scope .mx-1 { margin-inline: 0.25rem; }
-.ludo-market-scope .p-0 { padding: 0; }
-.ludo-market-scope .p-0\.5 { padding: 0.125rem; }
-.ludo-market-scope .p-1 { padding: 0.25rem; }
-.ludo-market-scope .p-1\.5 { padding: 0.375rem; }
-.ludo-market-scope .p-2 { padding: 0.5rem; }
-.ludo-market-scope .p-2\.5 { padding: 0.625rem; }
-.ludo-market-scope .p-3 { padding: 0.75rem; }
-.ludo-market-scope .p-4 { padding: 1rem; }
-.ludo-market-scope .p-5 { padding: 1.25rem; }
-.ludo-market-scope .p-8 { padding: 2rem; }
-.ludo-market-scope .pb-0\.5 { padding-bottom: 0.125rem; }
-.ludo-market-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-market-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-market-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-market-scope .pb-3\.5 { padding-bottom: 0.875rem; }
-.ludo-market-scope .pb-32 { padding-bottom: 8rem; }
-.ludo-market-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-market-scope .pb-40 { padding-bottom: 10rem; }
-.ludo-market-scope .pb-7 { padding-bottom: 1.75rem; }
-.ludo-market-scope .pb-8 { padding-bottom: 2rem; }
-.ludo-market-scope .pl-2 { padding-left: 0.5rem; }
-.ludo-market-scope .pr-1 { padding-right: 0.25rem; }
-.ludo-market-scope .pr-6 { padding-right: 1.5rem; }
-.ludo-market-scope .pt-1 { padding-top: 0.25rem; }
-.ludo-market-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-market-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-market-scope .pt-4 { padding-top: 1rem; }
-.ludo-market-scope .pt-5 { padding-top: 1.25rem; }
-.ludo-market-scope .pt-6 { padding-top: 1.5rem; }
-.ludo-market-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-market-scope .px-1 { padding-inline: 0.25rem; }
-.ludo-market-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-market-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-market-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-market-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-market-scope .px-4 { padding-inline: 1rem; }
-.ludo-market-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-market-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-market-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-market-scope .py-1 { padding-block: 0.25rem; }
-.ludo-market-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-market-scope .py-16 { padding-block: 4rem; }
-.ludo-market-scope .py-2 { padding-block: 0.5rem; }
-.ludo-market-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-market-scope .py-3 { padding-block: 0.75rem; }
-.ludo-market-scope .py-3\.5 { padding-block: 0.875rem; }
-.ludo-market-scope .py-4 { padding-block: 1rem; }
 .ludo-market-scope .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-block-start: 0.75rem; }
 
-/* Scoped spacing repair (settings only): same landmine as marketplace —
-   unlayered global reset zeroes Tailwind spacing utilities. Panel-scoped
-   re-assertions only. Zero blast radius on the rest of the app. */
-.ludo-settings-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-settings-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-settings-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-settings-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-settings-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-settings-scope .mt-3 { margin-top: 0.75rem; }
-.ludo-settings-scope .p-0\.5 { padding: 0.125rem; }
-.ludo-settings-scope .p-1 { padding: 0.25rem; }
-.ludo-settings-scope .p-3\.5 { padding: 0.875rem; }
-.ludo-settings-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-settings-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-settings-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-settings-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-settings-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-settings-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-settings-scope .px-1 { padding-inline: 0.25rem; }
-.ludo-settings-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-settings-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-settings-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-settings-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-settings-scope .py-3\.5 { padding-block: 0.875rem; }
 
-/* Scoped spacing repair (rankings only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-rankings-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-rankings-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-rankings-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-rankings-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-rankings-scope .mt-1\.5 { margin-top: 0.375rem; }
-.ludo-rankings-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-rankings-scope .p-0 { padding: 0; }
-.ludo-rankings-scope .p-1 { padding: 0.25rem; }
-.ludo-rankings-scope .p-3 { padding: 0.75rem; }
-.ludo-rankings-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-rankings-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-rankings-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-rankings-scope .pl-2\.5 { padding-left: 0.625rem; }
-.ludo-rankings-scope .pr-1\.5 { padding-right: 0.375rem; }
-.ludo-rankings-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-rankings-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-rankings-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-rankings-scope .px-1 { padding-inline: 0.25rem; }
-.ludo-rankings-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-rankings-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-rankings-scope .px-4 { padding-inline: 1rem; }
-.ludo-rankings-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-rankings-scope .px-8 { padding-inline: 2rem; }
-.ludo-rankings-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-rankings-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-rankings-scope .py-16 { padding-block: 4rem; }
-.ludo-rankings-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-rankings-scope .py-3 { padding-block: 0.75rem; }
 
-/* Scoped spacing repair (friends only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-friends-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-friends-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-friends-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-friends-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-friends-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-friends-scope .p-0 { padding: 0; }
-.ludo-friends-scope .p-1 { padding: 0.25rem; }
-.ludo-friends-scope .p-3 { padding: 0.75rem; }
-.ludo-friends-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-friends-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-friends-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-friends-scope .pl-2\.5 { padding-left: 0.625rem; }
-.ludo-friends-scope .pr-1 { padding-right: 0.25rem; }
-.ludo-friends-scope .pr-1\.5 { padding-right: 0.375rem; }
-.ludo-friends-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-friends-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-friends-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-friends-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-friends-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-friends-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-friends-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-friends-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-friends-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-friends-scope .py-1 { padding-block: 0.25rem; }
-.ludo-friends-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-friends-scope .py-16 { padding-block: 4rem; }
-/* Scoped spacing repair (messages only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-messages-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-messages-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-messages-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-messages-scope .mr-2 { margin-right: 0.5rem; }
-.ludo-messages-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-messages-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-messages-scope .mx-4 { margin-inline: 1rem; }
-.ludo-messages-scope .p-0 { padding: 0; }
-.ludo-messages-scope .p-1 { padding: 0.25rem; }
-.ludo-messages-scope .p-3 { padding: 0.75rem; }
-.ludo-messages-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-messages-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-messages-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-messages-scope .pl-2\.5 { padding-left: 0.625rem; }
-.ludo-messages-scope .pl-3 { padding-left: 0.75rem; }
-.ludo-messages-scope .pr-1\.5 { padding-right: 0.375rem; }
-.ludo-messages-scope .pr-12 { padding-right: 3rem; }
-.ludo-messages-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-messages-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-messages-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-messages-scope .px-1 { padding-inline: 0.25rem; }
-.ludo-messages-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-messages-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-messages-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-messages-scope .px-3\.5 { padding-inline: 0.875rem; }
-.ludo-messages-scope .px-4 { padding-inline: 1rem; }
-.ludo-messages-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-messages-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-messages-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-messages-scope .py-1 { padding-block: 0.25rem; }
-.ludo-messages-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-messages-scope .py-16 { padding-block: 4rem; }
-.ludo-messages-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-messages-scope .py-3 { padding-block: 0.75rem; }
 .ludo-messages-scope .py-px { padding-block: 1px; }
-/* Scoped spacing repair (arena only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-arena-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-arena-scope .mb-1\.5 { margin-bottom: 0.375rem; }
-.ludo-arena-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-arena-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-arena-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-arena-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-arena-scope .p-1 { padding: 0.25rem; }
-.ludo-arena-scope .p-2 { padding: 0.5rem; }
-.ludo-arena-scope .p-4 { padding: 1rem; }
-.ludo-arena-scope .p-5 { padding: 1.25rem; }
-.ludo-arena-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-arena-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-arena-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-arena-scope .pr-2 { padding-right: 0.5rem; }
-.ludo-arena-scope .pt-0\.5 { padding-top: 0.125rem; }
-.ludo-arena-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-arena-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-arena-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-arena-scope .px-1 { padding-inline: 0.25rem; }
-.ludo-arena-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-arena-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-arena-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-arena-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-arena-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-arena-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-arena-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-arena-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-arena-scope .py-2 { padding-block: 0.5rem; }
-.ludo-arena-scope .py-3 { padding-block: 0.75rem; }
-.ludo-arena-scope .py-16 { padding-block: 4rem; }
-/* Scoped spacing repair (profile only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-profile-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-profile-scope .mb-0 { margin-bottom: 0; }
-.ludo-profile-scope .mb-1\.5 { margin-bottom: 0.375rem; }
-.ludo-profile-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-profile-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-profile-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-profile-scope .p-1 { padding: 0.25rem; }
-.ludo-profile-scope .p-2 { padding: 0.5rem; }
-.ludo-profile-scope .p-2\.5 { padding: 0.625rem; }
-.ludo-profile-scope .p-3 { padding: 0.75rem; }
-.ludo-profile-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-profile-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-profile-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-profile-scope .pt-1 { padding-top: 0.25rem; }
-.ludo-profile-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-profile-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-profile-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-profile-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-profile-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-profile-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-profile-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-profile-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-profile-scope .py-1 { padding-block: 0.25rem; }
-.ludo-profile-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-profile-scope .py-2 { padding-block: 0.5rem; }
-.ludo-profile-scope .py-2\.5 { padding-block: 0.625rem; }
-/* Scoped spacing repair (offline sheet only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-offline-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-offline-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-offline-scope .p-5 { padding: 1.25rem; }
-.ludo-offline-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-offline-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-offline-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-offline-scope .pb-5 { padding-bottom: 1.25rem; }
-.ludo-offline-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-offline-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-offline-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-offline-scope .px-4 { padding-inline: 1rem; }
-.ludo-offline-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-offline-scope .py-3 { padding-block: 0.75rem; }
-.ludo-offline-scope .py-16 { padding-block: 4rem; }
-/* Scoped spacing repair (host-migration sheet only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-migrate-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-migrate-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-migrate-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-migrate-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-migrate-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-migrate-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-migrate-scope .pb-5 { padding-bottom: 1.25rem; }
-.ludo-migrate-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-migrate-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-migrate-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-migrate-scope .px-4 { padding-inline: 1rem; }
-.ludo-migrate-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-migrate-scope .py-2 { padding-block: 0.5rem; }
-.ludo-migrate-scope .py-3 { padding-block: 0.75rem; }
-/* Scoped spacing repair (teamup sheet only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-teamup-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-teamup-scope .ml-2 { margin-left: 0.5rem; }
-.ludo-teamup-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-teamup-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-teamup-scope .p-3 { padding: 0.75rem; }
-.ludo-teamup-scope .p-4 { padding: 1rem; }
-.ludo-teamup-scope .p-5 { padding: 1.25rem; }
-.ludo-teamup-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-teamup-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-teamup-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-teamup-scope .pb-5 { padding-bottom: 1.25rem; }
-.ludo-teamup-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-teamup-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-teamup-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-teamup-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-teamup-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-teamup-scope .px-3\.5 { padding-inline: 0.875rem; }
-.ludo-teamup-scope .px-4 { padding-inline: 1rem; }
-.ludo-teamup-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-teamup-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-teamup-scope .py-2 { padding-block: 0.5rem; }
-.ludo-teamup-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-teamup-scope .py-3 { padding-block: 0.75rem; }
-/* Scoped spacing repair (quickmatch sheet only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-quick-scope .mb-0\.5 { margin-bottom: 0.125rem; }
-.ludo-quick-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-quick-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-quick-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-quick-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-quick-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-quick-scope .mt-3 { margin-top: 0.75rem; }
-.ludo-quick-scope .mt-4 { margin-top: 1rem; }
-.ludo-quick-scope .p-4 { padding: 1rem; }
-.ludo-quick-scope .p-5 { padding: 1.25rem; }
-.ludo-quick-scope .p-6 { padding: 1.5rem; }
-.ludo-quick-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-quick-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-quick-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-quick-scope .pb-5 { padding-bottom: 1.25rem; }
-.ludo-quick-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-quick-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-quick-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-quick-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-quick-scope .px-4 { padding-inline: 1rem; }
-.ludo-quick-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-quick-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-quick-scope .px-8 { padding-inline: 2rem; }
-.ludo-quick-scope .py-1 { padding-block: 0.25rem; }
-.ludo-quick-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-quick-scope .py-2 { padding-block: 0.5rem; }
-.ludo-quick-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-quick-scope .py-3 { padding-block: 0.75rem; }
 .ludo-quick-scope .gap-2 { gap: 0.5rem; }
 .ludo-quick-scope .gap-3 { gap: 0.75rem; }
-/* Scoped spacing repair (public-profile modal only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-pubprofile-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-pubprofile-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-pubprofile-scope .mb-5 { margin-bottom: 1.25rem; }
-.ludo-pubprofile-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-pubprofile-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-pubprofile-scope .mt-4 { margin-top: 1rem; }
-.ludo-pubprofile-scope .my-2 { margin-block: 0.5rem; }
-.ludo-pubprofile-scope .p-2 { padding: 0.5rem; }
-.ludo-pubprofile-scope .p-3 { padding: 0.75rem; }
-.ludo-pubprofile-scope .p-4 { padding: 1rem; }
-.ludo-pubprofile-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-pubprofile-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-pubprofile-scope .pb-5 { padding-bottom: 1.25rem; }
-.ludo-pubprofile-scope .pt-0 { padding-top: 0; }
-.ludo-pubprofile-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-pubprofile-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-pubprofile-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-pubprofile-scope .px-3 { padding-inline: 0.75rem; }
-.ludo-pubprofile-scope .px-4 { padding-inline: 1rem; }
-.ludo-pubprofile-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-pubprofile-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-pubprofile-scope .py-1 { padding-block: 0.25rem; }
-.ludo-pubprofile-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-pubprofile-scope .py-12 { padding-block: 3rem; }
-.ludo-pubprofile-scope .py-2 { padding-block: 0.5rem; }
-.ludo-pubprofile-scope .py-2\.5 { padding-block: 0.625rem; }
-.ludo-pubprofile-scope .py-3 { padding-block: 0.75rem; }
-/* Scoped spacing repair (live-arena panel only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. (The floating ticker trigger is
-   a separate widget outside this scope and is intentionally untouched.) */
-.ludo-livearena-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-livearena-scope .mb-3 { margin-bottom: 0.75rem; }
-.ludo-livearena-scope .ml-0\.5 { margin-left: 0.125rem; }
-.ludo-livearena-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-livearena-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-livearena-scope .p-4 { padding: 1rem; }
-.ludo-livearena-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-livearena-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-livearena-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-livearena-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-livearena-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-livearena-scope .px-4 { padding-inline: 1rem; }
-.ludo-livearena-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-livearena-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-livearena-scope .py-2 { padding-block: 0.5rem; }
-.ludo-livearena-scope .py-3 { padding-block: 0.75rem; }
-.ludo-livearena-scope .py-16 { padding-block: 4rem; }
-/* Scoped spacing repair (in-game leaderboard only): panel-scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-leaderboard-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-leaderboard-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-leaderboard-scope .ml-1 { margin-left: 0.25rem; }
-.ludo-leaderboard-scope .mr-1 { margin-right: 0.25rem; }
-.ludo-leaderboard-scope .mt-0\.5 { margin-top: 0.125rem; }
-.ludo-leaderboard-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-leaderboard-scope .mt-3 { margin-top: 0.75rem; }
-.ludo-leaderboard-scope .p-1 { padding: 0.25rem; }
-.ludo-leaderboard-scope .p-3 { padding: 0.75rem; }
-.ludo-leaderboard-scope .pb-1 { padding-bottom: 0.25rem; }
-.ludo-leaderboard-scope .pb-2 { padding-bottom: 0.5rem; }
-.ludo-leaderboard-scope .pb-3 { padding-bottom: 0.75rem; }
-.ludo-leaderboard-scope .pb-4 { padding-bottom: 1rem; }
-.ludo-leaderboard-scope .pt-2 { padding-top: 0.5rem; }
-.ludo-leaderboard-scope .pt-3 { padding-top: 0.75rem; }
-.ludo-leaderboard-scope .px-0\.5 { padding-inline: 0.125rem; }
-.ludo-leaderboard-scope .px-1 { padding-inline: 0.25rem; }
-.ludo-leaderboard-scope .px-1\.5 { padding-inline: 0.375rem; }
-.ludo-leaderboard-scope .px-4 { padding-inline: 1rem; }
-.ludo-leaderboard-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-leaderboard-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-leaderboard-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-leaderboard-scope .py-2 { padding-block: 0.5rem; }
-.ludo-leaderboard-scope .py-16 { padding-block: 4rem; }
-/* Scoped spacing repair (invite toast only): scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-invite-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-invite-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-invite-scope .mt-2 { margin-top: 0.5rem; }
-.ludo-invite-scope .mt-3 { margin-top: 0.75rem; }
-.ludo-invite-scope .p-5 { padding: 1.25rem; }
-.ludo-invite-scope .px-5 { padding-inline: 1.25rem; }
-.ludo-invite-scope .px-6 { padding-inline: 1.5rem; }
-.ludo-invite-scope .pt-4 { padding-top: 1rem; }
-.ludo-invite-scope .pt-5 { padding-top: 1.25rem; }
-.ludo-invite-scope .pb-5 { padding-bottom: 1.25rem; }
-.ludo-invite-scope .py-3 { padding-block: 0.75rem; }
-.ludo-invite-scope .py-7 { padding-block: 1.75rem; }
-.ludo-invite-scope .py-8 { padding-block: 2rem; }
 .ludo-invite-scope .gap-2 { gap: 0.5rem; }
 .ludo-invite-scope .gap-2\.5 { gap: 0.625rem; }
 .ludo-invite-scope .gap-3 { gap: 0.75rem; }
@@ -1031,11 +738,8 @@ body.theme-daybreak .ludo-invite-scope .invite-accept-btn {
   box-shadow: 0 8px 24px rgba(8, 145, 178, 0.25);
 }
 body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
-  background-color: #0e7490;
+  background-color: #0d6d87;
 }
-/* Scoped spacing repair (wallet entrance card only): scoped re-assertions.
-   Zero blast radius on the rest of the app. (LudoWalletModal uses inline
-   styles only, so it needs no scope.) */
 .ludo-wallet-scope, .ludo-burn-scope .mt-8 { margin-top: 2rem; }
 .ludo-wallet-scope, .ludo-burn-scope .mt-3 { margin-top: 0.75rem; }
 .ludo-wallet-scope, .ludo-burn-scope .px-6 { padding-inline: 1.5rem; }
@@ -1043,17 +747,6 @@ body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
 .ludo-wallet-scope, .ludo-burn-scope .py-2 { padding-block: 0.5rem; }
 .ludo-wallet-scope, .ludo-burn-scope .py-5 { padding-block: 1.25rem; }
 .ludo-wallet-scope, .ludo-burn-scope .py-10 { padding-block: 2.5rem; }
-/* Scoped spacing repair (guest wall modal only): scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-wall-scope .mt-1 { margin-top: 0.25rem; }
-.ludo-wall-scope .p-5 { padding: 1.25rem; }
-.ludo-wall-scope .pt-0\.5 { padding-top: 0.125rem; }
-.ludo-wall-scope .px-2 { padding-inline: 0.5rem; }
-.ludo-wall-scope .px-2\.5 { padding-inline: 0.625rem; }
-.ludo-wall-scope .py-0\.5 { padding-block: 0.125rem; }
-.ludo-wall-scope .py-1\.5 { padding-block: 0.375rem; }
-.ludo-wall-scope .py-2 { padding-block: 0.5rem; }
-.ludo-wall-scope .py-3 { padding-block: 0.75rem; }
 
 html,
 body {
@@ -1438,53 +1131,7 @@ body.theme-daybreak .header {
   gap: 8px;
 }
 
-.settings-dots-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: var(--radius-sm);
-  color: var(--color-ludo-text);
-  opacity: 0.6;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.settings-dots-btn:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
-  /* Refined hover state */
-  transform: translateY(-1px);
-}
-
-.settings-dots-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
 /* ── DM Icon & Notification Pulse ── */
-.dm-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  color: var(--color-ludo-text);
-  opacity: 0.8;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dm-btn:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
-  /* Refined hover state */
-  transform: translateY(-1px);
-}
 
 .dm-icon {
   width: 24px !important;
@@ -1590,25 +1237,6 @@ body.theme-daybreak .header {
   position: relative;
 }
 
-.theme-toggle-btn {
-  width: 36px;
-  height: 36px;
-  background: var(--color-ludo-blue-soft);
-  border: 1px solid var(--color-ludo-border);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.theme-toggle-btn:hover {
-  transform: scale(1.05);
-  background: var(--ludo-bg);
-}
-
 .theme-menu-overlay {
   position: fixed;
   inset: 0;
@@ -1659,24 +1287,6 @@ body.theme-daybreak .header {
 }
 
 /* ─── Audio Toggle ─── */
-.audio-toggle-btn {
-  width: 36px;
-  height: 36px;
-  background: var(--color-ludo-blue-soft);
-  border: 1px solid var(--color-ludo-border);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.audio-toggle-btn:hover {
-  transform: scale(1.05);
-  background: var(--ludo-bg);
-}
 
 .theme-icon {
   font-size: 16px;
@@ -1912,27 +1522,6 @@ body.theme-daybreak .header {
 }
 
 /* ─── Play Button ─── */
-.play-button {
-  width: 100%;
-  max-width: 280px;
-  padding: 14px 32px;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--color-ludo-blue), #3377FF);
-  color: #FFFFFF;
-  font-size: 15px;
-  font-weight: 600;
-  font-family: var(--font-inter), system-ui, sans-serif;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 16px rgba(0, 82, 255, 0.3);
-  letter-spacing: 0.3px;
-}
-
-.play-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 82, 255, 0.4);
-}
 
 .player-wrapper.active-turn {
   transform: scale(1.05);
@@ -2000,6 +1589,13 @@ body.theme-daybreak .header {
 
 /* ─── Footer Navigation ─── */
 :root {
+  /* Bottom safe-area policy (CSS_LAYOUT_ANIMATION_PLAN §3.2): every
+     fixed-bottom surface consumes THIS token, never raw
+     env(safe-area-inset-bottom). FrameProvider measures a probe element and
+     writes the clamped value here — 0 when the reported inset is > 48px,
+     which is an empty host-webview toolbar (80–200px), not a real home
+     indicator (≤ 48px). Raw env would over-reserve by up to 200px there.
+     This declaration is the pre-JS fallback only. */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --vv-dead-bottom: 0px;
   --app-vh: 100dvh;
@@ -2104,7 +1700,11 @@ body.keyboard-open .app-shell {
 }
 
 .nav-item .nav-label {
-  font-size: 10px;
+  /* 10px floor, FIXED — not the fluid sm step. The 5-item footer at 390px is at
+     its width limit: at 10.6px (sm) "Leaderboard" truncated to "Leaderbo…", and
+     the baseline proves it fits at exactly 10px. UI_DESIGN_AUDIT 1.3.4 warned
+     the tabs/labels were the risk of the floor bump; this is that case. */
+  font-size: var(--text-ludo-xs);
   font-weight: 500;
   /* Default to white (subtle) - forced override */
   color: rgba(255, 255, 255, 0.7) !important;
@@ -2130,8 +1730,20 @@ body.keyboard-open .app-shell {
     width: 20px;
     height: 20px;
   }
-  .nav-item .nav-label {
-    font-size: 9px;
+}
+
+/* 320px class (iPhone SE 1st gen / small Androids): the 10px type floor is
+   non-negotiable (UI_DESIGN_AUDIT P1-7), so buy the label room with chrome
+   padding instead of font-size. "Leaderboard" needs 61px; 5 items off a 312px
+   bar give 58px with the 430px padding. Verified: 61 < 63 after this. */
+@media (max-width: 340px) {
+  .footer-nav {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .nav-item {
+    padding-left: 0;
+    padding-right: 0;
   }
 }
 
@@ -2311,6 +1923,23 @@ body.keyboard-open .app-shell {
   min-height: 56px;
 }
 
+/* In-game dice slot (CSS_LAYOUT_ANIMATION_PLAN §3.1 P0/S — reserve space).
+   PlayerInfoRow mounts <LudoDice> only on the active player's turn. The row
+   above reserves 56px (48px on the mobile breakpoint) for it, so mounting
+   can never grow the row and recenter the board cluster.
+
+   The dice box is pinned to its effective size here rather than left to the
+   unlayered `* { padding: 0 }` reset (plan G2) happening to neutralize the
+   component's Tailwind `p-4`: that accident is load-bearing, and the plan's
+   own deferred reset-layering change would restore the 16px padding and
+   silently inflate this box to 80px — reopening a ~24px row shift on every
+   turn change. Pinning it at 48px keeps the reservation true either way. */
+.ludo-dice-container {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+}
+
 .player-wrapper {
   position: relative;
   z-index: 10;
@@ -2398,7 +2027,7 @@ body.keyboard-open .app-shell {
 .home-player-label.team-a-label {
   gap: 6px !important;
   border-color: rgba(34, 211, 238, 0.62);
-  background: linear-gradient(90deg, rgba(14, 116, 144, 0.9), rgba(37, 99, 235, 0.78));
+  background: linear-gradient(90deg, rgba(13, 109, 135, 0.9), rgba(37, 99, 235, 0.78));
   box-shadow: 0 4px 14px rgba(14, 165, 233, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
@@ -2420,7 +2049,7 @@ body.keyboard-open .app-shell {
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 950;
   letter-spacing: 0;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.18);
@@ -2440,7 +2069,7 @@ body.keyboard-open .app-shell {
 
 .team-label {
   color: rgba(255, 255, 255, 0.78);
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 950;
   letter-spacing: 0.1em;
 }
@@ -2469,7 +2098,7 @@ body.keyboard-open .app-shell {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   color: white;
   border: 2px solid white;
@@ -2535,7 +2164,7 @@ body.keyboard-open .app-shell {
   bottom: -4px;
   background: rgba(0, 0, 0, 0.65);
   color: white;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   width: 18px;
   height: 18px;
@@ -2604,7 +2233,7 @@ body.keyboard-open .app-shell {
   background: rgba(8, 13, 24, 0.72);
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.2);
   color: rgba(255, 255, 255, 0.58);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.14em;
   pointer-events: none;
@@ -2652,7 +2281,7 @@ body.keyboard-open .app-shell {
   color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
   font: inherit;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2699,7 +2328,7 @@ body.keyboard-open .app-shell {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.8);
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.1em;
 }
 
@@ -2765,7 +2394,7 @@ body.keyboard-open .app-shell {
 
 .match-status-spectator-count {
   color: #c4b5fd;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .match-status-stream {
@@ -2868,19 +2497,6 @@ body.keyboard-open .app-shell {
   font-size: 20px;
   font-weight: 700;
   color: var(--color-ludo-text);
-}
-
-.close-btn {
-  background: var(--color-ludo-blue-soft);
-  color: var(--color-ludo-blue);
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
 
 .leaderboard-content {
@@ -3699,7 +3315,7 @@ body.theme-retro-futurism .home-pad {
   }
 
   .player-level {
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
   .footer-nav {
@@ -3940,7 +3556,7 @@ body.theme-retro-futurism .token-dot-placeholder {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(16px, var(--safe-bottom, 0px));
   background: rgba(2, 4, 10, 0.55);
 }
 
@@ -3978,7 +3594,7 @@ body.theme-retro-futurism .token-dot-placeholder {
 body.theme-daybreak .match-stats-card {
   background-color: #f4f6f9;
   background-image:
-    radial-gradient(circle at 50% 0%, rgba(14, 116, 144, 0.08) 0%, transparent 48%),
+    radial-gradient(circle at 50% 0%, rgba(13, 109, 135, 0.08) 0%, transparent 48%),
     radial-gradient(circle at 90% 100%, rgba(37, 99, 235, 0.06) 0%, transparent 40%);
   color: #0f172a;
   border-color: rgba(23, 23, 23, 0.12);
@@ -4104,9 +3720,9 @@ body.theme-daybreak .match-stats-xp {
   border: 1px solid rgba(34, 211, 238, 0.35);
 }
 body.theme-daybreak .match-stats-lv {
-  background: rgba(14, 116, 144, 0.1);
-  color: #0e7490;
-  border-color: rgba(14, 116, 144, 0.3);
+  background: rgba(13, 109, 135, 0.1);
+  color: #0d6d87;
+  border-color: rgba(13, 109, 135, 0.3);
 }
 .match-stats-xp-track {
   flex: 1;
@@ -4166,8 +3782,8 @@ body.theme-daybreak .match-stats-row {
   border-color: rgba(23, 23, 23, 0.08);
 }
 body.theme-daybreak .match-stats-row.won {
-  border-color: rgba(14, 116, 144, 0.3);
-  background: rgba(14, 116, 144, 0.06);
+  border-color: rgba(13, 109, 135, 0.3);
+  background: rgba(13, 109, 135, 0.06);
 }
 
 .match-stats-rank {
@@ -4196,8 +3812,8 @@ body.theme-daybreak .match-stats-rank {
 }
 body.theme-daybreak .match-stats-rank.won {
   color: #fff;
-  background: #0e7490;
-  border-color: #0e7490;
+  background: #0d6d87;
+  border-color: #0d6d87;
   box-shadow: none;
 }
 
@@ -4233,7 +3849,7 @@ body.theme-daybreak .match-stats-avatar {
   gap: 6px;
 }
 .match-stats-ai {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   padding: 1px 5px;
   border-radius: 4px;
@@ -4287,9 +3903,9 @@ body.theme-daybreak .match-stats-avatar {
   border-color: rgba(239, 68, 68, 0.3);
 }
 body.theme-daybreak .match-stats-chip.kick {
-  color: #0e7490;
-  background: rgba(14, 116, 144, 0.1);
-  border-color: rgba(14, 116, 144, 0.28);
+  color: #0d6d87;
+  background: rgba(13, 109, 135, 0.1);
+  border-color: rgba(13, 109, 135, 0.28);
 }
 body.theme-daybreak .match-stats-chip.kicked {
   color: #b91c1c;
@@ -4315,7 +3931,7 @@ body.theme-daybreak .match-stats-chip.kicked {
 }
 .match-stats-outcome-label {
   display: block;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -4335,7 +3951,7 @@ body.theme-daybreak .match-stats-outcome-label {
   color: rgba(255, 255, 255, 0.4);
 }
 body.theme-daybreak .match-stats-outcome-val {
-  color: #0e7490;
+  color: #0d6d87;
 }
 body.theme-daybreak .match-stats-outcome-val.muted {
   color: rgba(23, 23, 23, 0.4);
@@ -4363,8 +3979,8 @@ body.theme-daybreak .match-stats-claim {
   border-color: rgba(23, 23, 23, 0.1);
 }
 body.theme-daybreak .match-stats-claim.ready {
-  border-color: rgba(14, 116, 144, 0.35);
-  background: rgba(14, 116, 144, 0.06);
+  border-color: rgba(13, 109, 135, 0.35);
+  background: rgba(13, 109, 135, 0.06);
 }
 
 .match-stats-claim-head {
@@ -4387,7 +4003,7 @@ body.theme-daybreak .match-stats-claim.ready {
   font-variant-numeric: tabular-nums;
 }
 body.theme-daybreak .match-stats-claim-amount {
-  color: #0e7490;
+  color: #0d6d87;
 }
 .match-stats-claim-note {
   margin: 0;
@@ -4597,23 +4213,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   transform: scale(0.95);
 }
 
-/* Scoped spacing repair (idle-warning overlay only): the Tailwind utilities
-   on its CTA are zeroed by the global reset. Zero blast radius. */
-.ludo-idle-scope .px-8 { padding-inline: 2rem; }
-.ludo-idle-scope .py-3 { padding-block: 0.75rem; }
 
-/* Scoped spacing repair (boot splash only): scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-splash-scope .mb-2 { margin-bottom: 0.5rem; }
-.ludo-splash-scope .mb-6 { margin-bottom: 1.5rem; }
-.ludo-splash-scope .mb-12 { margin-bottom: 3rem; }
-/* Scoped spacing repair (quit-match popup only): scoped re-assertions.
-   Zero blast radius on the rest of the app. */
-.ludo-quit-scope .mb-1 { margin-bottom: 0.25rem; }
-.ludo-quit-scope .mb-4 { margin-bottom: 1rem; }
-.ludo-quit-scope .p-5 { padding: 1.25rem; }
-.ludo-quit-scope .px-4 { padding-inline: 1rem; }
-.ludo-quit-scope .py-3 { padding-block: 0.75rem; }
 
 /* ─── Capture Notification ─── */
 .capture-toast {
@@ -4920,28 +4520,9 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   margin-top: 4px !important;
 }
 
-/* ─── Settings Action Buttons ─── */
-.settings-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 10px;
-  margin: 2px 0;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-ludo-text);
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.2s;
-}
-
-.settings-action-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
+/* ─── Settings Action Buttons ───
+   `.settings-action-btn` deleted (UI_COMPONENT_AUDIT B.5): 0 references in
+   app/ — Settings' actions are the shared Button now. */
 
 .text-danger {
   color: #ef4444 !important;
@@ -5197,7 +4778,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 }
 
 .pp-ai-tag {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   background: rgba(124, 58, 237, 0.1);
   color: #7c3aed;
@@ -5230,7 +4811,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 }
 
 .pp-stat span {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-ludo-faint);
   text-transform: uppercase;
@@ -5261,7 +4842,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   border: 1px solid var(--color-ludo-border);
   background: var(--color-ludo-background);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--color-ludo-text);
   transition: all 0.18s ease;
@@ -5314,12 +4895,6 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-}
-
-.profile-close-btn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
 }
 
 .profile-avatar-hero {
@@ -5412,30 +4987,6 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   padding: 16px 20px 28px;
 }
 
-.profile-action-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 12px 8px;
-  border-radius: 14px;
-  border: 1.5px solid var(--color-ludo-border);
-  background: var(--color-ludo-background);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-ludo-text);
-}
-
-.profile-action-btn:hover:not(:disabled) {
-  border-color: var(--color-ludo-blue);
-  background: rgba(0, 82, 255, 0.05);
-  color: var(--color-ludo-blue);
-  transform: translateY(-2px);
-}
-
 .profile-action-btn.action-active {
   border-color: var(--color-ludo-blue);
   background: rgba(0, 82, 255, 0.08);
@@ -5452,11 +5003,6 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.07);
   color: #ef4444;
-}
-
-.profile-action-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 .action-icon {
@@ -5668,43 +5214,10 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   max-width: 280px;
 }
 
-.seg-btn {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 10px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ludo-muted);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
 .seg-btn.active {
   background: var(--color-ludo-blue);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 82, 255, 0.3);
-}
-
-.bet-pills {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-}
-
-.bet-pill {
-  border: 1px solid #E2E8F0;
-  background: transparent;
-  color: var(--ludo-text);
-  font-weight: 600;
-  font-size: 14px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .bet-pill.active {
@@ -6141,7 +5654,7 @@ body.theme-daybreak .match-stats-cta.claim.soon {
 }
 
 .donut-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--ludo-faint);
   text-transform: uppercase;
@@ -6226,6 +5739,22 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   padding-bottom: calc(var(--footer-h, 76px) + 8px);
 }
 
+/* ─── Containment for transient surfaces ───
+   CSS_LAYOUT_ANIMATION_PLAN §3.1 (P1/M, G9). Toasts are small, self-contained
+   and re-render in bursts; `contain: layout paint` stops one toast's update
+   from invalidating layout/paint for the panel around it. Safe here because
+   both class hooks carry no other declarations and their content is a text
+   string — nothing absolutely-positioned to clip.
+   NOT applied to the long live lists, contrary to G9's premise: the
+   Leaderboard paginates (bounded, so containment buys nothing) and its rows
+   are framer `layout` elements (containment breaks layout measurement), while
+   ActivityFeed sticks to the bottom on every insert (content-visibility makes
+   that scroll estimate imprecise). See plan §7 for the recorded finding. */
+.capture-toast,
+.wl-toast {
+  contain: layout paint;
+}
+
 /* ─── Footer-aware sandwich geometry (all overlay panels) ───
    Every overlay panel is `absolute top-[64px] bottom-[80px]` while the fixed
    .footer-nav (z-200) renders ABOVE panels (z-110). FooterNavPanel measures
@@ -6292,8 +5821,8 @@ body.keyboard-open :is(
   .ludo-live-chat-scope
 ) .overflow-y-auto {
   overscroll-behavior: contain;
-  padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px)) !important;
-  scroll-padding-bottom: max(24px, var(--kb-inset), env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(24px, var(--kb-inset), var(--safe-bottom, 0px)) !important;
+  scroll-padding-bottom: max(24px, var(--kb-inset), var(--safe-bottom, 0px));
 }
 
 /* ─── Mobile / short viewports: lobby FITS, never scrolls ─── */
@@ -6944,10 +6473,10 @@ textarea:focus-visible {
 
 /* ─── Daybreak: cyan text needs more weight on light glass ─── */
 body.theme-daybreak .ludo-lobby-scope :is(.text-cyan-300, .text-cyan-400) {
-  color: #0e7490;
+  color: #0d6d87;
 }
 body.theme-daybreak .fee-tier :is(.text-cyan-300) {
-  color: #0e7490;
+  color: #0d6d87;
 }
 
 /* ─── Live Arena: venue plate + on-screen broadcast HUD ─── */
@@ -7021,7 +6550,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(52, 211, 153, 0.4);
   color: #34d399;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.2em;
   text-shadow: 0 0 8px rgba(52, 211, 153, 0.65);
@@ -7058,7 +6587,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(34, 211, 238, 0.22);
   color: rgba(103, 232, 249, 0.7);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.16em;
 }
@@ -7107,7 +6636,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   border: 1px solid rgba(34, 211, 238, 0.28);
   background: rgba(0, 0, 0, 0.5);
   color: #67e8f9;
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -7145,7 +6674,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.6);
@@ -7208,7 +6737,7 @@ body.theme-daybreak .fee-tier :is(.text-cyan-300) {
 }
 
 .arena-stat-lab {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -7232,7 +6761,7 @@ body.theme-daybreak .arena-screen-watch {
 
 body.theme-daybreak .arena-screen-stats {
   background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(14, 116, 144, 0.25);
+  border-color: rgba(13, 109, 135, 0.25);
 }
 
 body.theme-daybreak .arena-screen-stat {
@@ -7241,16 +6770,16 @@ body.theme-daybreak .arena-screen-stat {
 
 body.theme-daybreak .arena-bug-live {
   background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(14, 116, 144, 0.35);
-  color: #0e7490;
+  border-color: rgba(13, 109, 135, 0.35);
+  color: #0d6d87;
   text-shadow: none;
 }
 
 body.theme-daybreak .arena-bug-net,
 body.theme-daybreak .arena-screen-side {
   background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(14, 116, 144, 0.3);
-  color: #0e7490;
+  border-color: rgba(13, 109, 135, 0.3);
+  color: #0d6d87;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7294,10 +6823,10 @@ body.theme-daybreak .ludo-wallet-scope :is(.text-cyan-50, .text-cyan-100, .text-
   color: #0E7490;
 }
 body.theme-daybreak .ludo-wallet-scope :is(.bg-cyan-500\/20, .bg-cyan-500\/15, .bg-cyan-500\/30, .bg-cyan-400\/30) {
-  background-color: rgba(14, 116, 144, 0.14);
+  background-color: rgba(13, 109, 135, 0.14);
 }
 body.theme-daybreak .ludo-wallet-scope :is(.border-cyan-400\/50, .border-cyan-400\/40, .border-cyan-500\/50) {
-  border-color: rgba(14, 116, 144, 0.45);
+  border-color: rgba(13, 109, 135, 0.45);
 }
 body.theme-daybreak .ludo-wallet-scope :is(.bg-white\/5, .bg-white\/10) {
   background-color: #FFFFFF;
@@ -7394,8 +6923,8 @@ body.theme-daybreak .chips-wallet-panel .cw-btn {
   color: #0A0B0D;
 }
 body.theme-daybreak .chips-wallet-panel .cw-btn-primary {
-  background: rgba(14, 116, 144, 0.12);
-  border-color: rgba(14, 116, 144, 0.4);
+  background: rgba(13, 109, 135, 0.12);
+  border-color: rgba(13, 109, 135, 0.4);
   color: #0E7490;
 }
 /* Belt-and-suspenders: any residual white-text utility inside these panels */
@@ -7792,7 +7321,7 @@ body.theme-daybreak .cb-asset-icon.neutral {
   text-overflow: ellipsis;
 }
 .cb-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -8306,24 +7835,6 @@ body.theme-daybreak .cb-mode-pill.testnet {
   color: #b45309;
 }
 
-.cb-asset-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.cb-asset-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(243, 245, 249, 0.75);
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-}
 .cb-asset-pill.active {
   background: rgba(0, 82, 255, 0.2);
   border-color: rgba(0, 82, 255, 0.45);
@@ -8334,21 +7845,7 @@ body.theme-daybreak .cb-mode-pill.testnet {
   height: 8px;
   border-radius: 999px;
 }
-.cb-asset-pill-tag {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(243, 245, 249, 0.55);
-}
-body.theme-daybreak .cb-asset-pill {
-  background: rgba(10, 11, 13, 0.04);
-  border-color: rgba(10, 11, 13, 0.1);
-  color: rgba(10, 11, 13, 0.75);
-}
+
 body.theme-daybreak .cb-asset-pill.active {
   background: rgba(0, 82, 255, 0.1);
   border-color: rgba(0, 82, 255, 0.35);
@@ -9704,7 +9201,7 @@ body.theme-daybreak .ingame-input:focus {
   flex-shrink: 0;
 }
 body.theme-daybreak .ingame-link {
-  color: #0e7490;
+  color: #0d6d87;
 }
 .ingame-err {
   margin: 0;
@@ -9944,44 +9441,10 @@ body.theme-daybreak .theme-nudge-copy span { color: rgba(23, 23, 23, 0.55); }
   gap: 6px;
   flex-wrap: wrap;
 }
-.theme-nudge-chip {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 11px;
-  font-weight: 750;
-  padding: 7px 12px;
-  cursor: pointer;
-}
-.theme-nudge-chip.on {
-  background: rgba(0, 82, 255, 0.28);
-  border-color: rgba(0, 82, 255, 0.5);
-  color: #fff;
-}
-body.theme-daybreak .theme-nudge-chip {
-  background: rgba(23, 23, 23, 0.05);
-  border-color: rgba(23, 23, 23, 0.12);
-  color: rgba(23, 23, 23, 0.8);
-}
-body.theme-daybreak .theme-nudge-chip.on {
-  background: rgba(0, 82, 255, 0.14);
-  border-color: rgba(0, 82, 255, 0.4);
-  color: #0052FF;
-}
-.theme-nudge-close {
-  border: none;
-  background: none;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 11px;
-  font-weight: 650;
-  cursor: pointer;
-  padding: 6px 8px;
-}
-body.theme-daybreak .theme-nudge-close {
-  color: rgba(23, 23, 23, 0.45);
-}
-
+/* `.theme-nudge-chip` / `.theme-nudge-close` deleted (UI_COMPONENT_AUDIT B.5):
+   ThemeNudge now renders the shared Chip (filter) and Button (ghost), so the
+   six rules that gave a one-off toast its own chip + close-button design —
+   including a Daybreak override pair — are gone. */
 
 /* ── Boot lock ───────────────────────────────────────────────────────── */
 .boot-lock {
@@ -10151,7 +9614,7 @@ body.theme-daybreak .boot-lock-alert {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .wl-addr-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -10455,7 +9918,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  padding: 2px 4px max(6px, env(safe-area-inset-bottom, 0px));
+  padding: 2px 4px max(6px, var(--safe-bottom, 0px));
   z-index: 55;
 }
 .match-footer-slot {
@@ -10484,7 +9947,7 @@ body.theme-daybreak .cb-wallet-root .text-emerald-300 {
   right: 0;
   bottom: 0;
   display: block;
-  padding: 6px 10px max(6px, env(safe-area-inset-bottom, 0px));
+  padding: 6px 10px max(6px, var(--safe-bottom, 0px));
   pointer-events: none;
 }
 .match-chat-composer {
@@ -10845,7 +10308,7 @@ body.theme-daybreak .chat-emoji-picker button {
   top: -22px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -10936,7 +10399,7 @@ body.theme-daybreak .match-status-connection-pill {
     top: 28px;
     min-height: 22px;
     padding-inline: 8px;
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .match-status-strip {
@@ -11081,7 +10544,7 @@ body.theme-daybreak .match-foot-pill.on {
 /* ─── Board sheets — shared emote/chat surface ─── */
 .board-sheet {
   position: absolute;
-  bottom: calc(52px + max(6px, env(safe-area-inset-bottom, 0px)) + 10px);
+  bottom: calc(52px + max(6px, var(--safe-bottom, 0px)) + 10px);
   width: min(300px, calc(100% - 24px));
   z-index: 80;
   padding: 12px;

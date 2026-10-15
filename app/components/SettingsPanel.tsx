@@ -9,7 +9,6 @@ import {
     useListPasskeys,
     useSignOut,
 } from '@coinbase/cdp-hooks';
-import { motion } from 'framer-motion';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useSecurityPrefs } from '@/hooks/useSecurityPrefs';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -141,6 +140,14 @@ const SunIcon = (
     </svg>
 );
 
+// iOS-style switch + row rhythm now live in the shared primitives
+// (UI_COMPONENT_AUDIT Phase A: Switch.tsx, ListRow.tsx). Settings is their
+// first consumer; the local copies are gone so there is exactly one switch and
+// one row in the app.
+import { Switch } from "./Switch";
+import { ListRow } from "./ListRow";
+import { Button } from "./Button";
+
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
         <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
@@ -150,40 +157,18 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     </div>
 );
 
-// iOS-style switch, single cyan accent (theme-agnostic on the dark shell)
-const Switch = ({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) => (
-    <button
-        onClick={onToggle}
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${on ? 'bg-cyan-500' : 'bg-white/10'}`}
-    >
-        <motion.div
-            layout
-            className="w-[18px] h-[18px] bg-white rounded-full shadow"
-            animate={{ x: on ? 20 : 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-        />
-    </button>
-);
-
 const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
     icon: React.ReactNode; tint: string; label: string; hint: string;
     on: boolean; onToggle: () => void; last?: boolean;
 }) => (
-    <div className={`flex items-center justify-between p-3.5 ${last ? '' : 'border-b border-white/5'}`}>
-        <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-                {icon}
-            </div>
-            <div className="flex flex-col min-w-0">
-                <span className="text-[13px] font-bold text-white truncate">{label}</span>
-                <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>
-            </div>
-        </div>
-        <Switch on={on} onToggle={onToggle} label={label} />
-    </div>
+    <ListRow
+        icon={icon}
+        tint={tint}
+        label={label}
+        hint={hint}
+        last={last}
+        trailing={<Switch on={on} onToggle={onToggle} label={label} />}
+    />
 );
 
 const LockIcon = () => (
@@ -204,16 +189,15 @@ const WalletGlyph = () => (
 const NavRow = ({ icon, tint, label, hint, last = false, onClick }: {
     icon: React.ReactNode; tint: string; label: string; hint?: string; last?: boolean; onClick?: () => void;
 }) => (
-    <button onClick={onClick} className={`w-full flex items-center gap-3 p-3.5 hover:bg-white/5 active:bg-white/10 transition-colors text-left ${last ? '' : 'border-b border-white/5'}`}>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}>
-            {icon}
-        </div>
-        <div className="flex-1 flex flex-col min-w-0">
-            <span className="text-[13px] font-bold text-white truncate">{label}</span>
-            {hint && <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>}
-        </div>
-        <ChevronIcon />
-    </button>
+    <ListRow
+        icon={icon}
+        tint={tint}
+        label={label}
+        hint={hint}
+        last={last}
+        onClick={onClick}
+        trailing={<ChevronIcon />}
+    />
 );
 
 function passkeyName(credentialId: string, index: number): string {
@@ -331,12 +315,14 @@ function FeedbackView() {
                     <p className="mt-1 text-[12px] font-medium text-white/60">
                         Thanks — the crew reads every note. Send another any time.
                     </p>
-                    <button
+                    <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => setStatus('idle')}
-                        className="mt-3 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-[11px] font-black uppercase tracking-[0.15em] transition-all"
+                        className="mt-3 rounded-full uppercase tracking-[0.15em]"
                     >
                         Write another
-                    </button>
+                    </Button>
                 </div>
             ) : (
                 <>
@@ -365,13 +351,17 @@ function FeedbackView() {
                             Couldn&apos;t send — check your connection and try again.
                         </p>
                     )}
-                    <button
+                    <Button
+                        variant="primary"
+                        size="lg"
+                        fullWidth
+                        loading={status === 'sending'}
+                        disabled={!message.trim()}
                         onClick={send}
-                        disabled={!message.trim() || status === 'sending'}
-                        className="w-full py-3.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.18em] hover:bg-white/90 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded-2xl uppercase tracking-[0.18em]"
                     >
                         {status === 'sending' ? 'Sending…' : 'Send feedback'}
-                    </button>
+                    </Button>
                 </>
             )}
         </section>
@@ -480,13 +470,15 @@ export function SettingsPanel({
                             <div className="flex items-center justify-between mb-1 mt-1">
                                 <div className="flex items-center gap-2">
                                     {view !== 'main' && (
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             onClick={() => setView('main')}
                                             aria-label="Back to settings"
-                                            className="w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10"
+                                            className="bg-surface-hover border border-line-soft"
                                         >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                        </button>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                        </Button>
                                     )}
                                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                         {view === 'main' && (
@@ -500,13 +492,15 @@ export function SettingsPanel({
                                         {view === 'about' && 'About'}
                                     </h2>
                                 </div>
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={onClose}
                                     aria-label="Close settings"
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                    className="bg-surface-hover border border-line-soft"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </button>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">Tuned per wallet</span>
@@ -549,6 +543,14 @@ export function SettingsPanel({
 
                             {/* Appearance */}
                             <section>
+                                {/* ── SINGLE THEME ENTRY POINT (UI_DESIGN_AUDIT 1.4.3) ──
+                                    This is the only user-reachable theme CONTROL. FirstRunSetup,
+                                    ThemeNudge and the Marketplace also WRITE `ludo-theme`
+                                    (updatePreference('ludo-theme', …)) — those are intentional
+                                    touchpoints, not competing UIs; do not add a fifth. The old
+                                    standalone ThemeSwitcher.tsx component was deleted in 1.4 for
+                                    being dead (0 importers); if a second theme UI is ever needed,
+                                    extract a shared control from here instead of forking one. */}
                                 <SectionLabel>Appearance</SectionLabel>
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                                     <div className="p-3.5">
@@ -774,24 +776,35 @@ export function SettingsPanel({
                             </>
                             )}
 
-                            {/* Leave match (in-game only) */}
+                            {/* Leave match (in-game only). `secondary` + the warn
+                                tokens keeps the amber read while removing the
+                                hardcoded amber-500 triple (Phase B.3). */}
                             {onLeaveMatch && (
-                                <button
-                                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20 active:scale-[0.99] transition-all text-amber-300 text-xs font-black uppercase tracking-[0.18em]"
+                                <Button
+                                    variant="secondary"
+                                    size="lg"
+                                    fullWidth
+                                    leftIcon={<LogOutIcon />}
+                                    className="rounded-2xl bg-warn/10 border-warn/25 text-warn hover:bg-warn/20 uppercase tracking-[0.18em]"
                                     onClick={() => {
                                         onClose();
                                         onLeaveMatch();
                                     }}
                                 >
-                                    <LogOutIcon />
-                                    <span>Leave Match</span>
-                                </button>
+                                    Leave Match
+                                </Button>
                             )}
 
-                            {/* Sign out: lobby only — mid-match exits go via Leave Match */}
+                            {/* Sign out: lobby only — mid-match exits go via Leave Match.
+                                Deliberately NOT the shared Button (Phase B.3 exception):
+                                it is a two-line control whose second line is a
+                                monospace address, and Button wraps children in a
+                                truncating single-line span. Colours are the negative
+                                tokens and it now carries the disabled treatment it
+                                was missing. Revisit in Phase C if the shape recurs. */}
                             {!inGame && (
                             <button
-                                className="w-full flex flex-col items-center justify-center gap-1 py-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 active:scale-[0.99] transition-all text-red-400"
+                                className="w-full flex flex-col items-center justify-center gap-1 py-3.5 rounded-2xl bg-negative/10 border border-negative/25 hover:bg-negative/20 active:scale-[0.99] transition-all text-negative disabled:opacity-45 disabled:cursor-not-allowed"
                                 onClick={() => {
                                     // Guests hold no wallet: dropping the guest flag
                                     // flips isConnected false → sign-in wall.
@@ -812,7 +825,7 @@ export function SettingsPanel({
                                     {isGuest ? 'Sign In' : 'Sign Out'}
                                 </span>
                                 {!isGuest && player.address && (
-                                    <span className="settings-signout-addr max-w-full px-3 text-[9px] font-mono leading-tight break-all">
+                                    <span className="settings-signout-addr max-w-full px-3 text-[10px] font-mono leading-tight break-all">
                                         {player.address}
                                     </span>
                                 )}

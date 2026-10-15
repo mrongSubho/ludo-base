@@ -192,7 +192,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     }}
                                                     onMouseEnter={() => setShowQuarterInfo(true)}
                                                     onMouseLeave={() => setShowQuarterInfo(false)}
-                                                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono cursor-pointer ${activeTab === 'tier' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
+                                                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono cursor-pointer ${activeTab === 'tier' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
                                                 >
                                                     Q{currentQuarter}
                                                 </span>
@@ -282,6 +282,8 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                                     src={entry.avatar}
                                                                     alt={entry.name}
                                                                     className="w-full h-full object-cover"
+                                                                    width={96}
+                                                                    height={96}
                                                                 />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center text-white/20">
@@ -290,7 +292,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                             )}
                                                         </div>
                                                         {isMe && (
-                                                            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md border border-cyan-300">
+                                                            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-cyan-300">
                                                                 YOU
                                                             </div>
                                                         )}
@@ -310,7 +312,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                                 <span className={`text-[11px] font-bold tracking-widest uppercase ${tierStyles?.color}`}>
                                                                     {entry.tierName} {entry.subRank}
                                                                 </span>
-                                                                <span className="text-[9px] text-white/30 font-bold ml-1">Lv.{entry.level}</span>
+                                                                <span className="text-[10px] text-white/30 font-bold ml-1">Lv.{entry.level}</span>
                                                             </div>
                                                         ) : null}
                                                     </button>
@@ -319,7 +321,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-cyan-300' : 'text-cyan-400'}`}>
                                                             {activeTab === 'tier' ? entry.rxp : entry.wins}
                                                         </span>
-                                                        <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">
+                                                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
                                                             {activeTab === 'tier' ? 'RXP' : 'Wins'}
                                                         </span>
                                                     </div>

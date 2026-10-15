@@ -439,9 +439,9 @@ export const QuickMatchPanel = ({
                                 </h2>
                                 <div className="flex flex-col items-end">
                                     <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="text-[9px] uppercase font-black tracking-widest text-cyan-400 opacity-60">{gameMode}</span>
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-cyan-400 opacity-60">{gameMode}</span>
                                         <div className="w-[1px] h-2 bg-white/10" />
-                                        <span className="text-[9px] uppercase font-black tracking-widest text-white/40">{matchType}</span>
+                                        <span className="text-[10px] uppercase font-black tracking-widest text-white/40">{matchType}</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
@@ -479,7 +479,7 @@ export const QuickMatchPanel = ({
                                     key={tipIndex}
                                     className="flex flex-col items-center gap-1"
                                 >
-                                    <span className="text-[9px] uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
+                                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
                                     <p className="text-xs font-medium text-white/50 text-center max-w-[280px] leading-relaxed">
                                         {PRO_TIPS[tipIndex]}
                                     </p>
@@ -551,13 +551,13 @@ export const QuickMatchPanel = ({
                                                             <span className="text-[10px] font-black text-red-500 uppercase tracking-widest leading-none mb-1">
                                                                 FAULT
                                                             </span>
-                                                            <span className="text-[7px] font-bold text-red-400/40 uppercase">
+                                                            <span className="text-[10px] font-bold text-red-400/40 uppercase">
                                                                 OFFLINE
                                                             </span>
                                                         </>
                                                     ) : !address ? (
                                                         <div className="animate-pulse">
-                                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">
                                                                 SYNCING
                                                             </span>
                                                         </div>
@@ -574,7 +574,7 @@ export const QuickMatchPanel = ({
                                                                         className="w-full bg-cyan-400"
                                                                     />
                                                                 </div>
-                                                                <span className="text-[8px] font-black text-cyan-400/60 tracking-widest uppercase">
+                                                                <span className="text-[10px] font-black text-cyan-400/60 tracking-widest uppercase">
                                                                     {gameMode} | {matchType}
                                                                 </span>
                                                             </div>
@@ -655,7 +655,7 @@ export const QuickMatchPanel = ({
                                             <div className="flex flex-col gap-2">
                                                 {snappedPools.length > 0 ? (
                                                     <>
-                                                        <p className="text-[9px] font-black text-emerald-300/80 uppercase tracking-[0.2em]">
+                                                        <p className="text-[10px] font-black text-emerald-300/80 uppercase tracking-[0.2em]">
                                                             Players waiting
                                                         </p>
                                                         {snappedPools.map((pool) => (
@@ -667,7 +667,7 @@ export const QuickMatchPanel = ({
                                                                 <span className="text-sm font-black text-cyan-300 tabular-nums">
                                                                     {feeLabel(pool.fee)}
                                                                 </span>
-                                                                <span className="text-[9px] font-black text-emerald-300/70 uppercase tracking-widest">
+                                                                <span className="text-[10px] font-black text-emerald-300/70 uppercase tracking-widest">
                                                                     {pool.waiters} waiting
                                                                 </span>
                                                             </button>
@@ -848,7 +848,7 @@ export const QuickMatchPanel = ({
                                             </div>
                                         </div>
                                         {hookMatchId && (
-                                            <span className="text-[9px] font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
+                                            <span className="text-[10px] font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
                                                 Match {hookMatchId.slice(0, 8)}
                                             </span>
                                         )}
@@ -861,7 +861,7 @@ export const QuickMatchPanel = ({
                                                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2">
                                                     <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800">
                                                         {profile?.avatar_url ? (
-                                                            <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" />
+                                                            <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" width={96} height={96} />
                                                         ) : (
                                                             <div className="w-full h-full bg-gradient-to-br from-cyan-500/40 to-blue-600/40 flex items-center justify-center text-3xl font-black text-white/20">
                                                                 {finalName?.[0] || 'U'}
@@ -898,7 +898,7 @@ export const QuickMatchPanel = ({
                                                         {isLoadingRival ? (
                                                             <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
                                                         ) : opponentProfile?.avatar_url ? (
-                                                            <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" />
+                                                            <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" width={96} height={96} />
                                                         ) : (
                                                             <div className="w-full h-full bg-gradient-to-br from-purple-500/40 to-pink-600/40 flex items-center justify-center">
                                                                 <svg
@@ -932,7 +932,7 @@ export const QuickMatchPanel = ({
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                                                            <span className="text-[8px] font-black text-green-400 uppercase tracking-[0.2em]">
+                                                            <span className="text-[10px] font-black text-green-400 uppercase tracking-[0.2em]">
                                                                 Win Rate: {Math.round((opponentProfile.total_wins / Math.max(1, opponentProfile.total_games)) * 100)}%
                                                             </span>
                                                         </div>
@@ -1002,7 +1002,7 @@ export const QuickMatchPanel = ({
                                             Cancel Match
                                         </button>
                                         
-                                        <p className="max-w-[280px] text-[9px] text-white/20 leading-relaxed">
+                                        <p className="max-w-[280px] text-[10px] text-white/20 leading-relaxed">
                                             Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.
                                         </p>
                                     </div>

@@ -522,6 +522,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                     src={displayAvatar}
                                                     alt={displayName}
                                                     className="w-full h-full object-cover"
+                                                    width={96}
+                                                    height={96}
                                                 />
                                             ) : (
                                                 <span className="text-3xl font-black text-white/60">
@@ -539,7 +541,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     <div className="h-8 mb-3 flex flex-col items-center justify-center">
                                         <div className="flex items-center gap-2 mb-1">
                                             {isSelf && (
-                                                <span className="bg-cyan-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
+                                                <span className="bg-cyan-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
                                             )}
                                             <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 bg-cyan-400/10 rounded-full border border-cyan-400/20">
                                                 {progression.tier} {progression.subRank}
@@ -551,7 +553,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         {!isFriendValidationLoading && (isFriend || isSelf) && (
                                             <div className="bg-black/40 px-3 py-0.5 rounded-full border border-white/5 flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
-                                                <span className="text-[9px] text-white/40 font-mono">
+                                                <span className="text-[10px] text-white/40 font-mono">
                                                     {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
                                                 </span>
                                             </div>

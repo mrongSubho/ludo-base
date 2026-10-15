@@ -310,6 +310,8 @@ export const InviteNotification = () => {
                                             src={hostProfile.avatar_url}
                                             alt=""
                                             className="w-full h-full object-cover"
+                                            width={96}
+                                            height={96}
                                         />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-xl font-black text-cyan-400">
@@ -328,10 +330,10 @@ export const InviteNotification = () => {
                                     {hostName} <span className="text-white/40 font-medium">invites you</span>
                                 </h4>
                                 <div className="flex gap-3 mt-1">
-                                    <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">
+                                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                                         {matchLabel}
                                     </span>
-                                    <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">
+                                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
                                         {feeLabel}
                                     </span>
                                 </div>

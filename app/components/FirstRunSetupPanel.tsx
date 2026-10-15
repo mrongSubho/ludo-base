@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { completeOnboarding } from '@/lib/onboarding';
 import { PanelTabs } from './PanelTabs';
+import { Button } from './Button';
 
 // ─── FirstRunSetupPanel ──────────────────────────────────────────────────────
 // First-run setup shown once per device before the lobby. Chrome matches
@@ -73,7 +74,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                 style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
             >
                 <div className="text-center flex flex-col gap-1">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
                         First time setup
                     </p>
                     <h2 className="text-lg font-black text-white uppercase tracking-tight">
@@ -115,13 +116,23 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                     </div>
                 </section>
 
-                <button
+                {/* The onboarding CTA is the shared Button (Phase B.4). It was
+                    `bg-cyan-400 text-black` + its own glow + its own focus ring,
+                    which is bright cyan with black ink in BOTH themes — wrong in
+                    Daybreak, where the accent is #0d6d87. `variant="primary"`
+                    makes it the theme's accent with the correct ink on top, and
+                    the geometry is preserved through className so the diff is the
+                    colour decision only. */}
+                <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
                     onClick={finish}
-                    className="onboard-cta w-full min-h-[56px] py-4 rounded-2xl bg-cyan-400 text-black text-[15px] sm:text-base font-black uppercase tracking-[0.22em] shadow-[0_0_28px_rgba(34,211,238,0.4)] hover:bg-cyan-300 active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                    className="onboard-cta min-h-[56px] rounded-2xl text-[15px] uppercase tracking-[0.22em] shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
                 >
                     Enter the lobby
-                </button>
-                <p className="text-center text-[9px] font-bold text-white/35 -mt-2">
+                </Button>
+                <p className="text-center text-[10px] font-bold text-white/35 -mt-2">
                     Change anytime in Settings
                 </p>
             </div>

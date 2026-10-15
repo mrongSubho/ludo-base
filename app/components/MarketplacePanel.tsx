@@ -11,6 +11,8 @@ import { marketplaceTotalChips } from '@/lib/marketplacePrices';
 import { getShowcased, setShowcased } from '@/lib/showcase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
+import { Button } from './Button';
+import { Chip } from './Chip';
 
 type MarketTab = 'themes' | 'dices' | 'tokens' | 'items';
 type Rarity = 'common' | 'rare' | 'legendary';
@@ -763,9 +765,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         <h3 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Success!</h3>
                                         <p className="text-white/60 mb-8 max-w-[250px]">{successNote || 'Done.'}</p>
                                         <div className="w-full space-y-3">
-                                            <button onClick={handleCloseDetail} className="w-full py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-xl">
+                                            <Button variant="primary" size="lg" fullWidth onClick={handleCloseDetail} className="shadow-xl uppercase">
                                                 CONTINUE
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -797,9 +799,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </span>
                                             </div>
                                         </div>
-                                        <button onClick={onClose} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm" aria-label="Close marketplace">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                        </button>
+                                        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close marketplace" className="bg-surface-hover border border-line-soft">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </Button>
                                     </div>
 
                                     {/* Mode switcher: STORE vs LOADOUT */}
@@ -824,16 +826,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 const active = activeTab === t.id;
                                                 const n = mode === 'loadout' ? counts[t.id].owned : counts[t.id].total;
                                                 return (
-                                                    <button
+                                                    <Chip
                                                         key={t.id}
                                                         ref={active ? activeChipRef : undefined}
+                                                        type="filter"
+                                                        active={active}
                                                         onClick={() => setActiveTab(t.id)}
-                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-black whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${active ? 'border-cyan-400/70 bg-cyan-500/15 text-white shadow-[0_0_16px_rgba(34,211,238,0.25)]' : 'border-white/10 bg-black/30 text-white/40 hover:text-white/75 hover:border-white/25'}`}
+                                                        className="flex items-center gap-1.5 whitespace-nowrap"
                                                     >
                                                         <span className={active ? 'text-cyan-300' : ''}>{t.icon}</span>
                                                         {t.label}
                                                         <span className={`px-1.5 rounded-md text-[10px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-100' : 'bg-white/5 text-white/30'}`}>{n}</span>
-                                                    </button>
+                                                    </Chip>
                                                 );
                                             })}
                                         </div>
@@ -862,7 +866,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
                                                 />
                                                 {search && (
-                                                    <button onClick={() => setSearch('')} className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/10 text-white/60 hover:text-white" aria-label="Clear search">
+                                                    <button onClick={() => setSearch('')} className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-surface-hover text-ink-muted hover:text-ink-strong" aria-label="Clear search">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                                     </button>
                                                 )}
@@ -880,22 +884,22 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </select>
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"><polyline points="6 9 12 15 18 9" /></svg>
                                             </div>
-                                            <button
+                                            <Button
                                                 onClick={() => setFilterOpen(true)}
-                                                className={`relative w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border transition-all ${activeFilterCount > 0 ? 'border-cyan-400/60 bg-cyan-500/15 text-cyan-200' : 'border-white/10 bg-black/40 text-white/50 hover:text-white'}`}
+                                                className={`relative h-9 w-9 shrink-0 rounded-lg border p-0 ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong'}`}
                                                 aria-label="Open filters"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
                                                 {activeFilterCount > 0 && (
-                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[9px] font-black flex items-center justify-center">{activeFilterCount}</span>
+                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[10px] font-black flex items-center justify-center">{activeFilterCount}</span>
                                                 )}
-                                            </button>
+                                            </Button>
                                             <div className="flex shrink-0 items-center bg-black/40 border border-white/10 rounded-lg p-0.5 h-9">
                                                 {(['comfort', 'compact'] as const).map(d => (
-                                                    <button
+                                                    <Button
                                                         key={d}
                                                         onClick={() => setDensity(d)}
-                                                        className={`w-7 h-full flex items-center justify-center rounded-md transition-all ${density === d ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'}`}
+                                                        className={`h-full w-7 shrink-0 rounded-md p-0 ${density === d ? 'bg-surface-active text-ink-strong' : 'text-ink-faint hover:text-ink-strong'}`}
                                                         aria-label={d === 'comfort' ? 'Comfortable grid' : 'Compact grid'}
                                                     >
                                                         {d === 'comfort' ? (
@@ -903,7 +907,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         ) : (
                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="10" y="3" width="5" height="5" rx="1" /><rect x="17" y="3" width="5" height="5" rx="1" /><rect x="3" y="10" width="5" height="5" rx="1" /><rect x="10" y="10" width="5" height="5" rx="1" /><rect x="17" y="10" width="5" height="5" rx="1" /><rect x="3" y="17" width="5" height="5" rx="1" /><rect x="10" y="17" width="5" height="5" rx="1" /><rect x="17" y="17" width="5" height="5" rx="1" /></svg>
                                                         )}
-                                                    </button>
+                                                    </Button>
                                                 ))}
                                             </div>
                                         </div>
@@ -934,13 +938,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     : 'Try a different search or clear the active filters.'}
                                             </p>
                                             {mode === 'loadout' ? (
-                                                <button onClick={() => switchMode('market')} className="px-5 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-400/50 text-cyan-100 text-xs font-black uppercase tracking-widest hover:bg-cyan-500/30 transition-all">
+                                                <Button variant="secondary" size="md" onClick={() => switchMode('market')} className="px-5 uppercase tracking-widest">
                                                     Browse store
-                                                </button>
+                                                </Button>
                                             ) : (
-                                                <button onClick={() => { setSearch(''); setStatusFilter('all'); setRarityFilter('all'); }} className="px-5 py-2.5 rounded-xl bg-white/10 border border-white/15 text-white text-xs font-black uppercase tracking-widest hover:bg-white/15 transition-all">
+                                                <Button variant="secondary" size="md" onClick={() => { setSearch(''); setStatusFilter('all'); setRarityFilter('all'); }} className="px-5 uppercase tracking-widest">
                                                     Clear filters
-                                                </button>
+                                                </Button>
                                             )}
                                         </div>
                                     ) : (
@@ -987,7 +991,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-500/10 animate-pulse pointer-events-none" />}
                                                             {previewStage(density === 'comfort' ? '120px' : '88px', item.rarity)}
                                                             {/* rarity sigil floats on the art — frees the full row for the name */}
-                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-[10px]' : 'w-4 h-4 text-[8px]'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
+                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-[10px]' : 'w-4 h-4 text-[10px]'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
                                                                 {item.rarity === 'common' ? 'C' : item.rarity === 'rare' ? 'R' : 'L'}
                                                             </div>
                                                             <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">
@@ -995,14 +999,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                             {/* store: tiny owned badge (no equipped tag, no tick) */}
                                                             {!isLoadout && owned && (
-                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-[8px] font-black tracking-[0.14em] text-white/75">
+                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-[10px] font-black tracking-[0.14em] text-white/75">
                                                                     OWNED
                                                                 </div>
                                                             )}
                                                             {/* loadout mark: active gear or showcased relic */}
                                                             {marked && (
                                                                 <>
-                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[8px] font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
+                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
                                                                         {equipped ? 'Active' : 'Showcasing'}
                                                                     </div>
                                                                     <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
@@ -1022,12 +1026,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         {/* hover quick-action rail */}
                                                         {quickLabel && (
                                                             <div className="absolute inset-x-0 bottom-0 z-20 translate-y-[102%] group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-200">
-                                                                <button
-                                                                    onClick={runQuick}
-                                                                    className="w-full py-2 bg-black/70 backdrop-blur-md border-t border-white/15 text-[10px] font-black uppercase tracking-[0.16em] text-white hover:bg-cyan-500/30 hover:text-cyan-100 transition-colors"
+                                                                <Button
+                                                                    variant="secondary" size="sm" fullWidth onClick={runQuick}
+                                                                    className="rounded-none tracking-[0.16em] uppercase"
                                                                 >
                                                                     {quickLabel}
-                                                                </button>
+                                                                </Button>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1083,10 +1087,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             {missing.length} to go · {formatCompact(missingTotal)} total
                                                         </div>
                                                     </div>
-                                                    <button
+                                                    <Button
+                                                        variant="primary" size="sm"
                                                         onClick={() => handleCompleteSet(missing, missingTotal)}
                                                         disabled={balance < missingTotal}
-                                                        className={`shrink-0 min-w-[92px] px-3 py-1.5 rounded-xl transition-all active:scale-95 flex flex-col items-center leading-tight ${balance >= missingTotal ? 'bg-white text-black hover:bg-white/85 shadow-[0_4px_20px_rgba(255,255,255,0.25)]' : 'bg-white/5 text-white/30 border border-white/10 cursor-not-allowed'}`}
+                                                        className={`shrink-0 min-w-[92px] px-3 flex-col leading-tight ${balance >= missingTotal ? 'shadow-[0_4px_20px_rgba(255,255,255,0.25)]' : ''}`}
                                                     >
                                                         {balance >= missingTotal ? (
                                                             <>
@@ -1099,7 +1104,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                                 <span className="text-[10px] font-bold font-mono opacity-70">need {formatCompact(missingTotal - balance)}</span>
                                                             </>
                                                         )}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         )}
@@ -1129,17 +1134,17 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <div className={`w-14 h-14 rounded-2xl ${current?.previewColor ?? 'bg-white/5'} border border-white/10 flex items-center justify-center overflow-hidden opacity-60`}>
                                                             {current ? itemPreview(current, 34) : null}
                                                         </div>
-                                                        <span className="text-[9px] font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
+                                                        <span className="text-[10px] font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
                                                     </div>
                                                     <div className="flex flex-col items-center gap-1 pb-4">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-cyan-300"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-white/30">replaces</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">replaces</span>
                                                     </div>
                                                     <div className="flex flex-col items-center gap-1.5">
                                                         <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-cyan-400/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(34,211,238,0.3)]`}>
                                                             {itemPreview(confirmItem, 34)}
                                                         </div>
-                                                        <span className="text-[9px] font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
+                                                        <span className="text-[10px] font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
                                                     </div>
                                                 </div>
                                                 <p className="text-center text-[11px] font-bold text-white/45 mb-4 px-4">
@@ -1158,19 +1163,21 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     )}
                                                 </p>
                                                 <div className="flex gap-2">
-                                                    <button
+                                                    <Button
+                                                        variant="secondary" size="lg"
                                                         onClick={() => setConfirmItem(null)}
-                                                        className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                                                        className="flex-1 uppercase tracking-widest"
                                                     >
                                                         Keep current
-                                                    </button>
-                                                    <button
+                                                    </Button>
+                                                    <Button
                                                         data-testid="confirm-activate"
+                                                        variant="primary" size="lg"
                                                         onClick={confirmActivation}
-                                                        className="flex-1 py-3.5 rounded-2xl bg-cyan-400 text-black text-xs font-black uppercase tracking-widest hover:bg-cyan-300 active:scale-[0.98] transition-all shadow-[0_8px_30px_rgba(34,211,238,0.35)]"
+                                                        className="flex-1 uppercase tracking-widest"
                                                     >
                                                         {verb === 'Activate' ? 'ACTIVATE' : 'SHOWCASE'}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1185,22 +1192,25 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="text-base font-black text-white uppercase tracking-wide">Filters</h3>
-                                                <button onClick={() => { setStatusFilter('all'); setRarityFilter('all'); }} className="text-[11px] font-black uppercase tracking-widest text-cyan-300 hover:text-cyan-100">
+                                                <Button variant="ghost" size="sm" onClick={() => { setStatusFilter('all'); setRarityFilter('all'); }} className="text-accent uppercase tracking-widest">
                                                     Clear all
-                                                </button>
+                                                </Button>
                                             </div>
                                             {mode === 'market' && (
                                                 <div className="mb-4">
                                                     <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Status</div>
                                                     <div className="flex gap-2">
                                                         {([['all', 'All'], ['sale', 'For sale'], ['owned', 'Owned by you']] as [StatusFilter, string][]).map(([v, label]) => (
-                                                            <button
+                                                            <Chip
                                                                 key={v}
+                                                                type="filter"
+                                                                size="sm"
+                                                                active={statusFilter === v}
                                                                 onClick={() => setStatusFilter(v)}
-                                                                className={`flex-1 py-2.5 rounded-xl border text-xs font-black transition-all ${statusFilter === v ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.03] text-white/45 hover:text-white/75'}`}
+                                                                className="flex-1 justify-center rounded-xl py-2.5 text-xs"
                                                             >
                                                                 {label}
-                                                            </button>
+                                                            </Chip>
                                                         ))}
                                                     </div>
                                                 </div>
@@ -1209,19 +1219,22 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Rarity</div>
                                                 <div className="flex gap-2">
                                                     {([['all', 'All'], ['common', 'Common'], ['rare', 'Rare'], ['legendary', 'Legendary']] as ['all' | Rarity, string][]).map(([v, label]) => (
-                                                        <button
+                                                        <Chip
                                                             key={v}
+                                                            type="filter"
+                                                            size="sm"
+                                                            active={rarityFilter === v}
                                                             onClick={() => setRarityFilter(v)}
-                                                            className={`flex-1 py-2.5 rounded-xl border text-xs font-black transition-all ${rarityFilter === v ? 'border-cyan-400/60 bg-cyan-500/15 text-white' : 'border-white/10 bg-white/[0.03] text-white/45 hover:text-white/75'}`}
+                                                            className="flex-1 justify-center rounded-xl py-2.5 text-xs"
                                                         >
                                                             {label}
-                                                        </button>
+                                                        </Chip>
                                                     ))}
                                                 </div>
                                             </div>
-                                            <button onClick={() => setFilterOpen(false)} className="w-full py-3.5 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-wide hover:bg-white/90 active:scale-[0.98] transition-all">
+                                            <Button variant="primary" size="lg" fullWidth onClick={() => setFilterOpen(false)} className="uppercase tracking-wide">
                                                 Show {visibleItems.length} {visibleItems.length === 1 ? 'piece' : 'pieces'}
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 )}
@@ -1268,9 +1281,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             {/* header */}
                                             <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">
                                                 <div className="flex items-center gap-3">
-                                                    <button onClick={handleCloseDetail} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all" aria-label="Back">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                    </button>
+                                                    <Button variant="ghost" size="icon" onClick={handleCloseDetail} aria-label="Back">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                                    </Button>
                                                     <h2 className="text-base font-black text-white tracking-tight">Inspect</h2>
                                                 </div>
                                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${selectedItem.rarity === 'legendary' ? 'border-fuchsia-400/50 text-fuchsia-300 bg-fuchsia-500/10' : selectedItem.rarity === 'rare' ? 'border-cyan-400/50 text-cyan-300 bg-cyan-500/10' : 'border-white/15 text-white/50 bg-white/5'}`}>
@@ -1317,7 +1330,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <h4 className="text-[10px] text-cyan-300 font-black uppercase tracking-widest">In match</h4>
                                                         <span className="flex items-center gap-1.5">
                                                             <span className={`w-1.5 h-1.5 rounded-full ${statusLive ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]' : owned ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]' : 'bg-white/25'}`} />
-                                                            <span className="text-[9px] font-black uppercase tracking-widest text-white/45">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/45">
                                                                 {statusLive ? 'Live' : owned ? 'In vault' : 'Not owned'}
                                                             </span>
                                                         </span>
@@ -1358,9 +1371,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <div className="grid grid-cols-3 gap-2">
                                                             {selectedItem.traits.map((trait, i) => (
                                                                 <div key={i} className="bg-white/5 border border-cyan-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
-                                                                    <span className="text-[8px] text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
+                                                                    <span className="text-[10px] text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
                                                                     <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
-                                                                    <span className="text-[9px] text-cyan-400 font-mono">{trait.rarity_percent}%</span>
+                                                                    <span className="text-[10px] text-cyan-400 font-mono">{trait.rarity_percent}%</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1399,36 +1412,36 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             <div className="absolute bottom-0 inset-x-0 p-5 pb-7 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-40">
                                                 {!isLoadout ? (
                                                     owned ? (
-                                                        <button onClick={() => setIsSelling(true)} className="w-full py-4 bg-white text-black rounded-2xl font-black text-base hover:bg-white/90 active:scale-95 transition-all shadow-xl">
+                                                        <Button variant="primary" size="lg" fullWidth onClick={() => setIsSelling(true)} className="shadow-xl uppercase">
                                                             SELL
-                                                        </button>
+                                                        </Button>
                                                     ) : (
-                                                        <button
+                                                        <Button
+                                                            variant="primary" size="lg" fullWidth
                                                             onClick={handleBuy}
                                                             disabled={!canAfford || !wallet}
-                                                            className={`w-full py-4 rounded-2xl font-black text-base transition-all active:scale-95 ${canAfford && wallet ? 'bg-white text-black hover:bg-white/90 shadow-[0_8px_30px_rgba(255,255,255,0.2)]' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
                                                         >
                                                             {!wallet ? 'CONNECT WALLET TO BUY' : `BUY · ${selectedItem.price.toLocaleString()} COINS`}
-                                                        </button>
+                                                        </Button>
                                                     )
                                                 ) : selectedItem.equipValue ? (
                                                     equipped ? (
-                                                        <div className="w-full py-4 rounded-2xl bg-green-500/15 border border-green-400/40 text-green-300 font-black text-sm uppercase tracking-widest text-center">
+                                                        <div className="w-full py-4 rounded-2xl bg-positive/15 border border-positive/40 text-positive font-black text-sm uppercase tracking-widest text-center">
                                                             Active in matches
                                                         </div>
                                                     ) : (
-                                                        <button onClick={() => setConfirmItem(selectedItem)} className="w-full py-4 bg-cyan-400 text-black rounded-2xl font-black text-base hover:bg-cyan-300 active:scale-95 transition-all shadow-[0_8px_30px_rgba(34,211,238,0.35)]">
+                                                        <Button variant="primary" size="lg" fullWidth onClick={() => setConfirmItem(selectedItem)} className="uppercase">
                                                             ACTIVATE
-                                                        </button>
+                                                        </Button>
                                                     )
                                                 ) : showcased ? (
                                                     <div className="w-full py-4 rounded-2xl bg-green-500/15 border border-green-400/40 text-green-300 font-black text-sm uppercase tracking-widest text-center">
                                                         Showcasing in vault
                                                     </div>
                                                 ) : (
-                                                    <button onClick={() => setConfirmItem(selectedItem)} className="w-full py-4 bg-cyan-400 text-black rounded-2xl font-black text-base hover:bg-cyan-300 active:scale-95 transition-all shadow-[0_8px_30px_rgba(34,211,238,0.35)]">
+                                                    <Button variant="primary" size="lg" fullWidth onClick={() => setConfirmItem(selectedItem)} className="uppercase">
                                                         SHOWCASE
-                                                    </button>
+                                                    </Button>
                                                 )}
                                             </div>
 
@@ -1439,9 +1452,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
                                                     <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">
                                                         <div className="flex items-center gap-3">
-                                                            <button onClick={() => setIsSelling(false)} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-white/50 hover:text-white transition-all" aria-label="Back to inspect">
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                            </button>
+                                                            <Button variant="ghost" size="icon" onClick={() => setIsSelling(false)} aria-label="Back to inspect">
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                                                            </Button>
                                                             <h3 className="text-base font-black text-white tracking-tight">List for Sale</h3>
                                                         </div>
                                                     </div>
@@ -1472,13 +1485,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-2 block">Duration</label>
                                                             <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
                                                                 {(['7d', '30d', 'indefinite'] as const).map(d => (
-                                                                    <button
+                                                                    <Chip
                                                                         key={d}
+                                                                        type="filter"
+                                                                        size="sm"
+                                                                        active={listingDuration === d}
                                                                         onClick={() => setListingDuration(d)}
-                                                                        className={`flex-1 py-3 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${listingDuration === d ? 'bg-cyan-600 text-white shadow-lg' : 'text-white/30 hover:text-white/60'}`}
+                                                                        className="flex-1 justify-center rounded-xl py-3 tracking-wider"
                                                                     >
                                                                         {d === '7d' ? '7 Days' : d === '30d' ? '30 Days' : 'No expiry'}
-                                                                    </button>
+                                                                    </Chip>
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -1490,18 +1506,19 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             <div className="h-px bg-white/10 my-2" />
                                                             <div className="flex justify-between items-center">
                                                                 <span className="text-xs font-black text-white uppercase tracking-wider">You receive</span>
-                                                                <span className="text-2xl font-black font-mono text-green-400">
+                                                                <span className="text-2xl font-black font-mono text-positive">
                                                                     {sellPrice && Number(sellPrice) > 0 ? (Number(sellPrice) * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} <span className="text-[10px]">coins</span>
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <button
+                                                        <Button
+                                                            variant="primary" size="lg" fullWidth
                                                             onClick={handleConfirmListing}
                                                             disabled={!sellPrice || Number(sellPrice) <= 0}
-                                                            className={`w-full py-4 rounded-2xl font-black text-base transition-all active:scale-95 ${sellPrice && Number(sellPrice) > 0 ? 'bg-white text-black hover:bg-white/90 shadow-xl' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
+                                                            className="uppercase"
                                                         >
                                                             CONFIRM LISTING
-                                                        </button>
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             )}

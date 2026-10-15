@@ -4,12 +4,8 @@ import React, { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
-import { useIsDaybreak } from "./GamePanelShell";
 import { useClaimAll } from "@/hooks/useChipsPool";
 import { chipsAddress, shortHex } from "@/lib/chips";
-
-// re-export hook from shell if needed — use local import of useIsDaybreak
-// (GamePanelShell already exports useIsDaybreak)
 
 interface ChipsWalletPanelProps {
     isOpen: boolean;
@@ -20,10 +16,9 @@ interface ChipsWalletPanelProps {
 
 /**
  * Coinbase Wallet sheet — brand bar, hero balance, account, circular actions.
- * Not a game sandwich panel. Theme-aware via useIsDaybreak (inline paint).
+ * Not a game sandwich panel. Theme-aware via CSS custom properties (Phase 3).
  */
 export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: ChipsWalletPanelProps) {
-    const daybreak = useIsDaybreak();
     const bal = useChipsBalance();
     const { claimMany, isPending: claiming, error: claimError, configured: claimConfigured } =
         useClaimAll();
@@ -53,41 +48,28 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
 
     const claimReady = Boolean(claimablePoolIds?.length);
 
-    // Coinbase Wallet palette
-    // Coinbase Wallet: porcelain day sheet / deep-navy night sheet
-    const c = daybreak
-        ? {
-              sheet: "#FFFFFF",
-              ink: "#0A0B0D",
-              muted: "#5B616E",
-              line: "rgba(10,11,13,0.08)",
-              chip: "#F5F7FA",
-              blue: "#0052FF",
-              blueSoft: "rgba(0,82,255,0.12)",
-              shadow: "0 24px 80px rgba(0,0,0,0.28)",
-              warnBg: "#FFF7E6",
-              warnInk: "#8A5A00",
-              okBg: "#E8F5E9",
-              okInk: "#1B5E20",
-              primaryInk: "#FFFFFF",
-              overlay: "rgba(10,11,13,0.5)",
-          }
-        : {
-              sheet: "#0C0F16",
-              ink: "#F5F7FA",
-              muted: "#9AA3B2",
-              line: "rgba(255,255,255,0.10)",
-              chip: "#161B24",
-              blue: "#3B82F6",
-              blueSoft: "rgba(59,130,246,0.16)",
-              shadow: "0 24px 80px rgba(0,0,0,0.65)",
-              warnBg: "rgba(251,191,36,0.12)",
-              warnInk: "#FDE68A",
-              okBg: "rgba(52,211,153,0.12)",
-              okInk: "#6EE7B7",
-              primaryInk: "#FFFFFF",
-              overlay: "rgba(0,0,0,0.62)",
-          };
+    // Coinbase Wallet sheet — porcelain day / deep-navy night.
+    // Theme-aware through CSS custom properties (UI_DESIGN_AUDIT Phase 3): this
+    // palette was the last `useIsDaybreak()` consumer, a body.classList
+    // MutationObserver feeding inline hexes that had drifted from the CSS
+    // tokens. Each theme block now owns the resolved values, so the sheet
+    // repaints through the cascade with no JS branching.
+    const c = {
+        sheet: "var(--surface-panel)",
+        ink: "var(--ink-strong)",
+        muted: "var(--ink-muted)",
+        line: "var(--line-soft)",
+        chip: "var(--surface-recessed)",
+        blue: "var(--accent)",
+        blueSoft: "var(--accent-soft)",
+        shadow: "var(--shadow-panel)",
+        warnBg: "color-mix(in srgb, var(--warn) 12%, transparent)",
+        warnInk: "var(--warn)",
+        okBg: "color-mix(in srgb, var(--positive) 12%, transparent)",
+        okInk: "var(--positive)",
+        primaryInk: "var(--accent-ink)",
+        overlay: "rgba(0,0,0,0.5)",
+    };
 
     if (typeof document === "undefined") return null;
 

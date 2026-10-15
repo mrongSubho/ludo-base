@@ -76,6 +76,8 @@ export function PlayerCard({
                             src={player.avatar}
                             alt={player.name}
                             className="w-full h-full object-cover rounded-full"
+                            width={96}
+                            height={96}
                         />
                     ) : (
                         player.avatar ? (
@@ -88,7 +90,7 @@ export function PlayerCard({
                     )}
                 </div>
                 <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
-                    <span className="text-[8px] font-black">{player.level}</span>
+                    <span className="text-ludo-xs font-black">{player.level}</span>
                 </div>
                 <span className={`player-connection-dot ${isKicked ? 'offline' : player.isAi ? 'ai' : ''}`} title={isKicked ? 'Disconnected' : player.isAi ? 'AI opponent' : 'Connected'} />
             </div>
