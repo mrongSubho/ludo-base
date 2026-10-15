@@ -125,7 +125,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ) : (
         leftIcon && <span className={ICON_SIZE[size]}>{leftIcon}</span>
       )}
-      {size !== "icon" && children != null && <span className="truncate">{children}</span>}
+      {/* `size="icon"` renders bare children — THEY are the icon. Wrapping them
+          in the truncating span would size the glyph to the label rhythm, and
+          suppressing them (an earlier bug) produced a 44×44 button with nothing
+          inside: every close button in the app silently lost its × glyph. */}
+      {size === "icon" ? (
+        children
+      ) : (
+        children != null && <span className="truncate">{children}</span>
+      )}
       {!loading && rightIcon && <span className={ICON_SIZE[size]}>{rightIcon}</span>}
     </button>
   );

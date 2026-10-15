@@ -10,6 +10,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
 import { PanelTabs } from './PanelTabs';
+import { Button } from './Button';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings: this panel always renders on the shared
@@ -225,13 +226,15 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                             </div>
                                             Rankings
                                         </h2>
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             onClick={onClose}
                                             aria-label="Close rankings"
-                                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                            className="bg-surface-hover border border-line-soft"
                                         >
-                                            <LuX className="w-4 h-4" />
-                                        </button>
+                                            <LuX className="icon-md" />
+                                        </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
                                         <span className="flex items-center gap-1">
@@ -297,7 +300,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                     <button
                                                         key={p.wallet_address}
                                                         onClick={() => onOpenProfile(p.wallet_address)}
-                                                        className={`relative rounded-2xl border bg-white/[0.04] hover:bg-white/[0.07] transition-all flex flex-col items-center overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${lead ? 'py-3 border-white/20' : 'py-2.5 border-white/10'} ${isMe ? '!border-cyan-500/50' : ''}`}
+                                                        className={`relative rounded-2xl border bg-white/[0.04] hover:bg-white/[0.07] transition-all flex flex-col items-center overflow-hidden ${lead ? 'py-3 border-white/20' : 'py-2.5 border-white/10'} ${isMe ? '!border-cyan-500/50' : ''}`}
                                                     >
                                                         <div className="absolute top-0 inset-x-8 h-[2px] rounded-full" style={{ background: MEDAL[rank - 1], boxShadow: `0 0 12px ${MEDAL[rank - 1]}` }} />
                                                         {lead && <LuTrophy className="w-3.5 h-3.5 mb-1" style={{ color: MEDAL[0] }} />}
