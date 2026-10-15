@@ -891,27 +891,29 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"><polyline points="6 9 12 15 18 9" /></svg>
                                             </div>
                                             <Button
+                                                size="icon"
                                                 onClick={() => setFilterOpen(true)}
-                                                className={`relative h-9 w-9 shrink-0 rounded-lg border p-0 ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong'}`}
+                                                className={`relative shrink-0 rounded-lg border ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-white/20 bg-surface-recessed text-ink-strong hover:text-white'}`}
                                                 aria-label="Open filters"
                                             >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-[18px] h-[18px]"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
                                                 {activeFilterCount > 0 && (
                                                     <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[10px] font-black flex items-center justify-center">{activeFilterCount}</span>
                                                 )}
                                             </Button>
-                                            <div className="flex shrink-0 items-center bg-black/40 border border-white/10 rounded-lg p-0.5 h-9">
+                                            <div className="flex shrink-0 items-center bg-black/40 border border-white/15 rounded-xl p-1">
                                                 {(['comfort', 'compact'] as const).map(d => (
                                                     <Button
                                                         key={d}
+                                                        size="icon"
                                                         onClick={() => setDensity(d)}
-                                                        className={`h-full w-7 shrink-0 rounded-md p-0 ${density === d ? 'bg-surface-active text-ink-strong' : 'text-ink-muted hover:text-ink-strong'}`}
+                                                        className={`shrink-0 rounded-lg ${density === d ? 'bg-surface-active text-white' : 'text-ink-muted hover:text-white hover:bg-white/5'}`}
                                                         aria-label={d === 'comfort' ? 'Comfortable grid' : 'Compact grid'}
                                                     >
                                                         {d === 'comfort' ? (
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
                                                         ) : (
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="10" y="3" width="5" height="5" rx="1" /><rect x="17" y="3" width="5" height="5" rx="1" /><rect x="3" y="10" width="5" height="5" rx="1" /><rect x="10" y="10" width="5" height="5" rx="1" /><rect x="17" y="10" width="5" height="5" rx="1" /><rect x="3" y="17" width="5" height="5" rx="1" /><rect x="10" y="17" width="5" height="5" rx="1" /><rect x="17" y="17" width="5" height="5" rx="1" /></svg>
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="10" y="3" width="5" height="5" rx="1" /><rect x="17" y="3" width="5" height="5" rx="1" /><rect x="3" y="10" width="5" height="5" rx="1" /><rect x="10" y="10" width="5" height="5" rx="1" /><rect x="17" y="10" width="5" height="5" rx="1" /><rect x="3" y="17" width="5" height="5" rx="1" /><rect x="10" y="17" width="5" height="5" rx="1" /><rect x="17" y="17" width="5" height="5" rx="1" /></svg>
                                                         )}
                                                     </Button>
                                                 ))}
