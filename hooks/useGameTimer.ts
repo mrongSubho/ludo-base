@@ -31,6 +31,15 @@ export function useGameTimer({
     isNetworked = false,
     hasAuthoritativeSnapshot = false
 }: UseGameTimerProps) {
+    // The deadline ref MUST live at hook scope, not inside the effect below.
+    // Outside render React installs ContextOnlyDispatcher, where every hook —
+    // useRef included — throws #321 "Invalid hook call". Calling it inside the
+    // effect (as 881902d did) therefore threw the moment the effect body ran,
+    // which for an offline match is on mount: the whole match start died with
+    // React error #321 at the route boundary. Hoisted, the ref persists per
+    // component instance, so the per-turn re-arm below still keys correctly.
+    const deadlineRef = useRef<{ key: string; at: number } | null>(null);
+
     useEffect(() => {
         if (localGameState.winner || !shouldRunMatchTimer({
             isNetworked,
@@ -38,7 +47,6 @@ export function useGameTimer({
             hasAuthoritativeSnapshot,
         })) return;
 
-        const deadlineRef = useRef<{ key: string; at: number } | null>(null);
         const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue}`;
         if (!deadlineRef.current || deadlineRef.current.key !== turnKey) {
             deadlineRef.current = {

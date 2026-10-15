@@ -735,3 +735,27 @@ At runtime every mission had `type === undefined`, the 5-case switch fell throug
 ### Gates
 
 `tsc` 0 errors · `eslint` clean on all touched files · `npm test` **422 pass / 0 fail / 11 skipped** (406 → 411 executable pass, +5 new) · the change is render-only for rows that previously crashed, so the committed panel-mission visual baselines (guest state) are unaffected.
+
+---
+
+## Part IX — Post-audit production regression: offline match start (React #321) (2026-10-15)
+
+*Reported from production: starting an offline match dies with "The arena hit a snag" and `Minified React error #321` at the route boundary (`app/error.tsx`). React #321 is the "Invalid hook call" decoder.*
+
+### Root cause
+
+`hooks/useGameTimer.ts` called **`useRef` inside a `useEffect` callback** — introduced by `881902d` (2026-10-12, "NET-11..13 … absolute turn deadline"), which moved the deadline ref into the effect body. Outside render React installs `ContextOnlyDispatcher`, on which every hook — `useRef` included — is `throwInvalidHookError`; the production react-dom build throws exactly `formatProdErrorMessage(321)` there (verified in `node_modules/react-dom/cjs/react-dom-client.production.js`, lines 4324/5467). So the moment the effect body ran, the hook threw.
+
+The effect's guard is `shouldRunMatchTimer({ isNetworked, connectionStatus, … })`. For an offline match `isNetworked = isLobbyConnected` is false, so the policy returns `connectionStatus !== 'ended'` → **true on mount**: every offline match start executed the illegal `useRef` and died. Networked matches hit the same throw once `connected` + an authoritative snapshot arrive. The dashboard was unaffected — `useGameEngine` mounts the timer only with the board — which is why the site still felt alive between matches.
+
+**Why no gate caught it.** `eslint.config.mjs` stubbed both `react-hooks` rules to no-op plugins (`create: () => ({})`), so `npm run lint` could not see a hook-order violation; `npm test` is node-only (no React renderer); and the visual harness cannot exercise the board in this environment (Part VII), so its scenes skipped. The commit that shipped it was itself titled "effect hygiene".
+
+### Fix
+
+- **`hooks/useGameTimer.ts`** — the `deadlineRef` is hoisted to hook scope, before the effect. The per-turn re-arm (`key !== turnKey`) and the `visibilitychange` resync are unchanged; the ref now persists per component instance, which is what the module's own doc comment ("re-armed only when that key changes, never on unrelated renders") always claimed. A one-off sweep with the real `react-hooks/rules-of-hooks` rule over `app/` + `hooks/` found exactly one violation in the whole tree — this one.
+- **`eslint.config.mjs`** — the stubs are gone: the real `eslint-plugin-react-hooks` is wired in, `react-hooks/rules-of-hooks` as **error** (this regression's class), `react-hooks/exhaustive-deps` as **warn** (several run-once effects deliberately omit deps; visible now, not gated). `eslint-plugin-react-hooks@7.0.1` (previously only a transitive of the deliberately-unconsumed `eslint-config-next`) is now a direct devDependency so the gate is not hostage to hoisting.
+- Full-tree lint now reports **0 errors, 73 exhaustive-deps warnings** — the advisory noise the stubs were hiding, inventoried for a later burn-down.
+
+### Gates
+
+`tsc` 0 errors · `npm run lint` 0 errors · `npm test` 422 / 411 pass / 0 fail / 11 skipped · `check:engine` in sync · `check:drift` 10/10 · `check:routes` 47/47. The lockfile install also closed the long-documented `zod@3.25.76` peer-dep drift that broke `npm ci`.

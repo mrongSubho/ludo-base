@@ -1,6 +1,11 @@
-// Flat ESLint config — Next 16 removed `next lint`; this is the honest lint gate.
-// Avoid FlatCompat + eslint-config-next (circular plugin graph on ESLint 9 / Next 16).
+// Flat ESLint config — Next 16 removed `next lint`; this is the honest lint
+// gate. Avoid FlatCompat + eslint-config-next (circular plugin graph on ESLint
+// 9 / Next 16) — but do NOT regress to stubbing the react-hooks rules while
+// avoiding it: the stub let a `useRef` inside a `useEffect` ship in 881902d
+// (React #321, every match start dead) through lint, tests, and the visual
+// harness. The plugin is a direct devDependency for exactly this reason.
 import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
     {
@@ -24,17 +29,14 @@ export default tseslint.config(
     ...tseslint.configs.recommended,
     {
         plugins: {
-            'react-hooks': {
-                rules: {
-                    'exhaustive-deps': { meta: { docs: { description: 'stub' } }, create: () => ({}) },
-                    'rules-of-hooks': { meta: { docs: { description: 'stub' } }, create: () => ({}) },
-                },
-            },
-            '@next/next': {
-                rules: {
-                    'no-img-element': { meta: { docs: { description: 'stub' } }, create: () => ({}) },
-                },
-            },
+            'react-hooks': reactHooks,
+        },
+        rules: {
+            // Correctness — this rule is why the #321 regression shipped. Hard error.
+            'react-hooks/rules-of-hooks': 'error',
+            // Style/policy — several run-once effects deliberately omit deps.
+            // Surface it, never gate on it.
+            'react-hooks/exhaustive-deps': 'warn',
         },
     },
     {
