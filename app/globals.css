@@ -162,6 +162,16 @@
   --line-strong: rgba(255, 255, 255, 0.25);
   --accent: #22d3ee;                          /* brand accent              */
   --accent-soft: rgba(34, 211, 238, 0.15);    /* accent wash / chip fill   */
+  /* Marketplace category-rail chips — theme-aware badge + active icon. The
+     rail sits on --panel-bg (light in Daybreak), so the hardcoded white/cyan
+     Tailwind utilities read fine on the dark Retro panel go white-on-white
+     there. Drive both from tokens: Retro keeps its exact cyan/white look,
+     Daybreak inverts to dark-on-light. */
+  --market-chip-icon: #67e8f9;
+  --market-chip-count-bg: rgba(255, 255, 255, 0.05);
+  --market-chip-count-ink: rgba(255, 255, 255, 0.30);
+  --market-chip-count-bg-active: rgba(34, 211, 238, 0.20);
+  --market-chip-count-ink-active: #cffafe;
   --accent-ink: #06282f;                      /* text on accent fill       */
   --shadow-panel: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
   --radius-card: 16px;
@@ -251,6 +261,37 @@ body {
   white-space: nowrap;
 }
 .chip-sm { padding: 2px 8px; font-size: 10px; }
+/* ─── Market category chips (MarketplacePanel category rail) ───
+   The four category chips share one row (flex-1 in the rail). The base
+   `.chip` metrics are tuned for standalone pills; tightened here so
+   icon + label + count fit a quarter of the ~460px row with headroom
+   (an over-long label ellipsizes via the chip's inner `truncate` span
+   instead of pushing the chip past its quarter). Layout-only — no
+   colour, so no theme fork. Below 480px a quarter of the row can no
+   longer hold "Themes 2", so the rail wraps to 2×2 instead of
+   truncating labels. */
+.chip-market {
+  padding: 4px 6px;
+  gap: 4px;
+}
+@media (max-width: 479px) {
+  .market-cat-rail { flex-wrap: wrap; }
+  .market-cat-rail .chip-market { flex: 1 1 calc(50% - 4px); }
+}
+/* Theme-aware icon + count badge inside the marketplace category rail.
+   Specificity (0,3,0) beats the original Tailwind utilities so the tokens win
+   in both themes. Inactive badge falls back to the chip's inherited ink. */
+.market-cat-rail .chip-market .market-chip-icon.is-active {
+  color: var(--market-chip-icon);
+}
+.market-cat-rail .chip-market .market-chip-count {
+  background: var(--market-chip-count-bg);
+  color: var(--market-chip-count-ink);
+}
+.market-cat-rail .chip-market .market-chip-count.is-active {
+  background: var(--market-chip-count-bg-active);
+  color: var(--market-chip-count-ink-active);
+}
 .chip.active,
 .chip[aria-pressed="true"] {
   background: var(--accent-soft);
@@ -303,6 +344,12 @@ body.theme-daybreak {
   --line-strong: rgba(15, 23, 42, 0.24);
   --accent: #0d6d87;                          /* AA-safe on #e6e8ec */
   --accent-soft: rgba(13, 109, 135, 0.12);
+  /* Marketplace category-rail chips — dark-on-light inversion (see Retro note). */
+  --market-chip-icon: #0d6d87;
+  --market-chip-count-bg: rgba(0, 0, 0, 0.05);
+  --market-chip-count-ink: rgba(15, 23, 42, 0.45);
+  --market-chip-count-bg-active: rgba(13, 109, 135, 0.12);
+  --market-chip-count-ink-active: #0d6d87;
   --accent-ink: #ffffff;
   --shadow-panel: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
   --radius-card: 18px;

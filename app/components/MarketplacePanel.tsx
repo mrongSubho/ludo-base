@@ -818,9 +818,15 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                 {/* ─── Category rail: separated browse zone with real air ─── */}
                                 {!selectedItem && (
                                     <div className="px-5 pt-3 relative z-10">
+                                        {/* Category chips fill the row equally (flex-1) — no scroll
+                                            rail, and the icon + label + count stay on ONE line:
+                                            `.chip` and the Chip's inner `truncate` span are both
+                                            whitespace-nowrap, and the icon/count are shrink-0.
+                                            min-w-0 lets an over-long label ellipsize instead of
+                                            pushing the chip wider than its quarter of the row. */}
                                         <div
                                             ref={railRef}
-                                            className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1 [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]"
+                                            className="market-cat-rail flex gap-2 w-full"
                                         >
                                             {TAB_META.map(t => {
                                                 const active = activeTab === t.id;
@@ -832,11 +838,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         type="filter"
                                                         active={active}
                                                         onClick={() => setActiveTab(t.id)}
-                                                        className="flex items-center gap-1.5 whitespace-nowrap"
+                                                        className="chip-market flex-1 min-w-0 justify-center whitespace-nowrap"
                                                     >
-                                                        <span className={active ? 'text-cyan-300' : ''}>{t.icon}</span>
+                                                        <span className={`market-chip-icon shrink-0 ${active ? 'is-active' : ''}`}>{t.icon}</span>
                                                         {t.label}
-                                                        <span className={`px-1.5 rounded-md text-[10px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-100' : 'bg-white/5 text-white/30'}`}>{n}</span>
+                                                        <span className={`market-chip-count shrink-0 px-1.5 rounded-md text-[10px] font-mono ${active ? 'is-active' : ''}`}>{n}</span>
                                                     </Chip>
                                                 );
                                             })}
