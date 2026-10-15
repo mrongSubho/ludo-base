@@ -4,8 +4,8 @@
 
 | Field | Value |
 |---|---|
-| Document status | **Rev 2** — revised per `docs/planning/PLANNING_REVIEW_2026-10-13.md`. Owner sign-off still required on §10; **P3+ is gated on the P0 spike** |
-| Date | 2026-10-13 |
+| Document status | **Rev 3** — revised to address the 6 post-Rev-2 review findings (OpenNext `src/worker.ts` entry, local dev story, P3 latency/`match_commit_action` paradox, WS auth in webviews, DO alarms/multitasking, rate-limit placement, cost realism). Owner sign-off still required on §10; **P3+ stays gated on the P0 spike** |
+| Date | 2026-10-15 |
 | Author roles | Senior System Design Architect · Senior Software Engineer · Senior Product Manager |
 | Target platform | Cloudflare Workers (OpenNext 1.18) + Supabase (Postgres 17, Deno Edge Functions) |
 | Related docs | `AGENTS.md`, `ENGINE_LOGIC.md`, `docs/ops/SYSTEM_REVIEW.md`, `docs/ops/IMPLEMENTATION_RECORD.md`, `docs/ops/NETCODE_DRILLS.md`, `docs/ops/UNPARK_DECISION.md`, `docs/architecture/adr-001-betting-window-protocol.md` |
@@ -33,6 +33,13 @@
 | 2 | 2026-10-13 | **§4.2/§4.10/§4.11** added the cookie compliance note, the room-socket abuse model, and the write-amplification/egress lines | PI-8, RK-5, MI-5 |
 | 2 | 2026-10-13 | **Appendix B** declared the single source of truth for invariants (the companion matrix now references it) | XD-5 |
 | 2 | 2026-10-13 | **Appendix G** added — full Rev 2 change record | — |
+| 3 | 2026-10-15 | **§4.4**: replaced the DO deployment note with the **`src/worker.ts` custom worker entry** pattern (re-export OpenNext handler + DO classes + fast-path WS upgrade + Cron handler) and the `wrangler.jsonc` `main` change; added the **room concurrency model** (single-alarm timer min-heap + `blockConcurrencyWhile`/FIFO action queue) | F1, F5 |
+| 3 | 2026-10-15 | **§4.2/§4.5/§4.7**: added the **WebSocket auth handshake** — cookie preferred, with a single-use `?ticket=` or an in-band `join` token for cross-origin iframes / Farcaster webviews where `SameSite` cookies cannot travel | F4 |
+| 3 | 2026-10-15 | **§4.4/§5-P3/§5-P4**: resolved the **`match_commit_action` scope paradox** — P3 now *proxies* the untouched Edge functions (no refactor); the atomic RPC is **P4 only** | F3 |
+| 3 | 2026-10-15 | **§4.11**: added the **P3 cross-cloud latency breakdown** (~180–350 ms/action) and reframed **Workers Paid ($5/mo) as the Day-1 baseline** with the 240-frames × matches math | F3, F7 |
+| 3 | 2026-10-15 | **§4.13 (new)**: **local dev story** — `NEXT_PUBLIC_ROOM_WS_URL` + staging tunnel / dev WS sidecar / offline fallback, so `npm run dev` does not 404 on room sockets | F2 |
+| 3 | 2026-10-15 | **§5-P1**: rate limiting revised to **evaluate the native CF Rate Limiting binding first**; if DO counters, shard by colo+routeClass+ipPrefix and apply only to high-value mutations, reads stay in-memory | F6 |
+| 3 | 2026-10-15 | **§8**: added R21 (DO single-alarm + cooperative multitasking); R5 reframed as Day-1 Paid baseline | F5, F7 |
 
 ---
 
@@ -288,19 +295,50 @@ GET  /api/auth/session     {}                     → { wallet, scope, expiresAt
 |---|---|
 | Membership | Validates the session cookie/token, resolves `matchId` → seats, admits only participants + spectators with `spectator` scope |
 | State | Holds `GameState` + `seq` in DO SQLite; every accepted transition is persisted to Postgres in the same logical step |
-| Rules validation | **P3: delegates to the existing Edge authority** (`move-auth`) — no rules duplication, no engine fork. **P4: relocates in-process** using the synced engine copy, and the Edge path is retired **in the same release** (never both). Relocation is a P4 deliverable, not a P3 one (Rev 2 — XD-1). |
-| Roll minting | **P3: the room calls `roll-dice` on Edge** and persists the receipt. **P4: the room mints in-process** with `crypto.getRandomValues`, writing the `match_rolls` row with the new `minted_by_kind` column; `match_rolls_match_turn_uniq` is unchanged either way (Rev 2 — PI-2). |
+| Rules validation | **P3: the room is a pure HTTP proxy** — it forwards the exact payload the browser client sends today to `move-auth` on Edge and relays the response. **`move-auth` is not modified, forked, or re-implemented in P3** (Rev 3 — F3). **P4: relocates in-process** using the synced engine copy, and the Edge path is retired **in the same release** (never both). Relocation is a P4 deliverable, not a P3 one (Rev 2 — XD-1). |
+| Roll minting | **P3: the room calls `roll-dice` on Edge** (proxy, untouched) and persists the receipt. **P4: the room mints in-process** with `crypto.getRandomValues`, writing the `match_rolls` row with the new `minted_by_kind` column; `match_rolls_match_turn_uniq` is unchanged either way (Rev 2 — PI-2). The atomic `match_commit_action` RPC that collapses the CAS + confirmation is **P4 only** (Rev 3 — F3); P3 keeps the existing two-step Edge path. |
 | Timers | Alarms for turn deadline, AFK strikes (`AFK_STRIKES_REQUIRED = 3`, `AFK_STALE_MS = 60_000`), bet window (`BET_WINDOW_MS = 3000`), reconnect grace (`ABANDON_GRACE_MS = 60_000`) |
 | AI turns | Server-driven, using the deterministic `lcg32`-seeded decision source from the engine, seeded per `(matchId, turn_seq)` for replayability |
 | Fan-out | Broadcast `ENGINE_STATE` with `seq` and `source: 'match_states'` over the room socket set — the existing `shouldApplyGameAction` gate keeps working unchanged on clients |
 | Lifecycle | On terminal state: record the match (server-derived winner), trigger settlement if escrow is armed, close the stream — all server-originated |
 | Spectators | Read-only socket role; `GET /api/match/state` is retained as a fallback for embeds and for clients that cannot open sockets |
 
-**Deployment detail:** the Worker route `/api/room/:matchId/ws` forwards to `env.MATCH_ROOM.get(idFromName(matchId))`. Secrets (Supabase service key, edge settle key) live in Worker secrets via `wrangler secret put`, never in the client bundle.
+**Deployment detail — custom worker entry (Rev 3 — F1).** OpenNext 1.18 generates `.open-next/worker.js` and points `wrangler.jsonc` `main` at it; it does **not** expose a hook to inject custom Durable Object exports. To add `MatchRoom` and `RateLimitDO` without patching `node_modules` or fragile post-build regexes, introduce a **Custom Worker Entrypoint** `src/worker.ts` that re-exports the OpenNext handler and adds the DO classes + a fast-path WebSocket upgrade + the Cron handler:
 
-**Integration prerequisites (Rev 2 — FE-1 / P19).** None of this is wired today: `wrangler.jsonc` has no `durable_objects` binding and no `migrations`, and there is no custom worker entry (`main` is the generated `.open-next/worker.js`). Adding a DO to an OpenNext app requires (a) a custom worker entry that re-exports the OpenNext handler **and** the DO class, (b) `durable_objects` bindings, (c) a `migrations` entry using `new_sqlite_classes`, (d) the **hibernation API** (`state.acceptWebSocket`) rather than `webSocket.accept()`, and (e) a WS route that bypasses the Next handler. This is the **P0 spike** (§5), and its result gates D1 and all of P3.
+```typescript
+// src/worker.ts  (P0 spike scaffold)
+import openNextHandler from "../.open-next/worker.js";
 
-**Phase boundary (Rev 2 — XD-1/PI-3).** P3 makes the room a *pipe with authority over ordering*: it owns the socket set, `seq`, fan-out, reconnect/resume and spectators, and it **calls the existing Edge functions** for rules and minting. P4 makes the room a *clock and a lifecycle owner*: alarms, turn deadlines, AFK strikes, AI turns, the bet window, relocation of validation/minting, and server-originated settle/record/stream. Nothing clock-driven ships in P3.
+export { MatchRoom } from "./room/MatchRoom";
+export { RateLimitDO } from "./rateLimit/RateLimitDO";
+
+export default {
+  async fetch(request: Request, env: CloudflareEnv, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+    // Fast-path WebSocket upgrades directly to the DO, bypassing Next.js server functions
+    if (url.pathname.startsWith("/api/room/")) {
+      const matchId = url.pathname.split("/")[3];
+      if (!matchId) return new Response("Missing matchId", { status: 400 });
+      const id = env.MATCH_ROOM.idFromName(matchId);
+      return env.MATCH_ROOM.get(id).fetch(request);
+    }
+    return openNextHandler.fetch(request, env, ctx);
+  },
+  async scheduled(event: ScheduledEvent, env: CloudflareEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(handleCronTrigger(event, env));
+  },
+};
+```
+
+Then change `wrangler.jsonc` from `"main": ".open-next/worker.js"` to `"main": "src/worker.ts"`, add a `durable_objects.bindings` block (`MATCH_ROOM`, `RATE_LIMITER`) and a `migrations` entry using `new_sqlite_classes`, and keep `compatibility_flags` (`nodejs_compat`, `global_fetch_strictly_public`). **P0 spike acceptance (Rev 3 — F1):** `opennextjs-cloudflare deploy` must invoke `wrangler deploy` against `src/worker.ts` **without** `wrangler.jsonc` validation warnings about a missing `.open-next/worker.js`, and the existing 47 routes must still resolve through `openNextHandler.fetch`. Secrets (Supabase service key, edge settle key) live in Worker secrets via `wrangler secret put`, never in the client bundle.
+
+**Room concurrency model (Rev 3 — F5).** Two Cloudflare DO constraints shape the room:
+- **One alarm per DO.** A Durable Object can hold only a single scheduled alarm (`state.storage.setAlarm`). The room cannot set independent alarms for `turnDeadline`, `betWindow`, `afkCheck`, `reconnectGrace`. Instead it maintains an **internal timer min-heap**: every timer insert/modify recomputes `nextEarliestDeadline = min(active timers)` and calls `setAlarm(nextEarliestDeadline)`; on `alarm()` it drains all expired timers, emits their lifecycle events, and reschedules the next earliest. (P3 deliverable.)
+- **Cooperative multitasking during `await`.** The DO is single-threaded, but it yields to the event loop at every `await`. A second intent or an `alarm()` can run while the first is mid-commit, reading stale in-memory state. State-mutating intent processing is therefore wrapped in `this.ctx.blockConcurrencyWhile(async () => { ... })` (or a single in-DO FIFO action queue), so a Postgres commit completes before the next message is processed. (P3 deliverable; covered by a new concurrency test — §6.)
+
+**Integration prerequisites (Rev 2 — FE-1 / P19).** None of this is wired today: `wrangler.jsonc` has no `durable_objects` binding and no `migrations`, and there is no custom worker entry (`main` is the generated `.open-next/worker.js`). The custom-worker-entry pattern above closes the gap. Adding a DO to an OpenNext app requires (a) the custom worker entry re-exporting the OpenNext handler **and** the DO class, (b) `durable_objects` bindings, (c) a `migrations` entry using `new_sqlite_classes`, (d) the **hibernation API** (`state.acceptWebSocket`) rather than `webSocket.accept()`, and (e) a WS route that bypasses the Next handler. This is the **P0 spike** (§5), and its result gates D1 and all of P3.
+
+**Phase boundary (Rev 2 — XD-1/PI-3; Rev 3 — F3).** P3 makes the room a *pipe with authority over ordering*: it owns the socket set, `seq`, fan-out, reconnect/resume and spectators, and it **proxies the existing Edge functions** (no refactor, no `match_commit_action`). P4 makes the room a *clock and a lifecycle owner*: alarms, turn deadlines, AFK strikes, AI turns, the bet window, the atomic `match_commit_action` commit, relocation of validation/minting, and server-originated settle/record/stream. Nothing clock-driven ships in P3.
 
 **Why not "Postgres + Supabase Realtime" as the authority:** it has no per-match clock. Turn deadlines, AFK strikes, and the 3-second bet window would have to be driven by `pg_cron` (minute granularity) or by a client — which is exactly the problem being removed. Realtime stays for lobby/social and as a fan-out fallback, not as the authority.
 
@@ -308,7 +346,7 @@ GET  /api/auth/session     {}                     → { wallet, scope, expiresAt
 
 | Channel | Purpose | Authorization |
 |---|---|---|
-| Room WebSocket (DO) | In-match state, actions, timers, spectators | Session cookie + membership check at upgrade; per-message capability check |
+| Room WebSocket (DO) | In-match state, actions, timers, spectators | **Upgrade auth (Rev 3 — F4):** prefer the `__Host-` session cookie; when cookies are unavailable (cross-origin iframe / Farcaster webview under ITP), accept a single-use **ticket** in the upgrade query param `?ticket=<single_use_ticket>` **or** an in-band `join` frame carrying the session token (see §4.7). The DO holds the socket in an `unauthenticated` state until a valid credential arrives, then runs the membership check. Per-message capability checks still apply. |
 | Supabase Realtime, private channel `match:${matchId}` | Fan-out fallback + `realtime.broadcast_changes` mirror of `match_states` | `realtime.messages` RLS + `realtime.setAuth()`; **closes NET-03a/b** |
 | Supabase Realtime, `lobby:*` / presence | Lobby, invites, online presence | Private channels with the same RLS posture |
 | PeerJS | Demoted to an explicitly-labelled degraded path (or removed in P6) — never an authority | n/a |
@@ -357,7 +395,7 @@ Each new cleanup RPC must be added to `check:schema` A2 (every `.rpc()` call sit
 **WebSocket frames** (extends `lib/protocol/schemas.ts`; all payloads `.strict()`):
 
 ```
-C→S  { t: 'join',     matchId, as: 'seat'|'spectator', lastSeq? }
+C→S  { t: 'join',     matchId, as: 'seat'|'spectator', lastSeq?, token? }
 C→S  { t: 'intent',   intentId, kind: IntentKind, payload }   // IntentKind = the live union at lib/gameProtocol.ts:12
 S→C  { t: 'state',    seq, state, source: 'match_states', deadlineAt }
 S→C  { t: 'rejected', intentId, code, seq, state? }
@@ -365,6 +403,8 @@ S→C  { t: 'timer',    kind: 'turn'|'bet_window'|'afk_strike', deadlineAt, stri
 S→C  { t: 'lifecycle',kind: 'bet_window_open'|'bet_window_closed'|'settled'|'recorded'|'ended' }
 S→C  { t: 'ping' } / C→S { t: 'pong' }
 ```
+
+**WebSocket auth handshake (Rev 3 — F4).** The browser WebSocket API cannot set custom HTTP headers, and in a cross-origin iframe / Farcaster webview under ITP or third-party-cookie deprecation a `SameSite=Lax` `__Host-` cookie is **not** sent on the `Upgrade` request. The room therefore supports three upgrade paths, tried in order: (1) the `__Host-` session cookie (normal browsers); (2) a single-use **ticket** in the query string — `wss://…/api/room/:id/ws?ticket=<single_use_ticket>` — minted by the `/api/auth/match` endpoint and bound to the match + scope; (3) an **in-band `join` frame carrying `token`** within 5 s of connect. Until a valid credential arrives the socket stays in an `unauthenticated` state; only after the membership check passes does it receive `state` frames. This keeps the Farcaster/webview path usable without relaxing the cookie posture for everyone else.
 
 **Intent kinds (Rev 2 — PI-1).** `IntentKind` is the union that actually exists at `lib/gameProtocol.ts:12`: `REQUEST_ROLL`, `REQUEST_MOVE`, `DICE_COMMIT`, `DICE_REVEAL`, `CMD_REQUEST_TRUST`. **`REQUEST_POWER` is not an intent** — power submission is a `move-auth` `submit-power` action. The frame type must be derived from the live union (or the union extended deliberately in the same change), never from an imagined one: a contract written against a guessed union is how a migration ships a hole. `DICE_COMMIT` / `DICE_REVEAL` / `CMD_REQUEST_TRUST` are retired in P6.
 
@@ -387,6 +427,9 @@ client                     server                         postgres
 ```
 
 **Roll + move (room-managed):**
+
+> **P3:** the room **proxies** the exact HTTP payload to `move-auth` / `roll-dice` on Edge — those functions are *unchanged* (Rev 3 — F3). **P4:** validation/minting move in-process and collapse into the atomic `match_commit_action` RPC (one transaction, no confirmation step).
+
 ```
 seat A        room (DO)          edge authority        postgres
   |-- intent ROLL {} ->|                                  |
@@ -426,6 +469,7 @@ room: terminal state observed
 | Edge authority unavailable (P3 delegation) | Roll/move requests return `ROOM_UNAVAILABLE`; match pauses rather than falling back to client RNG | Preserves `ENGINE_LOGIC.md:173` ("no client RNG fallback") |
 | Realtime down | Room socket is primary; Realtime is fallback — one path failing does not stop play | Dual-path resilience retained from today |
 | Cookie rejected (webview) | Boot probe selects the short-lived bearer + refresh path | Keeps Farcaster webview usable (R6) |
+| WebSocket upgrade with no cookie (cross-origin iframe / ITP) | DO holds socket `unauthenticated`; client sends `?ticket=` at upgrade or a `join` frame with `token` within 5 s; otherwise 401 | `SameSite` cookie cannot travel in third-party iframes (Rev 3 — F4) |
 | Offline / pass-and-play | Local `processMove`, match never recorded | Unchanged |
 
 ### 4.10 Security analysis — threat-model delta
@@ -463,10 +507,10 @@ room: terminal state observed
 | Dimension | Today | After | Notes |
 |---|---|---|---|
 | Worker CPU per invocation (free tier: **10 ms**) | SSR shell only | SSR shell + WS upgrade + room forwarding | Room logic runs in the DO, whose CPU budget is separate; keep the Worker route thin |
-| Realtime hop | Client → Supabase Realtime / PeerJS | Client → DO (edge-local) → Edge authority (P3) | Expect ~30–80 ms added per action in P3 if validation stays in Edge; this is the measured input to the P4 decision |
+| Realtime hop (Rev 3 — F3) | Client → Supabase Realtime / PeerJS | Client → DO (edge-local) → Edge authority (P3) | **P3 cross-cloud latency tax:** client→DO ~15–30 ms, DO→Supabase Edge (cross-cloud HTTPS) ~60–120 ms, Edge→Postgres (CAS+query) ~30–50 ms, back ~60–120 ms + DO→client ~15–30 ms → **~180–350 ms per action** while P3 still delegates to Edge. Turn-based Ludo tolerates this, but the §7.2 SLO (`p95 ≤ baseline + 150 ms`) will be tight in P3 and is the *measured input* to the P4 relocation decision — moving validation/minting in-process removes the two cross-cloud legs. |
 | Postgres write volume (Rev 2 — MI-5) | 1–3 rows per accepted action | ~2–4 rows per action + one `match_room_events` row per lifecycle event | Batch lifecycle events; keep per-move rows at turn granularity. This is the growth driver against the 500 MB cap — see the retention policy in §4.6 |
 | Room → PostgREST egress (Rev 2 — MI-5) | Client → Realtime / PostgREST | Every commit is an HTTPS round trip from the edge to the Postgres region, counted against the 5 GB free egress allowance | Batch lifecycle writes; measure in P3 before P4 relocates anything |
-| Requests/day budget | 100k free (Workers) | Room sockets + frames share the same budget | **Cost trigger:** sustained >70k/day → move to Workers Paid ($5, 10M requests, 50 ms CPU) |
+| Requests/day budget (Rev 3 — F7) | 100k free (Workers) | Room sockets + frames share the same budget | **Workers Paid ($5/mo, 10M requests, 50 ms CPU) is the expected Day-1 baseline from P1, not an emergency contingency.** WebSocket hibernation wakes count as 1 Worker request per frame; an active 4-player match averages ~240 frames, so 400 completed matches/day ≈ **96k requests/day** just for game traffic — the free ceiling is hit with **fewer than ~150 daily active players**. Keep the >70k/day figure as a ceiling alarm, but budget for Paid from day one. |
 | Storage | Postgres 500 MB free cap | + DO SQLite (per-match, short-lived) + audit rows | Room storage is per-match and reclaimed at match end; audit rows are the growth driver — monitor |
 | Supabase free watch items | 500 MB DB, pause after ~1 week idle | Unchanged | Keep-alive traffic from the app already mitigates; verify |
 
@@ -483,6 +527,18 @@ Flags are flipped per cohort, but a match lives for minutes and a deploy is inst
 
 **Consequence for flag design:** `ROOM_V2` is evaluated **at match creation**, not per request. That also makes the drill concrete — **D8 "flip `ROOM_V2` off during a live room match"** is an exit-gate item for P3.
 
+### 4.13 Local development story (Rev 3 — F2)
+
+`npm run dev` (Turbopack) is the only reliable dev command (`AGENTS.md`), but it has no knowledge of Cloudflare Workerd, Durable Objects, or WebSocket upgrades. A developer who opens the board in `npm run dev` gets a **404** from Next.js on `/api/room/:matchId/ws`, because the room DO only exists inside the Cloudflare runtime. `opennextjs-cloudflare preview` (Miniflare) is slow, disables HMR, and trips the Turbopack module-duplication "Invalid hook call" issue noted in `AGENTS.md`. The local dev story must therefore be explicit:
+
+| Option | What it is | Use when |
+|---|---|---|
+| **A. Staging DO tunnel** | The client reads `NEXT_PUBLIC_ROOM_WS_URL`; in `npm run dev` it points at `wss://staging.ludobase.com/api/room/:id/ws` (a deployed preview room). Game logic runs locally; the room transport is the real DO. | Default for most dev; closest to prod shape |
+| **B. Dev WS sidecar** | A lightweight `tsx` WebSocket server `scripts/dev-room-server.ts` emulating the DO frame contract (`join`/`intent`/`state`/`rejected`) against a local Postgres. No Cloudflare runtime needed. | When staging is unavailable or you need to debug the frame protocol offline |
+| **C. Offline / PeerJS fallback** | Local pass-and-play and the legacy PeerJS path remain usable with no room at all. | Single-device, no-network testing |
+
+**Rule:** `ROOM_V2` in dev resolves the WS URL via `NEXT_PUBLIC_ROOM_WS_URL` (Option A) or the sidecar (Option B); it never assumes an in-process DO. The P0 spike proves the production wiring; the dev story is what lets the rest of the team build against the room before P3 lands. **Defining the story (and recording the Option A/B/C choice in `AGENTS.md` / `docs/dev/`) is a P0 deliverable** — the wiring of Option A/B is a P3 companion task.
+
 ---
 
 ## 5. Migration plan
@@ -496,10 +552,11 @@ Flags are flipped per cohort, but a match lives for minutes and a deploy is inst
 2. Feature flags `AUTH_V2`, `ROOM_V2`, `SERVER_LIFECYCLE` in one config module — `ROOM_V2` evaluated **at match creation** (§4.12).
 3. Telemetry baseline captured (signing prompts per match, abandon rate, completion rate, p95 action→state latency, 401 rate, Worker CPU p95).
 4. `check:routes` extension design reviewed; the merged problem register (§3.6) adopted as the single ID space.
-5. **The Durable Object-in-OpenNext spike (Rev 2 — FE-1 / P19), with a pass/fail criterion.**
+5. **The Durable Object-in-OpenNext spike (Rev 2 — FE-1 / P19; Rev 3 — F1), with a pass/fail criterion** — including the `src/worker.ts` custom worker entry that wraps the OpenNext handler (see §4.4).
+6. **Local dev story defined (Rev 3 — F2):** `NEXT_PUBLIC_ROOM_WS_URL` + the Option A/B/C decision recorded in `AGENTS.md` / `docs/dev/`, so `npm run dev` does not 404 on room sockets during P1–P3.
 
 **The spike — pass/fail criterion.** On a throwaway branch, deployed to a preview environment, prove all five:
-1. A **custom worker entry** that re-exports the OpenNext handler **and** exports a `MatchRoom` DO class, with `wrangler.jsonc` declaring the `durable_objects` binding and a `migrations` entry using `new_sqlite_classes`.
+1. A **custom `src/worker.ts` worker entry** (§4.4) that re-exports the OpenNext handler **and** exports `MatchRoom` + `RateLimitDO` DO classes, with `wrangler.jsonc` changed to `"main": "src/worker.ts"`, a `durable_objects` binding, and a `migrations` entry using `new_sqlite_classes`. The branch must deploy via `opennextjs-cloudflare deploy` **without** `wrangler.jsonc` validation warnings about a missing `.open-next/worker.js`, and the existing 47 routes must still resolve through `openNextHandler.fetch`.
 2. A `/api/room/:id/ws` route that upgrades to a WebSocket and **bypasses the Next handler** without breaking the existing 47 routes.
 3. **Hibernatable** sockets via `state.acceptWebSocket`, verified by an idle-window test (the room survives idle and still delivers a message).
 4. An **alarm** that fires on schedule and is observable in the DO's state.
@@ -515,7 +572,7 @@ Rev 2 — this phase absorbed two cheap, independent wins from the placement mat
 
 **Deliverables:**
 1. **Sessions:** `auth_challenges` + `sessions` migrations; `/api/auth/*` routes; cookie + CSRF posture; scope model; `requireSession(scope, capability)` replacing `requireAppSession` at all 34 call sites; boot capability probe for the webview fallback; back-fill from `app_sessions`; `auth-gate` extended with a scope-isolation test (an `app`-scope token is rejected by every match-scope endpoint).
-2. **Distributed rate limiting (P13/G1):** replace the in-process `Map` with a **DO counter** store behind the existing `checkRateLimit` API. KV is ruled out — 1,000 writes/day on the free tier.
+2. **Distributed rate limiting (P13/G1, Rev 3 — F6):** first evaluate the **native Cloudflare Rate Limiting binding** (`rate_limiting` config) — it executes in the local colo with zero cross-region hops and no request amplification. If a DO counter is used instead, **shard it** by `env.RATE_LIMITER.idFromName(\`${colo}_${routeClass}_${ipPrefix}\`)` so counters are colo-local, and apply DO-backed limiting **only to high-value mutations** (`/api/auth/*`, `/api/match/start`, `/api/chips/*`); **read/static routes stay in-memory per isolate** and never hit a DO. KV is ruled out — 1,000 writes/day on the free tier. A single global DO limiter on every one of the 47 routes would add 150–250 ms cross-continental RTT for non-`us` users and double the request count against the free budget.
 3. **Scheduler (P14/G2):** the first **CF Cron Trigger** → Worker → the existing `cleanup_matchmaking_queue` / `cleanup_stale_data` RPCs, which nothing has ever invoked.
 4. **Retention:** `cleanup_auth_challenges` + `cleanup_sessions` RPCs (§4.6) on the same Cron trigger.
 
@@ -535,7 +592,7 @@ Rev 2 — this phase absorbed two cheap, independent wins from the placement mat
 
 Rev 2 — P3 is now scoped to the **pipe**, not the clock (XD-1 / PI-3). Validation and minting are **delegated to the existing Edge functions**; the relocation is P4. The XL moved to P4 with it.
 
-**Deliverables:** DO class `MatchRoom` with SQLite storage + hibernatable sockets, wired per the P0 spike; `/api/room/:matchId/ws` upgrade route; join/intent/reject/state frames per §4.7; **the room forwards actions to the existing Edge authority** — no rules duplication, no engine fork; `seq` ownership and fan-out; reconnect/resume via `lastSeq`; spectator role (read-only); client `RoomClient` behind `ROOM_V2`; `useGameEngine` keeps `computeAuthority` for **offline only**; **`match_commit_action` RPC (P15/G7) plus its gate updates** — `check:schema` A1/A2, the DB-mode definer assertions, and the `check:routes` entry.
+**Deliverables:** DO class `MatchRoom` with SQLite storage + hibernatable sockets, wired per the P0 spike; `/api/room/:matchId/ws` upgrade route; join/intent/reject/state frames per §4.7 (incl. the ticket / in-band `join` token auth from §4.7); the room **proxies the exact HTTP payload** to the existing Edge functions (`move-auth`, `roll-dice`) — **these functions are not modified, forked, or re-implemented in P3** (Rev 3 — F3); the **timer min-heap + `blockConcurrencyWhile`/FIFO action queue** from §4.4 (Rev 3 — F5); `seq` ownership and fan-out; reconnect/resume via `lastSeq`; spectator role (read-only); client `RoomClient` behind `ROOM_V2`; `useGameEngine` keeps `computeAuthority` for **offline only**. **The atomic `match_commit_action` RPC is deliberately NOT built in P3 — it is a P4 deliverable** (Rev 3 — F3); P3 keeps the existing two-step Edge CAS+confirmation path. P3 gate updates for the room transport (`check:routes`, `check:schema` room-invocation assertions) ship here; the `match_commit_action` schema/definer assertions move to P4.
 
 **Scope order: 1v1 → 2v2 → 4P.** Each mode is a separate flag flip with its own drill evidence. `ROOM_V2` is evaluated at match creation (§4.12).
 
@@ -548,7 +605,7 @@ Rev 2 — P3 is now scoped to the **pipe**, not the clock (XD-1 / PI-3). Validat
 Rev 2 — this phase grew: it owns everything clock-driven **and** the relocation of validation/minting that P3 no longer does (XD-1). The XL moved from P3 to here.
 
 **Deliverables:**
-1. **Relocation:** `move-auth` validation and `roll-dice` minting move in-process into the room using the synced engine copy; the Edge path is retired **in the same release** (never both). **Engine third copy + `check:engine` third target** (P18/G10), with golden-replay hash equality.
+1. **Relocation + atomic commit:** `move-auth` validation and `roll-dice` minting move in-process into the room using the synced engine copy; the Edge path is retired **in the same release** (never both). **The `match_commit_action` RPC (P15/G7) is created and adopted here** (Rev 3 — F3): it atomically does the `seq` CAS → roll consumption → `match_moves` insert → `match_states.seq` bump and returns the new state or `STALE_SEQ`, replacing the P3 two-step Edge path with one transaction and no race window. **Engine third copy + `check:engine` third target** (P18/G10), with golden-replay hash equality.
 2. **The clock:** turn deadlines, AFK strikes (`AFK_STRIKES_REQUIRED = 3`, `AFK_STALE_MS = 60_000`), the bet window (`BET_WINDOW_MS = 3000`), reconnect grace (`ABANDON_GRACE_MS = 60_000`) — all via DO alarms.
 3. **AI turns** server-side, using the deterministic `lcg32` seed per `(matchId, turn_seq)`.
 4. **Lifecycle:** settlement triggered by terminal state with the pool-authority co-sign (host signature removed); match recording server-originated; stream lifecycle server-managed.
@@ -587,7 +644,7 @@ Rev 2 — this phase grew: it owns everything clock-driven **and** the relocatio
 | Schema | `check:schema` (static + DB mode), `check:rls` | `auth_challenges`, `sessions`, `match_room_events`, `realtime.messages` policies, `minted_by_kind` |
 | Concurrency | `test:concurrency` (real Postgres) | Room-vs-Postgres race: one roll per turn, one winner, idempotent settle |
 | Netcode drills | `drill:live`, `drill:deep`, `net.chaos` | D1–D4 re-run on the room transport; **new D6** "room eviction and resume"; **new D7** "host device killed mid-turn"; **new D8** "flip `ROOM_V2` off during a live room match" (§4.12) |
-| Platform (Rev 2) | — | Rate limiter holds **across two isolates** (not `limit × isolates`); a Cron trigger actually invokes the cleanup RPCs and the queue shrinks; the retention RPCs shrink their tables; the room-socket abuse controls (§4.10) hold under a flood test |
+| Platform (Rev 2; Rev 3 — F5/F6) | — | Rate limiter holds **across two isolates** (not `limit × isolates`) **and** read routes are not routed through the DO (F6); a Cron trigger actually invokes the cleanup RPCs and the queue shrinks; the retention RPCs shrink their tables; the room-socket abuse controls (§4.10) hold under a flood test; the DO **timer min-heap** drains all expired timers and reschedules correctly; `blockConcurrencyWhile`/FIFO queue prevents interleaved commits under concurrent intents + an `alarm()` firing mid-commit (F5) |
 | Perf | Node bench (`bench:hop`), `lib/perf/budget.ts` | Room hop latency budget; WS frame size cap (`MAX_MESSAGE_BYTES = 32 * 1024`) enforced server-side |
 
 **Evidence standard:** each phase's gate is recorded in `docs/ops/IMPLEMENTATION_RECORD.md` as a dated entry, with the command run and its output summary — matching the DB-22 closure format already in use.
@@ -617,7 +674,7 @@ Rev 1 left targets as `baseline → +X%`. These are now numeric, owned and windo
 | Signing prompts per match during play | **0** | Eng | Any non-zero value fails the cohort |
 | Match completion rate (terminal / started) | **≥ baseline and ≥ 95%** for 1v1 human | PM | A drop > 5 pp rolls the cohort back |
 | Host-disconnect match loss | **≤ 1%** of matches | Eng | Any match lost to host disconnect fails the cohort |
-| p95 action→state latency | **≤ baseline + 150 ms** | Eng | Exceeding it blocks the P4 relocation until re-measured |
+| p95 action→state latency | **≤ baseline + 150 ms** | Eng | P3 (cross-cloud delegation, ~180–350 ms/action — §4.11) is expected to approach this; exceeding it in P3 blocks the P4 relocation until re-measured — it is the *input* to the relocation decision, not a P3 failure by itself |
 | Reconnect success rate | **≥ 98%** within 30 s | Eng | < 95% fails the cohort |
 | Spectator join success | **≥ 99%** | Eng | — |
 | 401 rate | **≤ 1.5× baseline** | Eng | > 3× baseline triggers rollback (§7.4) |
@@ -657,7 +714,7 @@ Rev 1 left targets as `baseline → +X%`. These are now numeric, owned and windo
 | R2 | Dual authority creeps in during rollout | M | H | Flag is either/or, asserted by test; no "both" mode | any code path where two components can accept a transition |
 | R3 | Engine fork (client/Edge/room) | M | H | `sync-edge-engine.mjs` extended to all targets; `check:engine` covers every copy; golden hash equality gate | `check:engine` divergence |
 | R4 | Regression of a closed finding (154 items) | M | H | Existing gates stay mandatory; each phase lists the findings it touches; closures by test only | any gate red |
-| R5 | DO free-tier budget exhausted | M | M | Monitor requests/day; cost trigger at 70k/day → Workers Paid ($5) | dashboard threshold |
+| R5 | DO/Worker free-tier budget exhausted | M | M | **Workers Paid ($5/mo) is the Day-1 baseline from P1** (Rev 3 — F7), not a contingency; the >70k/day figure is a ceiling alarm; frame-amplification math (240 frames × matches) is tracked per cohort | dashboard threshold; budget line item from P1 |
 | R6 | Cookie rejected in Farcaster/in-app webview | M | H | Boot capability probe + short-lived bearer fallback; time-boxed and instrumented | 401 spike per cohort |
 | R7 | CSRF posture breaks legitimate clients | L | M | SameSite=Lax + origin allowlist; probe in staging; CSRF rejection metric ~0 | spike in 403 |
 | R8 | Server-originated settlement mis-settles | L | H | Escrow arming interlock; winner from state; idempotency keys; audit rows; kill switch; observe-only first | any mismatch log |
@@ -673,6 +730,7 @@ Rev 1 left targets as `baseline → +X%`. These are now numeric, owned and windo
 | **R18** | New tables exhaust the 500 MB Postgres cap | M | M | Retention/GC policy (§4.6) with RPCs on the P1 Cron trigger; row-growth metric | trending toward the cap |
 | **R19** | Room-socket abuse (frame floods, socket hoarding, `matchId` enumeration) | M | M | §4.10 abuse controls: per-socket frame budget, socket caps, uniform `MATCH_NOT_FOUND`, limiter DO | abuse signals in the room logs |
 | **R20** | Bus factor — the plan assumes architect/backend/realtime owners | M | H | §9 records the staffing assumption; each phase is independently shippable and documented | any phase with no available owner |
+| **R21** | DO single-alarm + cooperative-multitasking hazards (timer drift, interleaved commits, stale in-memory reads) | M | H | Timer min-heap + `setAlarm(min)` (only one alarm per DO); `blockConcurrencyWhile`/FIFO action queue around state mutation; a concurrency test asserts one roll per turn and no interleaved commit under alarm+intent load (Rev 3 — F5) | any timer fired late, or a committed `seq` mismatch under load |
 
 ---
 
@@ -708,7 +766,7 @@ P0 ──► P1 ──► P2 ──┬──► P3 ──► P4 ──┬──�
 
 | ID | Decision | Options | Recommendation | Impact if deferred |
 |---|---|---|---|---|
-| **D1** | Where does lifecycle authority live? | (a) Durable Object per match; (b) Postgres + Realtime + pg_cron; (c) keep player-as-authority | **(a)** — the only option that gives a server-side clock, which is the core of F1/P8. **Rev 2: explicitly gated on the P0 spike** (R15/P19); if the spike fails, re-decide with the evidence. Full trade-off in `docs/architecture/WORKLOAD_PLACEMENT_MATRIX.md` §8 | P3 cannot start |
+| **D1** | Where does lifecycle authority live? | (a) Durable Object per match; (b) Postgres + Realtime + pg_cron; (c) keep player-as-authority | **(a)** — the only option that gives a server-side clock, which is the core of F1/P8. **Rev 2: explicitly gated on the P0 spike** (R15/P19); **Rev 3 — F1: delivered as the `src/worker.ts` custom worker entry** that wraps the OpenNext handler. If the spike fails, re-decide with the evidence. Full trade-off in `docs/architecture/WORKLOAD_PLACEMENT_MATRIX.md` §8 | P3 cannot start |
 | **D2** | PeerJS fate | (a) demote to degraded fallback; (b) remove entirely in P6 | **(a) now, revisit at P6** with usage data | P5/P6 scope unclear |
 | **D3** | Session transport | (a) cookie-only; (b) cookie + time-boxed bearer fallback for webviews | **(b)**, with the fallback instrumented and scheduled for removal | Farcaster users risk lockout |
 | **D4** | On-chain settle origination | (a) server-originated with pool-authority co-sign; (b) keep host signature as a second key | **(a)** — (b) preserves the F2 class of failure | P4 blocked |
@@ -743,6 +801,10 @@ P0 ──► P1 ──► P2 ──┬──► P3 ──► P4 ──┬──�
 | DO wiring absent (Rev 2) | `wrangler.jsonc` (no `durable_objects`, no `migrations`); no custom worker entry; `main` = `.open-next/worker.js` |
 | Rate limiting is per-isolate (Rev 2) | `lib/rateLimit.ts:10-19,42`; `hasSharedStore()` unimplemented |
 | No scheduler exists (Rev 2) | `baseline.sql:575-609` (granted to `service_role`, never invoked); cron lines commented out in `migrations/20260904_matchmaking_phase1.sql:38-39` |
+| Custom worker entry required (Rev 3 — F1) | `wrangler.jsonc` `main = ".open-next/worker.js"`; `@opennextjs/cloudflare` 1.18 generates `cli/templates/worker.js` with its own internal DO exports and no hook to inject custom DO classes — hence `src/worker.ts` re-exporting `openNextHandler` + DO classes |
+| WebSocket auth gap in iframes (Rev 3 — F4) | Browser `WebSocket` API cannot set headers; `SameSite=Lax` `__Host-` cookies are not sent on `Upgrade` inside cross-origin iframes / under ITP — therefore ticket / in-band `join` token |
+| P3 cross-cloud latency + free-tier math (Rev 3 — F3/F7) | Cloudflare region → Supabase Edge (Deno) is a cross-cloud HTTPS hop (~60–120 ms each way); 240 frames × 400 matches/day ≈ 96k Worker requests/day, exhausting the 100k free ceiling with <150 DAP |
+| Rate-limit placement (Rev 3 — F6) | A single global DO limiter adds 150–250 ms cross-continental RTT and request amplification; native CF `rate_limiting` binding runs local-colo; DO counters must be sharded by colo+routeClass+ipPrefix and scoped to mutation routes |
 
 ## Appendix B — Invariants that must not regress
 
@@ -842,3 +904,19 @@ Every finding from `docs/planning/PLANNING_REVIEW_2026-10-13.md` and where it wa
 | MI-6 protocol surface missing | Low | Added to §3.5 **both** here and in the matrix inventory | §3.5 |
 
 **Not resolved by this revision (deliberately):** D1–D8 in §10 remain owner decisions. This revision supplies the evidence and the gate for each; it does not make the call.
+
+## Appendix H — Rev 3 change record (post-Rev-2 review: 6 findings + cost realism)
+
+The six findings from the post-Rev-2 review (numbered F1–F6 below) plus the cost-realism note (folded into F3/F7). Each is resolved in this revision.
+
+| Finding | Severity | Resolution | Location |
+|---|---|---|---|
+| F1 OpenNext 1.18 has no hook to inject custom DO exports | Critical | §4.4 now specifies the **`src/worker.ts` custom worker entry** (re-export handler + DO classes + WS fast-path + Cron), the `wrangler.jsonc` `main` change, and a P0 spike acceptance that `opennextjs-cloudflare deploy` runs against `src/worker.ts` with no validation warnings | §4.4, §5-P0, §10, Appendix A |
+| F2 `npm run dev` 404s on room sockets | Medium | **§4.13** local dev story: `NEXT_PUBLIC_ROOM_WS_URL` + staging tunnel (A) / dev WS sidecar `scripts/dev-room-server.ts` (B) / offline fallback (C); defined as a P0 deliverable | §4.13, §5-P0 |
+| F3 P3 cross-cloud latency + `match_commit_action` paradox | High | Latency breakdown added to §4.11; **P3 is now a pure proxy of the untouched Edge functions** — `match_commit_action` is moved to **P4** (atomic commit on relocation). `move-auth` is never refactored in P3 to be deleted in P4 | §4.4, §4.8, §4.11, §5-P3, §5-P4, §6 |
+| F4 WebSocket auth in webview / iframe | High | §4.5/§4.7 add the **ticket query param / in-band `join` token** upgrade path; socket held `unauthenticated` until a valid credential arrives; §4.9 failure-mode row added | §4.5, §4.7, §4.9 |
+| F5 DO single-alarm + cooperative multitasking | High | §4.4 adds the **timer min-heap** (`setAlarm(min)`) and the **`blockConcurrencyWhile`/FIFO action queue**; both are P3 deliverables with a concurrency test in §6; R21 added | §4.4, §5-P3, §6, §8 |
+| F6 Rate-limiter global latency bottleneck | High | §5-P1 now evaluates the **native CF Rate Limiting binding first**; if DO counters, shard by colo+routeClass+ipPrefix and apply only to high-value mutations; reads stay in-memory | §5-P1, §6, Appendix A |
+| F7 Cost realism (free tier exhausted <150 DAP) | Medium | §4.11 reframes **Workers Paid ($5/mo) as the Day-1 baseline from P1** with the 240-frames × matches math; >70k/day retained as a ceiling alarm; R5 and the matrix cost table updated | §4.11, §8, matrix §8/§9 |
+
+**Net effect on the plan:** P3 shrinks slightly in risk (no Edge refactor, no atomic RPC), and the only genuinely new engineering surface in P3 is the DO's *transport* concerns (timer heap, action queue, WS auth fallback) — which is exactly what the P0 spike and the P3 drills must cover. The atomic `match_commit_action` RPC is preserved as the headline P4 win.

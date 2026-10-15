@@ -4,8 +4,8 @@
 
 | Field | Value |
 |---|---|
-| Status | **Rev 2** — revised per `docs/planning/PLANNING_REVIEW_2026-10-13.md`. Findings XD-1, XD-5, XD-6, MI-1…MI-6 resolved. Decision **D1** resolved as (a) Durable Object per match, **gated on the P0 spike** (FE-1) |
-| Date | 2026-10-13 |
+| Status | **Rev 3** — revised to address the 6 post-Rev-2 review findings (F1 `src/worker.ts` entry, F2 local dev, F3 P3 latency/`match_commit_action`, F4 WS auth in webviews, F5 DO alarms/multitasking, F6 rate-limit placement) and cost realism (F7). Decision **D1** resolved as (a) Durable Object per match, **gated on the P0 spike** (FE-1), delivered as the `src/worker.ts` custom worker entry |
+| Date | 2026-10-15 |
 | Companion to | `docs/planning/SERVER_AUTHORITY_MIGRATION_PLAN.md` (Doc A — the *what/when*) — this document is the *where* |
 | Evidence base | 29 canonical migrations, 17 callable `SECURITY DEFINER` functions, 3 Edge Functions, 47 API routes, `lib/gameProtocol.ts`, `lib/rateLimit.ts`, `lib/supabase.ts`, `wrangler.jsonc`, `open-next.config.ts`, `202609300013_db09_grant_hardening.sql` |
 
@@ -23,6 +23,11 @@
 | 2 | 2026-10-13 | **§5** invariants de-duplicated — now owned by Doc A Appendix B and referenced here | XD-5 |
 | 2 | 2026-10-13 | **§4/§8/§10** added a phase column, gated D1 on the P0 spike, aligned sequencing with Doc A | XD-1, XD-6 |
 | 2 | 2026-10-13 | Appendix renumbered to §12; one-line answers updated to reflect the decisions above | — |
+| 3 | 2026-10-15 | **§2** DO-wiring row updated to name the `src/worker.ts` custom worker entry as the P0 spike deliverable (`wrangler.jsonc` `main` → `src/worker.ts`) | F1 |
+| 3 | 2026-10-15 | **§3B/§10** `match_commit_action` RPC scope corrected to **P4** (P3 merely proxies the untouched Edge functions) | F3 |
+| 3 | 2026-10-15 | **§3D/§9/§11** rate-limit decision refined: evaluate the **native CF Rate Limiting binding first**; if DO counters, shard by colo+routeClass+ipPrefix and scope to mutation routes; reads stay in-memory; KV still ruled out. B-R6 added | F6 |
+| 3 | 2026-10-15 | **§8/§9** cost guardrail reframed: **Workers Paid ($5/mo) is the Day-1 baseline from P1** with the 240-frames × matches math; B-R3 updated | F7 |
+| 3 | 2026-10-15 | **§12** one-line answers corrected (match_commit_action P4; rate limiting native/sharded) | F3, F6 |
 
 ---
 
@@ -56,7 +61,7 @@ Placement decisions are made against these eight rules, in priority order. When 
 | R1 | **Money and progression math runs in one ACID transaction, in Postgres.** | Ledger, escrow, payouts, vouchers, purchases never leave Postgres — not to D1, not to a Worker. |
 | R2 | **Anything that needs a clock per entity runs in a Durable Object.** | Turn timers, AFK strikes, bet window, AI turns. |
 | R3 | **Rules validation runs exactly once, from one engine source.** | `lib/engine/core.ts` → every copy via `sync-edge-engine.mjs`; `check:engine` covers all targets. |
-| R4 | **Hot-path state that is not a ledger goes to the cheapest correct store.** | Rate-limit counters → DO counters, not Postgres, not KV (see §3D). |
+| R4 | **Hot-path state that is not a ledger goes to the cheapest correct store.** | Rate-limit counters → native CF Rate Limiting binding (preferred), else **sharded** DO counters; not Postgres, not KV (see §3D). |
 | R5 | **Prefer one control plane per concern.** | One deploy pipeline, one secret store, one log surface for game compute. |
 | R6 | **Never introduce a second authority, even temporarily.** | Old and new paths are flag-switched either/or. |
 | R7 | **Keep the audit trail durable and replayable.** | Every accepted transition lands in Postgres (`match_moves`, `match_rolls`, `match_states`, `match_room_events`). |
@@ -83,7 +88,7 @@ Placement decisions are made against these eight rules, in priority order. When 
 | Push notifications | **Cloudflare Worker** (`web-push` via `nodejs_compat`), subscriptions in Postgres | `wrangler.jsonc:6-9`; `app/api/push/*` |
 | Chain event indexer | **Nowhere — skeleton only**, in-memory cache | `lib/chipsIndexer.ts:1-5` ("Minimal event indexer skeleton (Phase 1)") |
 | Scheduled jobs | **None exist.** Cleanup functions are granted to `service_role` but nothing calls them | `baseline.sql:575-609`; only cron lines are *commented out* in the frozen archive `migrations/20260904_matchmaking_phase1.sql:38-39` |
-| **Durable Object wiring** *(Rev 2 — FE-1)* | **Absent.** No `durable_objects` binding, no `migrations`, no custom worker entry (`main` is the generated `.open-next/worker.js`) | `wrangler.jsonc`; `open-next.config.ts` — see the P0 spike in Doc A §5 |
+| **Durable Object wiring** *(Rev 2 — FE-1; Rev 3 — F1)* | **Absent today**, but the fix is known: a **custom `src/worker.ts` worker entry** that re-exports the OpenNext handler and adds the `MatchRoom`/`RateLimitDO` classes + a WS fast-path + Cron handler, with `wrangler.jsonc` `main` changed from `.open-next/worker.js` to `src/worker.ts` and a `durable_objects`/`migrations` block | `wrangler.jsonc`; `open-next.config.ts`; Doc A §4.4 — this is the P0 spike deliverable |
 | Supabase Auth | **Not used** — identity is wallet-signature + custom sessions | no `auth.uid()` in any canonical migration; `lib/supabase.ts` uses the anon key only |
 | Supabase Storage | **Not used** — no `.storage.from(` anywhere; avatars are external URLs | grep: zero matches |
 | Client direct DB access | **5 tables, read-only, narrow column grants** | `202609300013_db09_grant_hardening.sql:69-83` |
@@ -116,7 +121,7 @@ These are not placement changes — they are correctness changes that happen to 
 | `move-auth` (move/pass/power validation) | Supabase Edge | Worker/DO module, **validation logic kept in TypeScript** | **P4** (P3: the room calls the Edge function) | Engine parity is the crown jewel — do not rewrite rules into SQL | Engine parity gate; golden replay hashes; the CAS becomes one RPC (Doc A §4.6/§5-P3) |
 | `resolve-bet` (settle trigger) | Supabase Edge, host-signed | Room DO → Postgres RPC | **P4** | The server already knows the winner; the player signature is the anomaly | `chips_escrow_settle_bets` guard; escrow arming interlock; pool-authority EIP-712 co-sign |
 | Match state fan-out | Supabase Realtime public broadcast | Room DO WebSocket (primary), private Realtime channel (fallback) | **P3** | Authorized rooms, hibernating sockets, server-side `seq` | `shouldApplyGameAction` semantics unchanged on clients |
-| Rate-limit counters | In-process `Map` | **DO counter** (decided — §3D) | **P1** | Currently `limit × isolates` — a documented non-defense | Same limiter API (`checkRateLimit`) |
+| Rate-limit counters | In-process `Map` | **Native CF Rate Limiting binding preferred; sharded DO counter fallback** (decided — §3D, Rev 3 F6) | **P1** | Currently `limit × isolates` — a documented non-defense | Same limiter API (`checkRateLimit`) |
 | Cleanup jobs (`cleanup_matchmaking_queue`, `cleanup_stale_data`) | Never invoked | Cloudflare Cron Trigger → Worker → Postgres RPC | **P1** | They exist and are unreachable; the queue grows unbounded today | `service_role`-only grants |
 | Chain event indexer | Skeleton, in-memory | Cron → Worker → Postgres RPC sink | **P6** (productionised) | Production needs a durable cursor and reorg depth; in-memory loses everything on redeploy | `chips_events` U(chain_id, tx_hash, log_index) idempotency |
 
@@ -130,7 +135,7 @@ match_commit_action(
 ) → { seq, state, code }
 ```
 
-It atomically: checks `seq = p_expected_seq` → validates the roll binding → consumes the roll (`status='consumed'`, `consumed_seq`) → inserts `match_moves` → bumps `match_states.seq` → returns the new state, or returns `STALE_SEQ`. One transaction, no confirmation step, no race window. Validation stays in TypeScript where the engine lives; only the *commit* becomes atomic. This is the single highest-value production-grade change in the whole placement exercise. **Its gate consequences are scoped in Doc A §5-P3** (`check:schema` A1/A2, DB-mode definer assertions, `check:routes`).
+It atomically: checks `seq = p_expected_seq` → validates the roll binding → consumes the roll (`status='consumed'`, `consumed_seq`) → inserts `match_moves` → bumps `match_states.seq` → returns the new state, or returns `STALE_SEQ`. One transaction, no confirmation step, no race window. Validation stays in TypeScript where the engine lives; only the *commit* becomes atomic. This is the single highest-value production-grade change in the whole placement exercise. **It is a P4 deliverable** (Rev 3 — F3): in P3 the room merely *proxies* the untouched Edge functions, so the RPC does not exist yet. **Its gate consequences are scoped in Doc A §5-P4** (`check:schema` A1/A2, DB-mode definer assertions, `check:routes`).
 
 ### 3C. KEEP in Supabase
 
@@ -154,7 +159,7 @@ It atomically: checks `seq = p_expected_seq` → validates the roll binding → 
 |---|---|---|
 | **Durable Object per match** | The only way to get a server-side clock per match (R2). Hibernating WebSockets, SQLite storage, alarms. | SQLite-backed DOs are available on Workers Free; room traffic shares the Worker's 100k req/day budget. **Integration path unproven — P0 spike.** |
 | **Cron Triggers** | We currently have **no scheduler at all** — cleanup functions are unreachable and the indexer is a skeleton. This closes both. | Cron triggers available on the free plan |
-| **Distributed rate limiting — DECIDED: DO counters** *(Rev 2 — MI-2)* | Turns `limit × isolates` into `limit` | **KV is ruled out** — its free tier is 1,000 writes/day, unusable for per-IP counters. Use a DO counter per limiter scope, or verify the Workers rate-limiting binding on the free plan before choosing it. |
+| **Distributed rate limiting** *(Rev 2 — MI-2; Rev 3 — F6)* | Turns `limit × isolates` into `limit` | **Prefer the native Cloudflare Rate Limiting binding** (`rate_limiting` config) — it runs in the local colo with zero cross-region hops and no request amplification. If a DO counter is used, **shard it** by `env.RATE_LIMITER.idFromName(\`${colo}_${routeClass}_${ipPrefix}\`)` so counters are colo-local, and apply DO-backed limiting **only to high-value mutations** (`/api/auth/*`, `/api/match/start`, `/api/chips/*`); **read/static routes stay in-memory per isolate**. **KV is ruled out** — its free tier is 1,000 writes/day, unusable for per-IP counters. |
 | **Workers Queue** *(conditional)* | Retries and backfill for the indexer and settlement attempts | **Paid plan only** — adopt only if the indexer needs backfill beyond a cron window |
 | **R2** *(conditional)* | Only if user-generated uploads appear (custom avatars, replays). Today there are none. | 10 GB free, egress free |
 | **Workers Analytics / Logs** | Per-match observability without Sentry round-trips | Basic tier free |
@@ -175,7 +180,7 @@ It atomically: checks `seq = p_expected_seq` → validates the roll binding → 
 | 8 | Match state fan-out | Realtime + PeerJS | Room DO sockets | MOVE | P3 |
 | 9 | Lobby/social realtime | Supabase Realtime | Supabase Realtime (private channels) | KEEP + harden | P5 |
 | 10 | App/match sessions | Postgres rows + localStorage token | Postgres rows + HttpOnly cookie, edge-verified | REWRITE | P1 |
-| 11 | Rate limiting | In-process Map | DO counter | REWRITE store | P1 |
+| 11 | Rate limiting | In-process Map | Native CF binding / sharded DO | REWRITE store | P1 |
 | 12 | Cleanup jobs | Never run | CF Cron → Worker → RPC | NEW | P1 |
 | 13 | Chain indexer | Skeleton, in-memory | CF Cron → Worker → Postgres sink | NEW | P6 |
 | 14 | Match lifecycle (AI/AFK/timers/bet/settle/record/stream) | Player device | Room DO | MOVE + REWRITE | P4 |
@@ -207,13 +212,13 @@ What is *not* production grade today, and which placement decision fixes it.
 
 | # | Gap | Severity | Fixed by | Effect |
 |---|---|---|---|---|
-| G1 | Rate limiting is per-isolate (`limit × isolates`), self-documented as not a real defense | High | DO counter store (P1) | A real limiter; also removes the temptation to put limits in Postgres |
+| G1 | Rate limiting is per-isolate (`limit × isolates`), self-documented as not a real defense | High | Native CF binding preferred, else sharded DO counter (P1, Rev 3 F6) | A real limiter; also removes the temptation to put limits in Postgres |
 | G2 | No scheduler exists; cleanup RPCs are granted but unreachable; matchmaking queue and stale data grow unbounded | High | CF Cron (P1) | Queue hygiene, session reaping, challenge GC, keep-alive |
 | G3 | Match lifecycle depends on a player's browser tab (host SPOF) | High | Room DO + alarms (P4) | Matches complete when a player's phone dies |
 | G4 | Result integrity is player-declared | Critical | Server-derived winner + room-originated record (P2/P4) | Progression and settlement can no longer be forged |
 | G5 | Realtime rooms are public-by-default | High | Room sockets (P3) + private Realtime channels (P5) | Closes the last open netcode finding (NET-03a/b) |
 | G6 | Sessions are exfiltratable bearer tokens in `localStorage` | High | Cookie sessions + scopes + rotation (P1) | XSS/URL-leak impact bounded |
-| G7 | Two round trips with a window between CAS and confirmation | Medium | `match_commit_action` RPC (P3) | Atomic commits; removes a race class |
+| G7 | Two round trips with a window between CAS and confirmation | Medium | `match_commit_action` RPC (**P4** — P3 only proxies the Edge path) | Atomic commits; removes a race class |
 | G8 | Chain indexer is in-memory; a redeploy loses the cursor | Medium | Cron + Worker + Postgres cursor (P6) | Correct ingestion with reorg depth |
 | G9 | No per-match lifecycle audit | Medium | `match_room_events` (P4) | Disputes become answerable from data |
 | G10 | Engine exists in two copies (client, Edge) with no third-target gate if the room validates | Medium | `sync-edge-engine.mjs` + `check:engine` covering all copies (**P4**, scoped in Doc A §5-P4) | Prevents the silent fork that would invalidate golden replays |
@@ -233,7 +238,7 @@ What is *not* production grade today, and which placement decision fixes it.
 | Move Realtime wholesale to the room | Lobby/social/chat channels are low-risk and working. Churn there buys nothing. |
 | Keep PeerJS as a parallel authority "for resilience" | Two authorities is the failure mode this migration exists to remove (R6). |
 | Put rate-limit counters in Postgres | Puts the DB on the abuse path — the opposite of R4. |
-| Use KV for rate-limit counters *(Rev 2 — MI-2)* | KV's free tier is 1,000 writes/day — it cannot carry per-IP counters. Use DO counters. |
+| Use KV for rate-limit counters *(Rev 2 — MI-2)* | KV's free tier is 1,000 writes/day — it cannot carry per-IP counters. Use the native CF binding, or sharded DO counters (Rev 3 — F6). |
 | Delete the host concept from the UI | Rename it to "room owner" (lobby/invite semantics). Removing it is user-visible churn with no security value. |
 
 ---
@@ -252,7 +257,7 @@ What is *not* production grade today, and which placement decision fixes it.
 
 **Why not "Postgres-authority with a thin fan-out layer":** it sounds simpler but it does not solve the clock. You would still need *something* per-match holding a timer, and that something is a Durable Object. Choosing (b) means building the room anyway, minus the guarantees.
 
-**Cost guardrail:** the room's socket traffic shares the Worker's 100k requests/day free budget. Trigger to Workers Paid ($5, 10M requests, 50 ms CPU) at sustained >70k/day. Room CPU is billed separately from the Worker's, which is why the 10 ms Worker CPU limit does not constrain room logic.
+**Cost guardrail (Rev 3 — F7):** the room's socket traffic shares the Worker's 100k requests/day free budget, and a WebSocket hibernation wake counts as 1 Worker request per frame. An active 4-player match averages ~240 frames, so ~400 completed matches/day ≈ 96k requests/day — the free ceiling is hit with **fewer than ~150 daily active players**. **Workers Paid ($5/mo, 10M requests, 50 ms CPU) is therefore the expected Day-1 baseline from P1, not an emergency contingency**; treat the >70k/day figure as a ceiling alarm, and budget for Paid from day one. Room CPU is billed separately from the Worker's, which is why the 10 ms Worker CPU limit does not constrain room logic.
 
 ---
 
@@ -260,10 +265,10 @@ What is *not* production grade today, and which placement decision fixes it.
 
 | Component | Plan | Limit that matters | Trigger to upgrade |
 |---|---|---|---|
-| Worker (SSR + API + WS upgrade) | CF Free | 100k req/day, 10 ms CPU | >70k req/day → Workers Paid ($5) |
-| Room DO | CF Free (SQLite-backed) | Shares the Worker request budget; DO CPU separate | Same trigger |
+| Worker (SSR + API + WS upgrade) | CF Free (**Workers Paid $5/mo is the Day-1 baseline — Rev 3 F7**) | 100k req/day, 10 ms CPU | **Workers Paid ($5, 10M req, 50 ms CPU) from P1**; >70k/day retained as a ceiling alarm. ~240 frames × matches ⇒ ~96k req/day at ~400 matches, so <150 DAP exhausts free (§8) |
+| Room DO | CF Free (SQLite-backed) | Shares the Worker request budget; DO CPU separate | Paid baseline covers it (§8) |
 | Cron triggers | CF Free | Available on free | n/a |
-| Rate-limit store — **DO counter** *(Rev 2)* | CF Free | One DO per limiter scope; low request volume | Request volume approaching the Worker budget |
+| Rate-limit store *(Rev 3 — F6)* | CF Free (native binding) or CF Free (sharded DO) | **Native CF Rate Limiting binding preferred** (local colo, zero cross-region hops); if DO counters, shard by colo+routeClass+ipPrefix and scope to mutation routes; reads stay in-memory | Native binding: none. DO: request volume approaching the Worker budget |
 | Static assets | CF Free | Unmetered requests | n/a |
 | Postgres | Supabase Free | 500 MB, 5 GB egress, pauses after ~1 week idle | Approaching 500 MB or a pause event → Supabase Pro ($25) |
 | **Postgres write amplification** *(Rev 2 — MI-5)* | Supabase Free | Each accepted action writes `match_moves` + `match_states` + roll consumption; P4 adds `match_room_events` per lifecycle event. Budget roughly **2–4 rows per action** plus lifecycle rows — the growth driver against the 500 MB cap. | Row growth trending to the cap → retention/GC first (Doc A §4.6), then Pro |
@@ -281,10 +286,10 @@ What is *not* production grade today, and which placement decision fixes it.
 | Phase (from Doc A) | Placement work in that phase |
 |---|---|
 | **P0** | Ratify this matrix; file the D1 decision; **run the DO-in-OpenNext spike** (G12) with a pass/fail criterion; merge the problem register; fix citations |
-| **P1** | Sessions in Postgres, verified at the edge; **rate-limit store → DO counter** (G1); **CF Cron for cleanup** (G2); retention/GC for `auth_challenges` + `sessions` |
+| **P1** | Sessions in Postgres, verified at the edge; **rate-limit store → native CF binding first, else sharded DO scoped to mutations** (G1, F6); **CF Cron for cleanup** (G2); retention/GC for `auth_challenges` + `sessions`; **budget Workers Paid ($5/mo) as Day-1 baseline** (F7) |
 | **P2** | Server-derived authority in the existing API routes (no placement change) |
-| **P3** | Room DO introduced as **transport + seq + fan-out + reconnect**, **delegating to the existing Edge functions**; `match_commit_action` RPC (G7) + its gate updates; fan-out moves to room sockets; in-flight cutover rule + drill |
-| **P4** | **Relocation lands**: validation + minting move in-process; engine third copy + `check:engine` third target (G10); lifecycle moves into the room; `resolve-bet` trigger moves; `match_room_events` audit (G9) + retention |
+| **P3** | Room DO introduced as **transport + seq + fan-out + reconnect**, **proxies the existing Edge functions untouched** (no `match_commit_action` yet); timer min-heap + `blockConcurrencyWhile`/FIFO queue; WS auth via ticket / in-band `join`; fan-out moves to room sockets; in-flight cutover rule + drill |
+| **P4** | **Relocation lands**: validation + minting move in-process; **`match_commit_action` RPC (G7) created + adopted here** (atomic commit, one transaction); engine third copy + `check:engine` third target (G10); lifecycle moves into the room; `resolve-bet` trigger moves; `match_room_events` audit (G9) + retention |
 | **P5** | Private Realtime channels (G5); PeerJS demoted |
 | **P6** | PeerJS retired; **Edge Functions and the `_shared` engine copy deleted**; indexer productionised (G8); docs updated |
 
@@ -300,9 +305,10 @@ Doc A's register covers the migration's execution risks. This one covers risks *
 |---|---|---|---|---|---|
 | **B-R1** | **Vendor concentration.** Lifecycle authority moves onto a Cloudflare runtime-specific storage API (DO SQLite + alarms + hibernation), increasing single-vendor coupling — the same class of exposure flagged in the earlier Vercel/Cloudflare tier analysis. | M | H | Keep the room's *logic* vendor-neutral (the shared TS engine, no CF-only business rules); isolate CF-specific code in a thin adapter; record an exit trigger. The portability cost is the room's storage API, not the rules. | Any Cloudflare pricing/terms change affecting Workers, DOs, or free-tier allowances |
 | **B-R2** | **Room-local storage is not portable.** Rebuilding the room on another runtime means reimplementing DO SQLite + alarms. | M | M | Rule R7 + §5 rule 4 already forbid room-only state: everything authoritative is in Postgres, so a room rebuild is a transport rewrite, not a data migration. Keep it that way. | Any proposal to store authoritative state only in the room |
-| **B-R3** | **Free-tier terms change** (DO availability on free, request budget, hibernation billing). | M | M | The cost table (§9) states the trigger to Workers Paid ($5). Treat the paid tier as the expected steady state, not a failure. | Sustained >70k req/day, or a free-tier allowance reduction |
+| **B-R3** | **Free-tier terms change / budget exhaustion** (DO availability on free, request budget, hibernation billing). | M | M | **Workers Paid ($5/mo) is the expected Day-1 baseline from P1** (Rev 3 — F7); the >70k/day figure is a ceiling alarm, not a trigger-to-upgrade event. 240-frames × matches math tracked per cohort. | Sustained >70k req/day, or a free-tier allowance reduction |
 | **B-R4** | **`match_commit_action` becomes a hot-path single point.** One RPC now serves every accepted action. | L | H | It is a single-row CAS on an indexed key (`match_states.match_id`), the shape of the current write path; load-test it in P3 against `test:concurrency`. | p95 commit latency regression, or lock contention in `test:concurrency` |
 | **B-R5** | **Placement drift after P3** — a later change quietly re-introduces a second authority or a second store of truth. | M | H | The placement freeze (§10) plus a static gate that fails if a retired identifier reappears (Doc A §5-P6). | Any PR touching authority without an ADR entry |
+| **B-R6** | **Rate-limit DO adds cross-region latency / request amplification** (a global DO limiter on every route = 150–250 ms RTT for non-`us` users + 2× request count). | M | H | Prefer the native CF Rate Limiting binding (local colo); if DO counters, shard by colo+routeClass+ipPrefix and scope to mutation routes, reads in-memory (Rev 3 — F6). | Latency regression on non-`us` cohorts, or request-count spike |
 
 ---
 
@@ -311,7 +317,7 @@ Doc A's register covers the migration's execution risks. This one covers risks *
 - **Rewrite:** session/auth module, SIWE login, client authority call sites, lifecycle endpoints' trust model, onboarding game-tracks, the rate-limit *store*.
 - **Move Supabase → Cloudflare:** `roll-dice`, `move-auth`, `resolve-bet` (delegated in P3, relocated in P4), match state fan-out (P3), rate-limit counters (P1), cleanup jobs (P1), chain indexer (P6).
 - **Keep in Supabase:** Postgres schema + RLS + constraints, all 17 callable `SECURITY DEFINER` RPCs plus the trigger functions, session rows, all audit tables, lobby/social Realtime, push subscriptions, Studio/backups.
-- **New on Cloudflare:** Durable Object room (gated on the P0 spike), Cron triggers, DO rate-limit counters, `match_commit_action` RPC call path (the RPC itself lives in Postgres), conditional R2/Queues.
+- **New on Cloudflare:** Durable Object room (gated on the P0 spike; **delivered as `src/worker.ts` custom worker entry** — Rev 3 F1), Cron triggers, **rate limiting via native CF binding or sharded DO counters scoped to mutations** (Rev 3 F6), `match_commit_action` RPC call path (**P4**; the RPC itself lives in Postgres), conditional R2/Queues.
 - **Never move:** the ledger, RLS, money RPCs, the engine source, the `seq` writer.
 - **Production-grade wins, ranked:** server-owned clock (G3) → server-derived results (G4) → real rate limiting (G1) → atomic commits (G7) → authorized rooms (G5) → scheduler (G2) → cookie sessions (G6) → durable indexer (G8) → lifecycle audit (G9) → engine parity gate (G10).
 - **The one thing that could invalidate this matrix:** if the P0 DO-in-OpenNext spike fails (G12), D1 must be revisited and §3B/§8/§9/§10 change shape. Nothing else here rests on an unproven assumption.
