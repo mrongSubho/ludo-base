@@ -12,6 +12,7 @@ import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelChildTabs, TabCount } from './PanelTabs';
 import { OnboardingPanel } from './OnboardingPanel';
 import { LuX, LuShieldCheck, LuListChecks } from 'react-icons/lu';
+import { Button } from './Button';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -246,13 +247,15 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                             <MissionTile />
                                             Missions
                                         </h2>
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
                                             onClick={onClose}
                                             aria-label="Close missions"
-                                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                            className="bg-surface-hover border border-line-soft shrink-0"
                                         >
-                                            <LuX className="w-4 h-4" />
-                                        </button>
+                                            <LuX className="icon-md" />
+                                        </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
                                         <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
@@ -433,7 +436,17 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                     />
                                                                                 </div>
                                                                             </div>
-                                                                            <button
+                                                                            {/* The mission action is the shared Button (Phase C.1/C.3):
+                                                                                `loading` replaces the hand-rolled spinner div and
+                                                                                `disabled` brings the visible treatment the old
+                                                                                "Claimed" state was faking with a grey fill. The
+                                                                                completed state keeps its positive read via
+                                                                                --positive instead of green-500. */}
+                                                                            <Button
+                                                                                variant="secondary"
+                                                                                size="sm"
+                                                                                loading={claimingId === mission.id}
+                                                                                disabled={isClaimed}
                                                                                 onClick={
                                                                                     isClaimed
                                                                                         ? undefined
@@ -441,18 +454,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                           ? () => handleClaim(mission.id)
                                                                                           : () => handleGo(mission.id)
                                                                                 }
-                                                                                disabled={claimingId === mission.id || isClaimed}
-                                                                                className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
-                                                                                ${isClaimed
-                                                                                    ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
-                                                                                    : isCompleted
-                                                                                      ? 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
-                                                                                      : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
-                                                                                }`}
+                                                                                className={`min-w-[70px] rounded-xl ${isClaimed ? '' : isCompleted ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
                                                                             >
-                                                                                {claimingId === mission.id ? (
-                                                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                                                ) : isClaimed ? (
+                                                                                {isClaimed ? (
                                                                                     'Claimed'
                                                                                 ) : isCompleted ? (
                                                                                     <span className="flex items-center gap-1">
@@ -464,7 +468,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                             strokeWidth="3"
                                                                                             strokeLinecap="round"
                                                                                             strokeLinejoin="round"
-                                                                                            className="w-3.5 h-3.5"
+                                                                                            className="icon-sm"
                                                                                         >
                                                                                             <polyline points="20 6 9 17 4 12" />
                                                                                         </svg>
@@ -472,7 +476,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                 ) : (
                                                                                     'GO'
                                                                                 )}
-                                                                            </button>
+                                                                            </Button>
                                                                         </div>
                                                                     </motion.div>
                                                                 );

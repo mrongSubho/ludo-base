@@ -121,15 +121,26 @@ const SCENES = [
  * never trusted to the seeded cookie alone: the first-run panel commits its
  * own default ('retro') when you enter the lobby, which silently overrode a
  * 'light' cookie and made every daybreak scene flip to dark between runs.
+ *
+ * The click is UNCONDITIONAL, and that matters for determinism. The theme
+ * segmented control renders its selected segment from the `ludo-theme`
+ * cookie, and the app re-commits its guest default at mount — so the cookie
+ * the harness seeds can be overwritten before we look. When this only clicked
+ * "if the body class is wrong", the panel could end up Daybreak-styled while
+ * the control still showed Retro selected: whether applyTheme clicked at all
+ * depended on a race with that default commit, and a fresh compile (slower
+ * first paint) flipped the outcome. Measured as a 2.23% diff confined to the
+ * control's 27px band. Clicking always makes the app write the preference
+ * itself, so the captured state is the same on every run.
  */
 async function applyTheme(page, theme) {
   const label = theme === 'light' ? 'Daybreak' : 'Retro';
   const cls = theme === 'light' ? 'theme-daybreak' : 'theme-retro-futurism';
   const has = () => page.evaluate((c) => document.body.classList.contains(c), cls).catch(() => false);
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (await has()) return true;
     await clickIfPresent(page, label, 6000);
     await page.waitForTimeout(1500);
+    if (await has()) return true;
   }
   return has();
 }
@@ -255,6 +266,13 @@ async function dismissCoachMark(page, rounds = 3) {
   // Coach marks appear a beat AFTER navigation and the app auto-dismisses them
   // on a timer, so one pass is not enough: a capture that races the timer flips
   // ~24% of the frame between runs. Click repeatedly until nothing is left.
+  //
+  // The wait is load-bearing. ThemeNudge mounts on a 1200ms timer, so a
+  // dismissal pass that runs before it appears finds nothing, clicks nothing,
+  // and the toast then pops into the capture — measured as a 1.3% flake in the
+  // lobby scenes (a Chip + Button appearing over the rule selector). Wait out
+  // the timer window first so the state is the same on every run.
+  await page.waitForTimeout(1500);
   for (let r = 0; r < rounds; r++) {
     let clicked = false;
     for (const label of ['Later', 'Got it', 'Skip', 'Dismiss']) {
@@ -396,9 +414,23 @@ const browser = await chromium.launch();
 const results = [];
 let failures = 0;
 
-// Preflight: Next's dev overlay is dev-only, so its presence tells us which
-// server we are pointed at — and therefore whether the board scenes can run.
+// Preflight: which server are we pointed at? This decides whether the
+// production-only board scenes run or skip.
+//
+// Primary signal is a DEV-ONLY endpoint: `/__nextjs_source-map` exists on a dev
+// server (it 400s without a query) and is a plain 404 on a production build.
+// The Next dev overlay portal is kept as a secondary signal but is NOT
+// trustworthy on its own — it only appears once the client has hydrated, and
+// after a cache-cleared restart it was missing at probe time, which made the
+// harness think it was pointed at production, run the board scenes, and fail
+// them on the known Turbopack module-duplication issue instead of skipping.
 const isDevServer = await (async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/__nextjs_source-map`, { redirect: 'manual' });
+    if (res.status !== 404) return true;
+  } catch {
+    /* fall through to the DOM probe */
+  }
   const ctx = await browser.newContext({ viewport: VIEWPORT });
   const page = await ctx.newPage();
   try {
