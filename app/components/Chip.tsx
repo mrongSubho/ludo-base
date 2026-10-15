@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ButtonHTMLAttributes, HTMLAttributes } from "react";
+import React, { forwardRef, ButtonHTMLAttributes, HTMLAttributes } from "react";
 
 /**
  * One chip, three types (UI_COMPONENT_AUDIT §4.2).
@@ -41,21 +41,29 @@ type CommonProps = {
 
 export type ChipProps = CommonProps &
   Omit<HTMLAttributes<HTMLSpanElement>, "children"> &
-  Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "disabled" | "title" | "aria-label">;
+  Pick<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    "onClick" | "disabled" | "title" | "aria-label"
+  >;
 
-export function Chip({
-  type = "info",
-  status,
-  tone = "default",
-  size = "md",
-  active = false,
-  icon,
-  children,
-  className = "",
-  onClick,
-  disabled,
-  ...rest
-}: ChipProps) {
+// forwardRef is load-bearing: the Marketplace's category rail scrolls the active
+// tab chip into view through a ref, so dropping it would silently break that.
+export const Chip = forwardRef<HTMLButtonElement, ChipProps>(function Chip(
+  {
+    type = "info",
+    status,
+    tone = "default",
+    size = "md",
+    active = false,
+    icon,
+    children,
+    className = "",
+    onClick,
+    disabled,
+    ...rest
+  },
+  ref
+) {
   const classes = [
     "chip",
     size === "sm" ? "chip-sm" : "",
@@ -77,6 +85,7 @@ export function Chip({
   if (type === "filter") {
     return (
       <button
+        ref={ref}
         type="button"
         role="button"
         aria-pressed={active}
@@ -98,6 +107,6 @@ export function Chip({
       {body}
     </span>
   );
-}
+});
 
 export default Chip;
