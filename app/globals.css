@@ -1131,53 +1131,7 @@ body.theme-daybreak .header {
   gap: 8px;
 }
 
-.settings-dots-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: var(--radius-sm);
-  color: var(--color-ludo-text);
-  opacity: 0.6;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.settings-dots-btn:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
-  /* Refined hover state */
-  transform: translateY(-1px);
-}
-
-.settings-dots-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
 /* ── DM Icon & Notification Pulse ── */
-.dm-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  color: var(--color-ludo-text);
-  opacity: 0.8;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dm-btn:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
-  /* Refined hover state */
-  transform: translateY(-1px);
-}
 
 .dm-icon {
   width: 24px !important;
@@ -1283,25 +1237,6 @@ body.theme-daybreak .header {
   position: relative;
 }
 
-.theme-toggle-btn {
-  width: 36px;
-  height: 36px;
-  background: var(--color-ludo-blue-soft);
-  border: 1px solid var(--color-ludo-border);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.theme-toggle-btn:hover {
-  transform: scale(1.05);
-  background: var(--ludo-bg);
-}
-
 .theme-menu-overlay {
   position: fixed;
   inset: 0;
@@ -1352,24 +1287,6 @@ body.theme-daybreak .header {
 }
 
 /* ─── Audio Toggle ─── */
-.audio-toggle-btn {
-  width: 36px;
-  height: 36px;
-  background: var(--color-ludo-blue-soft);
-  border: 1px solid var(--color-ludo-border);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.audio-toggle-btn:hover {
-  transform: scale(1.05);
-  background: var(--ludo-bg);
-}
 
 .theme-icon {
   font-size: 16px;
@@ -1605,27 +1522,6 @@ body.theme-daybreak .header {
 }
 
 /* ─── Play Button ─── */
-.play-button {
-  width: 100%;
-  max-width: 280px;
-  padding: 14px 32px;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--color-ludo-blue), #3377FF);
-  color: #FFFFFF;
-  font-size: 15px;
-  font-weight: 600;
-  font-family: var(--font-inter), system-ui, sans-serif;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 16px rgba(0, 82, 255, 0.3);
-  letter-spacing: 0.3px;
-}
-
-.play-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 82, 255, 0.4);
-}
 
 .player-wrapper.active-turn {
   transform: scale(1.05);
@@ -2601,19 +2497,6 @@ body.keyboard-open .app-shell {
   font-size: 20px;
   font-weight: 700;
   color: var(--color-ludo-text);
-}
-
-.close-btn {
-  background: var(--color-ludo-blue-soft);
-  color: var(--color-ludo-blue);
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
 
 .leaderboard-content {
@@ -5014,12 +4897,6 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   gap: 8px;
 }
 
-.profile-close-btn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-}
-
 .profile-avatar-hero {
   width: 72px;
   height: 72px;
@@ -5110,30 +4987,6 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   padding: 16px 20px 28px;
 }
 
-.profile-action-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 12px 8px;
-  border-radius: 14px;
-  border: 1.5px solid var(--color-ludo-border);
-  background: var(--color-ludo-background);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-ludo-text);
-}
-
-.profile-action-btn:hover:not(:disabled) {
-  border-color: var(--color-ludo-blue);
-  background: rgba(0, 82, 255, 0.05);
-  color: var(--color-ludo-blue);
-  transform: translateY(-2px);
-}
-
 .profile-action-btn.action-active {
   border-color: var(--color-ludo-blue);
   background: rgba(0, 82, 255, 0.08);
@@ -5150,11 +5003,6 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.07);
   color: #ef4444;
-}
-
-.profile-action-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 .action-icon {
@@ -5366,43 +5214,10 @@ body.theme-daybreak .match-stats-cta.claim.soon {
   max-width: 280px;
 }
 
-.seg-btn {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 10px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ludo-muted);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
 .seg-btn.active {
   background: var(--color-ludo-blue);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 82, 255, 0.3);
-}
-
-.bet-pills {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-}
-
-.bet-pill {
-  border: 1px solid #E2E8F0;
-  background: transparent;
-  color: var(--ludo-text);
-  font-weight: 600;
-  font-size: 14px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .bet-pill.active {
@@ -8020,24 +7835,6 @@ body.theme-daybreak .cb-mode-pill.testnet {
   color: #b45309;
 }
 
-.cb-asset-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.cb-asset-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(243, 245, 249, 0.75);
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-}
 .cb-asset-pill.active {
   background: rgba(0, 82, 255, 0.2);
   border-color: rgba(0, 82, 255, 0.45);
@@ -8048,21 +7845,7 @@ body.theme-daybreak .cb-mode-pill.testnet {
   height: 8px;
   border-radius: 999px;
 }
-.cb-asset-pill-tag {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(243, 245, 249, 0.55);
-}
-body.theme-daybreak .cb-asset-pill {
-  background: rgba(10, 11, 13, 0.04);
-  border-color: rgba(10, 11, 13, 0.1);
-  color: rgba(10, 11, 13, 0.75);
-}
+
 body.theme-daybreak .cb-asset-pill.active {
   background: rgba(0, 82, 255, 0.1);
   border-color: rgba(0, 82, 255, 0.35);
