@@ -1015,10 +1015,9 @@ export const TeamUpMatchPanel = ({
                                             size="sm"
                                             onClick={() => setInvitePopup(null)}
                                             aria-label="Close invite sheet"
-                                            className="h-8 w-8 rounded-full p-0"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                        </Button>
+                                            className="h-8 w-8 rounded-full p-0 justify-center"
+                                            leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>}
+                                        />
                                     </div>
                                     {roomCodeValue && (
                                         <button

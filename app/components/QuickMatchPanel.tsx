@@ -644,10 +644,9 @@ export const QuickMatchPanel = ({
                                                     size="sm"
                                                     onClick={() => setShowExpansionOptions(false)}
                                                     aria-label="Keep searching this fee"
-                                                    className="h-8 w-8 rounded-full p-0"
-                                                >
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                </Button>
+                                                    className="h-8 w-8 rounded-full p-0 justify-center"
+                                                    leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>}
+                                                />
                                             </div>
 
                                             <p className="text-[11px] text-white/45 font-bold leading-snug">
