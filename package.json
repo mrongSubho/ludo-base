@@ -42,6 +42,7 @@
     "check:routes": "node scripts/check-routes.mjs",
     "check:motion": "node scripts/check-motion.mjs",
     "check:img": "node scripts/check-img-dimensions.mjs",
+    "check:reduce-motion": "node scripts/check-reduced-motion.mjs",
     "visual:baseline": "node scripts/visual-diff.mjs --update",
     "visual:diff": "node scripts/visual-diff.mjs",
     "bench:css": "node scripts/bench-css.mjs",
