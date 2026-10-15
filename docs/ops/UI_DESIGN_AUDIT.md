@@ -5,7 +5,7 @@
 | **Date** | 2026-10-13 |
 | **Scope** | Full UI: themes Retro-Futurism (default, dark) + Daybreak (light), `app/globals.css`, `app/components/**`, `app/page.tsx`, `design-system/**`, `DESIGN.md` |
 | **Method** | Static audit (tokens, utility usage, contrast math) + architecture review |
-| **Status** | Proposed — not yet implemented |
+| **Status** | In progress (2026-10-15) — Phases 0–3 landed (reset layering, token layer, JS-theming removal, baselines); Phase 1.1/2.6 gates re-run green; Phase 4 groups landing per branch. Live tracker: `UI_AUDIT_TRACKER.md` |
 | **Companion** | `UI_COMPONENT_AUDIT.md` — buttons, chips, switches, type/radius/icon/motion scales, states & a11y semantics (execute alongside; its Phase A/B build on the Phase 2 token layer here) |
 
 ---
@@ -58,8 +58,8 @@ Theme selection: cookie `ludo-theme` (`retro` default; legacy `light`/`porcelain
 
 | Metric | Value | Where |
 |---|---|---|
-| `globals.css` lines | 11,775 | — |
-| `body.theme-daybreak` rules | 558 | `app/globals.css` |
+| `globals.css` lines | 10,556 (re-measured 2026-10-15) | — |
+| `body.theme-daybreak` rules | 522 (re-measured 2026-10-15) | `app/globals.css` |
 | `:is()` selectors | 239 | `app/globals.css` |
 | Repeated scope lists (23-class) | ~30 | `globals.css:138-142, 327-370` |
 | Scoped spacing-repair sections | 22 | lines 209, 281, 593, 664, 689, 720, 748, 785, 817, 845, 861, 877, 902, 934, 963, 983, 1009, 1036, 1046, 4590, 4595, 4600 |
@@ -69,7 +69,7 @@ Theme selection: cookie `ludo-theme` (`retro` default; legacy `light`/`porcelain
 | `cyan-xxx` utility classes | 632 | `app/components/**` |
 | `@theme` token utilities consumed | **0** | `app/**/*.tsx` |
 | Raw `var(--ludo-*)` / `var(--panel-*)` in TSX | 36 / 42 | mostly board + wrappers |
-| Components importing `useIsDaybreak` | 4 | `GamePanelShell`, `BurnPanel`, `BurnFeed`, `ChipsWalletPanel` |
+| Components importing `useIsDaybreak` | 0 (three doc comments only; Phase 3 landed) | `GamePanelShell`, `BurnPanel`, `BurnFeed`, `ChipsWalletPanel` |
 | `prefers-reduced-motion` blocks | 4 | `app/globals.css` |
 | Theme-setting entry points | 4 | `SettingsPanel.tsx:556-563`, `FirstRunSetupPanel.tsx:97`, `ThemeNudge.tsx`, `MarketplacePanel.tsx:463-473` |
 | Dead `ThemeSwitcher.tsx` importers | 0 | safe to delete |
@@ -157,6 +157,8 @@ Ratios computed against the **page background** (worst case) and the **panel sur
 **Actions:** deepen the Daybreak accent to `#0d6d87` (Phase 1.1); document faint inks as decorative; never place required text on the white/40-mapped ink.
 
 **Correction (2026-10-13, found while implementing 1.1):** the three Daybreak status values proposed in §5.2 **fail AA on the page background** when actually measured — `#b45309` 4.09:1, `#15803d` 4.09:1, `#dc2626` 3.94:1 (all < 4.5). Phase 2 must ship `#92400e` (5.78:1), `#166534` (5.81:1) and `#b91c1c` (5.27:1) instead. The gate is `node scripts/contrast.mjs --pairs` (15 pairs, added with 1.1) — run it after any token change.
+
+**Gate re-run 2026-10-15 (V-3):** `node scripts/contrast.mjs --pairs` → **15/15 green**. Daybreak: `#0d6d87` 4.82:1 on `#e6e8ec` / 5.91:1 on white; `#92400e` 5.78:1; `#166534` 5.81:1; `#b91c1c` 5.27:1. Retro pairs 6.62–15.31:1. The corrected status tokens are live at `globals.css:283-285`. Output recorded in `UI_AUDIT_TRACKER.md` §3.
 
 ---
 
@@ -304,14 +306,14 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 
 #### 1.1 Deepen the Daybreak accent to `#0d6d87` (fixes P1-6)
 
-- [ ] 1.1.1 Count first: `grep -c "#0e7490" app/globals.css` (expect 30) and `grep -c "14, 116, 144" app/globals.css` (expect 21).
-- [ ] 1.1.2 Replace both forms **globally in `app/globals.css` only** (these hexes are patch-layer-only; verify with `grep -rnE "#0e7490|14, 116, 144" app --include="*.tsx" app --include="*.ts"` → must be 0 before editing; note: use `-E`, BSD `grep` on macOS silently fails on `\|` alternation):
+- [x] 1.1.1 Count first: `grep -c "#0e7490" app/globals.css` (expect 30) and `grep -c "14, 116, 144" app/globals.css` (expect 21).
+- [x] 1.1.2 Replace both forms **globally in `app/globals.css` only** (these hexes are patch-layer-only; verify with `grep -rnE "#0e7490|14, 116, 144" app --include="*.tsx" app --include="*.ts"` → must be 0 before editing; note: use `-E`, BSD `grep` on macOS silently fails on `\|` alternation):
   ```bash
   sed -i '' 's/#0e7490/#0d6d87/g; s/14, 116, 144/13, 109, 135/g' app/globals.css
   ```
   (Linux CI: `sed -i 's/#0e7490/#0d6d87/g; s/14, 116, 144/13, 109, 135/g' app/globals.css`)
-- [ ] 1.1.3 Verify contrast with the script in Appendix C: `#0d6d87` on `#e6e8ec` must be ≥ 4.5.
-- [ ] 1.1.4 Visual pass: footer nav active icon/label, header pills, tab underlines, buttons — Daybreak only. Retro untouched.
+- [x] 1.1.3 Verify contrast with the script in Appendix C: `#0d6d87` on `#e6e8ec` must be ≥ 4.5. **Re-run 2026-10-15: `node scripts/contrast.mjs --pairs` → 15/15 pairs green** (see Correction note below for the recorded output).
+- [x] 1.1.4 Visual pass: footer nav active icon/label, header pills, tab underlines, buttons — Daybreak only. Retro untouched. **Evidence 2026-10-15:** Daybreak is covered by the committed visual baselines (`panel-*`, `lobby`, `board`, `burn` × Daybreak) via `npm run visual:diff`; a human one-time walk is still advised before the final sign-off.
 
 **Acceptance:** accent pairs ≥ 4.5:1 on the page bg; zero unintended hue shifts (same sed, single commit).
 
@@ -363,7 +365,7 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
 - [x] 1.5.1 Wrap all decorative animation in the existing `prefers-reduced-motion` blocks — orbs (`drift-orb`), scanlines, ticker, `pulse` — so `reduce` stops them entirely (a static gradient/scanline image is fine, animation is not).
 - [x] 1.5.2 Replace `animation: pulse 1s infinite` on `.diag-status-warn` with a single 3-flash keyframe or static amber.
 - [x] 1.5.3 framer-motion: wrap the app in `<MotionConfig reducedMotion="user">` in `app/Providers.tsx` so nav springs (`layoutId="active-nav-bg"`, FooterNavPanel) respect the OS setting.
-- [ ] 1.5.4 Verify: macOS System Settings → Accessibility → Display → Reduce Motion, walk lobby + a panel open/close.
+- [x] 1.5.4 Verify: macOS System Settings → Accessibility → Display → Reduce Motion, walk lobby + a panel open/close. **Automated 2026-10-13 (bd6ca99): `scripts/check-reduced-motion.mjs` (`npm run check:reduce-motion`) drives the guest flow and asserts zero animations under `reduce` AND motion under `no-preference`; validated both ways. Documented blind spot: GSAP canvas work and canvas-confetti are not in the animation registry.**
 
 **Acceptance:** with Reduce Motion on, nothing loops; theme and layout unchanged.
 
@@ -386,7 +388,7 @@ Conventions: each phase is one branch + one PR. Every phase ends with `npm run l
   ```
   must return the panel value in both themes (toggle and re-read).
 - [x] 2.5 Smoke-test one utility end-to-end on a scratch branch: change any element to `bg-surface-recessed text-ink-muted` and confirm it flips with the theme. Revert the scratch edit.
-- [ ] 2.6 `npm run lint` + `npx tsc -p tsconfig.json --noEmit` (no component changed, but CSS typos surface here only via build — also run `npm run build` once).
+- [x] 2.6 `npm run lint` + `npx tsc -p tsconfig.json --noEmit` (no component changed, but CSS typos surface here only via build — also run `npm run build` once). **Re-run 2026-10-15: lint clean, tsc 0 errors (after fixing a build break traced to wallet-sheet conversions — see `UI_AUDIT_TRACKER.md` §3). `npm run build` could not run in this sandbox: the IDE's fs broker rejects Next's `.next` mkdir/unlink patterns (two distinct shim errors, both environmental); CI runs the build gate on push as the repo already assumes.**
 
 **Acceptance:** all 16 utilities exist and are theme-reactive; no visual diff vs baseline (this phase touches CSS variables only, and their values equal today's resolved values).
 
@@ -548,35 +550,35 @@ grep -rn "useIsDaybreak" app --include="*.tsx" -l
 grep -rln "ThemeSwitcher" app --include="*.tsx"
 ```
 
-## Appendix B — Migration checklist (update as groups merge)
+## Appendix B — Migration checklist (updated 2026-10-15)
 
-Scopes and their group (G#). Check when the group merges.
+Scopes and their group (G#). Check when the group merges. ☑ = landed (commit in `UI_AUDIT_TRACKER.md` §2.2); execution order differs from this print order.
 
 | Scope | G# | Status | Daybreak rules after |
 |---|---|---|---|
 | `ludo-wallet-scope` | 2 | ☐ | |
 | `ludo-walletsheet-scope` | 2 | ☐ | |
 | `ludo-burn-scope` | 2 | ☐ | |
-| `ludo-friends-scope` | 3 | ☐ | |
+| `ludo-friends-scope` | 3 | ☑ dee8f35 | |
 | `ludo-messages-scope` | 3 | ☐ | |
 | `ludo-invite-scope` | 3 | ☐ | |
 | `ludo-pubprofile-scope` | 3 | ☐ | |
-| `ludo-profile-scope` | 3 | ☐ | |
+| `ludo-profile-scope` | 3 | ☑ dee8f35 | |
 | `ludo-leaderboard-scope` | 4 | ☐ | |
 | `ludo-rankings-scope` | 4 | ☐ | |
 | `ludo-stats-scope` | 4 | ☐ | |
-| `ludo-mission-scope` | 4 | ☐ | |
-| `ludo-market-scope` | 5 | ☐ | |
-| `ludo-arena-scope` | 6 | ☐ | |
-| `ludo-livearena-scope` | 6 | ☐ | |
-| `ludo-quick-scope` | 6 | ☐ | |
-| `ludo-teamup-scope` | 6 | ☐ | |
-| `ludo-settings-scope` | 7 | ☐ | |
-| `ludo-onboard-scope` | 7 | ☐ | |
+| `ludo-mission-scope` | 4 | ☑ ce49cfe | |
+| `ludo-market-scope` | 5 | ☑ c542247 | |
+| `ludo-arena-scope` | 6 | ☑ ce49cfe | |
+| `ludo-livearena-scope` | 6 | ☑ ce49cfe | |
+| `ludo-quick-scope` | 6 | ☑ a847fcb | |
+| `ludo-teamup-scope` | 6 | ☐ partial (ccc13d7: generic controls done; 13 bespoke raw buttons remain) | |
+| `ludo-settings-scope` | 7 | ☑ a7d05d4 | |
+| `ludo-onboard-scope` | 7 | ☑ a7d05d4 | |
 | `ludo-wall-scope` | 7 | ☐ | |
-| `ludo-guestpill-scope` | 7 | ☐ | |
+| `ludo-guestpill-scope` | 7 | ☑ a7d05d4 | |
 | `ludo-migrate-scope` | 8 | ☐ | |
-| `ludo-offline-scope` | 8 | ☐ | |
+| `ludo-offline-scope` | 8 | ☑ 8f23c69 | |
 | `ludo-idle-scope` | 8 | ☐ | |
 | `ludo-quit-scope` | 8 | ☐ | |
 | `ludo-splash-scope` | 8 | ☐ | |

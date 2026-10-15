@@ -5,7 +5,7 @@
 | **Date** | 2026-10-13 |
 | **Scope** | Component layer: buttons, pills/chips/badges, switches/toggles, inputs, rows, cards, sheets, iconography, motion, controls' states & semantics. Companion to `UI_DESIGN_AUDIT.md` (color/theming/tokens) |
 | **Method** | Static extraction of every `<button>`, custom CSS class inventory, state/semantics greps, cross-family comparison |
-| **Status** | Proposed — not yet implemented |
+| **Status** | In progress (2026-10-15) — Phase A/B landed; Phase C groups landing per branch in the team's own order (arena/mission → social → marketplace → match sheets → matchmaking). Live tracker: `UI_AUDIT_TRACKER.md` |
 
 ---
 
@@ -15,7 +15,7 @@ The color audit found theming problems; this audit found the deeper issue: **the
 
 Measured state (verification commands in Appendix A):
 
-- **348 `<button>` elements across 144 distinct class recipes.** The most common recipe (`w-11 h-11 rounded-full …`, the close button) appears 12 times; 161 buttons use dynamic template classes, so the true recipe count is higher.
+- **268 `<button>` elements across 114 distinct class recipes** (re-measured 2026-10-15; was 348/144 at audit time — Phase A/B + five C groups have landed since; count is kept current in `UI_AUDIT_TRACKER.md` §2.1). The most common recipe (`w-11 h-11 rounded-full …`, the close button) appears 12 times; 161 buttons use dynamic template classes, so the true recipe count is higher.
 - **695 custom CSS classes in `globals.css`, of which 92 are button/pill/chip-ish** — at least **17 button families** (`btn-main`, `btn-ghost`, `btn-mini`, `cb-btn`, `wl-btn`, `pp-btn`, `play-button`, `play-now-btn`, `play-again-btn`, `ingame-cta`, `ingame-ghost`, `boot-lock-cta`, `boot-lock-ghost`, `settings-action-btn`, `profile-action-btn`, `close-btn`, `profile-close-btn`) and **7 chip families** (`bet-chip`, `match-stats-chip`, `cb-filter-chip`, `tk-chip`, `dapp-chip`, `wl-addr-chip`, `ai-thinking-tag`).
 - **Primary CTA has ≥3 visual flavors**: white-fill (`bg-white text-black`, 21 uses), Base blue `#0052FF` (`.btn-main`, `.cb-btn.primary`, `.btn-mini.primary` — theme-static, in both themes), and cyan-500 fills (`Switch`, odds and ends).
 - **47 of 62 disabled buttons (76%) have no visual treatment** — they look enabled but do nothing.
@@ -212,6 +212,8 @@ Order mirrors `UI_DESIGN_AUDIT.md` Phase 1–4: primitives first, then the same 
 - [x] B.6 **Acceptance:** Settings is the reference implementation; diff vs baseline shows only the intended CTA accent change.
 
 ### Phase C — Panel sweep (one PR per group, ~3–4 days)
+
+**Status 2026-10-15:** groups are landing in the team's own execution order (arena/mission → social → marketplace → match sheets → matchmaking), not this doc's print order. Landed: shell + settings (Phase B, a7d05d4), arena/mission (ce49cfe), social (dee8f35), marketplace (c542247), OfflineMatchPanel (8f23c69), QuickMatchPanel complete + TeamUpMatchPanel partial (ccc13d7/a847fcb). Outstanding: wallet cluster, messages/social remainder, progression remainder, TeamUp's 13 bespoke raw buttons, remaining match sheets, chrome/lobby. Per-group state and gates: `UI_AUDIT_TRACKER.md` §5.
 
 Reuse the group order from `UI_DESIGN_AUDIT.md` Phase 4 (wallet → social → progression → marketplace → matchmaking → settings/onboarding → match sheets → chrome/lobby). Per group:
 
