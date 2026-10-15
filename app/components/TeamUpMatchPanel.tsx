@@ -12,6 +12,7 @@ import { canStartMatch } from '@/lib/gameLogic';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { FiX } from 'react-icons/fi';
 import { PanelTabs } from './PanelTabs';
+import { Button } from './Button';
 
 interface TeamUpMatchPanelProps {
     onClose: () => void;
@@ -167,12 +168,14 @@ const HuntView = ({ empty, total, isHost, onCancel, expired, timeoutS }: {
             Strangers join straight into this room
         </p>
         {isHost && (
-            <button
+            <Button
+                variant="secondary"
+                size="sm"
                 onClick={onCancel}
-                className="mt-1 px-5 py-2 rounded-full bg-white/5 border border-white/15 text-white/60 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white active:scale-95 transition-all"
+                className="mt-1 rounded-full px-5 uppercase tracking-[0.2em]"
             >
                 Cancel hunt
-            </button>
+            </Button>
         )}
     </div>
     );
@@ -781,13 +784,15 @@ export const TeamUpMatchPanel = ({
                                     <TeamTile />
                                     Team Up
                                 </h2>
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={handleClose}
                                     aria-label="Close team up"
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                    className="bg-surface-hover border border-line-soft shrink-0"
                                 >
-                                    <FiX className="w-4 h-4" />
-                                </button>
+                                    <FiX className="icon-md" />
+                                </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
@@ -836,12 +841,14 @@ export const TeamUpMatchPanel = ({
                                         )}
                                     </div>
                                 ) : (
-                                    <button
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
                                         onClick={(e) => { e.stopPropagation(); playSelect(); onHost(); }}
-                                        className="shrink-0 min-h-[36px] px-3 rounded-xl bg-cyan-400 text-black text-[10px] font-black tracking-[0.12em] uppercase hover:bg-cyan-300 active:scale-95 transition-all"
+                                        className="shrink-0 px-3 tracking-[0.12em] uppercase"
                                     >
                                         Create room
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                             {roomCodeValue && (
@@ -896,13 +903,15 @@ export const TeamUpMatchPanel = ({
                                     />
 
                                     {/* Join with Code */}
-                                    <button
+                                    <Button
+                                        variant="secondary"
+                                        size="lg"
                                         onClick={() => { playSelect(); setView('join'); }}
-                                        className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-white/15 text-white/60 text-[10px] font-black uppercase tracking-[0.25em] hover:text-white hover:border-white/30 hover:bg-white/5 transition-all shrink-0"
+                                        leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 15h.01M12 15h.01M16 15h.01M7 10V7a5 5 0 0 1 10 0v3" /></svg>}
+                                        className="shrink-0 justify-center tracking-[0.25em] uppercase"
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 15h.01M12 15h.01M16 15h.01M7 10V7a5 5 0 0 1 10 0v3" /></svg>
                                         Join with Code
-                                    </button>
+                                    </Button>
 
                                 </div>
                             )}
@@ -971,9 +980,9 @@ export const TeamUpMatchPanel = ({
                                             >
                                                 Join Game
                                             </button>
-                                            <button onClick={() => { setRoomCode(''); setJoinSecret(''); setView('console'); }} className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] hover:text-white">
+                                            <Button variant="ghost" size="sm" onClick={() => { setRoomCode(''); setJoinSecret(''); setView('console'); }} className="uppercase tracking-[0.3em]">
                                                 Back
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -1001,13 +1010,15 @@ export const TeamUpMatchPanel = ({
                                                 Seat {invitePopup.seat + 1}
                                             </span>
                                         </span>
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={() => setInvitePopup(null)}
                                             aria-label="Close invite sheet"
-                                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all"
+                                            className="h-8 w-8 rounded-full p-0"
                                         >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                        </button>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </Button>
                                     </div>
                                     {roomCodeValue && (
                                         <button
@@ -1097,12 +1108,14 @@ export const TeamUpMatchPanel = ({
                                             <div className="py-3 flex items-center justify-center opacity-40"><div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /></div>
                                         )}
                                         {ftab === 'global' && onlineHasMore && !loadingOnline && (
-                                            <button
+                                            <Button
+                                                variant="secondary"
+                                                fullWidth
                                                 onClick={() => fetchOnlinePage(onlinePage + 1, true)}
-                                                className="mt-1 w-full py-2.5 rounded-2xl bg-white/[0.04] border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-[0.18em] hover:bg-white/10 hover:text-white active:scale-[0.99] transition-all"
+                                                className="mt-1 tracking-[0.18em] uppercase"
                                             >
                                                 Show more online players
-                                            </button>
+                                            </Button>
                                         )}
                                     </div>
                                 </div>
