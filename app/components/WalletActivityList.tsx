@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useWalletActivity, type WalletActivityItem } from "@/hooks/useWalletActivity";
+import Chip from "./Chip";
 
 type Filter =
     | "all"
@@ -89,16 +90,17 @@ export default function WalletActivityList() {
 
             <div className="cb-filter-row" role="tablist" aria-label="Activity filter">
                 {FILTERS.map((f) => (
-                    <button
+                    <Chip
                         key={f.id}
-                        type="button"
+                        type="filter"
+                        size="sm"
                         role="tab"
                         aria-selected={filter === f.id}
-                        className={`cb-filter-chip ${filter === f.id ? "active" : ""}`}
+                        active={filter === f.id}
                         onClick={() => setFilter(f.id)}
                     >
                         {f.label}
-                    </button>
+                    </Chip>
                 ))}
             </div>
 

@@ -23,6 +23,7 @@ import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import { writeWalletMode } from "@/lib/walletMode";
 import { isCdpAuthEnabled } from "./CdpAuthProvider";
 import { markBootUnlocked } from "./BootLock";
+import Button from "./Button";
 import {
     hasSeenWalletReady,
     markProtectNudged,
@@ -201,11 +202,11 @@ export default function InGameWalletPanel({
         return (
             <div className="ingame-signin">
                 {onBack && (
-                    <button type="button" className="ingame-back" onClick={onBack} aria-label="Back">
+                    <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M15 18l-6-6 6-6" />
                         </svg>
-                    </button>
+                    </Button>
                 )}
                 <h2 className="ingame-title">Welcome back</h2>
                 <p className="ingame-sub">You&apos;re signed in as</p>
@@ -214,19 +215,19 @@ export default function InGameWalletPanel({
                     <div className="ingame-card-addr font-mono">{shortAddr(address)}</div>
                     <p className="ingame-note">Not your Base app or MetaMask address.</p>
                 </div>
-                <button type="button" className="ingame-cta" onClick={enterArena}>
+                <Button variant="primary" fullWidth onClick={enterArena}>
                     Continue to arena
-                </button>
-                <button
-                    type="button"
-                    className="ingame-ghost"
+                </Button>
+                <Button
+                    variant="ghost"
+                    fullWidth
                     onClick={() => {
                         void signOut();
                         setStage("auth");
                     }}
                 >
                     Use a different account
-                </button>
+                </Button>
             </div>
         );
     }
@@ -268,22 +269,22 @@ export default function InGameWalletPanel({
                                 Confirm sends with your face or fingerprint. One tap — not another password.
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            className="ingame-cta"
+                        <Button
+                            variant="primary"
+                            fullWidth
                             disabled={busy || enrollStatus === "pending"}
                             onClick={onEnrollPasskey}
                         >
                             {enrollStatus === "pending" ? "Waiting for biometric…" : "Protect my wallet"}
-                        </button>
-                        <button type="button" className="ingame-ghost" onClick={skipProtect}>
+                        </Button>
+                        <Button variant="ghost" fullWidth onClick={skipProtect}>
                             Skip — I&apos;ll do this later
-                        </button>
+                        </Button>
                     </>
                 ) : (
-                    <button type="button" className="ingame-cta" onClick={enterArena}>
+                    <Button variant="primary" fullWidth onClick={enterArena}>
                         Continue to arena
-                    </button>
+                    </Button>
                 )}
 
                 {err && <p className="ingame-err">{err}</p>}
@@ -299,9 +300,9 @@ export default function InGameWalletPanel({
                 <h2 className="ingame-title">Finishing setup</h2>
                 <p className="ingame-sub">Your in-game wallet is being prepared…</p>
                 {err && <p className="ingame-err">{err}</p>}
-                <button
-                    type="button"
-                    className="ingame-cta"
+                <Button
+                    variant="primary"
+                    fullWidth
                     disabled={busy}
                     onClick={() => {
                         if (id.cdpSmartAccount || id.cdpOwnerEoa) {
@@ -312,10 +313,10 @@ export default function InGameWalletPanel({
                     }}
                 >
                     Continue
-                </button>
-                <button
-                    type="button"
-                    className="ingame-ghost"
+                </Button>
+                <Button
+                    variant="ghost"
+                    fullWidth
                     onClick={() => {
                         void signOut();
                         setStage("auth");
@@ -323,7 +324,7 @@ export default function InGameWalletPanel({
                     }}
                 >
                     Sign out
-                </button>
+                </Button>
             </div>
         );
     }
@@ -334,11 +335,11 @@ export default function InGameWalletPanel({
     return (
         <div className="ingame-signin">
             {onBack && (
-                <button type="button" className="ingame-back" onClick={onBack} aria-label="Back">
+                <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
-                </button>
+                </Button>
             )}
 
             <h2 className="ingame-title">Sign In</h2>
@@ -423,9 +424,9 @@ export default function InGameWalletPanel({
             {otpStage && (
                 <div className="ingame-row">
                     <span className="ingame-hint">Code sent to {email}</span>
-                    <button
-                        type="button"
-                        className="ingame-link"
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         disabled={busy}
                         onClick={() => {
                             setFlowId(null);
@@ -434,25 +435,25 @@ export default function InGameWalletPanel({
                         }}
                     >
                         Change email
-                    </button>
+                    </Button>
                 </div>
             )}
 
             {err && <p className="ingame-err">{err}</p>}
 
-            <button
-                type="button"
-                className="ingame-cta"
+            <Button
+                variant="primary"
+                fullWidth
                 disabled={busy || (otpStage ? otp.length < 6 : !email.trim())}
                 onClick={otpStage ? confirmOtp : sendOtp}
             >
                 {busy ? "Please wait…" : otpStage ? "Create in-game wallet" : "Send code"}
-            </button>
+            </Button>
 
             {otpStage && (
-                <button type="button" className="ingame-ghost" disabled={busy} onClick={sendOtp}>
+                <Button variant="ghost" fullWidth disabled={busy} onClick={sendOtp}>
                     Resend code
-                </button>
+                </Button>
             )}
 
             <p className="ingame-fine">Email or Google · no extension · not your Base app wallet.</p>

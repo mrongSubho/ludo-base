@@ -7,6 +7,7 @@ import { getEmoteGlyph } from './EmoteTray';
 import { chatTtlMs } from '@/lib/chat';
 import { getTeam } from '@/lib/gameLogic';
 import { ChatContent } from './EmojiPicker';
+import Button from './Button';
 
 interface StatusNotificationProps {
     message: string | null;
@@ -121,7 +122,7 @@ export function CelebrationOverlay({ winner, onReset }: CelebrationOverlayProps)
                         </span>
                         <h2 style={{ textTransform: 'capitalize' }}>{winner} Wins!</h2>
                         <p>Masterful play!</p>
-                        <button className="play-again-btn" onClick={onReset}>Rematch</button>
+                        <Button variant="primary" fullWidth onClick={onReset}>Rematch</Button>
                     </motion.div>
                 </div>
             )}

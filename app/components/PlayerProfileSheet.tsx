@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Button from './Button';
 
 interface Player {
     name: string;
@@ -113,39 +114,46 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                 {/* Actions */}
                 {!player.isAi ? (
                     <div className="pp-actions">
-                        <button
-                            className={`pp-btn ${friendStatus !== 'none' ? 'pp-btn-active' : ''}`}
+                        <Button
+                            variant={friendStatus === 'none' ? 'secondary' : 'primary'}
+                            size="sm"
                             onClick={handleFriend}
                             disabled={friendStatus === 'friends'}
                             title={friendStatus === 'none' ? 'Add Friend' : friendStatus === 'sent' ? 'Request sent' : 'Friends'}
+                            leftIcon={
+                                friendStatus === 'none' ? (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                                ) : friendStatus === 'sent' ? (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                ) : (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                )
+                            }
                         >
-                            {friendStatus === 'none' && (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-                            )}
-                            {friendStatus === 'sent' && (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            )}
-                            {friendStatus === 'friends' && (
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            )}
-                            <span>{friendStatus === 'none' ? 'Add' : friendStatus === 'sent' ? 'Pending' : 'Friends'}</span>
-                        </button>
+                            {friendStatus === 'none' ? 'Add' : friendStatus === 'sent' ? 'Pending' : 'Friends'}
+                        </Button>
 
-                        <button
-                            className={`pp-btn ${dmSent ? 'pp-btn-active' : ''}`}
+                        <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={handleDm}
+                            leftIcon={
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"></path></svg>
+                            }
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"></path></svg>
-                            <span>{dmSent ? 'Sent!' : 'DM'}</span>
-                        </button>
+                            {dmSent ? 'Sent!' : 'DM'}
+                        </Button>
 
-                        <button
-                            className={`pp-btn pp-btn-danger ${blocked ? 'pp-btn-active-danger' : ''}`}
+                        <Button
+                            variant="danger"
+                            size="sm"
                             onClick={() => setBlocked(b => !b)}
+                            leftIcon={
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                            }
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                            <span>{blocked ? 'Unblock' : 'Block'}</span>
-                        </button>
+                            {blocked ? 'Unblock' : 'Block'}
+                        </Button>
                     </div>
                 ) : (
                     <p className="pp-ai-note">AI-controlled — actions disabled.</p>

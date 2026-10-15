@@ -7,6 +7,8 @@ import { writeWalletMode, type WalletMode } from "@/lib/walletMode";
 import { buildWalletLinkMessage } from "@/lib/walletLink";
 import { useWalletSigner } from "@/hooks/useWalletSigner";
 import { useAppSession } from "@/hooks/useAppSession";
+import Button from "./Button";
+import Chip from "./Chip";
 
 /**
  * W3 — Session wallet switcher + optional two-sig link.
@@ -175,10 +177,10 @@ export default function WalletLinkPanel() {
                         }}
                     />
                 </div>
-                <div className="wl-addr-chip">
+                <Chip tone="address" size="sm">
                     <span className="wl-addr-label">Now</span>
                     <span className="wl-addr mono">{shortAddr(player.address)}</span>
-                </div>
+                </Chip>
             </div>
 
             {/* Link */}
@@ -200,14 +202,15 @@ export default function WalletLinkPanel() {
                         autoCapitalize="none"
                         enterKeyHint="done"
                     />
-                    <button
-                        type="button"
-                        className="wl-btn"
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        className="shrink-0"
                         disabled={busy || !linkedAddr.trim()}
                         onClick={linkWallets}
                     >
                         {busy ? "…" : "Link"}
-                    </button>
+                    </Button>
                 </div>
             </div>
 

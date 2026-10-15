@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useGetSwapPrice, useSwap } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
+import Button from "./Button";
 import {
     BASE_SWAP_TOKENS,
     searchSwapTokens,
@@ -44,10 +45,9 @@ function TokenPicker({
 
     return (
         <div className="tkpick" ref={boxRef}>
-            <button
-                type="button"
+            <Button
                 id={id}
-                className="tkpick-btn"
+                variant="secondary"
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 onClick={() => {
@@ -59,7 +59,7 @@ function TokenPicker({
                 <svg viewBox="0 0 24 24" className="tkpick-chev" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M6 9l6 6 6-6" />
                 </svg>
-            </button>
+            </Button>
             {open && (
                 <div className="tkpick-menu" role="listbox" aria-labelledby={id}>
                     <textarea
@@ -216,9 +216,9 @@ export default function SwapSheet() {
                 <div className="cb-banner">Quote issues: {JSON.stringify(issues).slice(0, 140)}</div>
             )}
 
-            <button
-                type="button"
-                className="btn-main block"
+            <Button
+                variant="primary"
+                fullWidth
                 disabled={status === "pending" || !fromAmount || !player.address || fromSymbol === toSymbol}
                 onClick={async () => {
                     const ok = await mfa.stepUp();
@@ -233,7 +233,7 @@ export default function SwapSheet() {
                 }}
             >
                 {status === "pending" ? "Swapping…" : `Swap ${fromSymbol} → ${toSymbol}`}
-            </button>
+            </Button>
 
             {error && <p className="err-text">{error.message}</p>}
             {status === "success" && <p className="ok-inline">Swap confirmed</p>}

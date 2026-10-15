@@ -16,6 +16,7 @@ import {
     useVerifyPasskey,
 } from "@coinbase/cdp-hooks";
 import { resolvePlayerIdentity } from "@/lib/playerIdentity";
+import Button from "./Button";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
 import { useWalletMode } from "@/hooks/useWalletMode";
 
@@ -173,7 +174,7 @@ export default function BootLock() {
     return (
         <div className="boot-lock" role="dialog" aria-modal="true" aria-label="Unlock">
             <div className="boot-lock-card">
-                <div className="boot-lock-badge" aria-hidden>
+                <div className="mx-auto mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-accent-soft text-accent" aria-hidden>
                     <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="5" y="10" width="14" height="10" rx="2" />
                         <path d="M8 10V7a4 4 0 0 1 8 0v3" />
@@ -202,26 +203,26 @@ export default function BootLock() {
                     </p>
                 )}
 
-                <button
-                    type="button"
-                    className="boot-lock-cta"
+                <Button
+                    variant="primary"
+                    fullWidth
                     disabled={busy || lockedOut}
                     onClick={unlock}
                 >
                     {busy ? "Waiting for Face ID…" : lockedOut ? "Signed out" : "Unlock"}
-                </button>
-                <button
-                    type="button"
-                    className="boot-lock-ghost"
+                </Button>
+                <Button
+                    variant="ghost"
+                    fullWidth
                     disabled={busy}
                     onClick={() => void signOutNow()}
                 >
                     Sign out instead
-                </button>
+                </Button>
                 {isLocalhost && (
-                    <button
-                        type="button"
-                        className="boot-lock-ghost"
+                    <Button
+                        variant="ghost"
+                        fullWidth
                         disabled={busy}
                         onClick={() => {
                             markBootUnlocked();
@@ -230,7 +231,7 @@ export default function BootLock() {
                         }}
                     >
                         Skip lock (localhost dev)
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>

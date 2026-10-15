@@ -9,6 +9,7 @@ import { useAppSession } from "@/hooks/useAppSession";
 import { useWalletMode } from "@/hooks/useWalletMode";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 import WalletLinkPanel from "./WalletLinkPanel";
+import Button from "./Button";
 
 /**
  * Wallet → Security (Settings-style cards).
@@ -186,12 +187,12 @@ export default function WalletSecurityPanel() {
                     </ul>
                     {err && <p className="err-text pad">{err}</p>}
                     <div className="sec-actions">
-                        <button type="button" className="btn-mini danger" disabled={busy} onClick={revealKey}>
+                        <Button variant="danger" size="sm" disabled={busy} onClick={revealKey}>
                             {busy ? "Opening…" : "Reveal private key"}
-                        </button>
-                        <button type="button" className="btn-mini ghost" onClick={() => setView("main")}>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setView("main")}>
                             Cancel
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -203,9 +204,9 @@ export default function WalletSecurityPanel() {
         return (
             <div className="sec-sheet">
                 <div className="flex items-center gap-2 mb-3">
-                    <button
-                        type="button"
-                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70"
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         aria-label="Back"
                         onClick={() => {
                             setPrivateKey(null);
@@ -213,7 +214,7 @@ export default function WalletSecurityPanel() {
                         }}
                     >
                         <BackIcon />
-                    </button>
+                    </Button>
                     <h3 className="text-[13px] font-black uppercase tracking-[0.18em] text-white/70">
                         Private key
                     </h3>
@@ -224,19 +225,19 @@ export default function WalletSecurityPanel() {
                     </p>
                     <pre className="sec-secret">{privateKey}</pre>
                     <div className="sec-actions">
-                        <button type="button" className="btn-mini primary" onClick={copyKey}>
+                        <Button variant="primary" size="sm" onClick={copyKey}>
                             {copied ? "Copied" : "Copy key"}
-                        </button>
-                        <button
-                            type="button"
-                            className="btn-mini ghost"
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => {
                                 setPrivateKey(null);
                                 setView("main");
                             }}
                         >
                             Done
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>

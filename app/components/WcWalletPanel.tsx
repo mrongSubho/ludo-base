@@ -7,6 +7,8 @@ import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useSendTransaction } from "wagmi";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import QrScanButton from "./QrScanButton";
+import Button from "./Button";
+import Chip from "./Chip";
 import {
     buildApproveSession,
     decodeSignMessage,
@@ -274,21 +276,21 @@ export default function WcWalletPanel() {
             <div className="sec-block">
                 <div className="sec-head">
                     <span>Connect</span>
-                    <span className="sec-tag">WalletConnect</span>
+                    <Chip size="sm">WalletConnect</Chip>
                 </div>
                 <div className="sec-card">
-                    <div className="dapp-pair">
+                    <div className="flex gap-2">
                         <input
-                            className="fld-text"
+                            className="fld-text flex-1 min-w-0"
                             placeholder="Paste wc: link"
                             value={uri}
                             onChange={(e) => setUri(e.target.value)}
                             spellCheck={false}
                             autoComplete="off"
                         />
-                        <button type="button" className="btn-main" disabled={busy} onClick={onPair}>
+                        <Button variant="primary" className="shrink-0" disabled={busy} onClick={onPair}>
                             Pair
-                        </button>
+                        </Button>
                     </div>
                     <div className="sec-actions">
                         <QrScanButton
@@ -315,7 +317,7 @@ export default function WcWalletPanel() {
                 <div className="sec-block">
                     <div className="sec-head">
                         <span>Session requests</span>
-                        <span className="sec-tag">{proposals.length}</span>
+                        <Chip size="sm">{proposals.length}</Chip>
                     </div>
                     {proposals.map((p) => (
                         <div key={p.id} className="sec-card">
@@ -325,31 +327,31 @@ export default function WcWalletPanel() {
                                     <div className="sec-sub mono">{p.proposerUrl}</div>
                                 </div>
                             </div>
-                            <div className="dapp-chips">
+                            <div className="flex flex-wrap gap-1.5">
                                 {[...p.requiredChains, ...p.optionalChains].map((c) => (
-                                    <span key={c} className="dapp-chip">{c}</span>
+                                    <Chip key={c} size="sm">{c}</Chip>
                                 ))}
                                 {[...p.requiredMethods, ...p.optionalMethods].slice(0, 6).map((m) => (
-                                    <span key={m} className="dapp-chip soft">{m}</span>
+                                    <Chip key={m} size="sm">{m}</Chip>
                                 ))}
                             </div>
                             <div className="sec-actions">
-                                <button
-                                    type="button"
-                                    className="btn-mini primary"
+                                <Button
+                                    variant="primary"
+                                    size="sm"
                                     disabled={busy}
                                     onClick={() => onApproveProposal(p.id)}
                                 >
                                     Approve
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn-mini ghost"
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     disabled={busy}
                                     onClick={() => onRejectProposal(p.id)}
                                 >
                                     Reject
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     ))}
@@ -361,7 +363,7 @@ export default function WcWalletPanel() {
                 <div className="sec-block">
                     <div className="sec-head">
                         <span>Requests</span>
-                        <span className="sec-tag">{requests.length}</span>
+                        <Chip size="sm">{requests.length}</Chip>
                     </div>
                     {requests.map((r) => {
                         const isValue =
@@ -418,22 +420,22 @@ export default function WcWalletPanel() {
                                     </div>
                                 )}
                                 <div className="sec-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-mini primary"
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
                                         disabled={busy}
                                         onClick={() => onRespondRequest(r, true)}
                                     >
                                         Sign
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-mini ghost"
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
                                         disabled={busy}
                                         onClick={() => onRespondRequest(r, false)}
                                     >
                                         Reject
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         );
@@ -484,9 +486,9 @@ export default function WcWalletPanel() {
                                                 {exp ? ` · ${exp.expired ? "expired" : exp.label}` : ""}
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            className="btn-mini danger-ghost"
+                                        <Button
+                                            variant="danger"
+                                            size="sm"
                                             disabled={busy}
                                             onClick={async () => {
                                                 try {
@@ -502,7 +504,7 @@ export default function WcWalletPanel() {
                                             }}
                                         >
                                             End
-                                        </button>
+                                        </Button>
                                     </li>
                                 );
                             })}

@@ -9,6 +9,7 @@ import { useAudio } from '../hooks/useAudio';
 import { calculateSnakesMove } from '@/lib/snakesLogic';
 import { BOT_TEMPLATES } from '@/lib/boardLayout';
 import { prefersReducedMotion } from '@/lib/motion';
+import Chip from './Chip';
 
 type PowerType = 'shield' | 'boost' | 'bomb' | 'warp';
 
@@ -404,10 +405,10 @@ export default function SnakesBoard({
                                 />
                                 {/* AI / Auto-play Badges */}
                                 {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                    <div className="ai-thinking-tag">Thinking...</div>
+                                    <Chip size="sm">Thinking...</Chip>
                                 )}
                                 {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                    <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                    <Chip size="sm" status="warn">Auto-Play</Chip>
                                 )}
                             </div>
 
@@ -578,10 +579,10 @@ export default function SnakesBoard({
                                         }}
                                     />
                                     {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                        <div className="ai-thinking-tag">Thinking...</div>
+                                        <Chip size="sm">Thinking...</Chip>
                                     )}
                                     {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                        <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                        <Chip size="sm" status="warn">Auto-Play</Chip>
                                     )}
                                 </div>
 
@@ -633,10 +634,10 @@ export default function SnakesBoard({
                                         }}
                                     />
                                     {gameState.currentPlayer === p.color && gameState.isThinking && p.isAi && (
-                                        <div className="ai-thinking-tag">Thinking...</div>
+                                        <Chip size="sm">Thinking...</Chip>
                                     )}
                                     {gameState.currentPlayer === p.color && !p.isAi && gameState.strikes[p.color] >= 3 && (
-                                        <div className="ai-thinking-tag afk-tag">Auto-Play</div>
+                                        <Chip size="sm" status="warn">Auto-Play</Chip>
                                     )}
                                 </div>
                             </div>

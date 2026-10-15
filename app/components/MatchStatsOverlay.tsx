@@ -9,6 +9,7 @@ import { BOARD_FINISH_INDEX, TEAM_ID } from '@/lib/constants';
 import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { getDisplayNameHelper } from './PlayerInfoRow';
+import Chip from './Chip';
 import { buildMatchReceipt, renderReceiptMarkdown, type MatchReceipt } from '@/lib/receipt/buildMatchReceipt';
 import { usePoolSummary } from '@/hooks/useChipsPool';
 
@@ -364,14 +365,12 @@ export function MatchStatsOverlay({
                                                     <HomeGlyph />
                                                     {row.home}/4
                                                 </span>
-                                                <span className="match-stats-chip kick" title="Kicks — tokens you sent home">
-                                                    <KickGlyph />
-                                                    <b>{row.kicks}</b>
-                                                </span>
-                                                <span className="match-stats-chip kicked" title="Got kicked — your tokens sent home">
-                                                    <KickedGlyph />
-                                                    <b>{row.gotKicked}</b>
-                                                </span>
+                                                <Chip size="sm" status="ok" icon={<KickGlyph />} title="Kicks — tokens you sent home">
+                                                    {row.kicks}
+                                                </Chip>
+                                                <Chip size="sm" status="warn" icon={<KickedGlyph />} title="Got kicked — your tokens sent home">
+                                                    {row.gotKicked}
+                                                </Chip>
                                             </div>
                                         </div>
                                         <div className={`match-stats-outcome ${row.won ? 'win' : 'lose'}`}>
