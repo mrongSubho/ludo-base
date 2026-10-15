@@ -9,6 +9,8 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
+import { Button } from './Button';
+import { Chip } from './Chip';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -637,13 +639,15 @@ export const QuickMatchPanel = ({
                                                         Widen the search
                                                     </h3>
                                                 </div>
-                                                <button
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
                                                     onClick={() => setShowExpansionOptions(false)}
                                                     aria-label="Keep searching this fee"
-                                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/30 hover:text-white transition-all"
+                                                    className="h-8 w-8 rounded-full p-0"
                                                 >
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                </button>
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                </Button>
                                             </div>
 
                                             <p className="text-[11px] text-white/45 font-bold leading-snug">
@@ -659,10 +663,11 @@ export const QuickMatchPanel = ({
                                                             Players waiting
                                                         </p>
                                                         {snappedPools.map((pool) => (
-                                                            <button
+                                                            <Button
                                                                 key={`pool-${pool.fee}`}
+                                                                variant="secondary"
                                                                 onClick={() => handleExpandWager(pool.fee)}
-                                                                className="w-full py-3 px-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-all flex items-center justify-between"
+                                                                className="w-full justify-between px-4"
                                                             >
                                                                 <span className="text-sm font-black text-cyan-300 tabular-nums">
                                                                     {feeLabel(pool.fee)}
@@ -670,26 +675,30 @@ export const QuickMatchPanel = ({
                                                                 <span className="text-[10px] font-black text-emerald-300/70 uppercase tracking-widest">
                                                                     {pool.waiters} waiting
                                                                 </span>
-                                                            </button>
+                                                            </Button>
                                                         ))}
                                                     </>
                                                 ) : (
                                                     <>
                                                         {lowerFee !== undefined && (
-                                                            <button
+                                                            <Button
+                                                                variant="primary"
+                                                                fullWidth
                                                                 onClick={() => handleExpandWager(lowerFee)}
-                                                                className="w-full py-3 rounded-2xl bg-cyan-500 text-slate-950 text-sm font-black uppercase tracking-[0.16em] hover:bg-cyan-400 transition-all active:scale-[0.99]"
+                                                                className="uppercase tracking-[0.16em]"
                                                             >
                                                                 Try {feeLabel(lowerFee)}
-                                                            </button>
+                                                            </Button>
                                                         )}
                                                         {higherFee !== undefined && (
-                                                            <button
+                                                            <Button
+                                                                variant="secondary"
+                                                                fullWidth
                                                                 onClick={() => handleExpandWager(higherFee)}
-                                                                className="w-full py-3 rounded-2xl bg-white/5 border border-white/15 text-white/70 text-sm font-black uppercase tracking-[0.16em] hover:bg-white/10 hover:text-white transition-all active:scale-[0.99]"
+                                                                className="uppercase tracking-[0.16em]"
                                                             >
                                                                 Try {feeLabel(higherFee)}
-                                                            </button>
+                                                            </Button>
                                                         )}
                                                     </>
                                                 )}
@@ -697,36 +706,44 @@ export const QuickMatchPanel = ({
                                                 {snappedPools.length > 0 && (lowerFee !== undefined || higherFee !== undefined) && (
                                                     <div className="flex gap-2">
                                                         {lowerFee !== undefined && (
-                                                            <button
+                                                            <Chip
+                                                                type="filter"
+                                                                size="sm"
                                                                 onClick={() => handleExpandWager(lowerFee)}
-                                                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[11px] font-black uppercase tracking-[0.12em] hover:bg-white/10 hover:text-white transition-all"
+                                                                className="flex-1 justify-center rounded-xl py-2.5 text-[11px] tracking-[0.12em]"
                                                             >
                                                                 {feeLabel(lowerFee)}
-                                                            </button>
+                                                            </Chip>
                                                         )}
                                                         {higherFee !== undefined && (
-                                                            <button
+                                                            <Chip
+                                                                type="filter"
+                                                                size="sm"
                                                                 onClick={() => handleExpandWager(higherFee)}
-                                                                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[11px] font-black uppercase tracking-[0.12em] hover:bg-white/10 hover:text-white transition-all"
+                                                                className="flex-1 justify-center rounded-xl py-2.5 text-[11px] tracking-[0.12em]"
                                                             >
                                                                 {feeLabel(higherFee)}
-                                                            </button>
+                                                            </Chip>
                                                         )}
                                                     </div>
                                                 )}
 
-                                                <button
+                                                <Button
+                                                    variant="secondary"
+                                                    fullWidth
                                                     onClick={() => handleExpandWager('any')}
-                                                    className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/50 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-[0.99]"
+                                                    className="uppercase tracking-[0.2em]"
                                                 >
                                                     Match any fee
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    fullWidth
                                                     onClick={handleStayHere}
-                                                    className="w-full py-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 hover:text-white/60 transition-colors"
+                                                    className="uppercase tracking-[0.2em]"
                                                 >
                                                     Keep waiting at {feeLabel(activeWager)}
-                                                </button>
+                                                </Button>
                                             </div>
                                         </motion.div>
                                     </motion.div>
@@ -753,31 +770,36 @@ export const QuickMatchPanel = ({
                                     </p>
 
                                     <div className="w-full flex flex-col gap-2">
-                                        <button
+                                        <Button
+                                            variant="primary"
+                                            fullWidth
                                             onClick={handleRetry}
-                                            className="w-full py-3 rounded-2xl bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:scale-[1.02] transition-all active:scale-95"
+                                            className="uppercase tracking-[0.2em]"
                                         >
                                             Retry {matchType} · {feeLabel(activeWager)}
-                                        </button>
+                                        </Button>
                                         
                                         <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 flex flex-col gap-3">
                                             <p className="text-[10px] text-cyan-400/60 font-medium uppercase tracking-widest leading-relaxed">
                                                 Strongly advise practicing in <span className="text-cyan-400">Offline Mode</span> to sharpen your strategy and skills.
                                             </p>
-                                            <button 
+                                            <Button
+                                                variant="secondary"
+                                                fullWidth
                                                 onClick={handleForceBotMatch}
-                                                className="w-full py-3 rounded-xl bg-cyan-500/20 text-cyan-400 font-bold text-xs hover:bg-cyan-500/30 transition-all"
                                             >
                                                 Play with AI
-                                            </button>
+                                            </Button>
                                         </div>
                                         
-                                        <button 
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={handleBackToLobby}
-                                            className="text-[10px] uppercase font-black tracking-widest text-white/20 hover:text-white/40 mt-2"
+                                            className="mt-2 uppercase tracking-widest"
                                         >
                                             Back to Menu
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -788,19 +810,21 @@ export const QuickMatchPanel = ({
                         {/* Single Control Action */}
                         <div className="mt-auto px-5 pb-5 pt-3 border-t border-white/10 bg-black/20 backdrop-blur-sm relative z-10">
                             <div className="w-full flex gap-2">
-                                <button
+                                <Button
+                                    variant="secondary"
                                     onClick={handleBackToLobby}
-                                    className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 group"
+                                    leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>}
+                                    className="flex-1 justify-center uppercase tracking-[0.2em]"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/40 group-hover:text-white transition-colors"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                     Cancel
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    variant="secondary"
                                     onClick={handleForceBotMatch}
-                                    className="flex-1 py-3 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-sm font-black uppercase tracking-[0.2em] hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 transition-all active:scale-95"
+                                    className="flex-1 uppercase tracking-[0.2em]"
                                 >
                                     Play with AI
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -818,13 +842,15 @@ export const QuickMatchPanel = ({
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] cosmic-orb opacity-30 animate-pulse-slow pointer-events-none" />
 
                                 {/* Close Button */}
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={handleCancelAndClose}
                                     aria-label="Close match found"
-                                    className="absolute top-8 right-8 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white ring-1 ring-white/10 flex items-center justify-center transition-all z-[210] pointer-events-auto"
+                                    className="absolute right-8 top-8 z-[210] border border-line-soft bg-surface-hover"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </button>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </Button>
 
                                 <div className="relative z-10 flex flex-col items-center gap-6 w-full" style={{ pointerEvents: 'auto' }}>
                                     <div className="flex flex-col items-center gap-2">
@@ -977,30 +1003,35 @@ export const QuickMatchPanel = ({
 
                                         {isStalled && (
                                             <div className="flex w-full max-w-[280px] flex-col gap-2">
-                                                <button
+                                                <Button
+                                                    variant="primary"
+                                                    fullWidth
                                                     onClick={handleForceBotMatch}
-                                                    className="w-full py-3 rounded-2xl bg-cyan-500 text-slate-950 text-xs font-black uppercase tracking-[0.2em] hover:bg-cyan-400 transition-all active:scale-95"
+                                                    className="uppercase tracking-[0.2em]"
                                                 >
                                                     Play with AI instead
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    fullWidth
                                                     onClick={() => {
                                                         cancelSearch();
                                                         handleBackToLobby();
                                                     }}
-                                                    className="w-full py-3 rounded-2xl bg-white/5 border border-white/15 text-white/60 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-95"
+                                                    className="uppercase tracking-[0.2em]"
                                                 >
                                                     Leave this match
-                                                </button>
+                                                </Button>
                                             </div>
                                         )}
 
-                                        <button
+                                        <Button
+                                            variant="secondary"
                                             onClick={handleCancelAndClose}
-                                            className="px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all text-[10px] font-black uppercase tracking-[0.2em]"
+                                            className="px-8 uppercase tracking-[0.2em]"
                                         >
                                             Cancel Match
-                                        </button>
+                                        </Button>
                                         
                                         <p className="max-w-[280px] text-[10px] text-white/20 leading-relaxed">
                                             Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.
