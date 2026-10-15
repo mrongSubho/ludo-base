@@ -4,6 +4,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { BotDifficulty } from '@/lib/types';
+import { Button } from './Button';
+import { Chip } from './Chip';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this sheet always renders on the shared
@@ -89,13 +91,15 @@ export const OfflineMatchPanel = ({
                                 <OfflineTile />
                                 Offline Play
                             </h2>
-                            <button
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={onClose}
                                 aria-label="Close offline play"
-                                className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
+                                className="bg-surface-hover border border-line-soft shrink-0"
                             >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </Button>
                         </div>
                         <div className="flex items-center gap-2 px-0.5">
                             <span className="text-[11px] font-black text-white/70 tracking-wide uppercase">
@@ -112,27 +116,25 @@ export const OfflineMatchPanel = ({
                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
                         <SectionLabel>Mode</SectionLabel>
                         <div className="grid grid-cols-2 gap-1.5">
-                            <button
-                                type="button"
+                            <Chip
+                                type="filter"
+                                size="sm"
+                                active={mode === 'ai'}
                                 onClick={() => setMode('ai')}
-                                aria-pressed={mode === 'ai'}
-                                className={`py-3 min-h-[52px] rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] transition-all active:scale-95 ${mode === 'ai'
-                                    ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300'
-                                    : 'border-white/10 bg-white/5 text-white/60'}`}
+                                className="min-h-[52px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em]"
                             >
                                 vs AI
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMode('pass')}
-                                aria-pressed={mode === 'pass'}
+                            </Chip>
+                            <Chip
+                                type="filter"
+                                size="sm"
+                                active={mode === 'pass'}
                                 disabled={!onStartPassAndPlay}
-                                className={`py-3 min-h-[52px] rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] transition-all active:scale-95 ${mode === 'pass'
-                                    ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300'
-                                    : 'border-white/10 bg-white/5 text-white/60'}`}
+                                onClick={() => setMode('pass')}
+                                className="min-h-[52px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em]"
                             >
                                 Pass &amp; Play
-                            </button>
+                            </Chip>
                         </div>
                         <p className="text-[10px] text-white/45 px-0.5 -mt-0.5">
                             {mode === 'pass'
@@ -145,20 +147,20 @@ export const OfflineMatchPanel = ({
                         <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-3">
                             <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
                                 <span>Opponents</span>
-                                <span className="text-cyan-400">{aiCount} × AI • Free</span>
+                                <span className="text-accent">{aiCount} × AI • Free</span>
                             </div>
                             <div className="flex gap-1.5">
                                 {(['rookie', 'pro', 'master'] as const).map(d => (
-                                    <button
+                                    <Chip
                                         key={d}
+                                        type="filter"
+                                        size="sm"
+                                        active={difficulty === d}
                                         onClick={() => setDifficulty(d)}
-                                        aria-pressed={difficulty === d}
-                                        className={`flex-1 py-2 min-h-[44px] rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] transition-all active:scale-95 ${difficulty === d
-                                            ? 'border-cyan-400 bg-cyan-500/15 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
-                                            : 'border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70'}`}
+                                        className="min-h-[44px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em] lowercase first-letter:uppercase"
                                     >
                                         {d}
-                                    </button>
+                                    </Chip>
                                 ))}
                             </div>
                             <p className="text-[10px] font-bold text-white/35 text-center tracking-wide">
@@ -187,15 +189,18 @@ export const OfflineMatchPanel = ({
 
                     {/* Footer Action */}
                     <div className="px-5 pt-3 pb-5 border-t border-white/10 relative z-10">
-                        <button
+                        <Button
+                            variant="primary"
+                            size="lg"
+                            fullWidth
                             onClick={() => {
                                 if (mode === 'pass') onStartPassAndPlay?.();
                                 else onStartOfflineGame(difficulty);
                             }}
-                            className="w-full py-3 min-h-[44px] bg-white text-black font-black uppercase tracking-[0.2em] rounded-2xl text-sm shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all active:scale-95"
+                            className="uppercase tracking-[0.2em]"
                         >
                             {mode === 'pass' ? 'Start Pass & Play' : 'Start Offline Match'}
-                        </button>
+                        </Button>
                     </div>
                     </div>
                 </div>
