@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useNetworkLabel } from "@/hooks/useNetworkLabel";
+import Button from "./Button";
+import Chip from "./Chip";
 
 /** R0 — Receive sheet (SMART_WALLET_PLANNING §5). */
 export default function ReceiveSheet() {
@@ -48,7 +50,7 @@ export default function ReceiveSheet() {
             <section className="cb-section">
                 <div className="cb-section-head">
                     <span>Your address</span>
-                    <span className="cb-section-tag">{network.label}</span>
+                    <Chip size="sm">{network.label}</Chip>
                 </div>
                 <div className="cb-card cb-receive">
                     <div className="cb-qr-wrap">
@@ -65,9 +67,8 @@ export default function ReceiveSheet() {
                         <div className="cb-addr-label">Address</div>
                         <div className="cb-addr-value font-mono">{address}</div>
                     </div>
-                    <button
-                        type="button"
-                        className="cb-btn primary block"
+                    <Button
+                        fullWidth
                         onClick={async () => {
                             try {
                                 await navigator.clipboard.writeText(address);
@@ -79,7 +80,7 @@ export default function ReceiveSheet() {
                         }}
                     >
                         {copied ? "Copied" : "Copy address"}
-                    </button>
+                    </Button>
                 </div>
             </section>
 

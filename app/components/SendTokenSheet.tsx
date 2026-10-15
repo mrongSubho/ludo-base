@@ -12,6 +12,8 @@ import { useSendToken, type SendTokenKey } from "@/hooks/useSendToken";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { recordWalletActivity } from "@/hooks/useWalletActivity";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
+import Button from "./Button";
+import Chip from "./Chip";
 
 export type SendAsset = "eth" | SendTokenKey;
 
@@ -40,6 +42,7 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
     const [asset, setAsset] = useState<SendAsset>("eth");
     const [to, setTo] = useState("");
     const [amount, setAmount] = useState("");
+    const [activePct, setActivePct] = useState<number | null>(null);
     const [confirming, setConfirming] = useState(false);
 
     const meta = ASSETS.find((a) => a.key === asset) ?? ASSETS[0];
@@ -65,6 +68,7 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
     const setPct = (pct: number) => {
         const raw = (spendable * BigInt(pct)) / BigInt(100);
         setAmount(formatUnits(raw, meta.decimals));
+        setActivePct(pct);
         setConfirming(false);
     };
 
@@ -79,26 +83,28 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
     return (
         <div className="cb-screen send-sheet">
             {/* Asset chips */}
-            <div className="tk-row" role="tablist" aria-label="Asset">
-                {ASSETS.map((a) => (
-                    <button
-                        key={a.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={asset === a.key}
-                        className={`tk-chip ${asset === a.key ? "on" : ""}`}
-                        onClick={() => {
-                            setAsset(a.key);
-                            setConfirming(false);
-                            setAmount("");
-                            native.reset();
-                            erc20.reset();
-                        }}
-                    >
-                        <span className="tk-dot" style={{ background: a.tint }} />
-                        <span className="tk-sym">{a.label}</span>
-                    </button>
-                ))}
+                <div className="tk-row" role="tablist" aria-label="Asset">
+                    {ASSETS.map((a) => (
+                        <Chip
+                            key={a.key}
+                            type="filter"
+                            size="sm"
+                            role="tab"
+                            aria-selected={asset === a.key}
+                            active={asset === a.key}
+                            onClick={() => {
+                                setAsset(a.key);
+                                setConfirming(false);
+                                setAmount("");
+                                setActivePct(null);
+                                native.reset();
+                                erc20.reset();
+                            }}
+                            icon={<span className="tk-dot" style={{ background: a.tint }} />}
+                        >
+                            {a.label}
+                        </Chip>
+                    ))}
             </div>
 
             {/* Amount card */}
@@ -121,6 +127,7 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                         value={amount}
                         onChange={(e) => {
                             setAmount(e.target.value);
+                            setActivePct(null);
                             setConfirming(false);
                         }}
                         aria-label="Amount"
@@ -129,9 +136,15 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                 </div>
                 <div className="pct-row">
                     {PCTS.map((p) => (
-                        <button key={p.pct} type="button" className="pct-btn" onClick={() => setPct(p.pct)}>
+                        <Chip
+                            key={p.pct}
+                            type="filter"
+                            size="sm"
+                            active={activePct === p.pct}
+                            onClick={() => setPct(p.pct)}
+                        >
                             {p.label}
-                        </button>
+                        </Chip>
                     ))}
                 </div>
                 {meta.unpriced && <p className="fld-note">CHIPS · unpriced · Base only</p>}
@@ -182,10 +195,8 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                         <strong>{mode === "ingame" ? "Smart wallet" : "Your wallet"}</strong>
                     </div>
                     <p className="rev-note">This moves real value. You will sign in your wallet.</p>
-                    <div className="rev-btns">
-                        <button
-                            type="button"
-                            className="btn-main"
+                    <div className="flex gap-2">
+                        <Button
                             onClick={async () => {
                                 const ok = await mfa.stepUp();
                                 if (!ok) return;
@@ -210,24 +221,23 @@ export default function SendTokenSheet({ onDone }: { onDone?: () => void }) {
                             }}
                         >
                             Confirm send
-                        </button>
-                        <button type="button" className="btn-ghost" onClick={() => setConfirming(false)}>
+                        </Button>
+                        <Button variant="ghost" onClick={() => setConfirming(false)}>
                             Back
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
 
             {/* Primary CTA pinned after fields */}
             {!confirming && (
-                <button
-                    type="button"
-                    className="btn-main block"
+                <Button
+                    fullWidth
                     disabled={!canReview}
                     onClick={() => setConfirming(true)}
                 >
                     {status === "pending" ? "Sending…" : "Review"}
-                </button>
+                </Button>
             )}
 
             {status === "pending" && <p className="fld-note">Waiting for wallet confirmation…</p>}
