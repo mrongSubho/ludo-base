@@ -221,10 +221,16 @@ async function driveBurnRoute(page) {
 
 /**
  * Panels carry async data that settles after the scope mounts. Poll for two
- * identical frames on the panel's own rows rather than a fixed timeout, so a
- * slow fetch cannot bake a half-populated list into a baseline.
+ * identical full-page frames rather than relying on a fixed timeout, so a slow
+ * fetch cannot bake a half-populated list into a baseline.
+ *
+ * The scene argument is accepted for symmetry with `settle` and is not read:
+ * scope-limited polling was considered here and deliberately not done (a
+ * per-scope screenshot needs the scope's selector, which scenes do not carry
+ * uniformly, and the whole-page poll is what the verified suite was calibrated
+ * against).
  */
-async function settlePanel(page, scopeClass) {
+async function settlePanel(page, _scene) {
   await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())).catch(() => {});
   let prev = null;
   for (let i = 0; i < 14; i++) {
