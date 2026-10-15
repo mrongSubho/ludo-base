@@ -890,24 +890,22 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </select>
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"><polyline points="6 9 12 15 18 9" /></svg>
                                             </div>
-                                            <Button
-                                                size="icon"
+                                            <button
                                                 onClick={() => setFilterOpen(true)}
-                                                className={`relative shrink-0 rounded-lg border ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-white/20 bg-surface-recessed text-ink-strong hover:text-white'}`}
+                                                className={`relative shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-white/20 bg-surface-recessed text-ink-strong hover:text-white'}`}
                                                 aria-label="Open filters"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-[18px] h-[18px]"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
                                                 {activeFilterCount > 0 && (
                                                     <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[10px] font-black flex items-center justify-center">{activeFilterCount}</span>
                                                 )}
-                                            </Button>
-                                            <div className="flex shrink-0 items-center bg-black/40 border border-white/15 rounded-xl p-1">
+                                            </button>
+                                            <div className="flex shrink-0 items-center h-9 bg-black/40 border border-white/15 rounded-lg p-0.5 gap-0.5">
                                                 {(['comfort', 'compact'] as const).map(d => (
-                                                    <Button
+                                                    <button
                                                         key={d}
-                                                        size="icon"
                                                         onClick={() => setDensity(d)}
-                                                        className={`shrink-0 rounded-lg ${density === d ? 'bg-surface-active text-white' : 'text-ink-muted hover:text-white hover:bg-white/5'}`}
+                                                        className={`shrink-0 h-full aspect-square rounded-md flex items-center justify-center ${density === d ? 'bg-surface-active text-white' : 'text-ink-muted hover:text-white hover:bg-white/5'}`}
                                                         aria-label={d === 'comfort' ? 'Comfortable grid' : 'Compact grid'}
                                                     >
                                                         {d === 'comfort' ? (
@@ -915,7 +913,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         ) : (
                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="10" y="3" width="5" height="5" rx="1" /><rect x="17" y="3" width="5" height="5" rx="1" /><rect x="3" y="10" width="5" height="5" rx="1" /><rect x="10" y="10" width="5" height="5" rx="1" /><rect x="17" y="10" width="5" height="5" rx="1" /><rect x="3" y="17" width="5" height="5" rx="1" /><rect x="10" y="17" width="5" height="5" rx="1" /><rect x="17" y="17" width="5" height="5" rx="1" /></svg>
                                                         )}
-                                                    </Button>
+                                                    </button>
                                                 ))}
                                             </div>
                                         </div>
