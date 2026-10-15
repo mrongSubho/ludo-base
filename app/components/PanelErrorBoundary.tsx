@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import ErrorCard, { type ErrorCardAction } from './ErrorCard';
 import { friendlyErrorFromMessage } from '@/lib/errorCopy';
 import { captureException } from '@/lib/telemetry';
 
@@ -8,6 +9,10 @@ import { captureException } from '@/lib/telemetry';
 // Scoped firewall for overlay panels (TeamUp, …): a throwing panel shows an
 // inline card with the REAL error message + retry/dismiss instead of
 // unmounting the app. Diagnosis over silence.
+//
+// The card is the shared ErrorCard (image-1 design), centred in the panel's
+// column. Buttons per case: RETRY (re-render the panel) plus DISMISS when the
+// caller passed onClose (abandon the panel, keep the rest of the app).
 interface Props {
     name: string;
     onClose?: () => void;
@@ -38,43 +43,22 @@ export class PanelErrorBoundary extends React.Component<Props, State> {
         const { error } = this.state;
         if (!error) return this.props.children;
         const friendly = friendlyErrorFromMessage(error.message);
+        const actions: ErrorCardAction[] = [
+            { label: friendly.cta || 'Retry', onClick: this.retry },
+        ];
+        if (this.props.onClose) {
+            actions.push({ label: 'Dismiss', onClick: this.props.onClose, kind: 'ghost' });
+        }
         return (
             <div className="fixed inset-0 z-[130] flex justify-center pointer-events-none">
-                <div className="w-full max-w-[500px] relative h-full">
-                    <div className="panel-error-card pointer-events-auto absolute top-[64px] left-[8px] right-[8px] border border-red-500/30 rounded-[28px] p-5 flex flex-col items-center gap-2.5 text-center shadow-2xl"
-                        style={{ background: 'rgba(20,8,10,0.96)', backdropFilter: 'blur(32px)' }}
-                    >
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-400">
-                            {this.props.name} · {friendly.title}
-                        </p>
-                        <p className="text-[12px] font-bold text-white break-words max-w-full">
-                            {friendly.copy}
-                        </p>
-                        <p className="text-[10px] font-mono text-white/50 break-words max-w-full">
-                            {error.message || 'Unknown error'}
-                        </p>
-                        {this.state.stack && (
-                            <pre className="panel-error-stack w-full max-h-28 overflow-auto text-left text-[10px] font-mono text-white/75 bg-black/60 border border-white/10 rounded-xl p-2 whitespace-pre-wrap break-words">
-                                {this.state.stack}
-                            </pre>
-                        )}
-                        <div className="flex gap-2 w-full mt-1">
-                            <button
-                                onClick={this.retry}
-                                className="flex-1 py-3 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.18em] hover:bg-white/90 active:scale-95 transition-all"
-                            >
-                                {friendly.cta || 'Retry'}
-                            </button>
-                            {this.props.onClose && (
-                                <button
-                                    onClick={this.props.onClose}
-                                    className="flex-1 py-3 rounded-2xl bg-white/10 text-white text-xs font-black uppercase tracking-[0.18em] hover:bg-white/20 active:scale-95 transition-all"
-                                >
-                                    Dismiss
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                <div className="w-full max-w-[500px] h-full flex items-center justify-center px-2">
+                    <ErrorCard
+                        kicker={`${this.props.name} · ${friendly.title}`}
+                        copy={friendly.copy}
+                        raw={error.message || 'Unknown error'}
+                        stack={this.state.stack}
+                        actions={actions}
+                    />
                 </div>
             </div>
         );

@@ -9,7 +9,67 @@ import React from 'react';
 // error before the panel tree exists.
 
 // It must render its own <html>/<body>: the root layout failed to produce
-// them, so Next.js replaces the document with this file's output.
+// them, so Next.js replaces the document with this file's output. For the
+// same reason the values below are LITERAL, not `--err-*` tokens — no
+// stylesheet is guaranteed here. They mirror ErrorCard's Retro palette so
+// the last-resort screen reads as the same card as every other error.
+
+const CARD = {
+    maxWidth: 500,
+    width: '100%',
+    textAlign: 'center' as const,
+    background: 'rgba(20, 8, 10, 0.96)',
+    border: '1px solid rgba(239, 68, 68, 0.30)',
+    borderRadius: 28,
+    padding: 20,
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.55)',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 10,
+};
+
+const KICKER = {
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase' as const,
+    color: '#f87171',
+    margin: 0,
+};
+
+const HEADING = {
+    fontSize: 18,
+    fontWeight: 900,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '-0.02em',
+    color: '#ffffff',
+    margin: 0,
+};
+
+const COPY = {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#ffffff',
+    lineHeight: 1.6,
+    margin: 0,
+};
+
+const BUTTON = {
+    minHeight: 44,
+    width: '100%',
+    padding: '12px 0',
+    borderRadius: 16,
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: '#ffffff',
+    color: '#000000',
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase' as const,
+    cursor: 'pointer',
+};
+
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
     return (
         <html lang="en">
@@ -26,42 +86,15 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
                     padding: 24,
                 }}
             >
-                <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
-                    <p
-                        style={{
-                            fontSize: 10,
-                            letterSpacing: '0.25em',
-                            textTransform: 'uppercase',
-                            color: '#00e5ff',
-                            marginBottom: 12,
-                        }}
-                    >
-                        Ludo Base
-                    </p>
-                    <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 12px' }}>
-                        The app hit an error
-                    </h1>
-                    <p style={{ fontSize: 13, color: 'rgba(230,237,247,0.6)', lineHeight: 1.6, margin: '0 0 24px' }}>
+                <div style={CARD}>
+                    <p style={KICKER}>Ludo Base · Something broke</p>
+                    <h1 style={HEADING}>The app hit an error</h1>
+                    <p style={COPY}>
                         Your match is not affected — nothing was sent to the chain. Try
                         reloading; if it keeps happening, the panel that caused it can be
                         reopened individually.
                     </p>
-                    <button
-                        onClick={reset}
-                        style={{
-                            minHeight: 44,
-                            width: '100%',
-                            borderRadius: 16,
-                            border: '1px solid rgba(0,229,255,0.4)',
-                            background: 'rgba(0,229,255,0.15)',
-                            color: '#00e5ff',
-                            fontSize: 11,
-                            fontWeight: 900,
-                            letterSpacing: '0.2em',
-                            textTransform: 'uppercase',
-                            cursor: 'pointer',
-                        }}
-                    >
+                    <button type="button" onClick={reset} style={BUTTON}>
                         Try again
                     </button>
                 </div>

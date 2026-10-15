@@ -170,6 +170,33 @@
   --warn: #fbbf24;
   --positive: #4ade80;
   --negative: #f87171;
+  /* ─── Error-surface tokens (REA-08 boundaries) ───
+     One card for every error boundary: the scoped PanelErrorBoundary
+     overlays, the route boundary (app/error.tsx) and — literally inlined —
+     global-error.tsx. Daybreak overrides these below, so the same card is
+     correct in both themes with zero patch rules. Replaces the old
+     `body.theme-daybreak .panel-error-card` block, which could only remap
+     the exact `.text-white` / `.text-red-400` classes and so left the route
+     card's `text-white/80` / `text-white/50` ink white-on-white. */
+  --err-backdrop: #000000;                      /* page behind route card  */
+  --err-card-bg: rgba(20, 8, 10, 0.96);
+  --err-card-border: rgba(239, 68, 68, 0.30);   /* red-500/30               */
+  --err-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.55);
+  --err-ink: #ffffff;
+  --err-ink-muted: rgba(255, 255, 255, 0.50);   /* raw diagnostic line      */
+  --err-kicker: var(--negative);
+  --err-stack-bg: rgba(0, 0, 0, 0.60);
+  --err-stack-border: rgba(255, 255, 255, 0.10);
+  --err-stack-ink: rgba(255, 255, 255, 0.75);
+  /* The primary CTA is white on the dark card. Daybreak inverts it to
+     #171717: a white button on the white error card was the reported
+     visibility bug. */
+  --err-cta-bg: #ffffff;
+  --err-cta-ink: #000000;
+  --err-cta-border: rgba(255, 255, 255, 0.18);
+  --err-ghost-bg: rgba(255, 255, 255, 0.10);
+  --err-ghost-ink: #ffffff;
+  --err-ghost-border: rgba(255, 255, 255, 0.18);
 }
 
 /* The two tokens that CHAIN to another theme variable must be declared on
@@ -283,6 +310,26 @@ body.theme-daybreak {
   --warn: #92400e;
   --positive: #166534;
   --negative: #b91c1c;
+  /* Error-surface tokens — light counterparts (see the Retro `:root` group).
+     The primary CTA inverts to dark ink so it stays unmistakable on the
+     white card; the ghost CTA takes a dark hairline border for the same
+     reason. */
+  --err-backdrop: #e6e8ec;
+  --err-card-bg: rgba(255, 255, 255, 0.94);
+  --err-card-border: rgba(220, 38, 38, 0.35);
+  --err-card-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.25);
+  --err-ink: #171717;
+  --err-ink-muted: rgba(23, 23, 23, 0.60);
+  --err-kicker: var(--negative);
+  --err-stack-bg: rgba(23, 23, 23, 0.06);
+  --err-stack-border: rgba(23, 23, 23, 0.12);
+  --err-stack-ink: rgba(23, 23, 23, 0.75);
+  --err-cta-bg: #171717;
+  --err-cta-ink: #ffffff;
+  --err-cta-border: #171717;
+  --err-ghost-bg: #ffffff;
+  --err-ghost-ink: #171717;
+  --err-ghost-border: rgba(23, 23, 23, 0.35);
   /* Panel chrome tokens (UI_DESIGN_AUDIT Phase 3.1). Retro defines these in
      `body.theme-retro-futurism` (violet glow); without a Daybreak counterpart,
      GamePanelShell had to branch in JS. Values match its patch-layer shell
@@ -559,19 +606,10 @@ body.theme-daybreak .ludo-broadcast-scope :is(.placeholder\:text-white\/20)::pla
 body.theme-daybreak .ludo-messages-scope :is(.placeholder\:text-white\/20)::placeholder,
 body.theme-daybreak .ludo-messages-scope :is(.placeholder\:text-white\/25)::placeholder { color: rgba(23, 23, 23, 0.35); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-amber-300) { color: #b45309; }
-/* Error surfaces: full daybreak remap (no dark-only cards anywhere) */
-body.theme-daybreak .panel-error-card {
-  background: rgba(255, 255, 255, 0.94) !important;
-  border-color: rgba(220, 38, 38, 0.35) !important;
-  box-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.25) !important;
-}
-body.theme-daybreak .panel-error-card :is(.text-white) { color: #171717; }
-body.theme-daybreak .panel-error-card :is(.text-red-400) { color: #b91c1c; }
-body.theme-daybreak .panel-error-card .panel-error-stack {
-  background: rgba(23, 23, 23, 0.06) !important;
-  border-color: rgba(23, 23, 23, 0.12) !important;
-  color: rgba(23, 23, 23, 0.75) !important;
-}
+/* Error surfaces are themed by the --err-* token group (Retro `:root` defaults,
+   Daybreak override in its token block) — see app/components/ErrorCard.tsx. No
+   patch rules here: the old `body.theme-daybreak .panel-error-card` block could
+   not reach the route card's alpha utilities (text-white/80, text-white/50). */
 /* Onboarding Appearance card: Settings → Appearance parity (PanelTabs live here) */
 .ludo-onboard-scope .onboard-appearance-row {
   padding: 0.875rem;
