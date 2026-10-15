@@ -278,6 +278,22 @@ body {
   .market-cat-rail { flex-wrap: wrap; }
   .market-cat-rail .chip-market { flex: 1 1 calc(50% - 4px); }
 }
+/* The Chip component wraps its children in a `.truncate` span (single-line
+   ellipsis for long labels in other contexts). Inside the marketplace rail
+   every chip's full body — icon, label, count badge — must stay visible
+   and inline, so we override that span to a centered flex row: no clip,
+   no ellipsis, content flows horizontally. Specificity (0,3,0) beats the
+   Tailwind `truncate` utility (0,1,0). */
+.market-cat-rail .chip-market > .truncate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  overflow: visible;
+  text-overflow: clip;
+}
 /* Theme-aware icon + count badge inside the marketplace category rail.
    Specificity (0,3,0) beats the original Tailwind utilities so the tokens win
    in both themes. Inactive badge falls back to the chip's inherited ink. */

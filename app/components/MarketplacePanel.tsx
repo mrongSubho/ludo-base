@@ -905,7 +905,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <Button
                                                         key={d}
                                                         onClick={() => setDensity(d)}
-                                                        className={`h-full w-7 shrink-0 rounded-md p-0 ${density === d ? 'bg-surface-active text-ink-strong' : 'text-ink-faint hover:text-ink-strong'}`}
+                                                        className={`h-full w-7 shrink-0 rounded-md p-0 ${density === d ? 'bg-surface-active text-ink-strong' : 'text-ink-muted hover:text-ink-strong'}`}
                                                         aria-label={d === 'comfort' ? 'Comfortable grid' : 'Compact grid'}
                                                     >
                                                         {d === 'comfort' ? (
