@@ -75,7 +75,7 @@
 | Live-ops notice strip (`/api/notices`) | `app/components/NoticeStrip.tsx` | ✓ — SEC-26: the FNV field is `contentHash` and explicitly *not* a `signature` |
 | Emotes (preset, no free-text) | `lib/emotes.ts` · `EmoteTray` | ✓ |
 | Offline vs AI · Classic / Power / Snakes | existing game shell | ✓ |
-| Themes + token styles | `ThemeSwitcher` · `TokenStyleSwitcher` | ✓/**[corrected]** `TokenStyleSwitcher` is live; **`ThemeSwitcher.tsx` is dead code** (file present, zero importers — flagged in the 2026-10-13 UI audit for deletion). Theming actually runs through the cookie store from REA-07, not that component. |
+| Themes + token styles | `TokenStyleSwitcher` | ✓ — **[deleted 2026-10-13]** the plan listed `ThemeSwitcher` as a live surface; it was dead code (0 importers, verified static + dynamic + string refs) and was removed per UI-audit task 1.4.2. Settings → Appearance is the single theme entry point; onboarding/nudge/marketplace write the same `ludo-theme` preference as intentional touchpoints. Theming runs through the cookie store from REA-07. |
 
 ### I.5 Identity & wallet — plan wrapped
 
