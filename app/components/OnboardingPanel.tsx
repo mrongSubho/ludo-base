@@ -7,7 +7,7 @@ import type { Address, Hex } from 'viem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
-import { ONBOARDING_TRACKS, type OnboardingTrack } from '@/lib/onboardingShared';
+import { ONBOARDING_TRACKS, WELCOME_GRANT_DESC, type OnboardingTrack } from '@/lib/onboardingShared';
 import Button from './Button';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
@@ -25,6 +25,7 @@ interface TrackRow {
     is_claimed: boolean;
     claimable: boolean;
     voucher_id: string | null;
+    desc: string;
 }
 
 interface ProgressResponse {
@@ -84,6 +85,7 @@ export const OnboardingPanel = () => {
                 is_claimed: live?.is_claimed ?? false,
                 claimable: live?.claimable ?? false,
                 voucher_id: live?.voucher_id ?? null,
+                desc: def.desc,
             };
         });
     }, [tracks]);
@@ -358,8 +360,8 @@ export const OnboardingPanel = () => {
                                 as a single line — every task carries it, and no progress value
                                 can change the card's height. */}
                             <div className="flex flex-col gap-2">
-                                <p className="text-[11px] font-medium text-white/60 leading-snug tabular-nums truncate">
-                                    {x.progress || 0} / {x.target} · {x.reward} CHIPS
+                                <p className="text-[11px] font-medium text-white/60 leading-snug">
+                                    {x.desc}
                                 </p>
                                 <div className="flex items-center gap-4">
                                     <div className="flex-1">
@@ -442,8 +444,8 @@ export const OnboardingPanel = () => {
                             {/* Task details, directly above the progress bar — same line,
                                 same placement, as every track card in this list. */}
                             <div className="flex flex-col gap-2">
-                                <p className="text-[11px] font-medium text-white/60 leading-snug tabular-nums truncate">
-                                    {welcomeClaimed ? 1 : 0} / 1 · {WELCOME_REWARD} CHIPS
+                                <p className="text-[11px] font-medium text-white/60 leading-snug">
+                                    {WELCOME_GRANT_DESC}
                                 </p>
                                 <div className="flex items-center gap-4">
                                     <div className="flex-1">
