@@ -11,7 +11,7 @@ cast --version
 
 if [[ ! -f .env ]]; then
   cp .env.example .env
-  echo "created contracts/.env — fill SEPOLIA_RPC_URL + ETHERSCAN_API_KEY"
+  echo "created contracts/.env — fill SEPOLIA_RPC + BASE_RPC + ETHERSCAN_API_KEY"
 fi
 
 echo ""
@@ -31,11 +31,18 @@ fi
 echo ""
 echo "== Fund deployer (Base Sepolia) =="
 echo "Get test ETH: https://docs.base.org/docs/tools/faucets (CDP faucet) or https://www.alchemy.com/faucets/base-sepolia"
-echo "Then: cast balance <deployer-address> --rpc-url \$SEPOLIA_RPC_URL"
+echo "Then: cast balance <deployer-address> --rpc-url \$SEPOLIA_RPC"
 
 echo ""
-echo "== Deploy (MockChips stack) =="
+echo "== Deploy =="
 echo "  source .env"
-echo "  forge script script/DeployStack.s.sol --rpc-url \$SEPOLIA_RPC_URL --account deployer --broadcast"
+echo "  # full economy stack (MockChips locally; real CHIPS with CHIPS_ADDRESS + USE_MOCK=false):"
+echo "  forge script script/DeployStack.s.sol --rpc-url \$SEPOLIA_RPC --account deployer --broadcast"
+echo "  # claim system only, against the existing CHIPS token:"
+echo "  forge script script/DeployMissionClaim.s.sol:DeployMissionClaim \\"
+echo "    --rpc-url \$SEPOLIA_RPC --account deployer --broadcast --verify"
+echo "  # then make claiming operational:"
+echo "  npm run claim:init && npm run claim:fund"
 echo ""
+echo "Full runbook: docs/ops/CONTRACT_DEPLOYMENT.md"
 echo "Done setup scaffold."
