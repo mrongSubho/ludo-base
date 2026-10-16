@@ -254,11 +254,13 @@ contract MissionClaimTest is Test {
         missions.claim(alice, m1, 20e18, p1, dl1, 1, _sign(opPk, d1));
         assertEq(missions.periodIssued(p1), 20e18);
 
-        // 20 + 20 > 30 ceiling, same period
-        (,,, bytes32 d2) = _claimArgs(20e18, 2);
-        vm.prank(alice);
+        // The ceiling is a budget across wallets, so the second claim comes from a
+        // different wallet: 20 + 20 > 30. (Same wallet would correctly hit the
+        // more specific AlreadyClaimed first.)
+        bytes32 d2 = missions.voucherDigest(treasury, m1, 20e18, p1, dl1, 2);
+        vm.prank(treasury);
         vm.expectRevert(MissionClaim.Ceiling.selector);
-        missions.claim(alice, m1, 20e18, p1, dl1, 2, _sign(opPk, d2));
+        missions.claim(treasury, m1, 20e18, p1, dl1, 2, _sign(opPk, d2));
 
         // A different period keeps its own full budget.
         bytes32 p2 = PERIOD_NEXT;
@@ -301,11 +303,12 @@ contract MissionClaimTest is Test {
     function test_expired_deadline_reverts() public {
         bytes32 missionId = keccak256("daily_bonus");
         bytes32 periodId = keccak256("2026-09-23");
-        uint64 deadline = uint64(block.timestamp + 1 hours);
+        uint256 now_ = block.timestamp;
+        uint64 deadline = uint64(now_ + 1 hours);
         bytes32 d = missions.voucherDigest(alice, missionId, 20e18, periodId, deadline, 9);
         bytes memory sig = _sign(opPk, d);
 
-        vm.warp(block.timestamp + 2 hours);
+        vm.warp(now_ + 2 hours);
         vm.prank(alice);
         vm.expectRevert(MissionClaim.Expired.selector);
         missions.claim(alice, missionId, 20e18, periodId, deadline, 9, sig);
@@ -350,9 +353,17 @@ contract MissionClaimTest is Test {
         vm.prank(treasury);
         missions.fund(1_000e18);
 
-        assertEq(chips.balanceOf(address(missions)), 101_000e18);
-        assertEq(missions.totalDeposited(), 1_000e18);
-        assertEq(missions.availableReserves(), 1_000e18);
+        assertEq(chips.balanceOf(address(missions)), 101_000e18, "balance = mint + fund");
+        assertEq(missions.totalDeposited(), 1_000e18, "deposits are accounted");
+        assertEq(missions.totalClaimed(), 0);
+        assertEq(missions.totalWithdrawn(), 0);
+        // availableReserves() is headroom ABOVE the floor: with no floor set,
+        // the whole balance is claimable.
+        assertEq(missions.availableReserves(), 101_000e18, "floor 0 -> whole balance");
+
+        vm.prank(owner);
+        missions.setMinReserve(1_000e18);
+        assertEq(missions.availableReserves(), 100_000e18, "headroom shrinks by the floor");
     }
 
     function test_fund_zero_reverts() public {

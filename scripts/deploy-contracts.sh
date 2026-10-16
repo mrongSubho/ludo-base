@@ -43,7 +43,39 @@ usage() {
 }
 [[ -n "$TARGET" ]] || usage
 
-command -v forge >/dev/null || { echo "forge not on PATH — run 'foundryup' or npm run setup:foundry" >&2; exit 1; }
+# ── Resolve the forge binary ──────────────────────────────────────────────────
+# foundry installs to ~/.foundry/bin, which a fresh (or non-login) shell does not
+# have on PATH — that is the #1 reason this script "cannot find forge" on a
+# machine where it is clearly installed. Put it on PATH ourselves, then pick:
+#   1. $FORGE_BIN            explicit override
+#   2. forge                 the repo's deploy convention (every example uses it)
+#   3. base-forge            the B20-aware build, for anything that touches CHIPS
+export PATH="${HOME}/.foundry/bin:${PATH}"
+
+FORGE=""
+if [[ -n "${FORGE_BIN:-}" ]]; then
+  FORGE="$FORGE_BIN"
+  command -v "$FORGE" >/dev/null 2>&1 || { echo "FORGE_BIN=$FORGE_BIN is not executable" >&2; exit 1; }
+else
+  for candidate in forge base-forge; do
+    if command -v "$candidate" >/dev/null 2>&1; then FORGE="$candidate"; break; fi
+  done
+fi
+
+if [[ -z "$FORGE" ]]; then
+  cat >&2 <<'MSG'
+forge not found. Looked for: $FORGE_BIN, then `forge` and `base-forge` on PATH
+(including ~/.foundry/bin, which this script adds itself).
+
+Repair:
+  curl -L https://foundry.paradigm.xyz | bash && foundryup
+  foundryup --network base        # optional: the B20-aware build (contracts/README.md)
+
+Already installed somewhere else? Point at it directly:
+  FORGE_BIN=/path/to/forge ./scripts/deploy-contracts.sh <target>
+MSG
+  exit 1
+fi
 
 if [[ -z "$RPC" ]]; then
   RPC="${SEPOLIA_RPC:-${BASE_RPC:-}}"
@@ -87,9 +119,10 @@ run_one() {
   echo "   mode   : ${BROADCAST:-dry run (no --broadcast)}"
   cd "$CONTRACTS"
   # shellcheck disable=SC2086
-  forge script "$target" --rpc-url "$RPC" --account "$ACCOUNT" $BROADCAST
+  "$FORGE" script "$target" --rpc-url "$RPC" --account "$ACCOUNT" $BROADCAST
 }
 
+echo "forge binary:     $FORGE ($(command -v "$FORGE"))"
 echo "deployer account: $ACCOUNT"
 echo "rpc:              $RPC"
 echo "broadcast:        ${BROADCAST:-no (dry run)}"
