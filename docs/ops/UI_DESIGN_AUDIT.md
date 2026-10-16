@@ -510,7 +510,7 @@ Track status in the checklist at Appendix B.
 
 ### Phase 6 — Docs & CI guard (fixes P2-9 + prevents regression)
 
-- [ ] 6.1 Update `DESIGN.md` to the real contract: both themes' palette tables (bg/panel/ink/accent/faint per theme), fonts per theme, the semantic token list, `.label-chrome` + `.display`, the sandwich/panel-shell rules, tap-target and 10px floor, and the "no new Daybreak override rules — use tokens" rule.
+- [x] 6.1 Update `DESIGN.md` to the real contract: both themes' palette tables (bg/panel/ink/accent/faint per theme), fonts per theme, the semantic token list, `.label-chrome` + `.display`, the sandwich/panel-shell rules, tap-target and 10px floor, and the "no new Daybreak override rules — use tokens" rule. **Done 2026-10-16** — `DESIGN.md` rewritten against the tree (values re-verified, including Daybreak `--radius-card: 18px` and the corrected AA status set); `.label-chrome`/`.display` are documented in its §12 as *specified, not yet landed*, so the doc states the in-force pattern instead of the aspiration.
 - [ ] 6.2 Replace `design-system/ludo-base/MASTER.md` with a pointer to `DESIGN.md` (or rewrite it to match the shipped themes). Its Orbitron/Exo-2 purple-rose palette matches no theme.
 - [ ] 6.3 Add the CI guard — new job or a step in `.github/workflows/ci.yml` (`ui-token-guard`): fail if any file under `app/` other than `app/globals.css` matches `text-white|bg-white/|border-white/|text-cyan-|text-amber-300|text-green-400`:
   ```bash

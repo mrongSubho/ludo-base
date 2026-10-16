@@ -239,7 +239,7 @@ Reuse the group order from `UI_DESIGN_AUDIT.md` Phase 4 (wallet → social → p
   ```
   (finalize the regex against the real leftovers; keep it diff-scoped so historical debt doesn't block merges)
 - [ ] E.2 Add ESLint `no-restricted-syntax` rules: raw `rounded-[Npx]`/sub-10px text in JSX literals, and `<button` JSX outside `Button.tsx` in **new** code (warn first).
-- [ ] E.3 Document the contract in `DESIGN.md` (§4 here becomes the "Components" section; cross-link both audits).
+- [x] E.3 Document the contract in `DESIGN.md` (§4 here becomes the "Components" section; cross-link both audits). **Done 2026-10-16** — `DESIGN.md` §6 now carries the implemented contracts for `Button`/`Chip`/`Switch`/`ListRow` (variants, sizes, states, the `brand` exception, the chip types/tones) plus the kept surfaces (`PanelTabs`, `EmptyState`, the global focus ring), and cross-links both audits.
 - [ ] E.4 Record final counts in §2 of both audits.
 
 ### 5.1 Legacy family → variant mapping (for Phase C)
