@@ -13,6 +13,7 @@ import { useSoundEffects } from '../hooks/useSoundEffects';
 import { FiX } from 'react-icons/fi';
 import { PanelTabs } from './PanelTabs';
 import { Button } from './Button';
+import { useToast } from './Toast';
 
 interface TeamUpMatchPanelProps {
     onClose: () => void;
@@ -398,6 +399,7 @@ export const TeamUpMatchPanel = ({
     gameMode = 'classic',
     entryFee = 0,
 }: TeamUpMatchPanelProps) => {
+    const toast = useToast();
     const { playSelect, playClick, playDiceLand } = useSoundEffects();
     // Identity first: everything below (effects, deps, handlers) may read it.
     // (A use-before-declare here is a mount-time TDZ crash — see 5b964f1.)
@@ -653,8 +655,11 @@ export const TeamUpMatchPanel = ({
             }
         }
         if (!ok) {
-            // Last resort: native prompt always allows manual copy.
-            window.prompt('Copy invite link:', text);
+            // Copy is genuinely unavailable (insecure context / denied
+            // permission): say so in our own surface instead of the
+            // browser's prompt, which blocks the thread and reads as a
+            // web page. The invite row's own copy button is the retry.
+            toast('Copy failed — tap the copy button beside the invite link again.', 'error');
             return;
         }
         setCopiedKey(key);

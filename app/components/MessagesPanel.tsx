@@ -15,6 +15,7 @@ import { EmptyState } from './EmptyState';
 import { ChatContent, EmojiPickerPopover } from './EmojiPicker';
 import { RichChatField } from './RichChatField';
 import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
+import { useToast } from './Toast';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -106,6 +107,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const inboxLocked = !!address && sessionReady && !appSessionId;
     // Guests read threads free; sending needs a wallet (wall, not a failure).
     const { guard } = useGuestWall();
+    const toast = useToast();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, } = useGameData();
     const markAsRead = markChatAsRead;
@@ -169,9 +171,10 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         setPokingId(friendId);
         try {
             const ok = await pokeBackAction(friendId);
-            if (!ok) alert('Failed to poke back');
+            if (!ok) toast('Failed to poke back', 'error');
         } catch (err) {
             console.error('Poke back error:', err);
+            toast(err instanceof Error && err.message ? err.message : 'Failed to poke back', 'error');
         } finally {
             setPokingId(null);
         }

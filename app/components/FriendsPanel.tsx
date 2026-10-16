@@ -11,6 +11,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { EmptyState } from './EmptyState';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { useToast } from './Toast';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings/rankings: this panel always renders on the
@@ -184,6 +185,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const { profile, address: connectedAddress } = useCurrentUser();
     // Guests can browse the directory, but social writes hit the wall.
     const { guard } = useGuestWall();
+    const toast = useToast();
     const userFid = (profile as any)?.fid;
 
     const [activeMainTab, setActiveMainTab] = useState<MainTab>('social');
@@ -442,10 +444,11 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                 window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
             } else {
                 const err = await response.json();
-                alert(err.error || 'Failed to poke');
+                toast(err.error || 'Failed to poke', 'error');
             }
         } catch (err) {
             console.error('Poke error:', err);
+            toast(err instanceof Error && err.message ? err.message : 'Failed to poke', 'error');
         } finally {
             setPokingId(null);
         }
@@ -463,11 +466,11 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             if (!error) {
                 setJustSent(prev => prev.includes(target) ? prev : [...prev, target]);
             } else {
-                alert('Failed to send request');
+                toast('Failed to send request', 'error');
             }
         } catch (err: any) {
             console.error('Add friend error:', err);
-            alert(err?.message || 'Failed to send request');
+            toast(err?.message || 'Failed to send request', 'error');
         }
     };
 

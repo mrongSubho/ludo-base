@@ -11,6 +11,7 @@ import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { getFollowed } from '@/lib/follow';
 import { useAppSession } from '@/hooks/useAppSession';
+import { useToast } from './Toast';
 
 // ─────────────────────────────────────────────────────────────
 // SpectatorHUD — Overlay for live match spectators
@@ -86,6 +87,7 @@ export const SpectatorHUD = ({
     const { address } = useAccount();
     const { myProfile, updateMyProfileOptimistic } = useGameData();
     const { ensureAppSession } = useAppSession();
+    const toast = useToast();
     const [betAmount, setBetAmount] = useState(500);
     const [selectedBetValue, setSelectedBetValue] = useState<string | null>(null);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -184,7 +186,7 @@ export const SpectatorHUD = ({
         // 💰 Check coins
         const currentCoins = myProfile?.coins ?? 0;
         if (currentCoins < betAmount) {
-            alert("Insufficient Link Coins!");
+            toast('Not enough Link Coins for that bet.', 'error');
             return;
         }
 
@@ -216,7 +218,7 @@ export const SpectatorHUD = ({
                 console.error("Bet error:", error);
                 // Rollback coins
                 updateMyProfileOptimistic({ coins: currentCoins });
-                alert("Failed to transmit bet to node.");
+                toast((error as Error).message || 'Failed to transmit bet to node.', 'error');
             } else {
                 setSelectedBetValue(betValue);
                 if (placed?.id) setMyBet({ id: placed.id, odds: betType === 'dice_roll' ? 5.0 : 2.0, amount: betAmount });

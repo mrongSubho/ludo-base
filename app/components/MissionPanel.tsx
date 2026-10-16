@@ -14,6 +14,7 @@ import { OnboardingPanel } from './OnboardingPanel';
 import { LuX, LuShieldCheck, LuListChecks, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget } from 'react-icons/lu';
 import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
+import { useToast } from './Toast';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -85,6 +86,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     const { ensureAppSession } = useAppSession();
     const { guard } = useGuestWall();
     const isMobile = useIsMobileView();
+    const toast = useToast();
 
     const [activeMissionTab, setActiveMissionTab] = useState<MissionTab>('daily');
     const [missions, setMissions] = useState<Mission[]>([]);
@@ -140,16 +142,18 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                     window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
                     window.dispatchEvent(new CustomEvent('ludo-chips-refresh'));
                     await fetchMissions();
+                    toast('Reward claimed — CHIPS are in your wallet.', 'success');
                 } else if (voucherError) {
-                    alert(voucherError);
+                    toast(voucherError, 'error');
                 }
                 return;
             }
             // Coin rewards are retired (202609300001). Rewards are CHIPS and
             // are only claimable when MissionClaim is configured for the chain.
-            alert('Mission rewards require the CHIPS contract to be configured.');
+            toast('Mission rewards require the CHIPS contract to be configured.', 'error');
         } catch (err) {
             console.error('Claim error:', err);
+            toast(err instanceof Error && err.message ? err.message : 'Claim failed — try again.', 'error');
         } finally {
             setClaimingId(null);
         }

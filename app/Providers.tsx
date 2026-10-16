@@ -20,6 +20,7 @@ import { initTelemetry } from "@/lib/telemetry";
 import ProfileSyncer from "./components/ProfileSyncer";
 import FrameProvider from "./components/FrameProvider";
 import BootLock from "./components/BootLock";
+import { ToastProvider } from "./components/Toast";
 import { TeamUpProvider } from "@/hooks/TeamUpContext";
 import { GameDataProvider } from "@/hooks/GameDataContext";
 import { InviteNotification } from "./components/InviteNotification";
@@ -93,10 +94,12 @@ export function Providers({ children }: { children: ReactNode }) {
                     <FrameProvider>
                         <GameDataProvider>
                             <TeamUpProvider>
+                                <ToastProvider>
                                 <ProfileSyncer />
                                 <InviteNotification />
                                 <BootLock />
                                 {children}
+                                </ToastProvider>
                             </TeamUpProvider>
                         </GameDataProvider>
                     </FrameProvider>
