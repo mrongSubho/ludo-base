@@ -187,10 +187,13 @@ The same shape works for `DeployMatchPool`, `DeploySeasonClaim` and `DeployLegac
 (`script/Deploy<Name>.s.sol:Deploy<Name>`), and for the full stack in one shot via
 `script/DeployStack.s.sol`.
 
-Flags that matter: `--account deployer` uses the imported keystore (prompts for the password);
-`--broadcast` sends the transaction (without it you only simulate); `--sender` overrides who the
-script broadcasts as, which is how an owner-multisig deploy works; `--verify` waits for the
+Flags that matter: `--account mydeployer` is the deploy keystore (prompts for the password — `deployer`
+is NOT used here); `--broadcast` sends the transaction (without it you only simulate); `--sender` overrides
+who the script broadcasts as, which is how an owner-multisig deploy works; `--verify` waits for the
 broadcast and submits the source to Basescan.
+
+> **Deployment record:** the canonical, dated list of deployed addresses + tx hashes lives in
+> [`docs/ops/CONTRACT_DEPLOYMENTS.md](./CONTRACT_DEPLOYMENTS.md). `contracts/.env` holds the live values.
 
 Verify a contract that was deployed without `--verify`:
 
@@ -249,3 +252,4 @@ UTC-day and ISO-week windows from the block it is mined in.
 | Deployed from the wrong account / wiring skipped | Stale `DEPLOYER_ADDRESS` in `.env` — it beats inline env and makes `owner != deployer`. |
 | Claim reverts `BadSig` | `MISSION_OP_KEY` ≠ the signer of `MISSION_OP_PRIVATE_KEY`, or the chain id in the voucher domain differs from the chain you deployed to. |
 | Claim reverts `InsufficientReserves` | `claim:fund` has not run or the reserve is depleted — fund again; `ReservesLow` events in the log are the early warning. |
+| Script reverts `EvmError: OpcodeNotFound` on `CHIPS.approve` | CHIPS is the **B20** token — run the script under **`base-forge`**, not `forge`. Vanilla forge lacks the Base precompiles and reverts; any script that *calls* CHIPS (e.g. `claim:fund`) needs `base-forge`. Scripts that only pass `CHIPS_ADDRESS` to a constructor are fine with `forge`. |
