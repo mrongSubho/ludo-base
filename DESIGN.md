@@ -228,9 +228,9 @@ autoComplete="off"  autoCorrect="off"  autoCapitalize="none"  spellCheck={false}
 
 | Field | Deviation | Why |
 |---|---|---|
-| `RichChatField` (chat / DM / live chat) | **no `autoCapitalize`** → OS default (sentences) | chat is prose; the other three attributes still apply |
+| **Prose fields** — `RichChatField` (chat/DM/live chat), the custom-reaction field, the settings feedback form | **no `autoCapitalize`** → OS default (sentences) | prose wants sentence-capitalisation; the other three attributes still apply |
 | `SpectatorHUD` broadcast field | `autoCapitalize="sentences"` | explicit prose intent |
-| OTP / email fields | `autoComplete="one-time-code"` / `type="email" autoComplete="email"` | **positive** autofill — the suggestion is wanted |
+| OTP / email fields | `autoComplete="one-time-code"` / `type="email" autoComplete="email"` | **positive** autofill — only `autoComplete` is overridden; `autoCorrect`, `autoCapitalize` and `spellCheck` still apply |
 
 | Field type | Sites | Rules that define it |
 |---|---|---|
@@ -238,14 +238,21 @@ autoComplete="off"  autoCorrect="off"  autoCapitalize="none"  spellCheck={false}
 | **Broadcast** — `SpectatorHUD` | "Transmit data…" | the set **with** `autoCapitalize="sentences"`, `maxLength={120}` |
 | **Search** — `FriendsPanel`, `MarketplacePanel`, `MessagesPanel`, `RankingsPanel`, `SwapSheet` | 5 boxes, identical | the set + `enterKeyHint="search"` + `rows={1}` + chrome-less field (`bg-transparent border-0 p-0`) so the wrapper pill is the box; filtering is live on `onChange`, no form submit |
 | **Address / code** — send recipient, link wallet, `wc:` URI, invite code, referral | wallet + TeamUp + onboarding | the set; monospace for 0x-addresses; `enterKeyHint` `next`/`done`; **case-sensitive codes must always disable auto-capitalisation** |
-| **Numeric** — token / native / swap amounts, slippage, OTP | wallet sheets | `inputMode="decimal"` (amounts) or `inputMode="numeric"` (bps, OTP); **prefer `inputMode` over `type="number"`** |
-| **Identity / settings** — display name, feedback, custom reaction | profile / settings / emote tray | name: `maxLength` + `NAME_RULES` (`lib/avatars.ts`: 3–16 chars, `/^[A-Za-z0-9_]+$/`, no `0x` prefix, reserved `guest`/`user` prefixes); feedback `maxLength={2000}`; reaction `maxLength={32}`, Enter saves / Escape cancels |
+| **Numeric** — token / native / swap amounts, slippage, OTP, entry fee, listing price | wallet sheets + lobby + marketplace | `type="text"` + `inputMode="decimal"` (amounts) or `"numeric"` (bps, OTP, integer coins); **never `type="number"`** — it adds scroll-wheel value changes and locale-dependent separators, and its spinner needs CSS to hide |
+| **Identity / settings** — display name, feedback, custom reaction | profile / settings / emote tray | name carries the full set with `autoCapitalize="none"` (it is a handle: `maxLength` + `NAME_RULES` — 3–16 chars, `/^[A-Za-z0-9_]+$/`, no `0x` prefix, reserved `guest`/`user` prefixes); feedback (`maxLength={2000}`) and the reaction field (`maxLength={32}`, Enter saves / Escape cancels) carry the **prose** set |
 
 ### 6.7 Keyboard & IME behaviour (mobile)
 
 **Viewport contract** (`app/layout.tsx`): `maximumScale: 1` — this, **not** a 16px field font, is
 what prevents the iOS focus-zoom (fields are 12–15px); `viewportFit: 'cover'`;
 `interactiveWidget: 'resizes-content'` so the keyboard resizes content instead of covering it.
+
+**`maximumScale: 1` is a deliberate, accepted tradeoff** (decided 2026-10-16). It suppresses the
+focus-zoom that would otherwise jump the entire shell every time a 12–15px field is focused, and it
+suits a fixed-layout board — pinch-zooming a measured square helps nobody. Cost: it also disables
+pinch-zoom on Android Chrome (iOS ignores the directive for accessibility). The documented escape
+hatch, if zoom accessibility ever outranks the focus-zoom fix, is a 16px minimum on mobile field
+fonts.
 
 **Focus engine** (`app/components/FrameProvider.tsx`):
 
@@ -370,6 +377,7 @@ npm run lint && npm run typecheck && npm test        # standard gates
 npm run check:motion        # compositor-only + reduced-motion census
 npm run check:reduce-motion # live: 0 animations under reduce, motion under no-preference
 npm run check:img           # every raw <img> reserves its box
+node scripts/check-field-rules.mjs                   # text fields vs the §6.6 contract
 npm run check:routes        # route-auth matrix
 node scripts/contrast.mjs --pairs                    # 15 contrast pairs
 npm run bench:css                                    # CSS bytes, rule/keyframe counts, type adoption
@@ -378,6 +386,8 @@ npm run visual:diff         # two-theme pixel gate (run against a production bui
 
 Not yet shipped (**pending**, tracker Tier 5): `scripts/check-ui-tokens.sh` (`ui-token-guard`) and
 `scripts/check-ui-contract.sh` (banned-pattern guard) plus the ESLint `no-restricted-syntax` rules.
+**Shipped 2026-10-16:** `scripts/check-field-rules.mjs` — the §6.6 text-field gate (24 fields
+checked, 3 documented prose exceptions; validated both ways).
 
 ---
 

@@ -79,6 +79,13 @@ jobs:
         # box before decode (CLS target ≤ 0.05 in-game). Closes the "static
         # gate (not yet built)" entry in plan §6.
         run: npm run check:img
+      - name: Text-field contract gate (DESIGN.md §6.6)
+        # Every free-text input/textarea must carry the "no OS interference"
+        # set — autoComplete/autoCorrect/autoCapitalize/spellCheck — with the
+        # three documented prose exceptions. Catches the class of bug where a
+        # case-sensitive code field (invite code, wc: URI, referral) is
+        # silently capitalised or autocorrected into a "not found".
+        run: npm run check:fields
       - name: CSS budget baseline (advisory)
         # Plan §6: advisory until Phase 2 — prints the payload/surface numbers
         # the merge gates will enforce later; never blocks.
