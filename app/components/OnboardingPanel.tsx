@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
 import { ONBOARDING_TRACKS, type OnboardingTrack } from '@/lib/onboardingShared';
+import Button from './Button';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
@@ -375,32 +376,27 @@ export const OnboardingPanel = () => {
                                             />
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleClaim(x.track)}
-                                        disabled={isClaimed || !x.claimable || claimingId !== null}
-                                        className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
-                                            ${isClaimed
-                                                ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
-                                                : x.claimable
-                                                    ? 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
-                                                    : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
-                                            }`}
-                                    >
-                                        {claimingId === x.track ? (
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : isClaimed ? (
-                                            'Claimed'
-                                        ) : x.claimable ? (
-                                            <span className="flex items-center gap-1">
-                                                CLAIM
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                                                    <polyline points="20 6 9 17 4 12" />
-                                                </svg>
-                                            </span>
-                                        ) : (
-                                            'GO'
-                                        )}
-                                    </button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    loading={claimingId === x.track}
+                                    disabled={isClaimed || !x.claimable}
+                                    onClick={() => handleClaim(x.track)}
+                                    className={`min-w-[70px] rounded-xl ${isClaimed ? '' : x.claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
+                                >
+                                    {isClaimed ? (
+                                        'Claimed'
+                                    ) : x.claimable ? (
+                                        <span className="flex items-center gap-1">
+                                            CLAIM
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        </span>
+                                    ) : (
+                                        'GO'
+                                    )}
+                                </Button>
                                 </div>
                             </div>
                         </motion.div>
@@ -464,28 +460,25 @@ export const OnboardingPanel = () => {
                                             />
                                         </div>
                                     </div>
-                                <button
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    loading={claimingId === WELCOME_ID}
+                                    disabled={welcomeClaimed}
                                     onClick={() => handleClaim(WELCOME_ID)}
-                                    disabled={claimingId !== null || welcomeClaimed}
-                                    className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
-                                        ${welcomeClaimed
-                                            ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
-                                            : 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
-                                        }`}
+                                    className={`min-w-[70px] rounded-xl ${welcomeClaimed ? '' : 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]'}`}
                                 >
-                                    {claimingId === WELCOME_ID ? (
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : welcomeClaimed ? (
+                                    {welcomeClaimed ? (
                                         'Claimed'
                                     ) : (
                                         <span className="flex items-center gap-1">
                                             CLAIM
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm">
                                                 <polyline points="20 6 9 17 4 12" />
                                             </svg>
                                         </span>
                                     )}
-                                </button>
+                                </Button>
                                 </div>
                             </div>
                         </motion.div>

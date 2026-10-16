@@ -374,19 +374,23 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                         </span>
                                                                                     </div>
                                                                                 </div>
-                                                                                <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug pr-2">
-                                                                                    {mission.description}
-                                                                                </p>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="flex items-center gap-4 mt-1">
+                                                                        {/* Task details, directly above the progress bar — the same
+                                                                            placement the onboarding cards use. Always rendered, single
+                                                                            line, tabular-nums: no progress value can reflow the card. */}
+                                                                        <div className="flex flex-col gap-2">
+                                                                            <p className="text-[11px] font-medium text-white/60 leading-snug tabular-nums truncate">
+                                                                                {mission.description}
+                                                                            </p>
+                                                                            <div className="flex items-center gap-4 mt-1">
                                                                             <div className="flex-1">
                                                                                 <div className="flex items-end justify-between mb-1.5 px-0.5">
                                                                                     <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">
                                                                                         Progress
                                                                                     </span>
                                                                                     <span
-                                                                                        className={`text-xs font-black ${isCompleted ? 'text-green-400' : 'text-white'}`}
+                                                                                        className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}
                                                                                     >
                                                                                         {mission.progress || 0}{' '}
                                                                                         <span className="text-white/30 text-[10px]">
@@ -443,7 +447,8 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                 )}
                                                                             </Button>
                                                                         </div>
-                                                                    </motion.div>
+                                                                    </div>
+                                                                </motion.div>
                                                                 );
                                                             })}
                                                         </AnimatePresence>
