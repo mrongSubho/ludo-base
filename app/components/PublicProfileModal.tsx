@@ -538,8 +538,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         {displayName}
                                     </h3>
 
-                                    <div className="h-8 mb-3 flex flex-col items-center justify-center">
-                                        <div className="flex items-center gap-2 mb-1">
+                                    <div className="min-h-8 mb-3 flex flex-col items-center justify-center">
+                                        <div className="flex flex-wrap items-center justify-center gap-2 mb-1">
                                             {isSelf && (
                                                 <span className="bg-cyan-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
                                             )}
@@ -548,6 +548,14 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                             </span>
                                             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
                                                 Lv. {progression.level}
+                                            </span>
+                                            {/* Chips balance — moved here from the stats grid when the
+                                                CHIPS tile was retired; same cyan micro-pill vocabulary
+                                                as the rank/Lv. pills, with the app's chips dot cue. */}
+                                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-cyan-400/20 bg-cyan-400/10">
+                                                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                                                <span className="text-cyan-300 tabular-nums">{chipsBal.human}</span>
+                                                <span className="text-white/40">CHIPS</span>
                                             </span>
                                         </div>
                                         {!isFriendValidationLoading && (isFriend || isSelf) && (
@@ -561,7 +569,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     </div>
 
                                     {/* Stats Grid */}
-                                    <div className="grid grid-cols-3 gap-2 w-full">
+                                    <div className="grid grid-cols-2 gap-2 w-full">
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
                                             <span className="text-xl font-black text-cyan-400">{displayWins}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Wins</span>
@@ -569,10 +577,6 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
                                             <span className="text-xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
                                             <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
-                                        </div>
-                                        <div className="bg-white/[0.04] border border-cyan-400/25 rounded-2xl p-3 flex flex-col items-center justify-center">
-                                            <span className="text-xl font-black text-cyan-300 tabular-nums">{chipsBal.human}</span>
-                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">CHIPS</span>
                                         </div>
                                     </div>
                                 </div>
