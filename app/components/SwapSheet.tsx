@@ -153,6 +153,10 @@ export default function SwapSheet() {
                     <input
                         className="sw-amt-input"
                         inputMode="decimal"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         placeholder="0.0"
                         value={fromAmount}
                         onChange={(e) => setFromAmount(e.target.value)}
@@ -205,6 +209,10 @@ export default function SwapSheet() {
                         <input
                             className="sw-slip"
                             inputMode="numeric"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="none"
+                            spellCheck={false}
                             value={String(slippageBps)}
                             onChange={(e) => setSlippageBps(Number(e.target.value) || 100)}
                         />

@@ -930,6 +930,8 @@ export const TeamUpMatchPanel = ({
                                                 onChange={(e) => setJoinSecret(e.target.value.trim())}
                                                 placeholder="Paste invite link or Z5VVAR"
                                                 autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
                                                 spellCheck={false}
                                                 autoFocus
                                                 className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-4 text-center text-[15px] font-mono text-cyan-300 placeholder:text-white/20 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all break-all"

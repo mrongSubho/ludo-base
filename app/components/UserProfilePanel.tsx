@@ -471,6 +471,10 @@ export default function UserProfilePanel({
                                         onChange={(e) => setDraftName(e.target.value)}
                                         maxLength={NAME_RULES.max}
                                         placeholder={finalName}
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
                                         className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-500/60 transition-colors"
                                     />
                                     <div className="text-[10px] font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>

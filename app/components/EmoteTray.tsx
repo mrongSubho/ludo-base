@@ -116,6 +116,9 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
                                         value={draft}
                                         maxLength={32}
                                         placeholder="Write a reaction"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        spellCheck={false}
                                         onChange={(event) => setDraft(event.target.value)}
                                         onKeyDown={(event) => {
                                             if (event.key === 'Enter') saveCustom(index);

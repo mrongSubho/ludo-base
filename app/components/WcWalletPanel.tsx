@@ -287,6 +287,8 @@ export default function WcWalletPanel() {
                             onChange={(e) => setUri(e.target.value)}
                             spellCheck={false}
                             autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="none"
                         />
                         <Button variant="primary" className="shrink-0" disabled={busy} onClick={onPair}>
                             Pair

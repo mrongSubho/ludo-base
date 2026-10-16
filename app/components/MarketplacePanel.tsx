@@ -1478,10 +1478,15 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-2 block">Set price (coins)</label>
                                                             <div className="relative">
                                                                 <input
-                                                                    type="number"
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    autoComplete="off"
+                                                                    autoCorrect="off"
+                                                                    autoCapitalize="none"
+                                                                    spellCheck={false}
                                                                     placeholder="0"
                                                                     value={sellPrice}
-                                                                    onChange={e => setSellPrice(e.target.value)}
+                                                                    onChange={e => setSellPrice(e.target.value.replace(/\D/g, ''))}
                                                                     className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-3xl font-mono font-black text-white focus:outline-none focus:border-cyan-600/50 transition-all placeholder:text-white/10"
                                                                 />
                                                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-black text-white/25 uppercase">coins</div>

@@ -344,6 +344,9 @@ function FeedbackView() {
                         rows={5}
                         maxLength={2000}
                         placeholder="Tell us what to fix next…"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-[13px] font-medium text-white placeholder:text-white/25 outline-none focus:border-cyan-300/60 resize-none"
                     />
                     {status === 'error' && (

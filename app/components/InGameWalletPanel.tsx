@@ -400,6 +400,9 @@ export default function InGameWalletPanel({
                         className="ingame-input"
                         inputMode="numeric"
                         autoComplete="one-time-code"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         placeholder="6-digit code"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -411,6 +414,9 @@ export default function InGameWalletPanel({
                         className="ingame-input"
                         type="email"
                         autoComplete="email"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         placeholder="Email address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}

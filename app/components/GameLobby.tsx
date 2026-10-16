@@ -455,13 +455,19 @@ export default function GameLobby({
                                     </button>
                                     <div className="flex-1 flex flex-col items-center justify-center relative">
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
+                                            autoComplete="off"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
                                             value={wager}
                                             onChange={(e) => {
-                                                const next = Math.max(0, parseInt(e.target.value) || 0);
+                                                const digits = e.target.value.replace(/\D/g, '');
+                                                const next = Math.max(0, parseInt(digits || '0', 10) || 0);
                                                 setWager(Math.min(next, coins));
                                             }}
-                                            className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl"
                                         />
                                         <span className="text-[10px] font-bold text-white/35 uppercase tracking-wider mt-0.5">
                                             Balance {formatEntryFee(coins)}

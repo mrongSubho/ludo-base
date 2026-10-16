@@ -487,6 +487,11 @@ export const OnboardingPanel = () => {
                                             value={referralCodeInput}
                                             onChange={(e) => setReferralCodeInput(e.target.value)}
                                             placeholder="REFERRAL CODE"
+                                            maxLength={32}
+                                            autoComplete="off"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
                                             className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
                                         />
                                         <button
