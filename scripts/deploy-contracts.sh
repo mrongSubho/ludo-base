@@ -26,22 +26,53 @@ shift || true
 
 BROADCAST=""
 RPC=""
-ACCOUNT="${FOUNDRY_ACCOUNT:-mydeployer}"
+CHAIN_FLAG=""
+ACCOUNT=""   # resolved after contracts/.env is loaded (see below)
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --broadcast) BROADCAST="--broadcast --verify" ;;
     --rpc) RPC="${2:-}"; shift ;;
     --account) ACCOUNT="${2:-}"; shift ;;
+    --mainnet) CHAIN_FLAG="mainnet" ;;
+    --sepolia) CHAIN_FLAG="sepolia" ;;
+    --yes) CONFIRM_MAINNET=1 ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
   shift
 done
 
 usage() {
-  echo "usage: $0 <missionclaim|matchpool|seasonclaim|legacyclaim|all> [--broadcast] [--rpc <url>] [--account <name>]"
+  echo "usage: $0 <missionclaim|matchpool|seasonclaim|legacyclaim|all> [--broadcast] [--rpc <url>]"
+  echo "          [--account <name>] [--sepolia|--mainnet] [--yes]"
   exit 2
 }
 [[ -n "$TARGET" ]] || usage
+
+# ── Load contracts/.env ───────────────────────────────────────────────────────
+# forge auto-loads contracts/.env; a bash runner does not. Without this the
+# operator has to remember `source contracts/.env` in every new shell — which is
+# exactly the "no RPC: set SEPOLIA_RPC/BASE_RPC" error people hit right after
+# fixing their PATH.
+#
+# Only UNSET keys are filled, so an explicit `SEPOLIA_RPC=… ./scripts/…` still
+# wins over the file (the opposite of forge's precedence, deliberately: the more
+# specific, deliberate value is the one on the command line).
+ENV_FILE="$CONTRACTS/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  while IFS='=' read -r key value; do
+    case "$key" in ''|'#'*) continue ;; esac
+    key="${key%"${key##*[![:space:]]}"}"          # trim trailing spaces
+    case "$key" in *[!A-Za-z0-9_]*) continue ;; esac  # only simple identifiers
+    if [[ -z "${!key:-}" ]]; then export "$key=$value"; fi
+  done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE")
+  echo "env:              loaded $ENV_FILE (unset keys only)"
+fi
+
+# ── Resolve the deploy account ─────────────────────────────────────────────────
+# Must happen AFTER contracts/.env is loaded: an explicit --account wins; otherwise
+# FOUNDRY_ACCOUNT from the file; finally the mydeployer fallback. Resolving this
+# before the loader would silently ignore FOUNDRY_ACCOUNT=deployer in the file.
+ACCOUNT="${ACCOUNT:-${FOUNDRY_ACCOUNT:-mydeployer}}"
 
 # ── Resolve the forge binary ──────────────────────────────────────────────────
 # foundry installs to ~/.foundry/bin, which a fresh (or non-login) shell does not
