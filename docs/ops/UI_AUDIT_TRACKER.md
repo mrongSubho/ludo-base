@@ -168,10 +168,10 @@ Run both audits' work for a group in the **same** PR. Sequencing follows the lan
 | ID | Action | Status | Depends on |
 |---|---|---|---|
 | E-1 | **`DESIGN.md` rewrite — one PR for 6.1 + E.3:** real token contract (both palettes, semantic tokens, `.label-chrome`/`.display`, panel-shell rules, 44px targets, 10px floor, "no new Daybreak override rules — use tokens") **plus** the Components section from component audit §4; cross-link both audits. | **Done 2026-10-16** — `DESIGN.md` rewritten as the implemented-system reference: identity/themes, the three token layers (incl. the `@theme inline` and `body`-chaining gotchas), both palettes with verified values, the fluid type scale + 10px floor, all five scales, the four primitives' full contracts, the motion policy, the layout contract, do/don't rules, a11y, the gate commands, and a **§12 "pending — specified but not in force"** table so the doc cannot drift into claiming unlanded work. Cross-links the two audits, the CSS plan, this tracker, `MOTION_AUDIT.md`, and the record. Siblings still open: E-2 (MASTER.md pointer), E-3/E-4 (the guards). | — |
-| E-2 | 6.2 Replace `design-system/ludo-base/MASTER.md` with a pointer to `DESIGN.md` (its Orbitron/Exo-2 palette matches no shipped theme). | Not started | E-1 |
-| E-3 | 6.3 Ship `scripts/check-ui-tokens.sh` + a `ui-token-guard` CI step, diff-scoped (fails on `text-white`/`bg-white/`/`border-white/`/`text-cyan-*` in changed files); warn mode (`\|\| true`) until Tier 2 completes, then hard-fail. | Not started | — (can ship in warn mode now) |
-| E-4 | E.1 Ship `scripts/check-ui-contract.sh` with the banned-pattern regex (Appendix B), diff-scoped so historical debt never blocks a merge. | Not started | Tier 2 anchors finalized |
-| E-5 | E.2 ESLint `no-restricted-syntax` rules: raw `rounded-[Npx]`, sub-10px text in JSX literals, `<button` outside `Button.tsx` in **new** code (warn first). | Not started | E-4 |
+| E-2 | 6.2 Replace `design-system/ludo-base/MASTER.md` with a pointer to `DESIGN.md` (its Orbitron/Exo-2 palette matches no shipped theme). | **Done 2026-10-16** — the stale generated file (palette `#7C3AED`/`#F43F5E`, Orbitron/Exo 2, and `--color-primary`/`--color-cta` variables that do not exist) is now a pointer to `DESIGN.md`, keeping the one useful convention (the `design-system/pages/[page].md` override check) and an index of the related docs. | — |
+| E-3 | 6.3 Ship `scripts/check-ui-tokens.sh` + a `ui-token-guard` CI step, diff-scoped (fails on `text-white`/`bg-white/`/`border-white/`/`text-cyan-*` in changed files); warn mode (`\|\| true`) until Tier 2 completes, then hard-fail. | **Done 2026-10-16** — `scripts/check-ui-tokens.mjs` → `npm run check:ui-tokens`, wired into CI in **warn mode** (`--strict` flips it; verified exit 1 in strict, exit 0 in warn). Named `.mjs` not `.sh`: the repo's gate convention is node, and the sibling contract rule needs lookahead. Base ref auto-resolves (`origin/main` → `main` → `HEAD~1`) so a shallow clone skips instead of no-op-failing; CI checkout now uses `fetch-depth: 0`. First run on the current diff: 370 hits — expected, those panels are mid-migration. | — |
+| E-4 | E.1 Ship `scripts/check-ui-contract.sh` with the banned-pattern regex (Appendix B), diff-scoped so historical debt never blocks a merge. | **Done 2026-10-16** — `scripts/check-ui-contract.mjs` → `npm run check:ui-contract`, CI warn mode. Bans sub-10px text, arbitrary `rounded-[Npx]` outside the scale allowlist, `font-black` outside chrome labels, `bg-cyan-500`, and `#0052FF` (allowlisted only in `Button.tsx` as the documented brand exception). First run: 140 hits, all mid-migration `font-black`. | — |
+| E-5 | E.2 ESLint `no-restricted-syntax` rules: raw `rounded-[Npx]`, sub-10px text in JSX literals, `<button` outside `Button.tsx` in **new** code (warn first). | **Deferred (deliberate)** — the same rules now ship as the two diff-scoped scripts above, which report with a fix hint and can hard-fail on demand. Adding ESLint rules while the migration is in flight would emit hundreds of warnings across 108 files with no enforcement value (CI does not fail on warnings). Revisit at the `--strict` flip. | E-3, E-4 |
 | E-6 | E.4 + design 7.4: record final counts in §2 of both audits. | Not started | Tier 6 |
 
 ---
@@ -202,6 +202,39 @@ Run both audits' work for a group in the **same** PR. Sequencing follows the lan
 ## 11. Optional — cross-reference from the implementation record
 
 `docs/ops/IMPLEMENTATION_RECORD.md` Part IV ("Open work beyond the audit findings") does not mention the UI audits. Adding a one-line **prose** pointer to this tracker there (no checkbox syntax — that file is gate-protected) keeps the record the single index it claims to be.
+
+---
+
+## 12. Runtime verification (2026-10-16)
+
+The 12 text-field fixes were verified in the **live DOM**, not just by grep — and against the
+pre-fix code as a control (A/B on the same dev server, guest → lobby flow, 390×844):
+
+| Run | Entry-fee field | Attribute violations | Hydration error |
+|---|---|---|---|
+| **Pre-fix** (`14690dd`) | `<input type=number>` · `inputmode=-` · all four suppression attrs missing | **7 FAIL** across the visited surfaces | **present** |
+| **Post-fix** (HEAD) | `<input type=text inputmode=numeric>` · full attribute set | **0** (11 fields: entry fee, 4 search boxes, panel fields) | **present** (unchanged) |
+
+Also confirmed: the search fields carry `enterkeyhint=search`; the entry-fee field takes focus
+(`document.activeElement` reports `inputmode=numeric`) and is still clamped by the pre-existing
+balance rule (a guest balance of "Free" = 0 coins clamps any bet to 0 — unchanged behaviour, so the
+digit filter itself is verified statically rather than through this field).
+
+### H-1 (new, pre-existing) — hydration mismatch on the guest→lobby transition
+
+**Evidence:** `Hydration failed because the server rendered HTML didn't match the client` fires
+after clicking "Enter the lobby", and it fires **identically on the pre-fix commit** — so the field
+work neither caused nor fixed it. It does **not** fire on the initial page load alone (a 6s load
+with no guest-flow clicks produced only the environmental CDP network errors).
+
+**Impact:** React discards the server HTML and regenerates the tree on the client — a visible
+re-render on entry, and any DOM state set between load and hydration is lost.
+
+**Candidate causes** (React's own list for this error): a `typeof window !== 'undefined'` branch, a
+`Date.now()`/`Math.random()` value rendered directly, or locale-dependent date formatting — the
+lobby mints a guest handle and renders timers/counts, so start there. **Next step:** capture React's
+dev-only server/client diff (the console diff message, not the error summary) to name the exact node
+before changing anything.
 
 ---
 

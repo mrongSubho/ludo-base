@@ -378,16 +378,19 @@ npm run check:motion        # compositor-only + reduced-motion census
 npm run check:reduce-motion # live: 0 animations under reduce, motion under no-preference
 npm run check:img           # every raw <img> reserves its box
 node scripts/check-field-rules.mjs                   # text fields vs the §6.6 contract
+npm run check:ui-tokens     # dark-first utilities in the diff (warn; --strict to fail)
+npm run check:ui-contract   # banned one-off values in the diff (warn; --strict to fail)
 npm run check:routes        # route-auth matrix
 node scripts/contrast.mjs --pairs                    # 15 contrast pairs
 npm run bench:css                                    # CSS bytes, rule/keyframe counts, type adoption
 npm run visual:diff         # two-theme pixel gate (run against a production build)
 ```
 
-Not yet shipped (**pending**, tracker Tier 5): `scripts/check-ui-tokens.sh` (`ui-token-guard`) and
-`scripts/check-ui-contract.sh` (banned-pattern guard) plus the ESLint `no-restricted-syntax` rules.
-**Shipped 2026-10-16:** `scripts/check-field-rules.mjs` — the §6.6 text-field gate (24 fields
-checked, 3 documented prose exceptions; validated both ways).
+**Shipped gates:** `scripts/check-field-rules.mjs` (§6.6 text fields — 24 fields, 3 documented
+prose exceptions, validated both ways) · `scripts/check-ui-tokens.mjs` and
+`scripts/check-ui-contract.mjs` (diff-scoped, **warn mode** in CI until the Phase 4 panel sweep
+completes, then `--strict`). Still pending: the ESLint `no-restricted-syntax` rules
+(UI_COMPONENT_AUDIT E.2).
 
 ---
 
@@ -399,7 +402,7 @@ checked, 3 documented prose exceptions; validated both ways).
 | Mass type migration (589 hardcoded `text-[Npx]` sites) | Pending; the fluid scale is adopted on the game surface (9 sites). |
 | Panel sweep (`Button`/`Chip` adoption) | In progress — raw `<button>` is down to 238; wallet/social/progression/match-sheet/chrome remainders tracked in `UI_AUDIT_TRACKER.md` §5. |
 | Daybreak patch layer → 0 | In progress (522 lines). |
-| Token-contract CI guards (§11) | Not shipped; run the checks manually until then. |
+| Token-contract CI guards (§11) | **Shipped in warn mode 2026-10-16** (`check:ui-tokens`, `check:ui-contract` — diff-scoped, in CI). Flip to `--strict` when the Phase 4 sweep completes. |
 | `next/image` for LCP art | Pending a pass against the OpenNext/Cloudflare image pipeline. |
 
 ---

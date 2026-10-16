@@ -43,6 +43,8 @@
     "check:motion": "node scripts/check-motion.mjs",
     "check:img": "node scripts/check-img-dimensions.mjs",
     "check:fields": "node scripts/check-field-rules.mjs",
+    "check:ui-tokens": "node scripts/check-ui-tokens.mjs",
+    "check:ui-contract": "node scripts/check-ui-contract.mjs",
     "check:reduce-motion": "node scripts/check-reduced-motion.mjs",
     "visual:baseline": "node scripts/visual-diff.mjs --update",
     "visual:diff": "node scripts/visual-diff.mjs",

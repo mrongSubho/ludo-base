@@ -26,6 +26,10 @@ jobs:
       LUDO_SCHEMA_DB_URL: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The diff-scoped UI guards (check:ui-tokens / check:ui-contract) need
+          # history to compare against; a shallow clone would make them no-op.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -86,6 +90,16 @@ jobs:
         # case-sensitive code field (invite code, wc: URI, referral) is
         # silently capitalised or autocorrected into a "not found".
         run: npm run check:fields
+      - name: UI token guard (warn mode — dark-first utilities in the diff)
+        # UI_DESIGN_AUDIT §6.3 / DESIGN.md §9. Diff-scoped so the legacy that is
+        # still mid-migration does not block merges; flips to --strict when the
+        # Phase 4 panel sweep completes. Requires full history for the diff.
+        run: npm run check:ui-tokens || true
+      - name: UI contract guard (warn mode — banned one-off values in the diff)
+        # UI_COMPONENT_AUDIT E.1 / DESIGN.md §9: sub-10px text, arbitrary radii,
+        # font-black outside chrome labels, pre-token accents, the retired
+        # #0052FF fill. Same warn-mode policy as the token guard.
+        run: npm run check:ui-contract || true
       - name: CSS budget baseline (advisory)
         # Plan §6: advisory until Phase 2 — prints the payload/surface numbers
         # the merge gates will enforce later; never blocks.
