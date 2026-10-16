@@ -15,8 +15,10 @@ import {IChips} from "../src/interfaces/IChips.sol";
  * claimable mission.
  *
  * Usage:
- *   # fund 1,000 CHIPS on Sepolia
- *   FUND_AMOUNT=1000 forge script script/FundMissionClaim.s.sol \
+ *   # fund 1,000 CHIPS on Sepolia — must use base-forge: CHIPS is the B20 token and
+ *   # its approve()/transferFrom() execute Base precompiles forge's vanilla EVM lacks
+ *   # (vanilla forge reverts with OpcodeNotFound). See contracts/foundry.toml.
+ *   FUND_AMOUNT=1000 base-forge script script/FundMissionClaim.s.sol \
  *     --rpc-url $SEPOLIA_RPC --account mydeployer --broadcast
  *
  * Env: MISSION_CLAIM_ADDRESS (required), CHIPS_ADDRESS (required),
