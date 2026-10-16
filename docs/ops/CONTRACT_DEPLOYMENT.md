@@ -133,6 +133,32 @@ contract DeployMissionClaim is Script {
 
 ### Execution
 
+Prefer the runner — it holds the account id, the preflight and the per-target
+required env in one place, and dry-runs by default:
+
+```bash
+source contracts/.env                      # CHIPS_ADDRESS, GAME_OWNER, DEPLOYER_ADDRESS, …
+
+# one contract at a time (dry run first, always)
+./scripts/deploy-contracts.sh matchpool                       # simulate
+./scripts/deploy-contracts.sh matchpool --broadcast           # deploy + verify
+
+# all four most recently changed contracts, in order
+./scripts/deploy-contracts.sh all                             # simulate all four
+./scripts/deploy-contracts.sh all --broadcast                 # deploy + verify all four
+
+# overrides
+./scripts/deploy-contracts.sh seasonclaim --account mydeployer --rpc "$BASE_RPC"
+```
+
+Targets: `missionclaim` · `matchpool` · `seasonclaim` · `legacyclaim` · `all`.
+The deployer account defaults to **`mydeployer`** (`FOUNDRY_ACCOUNT` overrides it, as
+does `--account`), so the keystore imported under that name is what signs. The runner
+refuses to start when `forge` is missing, when no RPC is resolvable, or when a target's
+required env is unset (e.g. `matchpool` needs `EDGE_SIGNER`) — it never half-deploys.
+
+The equivalent raw commands, if you prefer to drive forge directly:
+
 ```bash
 cd contracts && source .env
 
@@ -145,17 +171,21 @@ forge script script/DeployMissionClaim.s.sol:DeployMissionClaim \
 
 # ── Base Sepolia: dry run first (no broadcast) ───────────────────────────────
 forge script script/DeployMissionClaim.s.sol:DeployMissionClaim \
-  --rpc-url "$SEPOLIA_RPC" --account deployer          # prints what it would do
+  --rpc-url "$SEPOLIA_RPC" --account mydeployer        # prints what it would do
 
 # ── Base Sepolia: deploy + verify ────────────────────────────────────────────
 forge script script/DeployMissionClaim.s.sol:DeployMissionClaim \
-  --rpc-url "$SEPOLIA_RPC" --account deployer --broadcast --verify
+  --rpc-url "$SEPOLIA_RPC" --account mydeployer --broadcast --verify
 
 # ── Base mainnet: broadcast AS THE OWNER when it differs from the deployer ───
 forge script script/DeployMissionClaim.s.sol:DeployMissionClaim \
-  --rpc-url "$BASE_RPC" --account deployer --broadcast --verify \
+  --rpc-url "$BASE_RPC" --account mydeployer --broadcast --verify \
   --sender "$GAME_OWNER"
 ```
+
+The same shape works for `DeployMatchPool`, `DeploySeasonClaim` and `DeployLegacyClaim`
+(`script/Deploy<Name>.s.sol:Deploy<Name>`), and for the full stack in one shot via
+`script/DeployStack.s.sol`.
 
 Flags that matter: `--account deployer` uses the imported keystore (prompts for the password);
 `--broadcast` sends the transaction (without it you only simulate); `--sender` overrides who the
