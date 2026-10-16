@@ -215,6 +215,59 @@ Used by Settings, Friends, Messages, Wallet activity, Marketplace, Leaderboard.
 - `ConnectionBadge`'s status vocabulary — the model for status semantics.
 - SVG iconography at `strokeWidth={2}`.
 
+### 6.6 Text fields — input & textarea rules
+
+**The shared "no OS interference" set.** Any field whose content is a **code, address, handle, or
+amount** carries all four attributes — the OS must not help:
+
+```tsx
+autoComplete="off"  autoCorrect="off"  autoCapitalize="none"  spellCheck={false}
+```
+
+**Three deliberate exceptions** (prose wants help, codes do not):
+
+| Field | Deviation | Why |
+|---|---|---|
+| `RichChatField` (chat / DM / live chat) | **no `autoCapitalize`** → OS default (sentences) | chat is prose; the other three attributes still apply |
+| `SpectatorHUD` broadcast field | `autoCapitalize="sentences"` | explicit prose intent |
+| OTP / email fields | `autoComplete="one-time-code"` / `type="email" autoComplete="email"` | **positive** autofill — the suggestion is wanted |
+
+| Field type | Sites | Rules that define it |
+|---|---|---|
+| **Chat / DM composer** — `RichChatField` (`Board`, `MessagesPanel`, `ActivityFeed` ×2) | the canonical field | `rows={1}` growing to a 96px cap then scrolling (`resize: none`); `maxLength={500}`; `enterKeyHint="send"`; transparent text layer over a mirrored painted layer so emote art sits at the shortcode positions; themed caret; Enter sends; `disabled` + "Wait Ns…" during cooldown |
+| **Broadcast** — `SpectatorHUD` | "Transmit data…" | the set **with** `autoCapitalize="sentences"`, `maxLength={120}` |
+| **Search** — `FriendsPanel`, `MarketplacePanel`, `MessagesPanel`, `RankingsPanel`, `SwapSheet` | 5 boxes, identical | the set + `enterKeyHint="search"` + `rows={1}` + chrome-less field (`bg-transparent border-0 p-0`) so the wrapper pill is the box; filtering is live on `onChange`, no form submit |
+| **Address / code** — send recipient, link wallet, `wc:` URI, invite code, referral | wallet + TeamUp + onboarding | the set; monospace for 0x-addresses; `enterKeyHint` `next`/`done`; **case-sensitive codes must always disable auto-capitalisation** |
+| **Numeric** — token / native / swap amounts, slippage, OTP | wallet sheets | `inputMode="decimal"` (amounts) or `inputMode="numeric"` (bps, OTP); **prefer `inputMode` over `type="number"`** |
+| **Identity / settings** — display name, feedback, custom reaction | profile / settings / emote tray | name: `maxLength` + `NAME_RULES` (`lib/avatars.ts`: 3–16 chars, `/^[A-Za-z0-9_]+$/`, no `0x` prefix, reserved `guest`/`user` prefixes); feedback `maxLength={2000}`; reaction `maxLength={32}`, Enter saves / Escape cancels |
+
+### 6.7 Keyboard & IME behaviour (mobile)
+
+**Viewport contract** (`app/layout.tsx`): `maximumScale: 1` — this, **not** a 16px field font, is
+what prevents the iOS focus-zoom (fields are 12–15px); `viewportFit: 'cover'`;
+`interactiveWidget: 'resizes-content'` so the keyboard resizes content instead of covering it.
+
+**Focus engine** (`app/components/FrameProvider.tsx`):
+
+- `focusin` on an editable → compute `--kb-inset` from the visual-viewport delta, but **only when
+  it exceeds 120px** (URL-bar collapse and host chrome are ignored) → toggle `body.keyboard-open`.
+- **The app height is frozen at the pre-IME layout** while the keyboard is open, so the board never
+  reflows behind it.
+- A clipped field is revealed with `scrollIntoView({ block: 'nearest' })` **only when actually
+  clipped** (24px margin), retried at 50ms and 220ms to ride the keyboard animation. Never scroll
+  an already-visible field — that used to park it mid-screen and push panel headers out of view.
+- `focusout` is debounced 120ms and ignores focus moving *between* fields; tabbing must not flicker
+  the chrome. Tab-hidden and rotation re-baseline the stable height.
+
+**CSS reactions while `body.keyboard-open`** (`globals.css`): the footer nav is hidden; panels cap
+at `calc(var(--visible-vh) - 64px - 8px)`; padding + `scroll-padding-bottom` use
+`max(24px, var(--kb-inset), var(--safe-bottom))`; `.board-sheet` and `.match-footer-chat` lift by
+`--kb-inset`; the quick-phrase row is hidden.
+
+**Action key:** `enterKeyHint` maps `send` (chat/DM/broadcast) · `search` (search boxes) · `next`
+(recipient, amount) · `done` (link wallet, native amount). **Keyboard type:** `inputMode="decimal"`
+for amounts, `"numeric"` for bps/OTP, default text elsewhere.
+
 ---
 
 ## 7. Motion policy
