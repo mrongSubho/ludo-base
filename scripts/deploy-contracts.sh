@@ -69,10 +69,11 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 # ── Resolve the deploy account ─────────────────────────────────────────────────
-# Must happen AFTER contracts/.env is loaded: an explicit --account wins; otherwise
-# FOUNDRY_ACCOUNT from the file; finally the mydeployer fallback. Resolving this
-# before the loader would silently ignore FOUNDRY_ACCOUNT=deployer in the file.
-ACCOUNT="${ACCOUNT:-${FOUNDRY_ACCOUNT:-mydeployer}}"
+# Explicit --account wins; otherwise the project's deploy keystore, `mydeployer`.
+# We deliberately do NOT fall back to FOUNDRY_ACCOUNT from contracts/.env — it is
+# `deployer` there and would silently change who signs. The deploy keystore for this
+# repo is mydeployer (confirmed by the user). Override per-run with --account <name>.
+ACCOUNT="${ACCOUNT:-mydeployer}"
 
 # ── Resolve the forge binary ──────────────────────────────────────────────────
 # foundry installs to ~/.foundry/bin, which a fresh (or non-login) shell does not
