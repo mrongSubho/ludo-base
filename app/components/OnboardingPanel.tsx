@@ -351,52 +351,57 @@ export const OnboardingPanel = () => {
                                             <span className="text-[11px] font-black leading-none text-cyan-400">{x.reward}</span>
                                         </div>
                                     </div>
-                                    <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug pr-2">
-                                        {x.progress || 0} / {x.target} · {x.reward} CHIPS
-                                    </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 mt-1">
-                                <div className="flex-1">
-                                    <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
-                                        <span className={`text-xs font-black ${isCompleted ? 'text-green-400' : 'text-white'}`}>
-                                            {x.progress || 0} <span className="text-white/30 text-[10px]">/ {x.target}</span>
-                                        </span>
+                            {/* Task details, directly above the progress bar. Always rendered
+                                as a single line — every task carries it, and no progress value
+                                can change the card's height. */}
+                            <div className="flex flex-col gap-2">
+                                <p className="text-[11px] font-medium text-white/60 leading-snug tabular-nums truncate">
+                                    {x.progress || 0} / {x.target} · {x.reward} CHIPS
+                                </p>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-end justify-between mb-1.5 px-0.5">
+                                            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
+                                            <span className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+                                                {x.progress || 0} <span className="text-white/30 text-[10px]">/ {x.target}</span>
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
+                                                style={{ width: `${progressPercent}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
-                                            style={{ width: `${progressPercent}%` }}
-                                        />
-                                    </div>
+                                    <button
+                                        onClick={() => handleClaim(x.track)}
+                                        disabled={isClaimed || !x.claimable || claimingId !== null}
+                                        className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
+                                            ${isClaimed
+                                                ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
+                                                : x.claimable
+                                                    ? 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
+                                                    : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
+                                            }`}
+                                    >
+                                        {claimingId === x.track ? (
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : isClaimed ? (
+                                            'Claimed'
+                                        ) : x.claimable ? (
+                                            <span className="flex items-center gap-1">
+                                                CLAIM
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                                                    <polyline points="20 6 9 17 4 12" />
+                                                </svg>
+                                            </span>
+                                        ) : (
+                                            'GO'
+                                        )}
+                                    </button>
                                 </div>
-                                <button
-                                    onClick={() => handleClaim(x.track)}
-                                    disabled={isClaimed || !x.claimable || claimingId !== null}
-                                    className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
-                                        ${isClaimed
-                                            ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
-                                            : x.claimable
-                                                ? 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
-                                                : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'
-                                        }`}
-                                >
-                                    {claimingId === x.track ? (
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : isClaimed ? (
-                                        'Claimed'
-                                    ) : x.claimable ? (
-                                        <span className="flex items-center gap-1">
-                                            CLAIM
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
-                                        </span>
-                                    ) : (
-                                        'GO'
-                                    )}
-                                </button>
                             </div>
                         </motion.div>
                     );
@@ -436,26 +441,29 @@ export const OnboardingPanel = () => {
                                             <span className="text-[11px] font-black leading-none text-cyan-400">{WELCOME_REWARD}</span>
                                         </div>
                                     </div>
-                                    <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug pr-2">
-                                        {welcomeClaimed ? 1 : 0} / 1 · {WELCOME_REWARD} CHIPS
-                                    </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 mt-1">
-                                <div className="flex-1">
-                                    <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
-                                        <span className={`text-xs font-black ${welcomeClaimed ? 'text-green-400' : 'text-white'}`}>
-                                            {welcomeClaimed ? 1 : 0} <span className="text-white/30 text-[10px]">/ 1</span>
-                                        </span>
+                            {/* Task details, directly above the progress bar — same line,
+                                same placement, as every track card in this list. */}
+                            <div className="flex flex-col gap-2">
+                                <p className="text-[11px] font-medium text-white/60 leading-snug tabular-nums truncate">
+                                    {welcomeClaimed ? 1 : 0} / 1 · {WELCOME_REWARD} CHIPS
+                                </p>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-end justify-between mb-1.5 px-0.5">
+                                            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
+                                            <span className={`text-xs font-black tabular-nums ${welcomeClaimed ? 'text-green-400' : 'text-white'}`}>
+                                                {welcomeClaimed ? 1 : 0} <span className="text-white/30 text-[10px]">/ 1</span>
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${welcomeClaimed ? 'bg-white/20' : 'bg-cyan-600'}`}
+                                                style={{ width: `${welcomeClaimed ? 100 : 0}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-1000 ease-out ${welcomeClaimed ? 'bg-white/20' : 'bg-cyan-600'}`}
-                                            style={{ width: `${welcomeClaimed ? 100 : 0}%` }}
-                                        />
-                                    </div>
-                                </div>
                                 <button
                                     onClick={() => handleClaim(WELCOME_ID)}
                                     disabled={claimingId !== null || welcomeClaimed}
@@ -478,6 +486,7 @@ export const OnboardingPanel = () => {
                                         </span>
                                     )}
                                 </button>
+                                </div>
                             </div>
                         </motion.div>
 
