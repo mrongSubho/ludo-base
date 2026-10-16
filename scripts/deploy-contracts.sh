@@ -139,8 +139,11 @@ run_one() {
   target="$(script_for "$name")" || { echo "unknown target: $name" >&2; exit 2; }
 
   case "$name" in
-    matchpool)   require_env CHIPS_ADDRESS EDGE_SIGNER ;;
-    *)           require_env CHIPS_ADDRESS ;;
+    matchpool)    require_env CHIPS_ADDRESS EDGE_SIGNER ;;
+    missionclaim) require_env CHIPS_ADDRESS MISSION_OP_KEY ;;
+    seasonclaim)  require_env CHIPS_ADDRESS MISSION_OP_KEY ;;
+    legacyclaim)  require_env CHIPS_ADDRESS ;;
+    *)            require_env CHIPS_ADDRESS ;;
   esac
 
   echo ""

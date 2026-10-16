@@ -22,7 +22,7 @@ import {IChips} from "../src/interfaces/IChips.sol";
  *
  * Usage:
  *   forge script script/InitMissions.s.sol \
- *     --rpc-url $SEPOLIA_RPC --account deployer --broadcast \
+ *     --rpc-url $SEPOLIA_RPC --account mydeployer --broadcast \
  *     # env: MISSION_CLAIM_ADDRESS (required), MISSION_OP_KEY (info),
  *     #      PERIOD_CEILING, MIN_RESERVE, CLAIM_RELAYER
  */

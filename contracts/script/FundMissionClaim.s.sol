@@ -17,7 +17,7 @@ import {IChips} from "../src/interfaces/IChips.sol";
  * Usage:
  *   # fund 1,000 CHIPS on Sepolia
  *   FUND_AMOUNT=1000 forge script script/FundMissionClaim.s.sol \
- *     --rpc-url $SEPOLIA_RPC --account deployer --broadcast
+ *     --rpc-url $SEPOLIA_RPC --account mydeployer --broadcast
  *
  * Env: MISSION_CLAIM_ADDRESS (required), CHIPS_ADDRESS (required),
  *      FUND_AMOUNT (whole CHIPS, default 500), MIN_RESERVE (optional — sets the floor)
