@@ -50,6 +50,10 @@
     "visual:diff": "node scripts/visual-diff.mjs",
     "bench:css": "node scripts/bench-css.mjs",
     "setup:foundry": "bash scripts/setup-foundry.sh",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test --match-contract 'MissionClaim|MatchPool|ClaimHub|SeasonClaim|LegacyClaim|MerkleClaims' -vv",
+    "claim:init": "cd contracts && forge script script/InitMissions.s.sol --rpc-url ${SEPOLIA_RPC:-$BASE_RPC} --account deployer --broadcast",
+    "claim:fund": "cd contracts && FUND_AMOUNT=${FUND_AMOUNT:-500} forge script script/FundMissionClaim.s.sol --rpc-url ${SEPOLIA_RPC:-$BASE_RPC} --account deployer --broadcast",
     "test:contracts": "bash scripts/anvil-e2e.sh",
     "test:concurrency": "npx --yes tsx --test scripts/concurrency.test.ts"
   },
