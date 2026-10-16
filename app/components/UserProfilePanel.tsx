@@ -271,7 +271,6 @@ export default function UserProfilePanel({
         { v: `${winRate}%`, l: 'Win rate', c: 'text-cyan-400' },
         { v: games.toLocaleString(), l: 'Matches', c: 'text-white' },
         { v: `${streak}`, l: 'Streak', c: 'text-orange-500' },
-        { v: chipsBal.human, l: 'CHIPS', c: 'text-cyan-300' },
     ];
 
     return (
@@ -597,7 +596,7 @@ export default function UserProfilePanel({
                     {/* Stat grid */}
                     <section>
                         <SectionLabel>Stats</SectionLabel>
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             {stats.map((s) => (
                                 <div key={s.l} className="rounded-xl bg-white/[0.04] border border-white/10 p-2 flex flex-col items-center justify-center">
                                     <span className={`text-base font-black tabular-nums ${s.c}`}>{s.v}</span>
