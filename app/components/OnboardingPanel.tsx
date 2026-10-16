@@ -59,6 +59,7 @@ interface ClaimResponse {
 }
 
 const WELCOME_ID = 'welcome_grant';
+const WELCOME_REWARD = 50;
 
 export const OnboardingPanel = () => {
     const { address, isGuest } = useCurrentUser();
@@ -403,34 +404,82 @@ export const OnboardingPanel = () => {
 
                 return (
                     <>
-                        {/* Welcome — same card language */}
-                        <div className="flex items-center gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl">
-                            <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 flex items-center justify-center flex-shrink-0">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5 text-cyan-300">
-                                    <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-                                </svg>
+                        {/* Welcome — same card language as the tracks below: icon row
+                            (title + gem reward chip + the details line every task
+                            carries) over the progress/action row, so the claim button
+                            sits exactly where the GO/CLAIM buttons do. */}
+                        <motion.div
+                            layout
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden"
+                        >
+                            {welcomeClaimed && (
+                                <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
+                            )}
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 bg-cyan-500/15 text-cyan-300 shadow-inner border border-white/5">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-[22px] h-[22px]">
+                                        <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                                    </svg>
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0 pt-0.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className={`font-bold text-[15px] truncate ${welcomeClaimed ? 'text-green-300' : 'text-white'}`}>
+                                            Welcome grant
+                                        </h3>
+                                        <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
+                                                <path d="M6 3h12l4 6-10 13L2 9z" />
+                                                <path d="M11 3 8 9l4 13 4-13-3-6" />
+                                            </svg>
+                                            <span className="text-[11px] font-black leading-none text-cyan-400">{WELCOME_REWARD}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug pr-2">
+                                        {welcomeClaimed ? 1 : 0} / 1 · {WELCOME_REWARD} CHIPS
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                    <h3 className="font-bold text-[15px] text-white">Welcome grant</h3>
-                                    <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
-                                        <span className="text-[11px] font-black leading-none text-cyan-400">50</span>
+                            <div className="flex items-center gap-4 mt-1">
+                                <div className="flex-1">
+                                    <div className="flex items-end justify-between mb-1.5 px-0.5">
+                                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
+                                        <span className={`text-xs font-black ${welcomeClaimed ? 'text-green-400' : 'text-white'}`}>
+                                            {welcomeClaimed ? 1 : 0} <span className="text-white/30 text-[10px]">/ 1</span>
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-1000 ease-out ${welcomeClaimed ? 'bg-white/20' : 'bg-cyan-600'}`}
+                                            style={{ width: `${welcomeClaimed ? 100 : 0}%` }}
+                                        />
                                     </div>
                                 </div>
-                                <p className="text-[11px] font-medium text-white/60 mt-1 leading-snug">One-time 50 CHIPS on first wallet link</p>
+                                <button
+                                    onClick={() => handleClaim(WELCOME_ID)}
+                                    disabled={claimingId !== null || welcomeClaimed}
+                                    className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1
+                                        ${welcomeClaimed
+                                            ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
+                                            : 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
+                                        }`}
+                                >
+                                    {claimingId === WELCOME_ID ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : welcomeClaimed ? (
+                                        'Claimed'
+                                    ) : (
+                                        <span className="flex items-center gap-1">
+                                            CLAIM
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        </span>
+                                    )}
+                                </button>
                             </div>
-                            <button
-                                onClick={() => handleClaim(WELCOME_ID)}
-                                disabled={claimingId !== null || welcomeClaimed}
-                                className={`min-w-[70px] py-2 px-3 rounded-xl font-bold text-xs transition-all shadow-lg active:scale-95
-                                    ${welcomeClaimed
-                                        ? 'bg-white/5 text-white/20 border border-white/5 cursor-default'
-                                        : 'bg-green-500/80 text-white border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-green-500'
-                                    }`}
-                            >
-                                {welcomeClaimed ? 'Claimed' : claimingId === WELCOME_ID ? '…' : 'CLAIM'}
-                            </button>
-                        </div>
+                        </motion.div>
 
                         <SectionLabel right={<span className="text-[10px] font-black text-cyan-300 tabular-nums">{coreSum || 1000} CHIPS</span>}>
                             Core package
