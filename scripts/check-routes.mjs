@@ -85,6 +85,12 @@ const MATRIX = {
     'onboarding/referral':    { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
     'missions/list':          { methods: ['GET'], auth: 'session', resource: 'self', serviceRole: true },
     'missions/voucher':       { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    // Daily check-in. Session-scoped to the caller's own wallet (`resource:
+    // self`): the endpoint reports `daily_bonus` progress for `authed`, never
+    // for an address taken from the body. Reward is paid once per (wallet,
+    // UTC day) — MissionSystem on completion, voucher only as a fallback, and
+    // both are closed out by the `player_missions` claim flag.
+    'missions/daily-bonus':   { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
     // Retired: coin rewards are frozen (410 Gone). Kept in the matrix so the
     // retirement cannot be silently reverted.
     'missions/claim':         { methods: ['POST'], auth: 'retired', resource: 'none', serviceRole: false },

@@ -203,6 +203,18 @@ export function useGameEngine({
 
             // API requires a wallet signature from a listed participant.
             // When a bot won, the local human still signs as an attesting player.
+            //
+            // Per-player capture counts (host-authoritative `matchStats.kicks`,
+            // mapped colour -> human wallet). They ride inside the signed payload
+            // so the server can report daily_capture_2 / weekly_capture_10 from a
+            // source the signature vouches for, instead of a client self-report.
+            const captureCounts: Record<string, number> = {};
+            for (const p of initialPlayers) {
+                if (!p.walletAddress || p.isAi) continue;
+                const kicks = localGameState.matchStats?.[p.color]?.kicks ?? 0;
+                if (kicks > 0) captureCounts[p.walletAddress.toLowerCase()] = kicks;
+            }
+
             try {
                 await recordMatchResult(
                     player.walletAddress || null,
@@ -210,13 +222,14 @@ export function useGameEngine({
                     gameMode,
                     humans,
                     localGameState.matchId,
-                    (msg) => signMessageAsync({ account: signAccount, message: msg })
+                    (msg) => signMessageAsync({ account: signAccount, message: msg }),
+                    captureCounts
                 );
             } catch (err) {
                 console.error('❌ [Engine] Match record signing failed', err);
             }
         }
-    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchId, wager, isBotMatch, signMessageAsync, signAccount]);
+    }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchStats, localGameState.matchId, wager, isBotMatch, signMessageAsync, signAccount]);
 
     const triggerWinConfetti = useCallback(() => {
         const duration = 5 * 1000;

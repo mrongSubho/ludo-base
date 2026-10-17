@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { buildMatchRecordMessage, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb } from '@/lib/serverAuth';
+import { reportProgress } from '@/lib/missionOracle';
 
 async function updateMissionProgress(walletAddress: string, missionId: string, increment: number) {
     // Signature-gated settlement (canonical host wallet-signs the payload).
@@ -75,6 +76,36 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Proof expired' }, { status: 401 });
         }
 
+        // Resolve the participant seat set early: it is needed to validate the
+        // (optional) capture counts below before the canonical message is built.
+        const lowerParts = participants.map((p: string) => String(p).toLowerCase());
+        const hostClaim = lowerParts[0] || '';
+
+        // Optional per-player capture counts, host-attested. Only counts for
+        // listed participants are accepted, and each is capped at what a single
+        // four-player board can possibly produce, so an inflated count cannot be
+        // smuggled in later either: the `captures:` line is part of the signed
+        // message, so any other value fails the digest check below.
+        const MAX_CAPTURES_PER_MATCH = 64;
+        const rawCaptures = body.captures;
+        const captures: Record<string, number> = {};
+        if (rawCaptures !== undefined && rawCaptures !== null) {
+            if (typeof rawCaptures !== 'object' || Array.isArray(rawCaptures)) {
+                return NextResponse.json({ error: 'Invalid captures map' }, { status: 400 });
+            }
+            for (const [wallet, count] of Object.entries(rawCaptures as Record<string, unknown>)) {
+                const lw = String(wallet).toLowerCase();
+                if (!lowerParts.includes(lw)) {
+                    return NextResponse.json({ error: 'Capture wallet is not a match participant' }, { status: 400 });
+                }
+                const n = typeof count === 'number' ? count : Number(count);
+                if (!Number.isInteger(n) || n < 0 || n > MAX_CAPTURES_PER_MATCH) {
+                    return NextResponse.json({ error: 'Invalid capture count' }, { status: 400 });
+                }
+                if (n > 0) captures[lw] = n;
+            }
+        }
+
         // Canonical message must match exactly what the client claims to have signed.
         const expected = buildMatchRecordMessage({
             winnerAddress: winnerAddress || null,
@@ -84,6 +115,7 @@ export async function POST(request: Request) {
             wager,
             matchId: matchId || null,
             issuedAt,
+            captures,
         });
         if (message !== expected) {
             return NextResponse.json({ error: 'Message payload mismatch' }, { status: 401 });
@@ -91,9 +123,8 @@ export async function POST(request: Request) {
 
         // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
         // The canonical-host check below compares against `recovered`, so on
-        // success it must equal the claimed host signer.
-        const lowerParts = participants.map((p: string) => String(p).toLowerCase());
-        const hostClaim = lowerParts[0] || '';
+        // success it must equal the claimed host signer. (`lowerParts` /
+        // `hostClaim` were resolved above, together with the capture validation.)
         const verdict = await verifyPersonalSign({ address: hostClaim, message, signature });
         if (!verdict.ok) {
             const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';
@@ -216,8 +247,10 @@ export async function POST(request: Request) {
                 })
                 .ilike('wallet_address', winnerAddress);
 
-            // Mission: daily_win_1
+            // Mission: daily_win_1 + weekly_win_3 (on-chain mirror per period)
             await updateMissionProgress(winnerAddress, 'daily_win_1', 1);
+            void reportProgress(winnerAddress, 'daily_win_1', 1); // on-chain mirror (no-op until configured)
+            void reportProgress(winnerAddress, 'weekly_win_3', 1); // on-chain mirror (no-op until configured)
         }
 
         // 3. Update other participants (Loss) — progression only, no coin drain
@@ -253,9 +286,27 @@ export async function POST(request: Request) {
             }
         }
 
-        // Mission: daily_play_3 (Update for ALL participants)
+        // Mission: daily_play_3 + weekly_play_10 (ALL participants); weekly_pvp_2 when PvP.
+        const isPvpMatch = lowerParts.length >= 2; // versus match (not the solo/AI path)
         for (const addr of participants) {
             await updateMissionProgress(addr, 'daily_play_3', 1);
+            void reportProgress(addr, 'daily_play_3', 1); // on-chain mirror (no-op until configured)
+            void reportProgress(addr, 'weekly_play_10', 1); // on-chain mirror (no-op until configured)
+            if (isPvpMatch) void reportProgress(addr, 'weekly_pvp_2', 1); // on-chain mirror (no-op until configured)
+        }
+
+        // Mission: daily_capture_2 + weekly_capture_10 from the signature-attested
+        // per-player capture counts. Only wallets with at least one kick are
+        // reported; a zero-count entry means "no captures" and is skipped.
+        for (const [addr, count] of Object.entries(captures)) {
+            if (count <= 0) continue;
+            void reportProgress(addr, 'daily_capture_2', count); // on-chain mirror (no-op until configured)
+            void reportProgress(addr, 'weekly_capture_10', count); // on-chain mirror (no-op until configured)
+            // Legacy DB mirror for the daily mission only. Weekly rows in
+            // `player_missions` are reset on the daily interval by
+            // `updateMissionProgress`, which would corrupt a 7-day mission — so
+            // the weekly mission lives on-chain alone.
+            await updateMissionProgress(addr, 'daily_capture_2', count);
         }
 
         // Onboarding tracks (server-owned progress; claims stay pull-based).

@@ -12,7 +12,14 @@ export async function recordMatchResult(
     gameMode: string,
     participants: string[],
     matchId: string | undefined,
-    signMessage: SignMessageFn
+    signMessage: SignMessageFn,
+    /**
+     * Per-player capture counts (wallet -> opponent tokens sent home). Included in
+     * the signed payload so the server can report daily_capture_2 /
+     * weekly_capture_10; omit (or pass an empty map) on clients that cannot
+     * compute it and those missions simply do not progress.
+     */
+    captures?: Record<string, number>
 ) {
     const issuedAt = new Date().toISOString();
     const wager = 0; // coin awards from this path are XP/history only; wager pot is separate
@@ -24,6 +31,7 @@ export async function recordMatchResult(
         wager,
         matchId: matchId || null,
         issuedAt,
+        captures,
     });
 
     console.log('📡 [MatchRecorder] Sending signed request...', { winnerAddress, roomCode, gameMode, participants, matchId });
@@ -43,6 +51,7 @@ export async function recordMatchResult(
                 participants,
                 matchId,
                 wager,
+                captures,
                 message,
                 signature,
                 issuedAt,

@@ -68,6 +68,11 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     geo: { limit: 60, windowMs: 60_000, methods: ['GET'] },
     notices: { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'missions/list': { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    // Session-gated, but each call still writes a `player_missions` row and (when
+    // the oracle is configured) submits an `eth_sendTransaction`. A valid session
+    // must not buy unbounded writes, so it is bounded too — deliberately generous,
+    // because the real cap is one claim per (wallet, UTC day).
+    'missions/daily-bonus': { limit: 10, windowMs: 60_000, methods: ['POST'] },
     'onboarding/progress': { limit: 60, windowMs: 60_000 },
     'lobby/invites': { limit: 60, windowMs: 60_000, methods: ['GET'] },
 };
@@ -123,6 +128,7 @@ export const SESSION_GATED = new Set([
     'matchmaking/status',
     'messages',
     'missions/claim',
+    'missions/daily-bonus',
     'missions/voucher',
     'onboarding/claim',
     'onboarding/progress',

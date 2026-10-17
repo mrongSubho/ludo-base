@@ -27,11 +27,16 @@ const WELCOME_PERIOD = keccak256(toBytes('welcome-grant-v1'));
  *
  * - Onboarding track (tutorial … clan): requires progress ≥ target and
  *   !is_claimed (server-owned). Issues an EIP-712 MissionClaim voucher.
- * - `welcome_grant` (missionId or track): one-time, marked pending (no
- *   on-chain voucher here) — ops/treasury path.
+ * - `welcome_grant` (missionId or track): one-time, issues an EIP-712
+ *   MissionClaim voucher exactly like the tracks (reserve → sign → fill),
+ *   so the client submits `MissionClaim.claim` and 50 CHIPS settle from the
+ *   funded reserve. Sent as an unregistered mission (fixed 50e18 reward
+ *   enforced server-side), so no on-chain `setMission` call is required and
+ *   the period window is always open.
  *
  * Double-claim is refused on `is_claimed` (tracks) and on the existing
- * mission_vouchers row (welcome grant).
+ * mission_vouchers row (welcome grant); the contract's `claimedInPeriod`
+ * and `usedVoucher` guards add on-chain defence in depth.
  */
 export async function POST(request: Request) {
     try {
@@ -42,7 +47,7 @@ export async function POST(request: Request) {
         const rawTrack = String(body?.track ?? body?.missionId ?? '');
         const db = serviceDb();
 
-        // ── Welcome grant: one-time, marked pending ─────────────────────────
+        // ── Welcome grant: one-time, on-chain MissionClaim voucher ────────────
         if (rawTrack === WELCOME_GRANT_MISSION_ID) {
             const { data: prior, error: priorError } = await db
                 .from('mission_vouchers')
@@ -55,24 +60,81 @@ export async function POST(request: Request) {
             const check = checkWelcomeGrantClaimable((prior?.length ?? 0) > 0);
             if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
 
-            const deadline = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+            const claim = missionClaimAddress();
+            if (!claim) return NextResponse.json({ error: 'MissionClaim not configured' }, { status: 503 });
+            const chainId = parseChainForMission(body?.chainId ?? 84532);
+
+            // 50 CHIPS in 1e18 base units — matches mission_vouchers.amount everywhere else.
+            const amount = BigInt(WELCOME_GRANT_REWARD) * BigInt(10) ** BigInt(18);
+            const missionId: Hex = keccak256(toBytes('welcome_grant'));
+            const nonce = BigInt(Date.now());
+            const deadline = BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 3600);
+            const voucher = {
+                wallet: wallet as Address,
+                missionId,
+                amount,
+                periodId: WELCOME_PERIOD,
+                deadline,
+                nonce,
+            };
+
+            // Reserve before signing so a failed sign can release the slot.
             const { error: insertError } = await db.from('mission_vouchers').insert({
                 wallet_address: wallet,
                 mission_id: WELCOME_GRANT_MISSION_ID,
                 period_id: WELCOME_PERIOD,
-                amount: WELCOME_GRANT_REWARD,
+                amount: amount.toString() as unknown as number,
                 signature: 'pending',
-                deadline,
+                deadline: new Date(Number(deadline) * 1000).toISOString(),
             });
             if (insertError) {
                 // Unique (wallet, mission_id, period_id) — concurrent double-claim.
                 return NextResponse.json({ error: 'Already claimed' }, { status: 400 });
             }
+
+            let sig: Hex;
+            try {
+                sig = await signMissionVoucher(voucher, claim, chainId);
+            } catch (signErr) {
+                // Release the reservation so the slot is retryable.
+                await db
+                    .from('mission_vouchers')
+                    .delete()
+                    .eq('wallet_address', wallet)
+                    .eq('mission_id', WELCOME_GRANT_MISSION_ID)
+                    .eq('period_id', WELCOME_PERIOD)
+                    .eq('signature', 'pending');
+                console.error('welcome grant voucher signing failed; reservation released:', signErr);
+                return NextResponse.json(
+                    { error: 'Voucher signing failed; the claim slot was released, retry shortly' },
+                    { status: 503 },
+                );
+            }
+
+            const { error: sigErr } = await db
+                .from('mission_vouchers')
+                .update({ signature: sig })
+                .eq('wallet_address', wallet)
+                .eq('mission_id', WELCOME_GRANT_MISSION_ID)
+                .eq('period_id', WELCOME_PERIOD)
+                .eq('signature', 'pending');
+            if (sigErr) return NextResponse.json({ error: sigErr.message }, { status: 500 });
+
             return NextResponse.json({
                 success: true,
                 track: WELCOME_GRANT_MISSION_ID,
                 reward: WELCOME_GRANT_REWARD,
-                pending: true,
+                missionClaim: claim,
+                chainId,
+                voucher: {
+                    wallet: voucher.wallet,
+                    missionId: voucher.missionId,
+                    amount: voucher.amount.toString(),
+                    periodId: voucher.periodId,
+                    deadline: voucher.deadline.toString(),
+                    nonce: voucher.nonce.toString(),
+                },
+                signature: sig,
             });
         }
 

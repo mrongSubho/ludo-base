@@ -7,8 +7,9 @@ import type { Address, Hex } from 'viem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
-import { ONBOARDING_TRACKS, WELCOME_GRANT_DESC, type OnboardingTrack } from '@/lib/onboardingShared';
+import { ONBOARDING_TRACKS, ONBOARDING_TRACK_KEYS, WELCOME_GRANT_DESC, type OnboardingTrack } from '@/lib/onboardingShared';
 import Button from './Button';
+import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
@@ -97,6 +98,12 @@ export const OnboardingPanel = () => {
     const [referralCodeInput, setReferralCodeInput] = useState('');
     const [bindState, setBindState] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+
+    // On-chain overlay: onboarding missions live on MissionSystem (pays CHIPS on
+    // completion). When configured + read, its completion is authoritative and the
+    // reward is already paid, so we show "Received" and suppress the legacy voucher
+    // claim (avoids a double payout). Otherwise the DB/voucher path is unchanged.
+    const onChain = useMissionOnChainState(address, ONBOARDING_TRACK_KEYS);
 
     const load = useCallback(async () => {
         if (!address || isGuest) {
@@ -325,9 +332,16 @@ export const OnboardingPanel = () => {
                 };
 
                 const TrackCard = (x: TrackRow) => {
-                    const isCompleted = (x.progress || 0) >= x.target;
-                    const isClaimed = x.is_claimed;
-                    const progressPercent = Math.min(((x.progress || 0) / Math.max(x.target, 1)) * 100, 100);
+                    // On-chain overlay (MissionSystem is the payout authority for onboarding):
+                    const oc = onChain.configured ? onChain.states[x.track] : undefined;
+                    const useOnChain = Boolean(oc);
+                    const progressVal = useOnChain ? oc!.progress : (x.progress || 0);
+                    const targetVal = x.target || 1;
+                    const isCompleted = useOnChain ? oc!.completed : progressVal >= targetVal;
+                    const onChainPaid = useOnChain && isCompleted;
+                    const isClaimed = onChainPaid || x.is_claimed;
+                    const claimable = !onChainPaid && x.claimable;
+                    const progressPercent = Math.min((progressVal / Math.max(targetVal, 1)) * 100, 100);
                     return (
                         <motion.div
                             layout
@@ -368,7 +382,7 @@ export const OnboardingPanel = () => {
                                         <div className="flex items-end justify-between mb-1.5 px-0.5">
                                             <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
                                             <span className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}>
-                                                {x.progress || 0} <span className="text-white/30 text-[10px]">/ {x.target}</span>
+                                                {progressVal} <span className="text-white/30 text-[10px]">/ {targetVal}</span>
                                             </span>
                                         </div>
                                         <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
@@ -382,13 +396,15 @@ export const OnboardingPanel = () => {
                                     variant="secondary"
                                     size="sm"
                                     loading={claimingId === x.track}
-                                    disabled={isClaimed || !x.claimable}
-                                    onClick={() => handleClaim(x.track)}
-                                    className={`min-w-[70px] rounded-xl ${isClaimed ? '' : x.claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
+                                    disabled={isClaimed || !claimable}
+                                    onClick={claimable ? () => handleClaim(x.track) : undefined}
+                                    className={`min-w-[70px] rounded-xl ${isClaimed ? '' : claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
                                 >
-                                    {isClaimed ? (
+                                    {onChainPaid ? (
+                                        'Received'
+                                    ) : isClaimed ? (
                                         'Claimed'
-                                    ) : x.claimable ? (
+                                    ) : claimable ? (
                                         <span className="flex items-center gap-1">
                                             CLAIM
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm">
@@ -407,6 +423,12 @@ export const OnboardingPanel = () => {
 
                 return (
                     <>
+                        {onChain.configured && (
+                            <div className="flex items-center gap-1.5 pb-1 text-[10px] font-black text-cyan-400/80 uppercase tracking-wider">
+                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                on-chain
+                            </div>
+                        )}
                         {/* Welcome — same card language as the tracks below: icon row
                             (title + gem reward chip + the details line every task
                             carries) over the progress/action row, so the claim button

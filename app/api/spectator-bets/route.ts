@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { reportProgress } from '@/lib/missionOracle';
 
 export async function GET(request: Request) {
     try {
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
             if (payout <= 0) {
                 return NextResponse.json({ error: 'Nothing to withdraw' }, { status: 400 });
             }
+            // On-chain mirror: a settled winning bet is a correct prediction.
+            void reportProgress(wallet, 'daily_predict_1', 1); // no-op until configured
 
             const ref = `bet:${betId}`;
             // Typed by the DB-22 regen; numeric params cross as exact decimal
@@ -100,6 +103,8 @@ export async function POST(request: Request) {
             if (!known) console.error('spectator bet rpc error', error);
             return NextResponse.json({ error: known ? msg : 'bet rejected' }, { status: 409 });
         }
+        // On-chain mirror: placing a bet engages with a live match (spectate).
+        void reportProgress(wallet, 'weekly_spectate_5', 1); // no-op until configured
         return NextResponse.json(data);
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });

@@ -9,6 +9,7 @@ import {
     isOnboardingTrack,
     type OnboardingTrack,
 } from './onboardingServer';
+import { reportProgress } from '@/lib/missionOracle';
 
 type Db = SupabaseClient<Database>;
 
@@ -40,6 +41,8 @@ export async function bumpOnboardingProgress(
     const target = existing?.target && existing.target > 0 ? existing.target : def.target;
     const progress = Math.min(prev + step, target);
     if (progress === prev) return;
+    // On-chain mirror: report the same delta to MissionSystem (no-op until configured).
+    void reportProgress(walletAddress, String(track), step);
 
     const { error: upsertError } = await db.from('onboarding_progress').upsert(
         {
@@ -138,4 +141,6 @@ export async function recordSocialOnboarding(
     delta = 1,
 ): Promise<void> {
     await bumpOnboardingProgress(db, wallet, track, delta);
+    // On-chain mirror: a friend DM also counts toward weekly_friend_dm_3.
+    if (track === 'friend_dm') void reportProgress(wallet, 'weekly_friend_dm_3', delta);
 }

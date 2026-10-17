@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import { loadMissionDef, periodBucketFor } from '@/lib/missionCatalog';
 import { issueMissionVoucher, type IssuedVoucher } from '@/lib/missionVoucherIssue';
+import { reportProgress } from '@/lib/missionOracle';
 
 /**
  * POKE SYSTEM LOGIC
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
                         progress: 1,
                     });
                 }
+                void reportProgress(s, POKE_BACK_MISSION, 1); // on-chain mirror (no-op until configured)
                 const issue = await issueMissionVoucher(s, POKE_BACK_MISSION);
                 if (issue.ok) {
                     voucher = issue.issued;

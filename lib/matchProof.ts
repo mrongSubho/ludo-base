@@ -15,6 +15,30 @@ export const ECDH_PREFIX = 'Ludo Base ecdh key';
 /** Max age for a signed privileged request. */
 export const PROOF_MAX_AGE_MS = 10 * 60 * 1000;
 
+/**
+ * Deterministic rendering of per-wallet capture counts as `a:2,b:1`.
+ *
+ * Exported so the API can re-derive the exact line the client signed: a body
+ * whose captures differ from the signed value produces a different canonical
+ * line and therefore a different digest, which the signature check rejects.
+ * Invalid entries (not a 0x address, non-integer, < 1) are dropped on BOTH
+ * sides identically, so the rendering is order- and junk-independent.
+ */
+export function normaliseCaptures(captures: Record<string, number> | undefined): string | null {
+    if (!captures || typeof captures !== 'object') return null;
+    const entries: Array<[string, number]> = [];
+    for (const [wallet, count] of Object.entries(captures)) {
+        const w = wallet.toLowerCase();
+        if (!/^0x[a-f0-9]{40}$/.test(w)) continue;
+        const n = typeof count === 'number' ? count : Number(count);
+        if (!Number.isInteger(n) || n <= 0) continue;
+        entries.push([w, n]);
+    }
+    if (entries.length === 0) return null;
+    entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    return entries.map(([w, n]) => `${w}:${n}`).join(',');
+}
+
 /** Build the canonical payload signed before recording a completed match. */
 export function buildMatchRecordMessage(params: {
     winnerAddress: string | null;
@@ -24,9 +48,17 @@ export function buildMatchRecordMessage(params: {
     wager: number;
     matchId?: string | null;
     issuedAt: string;
+    /**
+     * Optional per-player capture counts (wallet -> opponent tokens sent home in
+     * this match). When present they are part of the signed payload, so the
+     * server can report daily_capture_2 / weekly_capture_10 from a trusted
+     * source instead of a client self-report. Omitted (older clients) => the
+     * line is absent and the message is byte-identical to the legacy format.
+     */
+    captures?: Record<string, number>;
 }): string {
     const parts = params.participants.map(p => p.toLowerCase()).sort();
-    return [
+    const lines = [
         MATCH_RECORD_PREFIX,
         'Record the result — wins are tallied offchain, nothing leaves your wallet.',
         `winner: ${params.winnerAddress ? params.winnerAddress.toLowerCase() : 'none'}`,
@@ -36,7 +68,10 @@ export function buildMatchRecordMessage(params: {
         `wager: ${params.wager}`,
         `match: ${params.matchId || 'local'}`,
         `issued: ${params.issuedAt}`,
-    ].join('\n');
+    ];
+    const caps = normaliseCaptures(params.captures);
+    if (caps) lines.push(`captures: ${caps}`);
+    return lines.join('\n');
 }
 
 /** Build the host-signed payload used by the bet settlement endpoint. */
