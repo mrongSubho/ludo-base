@@ -213,7 +213,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     const isMissionDone = (m: Mission) => {
         const oc = onChain.configured ? onChain.states[m.id] : undefined;
         if (oc) return oc.completed || Boolean((m as any).is_claimed);
-        return (m.progress || 0) >= (m.target || 1) || Boolean((m as any).is_claimed);
+        // A target of 0 is valid (daily_bonus) and must not be coerced to 1.
+        const target = typeof m.target === 'number' ? m.target : 1;
+        return (m.progress ?? 0) >= target || Boolean((m as any).is_claimed);
     };
     const dailyLeft = missions.filter((m) => m.id.startsWith('daily') && !isMissionDone(m)).length;
     const weeklyLeft = missions.filter((m) => !m.id.startsWith('daily') && !isMissionDone(m)).length;
@@ -365,7 +367,14 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 const progressVal = useOnChain
                                                                     ? oc!.progress
                                                                     : (mission.progress || 0);
-                                                                const targetVal = mission.target || 1;
+                                                                // Nullish (`??`), NOT `||`: a target of 0 is a real, valid
+                                                                // threshold — `daily_bonus` is "claimable on sight" with
+                                                                // target 0. `mission.target || 1` silently turned 0 into 1, so
+                                                                // that mission never read as complete and its button fell
+                                                                // through to handleGo() -> onClose() (the "clicking Daily
+                                                                // Bonus bounces me to the lobby" bug).
+                                                                const targetVal =
+                                                                    typeof mission.target === 'number' ? mission.target : 1;
                                                                 const onChainCompleted = useOnChain && oc!.completed;
                                                                 const dbClaimed = Boolean((mission as any).is_claimed);
                                                                 const isCompleted =
@@ -375,7 +384,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 // into a second payout through /api/missions/voucher.
                                                                 const isPaid = onChainCompleted || dbClaimed;
                                                                 const progressPercent = Math.min(
-                                                                    (progressVal / targetVal) * 100,
+                                                                    (progressVal / Math.max(targetVal, 1)) * 100,
                                                                     100
                                                                 );
                                                                 const badge = missionBadgeFor(mission.id);

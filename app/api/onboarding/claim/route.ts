@@ -51,14 +51,35 @@ export async function POST(request: Request) {
         if (rawTrack === WELCOME_GRANT_MISSION_ID) {
             const { data: prior, error: priorError } = await db
                 .from('mission_vouchers')
-                .select('id')
+                .select('id, signature')
                 .eq('wallet_address', wallet)
                 .eq('mission_id', WELCOME_GRANT_MISSION_ID)
                 .limit(1);
             if (priorError) return NextResponse.json({ error: priorError.message }, { status: 500 });
 
-            const check = checkWelcomeGrantClaimable((prior?.length ?? 0) > 0);
+            // Same definition of "claimed" as /api/onboarding/progress: a
+            // reservation (signature 'pending') is not a payout. A request that
+            // died between reserving and signing used to leave a permanent
+            // 'pending' row here, which reported the grant as Claimed and then
+            // refused every retry through the unique (wallet, mission, period)
+            // constraint.
+            const priorRows = prior ?? [];
+            const claimed = priorRows.some(
+                (r: { signature: string | null }) => !!r.signature && r.signature !== 'pending',
+            );
+            const check = checkWelcomeGrantClaimable(claimed);
             if (!check.ok) return NextResponse.json({ error: check.error }, { status: check.status });
+
+            // Drop abandoned reservations so the slot is retryable. Re-issuing is
+            // safe: MissionClaim enforces `claimedInPeriod` (one payout per
+            // wallet/mission/period) and a per-voucher `usedVoucher` digest, so a
+            // voucher that was already redeemed on-chain cannot pay twice.
+            const stale = priorRows.filter(
+                (r: { signature: string | null }) => !r.signature || r.signature === 'pending',
+            );
+            if (stale.length > 0) {
+                await db.from('mission_vouchers').delete().in('id', stale.map((r: { id: string }) => r.id));
+            }
 
             const claim = missionClaimAddress();
             if (!claim) return NextResponse.json({ error: 'MissionClaim not configured' }, { status: 503 });

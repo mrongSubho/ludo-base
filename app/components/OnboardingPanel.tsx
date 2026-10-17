@@ -336,7 +336,8 @@ export const OnboardingPanel = () => {
                     const oc = onChain.configured ? onChain.states[x.track] : undefined;
                     const useOnChain = Boolean(oc);
                     const progressVal = useOnChain ? oc!.progress : (x.progress || 0);
-                    const targetVal = x.target || 1;
+                    // Nullish, not `||`: a target of 0 is valid and must survive.
+                    const targetVal = typeof x.target === 'number' ? x.target : 1;
                     const isCompleted = useOnChain ? oc!.completed : progressVal >= targetVal;
                     const onChainPaid = useOnChain && isCompleted;
                     const isClaimed = onChainPaid || x.is_claimed;

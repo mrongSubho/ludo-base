@@ -56,12 +56,20 @@ export async function GET(request: Request) {
             };
         });
 
+        // "Claimed" must mean a completed claim, not a reservation. The reserve row
+        // is inserted with signature 'pending' BEFORE the sign call and only
+        // replaced once a real EIP-712 signature exists, so a request that died
+        // between those two steps left a permanent 'pending' row that read as
+        // "Claimed" forever — and locked the grant out of any retry.
+        // Reward delivery is the on-chain MissionClaim.claim call, so a row that
+        // was signed but never submitted on-chain still counts as claimed (the
+        // voucher pays when it is used).
         const { data: welcome } = await db
             .from('mission_vouchers')
             .select('id')
             .eq('wallet_address', wallet)
             .eq('mission_id', WELCOME_GRANT_MISSION_ID)
-            .limit(1);
+            .neq('signature', 'pending');
 
         return NextResponse.json({
             wallet,
