@@ -151,6 +151,92 @@ async function preflight(env) {
 
 // ── Verification queries ───────────────────────────────────────────────────
 
+/**
+ * Verification via PostgREST (the service-role key already in .env.local).
+ * These checks are read-only, so REST is enough — no DDL executor needed. This is
+ * what makes `npm run db:migrate:verify` work with no extra credential.
+ */
+async function verifyViaRest(env) {
+  const url = env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  const db = createClient(url, key, { auth: { persistSession: false } });
+
+  // 1. stale pending reservations (hard check — must be 0. See headCountViaOr.)
+  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  let stillStuck;
+  try {
+    stillStuck = await headCountViaOr(db, cutoff);
+  } catch (e) {
+    console.log(`ERROR ${CHECKS[0].key}: ${e.message}`);
+    return false;
+  }
+
+  // 2. reclaimed archive rows
+  let reclaimed = null;
+  try {
+    const { data, error } = await db
+      .from('mission_vouchers_reclaimed')
+      .select('mission_id, created_at, reclaimed_at');
+    if (error) throw new Error(error.message);
+    const byMission = {};
+    for (const r of data ?? []) {
+      byMission[r.mission_id] = (byMission[r.mission_id] ?? 0) + 1;
+    }
+    reclaimed = byMission;
+  } catch (e) {
+    if (/does not exist|Could not find/i.test(e.message)) {
+      console.log('SKIP  reclaimed archive: table does not exist yet (migration not applied)');
+    } else {
+      console.log(`ERROR reclaimed archive: ${e.message}`);
+      return false;
+    }
+  }
+
+  // 3. in-flight reservations (informational)
+  let inFlight = null;
+  try {
+    const { count } = await db
+      .from('mission_vouchers')
+      .select('*', { count: 'exact', head: true })
+      .eq('signature', 'pending')
+      .gte('reserved_at', cutoff);
+    inFlight = count ?? 0;
+  } catch {
+    inFlight = null;
+  }
+
+  // 4. signed vouchers preserved (informational)
+  let signed = null;
+  try {
+    const { count } = await db
+      .from('mission_vouchers')
+      .select('*', { count: 'exact', head: true })
+      .neq('signature', 'pending')
+      .not('signature', 'is', null);
+    signed = count ?? 0;
+  } catch {
+    signed = null;
+  }
+
+  const hardOk = report(CHECKS[0].key, stillStuck === 0, { still_stuck: stillStuck });
+  report(CHECKS[1].key, true, reclaimed);
+  report(CHECKS[2].key, true, { in_flight: inFlight });
+  report(CHECKS[3].key, true, { signed });
+  return hardOk;
+}
+
+/** The SQL uses coalesce(reserved_at, created_at); REST needs it spelled out. */
+async function headCountViaOr(db, cutoffIso) {
+  const { count, error } = await db
+    .from('mission_vouchers')
+    .select('*', { count: 'exact', head: true })
+    .eq('signature', 'pending')
+    .or(`reserved_at.lt.${cutoffIso},and(reserved_at.is.null,created_at.lt.${cutoffIso})`);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 const CHECKS = [
   {
     key: 'stale pending reservations left after the sweep (must be 0)',
@@ -241,6 +327,11 @@ async function verify(env) {
     return allOk;
   }
 
+  // No SQL executor configured, but the checks are read-only: the service-role
+  // REST key already in .env.local can answer them via PostgREST.
+  const viaRest = await verifyViaRest(env);
+  if (viaRest !== null) return viaRest;
+
   console.log('\nNo SQL transport configured — run these by hand in the Dashboard SQL Editor:');
   for (const c of CHECKS) console.log(`\n-- ${c.key}\n${c.query};`);
   return null; // "unverified", not "failed"
@@ -256,7 +347,20 @@ async function applyViaCli(dbUrl, linked, bin) {
     ? ['db', 'push', '--linked', '--yes']
     : ['db', 'push', '--db-url', dbUrl, '--yes'];
   console.log(`transport: supabase CLI (${exe}) -> ${args.join(' ')}`);
-  execFileSync(exe, args, { cwd: ROOT, stdio: 'inherit', maxBuffer: 32 * 1024 * 1024 });
+  // Captured (then echoed) so the caller can tell "applied" from "already up to
+  // date" and record the ledger entry honestly.
+  const out = execFileSync(exe, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  if (out) process.stdout.write(out);
+  return out;
+}
+
+/** True when the CLI applied nothing because the remote already has the chain. */
+function cliUpToDate(cliOutput) {
+  return /remote database is up to date|no new migrations|nothing to apply/i.test(cliOutput || '');
 }
 
 /**
@@ -343,8 +447,9 @@ async function main() {
   if (dbUrl) warnOnUnencodedPassword(dbUrl);
 
   if (dbUrl && cli) {
-    await applyViaCli(dbUrl, false, cliBin);
+    const cliOut = await applyViaCli(dbUrl, false, cliBin);
     transport = 'supabase-cli';
+    if (cliUpToDate(cliOut)) console.log('the remote already has this migration — nothing was applied.');
   } else if (dbUrl && canRun('psql')) {
     await applyViaPsql(dbUrl, target);
     transport = 'psql';
