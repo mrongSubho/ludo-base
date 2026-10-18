@@ -9,3 +9,24 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+
+/**
+ * P5: Set authentication token for private Realtime channels (NET-03a/b).
+ */
+export function setRealtimeAuth(token: string): void {
+    if (supabase && (supabase as unknown as { realtime?: { setAuth?: (t: string) => void } }).realtime?.setAuth) {
+        (supabase as unknown as { realtime: { setAuth: (t: string) => void } }).realtime.setAuth(token);
+    }
+}
+
+/**
+ * P5: Create an authorized private channel with RLS protection.
+ */
+export function createPrivateChannel(channelName: string) {
+    return supabase.channel(channelName, {
+        config: {
+            private: true,
+        },
+    });
+}
+

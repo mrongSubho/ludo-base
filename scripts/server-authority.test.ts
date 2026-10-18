@@ -27,6 +27,8 @@ test('P0-1: Feature flags default to off', () => {
   delete process.env.SAM_AUTH_V2;
   delete process.env.SAM_ROOM_V2;
   delete process.env.SAM_SERVER_LIFECYCLE;
+  delete process.env.SAM_PRIVATE_REALTIME;
+  delete process.env.SAM_DEGRADED_P2P;
 
   assert.equal(isAuthV2Enabled(), false, 'AUTH_V2 should default to false');
   assert.equal(isRoomV2Enabled(), false, 'ROOM_V2 should default to false');
@@ -38,6 +40,8 @@ test('P0-1: Feature flags default to off', () => {
     AUTH_V2: false,
     ROOM_V2: false,
     SERVER_LIFECYCLE: false,
+    PRIVATE_REALTIME: false,
+    DEGRADED_P2P: false,
   });
 });
 
@@ -55,6 +59,8 @@ test('P0-1: Feature flags respect SAM_ environment overrides', () => {
     delete process.env.SAM_AUTH_V2;
     delete process.env.SAM_ROOM_V2;
     delete process.env.SAM_SERVER_LIFECYCLE;
+    delete process.env.SAM_PRIVATE_REALTIME;
+    delete process.env.SAM_DEGRADED_P2P;
   }
 });
 

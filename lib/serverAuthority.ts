@@ -19,7 +19,12 @@
  */
 
 /** Migration flag names. */
-export type MigrationFlag = 'AUTH_V2' | 'ROOM_V2' | 'SERVER_LIFECYCLE';
+export type MigrationFlag =
+  | 'AUTH_V2'
+  | 'ROOM_V2'
+  | 'SERVER_LIFECYCLE'
+  | 'PRIVATE_REALTIME'
+  | 'DEGRADED_P2P';
 
 /**
  * Read a migration flag. Server-side only — these are never exposed to the
@@ -54,6 +59,16 @@ export function isServerLifecycleEnabled(): boolean {
   return readFlag('SERVER_LIFECYCLE');
 }
 
+/** P5: true when Supabase Realtime uses private channels and RLS policies (NET-03a/b). */
+export function isPrivateRealtimeEnabled(): boolean {
+  return readFlag('PRIVATE_REALTIME');
+}
+
+/** P5: true when PeerJS is demoted to degraded secondary fallback. */
+export function isDegradedP2P(): boolean {
+  return readFlag('DEGRADED_P2P');
+}
+
 /**
  * Resolve the room version for a **new** match. Call this exactly once at
  * match creation and persist the result in `match_states.room_version`.
@@ -74,5 +89,7 @@ export function activeMigrationFlags(): Record<MigrationFlag, boolean> {
     AUTH_V2: isAuthV2Enabled(),
     ROOM_V2: isRoomV2Enabled(),
     SERVER_LIFECYCLE: isServerLifecycleEnabled(),
+    PRIVATE_REALTIME: isPrivateRealtimeEnabled(),
+    DEGRADED_P2P: isDegradedP2P(),
   };
 }

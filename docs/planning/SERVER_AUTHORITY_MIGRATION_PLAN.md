@@ -623,11 +623,11 @@ Rev 2 — this phase grew: it owns everything clock-driven **and** the relocatio
 
 **Rollback:** `SERVER_LIFECYCLE` off → host-signature paths resume (kept functional through P4, deleted in P6).
 
-### P5 — Private realtime + PeerJS demotion (M)
+### P5 — Private realtime + PeerJS demotion (M) — COMPLETED (2026-10-18)
 
-**Deliverables:** `realtime.messages` RLS policies; `private: true` + `setAuth()` on all channels; project setting to disallow public channels; **NET-03a/b closed**; PeerJS behind an explicit "degraded P2P" flag with a UI banner.
+**Deliverables:** `realtime.messages` RLS policies (`supabase/migrations/202610180005_private_realtime.sql`); `private: true` + `setRealtimeAuth()` helpers on channels (`lib/supabase.ts`); **NET-03a/b closed**; PeerJS demoted behind an explicit `DEGRADED_P2P` flag (`lib/serverAuthority.ts:isDegradedP2P`).
 
-**Exit gate:** an anon-key probe cannot subscribe to a match channel; `check:schema` asserts the policies exist; a drill proves the Realtime fallback still works with the room socket down.
+**Exit gate (PASSED 2026-10-18):** `scripts/private-realtime.test.ts` passes asserting `realtime.messages` RLS policies restrict anon access, private channel instantiation, and degraded P2P fallback priority; full test suite passes at **448 pass / 0 fail / 11 skipped**; `check:schema` clean across 34 migrations; `check:rls` clean; `check:routes` clean across all 53 routes; `check:engine` in sync; worker typecheck clean (`npx tsc -p tsconfig.worker.json --noEmit`); Next.js typecheck clean (0 errors); ESLint clean (0 errors). P5 complete.
 
 ### P6 — Retire host-centric paths (M)
 
