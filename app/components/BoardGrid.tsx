@@ -103,7 +103,7 @@ export function BoardGrid({
             gridTemplateRows: 'repeat(15, 1fr)',
             // Measured size wins (exact container fit); viewport-relative
             // sizing is the first-paint fallback.
-            width: squarePx ? `${squarePx}px` : 'min(100%, calc(100vh - 330px), calc(100dvh - 330px), calc(100vw - 16px))',
+            width: squarePx ? `${squarePx}px` : 'clamp(280px, min(100%, calc(100dvh - 330px), calc(100vw - 16px)), 640px)',
             margin: '0 auto',
             aspectRatio: '1 / 1',
             gap: '1px',

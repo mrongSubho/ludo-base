@@ -2269,6 +2269,8 @@ body.keyboard-open .app-shell {
 .ludo-settings-scope.absolute,
 .ludo-messages-scope.absolute,
 .ludo-broadcast-scope.absolute {
+  container-type: inline-size;
+  container-name: panel-shell;
   top: calc(64px + env(safe-area-inset-top, 0px)) !important;
   bottom: calc(var(--footer-h) + var(--panel-gap) + var(--vv-dead-bottom, 0px)) !important;
   max-height: calc(var(--app-vh, 100dvh) - 64px - var(--footer-h) - var(--panel-gap) - var(--vv-dead-bottom, 0px)) !important;

@@ -983,8 +983,10 @@
   display: grid;
   grid-template-columns: repeat(15, 1fr);
   grid-template-rows: repeat(15, 1fr);
-  aspect-ratio: 1;
-  width: 100%;
+  aspect-ratio: 1 / 1;
+  width: clamp(280px, min(92vw, calc(100dvh - 240px)), 640px);
+  max-width: 100%;
+  margin: 0 auto;
   gap: 1px;
   border-radius: 24px;
   /* Removed mask-image from parent to prevent clipping children (junction) */
@@ -3277,6 +3279,8 @@ body.theme-daybreak .match-foot-pill.on {
 
 /* ─── Board sheets — shared emote/chat surface ─── */
 .board-sheet {
+  container-type: inline-size;
+  container-name: board-sheet;
   position: absolute;
   bottom: calc(52px + max(6px, var(--safe-bottom, 0px)) + 10px);
   width: min(300px, calc(100% - 24px));
