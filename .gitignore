@@ -74,3 +74,6 @@ design-system/
 .commandcode/
 .agent/
 .workbuddy-ai/
+
+# Local migration ledger written by scripts/db/apply-migration.mjs
+.supabase-applied.json
