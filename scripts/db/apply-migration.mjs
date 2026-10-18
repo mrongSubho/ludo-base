@@ -14,19 +14,20 @@
  * TRANSPORT PRIORITY (the first configured one wins):
  *   1. supabase CLI — `SUPABASE_DB_URL` set (or a linked project):
  *        supabase db push --db-url "$SUPABASE_DB_URL"   |   supabase db push --linked
- *      `supabase` must be resolvable; set LUDO_SUPABASE_BIN to point at the
- *      binary explicitly when it is not on PATH. NOTE: it is NOT installed in
- *      this workspace — `~/.supabase/cli-latest` is a fingerprint file, not a
- *      binary.
+ *      The binary is resolved automatically (LUDO_SUPABASE_BIN, a project
+ *      devDependency, ~/.local/bin, then PATH), and each candidate must actually
+ *      run `--version` before it is accepted — a stale ~/.supabase/cli-latest
+ *      fingerprint file would otherwise masquerade as the CLI.
  *   2. psql — `SUPABASE_DB_URL` set (PGPASSWORD or a URL-embedded password).
  *   3. Management API — `SUPABASE_ACCESS_TOKEN` set; the project ref comes from
  *      NEXT_PUBLIC_SUPABASE_URL, so no CLI and no connection string is needed.
  *   4. Nothing configured — prints the file path plus the Dashboard SQL Editor
  *      steps and exits 3. It never reports success it did not achieve.
  *
- * The service-role REST key in `.env.local` CANNOT run DDL (PostgREST is not a
- * SQL executor), which is why it is deliberately not a transport. It IS used
- * for the read-only pre-flight checks below.
+ * The service-role REST key in `.env.local` cannot run DDL (PostgREST is not a
+ * SQL executor), which is why it is not an *apply* transport — but the checks are
+ * read-only, so `verifyViaRest()` uses it to actually run verification with no
+ * extra credential.
  *
  * A gitignored `.supabase-applied.json` ledger records what was applied, keyed
  * by content hash, so a re-run is a no-op unless `--force` is passed.
