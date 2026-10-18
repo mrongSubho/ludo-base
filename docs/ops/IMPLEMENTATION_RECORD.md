@@ -5,8 +5,8 @@
 | **Scope** | Everything built in this repo, from the pre-audit baseline through the audit closure — one file, in order |
 | **Supersedes** | `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (2026-09-28 plan) and `docs/ops/REMEDIATION_CHECKLIST.md` (checklist → record). Both are now redirect stubs; nothing was dropped. |
 | **Companion** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) — the point-in-time 2026-10-05 audit this record answers |
-| **Status** | Baseline verified 2026-10-13 · audit **154/154 closed or signed off** (last item DB-22, 2026-10-13) · remaining open work in Part IV |
-| **Gates, re-run 2026-10-13** | `tsc` 0 errors · `lint` clean · `npm test` 406 pass / 0 fail / 11 skipped · `check:engine` in sync · `check:rls` clean · `check:schema` clean (static + DB mode, 29 migrations) · `check:drift` 10/10 · `check:routes` 47/47 (1 public-by-intent entry) |
+| **Status** | Baseline verified 2026-10-13 · audit **154/154 closed or signed off** (last item DB-22, 2026-10-13) · **Server Authority Migration P0–P6 completed (2026-10-18)** · remaining open work in Part IV |
+| **Gates, re-run 2026-10-18** | `tsc` 0 errors · worker `tsc` 0 errors · `lint` clean (0 errors) · `npm test` 454 pass / 0 fail / 11 skipped · `check:engine` in sync (`lib/engine/core.ts` ↔ `src/room/engine.ts`) · `check:rls` clean · `check:schema` clean (static + DB mode, 35 migrations, 35 functions) · `check:drift` 10/10 · `check:routes` 53/53 · `host-retirement-gate` 5/5 |
 
 **How to read this record.** Three parts, in chronological order:
 
@@ -759,3 +759,72 @@ The effect's guard is `shouldRunMatchTimer({ isNetworked, connectionStatus, … 
 ### Gates
 
 `tsc` 0 errors · `npm run lint` 0 errors · `npm test` 422 / 411 pass / 0 fail / 11 skipped · `check:engine` in sync · `check:drift` 10/10 · `check:routes` 47/47. The lockfile install also closed the long-documented `zod@3.25.76` peer-dep drift that broke `npm ci`.
+
+---
+
+## Part X — Server Authority Migration (2026-10-18)
+
+*Source: [`SERVER_AUTHORITY_MIGRATION_PLAN.md`](../planning/SERVER_AUTHORITY_MIGRATION_PLAN.md) and [`WORKLOAD_PLACEMENT_MATRIX.md`](../architecture/WORKLOAD_PLACEMENT_MATRIX.md). Resolves Decision D1 in favour of the Cloudflare Durable Object room per match with Postgres as the system of record and ledger, eliminating the host-client Single Point of Failure (SPOF) and migrating turn authority, clock, and dice RNG server-side.*
+
+### Phase 0 — Decisions, guardrails, baselines, and DO spike (2026-10-18)
+
+- **ADR-002 filed** at `docs/architecture/adr-002-server-authority.md`, recording the Durable Object architectural decision, state boundary, and migration rules.
+- **Feature flags configured** in `lib/serverAuthority.ts` (`AUTH_V2`, `ROOM_V2`, `SERVER_LIFECYCLE`) with clean environment overrides and evaluation at match creation.
+- **Baseline metrics & SLO targets established** in `docs/ops/SLOS.md`.
+- **Local development story defined** in `docs/dev/LOCAL_DEVELOPMENT.md` and `AGENTS.md` (`NEXT_PUBLIC_ROOM_WS_URL` staging tunnel / dev sidecar).
+- **DO spike verified**: Custom `src/worker.ts` entry wrapping OpenNext with exported `MatchRoom` and `RateLimitDO` classes; `wrangler.jsonc` configured with DO bindings and SQLite migrations.
+- **Gates**: `wrangler deploy --dry-run` passed; `npm test` 417 pass / 0 fail; `check:routes` clean across 48 routes.
+
+### Phase 1 — Session v2 + platform hygiene (2026-10-18)
+
+- **Session v2 schema**: Migration `202610180001_session_v2.sql` created `auth_challenges` and `sessions` tables with RLS and SHA-256 token hashing (`token_hash`), replacing fragmented session storage.
+- **Cookie & CSRF posture**: Cookie-based authentication (`__Host-ludo_session`) with `SameSite=Lax`, `HttpOnly`, `Secure`, and `Path=/`. Strict CSRF validation on mutation endpoints via `Origin` and `Sec-Fetch-Site`.
+- **Scope isolation**: Hierarchical capability scopes (`app`, `match`, `spectator`) enforced by `requireSession` in `lib/serverAuth.ts`. Query string session IDs eliminated across all routes.
+- **Distributed rate limiting (P13/G1)**: `src/rateLimit/rateLimitCore.ts` and `src/rateLimit/RateLimitDO.ts` with colo/ip sharding for high-value mutations. Verified across multiple worker isolates.
+- **Retention & Cron scheduling (P14/G2)**: Hourly Cloudflare Cron triggers running `cleanup_auth_challenges` and `cleanup_sessions` alongside matchmaking queue maintenance.
+- **Gates**: `scripts/session-v2.test.ts` passed; `check:routes` clean across 53 routes; `check:schema` clean (30 migrations); `typecheck` 0 errors; `lint` clean.
+
+### Phase 2 — Server-derived match authority (2026-10-18)
+
+- **Server-assigned room owner (P2)**: `/api/match/start` assigns `room_owner` from authenticated session wallet and derives `host_proven` server-side, eliminating client self-promotion.
+- **Derived winner authority (P1)**: `/api/match/record` reads authoritative winner from `match_states.state.winner` and validates against `authoritativeWinnerAddress`, rejecting client-submitted winner overrides with `WINNER_MISMATCH`.
+- **Chat identity binding (P6)**: `/api/live-chat` derives sender address strictly from authenticated session wallet, preventing chat spoofing.
+- **Server-verified onboarding (P7)**: `/api/onboarding/progress` verifies completed matches on server for game tracks.
+- **Arena authority (P9)**: `/api/live-arena/power4p` server-assigns `authority_id` to host session wallet.
+- **Seat authority verification (P12)**: `checkSeatAuthority` in `lib/turnAuthority.ts` enforces seat kind from server state and ignores client source for human seats.
+- **Gates**: `scripts/server-authority-p2.test.ts` passed (7/7); `npm test` 432 pass / 0 fail.
+
+### Phase 3 — Match room v2 transport & ordering (2026-10-18)
+
+- **MatchRoom DO transport**: `src/room/MatchRoom.ts` handling WebSocket upgrades at `/api/room/:roomId/ws` with hibernatable sockets.
+- **Frame protocol v2**: In-band authentication via Session v2 tokens (`TOKEN_HASH_MISMATCH` rejection), strictly typed frames, and frame size cap (`MAX_MESSAGE_BYTES = 32 * 1024`).
+- **FIFO intent execution**: Sequential per-match queue executing incoming intents without interleaving.
+- **Spectator read-only mode**: Spectators receive live state broadcasts; mutations from spectator connections are rejected with `SPECTATOR_READ_ONLY`.
+- **Timer min-heap**: Priority-ordered deadline queue ensuring the earliest alarm is scheduled in DO storage.
+- **D8 drill verified**: Match created with `room_version: 2` preserves room transport across flag transitions.
+- **Gates**: `scripts/room-transport.test.ts` passed (7/7); `npm test` 439 pass / 0 fail.
+
+### Phase 4 — In-process engine relocation & lifecycle (2026-10-18)
+
+- **Engine relocation**: Pure engine relocated to `src/room/engine.ts` with automated parity checks via `scripts/sync-edge-engine.mjs` and `scripts/check-edge-engine.mjs`.
+- **Atomic CAS commits**: Migration `202610180004_match_commit_action.sql` added atomic Postgres RPC `match_commit_action` that validates sequence (`seq`), updates `match_states`, inserts rolls into `match_rolls`, and logs room events in `match_room_events`.
+- **Server turn alarms & strikes (P4-4)**: Turn timers scheduled via Durable Object storage alarms. Turn timeouts increment strikes and trigger auto-play at 3 strikes directly on the server.
+- **D7 drill verified**: Host device disconnect mid-turn does not stall match progress; server timer auto-advances the turn.
+- **Gates**: `scripts/room-lifecycle.test.ts` passed (6/6); `check:engine` verified byte-for-byte sync; `npm test` 442 pass / 0 fail.
+
+### Phase 5 — Private Realtime channels & degraded P2P demotion (2026-10-18)
+
+- **RLS lockdown on Realtime (NET-03a/b)**: Migration `202610180005_realtime_messages_rls.sql` locked down `realtime.messages` with strict RLS policies, allowing only authenticated participants of the match to publish or read broadcast messages. Anonymous access is completely revoked.
+- **Private channels**: Realtime channel instantiation updated with `private: true` and scoped authorization tokens.
+- **P2P demotion**: PeerJS relegated strictly to a secondary NAT-blocked fallback channel, with all authoritative state passing through the server room.
+- **Gates**: `scripts/private-realtime.test.ts` passed (6/6); `check:rls` clean; `check:schema` clean (34 migrations); `npm test` 448 pass / 0 fail.
+
+### Phase 6 — Retire host-centric paths & edge functions (2026-10-18)
+
+- **Deleted Edge functions**: Removed deprecated Deno Edge functions (`supabase/functions/roll-dice/`, `supabase/functions/move-auth/`, `supabase/functions/resolve-bet/`) and `supabase/functions/_shared/engine.ts`.
+- **Retired legacy intents**: `DICE_COMMIT`, `DICE_REVEAL`, and `CMD_REQUEST_TRUST` removed from `GameIntentType` union, protocol schemas (`lib/protocol/schemas.ts`), and dispatchers. Active intents are strictly `'REQUEST_ROLL' | 'REQUEST_MOVE'`.
+- **Retired host election**: Removed `HOST_ELECT` from `MatchFsmEvent` in `lib/matchFsm.ts`. Room DO is the permanent authoritative execution context for networked matches.
+- **Durable chain indexer cursor (P16/G8)**: Migration `202610180006_indexer_cursor.sql` added `chain_indexer_cursors` table with `get_chain_indexer_cursor` and `update_chain_indexer_cursor` RPCs. `lib/chipsIndexer.ts` implemented `syncWithDurableCursor` with reorg safety depth of 12 blocks, 900-block chunking, and idempotent persistence to `chips_events`.
+- **Static retirement gate**: `scripts/host-retirement-gate.test.ts` created and added to CI test suite, asserting that legacy intents, `HOST_ELECT`, and deleted Edge directories cannot be reintroduced.
+- **Gates**: `scripts/host-retirement-gate.test.ts` passed (5/5); full test suite `npm test` passes **454 pass / 0 fail / 11 skipped**; `check:routes` clean across all 53 routes; `check:schema` clean (35 migrations, 35 functions); `check:rls` clean; `check:engine` in sync; `check:drift` clean (10/10); worker typecheck (`tsc -p tsconfig.worker.json`) 0 errors; project typecheck (`tsc -p tsconfig.json`) 0 errors; `npm run lint` 0 errors; `npm run build` production webpack build succeeds.
+
