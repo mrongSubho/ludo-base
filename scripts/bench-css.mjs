@@ -41,7 +41,8 @@ for (const f of cssFiles) {
 perFile.sort((a, b) => b.bytes - a.bytes);
 
 const globals = readFileSync(join(root, 'app/globals.css'), 'utf8');
-const count = (re) => (globals.match(re) || []).length;
+const allCss = cssFiles.map((f) => readFileSync(f, 'utf8')).join('\n');
+const count = (re) => (allCss.match(re) || []).length;
 
 let inlineStyles = 0;
 let rawImgs = 0;
@@ -77,7 +78,7 @@ const report = {
         rules: count(/\}/g),
         selectors: count(/[^{}]+\{/g),
         keyframes: count(/@keyframes/g),
-        mediaQueries: (globals.match(/@media/g) || []).length,
+        mediaQueries: (allCss.match(/@media/g) || []).length,
         customProperties: count(/--[\w-]+\s*:/g),
         reducedMotionBlocks: count(/prefers-reduced-motion/g),
     },

@@ -1,0 +1,310 @@
+@theme {
+  --color-ludo-background: var(--ludo-bg);
+  --color-ludo-card: var(--ludo-card);
+  --color-ludo-green: var(--ludo-sage);
+  --color-ludo-red: var(--ludo-rose);
+  --color-ludo-yellow: var(--ludo-amber);
+  --color-ludo-slate: var(--ludo-slate);
+
+  --color-ludo-blue: var(--ludo-blue);
+  --color-ludo-blue-soft: var(--ludo-blue-soft);
+  --color-ludo-text: var(--ludo-text);
+  --color-ludo-muted: var(--ludo-muted);
+  --color-ludo-faint: var(--ludo-faint);
+  --color-ludo-border: var(--ludo-border);
+
+  --image-ludo-bg: var(--ludo-bg-image);
+
+  /* ── Fluid type scale (CSS_LAYOUT_ANIMATION_PLAN §3.2 P1/S; floor per
+     UI_DESIGN_AUDIT P1-7 / §4.4) ──
+     Six steps on the audit's target scale — 10 / 11 / 13 / 15 / 17 / 20 / 22 —
+     with a hard 10px FLOOR: the audit measured 135 usages below it (6px chips
+     are unreadable on any device), so no step may resolve below 10px. Each
+     step's max is a size the app already used as a hardcoded px value, so
+     adopting one is rendering-neutral at >= 440px and narrows toward 320px —
+     which is what lets a per-breakpoint override be deleted rather than synced. */
+  --text-ludo-xs: 10px;
+  --text-ludo-sm: clamp(10px, calc(10px + (100vw - 320px) / 120), 11px);
+  --text-ludo-md: clamp(11px, calc(11px + 2 * (100vw - 320px) / 120), 13px);
+  --text-ludo-lg: clamp(13px, calc(13px + 2 * (100vw - 320px) / 120), 15px);
+  --text-ludo-xl: clamp(15px, calc(15px + 2 * (100vw - 320px) / 120), 17px);
+  --text-ludo-2xl: clamp(17px, calc(17px + 3 * (100vw - 320px) / 120), 20px);
+  --text-ludo-3xl: clamp(20px, calc(20px + 2 * (100vw - 320px) / 120), 22px);
+}
+
+/* ── Semantic UI tokens (UI_DESIGN_AUDIT §5.1 / Phase 2) ──
+   One semantic layer on top of the existing --ludo- and --panel- variables.
+   Registered as a SEPARATE `@theme inline` block (not inside the @theme above)
+   and `inline` is load-bearing: a plain registration emits
+   `--color-surface-recessed: var(--surface-recessed)` into :root, where it is
+   substituted ONCE using :root's (Retro) value and then INHERITED as a frozen
+   colour — so `bg-surface-recessed` painted Retro ink even under
+   body.theme-daybreak (measured: the utility never flipped).
+   `@theme inline` emits the reference itself into each utility
+   (`.bg-surface-recessed { background-color: var(--surface-recessed) }`), so
+   the var resolves on the element and follows the theme.
+   Nothing consumes these yet (Phase 4 migrates panels in), so this block
+   cannot change rendering — the Daybreak values are the ones its patch layer
+   already paints. */
+@theme inline {
+  --color-surface-page: var(--surface-page);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-recessed: var(--surface-recessed);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-ink-strong: var(--ink-strong);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-warn: var(--warn);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+}
+
+:root {
+  /* ─── 1. Vibrant Ludo Palette (From Mockup) ─── */
+  --ludo-emerald: #22c55e;
+  --ludo-red-vibrant: #ef4444;
+  --ludo-blue-vibrant: #3b82f6;
+  --ludo-amber-vibrant: #eab308;
+
+  /* Theme-specific Overrides for Bases (Default to Soft Sage/Rose) */
+  --ludo-base-green: #A8E6CF;
+  --ludo-base-red: #FF8B94;
+  --ludo-base-blue: #A2E1F6;
+  --ludo-base-yellow: #FFD3B6;
+
+  /* Aliases for better code readability */
+  --ludo-green: var(--ludo-base-green);
+  --ludo-red: var(--ludo-base-red);
+  --ludo-blue: var(--ludo-base-blue);
+  --ludo-yellow: var(--ludo-base-yellow);
+
+  --ludo-green-contrast: #FFFFFF;
+  --ludo-red-contrast: #FFFFFF;
+  --ludo-blue-contrast: #FFFFFF;
+  --ludo-yellow-contrast: #000000;
+
+  /* ─── 2. Global UI Tokens ─── */
+  --ludo-path-bg: #f8fafc; /* Standard Off-White Path */
+  --ludo-pad-bg: #f3f4f6;  /* Standard Light Pad */
+  --ludo-bg-cosmic:
+    radial-gradient(circle at 10% 10%, rgba(6, 182, 212, 0.15) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 30%, rgba(168, 85, 247, 0.1) 0%, transparent 60%),
+    radial-gradient(ellipse at 30% 70%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.35'/%3E%3C/svg%3E");
+
+  --ludo-bg: #f8fafc;
+  --ludo-card: #ffffff;
+  --ludo-border: #e2e8f0;
+  --ludo-text: #1e293b;
+  --ludo-muted: #64748b;
+  --ludo-faint: #cbd5e1;
+  --ludo-slate: #1e293b;
+
+  --ludo-bg-image: none;
+  --ludo-bg-rgb: 248, 250, 252;
+
+  /* Consolidated Utility Tokens */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.05);
+  --shadow-pill: 0 2px 12px rgba(0, 0, 0, 0.05);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+
+  /* ─── 3. Cyberpunk Design System (Ludo Base) ─── */
+  --cyber-primary: #7C3AED;   /* Violet */
+  --cyber-secondary: #A78BFA; /* Lavender */
+  --cyber-cta: #F43F5E;       /* Rose/Crimson */
+  --cyber-bg: #0F0F23;        /* Deep Space */
+  --cyber-text: #E2E8F0;      /* Slate White */
+  --cyber-accent: #00FFFF;    /* Cyan Neon */
+}
+
+/* ─── Panel shell variables (all sandwich panels / sheets / modals read these
+   instead of hardcoded dark values, so Daybreak can go truly light) ─── */
+:root {
+  --panel-bg: rgba(13, 13, 13, 0.92);
+  --panel-bg-image: var(--ludo-bg-cosmic);
+}
+
+/* ─── Semantic UI tokens — Retro (default) ───
+   UI_DESIGN_AUDIT §5.1. These are the ONLY names panels should reach for:
+   surface/ink/line/accent, not bg-white/40 or #fbbf24. Values match what
+   Retro already painted, so adopting one is a no-op in this theme. */
+:root {
+  --surface-page: var(--ludo-bg);             /* app background            */
+  --surface-panel: var(--panel-bg);           /* sandwich panels / sheets  */
+  --surface-recessed: rgba(255, 255, 255, 0.06); /* rows, wells, insets    */
+  --surface-hover: rgba(255, 255, 255, 0.10); /* hover fill                */
+  --surface-active: rgba(255, 255, 255, 0.14);/* pressed/selected fill     */
+  --ink-strong: #ffffff;                      /* primary ink               */
+  --ink-muted: rgba(255, 255, 255, 0.60);     /* secondary ink             */
+  --ink-faint: rgba(255, 255, 255, 0.40);     /* hints, decorative         */
+  --line-soft: rgba(255, 255, 255, 0.10);     /* hairline borders          */
+  --line-strong: rgba(255, 255, 255, 0.25);
+  --accent: #22d3ee;                          /* brand accent              */
+  --accent-soft: rgba(34, 211, 238, 0.15);    /* accent wash / chip fill   */
+  /* Marketplace category-rail chips — theme-aware badge + active icon. The
+     rail sits on --panel-bg (light in Daybreak), so the hardcoded white/cyan
+     Tailwind utilities read fine on the dark Retro panel go white-on-white
+     there. Drive both from tokens: Retro keeps its exact cyan/white look,
+     Daybreak inverts to dark-on-light. */
+  --market-chip-icon: #67e8f9;
+  --market-chip-count-bg: rgba(255, 255, 255, 0.05);
+  --market-chip-count-ink: rgba(255, 255, 255, 0.30);
+  --market-chip-count-bg-active: rgba(34, 211, 238, 0.20);
+  --market-chip-count-ink-active: #cffafe;
+  --accent-ink: #06282f;                      /* text on accent fill       */
+  --shadow-panel: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
+  --radius-card: 16px;
+  --radius-chip: 12px;
+  /* Status family — used by win/lose ribbons, burn state, wager callouts. */
+  --warn: #fbbf24;
+  --positive: #4ade80;
+  --negative: #f87171;
+  /* ─── Error-surface tokens (REA-08 boundaries) ───
+     One card for every error boundary: the scoped PanelErrorBoundary
+     overlays, the route boundary (app/error.tsx) and — literally inlined —
+     global-error.tsx. Daybreak overrides these below, so the same card is
+     correct in both themes with zero patch rules. Replaces the old
+     `body.theme-daybreak .panel-error-card` block, which could only remap
+     the exact `.text-white` / `.text-red-400` classes and so left the route
+     card's `text-white/80` / `text-white/50` ink white-on-white. */
+  --err-backdrop: #000000;                      /* page behind route card  */
+  --err-card-bg: rgba(20, 8, 10, 0.96);
+  --err-card-border: rgba(239, 68, 68, 0.30);   /* red-500/30               */
+  --err-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.55);
+  --err-ink: #ffffff;
+  --err-ink-muted: rgba(255, 255, 255, 0.50);   /* raw diagnostic line      */
+  --err-kicker: var(--negative);
+  --err-stack-bg: rgba(0, 0, 0, 0.60);
+  --err-stack-border: rgba(255, 255, 255, 0.10);
+  --err-stack-ink: rgba(255, 255, 255, 0.75);
+  /* The primary CTA is white on the dark card. Daybreak inverts it to
+     #171717: a white button on the white error card was the reported
+     visibility bug. */
+  --err-cta-bg: #ffffff;
+  --err-cta-ink: #000000;
+  --err-cta-border: rgba(255, 255, 255, 0.18);
+  --err-ghost-bg: rgba(255, 255, 255, 0.10);
+  --err-ghost-ink: #ffffff;
+  --err-ghost-border: rgba(255, 255, 255, 0.18);
+}
+
+/* The two tokens that CHAIN to another theme variable must be declared on
+   `body`, not `:root`. Custom-property substitution happens where the property
+   is DECLARED, so a `:root { --surface-page: var(--ludo-bg) }` resolves against
+   the base --ludo-bg once and inherits that frozen colour into every theme —
+   measured as the /burn route rendering Daybreak's page surface while the
+   Retro theme class was active. `body` carries the theme class, so declaring
+   the chain there resolves against the theme's own --ludo-bg / --panel-bg.
+   The :root copies above stay as the pre-hydration fallback. */
+body {
+  --surface-page: var(--ludo-bg);
+  --surface-panel: var(--panel-bg);
+}
+
+/* ─── Scale tokens (UI_COMPONENT_AUDIT §4.4) ───
+   The enforcement surface: icon sizes, motion durations and the shared easing
+   curve. `--icon-*` pairs with `.icon-*` so an SVG is sized by role instead of
+   an ad-hoc `w-4 h-4`; the motion tokens exist so a duration is a decision
+   ("control", 200ms) rather than a number someone typed. Nothing consumes
+   these yet — Phase A is deliberately inert (A.6). */
+:root {
+  --icon-sm: 14px;   /* inline, next to text            */
+  --icon-md: 16px;   /* standalone action                */
+  --icon-lg: 20px;   /* feature / header                 */
+  --motion-micro: 150ms;    /* colour, opacity           */
+  --motion-control: 200ms;  /* buttons, toggles          */
+  --motion-surface: 300ms;  /* panels, sheets            */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+.icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
+.icon-md { width: var(--icon-md); height: var(--icon-md); }
+.icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
+
+/* ─── .chip base (UI_COMPONENT_AUDIT §4.2) ───
+   One base replacing seven families (bet-chip, cb-filter-chip, tk-chip,
+   dapp-chip, wl-addr-chip, match-status-*, cb-status-pill). Three TYPES sit on
+   it: filter (add aria-pressed), status (add .chip-status-*), info tag.
+   Token-driven, so both themes are correct with no patch rules. Legacy
+   families are NOT deleted here — panels adopt in Phase C. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-recessed);
+  color: var(--ink-muted);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.chip-sm { padding: 2px 8px; font-size: 10px; }
+/* ─── Market category chips (MarketplacePanel category rail) ───
+   The four category chips share one row (flex-1 in the rail). The base
+   `.chip` metrics are tuned for standalone pills; tightened here so
+   icon + label + count fit a quarter of the ~460px row with headroom
+   (an over-long label ellipsizes via the chip's inner `truncate` span
+   instead of pushing the chip past its quarter). Layout-only — no
+   colour, so no theme fork. Below 480px a quarter of the row can no
+   longer hold "Themes 2", so the rail wraps to 2×2 instead of
+   truncating labels. */
+.chip-market {
+  padding: 4px 6px;
+  gap: 4px;
+}
+@media (max-width: 479px) {
+  .market-cat-rail { flex-wrap: wrap; }
+  .market-cat-rail .chip-market { flex: 1 1 calc(50% - 4px); }
+}
+/* The Chip component wraps its children in a `.truncate` span (single-line
+   ellipsis for long labels in other contexts). Inside the marketplace rail
+   every chip's full body — icon, label, count badge — must stay visible
+   and inline, so we override that span to a centered flex row: no clip,
+   no ellipsis, content flows horizontally. Specificity (0,3,0) beats the
+   Tailwind `truncate` utility (0,1,0). */
+.market-cat-rail .chip-market > .truncate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  overflow: visible;
+  text-overflow: clip;
+}
+/* Theme-aware icon + count badge inside the marketplace category rail.
+   Specificity (0,3,0) beats the original Tailwind utilities so the tokens win
+   in both themes. Inactive badge falls back to the chip's inherited ink. */
+.market-cat-rail .chip-market .market-chip-icon.is-active {
+  color: var(--market-chip-icon);
+}
+.market-cat-rail .chip-market .market-chip-count {
+  background: var(--market-chip-count-bg);
+  color: var(--market-chip-count-ink);
+}
+.market-cat-rail .chip-market .market-chip-count.is-active {
+  background: var(--market-chip-count-bg-active);
+  color: var(--market-chip-count-ink-active);
+}
+.chip.active,
+.chip[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.chip-status-ok { color: var(--positive); }
+.chip-status-warn { color: var(--warn); }
+.chip-status-off { color: var(--ink-faint); }
+.chip-address { font-family: ui-monospace, monospace; }

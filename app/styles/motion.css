@@ -1,0 +1,311 @@
+@keyframes drift-orb {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(30px, -40px) scale(1.1);
+  }
+
+  100% {
+    transform: translate(-20px, 30px) scale(0.9);
+  }
+}
+
+@keyframes slow-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loading-bar {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+
+  20% {
+    left: 200%;
+  }
+
+  100% {
+    left: 200%;
+  }
+}
+
+@keyframes ping-glow {
+
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes level-up-flash {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.6); box-shadow: 0 0 16px currentColor; }
+  60%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+@keyframes active-pulse {
+  0% {
+    box-shadow: 0 0 0 0px var(--glow-color);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px var(--glow-color);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0px var(--glow-color);
+  }
+}
+
+@keyframes shake {
+
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-draggable-svg {
+  0% { transform: scale(1); filter: drop-shadow(0 0 0px var(--ludo-blue)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 8px var(--ludo-blue)); }
+  100% { transform: scale(1); filter: drop-shadow(0 0 0px var(--ludo-blue)); }
+}
+
+@keyframes blockadePulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 0.4;
+  }
+}
+
+@keyframes drawerSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawerFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulsePower {
+  from {
+    box-shadow: inset 0 0 10px rgba(100, 200, 255, 0.5), 0 0 5px rgba(100, 200, 255, 0.4);
+  }
+
+  to {
+    box-shadow: inset 0 0 20px rgba(100, 200, 255, 0.9), 0 0 15px rgba(100, 200, 255, 0.8);
+  }
+}
+
+@keyframes bounceBubble {
+  from {
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    transform: translateY(-4px) scale(1.1);
+  }
+}
+
+@keyframes glowBubble {
+  from {
+    box-shadow: 0 0 5px var(--ludo-primary);
+  }
+
+  to {
+    box-shadow: 0 0 15px var(--ludo-primary), 0 0 10px rgba(255, 255, 0, 0.5);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-33.33%);
+  }
+}
+
+@keyframes avatar-await-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor, 0 0 10px 2px currentColor;
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0), 0 0 26px 7px currentColor;
+    transform: scale(1.09);
+  }
+}
+
+@keyframes await-ring-expand {
+  0% { transform: scale(0.85); opacity: 1; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+@keyframes token-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(252, 211, 77, 0.7), 0 0 8px rgba(252, 211, 77, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(252, 211, 77, 1), 0 0 18px rgba(252, 211, 77, 0.9); }
+}
+
+@keyframes nuke-blink {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes token-boost-trail {
+  0%, 100% { filter: brightness(1.15) drop-shadow(0 0 6px rgba(250, 204, 21, 0.8)); }
+  50% { filter: brightness(1.5) drop-shadow(0 0 16px rgba(250, 204, 21, 1)); }
+}
+
+@keyframes mystery-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes mystery-breathe {
+  0%, 100% { transform: scale(0.92); opacity: 0.75; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes arena-bug-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes chat-composer-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes chat-bubble-arrive {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translate(-50%, 10px) scale(0.82);
+  }
+  16% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(-50%, 0) scale(1.04);
+  }
+  30% {
+    transform: translate(-50%, -2px) scale(1);
+  }
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -18px) scale(0.94);
+  }
+}
+
+@keyframes chat-bubble-text-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes emote-float-rise {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(0.72); }
+  14% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+  28% { transform: translate(-50%, -2px) scale(1); }
+  78% { opacity: 1; transform: translate(-50%, -10px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -22px) scale(0.9); }
+}
+
+@keyframes emote-glyph-pop {
+  0% { transform: scale(0) rotate(-15deg); }
+  70% { transform: scale(1.18) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes landscape-guard-rock {
+  0%, 100% { transform: rotate(-18deg); }
+  50% { transform: rotate(18deg); }
+}

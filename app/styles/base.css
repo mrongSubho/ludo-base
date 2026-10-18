@@ -1,0 +1,44 @@
+/* ─── Step 2: Base styles ───
+   In @layer base ON PURPOSE. The reset used to sit UNLAYERED, which beats
+   Tailwind v4's layered utilities — so it zeroed every padding/margin utility
+   app-wide. That landmine is what the 22 panel "spacing repair" sections and
+   457 panel-scoped re-assertions existed to patch around; all of them are
+   deleted now. Layered, utilities win and spacing comes from Tailwind itself.
+   UI_DESIGN_AUDIT Phase 1.2 (fixes P0-4). */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html,
+  body {
+    height: var(--app-vh, 100%);
+    width: 100vw;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    touch-action: pan-y;
+    /* pan-y (not none): vertical touch scrolling must work or any content below
+       the fold is permanently unreachable on mobile. Draggable elements
+       (dice etc.) set their own touch-action via framer-motion. */
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    background-color: var(--ludo-bg);
+    background: var(--ludo-bg-image);
+    background-attachment: fixed;
+    background-size: cover;
+    background-position: center;
+    color: var(--color-ludo-slate);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
