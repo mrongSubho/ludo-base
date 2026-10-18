@@ -250,9 +250,33 @@ async function verify(env) {
 
 async function applyViaCli(dbUrl, linked, bin) {
   const exe = bin || 'supabase';
-  const args = linked ? ['db', 'push', '--linked'] : ['db', 'push', '--db-url', dbUrl];
+  // --yes is a global flag: without it `db push` stops on an interactive prompt,
+  // which makes the task unusable from CI or any non-TTY shell.
+  const args = linked
+    ? ['db', 'push', '--linked', '--yes']
+    : ['db', 'push', '--db-url', dbUrl, '--yes'];
   console.log(`transport: supabase CLI (${exe}) -> ${args.join(' ')}`);
   execFileSync(exe, args, { cwd: ROOT, stdio: 'inherit', maxBuffer: 32 * 1024 * 1024 });
+}
+
+/**
+ * A percent-encoded password has exactly one '@' in the authority (the
+ * userinfo/host separator). More than one means the password still holds a
+ * literal '@' — some clients split on the first '@' and then try to connect to
+ * `so0vo@host`, which fails in a way that looks like a bad password.
+ */
+function warnOnUnencodedPassword(dbUrl) {
+  if (!dbUrl) return;
+  const authority = dbUrl.replace(/^[a-zA-Z0-9+.-]+:\/\//, '').split('/')[0];
+  const at = authority.match(/@/g) || [];
+  if (at.length > 1) {
+    const userinfo = authority.slice(0, authority.lastIndexOf('@'));
+    const fixed = dbUrl.replace(userinfo, userinfo.replace(/@/g, '%40'));
+    console.warn(
+      'WARNING: the database URL has a literal @ in the password. Percent-encode it as %40, e.g.:\n' +
+        `  export SUPABASE_DB_URL='${fixed}'`,
+    );
+  }
 }
 
 async function applyViaPsql(dbUrl, file) {
@@ -316,6 +340,7 @@ async function main() {
   let transport = null;
 
   if (cli) console.log(`supabase CLI: ${cliBin}${cliBin === 'supabase' ? ' (PATH)' : ''}`);
+  if (dbUrl) warnOnUnencodedPassword(dbUrl);
 
   if (dbUrl && cli) {
     await applyViaCli(dbUrl, false, cliBin);
