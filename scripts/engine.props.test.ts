@@ -194,7 +194,6 @@ test('prop: match FSM never leaves known phases; illegal paths rejected', () => 
         { type: 'START' },
         { type: 'RESYNC_NEEDED' },
         { type: 'RESYNC_APPLIED' },
-        { type: 'HOST_ELECT' },
         { type: 'FINISH' },
         { type: 'RESET' },
     ] as const;

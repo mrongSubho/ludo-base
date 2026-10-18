@@ -36,6 +36,17 @@ The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance
 - **Mesh Redundancy:** Actions are signed with a unique `actionId`. The engine implements a processed actions Set (`processedActionsRef`) to deduplicate payloads received via both PeerJS and Supabase.
 - **Cleanup:** Automatically clears searching tickets upon component unmount and forces immediate termination of stale sessions to prevent ghost matches.
 
+### 2.3 Server Authority Architecture (MatchRoom Durable Object)
+- **Single Source of Truth:** Cloudflare Durable Object (`MatchRoom.ts`) runs the in-process pure engine (`src/room/engine.ts`), holding authoritative game state, turn clock, and dice RNG.
+- **Protocol v2:** Networked clients connect via WebSocket (`/api/room/:roomId/ws`), authenticate via Session v2 bearer tokens, and send lightweight game intents (`REQUEST_ROLL`, `REQUEST_MOVE`).
+- **Atomic Commits:** On valid actions, the room persists incremental game state to Postgres via the `match_commit_action` RPC with strict CAS sequence verification (`seq`), preventing split-brain or stale writes.
+- **Turn Timers & Alarms:** Authoritative turn countdowns are scheduled via Durable Object storage alarms. Turn timeouts trigger auto-play and strike tracking directly on the server, guaranteeing match progression even during client disconnection.
+- **Retirements (Phase 6):**
+    - Legacy Deno Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`) are completely retired and removed.
+    - Legacy intents `DICE_COMMIT`, `DICE_REVEAL`, `CMD_REQUEST_TRUST` are retired.
+    - Host election `HOST_ELECT` is retired; MatchRoom DO is the permanent authority for networked rooms.
+    - Offline pass-and-play and bot matches remain local client authority.
+
 ---
 
 ## 3. Gameplay [The Rules of War]

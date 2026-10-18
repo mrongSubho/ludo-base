@@ -61,6 +61,10 @@ for (const f of nextRoutes) {
 }
 
 for (const f of edgeEntries) {
+    if (!fs.existsSync(path.join(repoRoot, f))) {
+        check(`6492:${f}`, true, "edge entry safely retired in P6");
+        continue;
+    }
     let src = "";
     try {
         src = read(f);

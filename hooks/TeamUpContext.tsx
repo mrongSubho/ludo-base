@@ -355,11 +355,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             return;
         }
         bumpNet('net_authority_switch');
-        const phase = fsmRef.current.phase;
-        if (phase === 'live' || phase === 'resyncing') {
-            sendMatchEvent({ type: 'HOST_ELECT' });
-        }
-    }, [sendMatchEvent]);
+        // P6: HOST_ELECT retired — server room authority owns the clock and lifecycle
+    }, []);
     const { isComputeHost, activePlayers } = useGamePresence(currentRoomCode, myAddress, onPresenceNetEvent);
 
     // 3. Broadcast Helpers

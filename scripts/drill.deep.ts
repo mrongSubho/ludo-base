@@ -193,8 +193,6 @@ test('D3 kill host / elect — FSM + dedup, no double-apply', async () => {
     b.fsm.send({ type: 'START' });
 
     for (let i = 0; i < 5; i++) {
-        a.fsm.send({ type: 'HOST_ELECT' });
-        b.fsm.send({ type: 'HOST_ELECT' });
         bumpNet('net_authority_switch', 2);
     }
     assert.equal(a.fsm.phase, 'live');

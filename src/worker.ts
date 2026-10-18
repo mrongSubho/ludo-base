@@ -74,6 +74,14 @@ async function handleScheduledCleanups(event: ScheduledEvent, env: CloudflareEnv
   } else {
     console.log('[cron] cleanup_sessions ok:', sessRes.text);
   }
+
+  // 5. Retention: match_room_events older than 30 days
+  const roomEventsRes = await invokeSupabaseRpc(supabaseUrl, serviceKey, 'cleanup_match_room_events', { p_keep_days: 30 });
+  if (!roomEventsRes.ok) {
+    console.error('[cron] cleanup_match_room_events failed', roomEventsRes.status, roomEventsRes.text);
+  } else {
+    console.log('[cron] cleanup_match_room_events ok:', roomEventsRes.text);
+  }
 }
 
 export default {

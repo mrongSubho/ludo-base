@@ -108,12 +108,12 @@ test('the authority rules are single-sourced, not reimplemented in hooks', () =>
     }
 });
 
-test('the Edge copy of the engine matches the source apart from its banner', () => {
+test('the Room copy of the engine matches the source apart from its banner', () => {
     // sync-edge-engine.mjs prepends a two-line "do not edit" header, so compare
     // the body. (npm run check:engine asserts the same thing; this keeps the
     // invariant visible in the drift gate too.)
     const src = readFileSync(join(root, 'lib/engine/core.ts'), 'utf8');
-    const dest = readFileSync(join(root, 'supabase/functions/_shared/engine.ts'), 'utf8')
+    const dest = readFileSync(join(root, 'src/room/engine.ts'), 'utf8')
         .replace(/^\/\/ AUTO-GENERATED[^\n]*\n\/\/ Source:[^\n]*\n/, '');
     assert.equal(dest, src, 'run `node scripts/sync-edge-engine.mjs`');
 });

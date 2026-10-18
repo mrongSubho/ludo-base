@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { buildStreamMessage, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
-import { serviceDb } from '@/lib/serverAuth';
+import { serviceDb, requireSession } from '@/lib/serverAuth';
 
 /** Service-role DB — host proof is a wallet signature, not an app session. Throws loudly when unconfigured. */
 function db() {
@@ -51,22 +51,32 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Room does not match canonical match' }, { status: 403 });
         }
         const canonicalHost = String(match.participants?.[0] || '').toLowerCase();
-        if (!canonicalHost || !hostAddress || String(hostAddress).toLowerCase() !== canonicalHost ||
-            !message || !signature || !issuedAt || !isFreshIssuedAt(issuedAt) ||
-            message !== buildStreamMessage({ matchId: String(matchId), roomCode: String(roomCode), hostAddress: canonicalHost, enabled: !!enabled, issuedAt })) {
-            return NextResponse.json({ error: 'Invalid host proof' }, { status: 401 });
+        const session = (await requireSession(request, { scope: 'match', matchId: String(matchId) })) ||
+                        (await requireSession(request, { scope: 'app' }));
+        const hasSignatureProof = Boolean(message && signature && issuedAt && hostAddress);
+
+        if (!session && !hasSignatureProof) {
+            return NextResponse.json({ error: 'Session or host signature required' }, { status: 401 });
         }
-        // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
-        const verdict = await verifyPersonalSign({
-            address: canonicalHost,
-            message,
-            signature,
-        });
-        if (!verdict.ok) {
-            return NextResponse.json(
-                { error: 'Invalid host signature', code: verdict.code },
-                { status: 401 },
-            );
+
+        if (hasSignatureProof) {
+            if (!canonicalHost || String(hostAddress).toLowerCase() !== canonicalHost ||
+                !isFreshIssuedAt(issuedAt) ||
+                message !== buildStreamMessage({ matchId: String(matchId), roomCode: String(roomCode), hostAddress: canonicalHost, enabled: !!enabled, issuedAt })) {
+                return NextResponse.json({ error: 'Invalid host proof' }, { status: 401 });
+            }
+            // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
+            const verdict = await verifyPersonalSign({
+                address: canonicalHost,
+                message,
+                signature,
+            });
+            if (!verdict.ok) {
+                return NextResponse.json(
+                    { error: 'Invalid host signature', code: verdict.code },
+                    { status: 401 },
+                );
+            }
         }
         const recovered = canonicalHost;
 

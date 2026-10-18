@@ -166,8 +166,76 @@ export class ChipsIndexer {
         }
         return sum;
     }
+
+    /**
+     * Productionised chain indexer synchronization (P16/G8):
+     *  - Reads durable cursor from Postgres `get_chain_indexer_cursor`
+     *  - Applies reorg depth 12 (`toBlock = tip - 12`)
+     *  - Pulls logs in chunks and sinks into `chips_events` idempotently
+     *  - Updates cursor atomically via `update_chain_indexer_cursor`
+     */
+    async syncWithDurableCursor(
+        supabase: {
+            from: (t: string) => {
+                upsert: (rows: unknown, opts?: unknown) => PromiseLike<{ error: unknown }>;
+            };
+            rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
+        },
+        address: Address,
+        opts: { defaultStartBlock?: bigint; confirmations?: bigint; maxChunk?: bigint } = {},
+    ): Promise<{ ingested: number; fromBlock: bigint; toBlock: bigint }> {
+        const confirmations = opts.confirmations ?? BigInt(12);
+        const maxChunk = opts.maxChunk ?? BigInt(900);
+
+        // 1. Fetch durable cursor from Postgres
+        const { data: cursorData, error: cursorErr } = await supabase.rpc("get_chain_indexer_cursor", {
+            p_chain_id: this.chainId,
+        });
+        if (cursorErr) throw cursorErr;
+
+        let fromBlock = BigInt(Number(cursorData ?? 0));
+        if (fromBlock === BigInt(0) && opts.defaultStartBlock) {
+            fromBlock = opts.defaultStartBlock;
+        }
+
+        // 2. Fetch current block tip
+        const getBlockNumberClient = this.client as unknown as { getBlockNumber?: () => Promise<bigint> };
+        let tip = fromBlock;
+        if (typeof getBlockNumberClient.getBlockNumber === "function") {
+            tip = await getBlockNumberClient.getBlockNumber();
+        } else {
+            // Fallback tip if client has no getBlockNumber
+            tip = fromBlock + BigInt(100);
+        }
+
+        // Apply reorg depth 12
+        const toBlock = tip > confirmations ? tip - confirmations : tip;
+        if (toBlock <= fromBlock) {
+            return { ingested: 0, fromBlock, toBlock: fromBlock };
+        }
+
+        let totalIngested = 0;
+        for (let from = fromBlock; from <= toBlock; from += maxChunk) {
+            const nextTo = from + maxChunk - BigInt(1) > toBlock ? toBlock : from + maxChunk - BigInt(1);
+            const count = await this.pull(address, from, nextTo);
+            totalIngested += count;
+        }
+
+        // 3. Persist events idempotently
+        await this.persistToSupabase(supabase);
+
+        // 4. Update durable cursor in Postgres
+        const { error: updateErr } = await supabase.rpc("update_chain_indexer_cursor", {
+            p_chain_id: this.chainId,
+            p_last_block: Number(toBlock),
+        });
+        if (updateErr) throw updateErr;
+
+        return { ingested: totalIngested, fromBlock, toBlock };
+    }
 }
 
 export function createChipsIndexer(chainId: number, rpcUrl?: string) {
     return new ChipsIndexer({ chainId, rpcUrl });
 }
+

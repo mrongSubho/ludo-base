@@ -147,14 +147,13 @@ test('chaos: seq gap then resync applies only forward snapshots', async () => {
     assert.ok(state.positions.green);
 });
 
-test('chaos: host election churn stays legal on FSM', () => {
+test('chaos: authority switch net counter bumps cleanly without client FSM election churn', () => {
     const fsm = createMatchFsm();
     fsm.send({ type: 'OPEN_LOBBY' });
     fsm.send({ type: 'GUEST_SEATED' });
     fsm.send({ type: 'START' });
     fsm.send({ type: 'START' });
     for (let i = 0; i < 20; i++) {
-        fsm.send({ type: 'HOST_ELECT' });
         bumpNet('net_authority_switch');
     }
     assert.equal(fsm.phase, 'live');

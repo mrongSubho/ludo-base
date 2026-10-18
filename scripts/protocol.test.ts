@@ -61,11 +61,10 @@ const hostile: Array<[string, unknown]> = [
     ['non-object', 'REQUEST_ROLL'],
     ['null', null],
     ['array', [{ type: 'REQUEST_ROLL' }]],
-    // Trust-path type confusion.
-    ['trust string flag', { type: 'CMD_REQUEST_TRUST', payload: { color: 'green', isBotTrusted: true, isKicked: 'yes' }, intentId: 'h-17' }],
-    ['trust bad color', { type: 'CMD_REQUEST_TRUST', payload: { color: 'greenish', isBotTrusted: true, isKicked: false }, intentId: 'h-18' }],
-    ['commit empty hash', { type: 'DICE_COMMIT', payload: { hash: '' }, intentId: 'h-19' }],
-    ['reveal empty nonce', { type: 'DICE_REVEAL', payload: { nonce: '' }, intentId: 'h-20' }],
+    // Retired verbs in P6 are rejected
+    ['retired trust command', { type: 'CMD_REQUEST_TRUST', payload: { color: 'green', isBotTrusted: true, isKicked: false }, intentId: 'h-17' }],
+    ['retired commit intent', { type: 'DICE_COMMIT', payload: { hash: 'abc' }, intentId: 'h-18' }],
+    ['retired reveal intent', { type: 'DICE_REVEAL', payload: { nonce: '123' }, intentId: 'h-19' }],
 ];
 
 test('hostile payloads are rejected, whatever the transport', () => {
@@ -74,13 +73,26 @@ test('hostile payloads are rejected, whatever the transport', () => {
     }
 });
 
-test('legal payloads still pass on every verb', () => {
+test('legal payloads still pass on every active verb', () => {
     assert.equal(isGameIntent(good('REQUEST_ROLL', {})), true);
     assert.equal(isGameIntent(good('REQUEST_MOVE', { color: 'blue', tokenIndex: 3 })), true);
-    assert.equal(isGameIntent(good('DICE_COMMIT', { hash: 'abc' })), true);
-    assert.equal(isGameIntent(good('DICE_REVEAL', { nonce: 'n' })), true);
+});
+
+test('legacy intents (DICE_COMMIT, DICE_REVEAL, CMD_REQUEST_TRUST) are retired in P6', () => {
     assert.equal(
-        isGameIntent(good('CMD_REQUEST_TRUST', { color: 'red', isBotTrusted: false, isKicked: true })),
-        true,
+        isGameIntent({ type: 'DICE_COMMIT', payload: { hash: 'abc' }, intentId: 'x1' } as unknown as Parameters<typeof isGameIntent>[0]),
+        false,
+    );
+    assert.equal(
+        isGameIntent({ type: 'DICE_REVEAL', payload: { nonce: 'n' }, intentId: 'x2' } as unknown as Parameters<typeof isGameIntent>[0]),
+        false,
+    );
+    assert.equal(
+        isGameIntent({
+            type: 'CMD_REQUEST_TRUST',
+            payload: { color: 'red', isBotTrusted: false, isKicked: true },
+            intentId: 'x3',
+        } as unknown as Parameters<typeof isGameIntent>[0]),
+        false,
     );
 });

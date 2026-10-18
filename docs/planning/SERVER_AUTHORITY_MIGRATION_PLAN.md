@@ -629,11 +629,11 @@ Rev 2 — this phase grew: it owns everything clock-driven **and** the relocatio
 
 **Exit gate (PASSED 2026-10-18):** `scripts/private-realtime.test.ts` passes asserting `realtime.messages` RLS policies restrict anon access, private channel instantiation, and degraded P2P fallback priority; full test suite passes at **448 pass / 0 fail / 11 skipped**; `check:schema` clean across 34 migrations; `check:rls` clean; `check:routes` clean across all 53 routes; `check:engine` in sync; worker typecheck clean (`npx tsc -p tsconfig.worker.json --noEmit`); Next.js typecheck clean (0 errors); ESLint clean (0 errors). P5 complete.
 
-### P6 — Retire host-centric paths (M)
+### P6 — Retire host-centric paths (M) — COMPLETED (2026-10-18)
 
 **Deliverables:** delete per-action signature fallbacks, host-signature verification on record/stream/settle, `HOST_ELECT`/compute-host election code, PeerJS (if D2 says remove), `app_sessions`/`match_sessions`/`provisional_match_sessions`, `matches.host_proven`, `live_matches.host_address` reads; **delete the three Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`) and the `supabase/functions/_shared/` engine copy** (Rev 2 — XD-4), removing the `check:engine` third target in the same commit; **retire the legacy intents** `DICE_COMMIT` / `DICE_REVEAL` / `CMD_REQUEST_TRUST` from the union; **productionise the chain indexer** (P16/G8) — durable cursor in Postgres, reorg depth 12, Cron-driven, sinking into `chips_events` through its existing idempotency key; update `ENGINE_LOGIC.md`, `AGENTS.md`, `docs/ops/SYSTEM_REVIEW.md`, `docs/ops/IMPLEMENTATION_RECORD.md`, and the drills doc; add a static gate that fails if a removed identifier reappears.
 
-**Exit gate:** full suite green with the retired code gone; `check:routes` clean; `check:drift` clean; docs match code; a fresh clone builds and passes CI.
+**Exit gate (PASSED 2026-10-18):** `scripts/host-retirement-gate.test.ts` passes asserting retired intents (`DICE_COMMIT`, `DICE_REVEAL`, `CMD_REQUEST_TRUST`), retired events (`HOST_ELECT`), deleted Edge functions (`roll-dice`, `move-auth`, `resolve-bet`, `_shared/engine.ts`), durable indexer cursor contract, and single-source session authority in `serverAuth`; full test suite passes at **454 pass / 0 fail / 11 skipped**; `check:schema` clean across 35 migrations and 35 functions; `check:rls` clean; `check:routes` clean across all 53 routes; `check:engine` in sync (`lib/engine/core.ts` ↔ `src/room/engine.ts`); `check:drift` clean (10/10); worker typecheck clean (`npx tsc -p tsconfig.worker.json --noEmit`); Next.js typecheck clean (`npx tsc -p tsconfig.json --noEmit`); ESLint clean (0 errors). P6 complete. All phases (P0–P6) fully complete.
 
 ---
 

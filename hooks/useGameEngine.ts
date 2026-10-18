@@ -426,12 +426,10 @@ export function useGameEngine({
             };
             if (isHost && isLobbyConnected) {
                 broadcastAction('CMD_REQUEST_TRUST', { color, isBotTrusted: nextState.afkStats[color].isAutoPlaying, isKicked: nextState.afkStats[color].isKicked }, nextState);
-            } else if (!isHost && isLobbyConnected) {
-                sendIntent('CMD_REQUEST_TRUST', { color, isBotTrusted: nextState.afkStats[color].isAutoPlaying, isKicked: nextState.afkStats[color].isKicked });
             }
             return nextState;
         });
-    }, [isHost, isLobbyConnected, broadcastAction, sendIntent]);
+    }, [isHost, isLobbyConnected, broadcastAction]);
 
     // 📬 Listen for Guest Intents (Host only)
     useEffect(() => {

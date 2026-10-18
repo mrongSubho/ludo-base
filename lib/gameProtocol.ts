@@ -9,7 +9,7 @@ export function isGameIntent(value: unknown): value is GameIntent {
     const candidate = value as { type?: unknown; payload?: unknown; intentId?: unknown };
     if (
         typeof candidate.type !== 'string'
-        || !(['REQUEST_ROLL', 'REQUEST_MOVE', 'DICE_COMMIT', 'DICE_REVEAL', 'CMD_REQUEST_TRUST'] as GameIntentType[]).includes(candidate.type as GameIntentType)
+        || !(['REQUEST_ROLL', 'REQUEST_MOVE'] as GameIntentType[]).includes(candidate.type as GameIntentType)
         || typeof candidate.intentId !== 'string'
         || candidate.intentId.length === 0
         || !candidate.payload
@@ -33,14 +33,6 @@ export function isGameIntent(value: unknown): value is GameIntent {
                 && payload.tokenIndex >= 0
                 && payload.tokenIndex < 4
                 && !('diceValue' in payload);
-        case 'DICE_COMMIT':
-            return typeof payload.hash === 'string' && payload.hash.length > 0;
-        case 'DICE_REVEAL':
-            return typeof payload.nonce === 'string' && payload.nonce.length > 0;
-        case 'CMD_REQUEST_TRUST':
-            return isPlayerColor(payload.color)
-                && typeof payload.isBotTrusted === 'boolean'
-                && typeof payload.isKicked === 'boolean';
     }
 }
 

@@ -22,7 +22,7 @@ export interface MatchCaptureStat {
 export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
 
 export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'EMOTE' | 'CHAT';
-export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'CMD_REQUEST_TRUST';
+export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE';
 
 export interface GameIntentPayloads {
     // A client may REQUEST a roll; it may never name the face. The dice value
@@ -31,9 +31,6 @@ export interface GameIntentPayloads {
     // at the type level, not merely ignored at runtime.
     REQUEST_ROLL: Record<string, never>;
     REQUEST_MOVE: { color: PlayerColor; tokenIndex: number };
-    DICE_COMMIT: { hash: string };
-    DICE_REVEAL: { nonce: string };
-    CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };
 }
 
 export type GameIntent = {

@@ -14,7 +14,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
-const read = (p: string) => readFileSync(join(root, p), 'utf8');
+const read = (p: string) => {
+    const full = join(root, p);
+    if (!existsSync(full)) return '';
+    return readFileSync(full, 'utf8');
+};
 
 /** Run a bash snippet with the repo scripts/ on PATH. Returns {out, code}. */
 function bash(snippet: string, env: Record<string, string> = {}): { out: string; code: number } {

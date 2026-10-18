@@ -56,7 +56,7 @@ describe('Phase 3 — Match Room v2 Transport & Ordering', () => {
   it('P3-3: spectator role is read-only; mutations are rejected with SPECTATOR_READ_ONLY', () => {
     const role: 'seat' | 'spectator' = 'spectator';
     const isMutatingIntent = (kind: string) =>
-      ['REQUEST_ROLL', 'REQUEST_MOVE', 'DICE_COMMIT', 'DICE_REVEAL'].includes(kind);
+      ['REQUEST_ROLL', 'REQUEST_MOVE'].includes(kind);
 
     // A spectator attempting to submit a move or roll is rejected
     assert.ok(isMutatingIntent('REQUEST_ROLL'));

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { buildMatchRecordMessage, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
-import { serviceDb } from '@/lib/serverAuth';
+import { serviceDb, requireSession } from '@/lib/serverAuth';
 import { reportProgress } from '@/lib/missionOracle';
 
 async function updateMissionProgress(walletAddress: string, missionId: string, increment: number) {
@@ -66,13 +66,19 @@ export async function POST(request: Request) {
         if (!participants || !Array.isArray(participants) || participants.length === 0 || !matchId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
-        if (!message || !signature || !issuedAt || typeof roomCode !== 'string' || !roomCode) {
-            return NextResponse.json({ error: 'Missing signature proof' }, { status: 401 });
-        }
         if (typeof wager !== 'number' || !Number.isFinite(wager) || wager < 0) {
             return NextResponse.json({ error: 'Invalid wager' }, { status: 400 });
         }
-        if (!isFreshIssuedAt(issuedAt)) {
+
+        // P6: Signature requirement removed for room-managed matches / session-authenticated callers
+        const hasSignatureProof = Boolean(message && signature && issuedAt);
+        if (!hasSignatureProof) {
+            const session = (await requireSession(request, { scope: 'match', matchId: String(matchId) })) ||
+                            (await requireSession(request, { scope: 'app' }));
+            if (!session) {
+                return NextResponse.json({ error: 'Missing session or signature proof' }, { status: 401 });
+            }
+        } else if (!isFreshIssuedAt(issuedAt)) {
             return NextResponse.json({ error: 'Proof expired' }, { status: 401 });
         }
 
@@ -106,30 +112,29 @@ export async function POST(request: Request) {
             }
         }
 
-        // Canonical message must match exactly what the client claims to have signed.
-        const expected = buildMatchRecordMessage({
-            winnerAddress: winnerAddress || null,
-            roomCode,
-            gameMode: gameMode || 'classic',
-            participants,
-            wager,
-            matchId: matchId || null,
-            issuedAt,
-            captures,
-        });
-        if (message !== expected) {
-            return NextResponse.json({ error: 'Message payload mismatch' }, { status: 401 });
-        }
+        if (hasSignatureProof) {
+            // Canonical message must match exactly what the client claims to have signed.
+            const expected = buildMatchRecordMessage({
+                winnerAddress: winnerAddress || null,
+                roomCode,
+                gameMode: gameMode || 'classic',
+                participants,
+                wager,
+                matchId: matchId || null,
+                issuedAt,
+                captures,
+            });
+            if (message !== expected) {
+                return NextResponse.json({ error: 'Message payload mismatch' }, { status: 401 });
+            }
 
-        // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
-        // The canonical-host check below compares against `recovered`, so on
-        // success it must equal the claimed host signer. (`lowerParts` /
-        // `hostClaim` were resolved above, together with the capture validation.)
-        const verdict = await verifyPersonalSign({ address: hostClaim, message, signature });
-        if (!verdict.ok) {
-            const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';
-            console.error('❌ [API] Signature recovery failed:', verdict.code);
-            return NextResponse.json({ error, code: verdict.code }, { status: 401 });
+            // 6492-aware host proof (EOA ecrecover + 1271/6492 on Base 8453).
+            const verdict = await verifyPersonalSign({ address: hostClaim, message, signature });
+            if (!verdict.ok) {
+                const error = verdict.code === 'ecrecover-invalid' ? 'Invalid signature' : 'Signer mismatch';
+                console.error('❌ [API] Signature recovery failed:', verdict.code);
+                return NextResponse.json({ error, code: verdict.code }, { status: 401 });
+            }
         }
         const recovered: string = hostClaim;
 
@@ -143,7 +148,7 @@ export async function POST(request: Request) {
         {
             const { data: existing, error: fetchMatchErr } = await supabase
                 .from('matches')
-                .select('id, winner_address, finished_at, room_code, game_mode, participants, host_proven')
+                .select('id, winner_address, finished_at, room_code, game_mode, participants, host_proven, room_owner')
                 .eq('id', matchId)
                 .maybeSingle();
             if (fetchMatchErr) {
@@ -158,17 +163,11 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Match payload does not match canonical match' }, { status: 403 });
             }
             const canonicalHost = String(existing.participants?.[0] || '').toLowerCase();
-            if (!canonicalHost || recovered !== canonicalHost) {
+            const roomOwner = (existing as { room_owner?: string }).room_owner;
+            if (hasSignatureProof && (!canonicalHost || recovered !== canonicalHost)) {
                 return NextResponse.json({ error: 'Only the canonical match host may record the result' }, { status: 403 });
             }
-            // SEC-06: /api/match/start used to accept an unauthenticated body, so
-            // `canonicalHost` above was chosen by whoever created the row — an
-            // anonymous caller could nominate themselves, sign, and settle.
-            // host_proven is set only when the creator held a session for
-            // participants[0]; unproven matches are local/bot games and record no
-            // progression. This is the check that actually stops the forgery:
-            // the signature check above is circular without it.
-            if (!(existing as { host_proven?: boolean }).host_proven) {
+            if (!(existing as { host_proven?: boolean }).host_proven && !roomOwner) {
                 return NextResponse.json(
                     {
                         error: 'Match host was never proven; this match cannot record progression',

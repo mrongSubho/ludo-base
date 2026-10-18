@@ -30,28 +30,6 @@ export const gameIntentSchema = z.discriminatedUnion('type', [
         sender: z.string().optional(),
         intentId: z.string().min(1),
     }),
-    z.object({
-        type: z.literal('DICE_COMMIT'),
-        payload: z.object({ hash: z.string().min(1) }),
-        sender: z.string().optional(),
-        intentId: z.string().min(1),
-    }),
-    z.object({
-        type: z.literal('DICE_REVEAL'),
-        payload: z.object({ nonce: z.string().min(1) }),
-        sender: z.string().optional(),
-        intentId: z.string().min(1),
-    }),
-    z.object({
-        type: z.literal('CMD_REQUEST_TRUST'),
-        payload: z.object({
-            color: playerColorSchema,
-            isBotTrusted: z.boolean(),
-            isKicked: z.boolean(),
-        }),
-        sender: z.string().optional(),
-        intentId: z.string().min(1),
-    }),
 ]);
 
 export const gameActionEnvelopeSchema = z.object({

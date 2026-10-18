@@ -20,7 +20,6 @@ export type MatchFsmEvent =
     | { type: 'RESYNC_NEEDED' }
     | { type: 'RESYNC_APPLIED' }
     | { type: 'FINISH' }
-    | { type: 'HOST_ELECT' }
     | { type: 'RESET' };
 
 export type MatchFsmListener = (
@@ -58,7 +57,6 @@ const TRANSITIONS: Record<MatchPhase, Partial<Record<MatchFsmEvent['type'], Matc
     live: {
         START: 'live',
         RESYNC_NEEDED: 'resyncing',
-        HOST_ELECT: 'live',
         FINISH: 'ended',
         RESET: 'idle',
     },
@@ -66,7 +64,6 @@ const TRANSITIONS: Record<MatchPhase, Partial<Record<MatchFsmEvent['type'], Matc
         RESYNC_APPLIED: 'live',
         START: 'live',
         FINISH: 'ended',
-        HOST_ELECT: 'resyncing',
         RESET: 'idle',
     },
     ended: {

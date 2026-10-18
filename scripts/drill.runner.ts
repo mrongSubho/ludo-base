@@ -114,12 +114,11 @@ test('A3 seq gap + stale reject + fetch fail pause', async () => {
     assert.equal(shouldPauseLocalOrchestration('reconnecting'), true);
 });
 
-test('A4 host-elect churn stays legal', () => {
+test('A4 authority switch net counter increments cleanly', () => {
     const fsm = createMatchFsm();
     fsm.send({ type: 'START' });
     fsm.send({ type: 'START' });
     for (let i = 0; i < 15; i++) {
-        fsm.send({ type: 'HOST_ELECT' });
         bumpNet('net_authority_switch');
     }
     assert.equal(fsm.phase, 'live');

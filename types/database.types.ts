@@ -112,6 +112,25 @@ export type Database = {
         }
         Relationships: []
       }
+      chain_indexer_cursors: {
+        Row: {
+          chain_id: number
+          last_block: number
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          chain_id: number
+          last_block?: number
+          updated_at?: string
+        }
+        Update: {
+          chain_id?: number
+          last_block?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chips_claimable: {
         Row: {
           amount: number
@@ -2115,6 +2134,14 @@ export type Database = {
       }
       cleanup_stale_data: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_chain_indexer_cursor: {
+        Args: { p_chain_id: number }
+        Returns: number
+      }
+      update_chain_indexer_cursor: {
+        Args: { p_chain_id: number; p_last_block: number }
         Returns: undefined
       }
       match_commit_action: {

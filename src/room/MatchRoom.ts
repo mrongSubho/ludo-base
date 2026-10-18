@@ -30,10 +30,7 @@ export interface Env {
 
 export type IntentKind =
   | 'REQUEST_ROLL'
-  | 'REQUEST_MOVE'
-  | 'DICE_COMMIT'
-  | 'DICE_REVEAL'
-  | 'CMD_REQUEST_TRUST';
+  | 'REQUEST_MOVE';
 
 export interface RoomSocketMeta {
   authenticated: boolean;

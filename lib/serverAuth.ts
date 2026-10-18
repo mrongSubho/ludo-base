@@ -144,32 +144,7 @@ export async function requireSession(
         }
     }
 
-    // 4. Dual-read fallback from app_sessions (transition / rollback support)
-    // If x-session-id or bearer matches legacy app_sessions row
-    if (token && expectedScope === 'app') {
-        const { data: legacySession } = await db
-            .from('app_sessions')
-            .select('wallet_address, expires_at, revoked_at')
-            .eq('id', token)
-            .maybeSingle();
-
-        if (
-            legacySession &&
-            !legacySession.revoked_at &&
-            new Date(legacySession.expires_at).getTime() > Date.now()
-        ) {
-            const wallet = String(legacySession.wallet_address).toLowerCase();
-            if (!opts.expectedWallet || wallet === opts.expectedWallet.toLowerCase()) {
-                return {
-                    wallet,
-                    scope: 'app',
-                    matchId: null,
-                    session: null,
-                };
-            }
-        }
-    }
-
+    // 4. In P6, app_sessions dual-read is retired. Sessions table is sole authority.
     return null;
 }
 
