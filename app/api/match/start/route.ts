@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { serviceDb, requireAppSession } from '@/lib/serverAuth';
+import { serviceDb, requireAppSession, requireSessionWallet } from '@/lib/serverAuth';
 import { GAME_MODE_CODE } from '@/lib/constants';
 
 const ADDRESS_RE = /^0x[a-f0-9]{40}$/i;
@@ -95,8 +95,11 @@ export async function POST(request: Request) {
         // Proof of the canonical host. Only required when the host is a real
         // wallet; the anonymous/local path stays open but cannot settle.
         let hostProven = false;
+        let roomOwner: string | null = null;
         if (hostIsAddress) {
-            if (!walletAddress || !sessionId) {
+            const session = (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress ? String(walletAddress) : undefined })) ||
+                (await requireAppSession(String(walletAddress), String(sessionId)));
+            if (!session) {
                 return NextResponse.json(
                     {
                         error: 'host proof required for a wallet-addressed match',
@@ -104,10 +107,6 @@ export async function POST(request: Request) {
                     },
                     { status: 401 },
                 );
-            }
-            const session = await requireAppSession(String(walletAddress), String(sessionId));
-            if (!session) {
-                return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
             }
             if (session.toLowerCase() !== canonicalHost) {
                 // The session must belong to the wallet being recorded as host,
@@ -118,6 +117,10 @@ export async function POST(request: Request) {
                 );
             }
             hostProven = true;
+            roomOwner = session.toLowerCase();
+        } else {
+            const optionalSession = await requireSessionWallet(request, { scope: 'app' });
+            if (optionalSession) roomOwner = optionalSession.toLowerCase();
         }
 
         console.log('🏁 [API] Starting match...', {
@@ -125,6 +128,7 @@ export async function POST(request: Request) {
             gameMode,
             participants: roster,
             hostProven,
+            roomOwner,
         });
 
         const { data, error } = await supabase
@@ -136,8 +140,9 @@ export async function POST(request: Request) {
                 match_shape: matchShape ?? null,
                 participants: roster,
                 host_proven: hostProven,
+                room_owner: roomOwner,
             })
-            .select('id, host_proven')
+            .select('id, host_proven, room_owner')
             .single();
 
         if (error || !data) {

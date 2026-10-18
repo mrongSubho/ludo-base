@@ -1053,6 +1053,7 @@ export type Database = {
           metadata: NonNullable<Json>
           participants: string[]
           room_code: string | null
+          room_owner: string | null
           spectator_count: number
           streaming_enabled: boolean
           total_bet_volume: number
@@ -1070,6 +1071,7 @@ export type Database = {
           metadata?: NonNullable<Json>
           participants?: string[]
           room_code?: string | null
+          room_owner?: string | null
           spectator_count?: number
           streaming_enabled?: boolean
           total_bet_volume?: number
@@ -1086,6 +1088,7 @@ export type Database = {
           metadata?: NonNullable<Json>
           participants?: string[]
           room_code?: string | null
+          room_owner?: string | null
           spectator_count?: number
           streaming_enabled?: boolean
           total_bet_volume?: number

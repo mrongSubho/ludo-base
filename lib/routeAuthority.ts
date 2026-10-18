@@ -82,7 +82,7 @@ export const ROUTE_AUTHORITY_MAP: Record<string, RouteAuthorityEntry> = {
     // ── Live / spectator ──────────────────────────────────────────────────
     'live-matches/window':    { methods: ['POST'], scope: 'app', csrf: true, resource: 'host', serviceRole: true },
     'live-arena/power4p':     { methods: ['POST', 'PATCH'], scope: 'app', csrf: true, resource: 'host', serviceRole: true },
-    'live-chat':              { methods: ['GET', 'POST'], scope: 'public', csrf: true, resource: 'none', serviceRole: true },
+    'live-chat':              { methods: ['GET', 'POST'], scope: 'app', capability: 'chat.send', csrf: true, resource: 'self', serviceRole: true },
     'predictors/board':       { methods: ['GET'],  scope: 'public', csrf: false, resource: 'none', serviceRole: true },
 
     'galxe/callback':         { methods: ['POST'], scope: 'hmac', csrf: false, resource: 'none', serviceRole: true },

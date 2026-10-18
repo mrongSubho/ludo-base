@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { requireSessionWallet, requireAppSession } from '@/lib/serverAuth';
 import { MAX_CHAT_LEN } from '@/lib/constants';
 
 const LIMIT = 20;
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const wallet = (body.wallet || '').toLowerCase();
+        const rawWallet = (body.wallet || '').toLowerCase();
         // DB-16: the route cap is the shared constant, equal to the
         // `live_chat.content` DB CHECK — one constant, not two numbers.
         const content = (body.content || '').slice(0, MAX_CHAT_LEN).trim();
@@ -73,10 +74,21 @@ export async function POST(request: Request) {
             : null;
         const roomOpen = body.roomOpen !== false;
 
-        const isWallet = wallet.startsWith('0x');
-        const isGuestId = wallet.startsWith('guest_');
+        const isWallet = rawWallet.startsWith('0x');
+        const isGuestId = rawWallet.startsWith('guest_');
         if ((!isWallet && !isGuestId) || !content) {
             return NextResponse.json({ error: !content ? 'Empty message' : 'Wallet required' }, { status: !content ? 400 : 401 });
+        }
+
+        // P6: Live chat identity is bound to the session wallet for real wallets
+        let wallet = rawWallet;
+        if (isWallet) {
+            const sessionWallet = (await requireSessionWallet(request, { scope: 'app', expectedWallet: rawWallet })) ||
+                (body.sessionId ? await requireAppSession(rawWallet, body.sessionId) : null);
+            if (!sessionWallet) {
+                return NextResponse.json({ error: 'Session required to chat' }, { status: 401 });
+            }
+            wallet = sessionWallet.toLowerCase();
         }
 
         // Slow-mode applies to fresh shouts only — room state syncs bypass it.

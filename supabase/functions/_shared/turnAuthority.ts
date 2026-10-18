@@ -36,21 +36,24 @@ export function checkSeatAuthority(opts: {
 
   if (!seat) return { ok: false, status: 403, error: 'Not your seat' };
 
-  if (source === 'host-assist') {
-    if (who !== host) return { ok: false, status: 403, error: 'Only host may assist' };
-    // The host may only drive seats that are not human. A human seat is that
-    // player's own turn, however much the host wants to help.
-    if (seat.kind === 'human') {
+  // P12: Assistance is derived from room state (seat.kind). Client-claimed source
+  // cannot allow host-assist on human seats.
+  if (seat.kind === 'human') {
+    if (source === 'host-assist' || (who === host && String(seat.wallet || '').toLowerCase() !== who)) {
       return { ok: false, status: 403, error: 'host-assist only for bot/AFK seats' };
+    }
+    if (String(seat.wallet || '').toLowerCase() !== who) {
+      return { ok: false, status: 403, error: 'Not your seat' };
     }
     return { ok: true };
   }
 
-  if (seat.kind !== 'human') {
+  // Seat is bot or afk:
+  if (source !== 'host-assist') {
     return { ok: false, status: 403, error: 'Seat is not a human player' };
   }
-  if (String(seat.wallet || '').toLowerCase() !== who) {
-    return { ok: false, status: 403, error: 'Not your seat' };
+  if (who !== host) {
+    return { ok: false, status: 403, error: 'Only host may assist' };
   }
   return { ok: true };
 }

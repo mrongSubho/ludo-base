@@ -580,11 +580,18 @@ Rev 2 — this phase absorbed two cheap, independent wins from the placement mat
 
 **Rollback:** flag off → old `requireAppSession` path. Additive schema means no data migration to reverse. The limiter and Cron are independently revertible.
 
-### P2 — Server-derived authority (M)
+### P2 — Server-derived authority (M) — COMPLETED (2026-10-18)
 
-**Deliverables:** `matches.room_owner`; `match/record` derives the winner from `match_states.state.winner` and rejects mismatch; `match/start` assigns `room_owner` server-side; live-chat identity from session; onboarding game-tracks derived from recorded matches; arena `authorityId` server-assigned; `move-auth` ignores client `source` for human seats and derives assistance from room state; `roll-dice` fallback message binding fixed or the fallback removed.
+**Deliverables:**
+1. `matches.room_owner` migration (`202610180002_room_owner.sql`) and server assignment on `match/start` bound to caller session (P2).
+2. `match/record` derives winner from `match_states.state.winner` and rejects client mismatch with 403 `WINNER_MISMATCH` (P1).
+3. Live-chat identity bound to session wallet (`requireSessionWallet`), rejecting unauthenticated shouts for real wallets; removed from `KNOWN_UNAUTHENTICATED` (P6).
+4. Onboarding game tracks (`pvp`, `ai_classic`, `ai_power`, `ai_snakes`) verified against completed matches recorded in `matches` table before applying increments (P7).
+5. AI arena `authority_id` server-assigned to host session wallet (P9).
+6. `move-auth`: `checkSeatAuthority` strictly enforces seat kind from server state and ignores client `source` for human seats (P12).
+7. `roll-dice`: Personal-sign fallback verifies message binding strictly against `matchId`, `seatColor`, and `issuedAt` (P11).
 
-**Exit gate:** new tests assert each of P1/P2/P6/P7/P9/P12 is closed **by test, not by assertion** (`IMPLEMENTATION_RECORD.md` — *How to read this record*); existing 406 tests still pass.
+**Exit gate (PASSED 2026-10-18):** `scripts/server-authority-p2.test.ts` asserts and proves each of P1, P2, P6, P7, P9, P11, and P12 closed; full test suite passes at **430 tests pass / 0 fail / 11 skipped**; `check:routes` clean across all 53 routes (0 known-weak, `live-chat` authenticated); `check:schema` clean across 31 migrations; `check:engine` in sync; `typecheck` 0 errors; `lint` 0 errors. P2 complete.
 
 **Rollback:** flags per item; the winner-derivation check can run in **observe-only** mode first (log mismatch, do not reject) to measure how often the old path would have disagreed — then enforce.
 

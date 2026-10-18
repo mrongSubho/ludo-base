@@ -182,6 +182,56 @@ export async function POST(request: Request) {
             }
         }
 
+        // P1: Derive the authoritative winner from match_states.state.winner and reject mismatch
+        let authoritativeWinnerAddress: string | null = null;
+        {
+            const { data: stateRow, error: stateErr } = await supabase
+                .from('match_states')
+                .select('state, color_corner, player_seats')
+                .eq('match_id', matchId)
+                .maybeSingle();
+
+            if (stateErr) {
+                console.warn('[match/record] match_states read warning:', stateErr.message);
+            } else if (stateRow && stateRow.state) {
+                const gameState = stateRow.state as { winner?: unknown; status?: unknown };
+                const stateWinner = gameState.winner ? String(gameState.winner) : null;
+                const seats = (stateRow.player_seats || {}) as Record<string, { kind?: string; wallet?: string }>;
+
+                if (stateWinner) {
+                    if (stateWinner.startsWith('0x')) {
+                        authoritativeWinnerAddress = stateWinner.toLowerCase();
+                    } else if (seats[stateWinner]?.wallet) {
+                        authoritativeWinnerAddress = seats[stateWinner].wallet!.toLowerCase();
+                    }
+                }
+
+                // If server-recorded authoritative winner exists, client claimed winnerAddress MUST match
+                if (authoritativeWinnerAddress && winnerAddress) {
+                    if (winnerAddress.toLowerCase() !== authoritativeWinnerAddress) {
+                        return NextResponse.json(
+                            {
+                                error: 'Winner mismatch against server authoritative state',
+                                code: 'WINNER_MISMATCH',
+                                serverWinner: authoritativeWinnerAddress,
+                                claimedWinner: winnerAddress,
+                            },
+                            { status: 403 },
+                        );
+                    }
+                } else if (authoritativeWinnerAddress && !winnerAddress) {
+                    return NextResponse.json(
+                        {
+                            error: 'Omitted winner contradicts server authoritative state',
+                            code: 'WINNER_MISMATCH',
+                            serverWinner: authoritativeWinnerAddress,
+                        },
+                        { status: 403 },
+                    );
+                }
+            }
+        }
+
         console.log('📝 [API] Recording signed match result...', { winnerAddress, roomCode, gameMode, participants, matchId, signer: recovered });
 
         // 1. Record the match

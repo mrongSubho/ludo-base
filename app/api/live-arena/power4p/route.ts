@@ -171,7 +171,9 @@ export async function PATCH(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const claim = await sb.from('live_matches').update({ authority_id: authorityId, authority_heartbeat: now, updated_at: now })
+    // P9: Server-assign authority_id to the verified host wallet rather than raw client assertion
+    const serverAuthorityId = wallet;
+    const claim = await sb.from('live_matches').update({ authority_id: serverAuthorityId, authority_heartbeat: now, updated_at: now })
       .eq('match_id', matchId)
       .or(`authority_id.is.null,authority_heartbeat.lt.${new Date(Date.now() - 8000).toISOString()}`)
       .select('match_id').maybeSingle();

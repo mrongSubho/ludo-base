@@ -113,10 +113,8 @@ const MATRIX = {
     // SEC-07: CLOSED 2026-10-06 — session required, host-gated (`NOT_HOST`
     // at route.ts:170). Reconciled 2026-10-13.
     'live-arena/power4p':     { methods: ['POST', 'PATCH'], auth: 'session', resource: 'host', serviceRole: true },
-    // Spectator chat is public by intent (SEC-34 classified); the POST write
-    // path is throttled 60/min via `lib/rateLimitRoutes.ts`. The one remaining
-    // `none*` route, tracked here by decision, not by oversight.
-    'live-chat':              { methods: ['GET', 'POST'], auth: 'none*', resource: 'none', serviceRole: true },
+    // P6: Live chat identity is bound to session wallet (reconciled 2026-10-18)
+    'live-chat':              { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
     'predictors/board':       { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
 
     'galxe/callback':         { methods: ['POST'], auth: 'hmac', resource: 'none', serviceRole: true },
@@ -141,11 +139,7 @@ const MATRIX = {
  * finding ID. Closing one means removing it from this list AND fixing the code.
  */
 const KNOWN_UNAUTHENTICATED = new Set([
-    // Reconciled 2026-10-13: the SEC-07/08/12 entries were removed — those
-    // routes are session-gated in code (the fixes landed 2026-10-06 and only
-    // this allowlist was never updated). One entry remains, by decision:
-    'live-chat',          // spectator chat is public by intent; the POST write
-                         // is throttled 60/min (rateLimitRoutes.ts). Not a defect.
+    // All findings closed: SEC-07/08/12 reconciled 2026-10-13, P6 (live-chat) closed 2026-10-18.
 ]);
 
 let failures = 0;

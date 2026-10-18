@@ -120,6 +120,38 @@ export async function POST(request: Request) {
 
         const prev = existing?.progress ?? 0;
         const target = existing?.target && existing.target > 0 ? existing.target : def.target;
+
+        // P7: Onboarding game-tracks derived from recorded matches, never blind client deltas
+        const GAME_TRACKS: string[] = ['pvp', 'ai_classic', 'ai_power', 'ai_snakes'];
+        if (GAME_TRACKS.includes(track)) {
+            let matchQuery = db
+                .from('matches')
+                .select('id', { count: 'exact', head: true })
+                .contains('participants', [wallet.toLowerCase()])
+                .not('finished_at', 'is', null);
+
+            if (track === 'ai_power') {
+                matchQuery = matchQuery.eq('game_mode', 'power');
+            } else if (track === 'ai_snakes') {
+                matchQuery = matchQuery.eq('game_mode', 'snakes');
+            }
+            const { count: verifiedMatches, error: matchCountErr } = await matchQuery;
+            if (matchCountErr) {
+                console.warn('[onboarding/progress] match verification error:', matchCountErr.message);
+            }
+            const totalMatches = verifiedMatches ?? 0;
+            if (totalMatches <= prev) {
+                return NextResponse.json({
+                    error: 'Game track progress requires completed matches recorded on server',
+                    code: 'RECORDED_MATCH_REQUIRED',
+                    track,
+                    progress: prev,
+                    target,
+                }, { status: 400 });
+            }
+            delta = Math.min(delta, totalMatches - prev);
+        }
+
         // Never let a replayed increment blow past the target.
         const progress = Math.min(prev + delta, target);
 

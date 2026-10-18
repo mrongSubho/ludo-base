@@ -79,6 +79,11 @@ Deno.serve(async (req) => {
       if (!v.ok) return json({ error: v.error }, 401);
     } else {
       if (!isFreshRollRequest(issuedAt, Date.now())) return json({ error: 'Stale or missing issuedAt' }, 401);
+      // P11: Verify message text matches expected canonical payload bound to matchId, seatColor, and issuedAt
+      const expectedMsg = `Ludo roll request\nmatch: ${matchId}\nseat: ${seatColor}\nat: ${issuedAt}`;
+      if (message !== expectedMsg) {
+        return json({ error: 'Message payload mismatch', code: 'MESSAGE_MISMATCH' }, 401);
+      }
       const v = await verifyPersonalSign({
         address: actor,
         message,
