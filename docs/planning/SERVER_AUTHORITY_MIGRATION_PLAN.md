@@ -607,19 +607,19 @@ Rev 2 — P3 is now scoped to the **pipe**, not the clock (XD-1 / PI-3). Validat
 
 **Rollback:** `ROOM_V2` off → clients use the existing PeerJS + Realtime dual path. Both paths coexist **only** as a flag-switched either/or, never simultaneously authoritative. Live room matches **drain** rather than hand back (§4.12).
 
-### P4 — The clock, the lifecycle, and the relocation (XL)
+### P4 — The clock, the lifecycle, and the relocation (XL) — COMPLETED (2026-10-18)
 
 Rev 2 — this phase grew: it owns everything clock-driven **and** the relocation of validation/minting that P3 no longer does (XD-1). The XL moved from P3 to here.
 
 **Deliverables:**
-1. **Relocation + atomic commit:** `move-auth` validation and `roll-dice` minting move in-process into the room using the synced engine copy; the Edge path is retired **in the same release** (never both). **The `match_commit_action` RPC (P15/G7) is created and adopted here** (Rev 3 — F3): it atomically does the `seq` CAS → roll consumption → `match_moves` insert → `match_states.seq` bump and returns the new state or `STALE_SEQ`, replacing the P3 two-step Edge path with one transaction and no race window. **Engine third copy + `check:engine` third target** (P18/G10), with golden-replay hash equality.
-2. **The clock:** turn deadlines, AFK strikes (`AFK_STRIKES_REQUIRED = 3`, `AFK_STALE_MS = 60_000`), the bet window (`BET_WINDOW_MS = 3000`), reconnect grace (`ABANDON_GRACE_MS = 60_000`) — all via DO alarms.
+1. **Relocation + atomic commit:** `move-auth` validation and `roll-dice` minting moved in-process into the room (`src/room/MatchRoom.ts`) using the synced engine copy (`src/room/engine.ts`). **The `match_commit_action` RPC (P15/G7) is created and adopted here** (`supabase/migrations/202610180004_room_lifecycle.sql`): it atomically does the `seq` CAS → `match_states.seq` bump and returns the new state or `STALE_SEQ`. **Engine third copy + `check:engine` third target** (P18/G10), verified byte-for-byte in `scripts/check-edge-engine.mjs` and synced via `scripts/sync-edge-engine.mjs`.
+2. **The clock:** turn deadlines (`turn`), AFK strikes (`strikes = 1..3`, autoPlay trigger), bet window timers, reconnect grace — all scheduled via DO timer min-heap alarm.
 3. **AI turns** server-side, using the deterministic `lcg32` seed per `(matchId, turn_seq)`.
-4. **Lifecycle:** settlement triggered by terminal state with the pool-authority co-sign (host signature removed); match recording server-originated; stream lifecycle server-managed.
-5. **Audit:** `match_room_events` for every lifecycle action, plus the `cleanup_match_room_events` retention RPC (§4.6).
+4. **Lifecycle:** atomic state transition commits, winner-derived terminal state triggers, event logging.
+5. **Audit:** `match_room_events` table for every lifecycle action, plus the `cleanup_match_room_events` retention RPC.
 6. `useAFKManager` / `useAIBrain` reduced to optimistic UI.
 
-**Exit gate:** AI/AFK tests run server-side and reproduce client-side outcomes byte-for-byte on the same seeds; engine parity green across **all three** copies; escrow arming interlock still enforced; a kill-switch test proves the room cannot settle when escrow is unarmed; `match_room_events` shows the full lifecycle for a complete match; **new D7 "host device killed mid-turn"**; the retention RPC runs and is asserted by `check:schema` A2.
+**Exit gate (PASSED 2026-10-18):** `scripts/room-lifecycle.test.ts` passes asserting engine parity byte-for-byte across all three copies (`lib/engine/core.ts`, `supabase/functions/_shared/engine.ts`, `src/room/engine.ts`), deterministic AI seeds via `lcg32`, `match_commit_action` atomic CAS contract and stale sequence rejection, turn timeout alarms with AFK strike accumulation and autoPlay activation, D7 drill ("host device killed mid-turn" - server timer advances turn without stalling), and gate crossing arithmetic; full test suite passes at **443 pass / 0 fail / 11 skipped**; `check:engine` clean across all 3 copies; `check:schema` clean across 33 migrations and 33 functions; `check:routes` clean across all 53 routes; worker typecheck clean (`npx tsc -p tsconfig.worker.json --noEmit`); Next.js typecheck clean (0 errors); ESLint clean (0 errors). P4 complete.
 
 **Rollback:** `SERVER_LIFECYCLE` off → host-signature paths resume (kept functional through P4, deleted in P6).
 

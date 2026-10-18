@@ -18,6 +18,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { GameState } from '../../lib/types';
 import { hashToken } from '../../lib/sessionV2';
 import type { RateLimitDO } from '../rateLimit/RateLimitDO';
+import { getNextPlayer, getLegalTokenIndices, processMove, type PlayerColor } from './engine';
 
 export interface Env {
   MATCH_ROOM: DurableObjectNamespace<MatchRoom>;
@@ -44,7 +45,7 @@ export interface RoomSocketMeta {
 
 export interface ScheduledTimer {
   id: string;
-  kind: 'turn' | 'bet_window' | 'afk_strike' | 'reconnect_grace';
+  kind: 'turn' | 'bet_window' | 'afk_strike' | 'reconnect_grace' | 'TURN_TIMEOUT' | 'BET_TIMEOUT';
   deadlineAt: number;
 }
 
@@ -314,7 +315,67 @@ export class MatchRoom extends DurableObject<Env> {
       '';
 
     if (kind === 'REQUEST_ROLL') {
-      // Proxy to roll-dice Edge function
+      // In-process roll execution (P4)
+      if (this.state && !this.state.winner) {
+        const curColor = this.state.currentPlayer as PlayerColor;
+        if (meta.color && meta.color !== curColor) {
+          ws.send(
+            JSON.stringify({
+              t: 'rejected',
+              intentId,
+              code: 'NOT_YOUR_TURN',
+              error: 'Not your turn to roll',
+            })
+          );
+          return;
+        }
+
+        const rand = new Uint8Array(1);
+        crypto.getRandomValues(rand);
+        const rollValue = (rand[0] % 6) + 1;
+
+        const cc = this.state.initialBoardConfig?.colorCorner || {
+          green: 'BL',
+          yellow: 'BR',
+          blue: 'TR',
+          red: 'TL',
+        };
+
+        const legalMoves = getLegalTokenIndices(
+          this.state.positions,
+          curColor,
+          rollValue,
+          cc
+        );
+
+        if (legalMoves.length === 0 && rollValue !== 6) {
+          // No legal moves and not a 6: auto-advance turn
+          const nextPlayer = getNextPlayer(curColor, this.state.playerCount);
+          const nextState: GameState = {
+            ...this.state,
+            diceValue: rollValue,
+            currentPlayer: nextPlayer,
+            isRolling: false,
+            gamePhase: 'rolling',
+          };
+          await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
+          await this.scheduleTimer(this.matchId, 'turn', 15000);
+          return;
+        }
+
+        const nextState: GameState = {
+          ...this.state,
+          diceValue: rollValue,
+          isRolling: false,
+          gamePhase: 'moving',
+        };
+
+        await this.applyNewState(nextState, this.seq + 1, 'roll_minted');
+        await this.scheduleTimer(this.matchId, 'turn', 15000);
+        return;
+      }
+
+      // Proxy fallback to roll-dice Edge function
       const res = await fetch(`${supabaseUrl}/functions/v1/roll-dice`, {
         method: 'POST',
         headers: {
@@ -354,18 +415,93 @@ export class MatchRoom extends DurableObject<Env> {
         return;
       }
 
-      // Roll minted successfully: update local state if state provided or notify client
       if (data.state) {
-        await this.applyNewState(data.state, data.seq ?? this.seq + 1);
+        await this.applyNewState(data.state, data.seq ?? this.seq + 1, 'roll_minted');
       } else {
-        // Echo back roll result to caller
         ws.send(JSON.stringify({ t: 'intent_ack', intentId, data }));
       }
       return;
     }
 
     if (kind === 'REQUEST_MOVE') {
-      // Proxy to move-auth Edge function
+      // In-process move execution (P4)
+      if (this.state && !this.state.winner) {
+        const curColor = this.state.currentPlayer as PlayerColor;
+        if (meta.color && meta.color !== curColor) {
+          ws.send(
+            JSON.stringify({
+              t: 'rejected',
+              intentId,
+              code: 'NOT_YOUR_TURN',
+              error: 'Not your turn to move',
+            })
+          );
+          return;
+        }
+
+        if (payload.action === 'pass') {
+          const nextPlayer = getNextPlayer(curColor, this.state.playerCount);
+          const nextState: GameState = {
+            ...this.state,
+            currentPlayer: nextPlayer,
+            diceValue: null,
+            isRolling: false,
+            gamePhase: 'rolling',
+          };
+          await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
+          await this.scheduleTimer(this.matchId, 'turn', 15000);
+          return;
+        }
+
+        const cc = this.state.initialBoardConfig?.colorCorner || {
+          green: 'BL',
+          yellow: 'BR',
+          blue: 'TR',
+          red: 'TL',
+        };
+        const tokenIndex = typeof payload.tokenIndex === 'number' ? payload.tokenIndex : 0;
+        const diceVal = typeof this.state.diceValue === 'number' ? this.state.diceValue : 0;
+        const legalIndices = getLegalTokenIndices(
+          this.state.positions,
+          curColor,
+          diceVal,
+          cc
+        );
+
+        if (!legalIndices.includes(tokenIndex)) {
+          ws.send(
+            JSON.stringify({
+              t: 'rejected',
+              intentId,
+              code: 'ILLEGAL_MOVE',
+              error: 'Token move is illegal',
+            })
+          );
+          return;
+        }
+
+        const moveResult = processMove(
+          this.state as unknown as import('./engine').EngineGameState,
+          curColor,
+          tokenIndex,
+          diceVal,
+          this.state.playerCount,
+          cc
+        );
+        const nextState = moveResult.newState as unknown as GameState;
+
+        await this.applyNewState(nextState, this.seq + 1, 'move_committed');
+
+        if (nextState.winner) {
+          this.timerHeap = [];
+          await this.ctx.storage.put('timerHeap', this.timerHeap);
+        } else {
+          await this.scheduleTimer(this.matchId, 'turn', 15000);
+        }
+        return;
+      }
+
+      // Proxy fallback to move-auth Edge function
       const isPass = payload.action === 'pass' || !payload.tokenIndex;
       const endpoint = isPass ? 'pass-turn' : 'submit-move';
 
@@ -410,7 +546,7 @@ export class MatchRoom extends DurableObject<Env> {
       }
 
       if (data.state) {
-        await this.applyNewState(data.state, data.seq ?? this.seq + 1);
+        await this.applyNewState(data.state, data.seq ?? this.seq + 1, 'move_committed');
       }
       return;
     }
@@ -421,13 +557,39 @@ export class MatchRoom extends DurableObject<Env> {
 
   /**
    * Apply validated state transition, save to SQLite and broadcast to all connected sockets.
+   * Atomically calls match_commit_action RPC on Postgres to record state and room events.
    */
-  private async applyNewState(newState: GameState, newSeq: number): Promise<void> {
+  private async applyNewState(newState: GameState, newSeq: number, eventType: string = 'move_committed'): Promise<void> {
     this.state = newState;
     this.seq = newSeq;
 
     await this.ctx.storage.put('state', this.state);
     await this.ctx.storage.put('seq', this.seq);
+
+    const supabaseUrl =
+      (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey =
+      (this.env as unknown as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (supabaseUrl && serviceKey) {
+      fetch(`${supabaseUrl}/rest/v1/rpc/match_commit_action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          p_match_id: this.matchId,
+          p_expected_seq: newSeq - 1,
+          p_new_state: newState,
+          p_event_type: eventType,
+          p_event_payload: { seq: newSeq, currentPlayer: newState.currentPlayer, winner: newState.winner },
+        }),
+      }).catch((e) => console.warn('[MatchRoom] match_commit_action warning:', e));
+    }
 
     const deadlineAt = this.getEarliestDeadline();
 
@@ -482,6 +644,33 @@ export class MatchRoom extends DurableObject<Env> {
     await this.ctx.storage.put('timerHeap', this.timerHeap);
 
     for (const timer of expired) {
+      if ((timer.kind === 'turn' || timer.kind === 'TURN_TIMEOUT') && this.state && !this.state.winner) {
+        const cur = this.state.currentPlayer as PlayerColor;
+        const strikes = { ...this.state.strikes };
+        const afk = { ...this.state.afkStats };
+        strikes[cur] = (strikes[cur] || 0) + 1;
+        if (afk[cur]) {
+          afk[cur] = {
+            ...afk[cur],
+            consecutiveTurns: (afk[cur].consecutiveTurns || 0) + 1,
+            totalTriggers: (afk[cur].totalTriggers || 0) + 1,
+            isAutoPlaying: strikes[cur] >= 3 ? true : afk[cur].isAutoPlaying,
+          };
+        }
+        const nextPlayer = getNextPlayer(cur, this.state.playerCount);
+        const nextState: GameState = {
+          ...this.state,
+          currentPlayer: nextPlayer,
+          diceValue: null,
+          isRolling: false,
+          gamePhase: 'rolling',
+          strikes,
+          afkStats: afk,
+        };
+        await this.applyNewState(nextState, this.seq + 1, 'turn_timeout');
+        await this.scheduleTimer(this.matchId, 'turn', 15000);
+      }
+
       const timerMsg = JSON.stringify({
         t: 'timer',
         kind: timer.kind,

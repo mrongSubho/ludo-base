@@ -1044,6 +1044,42 @@ export type Database = {
           },
         ]
       }
+      match_room_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: number
+          match_id: string
+          payload: NonNullable<Json>
+          seq: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: never
+          match_id: string
+          payload?: NonNullable<Json>
+          seq?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: never
+          match_id?: string
+          payload?: NonNullable<Json>
+          seq?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_room_events_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           created_at: string
@@ -2065,6 +2101,10 @@ export type Database = {
         Args: { p_keep_hours: number }
         Returns: number
       }
+      cleanup_match_room_events: {
+        Args: { p_keep_days?: number }
+        Returns: number
+      }
       cleanup_matchmaking_queue: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2076,6 +2116,16 @@ export type Database = {
       cleanup_stale_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      match_commit_action: {
+        Args: {
+          p_event_payload?: Json
+          p_event_type?: string
+          p_expected_seq: number
+          p_match_id: string
+          p_new_state: Json
+        }
+        Returns: Json
       }
       join_matchmaking: {
         Args: {
