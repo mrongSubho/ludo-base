@@ -35,10 +35,10 @@ export function ModeBreakdown({
                     <React.Fragment key={c.l}>
                         {i > 0 && <div className="w-px bg-white/10 mx-1 self-stretch" />}
                         <div className="flex-1 flex flex-col items-center justify-center gap-1 min-w-0 px-1">
-                            <span className="text-[15px] font-black tabular-nums text-white leading-none truncate max-w-full">
+                            <span className="text-ludo-lg font-black tabular-nums text-white leading-none truncate max-w-full">
                                 {c.v}
                             </span>
-                            <span className="text-[10px] uppercase tracking-widest text-white/35 font-bold">
+                            <span className="text-ludo-xs uppercase tracking-widest text-white/35 font-bold">
                                 {c.l}
                             </span>
                         </div>

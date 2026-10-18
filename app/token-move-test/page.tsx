@@ -76,7 +76,7 @@ export default function TokenMoveTestPage() {
             </div>
             <div className="flex-1">
                 <h2 className="text-sm font-bold text-white/60 mb-2">MOVE TRACE</h2>
-                <pre ref={logRef} className="text-[11px] leading-5 bg-black/40 rounded-lg p-3 overflow-auto h-[70vh] whitespace-pre-wrap">
+                <pre ref={logRef} className="text-ludo-sm leading-5 bg-black/40 rounded-lg p-3 overflow-auto h-[70vh] whitespace-pre-wrap">
 {log.length ? log.join('\n') : 'Click a dice button…'}
                 </pre>
             </div>

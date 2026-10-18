@@ -165,19 +165,19 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                     {avatar(p, 'w-10 h-10', 'text-sm')}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                            <h4 className="text-white font-bold truncate text-[13px]">{p.username || `${p.wallet_address.slice(0, 6)}...`}</h4>
+                            <h4 className="text-white font-bold truncate text-ludo-md">{p.username || `${p.wallet_address.slice(0, 6)}...`}</h4>
                             {isMe && (
-                                <span className="shrink-0 bg-cyan-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
+                                <span className="shrink-0 bg-cyan-500 text-white text-ludo-xs font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
                             )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${getTierColor(p.rank_tier || 'Bronze')}`}>{p.rank_tier || 'Bronze'} {p.subRank}</span>
-                            <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
+                            <span className={`text-ludo-xs font-black uppercase tracking-widest ${getTierColor(p.rank_tier || 'Bronze')}`}>{p.rank_tier || 'Bronze'} {p.subRank}</span>
+                            <span className="text-ludo-xs text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
                         </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
                         <div className="text-lg font-black text-white tracking-tighter leading-none font-mono">{p.rxp || 1200}</div>
-                        <div className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
+                        <div className="text-ludo-xs text-white/30 font-black uppercase tracking-widest mt-0.5">ELO</div>
                     </div>
                     <LuChevronRight className="w-4 h-4 shrink-0 text-white/10 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
                 </div>
@@ -239,7 +239,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                     <div className="flex items-center gap-2 px-0.5">
                                         <span className="flex items-center gap-1">
                                             <LuTrendingUp className="w-3 h-3 text-cyan-400" />
-                                            <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">
+                                            <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase">
                                                 S{seasonId} · {daysLeft}d left
                                             </span>
                                         </span>
@@ -248,7 +248,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
-                                                    <span className="text-[11px] font-black text-white tabular-nums font-mono">${prizepool.toLocaleString()}</span>
+                                                    <span className="text-ludo-sm font-black text-white tabular-nums font-mono">${prizepool.toLocaleString()}</span>
                                                 </span>
                                             </>
                                         )}
@@ -311,10 +311,10 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                                 <div className="w-full h-full flex items-center justify-center text-white/30 font-black text-base">{p.username?.[0]?.toUpperCase() || 'L'}</div>
                                                             )}
                                                         </div>
-                                                        <span className="mt-1.5 text-[10px] font-black text-white truncate w-full px-1 text-center">
+                                                        <span className="mt-1.5 text-ludo-xs font-black text-white truncate w-full px-1 text-center">
                                                             {p.username || `${p.wallet_address.slice(0, 6)}...`}
                                                         </span>
-                                                        <span className="text-[10px] font-black font-mono" style={{ color: MEDAL[rank - 1] }}>
+                                                        <span className="text-ludo-xs font-black font-mono" style={{ color: MEDAL[rank - 1] }}>
                                                             #{rank} · {(p.rxp || 1200).toLocaleString()}
                                                         </span>
                                                     </button>
@@ -327,7 +327,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                 {/* List */}
                                 <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative z-10">
                                     <div className="mt-1 mb-1 flex items-center gap-2.5">
-                                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono">
+                                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono">
                                             {showPodium ? 'THE CHASE' : `${filteredPlayers.length} PLAYERS`}
                                         </span>
                                         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -335,7 +335,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                     {isBooting || (activeFilter === 'friends' && friendsLoading) ? (
                                         <div className="h-full flex flex-col items-center justify-center gap-4 py-16">
                                             <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
-                                            <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Synching Tiers</span>
+                                            <span className="text-ludo-xs font-black text-white/20 uppercase tracking-[0.3em]">Synching Tiers</span>
                                         </div>
                                     ) : filteredPlayers.length === 0 ? (
                                         <div className="h-full flex flex-col items-center justify-center gap-2 px-8 py-16 text-center">
@@ -343,7 +343,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                             <span className="text-xs font-black text-white/40 uppercase tracking-widest">
                                                 {activeFilter === 'friends' ? 'No friends on the board yet' : 'No players found'}
                                             </span>
-                                            <span className="text-[10px] text-white/25">
+                                            <span className="text-ludo-xs text-white/25">
                                                 {activeFilter === 'friends' ? 'Add friends to rank against them' : 'Try a different search'}
                                             </span>
                                         </div>
@@ -363,7 +363,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                         >
                                             {avatar(myEntry, 'w-9 h-9', 'text-xs')}
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80">Your rank</div>
+                                                <div className="text-ludo-xs font-black uppercase tracking-[0.2em] text-cyan-300/80">Your rank</div>
                                                 <div className="text-xs font-black text-white truncate">
                                                     #{myRank} · <span className={getTierColor(myEntry.rank_tier || 'Bronze')}>{myEntry.rank_tier || 'Bronze'}</span>
                                                 </div>

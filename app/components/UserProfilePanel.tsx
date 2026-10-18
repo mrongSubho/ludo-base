@@ -57,7 +57,7 @@ const ProfileTile = () => (
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -312,11 +312,11 @@ export default function UserProfilePanel({
                         </button>
                     </div>
                     <div className="flex items-center gap-2 px-0.5">
-                        <span className="text-[11px] font-black text-white/70 tracking-wide uppercase truncate">
+                        <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase truncate">
                             {finalName}
                         </span>
                         <span className="w-0.5 h-0.5 rounded-full bg-white/25 shrink-0" />
-                        <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase shrink-0">
+                        <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase shrink-0">
                             Lv. {progression.level}
                         </span>
                     </div>
@@ -327,7 +327,7 @@ export default function UserProfilePanel({
                 {isGuest && (
                     <div className="guest-connect-banner mx-5 mt-3 relative z-10 flex items-center gap-2.5 pl-3 pr-1.5 py-1.5 rounded-2xl border border-amber-500/30 bg-amber-500/10">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-none" />
-                        <span className="guest-connect-text flex-1 min-w-0 text-[10px] font-bold text-amber-200/90 leading-tight">
+                        <span className="guest-connect-text flex-1 min-w-0 text-ludo-xs font-bold text-amber-200/90 leading-tight">
                             Guest pass — connect a wallet to keep coins, wins &amp; rank.
                         </span>
                         <button
@@ -335,7 +335,7 @@ export default function UserProfilePanel({
                                 onClose();
                                 exitGuest();
                             }}
-                            className="flex-none px-2.5 py-1 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
+                            className="flex-none px-2.5 py-1 rounded-full bg-white text-black text-ludo-xs font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
                         >
                             Connect
                         </button>
@@ -379,14 +379,14 @@ export default function UserProfilePanel({
                                 </button>
                             </div>
                             {savedFlash && (
-                                <div className="text-[10px] font-black text-green-400 uppercase tracking-widest mt-0.5">Saved</div>
+                                <div className="text-ludo-xs font-black text-green-400 uppercase tracking-widest mt-0.5">Saved</div>
                             )}
                             <div className="flex items-center gap-1.5 mt-1">
-                                <span className={`text-[10px] font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${TIER_GRADIENT[progression.tier] || TIER_GRADIENT['Bronze']}`}>
+                                <span className={`text-ludo-xs font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${TIER_GRADIENT[progression.tier] || TIER_GRADIENT['Bronze']}`}>
                                     {progression.tier} {progression.subRank}
                                 </span>
                                 <div className="w-1 h-1 bg-white/30 rounded-full shrink-0" />
-                                <span className="text-[10px] text-white/70 font-bold">Lv. {progression.level}</span>
+                                <span className="text-ludo-xs text-white/70 font-bold">Lv. {progression.level}</span>
                             </div>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -398,11 +398,11 @@ export default function UserProfilePanel({
                             >
                                 <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                                 <span className="text-xs font-black text-white tabular-nums">{chipsBal.human}</span>
-                                <span className="text-[10px] font-black text-cyan-300/80 uppercase">CHIPS</span>
+                                <span className="text-ludo-xs font-black text-cyan-300/80 uppercase">CHIPS</span>
                             </button>
                             <div className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10">
                                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
-                                <span className="text-[10px] font-bold text-white/70 tabular-nums">{coins.toLocaleString()}</span>
+                                <span className="text-ludo-xs font-bold text-white/70 tabular-nums">{coins.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
@@ -411,7 +411,7 @@ export default function UserProfilePanel({
                         <button
                             type="button"
                             onClick={onOpenWallet}
-                            className="w-full rounded-2xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100 hover:bg-cyan-500/25 transition-colors"
+                            className="w-full rounded-2xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-3 text-ludo-sm font-black uppercase tracking-[0.18em] text-cyan-100 hover:bg-cyan-500/25 transition-colors"
                         >
                             Open wallet · assets & activity
                         </button>
@@ -423,13 +423,13 @@ export default function UserProfilePanel({
                             <SectionLabel>Edit identity</SectionLabel>
                             <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-3">
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Avatar library</div>
+                                    <div className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/40 mb-2">Avatar library</div>
                                     {(['legion', 'monogram', 'trophy'] as const).map((series) => {
                                         const items = AVATARS.filter(a => a.series === series);
                                         if (items.length === 0) return null;
                                         return (
                                             <div key={series} className="mb-2 last:mb-0">
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-1.5 capitalize">{series}</div>
+                                                <div className="text-ludo-xs font-black uppercase tracking-widest text-white/30 mb-1.5 capitalize">{series}</div>
                                                 <div className="grid grid-cols-6 gap-1.5">
                                                     {items.map((item) => {
                                                         const { ok, hint } = isUnlocked(item, { wins, level: progression.level });
@@ -451,7 +451,7 @@ export default function UserProfilePanel({
                                                                     </span>
                                                                 )}
                                                                 {!ok && (
-                                                                    <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[10px] font-black text-amber-300 text-center py-0.5 leading-none">
+                                                                    <span className="absolute inset-x-0 bottom-0 bg-black/70 text-ludo-xs font-black text-amber-300 text-center py-0.5 leading-none">
                                                                         {hint}
                                                                     </span>
                                                                 )}
@@ -464,7 +464,7 @@ export default function UserProfilePanel({
                                     })}
                                 </div>
                                 <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Display name</div>
+                                    <div className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/40 mb-2">Display name</div>
                                     <input
                                         value={draftName}
                                         onChange={(e) => setDraftName(e.target.value)}
@@ -476,9 +476,9 @@ export default function UserProfilePanel({
                                         spellCheck={false}
                                         className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-500/60 transition-colors"
                                     />
-                                    <div className="text-[10px] font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>
+                                    <div className="text-ludo-xs font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>
                                     {saveError && (
-                                        <div className="text-[11px] font-bold text-red-400 mt-1">{saveError}</div>
+                                        <div className="text-ludo-sm font-bold text-red-400 mt-1">{saveError}</div>
                                     )}
                                 </div>
                                 <div className="flex gap-2">
@@ -506,8 +506,8 @@ export default function UserProfilePanel({
                         <SectionLabel>Level</SectionLabel>
                         <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
-                                <span className="text-[10px] font-bold text-white/60 tabular-nums">{progression.currentLxp.toLocaleString()} / {progression.lxpToNextLevel.toLocaleString()} XP</span>
+                                <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
+                                <span className="text-ludo-xs font-bold text-white/60 tabular-nums">{progression.currentLxp.toLocaleString()} / {progression.lxpToNextLevel.toLocaleString()} XP</span>
                             </div>
                             <div className="h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                 <motion.div
@@ -517,7 +517,7 @@ export default function UserProfilePanel({
                                     transition={{ duration: 0.8, ease: 'easeOut' }}
                                 />
                             </div>
-                            <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                            <div className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest">
                                 {(progression.lxpToNextLevel - progression.currentLxp).toLocaleString()} XP to Lv. {progression.level + 1} • {(profile?.lxp || 0).toLocaleString()} lifetime
                             </div>
                         </div>
@@ -528,8 +528,8 @@ export default function UserProfilePanel({
                         <SectionLabel>Rank</SectionLabel>
                         <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Rank — {progression.tier} {progression.subRank}</span>
-                                <span className="text-[10px] font-bold text-white/60 tabular-nums">
+                                <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-amber-400">Rank — {progression.tier} {progression.subRank}</span>
+                                <span className="text-ludo-xs font-bold text-white/60 tabular-nums">
                                     {rank.target === null ? `${rank.current.toLocaleString()} RXP` : `${rank.current.toLocaleString()} / ${rank.target.toLocaleString()} RXP`}
                                 </span>
                             </div>
@@ -541,7 +541,7 @@ export default function UserProfilePanel({
                                     transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
                                 />
                             </div>
-                            <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                            <div className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest">
                                 {rank.nextLabel === 'MAX' ? 'Top of the arena' : `Next: ${rank.nextLabel} • resets quarterly`}
                             </div>
                         </div>
@@ -557,12 +557,12 @@ export default function UserProfilePanel({
                                         {form.played ? `${form.rate}%` : '–'}
                                     </span>
                                     {form.played > 0 && (
-                                        <span className={`text-[11px] font-black tabular-nums ${form.positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        <span className={`text-ludo-sm font-black tabular-nums ${form.positive ? 'text-emerald-400' : 'text-red-400'}`}>
                                             {form.net > 0 ? `+${form.net}` : `${form.net}`}
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
+                                <div className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest mt-1">
                                     {form.played} matches • {range}
                                 </div>
                             </div>
@@ -570,7 +570,7 @@ export default function UserProfilePanel({
                                 <FormChart points={form.pts} positive={form.positive} />
                             ) : (
                                 <div className="h-[96px] flex items-center justify-center border border-dashed border-white/10 rounded-xl">
-                                    <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{recentMatches.length ? 'No matches in this range' : 'Play matches to build form'}</span>
+                                    <span className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest">{recentMatches.length ? 'No matches in this range' : 'Play matches to build form'}</span>
                                 </div>
                             )}
                             <div className="flex items-center justify-between pt-1">
@@ -578,7 +578,7 @@ export default function UserProfilePanel({
                                     <button
                                         key={r.id}
                                         onClick={() => setRange(r.id)}
-                                        className={`px-2 py-1 rounded-full text-[10px] font-black transition-all ${range === r.id ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+                                        className={`px-2 py-1 rounded-full text-ludo-xs font-black transition-all ${range === r.id ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
                                     >
                                         {r.id}
                                     </button>
@@ -600,7 +600,7 @@ export default function UserProfilePanel({
                             {stats.map((s) => (
                                 <div key={s.l} className="rounded-xl bg-white/[0.04] border border-white/10 p-2 flex flex-col items-center justify-center">
                                     <span className={`text-base font-black tabular-nums ${s.c}`}>{s.v}</span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-white/30 mt-0.5">{s.l}</span>
+                                    <span className="text-ludo-xs font-black uppercase tracking-widest text-white/30 mt-0.5">{s.l}</span>
                                 </div>
                             ))}
                         </div>
@@ -611,7 +611,7 @@ export default function UserProfilePanel({
                         <SectionLabel
                             right={
                                 showcased ? (
-                                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black text-cyan-300 uppercase tracking-widest">
+                                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black text-cyan-300 uppercase tracking-widest">
                                         Showcasing
                                     </span>
                                 ) : undefined
@@ -623,13 +623,13 @@ export default function UserProfilePanel({
                             <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center gap-3">
                                 <RelicGem tint={showcased.tint} />
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-[13px] font-bold text-white truncate">{showcased.name}</div>
-                                    <div className="text-[10px] font-bold text-white/35 truncate">{showcased.desc}</div>
+                                    <div className="text-ludo-md font-bold text-white truncate">{showcased.name}</div>
+                                    <div className="text-ludo-xs font-bold text-white/35 truncate">{showcased.desc}</div>
                                 </div>
                                 {onOpenMarketplace && (
                                     <button
                                         onClick={onOpenMarketplace}
-                                        className="shrink-0 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:text-white/70 transition-all"
+                                        className="shrink-0 px-2 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:text-white/70 transition-all"
                                     >
                                         Change
                                     </button>
@@ -643,13 +643,13 @@ export default function UserProfilePanel({
                                     </svg>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-[13px] font-bold text-white/60">No relic showcased</div>
-                                    <div className="text-[10px] font-bold text-white/35 truncate">Own a collectible, then showcase it from the Market loadout.</div>
+                                    <div className="text-ludo-md font-bold text-white/60">No relic showcased</div>
+                                    <div className="text-ludo-xs font-bold text-white/35 truncate">Own a collectible, then showcase it from the Market loadout.</div>
                                 </div>
                                 {onOpenMarketplace && (
                                     <button
                                         onClick={onOpenMarketplace}
-                                        className="shrink-0 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all"
+                                        className="shrink-0 px-2 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all"
                                     >
                                         Market
                                     </button>
@@ -671,7 +671,7 @@ export default function UserProfilePanel({
                                             <circle cx="12" cy="12" r="3"></circle>
                                         </svg>
                                     </div>
-                                    <span className="text-[13px] font-medium text-white">Public Profile</span>
+                                    <span className="text-ludo-md font-medium text-white">Public Profile</span>
                                 </div>
                                 <button
                                     className={`w-12 h-6 rounded-full p-1 transition-colors relative shrink-0 ${isPublic ? 'bg-cyan-600' : 'bg-white/10'}`}
@@ -696,7 +696,7 @@ export default function UserProfilePanel({
                                             <line x1="23" y1="11" x2="17" y2="11"></line>
                                         </svg>
                                     </div>
-                                    <span className="text-[13px] font-medium text-white">Allow Requests</span>
+                                    <span className="text-ludo-md font-medium text-white">Allow Requests</span>
                                 </div>
                                 <button
                                     className={`w-12 h-6 rounded-full p-1 transition-colors relative shrink-0 ${allowRequests ? 'bg-teal-500' : 'bg-white/10'}`}

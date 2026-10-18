@@ -30,11 +30,11 @@ export function EmptyState({
     const accent = tone === 'error' ? 'text-amber-300' : 'text-cyan-300';
     return (
         <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center rounded-2xl border border-white/10 bg-white/[0.04]">
-            <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${accent}`}>
+            <p className={`text-ludo-xs font-black uppercase tracking-[0.28em] ${accent}`}>
                 {title}
             </p>
             {body && (
-                <p className="text-[12px] font-medium leading-relaxed text-white/55 max-w-[280px]">
+                <p className="text-ludo-md font-medium leading-relaxed text-white/55 max-w-[280px]">
                     {body}
                 </p>
             )}

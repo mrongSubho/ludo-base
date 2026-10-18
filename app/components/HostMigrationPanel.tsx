@@ -136,11 +136,11 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                                 </h2>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
-                                <span className={`text-[11px] font-black tracking-wide uppercase ${phase === 'refused' ? 'text-rose-300' : 'text-amber-300'}`}>
+                                <span className={`text-ludo-sm font-black tracking-wide uppercase ${phase === 'refused' ? 'text-rose-300' : 'text-amber-300'}`}>
                                     {statusLine}
                                 </span>
                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase">
+                                <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase">
                                     Wager is safe
                                 </span>
                             </div>
@@ -183,7 +183,7 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                                 </p>
                                 {phase === 'handed' && candidate && (
                                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-xl">
-                                        <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">
+                                        <span className="text-ludo-xs font-black text-green-400 uppercase tracking-widest">
                                             New authority · {candidate.slice(0, 6)}…{candidate.slice(-4)}
                                         </span>
                                     </div>
@@ -191,7 +191,7 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                                 {phase !== 'handed' && (
                                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
                                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Wager is Safe</span>
+                                        <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest">Wager is Safe</span>
                                     </div>
                                 )}
                             </div>
@@ -212,7 +212,7 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-white/40 group-hover:text-white"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 Quit Match
                             </button>
-                            <p className="text-center mt-1 text-[10px] text-white/20 uppercase font-black tracking-widest">
+                            <p className="text-center mt-1 text-ludo-xs text-white/20 uppercase font-black tracking-widest">
                                 No coins are deducted if you leave
                             </p>
                         </div>

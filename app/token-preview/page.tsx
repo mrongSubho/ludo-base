@@ -54,7 +54,7 @@ export default function TokenPreviewPage() {
                             <div className="grid" style={{ gridTemplateColumns: `70px repeat(${COLORS.length}, ${size}px)` }}>
                                 <span />
                                 {COLORS.map(c => (
-                                    <span key={c} className="pb-2 text-center text-[11px] uppercase tracking-widest text-white/40">{c}</span>
+                                    <span key={c} className="pb-2 text-center text-ludo-sm uppercase tracking-widest text-white/40">{c}</span>
                                 ))}
                             </div>
                             {RANKS.map(rank => (

@@ -30,7 +30,7 @@ const MissionTile = () => (
 
 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -272,11 +272,11 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                         </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
-                                        <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
+                                        <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase tabular-nums">
                                             {dailyLeft + weeklyLeft} missions left
                                         </span>
                                         {onChain.configured && (
-                                            <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-cyan-400/80 tracking-wider uppercase">
+                                            <span className="ml-2 inline-flex items-center gap-1 text-ludo-xs font-bold text-cyan-400/80 tracking-wider uppercase">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                                                 on-chain
                                             </span>
@@ -410,7 +410,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                             <div className="flex flex-col flex-1 min-w-0 pt-0.5">
                                                                                 <div className="flex items-start justify-between gap-2">
                                                                                     <h3
-                                                                                        className={`font-bold text-[15px] truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}
+                                                                                        className={`font-bold text-ludo-lg truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}
                                                                                     >
                                                                                         {mission.title}
                                                                                     </h3>
@@ -444,7 +444,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                             </svg>
                                                                                         )}
                                                                                         <span
-                                                                                            className={`text-[11px] font-black leading-none ${mission.rewardType === 'chips' ? 'text-cyan-400' : 'text-yellow-400'}`}
+                                                                                            className={`text-ludo-sm font-black leading-none ${mission.rewardType === 'chips' ? 'text-cyan-400' : 'text-yellow-400'}`}
                                                                                         >
                                                                                             {mission.rewardAmount}
                                                                                         </span>
@@ -456,20 +456,20 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                             placement the onboarding cards use. Always rendered, single
                                                                             line, tabular-nums: no progress value can reflow the card. */}
                                                                         <div className="flex flex-col gap-2">
-                                                                            <p className="text-[11px] font-medium text-white/60 leading-snug tabular-nums truncate">
+                                                                            <p className="text-ludo-sm font-medium text-white/60 leading-snug tabular-nums truncate">
                                                                                 {mission.description}
                                                                             </p>
                                                                             <div className="flex items-center gap-4 mt-1">
                                                                             <div className="flex-1">
                                                                                 <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                                                                    <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">
+                                                                                    <span className="text-ludo-xs uppercase font-bold text-white/40 tracking-wider">
                                                                                         Progress
                                                                                     </span>
                                                                                     <span
                                                                                         className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}
                                                                                     >
                                                                                         {progressVal}{' '}
-                                                                                        <span className="text-white/30 text-[10px]">
+                                                                                        <span className="text-white/30 text-ludo-xs">
                                                                                             / {targetVal}
                                                                                         </span>
                                                                                     </span>

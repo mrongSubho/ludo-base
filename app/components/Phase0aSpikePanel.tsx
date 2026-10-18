@@ -344,7 +344,7 @@ export default function Phase0aSpikePanel() {
             )}
 
             {log.length > 0 && (
-                <pre className="text-[10px] text-white/40 whitespace-pre-wrap max-h-32 overflow-auto">
+                <pre className="text-ludo-xs text-white/40 whitespace-pre-wrap max-h-32 overflow-auto">
                     {log.join("\n")}
                 </pre>
             )}

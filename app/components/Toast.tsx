@@ -94,7 +94,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                             className="pointer-events-auto w-full max-w-[460px] flex items-start gap-2.5 rounded-2xl border border-line-soft bg-surface-panel px-3.5 py-2.5 shadow-2xl backdrop-blur-xl cursor-pointer"
                         >
                             <span className={`mt-[5px] h-2 w-2 flex-none rounded-full ${TONE_DOT[t.tone]}`} />
-                            <span className="text-[12px] font-bold leading-snug text-ink-strong">{t.message}</span>
+                            <span className="text-ludo-md font-bold leading-snug text-ink-strong">{t.message}</span>
                         </motion.div>
                     ))}
                 </AnimatePresence>

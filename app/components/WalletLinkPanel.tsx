@@ -48,11 +48,11 @@ const ModeChip = ({
             <span
                 className={`w-2 h-2 rounded-full ${active ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "bg-white/25"}`}
             />
-            <span className="text-[12px] font-extrabold tracking-[0.06em] uppercase text-white">
+            <span className="text-ludo-md font-extrabold tracking-[0.06em] uppercase text-white">
                 {label}
             </span>
         </div>
-        <div className="mt-1 text-[10px] font-semibold text-white/40 leading-snug">{hint}</div>
+        <div className="mt-1 text-ludo-xs font-semibold text-white/40 leading-snug">{hint}</div>
     </button>
 );
 

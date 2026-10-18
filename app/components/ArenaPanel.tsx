@@ -84,15 +84,15 @@ export default function ArenaPanel({ isOpen, onClose, onWatchMatch }: ArenaPanel
                                         {liveStats.live > 0 && (
                                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                                         )}
-                                        <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                        <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                             {liveStats.live} live
                                         </span>
                                         <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                        <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                        <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                             {liveStats.watching.toLocaleString()} watching
                                         </span>
                                         <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                        <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase tabular-nums">
+                                        <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase tabular-nums">
                                             {liveStats.vol.toLocaleString()} vol
                                         </span>
                                     </div>

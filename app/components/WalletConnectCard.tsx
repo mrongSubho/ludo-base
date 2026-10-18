@@ -63,7 +63,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
 
                 {/* Mode Label Style Title */}
                 <div className="mt-8 inline-block px-6 py-2 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md relative z-10 shadow-lg">
-                    <h3 className="text-white/90 text-[11px] font-black uppercase tracking-[0.3em] text-center drop-shadow-md">
+                    <h3 className="text-white/90 text-ludo-sm font-black uppercase tracking-[0.3em] text-center drop-shadow-md">
                         Arena Entrance
                     </h3>
                 </div>
@@ -102,7 +102,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
                                     </svg>
                                 )}
                             </span>
-                            <span className="text-[10px] font-bold text-white/55 leading-relaxed">
+                            <span className="text-ludo-xs font-bold text-white/55 leading-relaxed">
                                 I agree to the{' '}
                                 <a href="/terms" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200">
                                     Terms of Service
@@ -136,11 +136,11 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
                                         onGuest();
                                     }}
                                     aria-disabled={!agreed}
-                                    className={`px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white active:scale-95 whitespace-nowrap ${agreed ? '' : 'opacity-40 cursor-not-allowed'}`}
+                                    className={`px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/50 text-ludo-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white active:scale-95 whitespace-nowrap ${agreed ? '' : 'opacity-40 cursor-not-allowed'}`}
                                 >
                                     Continue as Guest
                                 </button>
-                                <span className="text-[10px] font-bold text-white/25 tracking-wide">
+                                <span className="text-ludo-xs font-bold text-white/25 tracking-wide">
                                     No wallet needed · practice vs AI
                                 </span>
                             </div>
@@ -159,7 +159,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
             {/* Subtle Footer */}
             <div className="flex items-center gap-2 opacity-30 group-hover:opacity-50 transition-opacity">
                 <div className="h-[1px] w-8 bg-white" />
-                <span className="text-[10px] font-black tracking-widest uppercase">Safe & Secure</span>
+                <span className="text-ludo-xs font-black tracking-widest uppercase">Safe & Secure</span>
                 <div className="h-[1px] w-8 bg-white" />
             </div>
         </div>

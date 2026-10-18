@@ -36,7 +36,7 @@ export function PanelTabs<T extends string>({ options, value, onPick, cols }: {
                         onClick={() => onPick(o.value)}
                         aria-label={o.ariaLabel}
                         aria-pressed={active}
-                        className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${active ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-ludo-xs font-black uppercase tracking-[0.2em] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${active ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
                     >
                         {o.icon && <span className={active ? 'text-cyan-300' : ''}>{o.icon}</span>}
                         {o.label}
@@ -66,7 +66,7 @@ export function PanelChildTabs<T extends string>({ options, value, onPick, ariaL
                         role="tab"
                         aria-selected={active}
                         onClick={() => onPick(o.value)}
-                        className={`pb-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-sm ${active ? 'text-white' : 'text-white/35 hover:text-white/70'}`}
+                        className={`pb-2 text-ludo-sm font-black uppercase tracking-[0.2em] transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-sm ${active ? 'text-white' : 'text-white/35 hover:text-white/70'}`}
                     >
                         <span className="flex items-center gap-1.5">
                             {o.label}
@@ -84,7 +84,7 @@ export function PanelChildTabs<T extends string>({ options, value, onPick, ariaL
 
 // Standard count pill used inside tab badges.
 export const TabCount = ({ active, children }: { active: boolean; children: React.ReactNode }) => (
-    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
+    <span className={`px-1.5 py-0.5 rounded-md text-ludo-xs font-mono ${active ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
         {children}
     </span>
 );

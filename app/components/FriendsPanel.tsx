@@ -105,7 +105,7 @@ const UsersTile = () => (
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -502,8 +502,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                             <div className="flex items-center gap-3 p-3">
                                 <Avatar url={friend.avatar_url} name={friend.displayName} box="w-11 h-11" dot={friend.status} />
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-white font-bold truncate text-[13px]">{friend.displayName}</div>
-                                    <div className={`text-[10px] font-black uppercase tracking-widest ${STATUS_TEXT[friend.status]}`}>
+                                    <div className="text-white font-bold truncate text-ludo-md">{friend.displayName}</div>
+                                    <div className={`text-ludo-xs font-black uppercase tracking-widest ${STATUS_TEXT[friend.status]}`}>
                                         {friend.status}
                                     </div>
                                 </div>
@@ -586,16 +586,16 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                     onClick={() => onOpenProfile?.(p.wallet_address)}
                                     className="flex-1 flex flex-col min-w-0 text-left focus:outline-none"
                                 >
-                                    <span className="text-white font-bold text-[13px] truncate">{p.displayName}</span>
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${STATUS_TEXT[p.status]}`}>{p.status}</span>
+                                    <span className="text-white font-bold text-ludo-md truncate">{p.displayName}</span>
+                                    <span className={`text-ludo-xs font-black uppercase tracking-widest ${STATUS_TEXT[p.status]}`}>{p.status}</span>
                                 </button>
                                 {alreadyFriend ? (
-                                    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-green-500/10 text-green-400 text-[10px] font-black uppercase tracking-widest border border-green-500/25 shrink-0">
+                                    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-green-500/10 text-green-400 text-ludo-xs font-black uppercase tracking-widest border border-green-500/25 shrink-0">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                         Friends
                                     </span>
                                 ) : pending ? (
-                                    <span className="px-2.5 py-1.5 rounded-full bg-white/5 text-white/40 text-[10px] font-black uppercase tracking-widest border border-white/10 shrink-0">
+                                    <span className="px-2.5 py-1.5 rounded-full bg-white/5 text-white/40 text-ludo-xs font-black uppercase tracking-widest border border-white/10 shrink-0">
                                         Pending
                                     </span>
                                 ) : (
@@ -651,8 +651,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                 <Avatar url={resolveAvatar(req.avatar)} name={req.name} box="w-11 h-11" />
                             </button>
                             <div className="flex-1 flex flex-col min-w-0">
-                                <span className="text-white font-bold text-[13px] truncate">{req.name}</span>
-                                <span className="text-[10px] text-white/35 font-bold uppercase tracking-widest">{req.time}</span>
+                                <span className="text-white font-bold text-ludo-md truncate">{req.name}</span>
+                                <span className="text-ludo-xs text-white/35 font-bold uppercase tracking-widest">{req.time}</span>
                             </div>
                             {isIncoming ? (
                                 <div className="flex items-center gap-1.5 shrink-0">
@@ -665,7 +665,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-[10px] text-white/35 font-black uppercase tracking-widest pr-1">Pending</span>
+                                    <span className="text-ludo-xs text-white/35 font-black uppercase tracking-widest pr-1">Pending</span>
                                     <IconBtn onClick={() => handleRejectCancelRequest(req.id, false)} title="Cancel" label="Cancel request" tone="reject">
                                         <RejectIcon />
                                     </IconBtn>
@@ -724,14 +724,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
                                     <span className={`w-1.5 h-1.5 rounded-full ${onlineCount > 0 ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)] animate-pulse' : 'bg-white/25'}`} />
-                                    <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                    <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                         {onlineCount} online
                                     </span>
                                 </span>
                                 {pendingIncoming.length > 0 && (
                                     <>
                                         <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/40 text-[11px] font-black text-red-300 tabular-nums">
+                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/40 text-ludo-sm font-black text-red-300 tabular-nums">
                                             {pendingIncoming.length} request{pendingIncoming.length === 1 ? '' : 's'}
                                         </span>
                                     </>
@@ -763,7 +763,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                     autoCapitalize="none"
                                     spellCheck={false}
                                     enterKeyHint="search"
-                                    className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
+                                    className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-ludo-sm font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
                                 />
                                 {searchQuery && (
                                     <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/10 text-white/60 hover:text-white">
@@ -818,7 +818,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                             {activeMainTab === 'global' && (
                                 <div>
                                     <div className="mt-1 mb-1 flex items-center gap-2.5">
-                                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+                                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
                                             {visibleGlobal.length} players
                                         </span>
                                         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />

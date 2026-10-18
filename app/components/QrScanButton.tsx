@@ -76,7 +76,7 @@ export default function QrScanButton({
                 {!scanning ? (
                     <button
                         type="button"
-                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase font-bold"
+                        className="rounded-lg border border-white/15 px-3 py-2 text-ludo-sm uppercase font-bold"
                         onClick={startCamera}
                     >
                         Scan QR
@@ -84,13 +84,13 @@ export default function QrScanButton({
                 ) : (
                     <button
                         type="button"
-                        className="rounded-lg border border-amber-400/40 px-3 py-2 text-[11px] uppercase font-bold text-amber-200"
+                        className="rounded-lg border border-amber-400/40 px-3 py-2 text-ludo-sm uppercase font-bold text-amber-200"
                         onClick={stop}
                     >
                         Stop camera
                     </button>
                 )}
-                <label className="rounded-lg border border-white/15 px-3 py-2 text-[11px] uppercase font-bold cursor-pointer">
+                <label className="rounded-lg border border-white/15 px-3 py-2 text-ludo-sm uppercase font-bold cursor-pointer">
                     From image
                     <input
                         type="file"
@@ -107,7 +107,7 @@ export default function QrScanButton({
                 id={divId}
                 style={{ width: "100%", minHeight: scanning ? 220 : 0, overflow: "hidden", borderRadius: 12 }}
             />
-            {err && <p className="text-[11px] text-amber-200/80">{err}</p>}
+            {err && <p className="text-ludo-sm text-amber-200/80">{err}</p>}
         </div>
     );
 }

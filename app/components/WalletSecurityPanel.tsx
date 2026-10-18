@@ -21,7 +21,7 @@ type View = "main" | "exportConfirm" | "exportKey";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -155,7 +155,7 @@ export default function WalletSecurityPanel() {
                     >
                         <BackIcon />
                     </button>
-                    <h3 className="text-[13px] font-black uppercase tracking-[0.18em] text-white/70">
+                    <h3 className="text-ludo-md font-black uppercase tracking-[0.18em] text-white/70">
                         Export private key
                     </h3>
                 </div>
@@ -215,7 +215,7 @@ export default function WalletSecurityPanel() {
                     >
                         <BackIcon />
                     </Button>
-                    <h3 className="text-[13px] font-black uppercase tracking-[0.18em] text-white/70">
+                    <h3 className="text-ludo-md font-black uppercase tracking-[0.18em] text-white/70">
                         Private key
                     </h3>
                 </div>
@@ -255,8 +255,8 @@ export default function WalletSecurityPanel() {
                             <BellIcon />
                         </IconTile>
                         <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-bold text-white truncate">Turn & claim nudges</div>
-                            <div className="text-[10px] font-bold text-white/35 truncate">
+                            <div className="text-ludo-md font-bold text-white truncate">Turn & claim nudges</div>
+                            <div className="text-ludo-xs font-bold text-white/35 truncate">
                                 {push.remote === "subscribed"
                                     ? "Remote push on"
                                     : push.permission === "granted"
@@ -267,7 +267,7 @@ export default function WalletSecurityPanel() {
                         <div className="flex gap-1.5 shrink-0">
                             <button
                                 type="button"
-                                className="rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-2.5 py-1.5 text-[10px] font-bold uppercase text-white disabled:opacity-40"
+                                className="rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-white disabled:opacity-40"
                                 disabled={!id.address}
                                 onClick={async () => {
                                     setNote(null);
@@ -282,7 +282,7 @@ export default function WalletSecurityPanel() {
                             </button>
                             <button
                                 type="button"
-                                className="rounded-lg border border-white/15 px-2.5 py-1.5 text-[10px] font-bold uppercase text-white/80 disabled:opacity-40"
+                                className="rounded-lg border border-white/15 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-white/80 disabled:opacity-40"
                                 disabled={!id.address}
                                 onClick={async () => {
                                     setNote(null);
@@ -297,7 +297,7 @@ export default function WalletSecurityPanel() {
                             </button>
                             <button
                                 type="button"
-                                className="rounded-lg border border-white/15 px-2.5 py-1.5 text-[10px] font-bold uppercase text-white/60 disabled:opacity-40"
+                                className="rounded-lg border border-white/15 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-white/60 disabled:opacity-40"
                                 disabled={!id.address}
                                 onClick={async () => {
                                     setNote(null);
@@ -329,12 +329,12 @@ export default function WalletSecurityPanel() {
                                 <KeyIcon />
                             </IconTile>
                             <div className="flex-1 min-w-0">
-                                <div className="text-[13px] font-bold text-white truncate">Export Private Key</div>
-                                <div className="text-[10px] font-bold text-white/35 truncate">
+                                <div className="text-ludo-md font-bold text-white truncate">Export Private Key</div>
+                                <div className="text-ludo-xs font-bold text-white/35 truncate">
                                     Reveal · device unlock · owner key
                                 </div>
                             </div>
-                            <span className="rounded-lg bg-red-500/15 border border-red-400/30 px-2.5 py-1.5 text-[10px] font-bold uppercase text-red-200">
+                            <span className="rounded-lg bg-red-500/15 border border-red-400/30 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-red-200">
                                 Reveal
                             </span>
                         </button>
@@ -356,8 +356,8 @@ export default function WalletSecurityPanel() {
                                 <LinkIcon />
                             </IconTile>
                             <div className="flex-1 min-w-0">
-                                <div className="text-[13px] font-bold text-white truncate">Play as & link</div>
-                                <div className="text-[10px] font-bold text-white/35 truncate">
+                                <div className="text-ludo-md font-bold text-white truncate">Play as & link</div>
+                                <div className="text-ludo-xs font-bold text-white/35 truncate">
                                     Switch session wallet · link another address
                                 </div>
                             </div>
@@ -393,8 +393,8 @@ export default function WalletSecurityPanel() {
                             <InfoIcon />
                         </IconTile>
                         <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-bold text-white truncate">Wallet details</div>
-                            <div className="text-[10px] font-bold text-white/35 truncate">
+                            <div className="text-ludo-md font-bold text-white truncate">Wallet details</div>
+                            <div className="text-ludo-xs font-bold text-white/35 truncate">
                                 Address · mode · owner key (view only)
                             </div>
                         </div>

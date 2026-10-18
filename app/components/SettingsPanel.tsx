@@ -150,7 +150,7 @@ import { Button } from "./Button";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -258,13 +258,13 @@ function HelpView() {
                                 aria-expanded={isOpen}
                                 className="w-full flex items-center justify-between gap-3 p-3.5 text-left hover:bg-white/5 active:bg-white/10 transition-colors"
                             >
-                                <span className="text-[13px] font-bold text-white">{item.q}</span>
+                                <span className="text-ludo-md font-bold text-white">{item.q}</span>
                                 <span className={`text-cyan-300 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
                                     <ChevronIcon />
                                 </span>
                             </button>
                             {isOpen && (
-                                <p className="px-3.5 pb-3.5 text-[12px] font-medium leading-relaxed text-white/60">
+                                <p className="px-3.5 pb-3.5 text-ludo-md font-medium leading-relaxed text-white/60">
                                     {item.a}
                                 </p>
                             )}
@@ -312,7 +312,7 @@ function FeedbackView() {
             {status === 'sent' ? (
                 <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
                     <p className="text-sm font-black text-emerald-300 uppercase tracking-widest">Received</p>
-                    <p className="mt-1 text-[12px] font-medium text-white/60">
+                    <p className="mt-1 text-ludo-md font-medium text-white/60">
                         Thanks — the crew reads every note. Send another any time.
                     </p>
                     <Button
@@ -332,7 +332,7 @@ function FeedbackView() {
                                 key={t}
                                 onClick={() => setTopic(t)}
                                 aria-pressed={topic === t}
-                                className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all active:scale-95 ${topic === t ? 'bg-cyan-400/15 border-cyan-300/60 text-cyan-200' : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-full text-ludo-sm font-black uppercase tracking-wider border transition-all active:scale-95 ${topic === t ? 'bg-cyan-400/15 border-cyan-300/60 text-cyan-200' : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white'}`}
                             >
                                 {t}
                             </button>
@@ -347,10 +347,10 @@ function FeedbackView() {
                         autoComplete="off"
                         autoCorrect="off"
                         spellCheck={false}
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-[13px] font-medium text-white placeholder:text-white/25 outline-none focus:border-cyan-300/60 resize-none"
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-ludo-md font-medium text-white placeholder:text-white/25 outline-none focus:border-cyan-300/60 resize-none"
                     />
                     {status === 'error' && (
-                        <p className="text-[11px] font-bold text-red-400 px-1">
+                        <p className="text-ludo-sm font-bold text-red-400 px-1">
                             Couldn&apos;t send — check your connection and try again.
                         </p>
                     )}
@@ -381,12 +381,12 @@ function AboutView() {
                 <p className="text-sm font-black text-white uppercase tracking-wide">
                     Ludo Base · Onchain Arena
                 </p>
-                <p className="text-[12px] font-medium leading-relaxed text-white/60">
+                <p className="text-ludo-md font-medium leading-relaxed text-white/60">
                     Classic Ludo, rebuilt for the onchain era: provably-fair dice, Power-mode
                     tiles, live spectators, and instant payouts — playable as a guest or with
                     your Web3 identity.
                 </p>
-                <p className="text-[10px] text-white/25 font-mono">
+                <p className="text-ludo-xs text-white/25 font-mono">
                     {APP_VERSION} · build {APP_BUILD_HASH}
                 </p>
             </div>
@@ -394,7 +394,7 @@ function AboutView() {
                 <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
                 <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
             </div>
-            <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+            <p className="text-center text-ludo-xs font-black uppercase tracking-[0.2em] text-white/30">
                 Base · OnchainKit · Supabase
             </p>
         </section>
@@ -506,11 +506,11 @@ export function SettingsPanel({
                                 </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
-                                <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">Tuned per wallet</span>
+                                <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase">Tuned per wallet</span>
                                 {inGame && (
                                     <>
                                         <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                        <span className="text-[11px] font-black text-white/50 tracking-wide uppercase">In match</span>
+                                        <span className="text-ludo-sm font-black text-white/50 tracking-wide uppercase">In match</span>
                                     </>
                                 )}
                             </div>
@@ -557,7 +557,7 @@ export function SettingsPanel({
                                 <SectionLabel>Appearance</SectionLabel>
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
                                     <div className="p-3.5">
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Theme</div>
+                                        <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Theme</div>
                                         <PanelTabs
                                             value={preferences.theme}
                                             onPick={(v) => updatePreference('ludo-theme', v)}
@@ -568,7 +568,7 @@ export function SettingsPanel({
                                         />
                                     </div>
                                     <div className="p-3.5">
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Token style</div>
+                                        <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Token style</div>
                                         <PanelTabs
                                             value={preferences.tokenStyle}
                                             onPick={(v) => updatePreference('token-style', v)}
@@ -579,7 +579,7 @@ export function SettingsPanel({
                                         />
                                     </div>
                                 </div>
-                                <p className="text-[10px] font-bold text-white/30 mt-2 px-1">
+                                <p className="text-ludo-xs font-bold text-white/30 mt-2 px-1">
                                     Dice skins live in the Marketplace — anything you own can be equipped from your Loadout.
                                 </p>
                             </section>
@@ -612,8 +612,8 @@ export function SettingsPanel({
                                                     <KeyIcon />
                                                 </div>
                                                 <div className="flex-1 flex flex-col min-w-0">
-                                                    <span className="text-[13px] font-bold text-white truncate">Passkey</span>
-                                                    <span className="text-[10px] font-bold text-white/35 truncate">
+                                                    <span className="text-ludo-md font-bold text-white truncate">Passkey</span>
+                                                    <span className="text-ludo-xs font-bold text-white/35 truncate">
                                                         {passkeyCount > 0
                                                             ? `Face ID / Touch ID · ${passkeyCount} active`
                                                             : 'Face ID / Touch ID · security key'}
@@ -642,16 +642,16 @@ export function SettingsPanel({
                                                                 <KeyIcon />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="text-[12px] font-semibold text-white truncate">
+                                                                <div className="text-ludo-md font-semibold text-white truncate">
                                                                     {passkeyName(pk.credentialId, i)}
                                                                 </div>
-                                                                <div className="text-[10px] text-white/35 truncate">
+                                                                <div className="text-ludo-xs text-white/35 truncate">
                                                                     Device unlock
                                                                 </div>
                                                             </div>
                                                             <button
                                                                 type="button"
-                                                                className="shrink-0 text-[10px] font-bold uppercase text-red-300/80 px-1.5 py-1"
+                                                                className="shrink-0 text-ludo-xs font-bold uppercase text-red-300/80 px-1.5 py-1"
                                                                 disabled={passkeyBusy}
                                                                 onClick={async () => {
                                                                     setPasskeyBusy(true);
@@ -703,16 +703,16 @@ export function SettingsPanel({
                                                         <div className="w-7 h-7 rounded-lg border border-dashed border-white/20 text-white/50 flex items-center justify-center shrink-0">
                                                             +
                                                         </div>
-                                                        <span className="text-[12px] font-bold text-white/75">
+                                                        <span className="text-ludo-md font-bold text-white/75">
                                                             {enrollStatus === 'pending' ? 'Waiting…' : 'Add passkey'}
                                                         </span>
                                                     </button>
 
                                                     {!passkeySupported.data && (
-                                                        <p className="pt-1 text-[10px] text-amber-300/80">Not available in this browser</p>
+                                                        <p className="pt-1 text-ludo-xs text-amber-300/80">Not available in this browser</p>
                                                     )}
                                                     {passkeyMsg && (
-                                                        <p className="pt-1 text-[10px] text-white/50">{passkeyMsg}</p>
+                                                        <p className="pt-1 text-ludo-xs text-white/50">{passkeyMsg}</p>
                                                     )}
                                                 </div>
                                             )}
@@ -828,7 +828,7 @@ export function SettingsPanel({
                                     {isGuest ? 'Sign In' : 'Sign Out'}
                                 </span>
                                 {!isGuest && player.address && (
-                                    <span className="settings-signout-addr max-w-full px-3 text-[10px] font-mono leading-tight break-all">
+                                    <span className="settings-signout-addr max-w-full px-3 text-ludo-xs font-mono leading-tight break-all">
                                         {player.address}
                                     </span>
                                 )}
@@ -837,10 +837,10 @@ export function SettingsPanel({
 
                             {/* Version footer: always last, lobby + in-match */}
                             <div className="flex flex-col items-center gap-0.5 pt-1 pb-1">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                                <p className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/30">
                                     Ludo Base · Onchain Arena
                                 </p>
-                                <p className="text-[10px] text-white/25 font-mono">
+                                <p className="text-ludo-xs text-white/25 font-mono">
                                     {APP_VERSION} · build {APP_BUILD_HASH}
                                 </p>
                             </div>

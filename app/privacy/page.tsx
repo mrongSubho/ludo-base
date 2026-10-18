@@ -11,17 +11,17 @@ export default function PrivacyPage() {
     return (
         <main className="min-h-[100dvh] flex items-start sm:items-center justify-center px-4 py-10 bg-black">
             <article className="w-full max-w-[560px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 sm:px-9 shadow-2xl">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
                     Ludo Base · Arena Entrance
                 </p>
                 <h1 className="mt-2 text-2xl font-black text-white uppercase tracking-tight">
                     Privacy Policy
                 </h1>
-                <p className="mt-1 text-[11px] font-bold text-white/40">
+                <p className="mt-1 text-ludo-sm font-bold text-white/40">
                     Last updated: September 2026
                 </p>
 
-                <div className="mt-6 flex flex-col gap-4 text-[13px] leading-relaxed text-white/70 font-medium">
+                <div className="mt-6 flex flex-col gap-4 text-ludo-md leading-relaxed text-white/70 font-medium">
                     <section>
                         <h2 className="text-sm font-black text-white uppercase tracking-widest">1. What we store</h2>
                         <p className="mt-1">

@@ -37,8 +37,8 @@ export function ListRow({ icon, tint, label, hint, trailing, onClick, last = fal
         </div>
       )}
       <div className="flex-1 flex flex-col min-w-0 text-left">
-        <span className="text-[13px] font-bold text-white truncate">{label}</span>
-        {hint && <span className="text-[10px] font-bold text-white/35 truncate">{hint}</span>}
+        <span className="text-ludo-md font-bold text-white truncate">{label}</span>
+        {hint && <span className="text-ludo-xs font-bold text-white/35 truncate">{hint}</span>}
       </div>
       {trailing}
     </>

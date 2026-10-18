@@ -50,11 +50,11 @@ export function NoticeStrip({ className = '' }: { className?: string }) {
             {visible.map((n) => (
                 <div
                     key={n.id}
-                    className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-[11px] leading-snug ${LEVEL_CLASS[n.level]}`}
+                    className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-ludo-sm leading-snug ${LEVEL_CLASS[n.level]}`}
                     data-notice={n.id}
                 >
                     <div className="flex-1 min-w-0">
-                        <div className="font-black uppercase tracking-[0.12em] text-[10px]">{n.title}</div>
+                        <div className="font-black uppercase tracking-[0.12em] text-ludo-xs">{n.title}</div>
                         <div className="opacity-90 mt-0.5">{n.body}</div>
                         {n.href && (
                             <a

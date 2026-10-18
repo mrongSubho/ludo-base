@@ -44,7 +44,7 @@ export default function GuestWall({ action, onClose, onConnect }: GuestWallProps
                             <div className="flex items-center gap-2">
                                 <h2 className="text-base font-bold text-white leading-tight">{copy.title}</h2>
                             </div>
-                            <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-[10px] font-black text-amber-300 uppercase tracking-widest">
+                            <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-ludo-xs font-black text-amber-300 uppercase tracking-widest">
                                 <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
                                 Guest Pass limit
                             </span>
@@ -64,7 +64,7 @@ export default function GuestWall({ action, onClose, onConnect }: GuestWallProps
 
                     <div className="flex items-center gap-2 rounded-2xl bg-white/[0.04] border border-white/10 px-2.5 py-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] shrink-0" />
-                        <span className="text-[11px] font-bold text-white/70">{copy.unlock}</span>
+                        <span className="text-ludo-sm font-bold text-white/70">{copy.unlock}</span>
                     </div>
 
                     <div className="flex flex-col gap-2 mt-1">
@@ -76,7 +76,7 @@ export default function GuestWall({ action, onClose, onConnect }: GuestWallProps
                         </button>
                         <button
                             onClick={onClose}
-                            className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
+                            className="w-full py-2 text-ludo-xs font-black uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
                         >
                             Keep exploring
                         </button>

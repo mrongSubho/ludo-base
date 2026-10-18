@@ -23,7 +23,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -410,8 +410,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const renderActivity = () => (
         <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col">
             <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
-                <span className="text-[10px] text-white/30">Last seen: {localTimeString}</span>
+                <span className="text-ludo-xs uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
+                <span className="text-ludo-xs text-white/30">Last seen: {localTimeString}</span>
             </div>
             <div className="flex items-end justify-between h-6 gap-1">
                 {activityBuckets.map((h, i) => (
@@ -425,8 +425,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         scout.pts.length > 0 ? (
             <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3">
                 <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
-                    <span className={`text-[11px] font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <span className="text-ludo-xs uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
+                    <span className={`text-ludo-sm font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
                         {scout.net > 0 ? `+${scout.net}` : `${scout.net}`}
                     </span>
                 </div>
@@ -486,7 +486,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                             profile?.status === 'In Match' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] animate-pulse' :
                                                 'bg-white/20'}`}
                                     />
-                                    <span className={`text-[10px] uppercase tracking-widest font-bold 
+                                    <span className={`text-ludo-xs uppercase tracking-widest font-bold 
                                         ${(profile?.status === 'Online' && isOnline) ? 'text-green-400' :
                                             profile?.status === 'In Match' ? 'text-orange-400' :
                                                 'text-white/50'}`}>
@@ -541,18 +541,18 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     <div className="min-h-8 mb-3 flex flex-col items-center justify-center">
                                         <div className="flex flex-wrap items-center justify-center gap-2 mb-1">
                                             {isSelf && (
-                                                <span className="bg-cyan-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
+                                                <span className="bg-cyan-500 text-white text-ludo-xs font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
                                             )}
-                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 bg-cyan-400/10 rounded-full border border-cyan-400/20">
+                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 bg-cyan-400/10 rounded-full border border-cyan-400/20">
                                                 {progression.tier} {progression.subRank}
                                             </span>
-                                            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
+                                            <span className="text-ludo-xs font-black text-white/50 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
                                                 Lv. {progression.level}
                                             </span>
                                             {/* Chips balance — moved here from the stats grid when the
                                                 CHIPS tile was retired; same cyan micro-pill vocabulary
                                                 as the rank/Lv. pills, with the app's chips dot cue. */}
-                                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-cyan-400/20 bg-cyan-400/10">
+                                            <span className="inline-flex items-center gap-1.5 text-ludo-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-cyan-400/20 bg-cyan-400/10">
                                                 <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                                                 <span className="text-cyan-300 tabular-nums">{chipsBal.human}</span>
                                                 <span className="text-white/40">CHIPS</span>
@@ -561,7 +561,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                         {!isFriendValidationLoading && (isFriend || isSelf) && (
                                             <div className="bg-black/40 px-3 py-0.5 rounded-full border border-white/5 flex items-center gap-2">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
-                                                <span className="text-[10px] text-white/40 font-mono">
+                                                <span className="text-ludo-xs text-white/40 font-mono">
                                                     {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
                                                 </span>
                                             </div>
@@ -572,11 +572,11 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     <div className="grid grid-cols-2 gap-2 w-full">
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
                                             <span className="text-xl font-black text-cyan-400">{displayWins}</span>
-                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Wins</span>
+                                            <span className="text-ludo-xs text-white/40 font-bold uppercase tracking-widest mt-1">Wins</span>
                                         </div>
                                         <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
                                             <span className="text-xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
-                                            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
+                                            <span className="text-ludo-xs text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
                                         </div>
                                     </div>
                                 </div>
@@ -596,7 +596,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                 {isSelf ? (
                                                     <div className="w-full flex flex-col gap-2 mb-2">
                                                         <div className="w-full flex items-center justify-center">
-                                                            <span className="bg-cyan-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">This is you</span>
+                                                            <span className="bg-cyan-500 text-white text-ludo-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">This is you</span>
                                                         </div>
                                                         {renderBreakdown()}
                                                         {renderActivity()}
@@ -668,7 +668,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                                                                     <button
                                                                                         key={reason}
                                                                                         onClick={() => setSelectedReportReason(reason)}
-                                                                                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
+                                                                                        className={`flex-1 py-1.5 text-ludo-sm font-bold rounded-xl border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
                                                                                     >
                                                                                         {reason}
                                                                                     </button>

@@ -54,7 +54,7 @@ export default function ErrorCard({ kicker, copy, heading, raw, stack, actions }
             }}
         >
             <p
-                className="text-[10px] font-black uppercase tracking-[0.3em]"
+                className="text-ludo-xs font-black uppercase tracking-[0.3em]"
                 style={{ color: 'var(--err-kicker)' }}
             >
                 {kicker}
@@ -67,12 +67,12 @@ export default function ErrorCard({ kicker, copy, heading, raw, stack, actions }
                     {heading}
                 </h1>
             )}
-            <p className="text-[12px] font-bold break-words max-w-full" style={{ color: 'var(--err-ink)' }}>
+            <p className="text-ludo-md font-bold break-words max-w-full" style={{ color: 'var(--err-ink)' }}>
                 {copy}
             </p>
             {raw && (
                 <p
-                    className="text-[10px] font-mono break-words max-w-full"
+                    className="text-ludo-xs font-mono break-words max-w-full"
                     style={{ color: 'var(--err-ink-muted)' }}
                 >
                     {raw}
@@ -80,7 +80,7 @@ export default function ErrorCard({ kicker, copy, heading, raw, stack, actions }
             )}
             {stack && (
                 <pre
-                    className="panel-error-stack w-full max-h-28 overflow-auto text-left text-[10px] font-mono border rounded-xl p-2 whitespace-pre-wrap break-words"
+                    className="panel-error-stack w-full max-h-28 overflow-auto text-left text-ludo-xs font-mono border rounded-xl p-2 whitespace-pre-wrap break-words"
                     style={{
                         background: 'var(--err-stack-bg)',
                         borderColor: 'var(--err-stack-border)',

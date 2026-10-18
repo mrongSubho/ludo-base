@@ -30,7 +30,7 @@ export function SettlePoolButton({
 
     if (!configured) {
         return (
-            <div className="text-[10px] font-bold text-white/35 text-center">
+            <div className="text-ludo-xs font-bold text-white/35 text-center">
                 MatchPool not configured
             </div>
         );
@@ -78,7 +78,7 @@ export function SettlePoolButton({
                     }
                 }}
                 disabled={disabled || isPending || step === "done" || total === BigInt(0)}
-                className={`w-full min-h-[44px] rounded-2xl text-[11px] font-black uppercase tracking-[0.18em] transition-all active:scale-[0.99] ${
+                className={`w-full min-h-[44px] rounded-2xl text-ludo-sm font-black uppercase tracking-[0.18em] transition-all active:scale-[0.99] ${
                     step === "done"
                         ? "bg-green-500/20 text-green-300 border border-green-500/40"
                         : "bg-cyan-400/90 text-black hover:bg-cyan-300"
@@ -87,11 +87,11 @@ export function SettlePoolButton({
                 {label}
                 {step === "idle" && total > BigInt(0) ? ` · ${formatChips(total)}` : ""}
             </button>
-            <p className="text-[10px] font-mono text-white/30 text-center">
+            <p className="text-ludo-xs font-mono text-white/30 text-center">
                 Pool {shortHex(poolId)}
                 {resolvedPlan.length > 1 ? ` · ${resolvedPlan.length} winners` : ""}
             </p>
-            {error && <p className="text-[10px] font-bold text-red-300 text-center">{error}</p>}
+            {error && <p className="text-ludo-xs font-bold text-red-300 text-center">{error}</p>}
         </div>
     );
 }

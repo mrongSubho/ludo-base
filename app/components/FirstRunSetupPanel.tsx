@@ -74,7 +74,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                 style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
             >
                 <div className="text-center flex flex-col gap-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                    <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
                         First time setup
                     </p>
                     <h2 className="text-lg font-black text-white uppercase tracking-tight">
@@ -85,7 +85,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                 {/* Appearance — same card shell + segmented controls as Settings */}
                 <section>
                     <div className="flex items-center gap-2.5 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
                             Appearance
                         </span>
                         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -128,11 +128,11 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                     size="lg"
                     fullWidth
                     onClick={finish}
-                    className="onboard-cta min-h-[56px] rounded-2xl text-[15px] uppercase tracking-[0.22em] shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                    className="onboard-cta min-h-[56px] rounded-2xl text-ludo-lg uppercase tracking-[0.22em] shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
                 >
                     Enter the lobby
                 </Button>
-                <p className="text-center text-[10px] font-bold text-white/35 -mt-2">
+                <p className="text-center text-ludo-xs font-bold text-white/35 -mt-2">
                     Change anytime in Settings
                 </p>
             </div>

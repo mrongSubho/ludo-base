@@ -790,12 +790,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             <div className="flex items-center gap-2 mt-1 px-0.5">
                                                 <span className="flex items-center gap-1">
                                                     <TokenIcon />
-                                                    <span className="text-[11px] font-black text-cyan-300 tracking-wide">BASE NETWORK</span>
+                                                    <span className="text-ludo-sm font-black text-cyan-300 tracking-wide">BASE NETWORK</span>
                                                 </span>
                                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10" title="Escrowed CHIPS available for purchases">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
-                                                    <span className="text-[11px] font-black text-white tabular-nums">{balance.toLocaleString()} CHIPS</span>
+                                                    <span className="text-ludo-sm font-black text-white tabular-nums">{balance.toLocaleString()} CHIPS</span>
                                                 </span>
                                             </div>
                                         </div>
@@ -842,7 +842,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     >
                                                         <span className={`market-chip-icon shrink-0 ${active ? 'is-active' : ''}`}>{t.icon}</span>
                                                         {t.label}
-                                                        <span className={`market-chip-count shrink-0 px-1.5 rounded-md text-[10px] font-mono ${active ? 'is-active' : ''}`}>{n}</span>
+                                                        <span className={`market-chip-count shrink-0 px-1.5 rounded-md text-ludo-xs font-mono ${active ? 'is-active' : ''}`}>{n}</span>
                                                     </Chip>
                                                 );
                                             })}
@@ -869,7 +869,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     autoCapitalize="none"
                                                     spellCheck={false}
                                                     enterKeyHint="search"
-                                                    className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
+                                                    className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-ludo-sm font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
                                                 />
                                                 {search && (
                                                     <button onClick={() => setSearch('')} className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-surface-hover text-ink-muted hover:text-ink-strong" aria-label="Clear search">
@@ -881,7 +881,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 <select
                                                     value={sort}
                                                     onChange={e => setSort(e.target.value as SortKey)}
-                                                    className="appearance-none w-full h-9 bg-black/40 border border-white/10 rounded-lg pl-2 pr-6 text-[11px] font-bold text-white/80 truncate focus:outline-none focus:border-cyan-500/60 transition-colors"
+                                                    className="appearance-none w-full h-9 bg-black/40 border border-white/10 rounded-lg pl-2 pr-6 text-ludo-sm font-bold text-white/80 truncate focus:outline-none focus:border-cyan-500/60 transition-colors"
                                                     aria-label="Sort items"
                                                 >
                                                     {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
@@ -897,7 +897,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-[18px] h-[18px]"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
                                                 {activeFilterCount > 0 && (
-                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-[10px] font-black flex items-center justify-center">{activeFilterCount}</span>
+                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-ludo-xs font-black flex items-center justify-center">{activeFilterCount}</span>
                                                 )}
                                             </button>
                                             <div className="flex shrink-0 items-center h-9 bg-black/40 border border-white/15 rounded-lg p-0.5 gap-0.5">
@@ -919,11 +919,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         </div>
                                         {/* section label with room to breathe */}
                                         <div className="mt-2 mb-0.5 flex items-center gap-2.5">
-                                            <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono">
+                                            <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono">
                                                 {visibleItems.length} {visibleItems.length === 1 ? 'PIECE' : 'PIECES'}
                                             </span>
                                             <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-                                            {mode === 'loadout' && <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">in your vault</span>}
+                                            {mode === 'loadout' && <span className="text-ludo-xs font-bold uppercase tracking-widest text-white/30">in your vault</span>}
                                         </div>
                                     </div>
                                 )}
@@ -997,7 +997,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-500/10 animate-pulse pointer-events-none" />}
                                                             {previewStage(density === 'comfort' ? '120px' : '88px', item.rarity)}
                                                             {/* rarity sigil floats on the art — frees the full row for the name */}
-                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-[10px]' : 'w-4 h-4 text-[10px]'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
+                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-ludo-xs' : 'w-4 h-4 text-ludo-xs'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
                                                                 {item.rarity === 'common' ? 'C' : item.rarity === 'rare' ? 'R' : 'L'}
                                                             </div>
                                                             <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">
@@ -1005,14 +1005,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                             {/* store: tiny owned badge (no equipped tag, no tick) */}
                                                             {!isLoadout && owned && (
-                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-[10px] font-black tracking-[0.14em] text-white/75">
+                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-ludo-xs font-black tracking-[0.14em] text-white/75">
                                                                     OWNED
                                                                 </div>
                                                             )}
                                                             {/* loadout mark: active gear or showcased relic */}
                                                             {marked && (
                                                                 <>
-                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
+                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-ludo-xs font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
                                                                         {equipped ? 'Active' : 'Showcasing'}
                                                                     </div>
                                                                     <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
@@ -1023,10 +1023,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         </div>
                                                         {/* body: title + price only */}
                                                         <div className={`${density === 'comfort' ? 'p-3' : 'p-2'}`}>
-                                                            <h3 className={`font-black text-white ${density === 'comfort' ? 'text-[12.5px] leading-tight line-clamp-2 min-h-[2.1em]' : 'text-[11px] truncate'}`}>{item.name}</h3>
+                                                            <h3 className={`font-black text-white ${density === 'comfort' ? 'text-[12.5px] leading-tight line-clamp-2 min-h-[2.1em]' : 'text-ludo-sm truncate'}`}>{item.name}</h3>
                                                             <div className="flex items-center gap-1 mt-1">
                                                                 <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
-                                                                <span className={`font-black text-white font-mono ${density === 'comfort' ? 'text-[13px]' : 'text-[11px]'}`}>{item.price.toLocaleString()}</span>
+                                                                <span className={`font-black text-white font-mono ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>{item.price.toLocaleString()}</span>
                                                             </div>
                                                         </div>
                                                         {/* hover quick-action rail */}
@@ -1060,21 +1060,21 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-xs font-black text-green-200 uppercase tracking-[0.14em]">Set complete</div>
-                                                    <div className="text-[11px] font-bold text-green-200/60 truncate">Every {TAB_SINGULAR[activeTab]} piece is yours. Flex accordingly.</div>
+                                                    <div className="text-ludo-sm font-bold text-green-200/60 truncate">Every {TAB_SINGULAR[activeTab]} piece is yours. Flex accordingly.</div>
                                                 </div>
                                             </div>
                                         ) : (
                                             <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-black/60 px-4 pt-2 pb-2 shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
+                                                    <span className="shrink-0 text-ludo-xs font-black uppercase tracking-[0.16em] text-white/55">
                                                         {TAB_META.find(t => t.id === activeTab)?.label} set
                                                     </span>
-                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-black font-mono text-white/80">
+                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/10 text-ludo-xs font-black font-mono text-white/80">
                                                         {tabItems.length - missing.length}/{tabItems.length}
                                                     </span>
                                                     <div className="flex-1 min-w-0 text-right">
                                                         {cheapestMissing && (
-                                                            <span className="block truncate text-[10px] font-bold text-white/40">
+                                                            <span className="block truncate text-ludo-xs font-bold text-white/40">
                                                                 next: <span className="text-white/70">{cheapestMissing.name}</span>
                                                                 {' · '}<span className="text-yellow-300 font-mono">{formatCompact(cheapestMissing.price)}</span>
                                                             </span>
@@ -1089,7 +1089,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                                 style={{ width: `${((tabItems.length - missing.length) / tabItems.length) * 100}%` }}
                                                             />
                                                         </div>
-                                                        <div className="mt-1.5 text-[10px] font-bold text-white/35 truncate">
+                                                        <div className="mt-1.5 text-ludo-xs font-bold text-white/35 truncate">
                                                             {missing.length} to go · {formatCompact(missingTotal)} total
                                                         </div>
                                                     </div>
@@ -1101,13 +1101,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     >
                                                         {balance >= missingTotal ? (
                                                             <>
-                                                                <span className="text-[11px] font-black uppercase tracking-[0.12em]">Complete</span>
-                                                                <span className="text-[10px] font-black font-mono opacity-70">{formatCompact(missingTotal)} CHIPS</span>
+                                                                <span className="text-ludo-sm font-black uppercase tracking-[0.12em]">Complete</span>
+                                                                <span className="text-ludo-xs font-black font-mono opacity-70">{formatCompact(missingTotal)} CHIPS</span>
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <span className="text-[11px] font-black uppercase tracking-[0.12em]">Locked</span>
-                                                                <span className="text-[10px] font-bold font-mono opacity-70">need {formatCompact(missingTotal - balance)}</span>
+                                                                <span className="text-ludo-sm font-black uppercase tracking-[0.12em]">Locked</span>
+                                                                <span className="text-ludo-xs font-bold font-mono opacity-70">need {formatCompact(missingTotal - balance)}</span>
                                                             </>
                                                         )}
                                                     </Button>
@@ -1131,7 +1131,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" onClick={() => setConfirmItem(null)} />
                                             <div className="relative rounded-t-[24px] border-t border-cyan-400/25 bg-[#151515] p-5 pb-7 shadow-[0_-20px_60px_rgba(34,211,238,0.15)]">
                                                 <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-                                                <div className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300 mb-4">
+                                                <div className="text-center text-ludo-xs font-black uppercase tracking-[0.24em] text-cyan-300 mb-4">
                                                     {verb} {slotLabel}
                                                 </div>
                                                 {/* swap preview: current → incoming */}
@@ -1140,20 +1140,20 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <div className={`w-14 h-14 rounded-2xl ${current?.previewColor ?? 'bg-white/5'} border border-white/10 flex items-center justify-center overflow-hidden opacity-60`}>
                                                             {current ? itemPreview(current, 34) : null}
                                                         </div>
-                                                        <span className="text-[10px] font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
+                                                        <span className="text-ludo-xs font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
                                                     </div>
                                                     <div className="flex flex-col items-center gap-1 pb-4">
                                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-cyan-300"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">replaces</span>
+                                                        <span className="text-ludo-xs font-black uppercase tracking-widest text-white/30">replaces</span>
                                                     </div>
                                                     <div className="flex flex-col items-center gap-1.5">
                                                         <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-cyan-400/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(34,211,238,0.3)]`}>
                                                             {itemPreview(confirmItem, 34)}
                                                         </div>
-                                                        <span className="text-[10px] font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
+                                                        <span className="text-ludo-xs font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
                                                     </div>
                                                 </div>
-                                                <p className="text-center text-[11px] font-bold text-white/45 mb-4 px-4">
+                                                <p className="text-center text-ludo-sm font-bold text-white/45 mb-4 px-4">
                                                     {isGear ? (
                                                         swapping ? (
                                                             <>{confirmItem.name} becomes your active {slotLabel.toLowerCase()}. {current?.name} stays in your vault.</>
@@ -1204,7 +1204,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             </div>
                                             {mode === 'market' && (
                                                 <div className="mb-4">
-                                                    <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Status</div>
+                                                    <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Status</div>
                                                     <div className="flex gap-2">
                                                         {([['all', 'All'], ['sale', 'For sale'], ['owned', 'Owned by you']] as [StatusFilter, string][]).map(([v, label]) => (
                                                             <Chip
@@ -1222,7 +1222,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </div>
                                             )}
                                             <div className="mb-5">
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-white/35 mb-2">Rarity</div>
+                                                <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Rarity</div>
                                                 <div className="flex gap-2">
                                                     {([['all', 'All'], ['common', 'Common'], ['rare', 'Rare'], ['legendary', 'Legendary']] as ['all' | Rarity, string][]).map(([v, label]) => (
                                                         <Chip
@@ -1292,7 +1292,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     </Button>
                                                     <h2 className="text-base font-black text-white tracking-tight">Inspect</h2>
                                                 </div>
-                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${selectedItem.rarity === 'legendary' ? 'border-fuchsia-400/50 text-fuchsia-300 bg-fuchsia-500/10' : selectedItem.rarity === 'rare' ? 'border-cyan-400/50 text-cyan-300 bg-cyan-500/10' : 'border-white/15 text-white/50 bg-white/5'}`}>
+                                                <span className={`px-2.5 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest border ${selectedItem.rarity === 'legendary' ? 'border-fuchsia-400/50 text-fuchsia-300 bg-fuchsia-500/10' : selectedItem.rarity === 'rare' ? 'border-cyan-400/50 text-cyan-300 bg-cyan-500/10' : 'border-white/15 text-white/50 bg-white/5'}`}>
                                                     {selectedItem.rarity}
                                                 </span>
                                             </div>
@@ -1308,12 +1308,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         {itemPreview(selectedItem, selectedItem.type === 'themes' ? 104 : 88)}
                                                     </div>
                                                     {isLoadout && (equipped || showcased) && (
-                                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-[10px] font-black uppercase tracking-widest shadow-lg backdrop-blur-sm">
+                                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-ludo-xs font-black uppercase tracking-widest shadow-lg backdrop-blur-sm">
                                                             {equipped ? 'Active' : 'Showcasing'}
                                                         </div>
                                                     )}
                                                     {!isLoadout && owned && (
-                                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/55 border border-white/15 text-white/75 text-[10px] font-black uppercase tracking-widest shadow-lg backdrop-blur-sm">
+                                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/55 border border-white/15 text-white/75 text-ludo-xs font-black uppercase tracking-widest shadow-lg backdrop-blur-sm">
                                                             Owned
                                                         </div>
                                                     )}
@@ -1322,21 +1322,21 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 {/* title */}
                                                 <div className="mt-4">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
+                                                        <span className="text-ludo-xs text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
                                                         <span className="w-1 h-1 bg-white/20 rounded-full" />
-                                                        <span className="text-[10px] text-cyan-400 font-bold">@{selectedItem.creator}</span>
+                                                        <span className="text-ludo-xs text-cyan-400 font-bold">@{selectedItem.creator}</span>
                                                     </div>
                                                     <h1 className="text-2xl font-black text-white">{selectedItem.name}</h1>
-                                                    <p className="text-white/45 text-[13px] leading-relaxed mt-1.5">{selectedItem.description}</p>
+                                                    <p className="text-white/45 text-ludo-md leading-relaxed mt-1.5">{selectedItem.description}</p>
                                                 </div>
 
                                                 {/* in match — what this piece actually does */}
                                                 <div className="mt-4 rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.04] p-4">
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <h4 className="text-[10px] text-cyan-300 font-black uppercase tracking-widest">In match</h4>
+                                                        <h4 className="text-ludo-xs text-cyan-300 font-black uppercase tracking-widest">In match</h4>
                                                         <span className="flex items-center gap-1.5">
                                                             <span className={`w-1.5 h-1.5 rounded-full ${statusLive ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]' : owned ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]' : 'bg-white/25'}`} />
-                                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/45">
+                                                            <span className="text-ludo-xs font-black uppercase tracking-widest text-white/45">
                                                                 {statusLive ? 'Live' : owned ? 'In vault' : 'Not owned'}
                                                             </span>
                                                         </span>
@@ -1344,8 +1344,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <div className="flex flex-col gap-2">
                                                         {inMatch.map((row, i) => (
                                                             <div key={i} className="flex items-start justify-between gap-3">
-                                                                <span className="text-[10px] font-bold text-white/35 uppercase tracking-wider shrink-0">{row.label}</span>
-                                                                <span className={`text-[11px] font-bold text-right leading-snug ${row.live ? 'text-cyan-200' : 'text-white/75'}`}>{row.value}</span>
+                                                                <span className="text-ludo-xs font-bold text-white/35 uppercase tracking-wider shrink-0">{row.label}</span>
+                                                                <span className={`text-ludo-sm font-bold text-right leading-snug ${row.live ? 'text-cyan-200' : 'text-white/75'}`}>{row.value}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1354,8 +1354,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 {/* price box */}
                                                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-[10px] text-white/35 font-black uppercase tracking-widest">{owned ? 'You own this' : 'Price'}</span>
-                                                        {sale !== undefined && <span className="text-[10px] font-bold text-white/35 font-mono">last sale {sale.toLocaleString()}</span>}
+                                                        <span className="text-ludo-xs text-white/35 font-black uppercase tracking-widest">{owned ? 'You own this' : 'Price'}</span>
+                                                        {sale !== undefined && <span className="text-ludo-xs font-bold text-white/35 font-mono">last sale {sale.toLocaleString()}</span>}
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
@@ -1363,23 +1363,23 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <span className="text-sm font-bold text-white/35">CHIPS</span>
                                                     </div>
                                                     {!owned && !canAfford && (
-                                                        <p className="mt-1.5 text-[11px] font-bold text-red-300/90">You need {(selectedItem.price - balance).toLocaleString()} more CHIPS (escrowed).</p>
+                                                        <p className="mt-1.5 text-ludo-sm font-bold text-red-300/90">You need {(selectedItem.price - balance).toLocaleString()} more CHIPS (escrowed).</p>
                                                     )}
                                                     {transactionResult === 'error' && (
-                                                        <p className="mt-1.5 text-[11px] font-bold text-red-300/90">Purchase failed — check your connection and try again.</p>
+                                                        <p className="mt-1.5 text-ludo-sm font-bold text-red-300/90">Purchase failed — check your connection and try again.</p>
                                                     )}
                                                 </div>
 
                                                 {/* traits */}
                                                 {selectedItem.traits.length > 0 && (
                                                     <div className="mt-5">
-                                                        <h4 className="text-[10px] text-white/35 font-black uppercase tracking-widest mb-2">Properties</h4>
+                                                        <h4 className="text-ludo-xs text-white/35 font-black uppercase tracking-widest mb-2">Properties</h4>
                                                         <div className="grid grid-cols-3 gap-2">
                                                             {selectedItem.traits.map((trait, i) => (
                                                                 <div key={i} className="bg-white/5 border border-cyan-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
-                                                                    <span className="text-[10px] text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
-                                                                    <span className="text-[10px] text-white font-bold mb-1 truncate w-full">{trait.value}</span>
-                                                                    <span className="text-[10px] text-cyan-400 font-mono">{trait.rarity_percent}%</span>
+                                                                    <span className="text-ludo-xs text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
+                                                                    <span className="text-ludo-xs text-white font-bold mb-1 truncate w-full">{trait.value}</span>
+                                                                    <span className="text-ludo-xs text-cyan-400 font-mono">{trait.rarity_percent}%</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1388,15 +1388,15 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                                 {/* lore */}
                                                 <div className="mt-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 p-4">
-                                                    <h4 className="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-1.5">Item Lore</h4>
+                                                    <h4 className="text-ludo-xs text-cyan-400 font-black uppercase tracking-widest mb-1.5">Item Lore</h4>
                                                     <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
                                                 </div>
 
                                                 {/* activity */}
                                                 {selectedItem.activity.length > 0 && (
                                                     <div className="mt-5">
-                                                        <h4 className="text-[10px] text-white/35 font-black uppercase tracking-widest mb-2">Activity</h4>
-                                                        <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-[10px]">
+                                                        <h4 className="text-ludo-xs text-white/35 font-black uppercase tracking-widest mb-2">Activity</h4>
+                                                        <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-ludo-xs">
                                                             {selectedItem.activity.slice(0, 5).map((act, i) => (
                                                                 <div key={i} className={`flex items-center justify-between px-4 py-3 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
                                                                     <div className="flex items-center gap-2">
@@ -1471,11 +1471,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                             <div>
                                                                 <h4 className="text-sm font-black text-white">{selectedItem.name}</h4>
-                                                                <p className="text-[10px] text-white/40 font-bold tracking-wider uppercase">{selectedItem.collection}</p>
+                                                                <p className="text-ludo-xs text-white/40 font-bold tracking-wider uppercase">{selectedItem.collection}</p>
                                                             </div>
                                                         </div>
                                                         <div className="mb-5">
-                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-2 block">Set price (coins)</label>
+                                                            <label className="text-ludo-xs text-white/30 font-black uppercase tracking-widest mb-2 block">Set price (coins)</label>
                                                             <div className="relative">
                                                                 <input
                                                                     type="text"
@@ -1493,7 +1493,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                         </div>
                                                         <div className="mb-6">
-                                                            <label className="text-[10px] text-white/30 font-black uppercase tracking-widest mb-2 block">Duration</label>
+                                                            <label className="text-ludo-xs text-white/30 font-black uppercase tracking-widest mb-2 block">Duration</label>
                                                             <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
                                                                 {(['7d', '30d', 'indefinite'] as const).map(d => (
                                                                     <Chip
@@ -1510,7 +1510,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                         </div>
                                                         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 mb-6">
-                                                            <div className="flex justify-between text-[11px] font-medium mb-2">
+                                                            <div className="flex justify-between text-ludo-sm font-medium mb-2">
                                                                 <span className="text-white/40">Marketplace fee</span>
                                                                 <span className="text-white font-mono">2.5%</span>
                                                             </div>
@@ -1518,7 +1518,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             <div className="flex justify-between items-center">
                                                                 <span className="text-xs font-black text-white uppercase tracking-wider">You receive</span>
                                                                 <span className="text-2xl font-black font-mono text-positive">
-                                                                    {sellPrice && Number(sellPrice) > 0 ? (Number(sellPrice) * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} <span className="text-[10px]">coins</span>
+                                                                    {sellPrice && Number(sellPrice) > 0 ? (Number(sellPrice) * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} <span className="text-ludo-xs">coins</span>
                                                                 </span>
                                                             </div>
                                                         </div>

@@ -54,7 +54,7 @@ const SearchIcon = () => (
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -467,13 +467,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-white font-black text-base truncate leading-tight">{threadName}</span>
                                             <span className="flex items-center gap-1.5">
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
+                                                <span className={`text-ludo-xs font-black uppercase tracking-widest ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
                                                     {activeChat.status}
                                                 </span>
                                                 {isP2PActive && activeChat.status === 'Online' && (
                                                     <span className="flex items-center gap-1 bg-cyan-500/15 px-1.5 py-px rounded-full border border-cyan-500/30">
                                                         <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
-                                                        <span className="text-[10px] font-black text-cyan-300 tracking-widest uppercase">P2P</span>
+                                                        <span className="text-ludo-xs font-black text-cyan-300 tracking-widest uppercase">P2P</span>
                                                     </span>
                                                 )}
                                             </span>
@@ -498,13 +498,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             </div>
                             {!selectedChatId && notifTab === 'messages' && (
                                 <div className="flex items-center gap-2 px-0.5">
-                                    <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                    <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                         {conversations.length} chat{conversations.length === 1 ? '' : 's'}
                                     </span>
                                     {unreadCount > 0 && (
                                         <>
                                             <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-[11px] font-black text-cyan-300 tabular-nums">
+                                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-ludo-sm font-black text-cyan-300 tabular-nums">
                                                 {unreadCount} unread
                                             </span>
                                         </>
@@ -513,7 +513,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             )}
                             {!selectedChatId && notifTab === 'notifications' && (
                                 <div className="flex items-center gap-2 px-0.5">
-                                    <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                    <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                         {notifCount} new
                                     </span>
                                     {notifCount > 0 && (
@@ -556,21 +556,21 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                             <Avatar url={resolveAvatar(r.avatar)} name={r.name} box="w-11 h-11" />
                                                         </button>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-white truncate text-[13px]">{r.name}</div>
-                                                            <div className="text-[10px] text-white/35 font-bold mt-0.5">Wants to be friends · {r.time}</div>
+                                                            <div className="font-bold text-white truncate text-ludo-md">{r.name}</div>
+                                                            <div className="text-ludo-xs text-white/35 font-bold mt-0.5">Wants to be friends · {r.time}</div>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 shrink-0">
                                                             <button
                                                                 onClick={() => acceptRequest(r.id)}
                                                                 aria-label={`Accept ${r.name}`}
-                                                                className="px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[10px] font-black uppercase hover:bg-cyan-500 hover:text-slate-950 active:scale-95 transition-all"
+                                                                className="px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-ludo-xs font-black uppercase hover:bg-cyan-500 hover:text-slate-950 active:scale-95 transition-all"
                                                             >
                                                                 Accept
                                                             </button>
                                                             <button
                                                                 onClick={() => declineRequest(r.id)}
                                                                 aria-label={`Decline ${r.name}`}
-                                                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
+                                                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-ludo-xs font-black uppercase hover:text-white active:scale-95 transition-all"
                                                             >
                                                                 Skip
                                                             </button>
@@ -594,21 +594,21 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                             <Avatar url={resolveAvatar(p.avatar)} name={p.name} box="w-11 h-11" />
                                                         </button>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-white truncate text-[13px]">{p.name}</div>
-                                                            <div className="text-[10px] text-white/35 font-bold mt-0.5">Poked you · {p.time}</div>
+                                                            <div className="font-bold text-white truncate text-ludo-md">{p.name}</div>
+                                                            <div className="text-ludo-xs text-white/35 font-bold mt-0.5">Poked you · {p.time}</div>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 shrink-0">
                                                             <button
                                                                 onClick={() => pokeBack(p.sender_id)}
                                                                 disabled={pokingId === p.sender_id}
-                                                                className="px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 text-[10px] font-black uppercase hover:bg-yellow-500 hover:text-black active:scale-95 transition-all disabled:opacity-50"
+                                                                className="px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 text-ludo-xs font-black uppercase hover:bg-yellow-500 hover:text-black active:scale-95 transition-all disabled:opacity-50"
                                                             >
                                                                 {pokingId === p.sender_id ? '…' : 'Poke back'}
                                                             </button>
                                                             <button
                                                                 onClick={() => { markSeenPoke(p.sender_id); openDM(p.sender_id); }}
                                                                 aria-label={`Message ${p.name}`}
-                                                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
+                                                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-ludo-xs font-black uppercase hover:text-white active:scale-95 transition-all"
                                                             >
                                                                 DM
                                                             </button>
@@ -632,13 +632,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                             <Avatar url={resolveAvatar(c.avatar)} name={c.name} box="w-11 h-11" />
                                                         </button>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-white truncate text-[13px]">{c.name}</div>
-                                                            <div className="text-[10px] text-white/35 font-bold mt-0.5">Celebrated you · {c.time}</div>
+                                                            <div className="font-bold text-white truncate text-ludo-md">{c.name}</div>
+                                                            <div className="text-ludo-xs text-white/35 font-bold mt-0.5">Celebrated you · {c.time}</div>
                                                         </div>
                                                         <button
                                                             onClick={() => openDM(c.actor_id)}
                                                             aria-label={`Thank ${c.name}`}
-                                                            className="shrink-0 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase hover:text-white active:scale-95 transition-all"
+                                                            className="shrink-0 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/50 text-ludo-xs font-black uppercase hover:text-white active:scale-95 transition-all"
                                                         >
                                                             Thanks
                                                         </button>
@@ -672,7 +672,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 autoCapitalize="none"
                                                 spellCheck={false}
                                                 enterKeyHint="search"
-                                                className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-[11px] font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
+                                                className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-ludo-sm font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
                                             />
                                             {searchQuery && (
                                                 <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-white/10 text-white/60 hover:text-white">
@@ -717,8 +717,8 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                             </button>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center justify-between gap-2">
-                                                                    <span className="font-bold text-white truncate text-[13px]">{chat.name}</span>
-                                                                    <span className="text-[10px] text-white/35 shrink-0 font-bold">{chat.time}</span>
+                                                                    <span className="font-bold text-white truncate text-ludo-md">{chat.name}</span>
+                                                                    <span className="text-ludo-xs text-white/35 shrink-0 font-bold">{chat.time}</span>
                                                                 </div>
                                                                 <div className="flex items-center justify-between gap-2 mt-0.5">
                                                                     <p className={`text-xs truncate ${chat.unread ? 'text-white font-bold' : 'text-white/45'}`}>
@@ -771,18 +771,18 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                         <div
                                                             className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'} ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
                                                         >
-                                                            <div className={`text-[10px] font-bold px-1 mb-0.5 ${isMe ? 'text-white/30 text-right' : 'text-white/30 text-left'}`}>
+                                                            <div className={`text-ludo-xs font-bold px-1 mb-0.5 ${isMe ? 'text-white/30 text-right' : 'text-white/30 text-left'}`}>
                                                                 {msg.send_status === 'sending' ? 'Sending...' : isMe ? `${myName} · ${timeString}` : `${otherName} · ${timeString}`}
                                                             </div>
                                                             {msg.send_status === 'failed' && isMe ? (
                                                                 <button
                                                                     onClick={() => retrySend(msg)}
-                                                                    className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] text-left shadow-sm bg-red-600 text-white rounded-tr-md hover:bg-red-500 active:scale-[0.98] transition-all`}
+                                                                    className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-ludo-lg leading-relaxed break-words [overflow-wrap:anywhere] text-left shadow-sm bg-red-600 text-white rounded-tr-md hover:bg-red-500 active:scale-[0.98] transition-all`}
                                                                 >
                                                                     <ChatContent value={msg.content} />
                                                                 </button>
                                                             ) : (
-                                                                <div className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-[14px] leading-relaxed break-words [overflow-wrap:anywhere] shadow-sm ${isMe
+                                                                <div className={`w-fit min-w-12 max-w-full py-3 px-4 rounded-2xl text-ludo-lg leading-relaxed break-words [overflow-wrap:anywhere] shadow-sm ${isMe
                                                                     ? 'bg-cyan-700 text-white rounded-tr-md'
                                                                     : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'
                                                                     }`}>
@@ -790,7 +790,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                                 </div>
                                                             )}
                                                             {msg.send_status === 'failed' && (
-                                                                <button onClick={() => isMe && retrySend(msg)} className="text-[10px] text-red-400 mt-1 px-1 font-bold hover:text-red-300 transition-colors">Failed to send · tap to retry</button>
+                                                                <button onClick={() => isMe && retrySend(msg)} className="text-ludo-xs text-red-400 mt-1 px-1 font-bold hover:text-red-300 transition-colors">Failed to send · tap to retry</button>
                                                             )}
                                                         </div>
                                                     </div>
@@ -829,7 +829,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 }}
                                                 disabled={cooldownTime > 0}
                                             />
-                                            <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none transition-colors ${inputValue.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'
+                                            <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-ludo-xs pointer-events-none transition-colors ${inputValue.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'
                                                 }`}>
                                             {inputValue.length}/500
                                             </div>

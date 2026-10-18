@@ -252,7 +252,7 @@ export const OnboardingPanel = () => {
 
                 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
                     <div className="flex items-center gap-2.5 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
                             {children}
                         </span>
                         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -358,7 +358,7 @@ export const OnboardingPanel = () => {
                                 <TrackIcon track={x.track} />
                                 <div className="flex flex-col flex-1 min-w-0 pt-0.5">
                                     <div className="flex items-start justify-between gap-2">
-                                        <h3 className={`font-bold text-[15px] truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}>
+                                        <h3 className={`font-bold text-ludo-lg truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}>
                                             {x.label}
                                         </h3>
                                         <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
@@ -366,7 +366,7 @@ export const OnboardingPanel = () => {
                                                 <path d="M6 3h12l4 6-10 13L2 9z" />
                                                 <path d="M11 3 8 9l4 13 4-13-3-6" />
                                             </svg>
-                                            <span className="text-[11px] font-black leading-none text-cyan-400">{x.reward}</span>
+                                            <span className="text-ludo-sm font-black leading-none text-cyan-400">{x.reward}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -375,15 +375,15 @@ export const OnboardingPanel = () => {
                                 as a single line — every task carries it, and no progress value
                                 can change the card's height. */}
                             <div className="flex flex-col gap-2">
-                                <p className="text-[11px] font-medium text-white/60 leading-snug">
+                                <p className="text-ludo-sm font-medium text-white/60 leading-snug">
                                     {x.desc}
                                 </p>
                                 <div className="flex items-center gap-4">
                                     <div className="flex-1">
                                         <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
+                                            <span className="text-ludo-xs uppercase font-bold text-white/40 tracking-wider">Progress</span>
                                             <span className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}>
-                                                {progressVal} <span className="text-white/30 text-[10px]">/ {targetVal}</span>
+                                                {progressVal} <span className="text-white/30 text-ludo-xs">/ {targetVal}</span>
                                             </span>
                                         </div>
                                         <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
@@ -425,7 +425,7 @@ export const OnboardingPanel = () => {
                 return (
                     <>
                         {onChain.configured && (
-                            <div className="flex items-center gap-1.5 pb-1 text-[10px] font-black text-cyan-400/80 uppercase tracking-wider">
+                            <div className="flex items-center gap-1.5 pb-1 text-ludo-xs font-black text-cyan-400/80 uppercase tracking-wider">
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                                 on-chain
                             </div>
@@ -451,7 +451,7 @@ export const OnboardingPanel = () => {
                                 </div>
                                 <div className="flex flex-col flex-1 min-w-0 pt-0.5">
                                     <div className="flex items-start justify-between gap-2">
-                                        <h3 className={`font-bold text-[15px] truncate ${welcomeClaimed ? 'text-green-300' : 'text-white'}`}>
+                                        <h3 className={`font-bold text-ludo-lg truncate ${welcomeClaimed ? 'text-green-300' : 'text-white'}`}>
                                             Welcome grant
                                         </h3>
                                         <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
@@ -459,7 +459,7 @@ export const OnboardingPanel = () => {
                                                 <path d="M6 3h12l4 6-10 13L2 9z" />
                                                 <path d="M11 3 8 9l4 13 4-13-3-6" />
                                             </svg>
-                                            <span className="text-[11px] font-black leading-none text-cyan-400">{WELCOME_REWARD}</span>
+                                            <span className="text-ludo-sm font-black leading-none text-cyan-400">{WELCOME_REWARD}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -467,15 +467,15 @@ export const OnboardingPanel = () => {
                             {/* Task details, directly above the progress bar — same line,
                                 same placement, as every track card in this list. */}
                             <div className="flex flex-col gap-2">
-                                <p className="text-[11px] font-medium text-white/60 leading-snug">
+                                <p className="text-ludo-sm font-medium text-white/60 leading-snug">
                                     {WELCOME_GRANT_DESC}
                                 </p>
                                 <div className="flex items-center gap-4">
                                     <div className="flex-1">
                                         <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                            <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Progress</span>
+                                            <span className="text-ludo-xs uppercase font-bold text-white/40 tracking-wider">Progress</span>
                                             <span className={`text-xs font-black tabular-nums ${welcomeClaimed ? 'text-green-400' : 'text-white'}`}>
-                                                {welcomeClaimed ? 1 : 0} <span className="text-white/30 text-[10px]">/ 1</span>
+                                                {welcomeClaimed ? 1 : 0} <span className="text-white/30 text-ludo-xs">/ 1</span>
                                             </span>
                                         </div>
                                         <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
@@ -508,37 +508,37 @@ export const OnboardingPanel = () => {
                             </div>
                         </motion.div>
 
-                        <SectionLabel right={<span className="text-[10px] font-black text-cyan-300 tabular-nums">{coreSum || 1000} CHIPS</span>}>
+                        <SectionLabel right={<span className="text-ludo-xs font-black text-cyan-300 tabular-nums">{coreSum || 1000} CHIPS</span>}>
                             Core package
                         </SectionLabel>
-                        <p className="text-[11px] text-white/45 mb-2 -mt-1">Finish core missions to unlock extended rewards.</p>
+                        <p className="text-ludo-sm text-white/45 mb-2 -mt-1">Finish core missions to unlock extended rewards.</p>
                         <div className="flex flex-col gap-2">
                             <AnimatePresence mode="popLayout">{coreTracks.map(TrackCard)}</AnimatePresence>
                         </div>
 
                         <div className="mt-3">
-                            <SectionLabel right={<span className="text-[10px] font-black text-white/50 tabular-nums">{extSum} CHIPS</span>}>
+                            <SectionLabel right={<span className="text-ludo-xs font-black text-white/50 tabular-nums">{extSum} CHIPS</span>}>
                                 Extended missions
                             </SectionLabel>
-                            <p className="text-[11px] text-white/45 mb-2 -mt-1">Unlocks after the core package is claimed.</p>
+                            <p className="text-ludo-sm text-white/45 mb-2 -mt-1">Unlocks after the core package is claimed.</p>
                             <div className="flex flex-col gap-2">
                                 <AnimatePresence mode="popLayout">{extTracks.map(TrackCard)}</AnimatePresence>
                             </div>
                         </div>
 
-                        {notice && <div className="text-[11px] text-cyan-300/90 text-center pt-2">{notice}</div>}
+                        {notice && <div className="text-ludo-sm text-cyan-300/90 text-center pt-2">{notice}</div>}
 
                         {/* Invite — last, same card shell */}
                         <div className="mt-4">
                             <SectionLabel right={referral ? (
-                                <span className="text-[10px] font-black text-white/50 tabular-nums">
+                                <span className="text-ludo-xs font-black text-white/50 tabular-nums">
                                     {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
                                 </span>
                             ) : undefined}>
                                 Invite
                             </SectionLabel>
                             <div className="bg-white/[0.04] border border-white/10 p-4 rounded-2xl flex flex-col gap-3">
-                                <p className="text-[11px] font-medium text-white/60 leading-snug">
+                                <p className="text-ludo-sm font-medium text-white/60 leading-snug">
                                     Share your code. Early referees earn 50 CHIPS, then 10 after top slots fill.
                                 </p>
                                 <div className="flex items-center gap-2">
@@ -550,13 +550,13 @@ export const OnboardingPanel = () => {
                                     </div>
                                     <button
                                         onClick={copyCode}
-                                        className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10"
+                                        className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-ludo-sm font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10"
                                     >
                                         {copied ? 'Copied' : 'Copy'}
                                     </button>
                                 </div>
                                 {referral?.referrer ? (
-                                    <div className="text-[10px] text-white/40 font-mono">Referred by {referral.referrer.slice(0, 10)}…</div>
+                                    <div className="text-ludo-xs text-white/40 font-mono">Referred by {referral.referrer.slice(0, 10)}…</div>
                                 ) : (
                                     <div className="flex items-center gap-2">
                                         <input
@@ -568,18 +568,18 @@ export const OnboardingPanel = () => {
                                             autoCorrect="off"
                                             autoCapitalize="none"
                                             spellCheck={false}
-                                            className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-[11px] font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
+                                            className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-ludo-sm font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
                                         />
                                         <button
                                             onClick={bindReferral}
                                             disabled={!referralCodeInput.trim()}
-                                            className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10 disabled:opacity-40"
+                                            className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-ludo-sm font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10 disabled:opacity-40"
                                         >
                                             Bind
                                         </button>
                                     </div>
                                 )}
-                                {bindState && <div className="text-[10px] text-cyan-300/80">{bindState}</div>}
+                                {bindState && <div className="text-ludo-xs text-cyan-300/80">{bindState}</div>}
                             </div>
                         </div>
                     </>

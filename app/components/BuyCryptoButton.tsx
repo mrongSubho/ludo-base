@@ -22,7 +22,7 @@ export default function BuyCryptoButton() {
     return (
         <button
             type="button"
-            className="w-full rounded-xl border border-white/15 py-3 text-[11px] font-black uppercase tracking-wider"
+            className="w-full rounded-xl border border-white/15 py-3 text-ludo-sm font-black uppercase tracking-wider"
             disabled={!player.address}
             onClick={openOnramp}
         >
