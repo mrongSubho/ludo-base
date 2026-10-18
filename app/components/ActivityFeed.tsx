@@ -87,7 +87,7 @@ const ModeGlyph = ({ mode }: { mode: string }) => (
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -214,7 +214,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         {
                             value: 'local', label: 'local',
                             pill: (
-                                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${cscope === 'local' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
+                                <span className={`px-1.5 py-0.5 rounded-md text-ludo-xs font-mono ${cscope === 'local' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}>
                                     {country}
                                 </span>
                             ),
@@ -263,25 +263,25 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                                         )}
                                     </button>
                                     <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
-                                        <span className="text-[10px] font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
+                                        <span className="text-ludo-xs font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
                                             {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                         {joinable ? (
                                             <button
                                                 onClick={joinRoom}
                                                 title={`Join room ${m.room_code}`}
-                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
+                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
                                             >
                                                 <ChatContent value={m.content || '…'} className="text-white/90" />
-                                                <span className="block mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300">
+                                                <span className="block mt-1 text-ludo-xs font-black uppercase tracking-[0.2em] text-cyan-300">
                                                     Tap to join →
                                                 </span>
                                             </button>
                                         ) : (
-                                            <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${isRoom && !roomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
+                                            <div className={`py-2.5 px-4 rounded-2xl text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${isRoom && !roomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
                                                 <ChatContent value={m.content || '…'} />
                                                 {isRoom && !roomOpen && (
-                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/50 align-middle">
+                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-ludo-xs font-black uppercase tracking-[0.15em] text-white/50 align-middle">
                                                         Over
                                                     </span>
                                                 )}
@@ -325,7 +325,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         }}
                         disabled={cooldown > 0}
                     />
-                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-ludo-xs pointer-events-none ${input.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
                         {input.length}/500
                     </div>
                     <button
@@ -570,12 +570,12 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0 flex flex-col">
-                                    <span className="text-[13px] font-black text-white truncate">{r.hostName}</span>
-                                    <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                    <span className="text-ludo-md font-black text-white truncate">{r.hostName}</span>
+                                    <span className="text-ludo-xs font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                         {r.content}
                                     </span>
                                 </div>
-                                <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
+                                <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
                                     Join
                                 </span>
                             </button>
@@ -599,26 +599,26 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col">
-                                <span className="text-[13px] font-black text-white truncate">
+                                <span className="text-ludo-md font-black text-white truncate">
                                     {s.hostName}
                                     {s.roomCode && (
-                                        <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-400/15 border border-amber-400/40 text-[10px] font-black uppercase tracking-[0.15em] text-amber-300 align-middle">
+                                        <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-400/15 border border-amber-400/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-amber-300 align-middle">
                                             Party
                                         </span>
                                     )}
                                 </span>
-                                <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                <span className="text-ludo-xs font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                     {s.matchType} · {s.gameMode} · {seatsFor(s)} · {s.wager === 0 ? 'Free' : `${s.wager.toLocaleString()}`}
                                 </span>
                             </div>
                             {s.started ? (
-                                <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/40">
+                                <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-ludo-xs font-black uppercase tracking-[0.15em] text-white/40">
                                     Started
                                 </span>
                             ) : (
                                 <button
                                     onClick={() => joinSearch(s)}
-                                    className="shrink-0 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
+                                    className="shrink-0 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
                                 >
                                     {s.roomCode ? 'Join Party' : 'Join'}
                                 </button>
@@ -654,13 +654,13 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                                 />
                             </div>
                             <div className="flex flex-col min-w-0">
-                                <span className="text-[13px] text-white/90 truncate font-semibold">
+                                <span className="text-ludo-md text-white/90 truncate font-semibold">
                                     <span className="text-cyan-400 font-black">
                                         {activity.actor?.username || activity.actor_id.slice(0, 6)}
                                     </span>
                                     {' '}{getActivityText(activity)}
                                 </span>
-                                <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+                                <span className="text-ludo-xs text-white/30 font-bold uppercase tracking-widest mt-0.5">
                                     {new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
@@ -669,7 +669,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
                 </div>
             ) : (
                 <div className="py-5 text-center border-2 border-dashed border-white/10 rounded-3xl">
-                    <span className="text-[10px] font-black text-white/35 uppercase tracking-[0.3em]">No broadcasts detected</span>
+                    <span className="text-ludo-xs font-black text-white/35 uppercase tracking-[0.3em]">No broadcasts detected</span>
                 </div>
             )}
         </div>
@@ -1028,7 +1028,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                     onClick={() => setLocalOnly(v => !v)}
                     aria-pressed={localOnly}
                     title={localOnly ? 'Show global feed' : 'Show only nearby'}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${localOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest transition-all border ${localOnly ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
                 >
                     <span className={`w-1 h-1 rounded-full ${localOnly ? 'bg-green-400 animate-pulse' : 'bg-white/30'}`} />
                     Local{country !== 'XX' ? ` · ${country}` : ''}
@@ -1037,7 +1037,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                     onClick={() => setMatchesOnly(v => !v)}
                     aria-pressed={matchesOnly}
                     title={matchesOnly ? 'Show everything' : 'Show only matches'}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${matchesOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest transition-all border ${matchesOnly ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/70'}`}
                 >
                     <span className={`w-1 h-1 rounded-full ${matchesOnly ? 'bg-cyan-300 animate-pulse' : 'bg-white/30'}`} />
                     Matches
@@ -1073,12 +1073,12 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col">
-                                                <span className="text-[13px] font-black text-white truncate">{r.hostName}</span>
-                                                <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                                <span className="text-ludo-md font-black text-white truncate">{r.hostName}</span>
+                                                <span className="text-ludo-xs font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                                     {r.content}
                                                 </span>
                                             </div>
-                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/40 pointer-events-none">
+                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-ludo-xs font-black uppercase tracking-[0.15em] text-white/40 pointer-events-none">
                                                 Over
                                             </span>
                                         </div>
@@ -1099,12 +1099,12 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 flex flex-col">
-                                            <span className="text-[13px] font-black text-white truncate">{r.hostName}</span>
-                                            <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                            <span className="text-ludo-md font-black text-white truncate">{r.hostName}</span>
+                                            <span className="text-ludo-xs font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                                 {r.content}
                                             </span>
                                         </div>
-                                        <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
+                                        <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
                                             Join
                                         </span>
                                     </button>
@@ -1131,17 +1131,17 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0 flex flex-col">
-                                                <span className="text-[13px] font-black text-white truncate">
+                                                <span className="text-ludo-md font-black text-white truncate">
                                                     {s.hostName}
-                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-400/15 border border-amber-400/40 text-[10px] font-black uppercase tracking-[0.15em] text-amber-300 align-middle">
+                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-amber-400/15 border border-amber-400/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-amber-300 align-middle">
                                                         Party
                                                     </span>
                                                 </span>
-                                                <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                                <span className="text-ludo-xs font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                                     {s.matchType} · {s.gameMode} · {s.wager === 0 ? 'Free' : `${s.wager.toLocaleString()}`} · join
                                                 </span>
                                             </div>
-                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
+                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-cyan-300 pointer-events-none">
                                                 Join
                                             </span>
                                         </button>
@@ -1160,19 +1160,19 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 flex flex-col">
-                                            <span className="text-[13px] font-black text-white truncate">{s.hostName}</span>
-                                            <span className="text-[10px] font-bold text-white/40 tabular-nums mt-0.5 truncate">
+                                            <span className="text-ludo-md font-black text-white truncate">{s.hostName}</span>
+                                            <span className="text-ludo-xs font-bold text-white/40 tabular-nums mt-0.5 truncate">
                                                 {s.matchType} · {s.gameMode} · {s.wager === 0 ? 'Free' : `${s.wager.toLocaleString()}`}
                                             </span>
                                         </div>
                                         {s.started ? (
-                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/40">
+                                            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-ludo-xs font-black uppercase tracking-[0.15em] text-white/40">
                                                 Started
                                             </span>
                                         ) : (
                                             <button
                                                 onClick={() => joinSearch(s)}
-                                                className="shrink-0 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-[10px] font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
+                                                className="shrink-0 px-4 py-2 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black uppercase tracking-[0.15em] text-cyan-300 hover:bg-cyan-400 hover:text-slate-950 hover:border-cyan-400 active:scale-95 transition-all"
                                             >
                                                 {s.roomCode ? 'Join Party' : 'Join'}
                                             </button>
@@ -1197,13 +1197,13 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                             />
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-[13px] text-white/90 truncate font-semibold">
+                                            <span className="text-ludo-md text-white/90 truncate font-semibold">
                                                 <span className="text-cyan-400 font-black">
                                                     {activity.actor?.username || activity.actor_id.slice(0, 6)}
                                                 </span>
                                                 {' '}{activityText(activity)}
                                             </span>
-                                            <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5">
+                                            <span className="text-ludo-xs text-white/30 font-bold uppercase tracking-widest mt-0.5">
                                                 {new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
@@ -1230,25 +1230,25 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                                         )}
                                     </button>
                                     <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
-                                        <span className="text-[10px] font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
+                                        <span className="text-ludo-xs font-bold text-white/35 mb-0.5" style={{ color: '#555555' }}>
                                             {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                         {joinable ? (
                                             <button
                                                 onClick={() => m.room_code && joinRoom(m.room_code)}
                                                 title={m.room_code ? `Join room ${m.room_code}` : undefined}
-                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
+                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-cyan-500/40 bg-cyan-500/10 text-left text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] text-white/90 hover:bg-cyan-500/20 hover:border-cyan-400/60 active:scale-[0.99] transition-all cursor-pointer w-full"
                                             >
                                                 <ChatContent value={m.content || '…'} className="text-white/90" />
-                                                <span className="block mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300">
+                                                <span className="block mt-1 text-ludo-xs font-black uppercase tracking-[0.2em] text-cyan-300">
                                                     Tap to join →
                                                 </span>
                                             </button>
                                         ) : (
-                                            <div className={`py-2.5 px-4 rounded-2xl text-[13px] leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${mIsRoom && !mRoomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
+                                            <div className={`py-2.5 px-4 rounded-2xl text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-cyan-700 text-white rounded-tr-md shadow-lg' : 'bg-white/10 text-white/90 rounded-tl-md border border-white/5'} ${mIsRoom && !mRoomOpen ? 'opacity-60' : ''}`} style={mine ? { backgroundColor: '#171717', color: '#ffffff' } : undefined}>
                                                 <ChatContent value={m.content || '…'} />
                                                 {mIsRoom && !mRoomOpen && (
-                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-black uppercase tracking-[0.15em] text-white/50 align-middle">
+                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-ludo-xs font-black uppercase tracking-[0.15em] text-white/50 align-middle">
                                                         Over
                                                     </span>
                                                 )}
@@ -1292,7 +1292,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                         }}
                         disabled={cooldown > 0}
                     />
-                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-[10px] pointer-events-none ${input.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
+                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-ludo-xs pointer-events-none ${input.length >= 480 ? 'text-red-400 font-bold' : 'text-white/20'}`}>
                         {input.length}/500
                     </div>
                     <button
@@ -1476,7 +1476,7 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                             </svg>
                         </div>
                         <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[10px] font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">Live Broadcast</span>
+                            <span className="text-ludo-xs font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">Live Broadcast</span>
                             {latestRoom ? (
                                 <button
                                     onClick={(e) => {
@@ -1489,7 +1489,7 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                                     className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left min-w-0"
                                 >
                                     <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse shrink-0" />
-                                    <span className="text-[11px] font-black text-cyan-300 uppercase tracking-wider leading-none truncate underline underline-offset-2 decoration-cyan-500/50">
+                                    <span className="text-ludo-sm font-black text-cyan-300 uppercase tracking-wider leading-none truncate underline underline-offset-2 decoration-cyan-500/50">
                                         {latestRoom.content}
                                     </span>
                                 </button>
@@ -1500,7 +1500,7 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                                     className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
                                 >
                                     <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                                    <span className="text-[11px] font-black text-cyan-300 uppercase tracking-widest leading-none underline underline-offset-2 decoration-cyan-500/50">
+                                    <span className="text-ludo-sm font-black text-cyan-300 uppercase tracking-widest leading-none underline underline-offset-2 decoration-cyan-500/50">
                                         On air
                                     </span>
                                 </button>
@@ -1511,10 +1511,10 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                     <div className="flex items-center gap-3 relative z-10 ml-auto">
                         <div className="h-6 w-[1px] bg-cyan-500/20" />
                         <div className="flex flex-col items-end justify-center h-full" title="Rooms and searches you can join right now">
-                            <span className="text-[14px] font-black text-cyan-300 tabular-nums leading-tight drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+                            <span className="text-ludo-lg font-black text-cyan-300 tabular-nums leading-tight drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
                                 {joinable}
                             </span>
-                            <span className="text-[10px] font-black text-cyan-500/50 uppercase tracking-[0.2em] leading-tight">Joinable</span>
+                            <span className="text-ludo-xs font-black text-cyan-500/50 uppercase tracking-[0.2em] leading-tight">Joinable</span>
                         </div>
                     </div>
                 </div>

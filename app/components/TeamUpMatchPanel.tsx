@@ -110,7 +110,7 @@ const TeamTile = () => (
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -139,7 +139,7 @@ const HuntView = ({ empty, total, isHost, onCancel, expired, timeoutS }: {
                 <span className="text-sm font-black text-white/70 uppercase tracking-[0.2em]">
                     No players found
                 </span>
-                <span className="text-[10px] font-bold text-white/35 tracking-wide">
+                <span className="text-ludo-xs font-bold text-white/35 tracking-wide">
                     The pool stayed empty — back to invites…
                 </span>
             </div>
@@ -147,7 +147,7 @@ const HuntView = ({ empty, total, isHost, onCancel, expired, timeoutS }: {
     }
     return (
     <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 p-5 mx-5 rounded-2xl bg-cyan-500/[0.06] border border-cyan-500/25 backdrop-blur-lg overflow-hidden animate-in fade-in duration-200">
-        <span className="px-2 py-0.5 rounded-full bg-black/30 border border-white/10 text-[10px] font-black tabular-nums text-white/70 tracking-[0.2em]">
+        <span className="px-2 py-0.5 rounded-full bg-black/30 border border-white/10 text-ludo-xs font-black tabular-nums text-white/70 tracking-[0.2em]">
             0:{String(secsLeft).padStart(2, '0')}
         </span>
         <div className="relative w-20 h-20">
@@ -162,10 +162,10 @@ const HuntView = ({ empty, total, isHost, onCancel, expired, timeoutS }: {
         <p className="text-sm font-black text-white uppercase tracking-[0.2em]">
             Hunting {empty} player{empty === 1 ? '' : 's'}…
         </p>
-        <p className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.25em]">
+        <p className="text-ludo-xs font-black text-cyan-300 uppercase tracking-[0.25em]">
             {total - empty}/{total} seated · room live
         </p>
-        <p className="text-[10px] font-bold text-white/35 tracking-wide">
+        <p className="text-ludo-xs font-bold text-white/35 tracking-wide">
             Strangers join straight into this room
         </p>
         {isHost && (
@@ -253,28 +253,28 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
                     ) : filled ? (
                         <span className="text-xl font-black text-white/40 uppercase">{slot?.playerName?.[0] || 'P'}</span>
                     ) : invited ? (
-                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-300 px-1 text-center leading-tight">Sent…</span>
+                        <span className="text-ludo-xs font-black uppercase tracking-[0.15em] text-amber-300 px-1 text-center leading-tight">Sent…</span>
                     ) : (
                         <PersonPlusIcon className="w-6 h-6 text-white/30" />
                     )}
                     {you && (
-                        <span className="absolute bottom-0 inset-x-0 py-px bg-cyan-500/90 text-[10px] font-black uppercase tracking-[0.2em] text-slate-950">
+                        <span className="absolute bottom-0 inset-x-0 py-px bg-cyan-500/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-slate-950">
                             You
                         </span>
                     )}
                     {lowBalance && (
                         <span
-                            className="absolute top-0 inset-x-0 py-px bg-amber-400/95 text-[10px] font-black uppercase tracking-[0.12em] text-slate-950 text-center"
+                            className="absolute top-0 inset-x-0 py-px bg-amber-400/95 text-ludo-xs font-black uppercase tracking-[0.12em] text-slate-950 text-center"
                             title={`${slot?.playerName || 'Player'} has ${(slot?.playerCoins ?? 0).toLocaleString()} · entry ${entryFee.toLocaleString()}`}
                         >
                             Low
                         </span>
                     )}
                 </span>
-                <span className="text-[10px] font-black text-white uppercase tracking-wider truncate max-w-[72px]">
+                <span className="text-ludo-xs font-black text-white uppercase tracking-wider truncate max-w-[72px]">
                     {filled ? slot?.playerName : invited ? 'Invited' : 'Invite'}
                 </span>
-                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white/35">
+                <span className="flex items-center gap-1 text-ludo-xs font-bold uppercase tracking-[0.15em] text-white/35">
                     {slot?.color && <span className="w-1.5 h-1.5 rounded-full" style={{ background: COLOR_DOT[slot.color] || '#fff' }} />}
                     {slot?.role === 'teammate' ? 'Partner' : slot?.role === 'opponent' ? 'Rival' : slot?.role === 'host' ? 'Host' : 'Open'}
                 </span>
@@ -285,7 +285,7 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
                     onClick={(e) => { e.stopPropagation(); onKick?.(); }}
                     aria-label={`Kick ${slot?.playerName || 'player'}`}
                     title="Remove from seat"
-                    className="absolute -top-0.5 -right-0.5 w-6 h-6 rounded-full bg-black/70 border border-rose-400/60 text-rose-300 text-[11px] font-black flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all z-10"
+                    className="absolute -top-0.5 -right-0.5 w-6 h-6 rounded-full bg-black/70 border border-rose-400/60 text-rose-300 text-ludo-sm font-black flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all z-10"
                 >
                     ×
                 </button>
@@ -340,7 +340,7 @@ const TeamSplitView = ({ slots, mode, isSelfHost, onInviteSlot, onSwapPlayers, o
 
     const half = (title: string, tone: 'cyan' | 'ember', list: LobbySlot[]) => (
         <div className={`flex-1 min-w-0 rounded-2xl border backdrop-blur-lg px-2 py-3 flex flex-col items-center gap-2.5 ${tone === 'cyan' ? 'bg-cyan-500/[0.07] border-cyan-500/25' : 'bg-rose-500/[0.06] border-rose-500/25'}`}>
-            <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
+            <span className={`text-ludo-xs font-black uppercase tracking-[0.25em] ${tone === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
                 {title}
             </span>
             <div className="flex items-start justify-center gap-3 flex-wrap">
@@ -744,7 +744,7 @@ export const TeamUpMatchPanel = ({
                             backdropFilter: 'blur(32px)',
                         }}
                     >
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-amber-300">
                             Entry fee updated
                         </p>
                         <p className="mt-2 text-lg font-black text-white">
@@ -753,7 +753,7 @@ export const TeamUpMatchPanel = ({
                                 {feeDropNotice > 0 ? feeDropNotice.toLocaleString() : 'Free'}
                             </span>
                         </p>
-                        <p className="mt-1.5 text-[11px] text-white/45 font-bold uppercase tracking-wider">
+                        <p className="mt-1.5 text-ludo-sm text-white/45 font-bold uppercase tracking-wider">
                             You’re still seated · waiting for host to start
                         </p>
                     </div>
@@ -802,12 +802,12 @@ export const TeamUpMatchPanel = ({
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
                                     <span className={`w-1.5 h-1.5 rounded-full ${isLobbyConnected ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] animate-pulse' : 'bg-white/25'}`} />
-                                    <span className={`text-[11px] font-black tracking-wide uppercase ${isLobbyConnected ? 'text-cyan-300' : 'text-white/40'}`}>
+                                    <span className={`text-ludo-sm font-black tracking-wide uppercase ${isLobbyConnected ? 'text-cyan-300' : 'text-white/40'}`}>
                                         {isLobbyConnected ? 'Online' : 'Offline'}
                                     </span>
                                 </span>
                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                     {joinedCount} of {totalSeats}
                                 </span>
                             </div>
@@ -816,12 +816,12 @@ export const TeamUpMatchPanel = ({
                         {/* Room Info */}
                         <div className="px-5 pt-3 relative z-10">
                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase truncate">
+                                <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase truncate">
                                     {modeLabel} • {feeLabel}
                                     {isHost && fee > 0 && onLowerFee && (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); playSelect(); onLowerFee(); }}
-                                            className="ml-2 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-[0.12em] hover:bg-amber-500/25 transition-all"
+                                            className="ml-2 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-ludo-xs font-black uppercase tracking-[0.12em] hover:bg-amber-500/25 transition-all"
                                             title="Step entry fee down one preset"
                                         >
                                             Lower fee
@@ -832,14 +832,14 @@ export const TeamUpMatchPanel = ({
                                     <div className="flex flex-col items-end gap-1">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); playSelect(); copyText(roomCodeValue, 'room'); }}
-                                            className="shrink-0 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-[10px] font-black tracking-[0.1em] text-white/60 uppercase hover:text-white transition-colors"
+                                            className="shrink-0 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl text-ludo-xs font-black tracking-[0.1em] text-white/60 uppercase hover:text-white transition-colors"
                                         >
                                             {copiedKey === 'room' ? 'Code copied' : `Copy code · ${roomCodeValue}`}
                                         </button>
                                         {roomSecret && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); playSelect(); copyText(inviteLinkFor(), 'link'); }}
-                                                className="text-[10px] font-bold text-cyan-300/70 hover:text-cyan-200 underline underline-offset-2"
+                                                className="text-ludo-xs font-bold text-cyan-300/70 hover:text-cyan-200 underline underline-offset-2"
                                             >
                                                 {copiedKey === 'link' ? 'Link copied' : 'Copy invite link'}
                                             </button>
@@ -857,7 +857,7 @@ export const TeamUpMatchPanel = ({
                                 )}
                             </div>
                             {roomCodeValue && (
-                                <p className="mt-1.5 text-[10px] text-white/35 leading-snug">
+                                <p className="mt-1.5 text-ludo-xs text-white/35 leading-snug">
                                     Friends join with this code from Team Up → Join with code.
                                 </p>
                             )}
@@ -925,7 +925,7 @@ export const TeamUpMatchPanel = ({
                                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-5 bg-white/[0.04] mx-5 rounded-2xl border border-white/10 animate-in zoom-in-95 duration-200 overflow-y-auto no-scrollbar">
                                     <div className="text-center mb-4">
                                         <h4 className="text-xl font-bold text-white uppercase tracking-wide mb-1">Join Game</h4>
-                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Paste invite or room code</p>
+                                        <p className="text-ludo-xs font-black text-white/30 uppercase tracking-[0.2em]">Paste invite or room code</p>
                                     </div>
                                     <div className="w-full flex flex-col gap-3">
                                         <label className="flex flex-col gap-1">
@@ -939,9 +939,9 @@ export const TeamUpMatchPanel = ({
                                                 autoCapitalize="none"
                                                 spellCheck={false}
                                                 autoFocus
-                                                className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-4 text-center text-[15px] font-mono text-cyan-300 placeholder:text-white/20 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all break-all"
+                                                className="w-full bg-slate-900 border-2 border-white/10 rounded-2xl p-4 text-center text-ludo-lg font-mono text-cyan-300 placeholder:text-white/20 focus:border-cyan-500 focus-visible:ring-2 focus-visible:ring-cyan-400/60 outline-none transition-all break-all"
                                             />
-                                            <span className="text-[10px] text-white/30 leading-snug text-center">
+                                            <span className="text-ludo-xs text-white/30 leading-snug text-center">
                                                 Type the room code (e.g. U8HJEO). Invite links work too.
                                             </span>
                                         </label>
@@ -1011,9 +1011,9 @@ export const TeamUpMatchPanel = ({
                                     style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))' }}
                                 >
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
+                                        <span className="text-ludo-sm font-black uppercase tracking-[0.2em] text-white">
                                             Invite {invitePopup.role === 'teammate' ? 'Partner' : 'Rival'}
-                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] text-white/50">
+                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-white/10 text-ludo-xs text-white/50">
                                                 Seat {invitePopup.seat + 1}
                                             </span>
                                         </span>
@@ -1031,7 +1031,7 @@ export const TeamUpMatchPanel = ({
                                             onClick={() => copyText(inviteLinkFor(invitePopup.seat), 'popup-link')}
                                             className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-all"
                                         >
-                                            <span className="text-[10px] font-black text-cyan-300 uppercase tracking-widest truncate">
+                                            <span className="text-ludo-xs font-black text-cyan-300 uppercase tracking-widest truncate">
                                                 {inviteLinkFor(invitePopup.seat)}
                                             </span>
                                             {copiedKey === 'popup-link' ? (
@@ -1044,7 +1044,7 @@ export const TeamUpMatchPanel = ({
                                     {roomCodeValue && (
                                         <button
                                             onClick={() => copyText(inviteLinkFor(), 'popup-room-link')}
-                                            className="-mt-1 text-[10px] font-bold text-white/35 hover:text-cyan-300 tracking-wide transition-colors"
+                                            className="-mt-1 text-ludo-xs font-bold text-white/35 hover:text-cyan-300 tracking-wide transition-colors"
                                         >
                                             {copiedKey === 'popup-room-link' ? 'Room link copied!' : 'Copy room link instead — fills any open seat'}
                                         </button>
@@ -1081,7 +1081,7 @@ export const TeamUpMatchPanel = ({
                                                             </div>
                                                             <div className="flex flex-col min-w-0">
                                                                 <span className="text-xs font-bold text-white uppercase tracking-tight truncate">{(f.username && !f.username.startsWith('0x')) ? f.username : `User ${f.wallet_address.slice(-4).toUpperCase()}`}</span>
-                                                                <span className={`text-[10px] font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
+                                                                <span className={`text-ludo-xs font-black uppercase tracking-widest ${rankOf(f) === 0 ? 'text-emerald-400' : 'text-amber-400'}`}>{rankOf(f) === 0 ? 'ONLINE · FREE TO PLAY' : 'IN MATCH'}</span>
                                                             </div>
                                                         </div>
                                                         {(() => {
@@ -1090,7 +1090,7 @@ export const TeamUpMatchPanel = ({
                                                                 <button
                                                                     disabled={inv.disabled}
                                                                     onClick={() => handleInvite(f)}
-                                                                    className={`shrink-0 ml-2 min-w-[72px] px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all tabular-nums ${inv.disabled
+                                                                    className={`shrink-0 ml-2 min-w-[72px] px-3 py-2 rounded-xl text-ludo-xs font-black uppercase transition-all tabular-nums ${inv.disabled
                                                                         ? inv.label === 'Max invites'
                                                                             ? 'bg-rose-500/15 border border-rose-500/40 text-rose-300 cursor-default'
                                                                             : 'bg-amber-500/15 border border-amber-500/40 text-amber-300 cursor-default'
@@ -1104,8 +1104,8 @@ export const TeamUpMatchPanel = ({
                                                     ))
                                                 ) : (
                                                     <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-center">
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/50">{ftab === 'global' ? 'No players online' : 'No friends online'}</span>
-                                                        <span className="text-[10px] font-bold text-white/30 max-w-[240px]">Only live players list here — free first, in-match second. Share the seat link above instead.</span>
+                                                        <span className="text-ludo-xs font-black uppercase tracking-widest text-white/50">{ftab === 'global' ? 'No players online' : 'No friends online'}</span>
+                                                        <span className="text-ludo-xs font-bold text-white/30 max-w-[240px]">Only live players list here — free first, in-match second. Share the seat link above instead.</span>
                                                     </div>
                                                 );
                                             })()
@@ -1142,7 +1142,7 @@ export const TeamUpMatchPanel = ({
                                             title={canAnnounceRoom ? 'Announce in live chat' : 'Private room — share the invite link instead'}
                                             className={`announce-btn py-2.5 rounded-2xl border transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5 ${announced ? 'announce-live bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-default' : 'bg-amber-500/10 border-amber-500/30 text-amber-200 hover:bg-amber-500/20'}`}
                                         >
-                                    <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">
+                                    <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-ludo-sm uppercase">
                                         {announced ? (
                                             <>
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="20 6 9 17 4 12" /></svg>
@@ -1155,7 +1155,7 @@ export const TeamUpMatchPanel = ({
                                             </>
                                         )}
                                     </span>
-                                    <span className="text-[10px] font-bold tracking-wide text-white/35">
+                                    <span className="text-ludo-xs font-bold tracking-wide text-white/35">
                                         {announced ? `next in ${announceCd}s` : 'in Live chat'}
                                     </span>
                                         </button>
@@ -1165,11 +1165,11 @@ export const TeamUpMatchPanel = ({
                                             onClick={(e) => { e.stopPropagation(); playSelect(); onQuickMatch(); }}
                                             className="py-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-200 transition-all hover:bg-cyan-500/20 active:scale-95 flex flex-col items-center justify-center gap-0.5"
                                         >
-                                            <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-[11px] uppercase">
+                                            <span className="flex items-center gap-1.5 font-black tracking-[0.18em] text-ludo-sm uppercase">
                                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
                                                 Hunt
                                             </span>
-                                            <span className="text-[10px] font-bold tracking-wide text-cyan-400/60">Autofill with online players</span>
+                                            <span className="text-ludo-xs font-bold tracking-wide text-cyan-400/60">Autofill with online players</span>
                                         </button>
                                     )}
                                 </div>
@@ -1181,12 +1181,12 @@ export const TeamUpMatchPanel = ({
                                     className="w-full py-3 rounded-2xl bg-white/[0.06] border border-white/15 text-white/70 transition-all hover:bg-white/10 hover:text-white active:scale-95 flex flex-col items-center justify-center gap-0.5"
                                 >
                                     <span className="font-black tracking-[0.2em] text-xs uppercase">Cancel hunt</span>
-                                    <span className="text-[10px] font-bold normal-case tracking-wide text-white/35">Back to invites</span>
+                                    <span className="text-ludo-xs font-bold normal-case tracking-wide text-white/35">Back to invites</span>
                                 </button>
                             )}
 
                             {isHost && lowBalanceCount > 0 && (
-                                <p className="px-1 pb-1 text-[10px] font-bold text-amber-300 leading-snug">
+                                <p className="px-1 pb-1 text-ludo-xs font-bold text-amber-300 leading-snug">
                                     {lowBalanceCount === 1 ? '1 player is' : `${lowBalanceCount} players are`} short on coins for this entry. Lower the fee or start anyway.
                                 </p>
                             )}

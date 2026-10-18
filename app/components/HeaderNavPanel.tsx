@@ -104,16 +104,16 @@ export const HeaderNavPanel = ({
                         <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0b0f19] rounded-full shadow-[0_0_12px_rgba(34,197,94,1)] animate-pulse"></span>
 
                         {/* Level anchored to bottom of avatar */}
-                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-[10px] font-black px-1.5 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap scale-105">
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-ludo-xs font-black px-1.5 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap scale-105">
                             LV.{level}
                         </div>
                     </div>
 
                     <div className="flex flex-col items-start min-w-0 pr-1 max-w-[62px] sm:max-w-[80px]">
-                        <span className="text-[10px] sm:text-[10px] font-black text-white italic tracking-tighter uppercase truncate w-full">
+                        <span className="text-ludo-xs sm:text-ludo-xs font-black text-white italic tracking-tighter uppercase truncate w-full">
                             {finalName}
                         </span>
-                        <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
+                        <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
                             {tier}
                         </span>
                     </div>
@@ -134,7 +134,7 @@ export const HeaderNavPanel = ({
                             <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#131520] shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-pulse" />
                         )}
                         {unreadCount > 0 && (
-                            <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-white text-black text-[10px] font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
+                            <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-white text-black text-ludo-xs font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
                                 {unreadCount > 99 ? '99+' : unreadCount}
                             </span>
                         )}

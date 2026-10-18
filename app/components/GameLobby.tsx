@@ -364,7 +364,7 @@ export default function GameLobby({
                             </div>
                             <div className="flex justify-center w-full mb-3">
                                 <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
+                                    <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
                                 </div>
                             </div>
                             <div className="flex justify-center gap-3">
@@ -388,7 +388,7 @@ export default function GameLobby({
                                         <div className="relative z-10 text-center">
                                             <span className={`block text-lg font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
                                             <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                <span className={`text-[10px] font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
+                                                <span className={`text-ludo-xs font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
                                             </div>
                                         </div>
                                     </button>
@@ -400,7 +400,7 @@ export default function GameLobby({
                         <div className="flex flex-col items-center w-full">
                             <div className="flex justify-center w-full mt-1 mb-3">
                                 <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-[10px] font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
+                                    <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
                                 </div>
                             </div>
                             <div className="flex justify-center gap-3">
@@ -436,10 +436,10 @@ export default function GameLobby({
                             aria-expanded={showFee}
                             className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-white/5 active:scale-[0.99] transition-all"
                         >
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
+                            <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
                                 Entry Fee
                             </span>
-                            <span className={`text-[11px] font-black tracking-wide ${wager > 0 ? 'text-cyan-300' : 'text-white/50'}`}>
+                            <span className={`text-ludo-sm font-black tracking-wide ${wager > 0 ? 'text-cyan-300' : 'text-white/50'}`}>
                                 {formatEntryFee(wager)}
                             </span>
                         </button>
@@ -469,7 +469,7 @@ export default function GameLobby({
                                             }}
                                             className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl"
                                         />
-                                        <span className="text-[10px] font-bold text-white/35 uppercase tracking-wider mt-0.5">
+                                        <span className="text-ludo-xs font-bold text-white/35 uppercase tracking-wider mt-0.5">
                                             Balance {formatEntryFee(coins)}
                                         </span>
                                     </div>
@@ -491,7 +491,7 @@ export default function GameLobby({
                                                 disabled={!affordable}
                                                 title={affordable ? undefined : 'Not enough coins'}
                                                 onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-[11px] font-black ${wager === val
+                                                className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${wager === val
                                                     ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
                                                     : affordable
                                                         ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 hover:scale-105 active:scale-95 border-white/10 text-white/90'
@@ -558,11 +558,11 @@ export default function GameLobby({
                         style={{ background: 'var(--panel-bg, rgba(13,13,13,0.96))', backdropFilter: 'blur(32px)' }}
                     >
                         <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
                             Joining room
                         </p>
                         <p className="text-2xl font-black text-white tracking-[0.25em]">{pendingJoin.code}</p>
-                        <p className="text-[11px] text-white/40 font-bold uppercase tracking-wider">
+                        <p className="text-ludo-sm text-white/40 font-bold uppercase tracking-wider">
                             Waiting for host…
                         </p>
                     </div>
@@ -579,13 +579,13 @@ export default function GameLobby({
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-amber-300">
                             Room unavailable
                         </p>
-                        <p className="text-[13px] font-bold text-white/80 leading-relaxed">
+                        <p className="text-ludo-md font-bold text-white/80 leading-relaxed">
                             {joinError}
                         </p>
-                        <p className="text-[11px] text-white/40 leading-relaxed">
+                        <p className="text-ludo-sm text-white/40 leading-relaxed">
                             Use the full invite link (with the secret), or ask the host to copy it again.
                         </p>
                         {lastJoinRef.current && (

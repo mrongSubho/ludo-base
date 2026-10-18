@@ -21,7 +21,7 @@ import { useAppSession } from '../hooks/useAppSession';
 const BoardLoader = () => (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16">
         <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Entering arena</span>
+        <span className="text-ludo-xs font-black text-white/40 uppercase tracking-[0.3em]">Entering arena</span>
     </div>
 );
 const Board = dynamic(() => import('./components/Board'), {
@@ -96,7 +96,7 @@ const SplashScreen = () => (
       <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
         LUDO BASE
       </h1>
-      <p className="text-cyan-400 font-black tracking-[0.4em] uppercase text-[10px] mb-12 text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+      <p className="text-cyan-400 font-black tracking-[0.4em] uppercase text-ludo-xs mb-12 text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
         The Onchain Arena
       </p>
 
@@ -171,13 +171,13 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
            onClick={toggleStream}
            disabled={isPending}
            aria-pressed={isStreaming}
-           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-[10px]'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-70 cursor-wait' : ''}`}
+           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-ludo-xs' : 'px-3 py-1.5 text-ludo-xs'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-70 cursor-wait' : ''}`}
         >
            <div className={`w-1.5 h-1.5 rounded-full ${isPending ? 'bg-cyan-400 animate-pulse' : isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
            {isPending ? (isStreaming ? 'Stopping…' : 'Going live…') : isStreaming ? 'LIVE' : 'Go live'}
         </button>
         {err && (
-          <span className="text-[10px] font-bold text-amber-300 max-w-[160px] text-right leading-tight">{err}</span>
+          <span className="text-ludo-xs font-bold text-amber-300 max-w-[160px] text-right leading-tight">{err}</span>
         )}
       </div>
    );

@@ -252,13 +252,13 @@ export const InviteNotification = () => {
                 {phase === 'joining' ? (
                     <div className="flex flex-col items-center text-center px-6 py-8 gap-3">
                         <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-300">
+                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
                             Joining room
                         </p>
                         <p className="text-2xl font-black text-white tracking-[0.22em]">
                             {invite.room_code}
                         </p>
-                        <p className="text-[11px] text-white/40 font-bold uppercase tracking-wider">
+                        <p className="text-ludo-sm text-white/40 font-bold uppercase tracking-wider">
                             Seating you with {hostName}…
                         </p>
                         <button
@@ -270,10 +270,10 @@ export const InviteNotification = () => {
                     </div>
                 ) : phase === 'error' ? (
                     <div className="flex flex-col items-center text-center px-6 py-7 gap-2.5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-amber-300">
                             Room unavailable
                         </p>
-                        <p className="text-[13px] font-bold text-white/80 leading-relaxed">
+                        <p className="text-ludo-md font-bold text-white/80 leading-relaxed">
                             {joinError || 'Join failed.'}
                         </p>
                         <div className="flex gap-2 w-full mt-2">
@@ -322,7 +322,7 @@ export const InviteNotification = () => {
                             </div>
 
                             <div className="flex-1 min-w-0">
-                                <span className="flex items-center gap-1.5 text-[10px] font-black text-cyan-300 tracking-[0.2em] uppercase mb-1">
+                                <span className="flex items-center gap-1.5 text-ludo-xs font-black text-cyan-300 tracking-[0.2em] uppercase mb-1">
                                     <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
                                     Incoming Signal
                                 </span>
@@ -330,15 +330,15 @@ export const InviteNotification = () => {
                                     {hostName} <span className="text-white/40 font-medium">invites you</span>
                                 </h4>
                                 <div className="flex gap-3 mt-1">
-                                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                                    <span className="text-ludo-xs font-bold text-white/40 uppercase tracking-widest">
                                         {matchLabel}
                                     </span>
-                                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
+                                    <span className="text-ludo-xs font-bold text-amber-400 uppercase tracking-widest">
                                         {feeLabel}
                                     </span>
                                 </div>
                                 {shortOnCoins && phase === 'card' && (
-                                    <p className="mt-1.5 text-[10px] font-bold text-amber-300 leading-snug">
+                                    <p className="mt-1.5 text-ludo-xs font-bold text-amber-300 leading-snug">
                                         You have {myCoins?.toLocaleString() ?? 0} · entry is {fee.toLocaleString()}. Host can lower the fee.
                                     </p>
                                 )}

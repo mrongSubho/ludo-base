@@ -85,7 +85,7 @@ export const LiveMatchmakingFeed = () => {
                             <FiSearch className="w-5 h-5 text-cyan-400" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] italic">Network Grid</span>
+                            <span className="text-ludo-xs font-black text-white/30 uppercase tracking-[0.2em] italic">Network Grid</span>
                             <div className="flex items-center gap-3">
                                 <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
                                 <span className="text-xs font-black text-cyan-400 italic uppercase tracking-wider">Establishing Active Links...</span>
@@ -97,14 +97,14 @@ export const LiveMatchmakingFeed = () => {
                         <div className="animate-marquee whitespace-nowrap flex gap-12">
                             {pooledSearches.length > 0 ? (
                                 pooledSearches.map((s, i) => (
-                                    <span key={i} className="text-[11px] font-black text-white uppercase tracking-tighter italic flex items-center gap-2">
+                                    <span key={i} className="text-ludo-sm font-black text-white uppercase tracking-tighter italic flex items-center gap-2">
                                         <span className="text-cyan-400 opacity-50">LINK:</span> 
                                         {s.game_mode.toUpperCase()} x {s.wager.toLocaleString()} 
                                         <span className="text-white/20 font-medium ml-2">{formatTime(s.created_at)}</span>
                                     </span>
                                 ))
                             ) : (
-                                <span className="text-[11px] font-black text-white/20 uppercase tracking-[0.4em] italic">Scanning Grid Signals...</span>
+                                <span className="text-ludo-sm font-black text-white/20 uppercase tracking-[0.4em] italic">Scanning Grid Signals...</span>
                             )}
                         </div>
                     </div>
@@ -112,8 +112,8 @@ export const LiveMatchmakingFeed = () => {
                     <div className="flex items-center gap-4 relative z-10">
                         <div className="h-8 w-px bg-white/5" />
                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] font-black text-white/30 uppercase">Node</span>
-                            <span className="text-[10px] font-black text-cyan-400 italic uppercase">Broadcast</span>
+                            <span className="text-ludo-xs font-black text-white/30 uppercase">Node</span>
+                            <span className="text-ludo-xs font-black text-cyan-400 italic uppercase">Broadcast</span>
                         </div>
                     </div>
                 </div>
@@ -143,7 +143,7 @@ export const LiveMatchmakingFeed = () => {
                                         <h3 className="text-white font-black italic text-3xl tracking-tighter uppercase">Match Browser</h3>
                                         <div className="flex items-center gap-2 mt-1">
                                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[10px] font-black text-emerald-500 tracking-[0.2em] uppercase">Live_Node: Active</span>
+                                            <span className="text-ludo-xs font-black text-emerald-500 tracking-[0.2em] uppercase">Live_Node: Active</span>
                                         </div>
                                     </div>
                                     <button 
@@ -168,8 +168,8 @@ export const LiveMatchmakingFeed = () => {
                                                             {s.game_mode} {s.game_mode.includes('v') ? '' : 'Power'}
                                                         </span>
                                                         <div className="flex items-center gap-3 mt-0.5">
-                                                            <span className="text-[10px] font-black text-cyan-400 uppercase">Wager: <span className="text-white">{s.wager.toLocaleString()}</span></span>
-                                                            <span className="text-[10px] font-medium text-white/20 uppercase">{formatTime(s.created_at)}</span>
+                                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase">Wager: <span className="text-white">{s.wager.toLocaleString()}</span></span>
+                                                            <span className="text-ludo-xs font-medium text-white/20 uppercase">{formatTime(s.created_at)}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -177,7 +177,7 @@ export const LiveMatchmakingFeed = () => {
                                                 {s.status !== 'matched' && (
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleJoinMatch(s); }}
-                                                        className="px-4 py-2 rounded-full bg-white text-slate-900 text-[10px] font-black italic uppercase tracking-tighter hover:scale-105 active:scale-95 transition-all shadow-lg"
+                                                        className="px-4 py-2 rounded-full bg-white text-slate-900 text-ludo-xs font-black italic uppercase tracking-tighter hover:scale-105 active:scale-95 transition-all shadow-lg"
                                                     >
                                                         Join Match
                                                     </button>
@@ -186,13 +186,13 @@ export const LiveMatchmakingFeed = () => {
                                         </div>
                                     )) : (
                                         <div className="h-full flex flex-col items-center justify-center text-white/10 py-20">
-                                            <p className="text-[10px] font-black uppercase tracking-[0.4em]">Establishing Link...</p>
+                                            <p className="text-ludo-xs font-black uppercase tracking-[0.4em]">Establishing Link...</p>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="mt-6 w-full p-8 border-t border-white/5 text-center relative z-10">
-                                    <span className="text-[10px] font-medium text-white/20 uppercase tracking-[0.3em]">Encrypted Real-time Feed | v1.0.4</span>
+                                    <span className="text-ludo-xs font-medium text-white/20 uppercase tracking-[0.3em]">Encrypted Real-time Feed | v1.0.4</span>
                                 </div>
                             </div>
                         </div>

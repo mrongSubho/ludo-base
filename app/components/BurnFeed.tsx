@@ -35,7 +35,7 @@ function SectionLabel({ children, p }: { children: React.ReactNode; p: BurnPaint
     return (
         <div className="flex items-center gap-2.5 mb-2">
             <span
-                className="px-2 py-0.5 rounded-md text-[10px] font-black tracking-[0.18em] font-mono uppercase"
+                className="px-2 py-0.5 rounded-md text-ludo-xs font-black tracking-[0.18em] font-mono uppercase"
                 style={{ background: p.blueSoft, color: p.blue, border: `1px solid ${p.line}` }}
             >
                 {children}
@@ -78,17 +78,17 @@ function MetricRow({
                 </div>
             )}
             <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-bold truncate" style={{ color: p.ink }}>
+                <div className="text-ludo-md font-bold truncate" style={{ color: p.ink }}>
                     {label}
                 </div>
                 {hint && (
-                    <div className="text-[10px] font-bold font-mono truncate mt-0.5" style={{ color: p.faint }}>
+                    <div className="text-ludo-xs font-bold font-mono truncate mt-0.5" style={{ color: p.faint }}>
                         {hint}
                     </div>
                 )}
             </div>
             <div
-                className="text-[14px] font-black tabular-nums shrink-0 text-right"
+                className="text-ludo-lg font-black tabular-nums shrink-0 text-right"
                 style={{ color: p.ink, maxWidth: "42%" }}
             >
                 <span className="block truncate">{value}</span>
@@ -226,12 +226,12 @@ export function BurnFeed() {
             </section>
 
             {!chips && (
-                <p className="text-[11px] font-bold px-1" style={{ color: p.amber }}>
+                <p className="text-ludo-sm font-bold px-1" style={{ color: p.amber }}>
                     Set NEXT_PUBLIC_CHIPS_ADDRESS to load live data.
                 </p>
             )}
 
-            <p className="text-[10px] font-bold leading-relaxed px-1" style={{ color: p.faint }}>
+            <p className="text-ludo-xs font-bold leading-relaxed px-1" style={{ color: p.faint }}>
                 Burn tags: match:burn · market:burn · forge:burn · vanity:burn · pass:burn ·
                 tour:forfeit · match:abandon · boost:burn · treasury:bb.
             </p>

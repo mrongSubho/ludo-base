@@ -148,11 +148,11 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                 </button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
-                                <span className="text-[11px] font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                     {leaders.length} ranked
                                 </span>
                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-[11px] font-black text-amber-300 tracking-wide uppercase">
+                                <span className="text-ludo-sm font-black text-amber-300 tracking-wide uppercase">
                                     Q{currentQuarter} season
                                 </span>
                             </div>
@@ -160,14 +160,14 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                             <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
                                 <button
                                     onClick={() => setScope('global')}
-                                    className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'global' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
+                                    className={`flex-1 py-1.5 text-ludo-xs font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'global' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
                                     Global
                                 </button>
                                 <button
                                     onClick={() => setScope('friends')}
-                                    className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'friends' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
+                                    className={`flex-1 py-1.5 text-ludo-xs font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'friends' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                     Friends
@@ -192,7 +192,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                     }}
                                                     onMouseEnter={() => setShowQuarterInfo(true)}
                                                     onMouseLeave={() => setShowQuarterInfo(false)}
-                                                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono cursor-pointer ${activeTab === 'tier' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
+                                                    className={`px-1.5 py-0.5 rounded-md text-ludo-xs font-mono cursor-pointer ${activeTab === 'tier' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
                                                 >
                                                     Q{currentQuarter}
                                                 </span>
@@ -210,7 +210,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                                 <div className="flex items-center gap-1.5 mb-1">
                                                                     <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
                                                                 </div>
-                                                                <p className="text-[10px] text-white/70 leading-snug">
+                                                                <p className="text-ludo-xs text-white/70 leading-snug">
                                                                     The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
                                                                 </p>
                                                             </div>
@@ -292,7 +292,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                             )}
                                                         </div>
                                                         {isMe && (
-                                                            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md border border-cyan-300">
+                                                            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white text-ludo-xs font-bold px-1.5 py-0.5 rounded-md border border-cyan-300">
                                                                 YOU
                                                             </div>
                                                         )}
@@ -302,17 +302,17 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                         onClick={() => onOpenProfile(entry.id)}
                                                         className="flex flex-col flex-1 min-w-0 text-left hover:opacity-80 transition-opacity focus:outline-none rounded-lg"
                                                     >
-                                                        <span className={`font-bold text-[15px] truncate w-full ${isMe ? 'text-cyan-100' : 'text-white'}`}>
+                                                        <span className={`font-bold text-ludo-lg truncate w-full ${isMe ? 'text-cyan-100' : 'text-white'}`}>
                                                             {entry.name}
                                                         </span>
 
                                                         {activeTab === 'tier' ? (
                                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                                 <div className={`w-2 h-2 rounded-full ${tierStyles?.dot} ${tierStyles?.shadow}`} />
-                                                                <span className={`text-[11px] font-bold tracking-widest uppercase ${tierStyles?.color}`}>
+                                                                <span className={`text-ludo-sm font-bold tracking-widest uppercase ${tierStyles?.color}`}>
                                                                     {entry.tierName} {entry.subRank}
                                                                 </span>
-                                                                <span className="text-[10px] text-white/30 font-bold ml-1">Lv.{entry.level}</span>
+                                                                <span className="text-ludo-xs text-white/30 font-bold ml-1">Lv.{entry.level}</span>
                                                             </div>
                                                         ) : null}
                                                     </button>
@@ -321,7 +321,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                                                         <span className={`text-lg font-black leading-none ${isMe ? 'text-cyan-300' : 'text-cyan-400'}`}>
                                                             {activeTab === 'tier' ? entry.rxp : entry.wins}
                                                         </span>
-                                                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
+                                                        <span className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest mt-1">
                                                             {activeTab === 'tier' ? 'RXP' : 'Wins'}
                                                         </span>
                                                     </div>

@@ -441,9 +441,9 @@ export const QuickMatchPanel = ({
                                 </h2>
                                 <div className="flex flex-col items-end">
                                     <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="text-[10px] uppercase font-black tracking-widest text-cyan-400 opacity-60">{gameMode}</span>
+                                        <span className="text-ludo-xs uppercase font-black tracking-widest text-cyan-400 opacity-60">{gameMode}</span>
                                         <div className="w-[1px] h-2 bg-white/10" />
-                                        <span className="text-[10px] uppercase font-black tracking-widest text-white/40">{matchType}</span>
+                                        <span className="text-ludo-xs uppercase font-black tracking-widest text-white/40">{matchType}</span>
                                     </div>
                                     <div className="flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
@@ -481,7 +481,7 @@ export const QuickMatchPanel = ({
                                     key={tipIndex}
                                     className="flex flex-col items-center gap-1"
                                 >
-                                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
+                                    <span className="text-ludo-xs uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
                                     <p className="text-xs font-medium text-white/50 text-center max-w-[280px] leading-relaxed">
                                         {PRO_TIPS[tipIndex]}
                                     </p>
@@ -550,16 +550,16 @@ export const QuickMatchPanel = ({
                                                 <div className="relative z-30 flex flex-col items-center">
                                                     {status === 'error' ? (
                                                         <>
-                                                            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest leading-none mb-1">
+                                                            <span className="text-ludo-xs font-black text-red-500 uppercase tracking-widest leading-none mb-1">
                                                                 FAULT
                                                             </span>
-                                                            <span className="text-[10px] font-bold text-red-400/40 uppercase">
+                                                            <span className="text-ludo-xs font-bold text-red-400/40 uppercase">
                                                                 OFFLINE
                                                             </span>
                                                         </>
                                                     ) : !address ? (
                                                         <div className="animate-pulse">
-                                                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                            <span className="text-ludo-xs font-black text-amber-500 uppercase tracking-widest leading-none">
                                                                 SYNCING
                                                             </span>
                                                         </div>
@@ -576,7 +576,7 @@ export const QuickMatchPanel = ({
                                                                         className="w-full bg-cyan-400"
                                                                     />
                                                                 </div>
-                                                                <span className="text-[10px] font-black text-cyan-400/60 tracking-widest uppercase">
+                                                                <span className="text-ludo-xs font-black text-cyan-400/60 tracking-widest uppercase">
                                                                     {gameMode} | {matchType}
                                                                 </span>
                                                             </div>
@@ -598,7 +598,7 @@ export const QuickMatchPanel = ({
                                                             />
                                                         ))}
                                                     </div>
-                                                    <span className={`text-[11px] uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
+                                                    <span className={`text-ludo-sm uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
                                                         {status === 'error' ? 'FAULT DETECTED' :
                                                          status === 'timeout' ? 'LINK TIMEOUT' :
                                                          showExpansionOptions ? 'WIDEN THE SEARCH' :
@@ -635,7 +635,7 @@ export const QuickMatchPanel = ({
                                             <div className="flex justify-between items-center">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                                    <h3 className="text-[10px] font-black text-cyan-300 uppercase tracking-[0.25em]">
+                                                    <h3 className="text-ludo-xs font-black text-cyan-300 uppercase tracking-[0.25em]">
                                                         Widen the search
                                                     </h3>
                                                 </div>
@@ -649,7 +649,7 @@ export const QuickMatchPanel = ({
                                                 />
                                             </div>
 
-                                            <p className="text-[11px] text-white/45 font-bold leading-snug">
+                                            <p className="text-ludo-sm text-white/45 font-bold leading-snug">
                                                 No one at{' '}
                                                 <span className="text-amber-300 tabular-nums">{feeLabel(activeWager)}</span>{' '}
                                                 right now. Jump to a nearby preset — same lobby fee ladder.
@@ -658,7 +658,7 @@ export const QuickMatchPanel = ({
                                             <div className="flex flex-col gap-2">
                                                 {snappedPools.length > 0 ? (
                                                     <>
-                                                        <p className="text-[10px] font-black text-emerald-300/80 uppercase tracking-[0.2em]">
+                                                        <p className="text-ludo-xs font-black text-emerald-300/80 uppercase tracking-[0.2em]">
                                                             Players waiting
                                                         </p>
                                                         {snappedPools.map((pool) => (
@@ -671,7 +671,7 @@ export const QuickMatchPanel = ({
                                                                 <span className="text-sm font-black text-cyan-300 tabular-nums">
                                                                     {feeLabel(pool.fee)}
                                                                 </span>
-                                                                <span className="text-[10px] font-black text-emerald-300/70 uppercase tracking-widest">
+                                                                <span className="text-ludo-xs font-black text-emerald-300/70 uppercase tracking-widest">
                                                                     {pool.waiters} waiting
                                                                 </span>
                                                             </Button>
@@ -709,7 +709,7 @@ export const QuickMatchPanel = ({
                                                                 type="filter"
                                                                 size="sm"
                                                                 onClick={() => handleExpandWager(lowerFee)}
-                                                                className="flex-1 justify-center rounded-xl py-2.5 text-[11px] tracking-[0.12em]"
+                                                                className="flex-1 justify-center rounded-xl py-2.5 text-ludo-sm tracking-[0.12em]"
                                                             >
                                                                 {feeLabel(lowerFee)}
                                                             </Chip>
@@ -719,7 +719,7 @@ export const QuickMatchPanel = ({
                                                                 type="filter"
                                                                 size="sm"
                                                                 onClick={() => handleExpandWager(higherFee)}
-                                                                className="flex-1 justify-center rounded-xl py-2.5 text-[11px] tracking-[0.12em]"
+                                                                className="flex-1 justify-center rounded-xl py-2.5 text-ludo-sm tracking-[0.12em]"
                                                             >
                                                                 {feeLabel(higherFee)}
                                                             </Chip>
@@ -779,7 +779,7 @@ export const QuickMatchPanel = ({
                                         </Button>
                                         
                                         <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 flex flex-col gap-3">
-                                            <p className="text-[10px] text-cyan-400/60 font-medium uppercase tracking-widest leading-relaxed">
+                                            <p className="text-ludo-xs text-cyan-400/60 font-medium uppercase tracking-widest leading-relaxed">
                                                 Strongly advise practicing in <span className="text-cyan-400">Offline Mode</span> to sharpen your strategy and skills.
                                             </p>
                                             <Button
@@ -859,13 +859,13 @@ export const QuickMatchPanel = ({
                                             Match!
                                         </div>
                                         <div className="px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-2.5 flex-wrap justify-center">
-                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType}</span>
+                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType}</span>
                                             <div className="w-1 h-3 bg-white/10 rounded-full" />
-                                            <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">{gameMode}</span>
+                                            <span className="text-ludo-xs font-black text-white/60 uppercase tracking-[0.2em]">{gameMode}</span>
                                             <div className="w-1 h-3 bg-white/10 rounded-full" />
                                             <div className="flex items-center gap-1">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                                <span className="text-[10px] font-black text-amber-400 tracking-[0.1em]">
+                                                <span className="text-ludo-xs font-black text-amber-400 tracking-[0.1em]">
                                                     {wagerRange?.max === undefined && wagerRange?.min === 0
                                                         ? 'Any'
                                                         : feeLabel(activeWager)}
@@ -873,7 +873,7 @@ export const QuickMatchPanel = ({
                                             </div>
                                         </div>
                                         {hookMatchId && (
-                                            <span className="text-[10px] font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
+                                            <span className="text-ludo-xs font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
                                                 Match {hookMatchId.slice(0, 8)}
                                             </span>
                                         )}
@@ -899,9 +899,9 @@ export const QuickMatchPanel = ({
                                             <div className="flex flex-col items-center">
                                                 <span className="text-lg md:text-xl font-bold text-white tracking-tight">{finalName}</span>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
+                                                    <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
                                                     <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                    <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}</span>
+                                                    <span className="text-ludo-xs font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -950,14 +950,14 @@ export const QuickMatchPanel = ({
                                                 {opponentProfile && (
                                                     <div className="flex flex-col items-center gap-1.5 mt-2">
                                                         <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                                                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}</span>
+                                                            <span className="text-ludo-xs font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}</span>
                                                             <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
+                                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest">
                                                                 {getProgression(opponentProfile.lxp, opponentProfile.rxp).tier} {getProgression(opponentProfile.lxp, opponentProfile.rxp).subRank}
                                                             </span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                                                            <span className="text-[10px] font-black text-green-400 uppercase tracking-[0.2em]">
+                                                            <span className="text-ludo-xs font-black text-green-400 uppercase tracking-[0.2em]">
                                                                 Win Rate: {Math.round((opponentProfile.total_wins / Math.max(1, opponentProfile.total_games)) * 100)}%
                                                             </span>
                                                         </div>
@@ -973,7 +973,7 @@ export const QuickMatchPanel = ({
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-500 uppercase tracking-widest animate-pulse"
+                                                className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-black text-amber-500 uppercase tracking-widest animate-pulse"
                                             >
                                                 {p2pHost
                                                     ? 'Opponent hasn’t linked yet…'
@@ -991,7 +991,7 @@ export const QuickMatchPanel = ({
                                                     />
                                                 ))}
                                             </div>
-                                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">
+                                            <span className="text-ludo-xs font-black text-white/40 uppercase tracking-[0.3em]">
                                                 {isStalled
                                                     ? 'Holding your seat'
                                                     : isLobbyConnected
@@ -1032,7 +1032,7 @@ export const QuickMatchPanel = ({
                                             Cancel Match
                                         </Button>
                                         
-                                        <p className="max-w-[280px] text-[10px] text-white/20 leading-relaxed">
+                                        <p className="max-w-[280px] text-ludo-xs text-white/20 leading-relaxed">
                                             Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.
                                         </p>
                                     </div>
