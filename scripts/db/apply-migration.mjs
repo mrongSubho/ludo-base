@@ -100,6 +100,35 @@ function canRun(cmd) {
   }
 }
 
+/**
+ * Locate a usable `supabase` binary. LUDO_SUPABASE_BIN wins, then a project
+ * devDependency, then the standalone release at ~/.local/bin (the documented
+ * install location for a machine-wide CLI that is NOT installed via npm), then
+ * plain PATH. Returns null when none is usable.
+ */
+function findSupabaseBin() {
+  const home = process.env.HOME || '';
+  const candidates = [
+    process.env.LUDO_SUPABASE_BIN,
+    join(ROOT, 'node_modules', '.bin', 'supabase'),
+    home ? join(home, '.local', 'bin', 'supabase') : null,
+    'supabase', // PATH
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    if (!canRun(c)) continue;
+    try {
+      // A file that is not the CLI (e.g. the stale ~/.supabase/cli-latest
+      // fingerprint) must not masquerade as one.
+      execFileSync(c, ['--version'], { stdio: 'pipe', timeout: 15_000 });
+      return c;
+    } catch {
+      // resolvable but broken — try the next candidate
+    }
+  }
+  return null;
+}
+
 // ── Pre-flight (read-only, works today via the service-role REST key) ──────
 
 async function preflight(env) {
@@ -281,13 +310,15 @@ async function main() {
 
   const dbUrl = env.SUPABASE_DB_URL || env.DB_URL;
   const pat = env.SUPABASE_ACCESS_TOKEN;
-  const bin = env.LUDO_SUPABASE_BIN;
-  const cli = canRun(bin || 'supabase');
+  const cliBin = findSupabaseBin();
+  const cli = cliBin !== null;
   const ref = projectRef(env);
   let transport = null;
 
+  if (cli) console.log(`supabase CLI: ${cliBin}${cliBin === 'supabase' ? ' (PATH)' : ''}`);
+
   if (dbUrl && cli) {
-    await applyViaCli(dbUrl, false, bin);
+    await applyViaCli(dbUrl, false, cliBin);
     transport = 'supabase-cli';
   } else if (dbUrl && canRun('psql')) {
     await applyViaPsql(dbUrl, target);
@@ -298,9 +329,10 @@ async function main() {
   } else {
     console.error(`
 No apply transport is configured, so NOTHING was sent to the database.
+(The Supabase CLI itself is${cli ? '' : ' NOT'} available${cli ? '' : ' — install it with \`npm install --save-dev supabase\` or the standalone release from github.com/supabase/cli/releases'}, but a database target is still needed.)
 
 Pick one:
-  A) Supabase CLI (not installed in this workspace — add a connection string):
+  A) Supabase CLI — point it at a connection string:
        export SUPABASE_DB_URL='postgresql://postgres.<ref>:<pw>@<host>:5432/postgres'
        npm run db:migrate
      …or link the project once, then it uses --db push --linked:
