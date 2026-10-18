@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { serviceDb, requireAppSession, requireSessionWallet } from '@/lib/serverAuth';
 import { GAME_MODE_CODE } from '@/lib/constants';
+import { resolveRoomVersion } from '@/lib/serverAuthority';
 
 const ADDRESS_RE = /^0x[a-f0-9]{40}$/i;
 
@@ -153,9 +154,12 @@ export async function POST(request: Request) {
             );
         }
 
+        const roomVersion = resolveRoomVersion();
+
         return NextResponse.json({
             success: true,
             matchId: data.id,
+            roomVersion,
             // Surfaced so the client can tell whether progression is recordable.
             settleable: Boolean(data.host_proven),
         });

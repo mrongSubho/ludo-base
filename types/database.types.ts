@@ -1006,6 +1006,7 @@ export type Database = {
           match_id: string
           player_seats: NonNullable<Json>
           room_code: string
+          room_version: number
           seq: number
           state: NonNullable<Json>
           updated_at: string
@@ -1017,6 +1018,7 @@ export type Database = {
           match_id: string
           player_seats?: NonNullable<Json>
           room_code: string
+          room_version?: number
           seq?: number
           state?: NonNullable<Json>
           updated_at?: string
@@ -1027,6 +1029,7 @@ export type Database = {
           match_id?: string
           player_seats?: NonNullable<Json>
           room_code?: string
+          room_version?: number
           seq?: number
           state?: NonNullable<Json>
           updated_at?: string

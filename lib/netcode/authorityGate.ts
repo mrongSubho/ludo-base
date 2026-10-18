@@ -23,10 +23,12 @@ export type AuthorityInput = {
     /** MatchConnectionStatus, compared as strings to avoid a React import. */
     connectionStatus: string;
     hasAuthoritativeSnapshot: boolean;
+    roomVersion?: number;
 };
 
 export function computeAuthority(a: AuthorityInput): boolean {
     if (!a.isNetworkedMatch) return true;
+    if (a.roomVersion === 2) return false;
     if (a.isHost) return true;
     return a.isComputeHost && a.connectionStatus === 'connected' && a.hasAuthoritativeSnapshot;
 }
