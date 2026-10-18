@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { INITIAL_GAME_STATE, getLegalTokenIndices, processMove } from '@/lib/gameLogic';
 import { assignCornersFFA } from '@/lib/boardLayout';
 import { getBestMove } from '@/lib/aiEngine';
-import { requireAppSession } from '@/lib/serverAuth';
+import { requireAppSession, requireSessionWallet } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import type { GameState, PlayerColor } from '@/lib/types';
 
@@ -57,10 +57,8 @@ export async function POST(request: Request) {
     // SEC-07: a session is required to open the arena at all. Without one there
     // is nobody who can be its host.
     const { searchParams } = new URL(request.url);
-    const wallet = await requireAppSession(
-      searchParams.get('walletAddress'),
-      searchParams.get('sessionId'),
-    );
+    const expectedWallet = searchParams.get('walletAddress') || undefined;
+    const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
     if (!wallet) {
       return NextResponse.json({ error: 'Session required to watch the arena' }, { status: 401 });
     }
@@ -142,7 +140,9 @@ export async function PATCH(request: Request) {
     }
 
     // SEC-07: a session is required, and it must be the arena's host.
-    const wallet = await requireAppSession(walletAddress, sessionId);
+    const wallet =
+      (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
+      (await requireAppSession(walletAddress, sessionId));
     if (!wallet) return NextResponse.json({ error: 'Session required' }, { status: 401 });
 
     // Defence in depth: middleware already bounds this, but a direct caller

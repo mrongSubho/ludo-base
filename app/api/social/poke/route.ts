@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import { loadMissionDef, periodBucketFor } from '@/lib/missionCatalog';
 import { issueMissionVoucher, type IssuedVoucher } from '@/lib/missionVoucherIssue';
 import { reportProgress } from '@/lib/missionOracle';
@@ -25,7 +25,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing addresses' }, { status: 400 });
         }
         // Session-scoped: the caller must own the sender's app session.
-        const authed = await requireAppSession(walletAddress ?? sender, sessionId);
+        const authed =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress ?? sender })) ||
+            (await requireAppSession(walletAddress ?? sender, sessionId));
         if (!authed) {
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
@@ -210,7 +212,7 @@ export async function GET(request: Request) {
 
     if (!wallet) return NextResponse.json([], { status: 400 });
 
-    const authed = await requireAppSession(wallet, searchParams.get('sessionId'));
+    const authed = await requireSessionWallet(request, { scope: 'app', expectedWallet: wallet });
     if (!authed) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
     // Service role: pokes rows are server-only under default-deny.

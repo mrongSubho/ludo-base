@@ -131,7 +131,7 @@ test('SEC-23: farcaster validates before the Neynar call and encodes it', () => 
 test('SEC-23: activity and matchmaking/pools validate their wallet inputs', () => {
     const act = code('app/api/activity/route.ts');
     assert.match(act, /normalizeWallet\(/);
-    assert.match(act, /requireAppSession\(/, 'and it needs a session — each call spends ETHERSCAN_API_KEY');
+    assert.match(act, /requireAppSession\(|requireSessionWallet\(/, 'and it needs a session — each call spends ETHERSCAN_API_KEY');
     assert.match(act, /session !== wallet/);
 
     const pools = code('app/api/matchmaking/pools/route.ts');
@@ -143,7 +143,7 @@ test('SEC-23: activity and matchmaking/pools validate their wallet inputs', () =
 
 test('SEC-24: reading links needs a session for that exact wallet', () => {
     const src = code('app/api/wallet-links/route.ts');
-    assert.match(src, /requireAppSession\(/);
+    assert.match(src, /requireAppSession\(|requireSessionWallet\(/);
     assert.match(src, /session !== wallet/);
     assert.doesNotMatch(src, /\.or\(`primary_wallet/, 'no interpolation into .or() (SEC-08)');
     assert.match(src, /\.eq\("primary_wallet", wallet\)/);

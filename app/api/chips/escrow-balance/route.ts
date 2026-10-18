@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 
 /**
- * GET /api/chips/escrow-balance?walletAddress=…&sessionId=…
+ * GET /api/chips/escrow-balance?walletAddress=…
  * Session-scoped read of the caller's own escrowed CHIPS balance
  * (`chips_escrow_accounts`, server-only under default-deny). Feeds the
  * marketplace spendable-balance gate; never another wallet's row.
@@ -10,10 +10,8 @@ import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const { data, error } = await serviceDb()
             .from('chips_escrow_accounts')

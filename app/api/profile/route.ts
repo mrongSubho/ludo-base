@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 /**
- * GET /api/profile?walletAddress=0x…&sessionId=…
+ * GET /api/profile?walletAddress=0x…
  * Own-profile read through the service role. This is the coins path: the
  * baseline players column grant does NOT include `coins` (or `peer_id`), so
  * anon reads go silently empty under default-deny. Session-gated, own row only.
@@ -10,10 +10,8 @@ import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid profile session' }, { status: 401 });
         const { data, error } = await serviceDb().from('players')
             .select('wallet_address, username, avatar_url, peer_id, lxp, rxp, coins, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at')
@@ -30,7 +28,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const { walletAddress, sessionId, username, avatarUrl, peerId } = await request.json();
-        const authenticatedWallet = await requireAppSession(walletAddress, sessionId);
+        const authenticatedWallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
+            (await requireAppSession(walletAddress, sessionId));
         if (!authenticatedWallet) return NextResponse.json({ error: 'Invalid profile session' }, { status: 401 });
 
         const updates: Record<string, string | null> = {};

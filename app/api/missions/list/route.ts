@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { loadMissionCatalog, periodBucketFor } from '@/lib/missionCatalog';
 
 /**
- * GET /api/missions/list?wallet=0x…&sessionId=…
+ * GET /api/missions/list?wallet=0x…
  *
  * Daily + weekly missions joined with the caller's progress for the *current*
  * period bucket.
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     if (!walletAddress) {
         return NextResponse.json({ error: 'Wallet address required' }, { status: 400 });
     }
-    const wallet = await requireAppSession(walletAddress, searchParams.get('sessionId'));
+    const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress });
     if (!wallet) {
         return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }

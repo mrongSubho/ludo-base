@@ -125,7 +125,7 @@ test('SEC-08: no wallet is interpolated into a PostgREST .or() filter', () => {
 
 test('SEC-08: the route requires a session for the caller own wallet', () => {
     const src = code('app/api/friends/route.ts');
-    assert.match(src, /requireAppSession\(/, 'a session is required');
+    assert.match(src, /requireAppSession\(|requireSessionWallet\(/, 'a session is required');
     assert.match(src, /session !== wallet/, 'and it must be the caller own wallet');
     // Defence in depth on the remaining interpolation: the Neynar-sourced
     // following list is still untrusted input before it reaches a filter.

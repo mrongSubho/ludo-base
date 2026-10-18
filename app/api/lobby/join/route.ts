@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 function sha256Hex(s: string): string {
@@ -52,7 +52,8 @@ export async function POST(request: Request) {
         }
 
         // SEC-12: a session is required, and it IS the wallet.
-        const wallet = await requireAppSession(body.walletAddress ?? body.wallet, body.sessionId);
+        const wallet = await requireAppSession(body.walletAddress ?? body.wallet, body.sessionId) ||
+            await requireSessionWallet(request, { scope: 'app', expectedWallet: body.walletAddress ?? body.wallet });
         if (!wallet) {
             return NextResponse.json({ error: 'Session required to join a lobby' }, { status: 401 });
         }
@@ -147,10 +148,10 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'roomCode required' }, { status: 400 });
         }
         const sb = serviceDb();
-        const hostAddress = await requireAppSession(
-            url.searchParams.get('hostAddress'),
-            url.searchParams.get('sessionId'),
-        );
+        const hostAddress = await requireSessionWallet(request, {
+            scope: 'app',
+            expectedWallet: url.searchParams.get('hostAddress') || undefined,
+        });
         if (!hostAddress) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
         const { data: room } = await sb.from('live_matches').select('match_id, host_address')
             .eq('room_code', roomCode).maybeSingle();
@@ -184,7 +185,9 @@ export async function DELETE(request: Request) {
         const body = await request.json();
         const id = String(body.id || '');
         if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-        const wallet = await requireAppSession(body.hostAddress ?? body.walletAddress, body.sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: body.hostAddress ?? body.walletAddress })) ||
+            (await requireAppSession(body.hostAddress ?? body.walletAddress, body.sessionId));
         if (!wallet) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
         const sb = serviceDb();
         const { data: req } = await sb.from('lobby_join_requests')

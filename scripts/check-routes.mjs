@@ -38,6 +38,13 @@ const apiDir = join(root, 'app', 'api');
  * serviceRole: handler uses the service-role client (RLS bypassed)
  */
 const MATRIX = {
+    // ── Auth v2 ────────────────────────────────────────────────────────────
+    'auth/challenge':         { methods: ['POST'], auth: 'public', resource: 'none', serviceRole: true },
+    'auth/verify':            { methods: ['POST'], auth: 'public', resource: 'none', serviceRole: true },
+    'auth/match':             { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'auth/logout':            { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'auth/session':           { methods: ['GET'],  auth: 'session', resource: 'self', serviceRole: true },
+
     // ── Match lifecycle ───────────────────────────────────────────────────
     'match/start':            { methods: ['POST'], auth: 'conditional', resource: 'self', serviceRole: true },
     'match/record':           { methods: ['POST'], auth: 'signature', resource: 'owner', serviceRole: true },
@@ -228,10 +235,16 @@ for (const r of found) {
         }
     }
 
+    const src = readFileSync(file, 'utf8');
+
+    // Phase 1 / P3 assertion: Zero route reads sessionId from query string.
+    if (/searchParams\.get\(\s*['"`]sessionId['"`]\s*\)/.test(src)) {
+        fail(`${r}: reads sessionId from query string — sessions must travel via Cookie or Authorization header (P3 fix)`);
+    }
+
     if (entry.serviceRole && (auth === 'session' || auth === 'session*')) {
-        const src = readFileSync(file, 'utf8');
         const guarded =
-            /requireAppSession|requireWalletSession|verifyPersonalSign|verifyTypedDataSign/.test(src);
+            /requireAppSession|requireSession|requireSessionWallet|requireWalletSession|verifyPersonalSign|verifyTypedDataSign/.test(src);
         if (!guarded) {
             fail(`${r}: matrix says auth='${auth}' but the handler calls no session/signature guard`);
         }

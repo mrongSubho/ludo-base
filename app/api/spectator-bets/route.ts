@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { reportProgress } from '@/lib/missionOracle';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(searchParams.get('walletAddress'), searchParams.get('sessionId'));
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const matchId = searchParams.get('matchId');
         if (!matchId || matchId.length > 200) return NextResponse.json({ error: 'Invalid match' }, { status: 400 });
@@ -25,7 +26,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const { walletAddress, sessionId, action, betId, matchId, betType, betValue, amount, actionId: actionId0 } = await request.json();
-        const wallet = await requireAppSession(walletAddress, sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
+            (await requireAppSession(walletAddress, sessionId));
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const db = serviceDb();
 

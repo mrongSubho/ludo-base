@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import {
     REFERRAL_SLOTS,
     REFERRAL_TIER_TAIL,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/onboardingServer';
 
 /**
- * GET /api/onboarding/referral?walletAddress=0x…&sessionId=…
+ * GET /api/onboarding/referral?walletAddress=0x…
  * My referral code, invite link, and slot/resolve counters.
  *
  * POST /api/onboarding/referral
@@ -21,10 +21,8 @@ import {
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         const db = serviceDb();
@@ -73,7 +71,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const wallet = await requireAppSession(body?.walletAddress, body?.sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: body?.walletAddress })) ||
+            (await requireAppSession(body?.walletAddress, body?.sessionId));
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         const parsed = normalizeReferralCode(body?.code ?? body?.referralCode);

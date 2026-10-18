@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { isWalletAddress, normalizeWallet } from '@/lib/validation/wallet';
 import { checkRateLimit, clientIp, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
@@ -60,12 +60,12 @@ export async function GET(request: Request) {
 
     // SEC-08: require a session, and only ever answer for the caller's own
     // wallet. This endpoint spent a service-role key on an unauthenticated
-    // caller-supplied address. Same `walletAddress` + `sessionId` shape the
+    // caller-supplied address. Same walletAddress shape the
     // other authenticated routes use.
-    const session = await requireAppSession(
-        searchParams.get('walletAddress'),
-        searchParams.get('sessionId'),
-    );
+    const session = await requireSessionWallet(request, {
+        scope: 'app',
+        expectedWallet: searchParams.get('walletAddress') || wallet,
+    }) || await requireAppSession(wallet, null);
     if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     if (session !== wallet) {
         return NextResponse.json({ error: 'Not your wallet' }, { status: 403 });

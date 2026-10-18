@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import {
     ONBOARDING_TRACKS,
     ONBOARDING_TRACK_KEYS,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/onboardingServer';
 
 /**
- * GET /api/onboarding/progress?walletAddress=0x…&sessionId=…
+ * GET /api/onboarding/progress?walletAddress=0x…
  * Track progress for the session wallet (service role; RLS default-deny).
  *
  * POST /api/onboarding/progress
@@ -20,10 +20,8 @@ import {
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         const db = serviceDb();
@@ -87,7 +85,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const wallet = await requireAppSession(body?.walletAddress, body?.sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: body?.walletAddress })) ||
+            (await requireAppSession(body?.walletAddress, body?.sessionId));
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         const track = body?.track;

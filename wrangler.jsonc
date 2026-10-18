@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  "main": "src/worker.ts",
   "name": "ludo-base",
   "compatibility_date": "2025-01-01",
   "compatibility_flags": [
@@ -20,5 +20,31 @@
       "binding": "WORKER_SELF_REFERENCE",
       "service": "ludo-base"
     }
-  ]
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MATCH_ROOM",
+        "class_name": "MatchRoom"
+      },
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimitDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "MatchRoom",
+        "RateLimitDO"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "0 * * * *"
+    ]
+  }
 }

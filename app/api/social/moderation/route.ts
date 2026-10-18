@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 const walletPattern = /^0x[a-f0-9]{40}$/;
@@ -16,7 +16,7 @@ function deriveActivityId(type: string, actor: string, subject: string): string 
 }
 
 /**
- * GET /api/social/moderation?walletAddress=…&sessionId=…&target=0x…
+ * GET /api/social/moderation?walletAddress=…&target=0x…
  * Block-status check. user_blocks has no anon SELECT policy (leaking block
  * lists would expose the social graph), so reads go through here, session-
  * gated to the viewer: { blocked: boolean }.
@@ -24,10 +24,8 @@ function deriveActivityId(type: string, actor: string, subject: string): string 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const target = String(searchParams.get('target') || '').toLowerCase();
         if (!walletPattern.test(target)) {
@@ -48,7 +46,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const { walletAddress, sessionId, action, target, reason } = await request.json();
-        const wallet = await requireAppSession(walletAddress, sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
+            (await requireAppSession(walletAddress, sessionId));
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         // SEC-28: a session is not a rate limit. A 7-day SIWE session let one

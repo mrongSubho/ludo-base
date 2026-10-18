@@ -149,7 +149,7 @@ test('a route in SESSION_GATED really does authenticate itself', () => {
     for (const key of SESSION_GATED) {
         const src = code(join('app', 'api', key, 'route.ts'));
         const selfAuthenticating =
-            /requireAppSession|verifyPersonalSign|verifyTypedData|verifyGalxeHmac|buildMatchRecordMessage/.test(src)
+            /requireAppSession|requireSession|requireSessionWallet|verifyPersonalSign|verifyTypedData|verifyGalxeHmac|buildMatchRecordMessage|verifyAndConsumeChallenge/.test(src)
             // A retired 410 that reads no input cannot be abused.
             || /status:\s*410/.test(src)
             // Fails closed when its secret is absent.

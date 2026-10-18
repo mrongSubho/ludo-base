@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeWallet } from "@/lib/validation/wallet";
-import { requireAppSession } from "@/lib/serverAuth";
+import { requireSessionWallet } from "@/lib/serverAuth";
 
 /**
  * Wallet activity from Etherscan V2 (Base Sepolia = chainid 84532).
@@ -56,10 +56,10 @@ export async function GET(req: NextRequest) {
     if (!wallet) {
         return NextResponse.json({ error: "wallet required" }, { status: 400 });
     }
-    const session = await requireAppSession(
-        req.nextUrl.searchParams.get("walletAddress"),
-        req.nextUrl.searchParams.get("sessionId"),
-    );
+    const session = await requireSessionWallet(req, {
+        scope: "app",
+        expectedWallet: req.nextUrl.searchParams.get("walletAddress") || wallet,
+    });
     if (!session) return NextResponse.json({ error: "Session required" }, { status: 401 });
     if (session !== wallet) return NextResponse.json({ error: "Not your wallet" }, { status: 403 });
 

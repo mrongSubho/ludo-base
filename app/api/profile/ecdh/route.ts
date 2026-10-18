@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { buildEcdhMessage, ecdhKeyFingerprint, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { canonicalizeP256Jwk } from '@/lib/validation/ecdhJwk';
 import type { Json } from '@/types/database.types';
 
@@ -13,10 +13,8 @@ export async function GET(request: Request) {
         if (!/^0x[a-f0-9]{40}$/.test(target)) {
             return NextResponse.json({ error: 'Invalid wallet' }, { status: 400 });
         }
-        const requester = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const requester = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!requester) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const { data, error } = await serviceDb().from('players')
             .select('ecdh_pubkey').eq('wallet_address', target).maybeSingle();

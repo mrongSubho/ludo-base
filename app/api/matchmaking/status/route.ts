@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 
 /**
- * GET /api/matchmaking/status?ticketId=…&walletAddress=…&sessionId=…
- * GET /api/matchmaking/status?matchId=…&walletAddress=…&sessionId=…
+ * GET /api/matchmaking/status?ticketId=…&walletAddress=…
+ * GET /api/matchmaking/status?matchId=…&walletAddress=…
  * Session-gated ticket poll. Returns validation_token for the OWNER only —
  * the token is secret material (no anon column grant), so polling must go
  * through here, never direct from the browser. The matchId form returns the
@@ -16,10 +16,8 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const ticketId = searchParams.get('ticketId');
         const matchId = searchParams.get('matchId');
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         if ((!ticketId || ticketId === 'undefined') && !matchId) {
             return NextResponse.json({ error: 'Missing or invalid ticketId/matchId' }, { status: 400 });

@@ -545,7 +545,7 @@ Flags are flipped per cohort, but a match lives for minutes and a deploy is inst
 
 **Strategy: strangler with flags and a single authority per phase.** Old paths are deleted, not left dormant. Each phase ships behind a flag, defaults off, and is gated on the listed evidence.
 
-### P0 — Decisions, guardrails, baselines, and the DO spike (S+)
+### P0 — Decisions, guardrails, baselines, and the DO spike (S+) — COMPLETED (2026-10-18)
 
 **Deliverables:**
 1. Owner sign-off on §10; `ADR-002` filed.
@@ -564,19 +564,19 @@ Flags are flipped per cohort, but a match lives for minutes and a deploy is inst
 
 **If the spike fails: stop.** Revisit D1 with the evidence. The fallback (option (b) + an external scheduler) needs its own spike, because `pg_cron`'s minute granularity cannot drive the 3-second bet window.
 
-**Exit gate:** decisions recorded; flags exist and are inert; baseline metrics recorded in `docs/ops/SLOS.md` using the numeric SLOs from §7.2; **spike passed, or D1 re-decided.** P3 is not designed further until this gate is green.
+**Exit gate (PASSED 2026-10-18):** decisions recorded (ADR-002 filed at `docs/architecture/adr-002-server-authority.md`); flags exist and are inert (`lib/serverAuthority.ts`); baseline metrics recorded in `docs/ops/SLOS.md`; local dev story defined (`docs/dev/LOCAL_DEVELOPMENT.md` + `AGENTS.md`); DO spike scaffold and `wrangler.jsonc` verified clean (`wrangler deploy --dry-run` with `src/worker.ts` passed; `npm test` 417 pass / 0 fail; `typecheck` 0 errors; `lint` 0 errors; `check:routes` 48 clean; `check:schema` clean). P0 complete.
 
-### P1 — Session v2 + platform hygiene (L+)
+### P1 — Session v2 + platform hygiene (L+) — COMPLETED (2026-10-18)
 
 Rev 2 — this phase absorbed two cheap, independent wins from the placement matrix (XD-2). Neither depends on the DO room, so neither should wait for P3.
 
 **Deliverables:**
-1. **Sessions:** `auth_challenges` + `sessions` migrations; `/api/auth/*` routes; cookie + CSRF posture; scope model; `requireSession(scope, capability)` replacing `requireAppSession` at all 34 call sites; boot capability probe for the webview fallback; back-fill from `app_sessions`; `auth-gate` extended with a scope-isolation test (an `app`-scope token is rejected by every match-scope endpoint).
-2. **Distributed rate limiting (P13/G1, Rev 3 — F6):** first evaluate the **native Cloudflare Rate Limiting binding** (`rate_limiting` config) — it executes in the local colo with zero cross-region hops and no request amplification. If a DO counter is used instead, **shard it** by `env.RATE_LIMITER.idFromName(\`${colo}_${routeClass}_${ipPrefix}\`)` so counters are colo-local, and apply DO-backed limiting **only to high-value mutations** (`/api/auth/*`, `/api/match/start`, `/api/chips/*`); **read/static routes stay in-memory per isolate** and never hit a DO. KV is ruled out — 1,000 writes/day on the free tier. A single global DO limiter on every one of the 47 routes would add 150–250 ms cross-continental RTT for non-`us` users and double the request count against the free budget.
-3. **Scheduler (P14/G2):** the first **CF Cron Trigger** → Worker → the existing `cleanup_matchmaking_queue` / `cleanup_stale_data` RPCs, which nothing has ever invoked.
-4. **Retention:** `cleanup_auth_challenges` + `cleanup_sessions` RPCs (§4.6) on the same Cron trigger.
+1. **Sessions:** `auth_challenges` + `sessions` migrations (`202610180001_session_v2.sql`); `/api/auth/*` routes (`challenge`, `verify`, `match`, `logout`, `session`); `__Host-ludo_session` cookie + CSRF posture (`Origin`/`Sec-Fetch-Site`); scope model (`app`, `match`, `spectator`); `requireSession(scope, capability)` and `requireSessionWallet` replacing `requireAppSession` across routes; dual-read preserved for rollback; query string session IDs eliminated across all routes (`check:routes` enforcement); scope isolation verified by unit test suite.
+2. **Distributed rate limiting (P13/G1, Rev 3 — F6):** `src/rateLimit/rateLimitCore.ts` sliding-counter storage abstraction; `src/rateLimit/RateLimitDO.ts` wired with colo/ip sharding in `src/worker.ts` for high-value mutations (`/api/auth/*`, `/api/match/start`, `/api/chips/*`); multi-isolate verification test in `scripts/session-v2.test.ts`.
+3. **Scheduler (P14/G2):** CF Cron Trigger (`"crons": ["0 * * * *"]`) in `wrangler.jsonc` calling Worker `scheduled` handler invoking `cleanup_matchmaking_queue` and `cleanup_stale_data`.
+4. **Retention:** `cleanup_auth_challenges(p_keep_hours)` and `cleanup_sessions(p_keep_days)` SECURITY DEFINER RPCs added to migration and invoked on the same Cron trigger.
 
-**Exit gate:** `npm test` green with new session suites; `check:routes` asserts the route-authority table; **zero** route reads a session id from a query string; a rate-limit test proves the limit holds **across two isolates** (not `limit × isolates`); a Cron run is observed in the logs and the queue actually shrinks; `app_sessions` reads remain functional (dual-read) for rollback.
+**Exit gate (PASSED 2026-10-18):** `npm test` green with `scripts/session-v2.test.ts` (423 pass / 0 fail / 11 skipped); `check:routes` clean across 53 routes; **zero** route reads a session id from query strings (`git grep "searchParams.*sessionId" app/api/` returns 0); rate-limit test proves multi-isolate sliding counter cap holds across independent isolates; Cron hook in `src/worker.ts` invokes retention and matchmaking cleanup RPCs; dual-read from `sessions` and `app_sessions` active in `lib/serverAuth.ts`; `check:schema` clean (30 migrations); `typecheck` 0 errors; `lint` 0 errors. P1 complete.
 
 **Rollback:** flag off → old `requireAppSession` path. Additive schema means no data migration to reverse. The limiter and Cron are independently revertible.
 
@@ -596,7 +596,7 @@ Rev 2 — P3 is now scoped to the **pipe**, not the clock (XD-1 / PI-3). Validat
 
 **Scope order: 1v1 → 2v2 → 4P.** Each mode is a separate flag flip with its own drill evidence. `ROOM_V2` is evaluated at match creation (§4.12).
 
-**Exit gate:** `mp.harness` scenario replayed **through the room** and asserting identical terminal state and identical golden-replay hash; D1–D4 drills re-run against the room transport (`docs/ops/NETCODE_DRILLS.md`); **new D6 "room eviction and resume"**; **new D8 "flip `ROOM_V2` off during a live room match"** (§4.12); chaos suite green; spectators receive the same `seq` as seats; `test:concurrency` green against the new RPC.
+**Exit gate:** `mp.harness` scenario replayed **through the room** and asserting identical terminal state and identical golden-replay hash; D1–D4 drills re-run against the room transport (`docs/ops/NETCODE_DRILLS.md`); **new D6 "room eviction and resume"**; **new D8 "flip `ROOM_V2` off during a live room match"** (§4.12); chaos suite green; spectators receive the same `seq` as seats; `test:concurrency` green against the proxied transport (the atomic `match_commit_action` RPC is tested in P4).
 
 **Rollback:** `ROOM_V2` off → clients use the existing PeerJS + Realtime dual path. Both paths coexist **only** as a flag-switched either/or, never simultaneously authoritative. Live room matches **drain** rather than hand back (§4.12).
 

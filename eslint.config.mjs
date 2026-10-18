@@ -24,6 +24,7 @@ export default tseslint.config(
             'public/**',
             'coverage/**',
             'run_migration.js',
+            'src/cloudflare-env.d.ts',
         ],
     },
     ...tseslint.configs.recommended,

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { verifyPersonalSign } from "@/lib/walletVerify";
 import { buildWalletLinkMessage } from "@/lib/walletLink";
 import { isFreshIssuedAt } from "@/lib/matchProof";
-import { requireAppSession } from "@/lib/serverAuth";
+import { requireSessionWallet } from "@/lib/serverAuth";
 
 function serviceClient() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,10 +26,10 @@ export async function GET(req: NextRequest) {
     }
 
     // SEC-24: a session, and it must be this wallet.
-    const session = await requireAppSession(
-        req.nextUrl.searchParams.get("walletAddress"),
-        req.nextUrl.searchParams.get("sessionId"),
-    );
+    const session = await requireSessionWallet(req, {
+        scope: "app",
+        expectedWallet: req.nextUrl.searchParams.get("walletAddress") || wallet,
+    });
     if (!session) return NextResponse.json({ error: "Session required" }, { status: 401 });
     if (session !== wallet) return NextResponse.json({ error: "Not your wallet" }, { status: 403 });
 

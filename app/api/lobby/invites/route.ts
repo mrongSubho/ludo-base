@@ -1,19 +1,14 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 
 /** Guest polls pending invites for the wallet bound to its app session. */
 export async function GET(request: Request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const wallet = (searchParams.get('wallet') || '').trim().toLowerCase();
-        const sessionId = searchParams.get('sessionId');
-        if (!wallet) return NextResponse.json({ error: 'wallet required' }, { status: 400 });
-        if (!sessionId) return NextResponse.json({ error: 'session required' }, { status: 401 });
-
-        const authed = await requireAppSession(wallet, sessionId);
+        const authed = await requireSessionWallet(request, { scope: 'app' });
         if (!authed) {
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
+        const wallet = authed;
         const since = new Date(Date.now() - 2 * 60_000).toISOString();
         const { data, error } = await serviceDb()
             .from('game_invites')

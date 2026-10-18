@@ -1,9 +1,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database.types';
+import {
+    hashToken,
+    parseSessionToken,
+    validateCsrf,
+    isCapabilityAllowed,
+    APP_IDLE_TTL_MS,
+    MATCH_IDLE_TTL_MS,
+    type SessionScope,
+    type SessionCapability,
+    type SessionRecord,
+} from './sessionV2';
 
 let admin: SupabaseClient<Database> | null = null;
 
-export function serviceDb() {
+export function serviceDb(): SupabaseClient<Database> {
     if (admin) return admin;
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -13,15 +24,215 @@ export function serviceDb() {
     admin = createClient<Database>(url, key);
     return admin;
 }
-export async function requireAppSession(walletAddress: unknown, sessionId: unknown) {
+
+export interface SessionAuthResult {
+    wallet: string;
+    scope: SessionScope;
+    matchId: string | null;
+    session: SessionRecord | null;
+}
+
+export interface RequireSessionOptions {
+    scope?: SessionScope;
+    capability?: SessionCapability | string;
+    matchId?: string;
+    expectedWallet?: string;
+}
+
+/**
+ * Validates a session from an incoming HTTP Request.
+ *
+ * Checks:
+ *  1. CSRF posture on state-modifying verbs (POST/PUT/PATCH/DELETE)
+ *  2. Token extraction from Cookie (__Host-ludo_session) or Authorization: Bearer
+ *  3. Token hash verification against `sessions` table
+ *  4. Scope isolation ('app' cannot access match-only actions; 'match' cannot access chat/profile)
+ *  5. Absolute and idle expiration windows
+ *  6. Dual-read fallback to `app_sessions` for backward compatibility during rollout
+ */
+export async function requireSession(
+    request: Request,
+    scopeOrOptions?: SessionScope | RequireSessionOptions,
+    capability?: SessionCapability | string,
+): Promise<SessionAuthResult | null> {
+    const opts: RequireSessionOptions =
+        typeof scopeOrOptions === 'string'
+            ? { scope: scopeOrOptions, capability }
+            : (scopeOrOptions ?? {});
+
+    const expectedScope: SessionScope = opts.scope ?? 'app';
+
+    // 1. Verify CSRF posture on mutations
+    if (!validateCsrf(request)) {
+        console.warn('[auth] rejected request failing CSRF origin check', request.url);
+        return null;
+    }
+
+    // 2. Extract token
+    const token = parseSessionToken(request);
+    const db = serviceDb();
+
+    if (token) {
+        const tokenHash = hashToken(token);
+        const now = Date.now();
+        const nowIso = new Date(now).toISOString();
+
+        // 3. Lookup in sessions v2 table
+        const { data: session } = await db
+            .from('sessions')
+            .select('*')
+            .eq('token_hash', tokenHash)
+            .is('revoked_at', null)
+            .maybeSingle();
+
+        if (session) {
+            // Check absolute expiration
+            if (new Date(session.expires_at).getTime() <= now) {
+                return null;
+            }
+
+            // Check idle expiration
+            if (new Date(session.idle_expires_at).getTime() <= now) {
+                return null;
+            }
+
+            // Check scope isolation:
+            // - If route requires 'app' scope, 'match' scope is rejected
+            // - If route requires 'match' scope, 'app' scope is rejected
+            if (session.scope !== expectedScope) {
+                // Exception: 'match' scope has read-only 'spectator' compatibility only if explicitly spectating
+                return null;
+            }
+
+            // Check match binding if matchId required
+            if (opts.matchId && session.match_id !== opts.matchId) {
+                return null;
+            }
+
+            // Check expected wallet if specified
+            if (
+                opts.expectedWallet &&
+                session.wallet_address.toLowerCase() !== opts.expectedWallet.toLowerCase()
+            ) {
+                return null;
+            }
+
+            // Check capability if specified
+            if (opts.capability) {
+                const allowed = isCapabilityAllowed(session.scope as SessionScope, opts.capability as SessionCapability);
+                if (!allowed) return null;
+            }
+
+            // Throttled update of last_seen_at and idle_expires_at (at most once every 60s)
+            const lastSeenTime = new Date(session.last_seen_at).getTime();
+            if (now - lastSeenTime > 60_000) {
+                const idleTtl = session.scope === 'app' ? APP_IDLE_TTL_MS : MATCH_IDLE_TTL_MS;
+                const newIdleExpires = new Date(now + idleTtl).toISOString();
+                // Fire and forget, don't block auth on touch
+                db.from('sessions')
+                    .update({ last_seen_at: nowIso, idle_expires_at: newIdleExpires })
+                    .eq('id', session.id)
+                    .then(() => {}, () => {});
+            }
+
+            return {
+                wallet: session.wallet_address.toLowerCase(),
+                scope: session.scope as SessionScope,
+                matchId: session.match_id,
+                session,
+            };
+        }
+    }
+
+    // 4. Dual-read fallback from app_sessions (transition / rollback support)
+    // If x-session-id or bearer matches legacy app_sessions row
+    if (token && expectedScope === 'app') {
+        const { data: legacySession } = await db
+            .from('app_sessions')
+            .select('wallet_address, expires_at, revoked_at')
+            .eq('id', token)
+            .maybeSingle();
+
+        if (
+            legacySession &&
+            !legacySession.revoked_at &&
+            new Date(legacySession.expires_at).getTime() > Date.now()
+        ) {
+            const wallet = String(legacySession.wallet_address).toLowerCase();
+            if (!opts.expectedWallet || wallet === opts.expectedWallet.toLowerCase()) {
+                return {
+                    wallet,
+                    scope: 'app',
+                    matchId: null,
+                    session: null,
+                };
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Convenience helper returning just the authenticated wallet string, or null.
+ */
+export async function requireSessionWallet(
+    request: Request,
+    scopeOrOptions?: SessionScope | RequireSessionOptions,
+    capability?: SessionCapability | string,
+): Promise<string | null> {
+    const res = await requireSession(request, scopeOrOptions, capability);
+    return res ? res.wallet : null;
+}
+
+/**
+ * Dual-read legacy session validator.
+ * Validates either against `sessions` (by hash or id) or `app_sessions` (by id).
+ */
+export async function requireAppSession(walletAddress: unknown, sessionId: unknown): Promise<string | null> {
     const wallet = String(walletAddress || '').toLowerCase();
-    const id = String(sessionId || '');
+    const id = String(sessionId || '').trim();
     if (!/^0x[a-f0-9]{40}$/.test(wallet) || !id) return null;
-    const { data } = await serviceDb().from('app_sessions')
-        .select('wallet_address, expires_at, revoked_at').eq('id', id).maybeSingle();
-    if (!data || data.revoked_at || new Date(data.expires_at).getTime() <= Date.now() ||
-        String(data.wallet_address).toLowerCase() !== wallet) return null;
-    return wallet;
+
+    const db = serviceDb();
+    const now = Date.now();
+
+    // 1. Check sessions table (by token hash or id)
+    const tokenHash = hashToken(id);
+    const { data: session } = await db
+        .from('sessions')
+        .select('wallet_address, expires_at, idle_expires_at, revoked_at, scope')
+        .or(`token_hash.eq.${tokenHash},id.eq.${id}`)
+        .is('revoked_at', null)
+        .maybeSingle();
+
+    if (
+        session &&
+        session.scope === 'app' &&
+        new Date(session.expires_at).getTime() > now &&
+        new Date(session.idle_expires_at).getTime() > now &&
+        session.wallet_address.toLowerCase() === wallet
+    ) {
+        return wallet;
+    }
+
+    // 2. Dual-read from app_sessions (backward compatibility)
+    const { data: legacy } = await db
+        .from('app_sessions')
+        .select('wallet_address, expires_at, revoked_at')
+        .eq('id', id)
+        .maybeSingle();
+
+    if (
+        legacy &&
+        !legacy.revoked_at &&
+        new Date(legacy.expires_at).getTime() > now &&
+        String(legacy.wallet_address).toLowerCase() === wallet
+    ) {
+        return wallet;
+    }
+
+    return null;
 }
 
 /**

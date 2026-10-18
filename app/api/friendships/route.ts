@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const wallet = await requireAppSession(
-            searchParams.get('walletAddress'),
-            searchParams.get('sessionId'),
-        );
+        const expectedWallet = searchParams.get('walletAddress') || undefined;
+        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         const db = serviceDb();
@@ -44,7 +42,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const { walletAddress, sessionId, action, friendshipId, target } = await request.json();
-        const wallet = await requireAppSession(walletAddress, sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
+            (await requireAppSession(walletAddress, sessionId));
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const db = serviceDb();
         if (action === 'accept') {

@@ -78,6 +78,40 @@ export type Database = {
           },
         ]
       }
+      auth_challenges: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string | null
+          nonce: string
+          user_agent: string | null
+          wallet_address: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip?: string | null
+          nonce: string
+          user_agent?: string | null
+          wallet_address?: string | null
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          nonce?: string
+          user_agent?: string | null
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
       chips_claimable: {
         Row: {
           amount: number
@@ -1593,6 +1627,68 @@ export type Database = {
           },
         ]
       }
+      sessions: {
+        Row: {
+          created_at?: string
+          device_id: string | null
+          expires_at: string
+          id: string
+          idle_expires_at: string
+          issued_at: string
+          last_seen_at: string
+          match_id: string | null
+          revoked_at: string | null
+          rotated_from: string | null
+          scope: string
+          token_hash: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          device_id?: string | null
+          expires_at: string
+          id?: string
+          idle_expires_at: string
+          issued_at?: string
+          last_seen_at?: string
+          match_id?: string | null
+          revoked_at?: string | null
+          rotated_from?: string | null
+          scope: string
+          token_hash: string
+          wallet_address: string
+        }
+        Update: {
+          device_id?: string | null
+          expires_at?: string
+          id?: string
+          idle_expires_at?: string
+          issued_at?: string
+          last_seen_at?: string
+          match_id?: string | null
+          revoked_at?: string | null
+          rotated_from?: string | null
+          scope?: string
+          token_hash?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+          {
+            foreignKeyName: "sessions_rotated_from_fkey"
+            columns: ["rotated_from"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spectator_bets: {
         Row: {
           action_id: string
@@ -1959,9 +2055,17 @@ export type Database = {
         Args: { p_amount: number; p_ref: string; p_wallet: string }
         Returns: Json
       }
+      cleanup_auth_challenges: {
+        Args: { p_keep_hours: number }
+        Returns: number
+      }
       cleanup_matchmaking_queue: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      cleanup_sessions: {
+        Args: { p_keep_days: number }
+        Returns: number
       }
       cleanup_stale_data: {
         Args: Record<PropertyKey, never>

@@ -61,7 +61,9 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     // damage (one tick per 3s per client) until the claim is gated.
     'live-arena/power4p': { limit: 40, windowMs: 60_000, methods: ['PATCH'] },
 
-    // ── Session issuance: one wallet prompt per attempt, so keep it tight ──
+    // ── Session issuance & auth v2: rate-limit challenge & verify tightly ──
+    'auth/challenge': { limit: 30, windowMs: 60_000, methods: ['POST'] },
+    'auth/verify': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'siwe/verify': { limit: 10, windowMs: 60_000, methods: ['POST'] },
 
     // ── Public reads that are cheap but not free ──────────────────────────
@@ -110,6 +112,10 @@ export const NEVER_LIMIT = new Set([
  * HMAC-verified webhook that fails closed without its secret.
  */
 export const SESSION_GATED = new Set([
+    'auth/logout',
+    'auth/match',
+    'auth/session',
+    'auth/verify',
     'chips/escrow-balance',
     'chips/lobby-ticket',
     'chips/settle/propose',
