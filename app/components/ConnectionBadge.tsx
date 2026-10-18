@@ -46,7 +46,7 @@ export function ConnectionBadge({
         }[tone];
         return (
             <span
-                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-black tracking-[0.16em] whitespace-nowrap ${connectionClass}`}
+                className={`rounded-full border px-1.5 py-0.5 text-ludo-xs font-black tracking-[0.16em] whitespace-nowrap ${connectionClass}`}
                 role="status"
                 aria-live="polite"
                 aria-label={`Match connection: ${label}`}

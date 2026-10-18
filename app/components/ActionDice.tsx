@@ -334,7 +334,7 @@ const DiceFace = ({ face, transform, onClick, isActive, isRolling }: { face: any
                         border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95 cursor-pointer
                     "
                 >
-                    <span className="block text-[14px] md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400">
+                    <span className="block text-ludo-lg md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400">
                         {face.label}
                     </span>
                 </button>

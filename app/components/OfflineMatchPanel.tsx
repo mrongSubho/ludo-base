@@ -26,7 +26,7 @@ const OfflineTile = () => (
 // Section label: pill + gradient rule (marketplace vocabulary)
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-[10px] font-black tracking-[0.18em] text-white/60 font-mono uppercase">
+        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
             {children}
         </span>
         <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
@@ -102,11 +102,11 @@ export const OfflineMatchPanel = ({
                             </Button>
                         </div>
                         <div className="flex items-center gap-2 px-0.5">
-                            <span className="text-[11px] font-black text-white/70 tracking-wide uppercase">
+                            <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase">
                                 {gameMode} • {matchType}
                             </span>
                             <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                            <span className="text-[11px] font-black text-cyan-300 tracking-wide uppercase">
+                            <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase">
                                 {mode === 'pass' ? `${seatTotal} × Human` : `${aiCount} × AI`}
                             </span>
                         </div>
@@ -136,7 +136,7 @@ export const OfflineMatchPanel = ({
                                 Pass &amp; Play
                             </Chip>
                         </div>
-                        <p className="text-[10px] text-white/45 px-0.5 -mt-0.5">
+                        <p className="text-ludo-xs text-white/45 px-0.5 -mt-0.5">
                             {mode === 'pass'
                                 ? 'Same device · take turns · no bots · free'
                                 : `Fill ${aiCount} seat${aiCount > 1 ? 's' : ''} with AI · Free`}
@@ -163,7 +163,7 @@ export const OfflineMatchPanel = ({
                                     </Chip>
                                 ))}
                             </div>
-                            <p className="text-[10px] font-bold text-white/35 text-center tracking-wide">
+                            <p className="text-ludo-xs font-bold text-white/35 text-center tracking-wide">
                                 {DIFFICULTY_BLURB[difficulty]}
                             </p>
                         </div>
@@ -180,7 +180,7 @@ export const OfflineMatchPanel = ({
                                 <p className="text-white/60 text-sm font-bold leading-relaxed">
                                     Pass &amp; Play — {seatTotal} humans share this device. Hand off after each turn. No bots, no network, no entry fee.
                                 </p>
-                                <p className="text-[10px] text-white/40">
+                                <p className="text-ludo-xs text-white/40">
                                     Want a remote table? Use an invite link instead.
                                 </p>
                             </div>
