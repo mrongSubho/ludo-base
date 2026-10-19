@@ -48,6 +48,7 @@ const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
+import { ThinkingOrb } from './components/ThinkingOrb';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
 import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
@@ -354,6 +355,7 @@ export default function Page() {
   const {
     gameState: spectatorGameState,
     activeBetWindow,
+    isConnected: spectatorConnected,
   } = useSpectatorSync(spectatingRoomCode);
   const { spectatorCount } = useSpectatorPresence(spectatingRoomCode, address?.toLowerCase());
 
@@ -913,7 +915,7 @@ export default function Page() {
                 revealToken={matchStatusReveal}
               />
 
-              <main className="board-main has-top-back" style={{ paddingRight: spectatorGameState ? '296px' : undefined }}>
+              <main className="board-main has-top-back" style={{ position: 'relative', paddingRight: spectatorGameState ? '296px' : undefined }}>
                 <Board
                   playerCount="4P"
                   gameMode="power"
@@ -921,6 +923,24 @@ export default function Page() {
                   spectatorMode={true}
                   externalGameState={spectatorGameState ?? undefined}
                 />
+                {/* First paint of a spectated match: the board has no state yet
+                    and `isConnected` only flips after the first snapshot (or a
+                    SYNC_STATE broadcast), so this is a real wait, not a flash.
+                    Gated on BOTH flags so a future reconnect can never cover a
+                    board that is already live. */}
+                {!spectatorConnected && !spectatorGameState && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 pointer-events-none">
+                    <ThinkingOrb state="connecting" size={64} />
+                    {/* Token, not `text-white/45`: the board area is light in
+                        Daybreak (--ludo-bg #e6e8ec), so white ink disappears. */}
+                    <span
+                      className="text-ludo-xs font-black uppercase tracking-[0.25em]"
+                      style={{ color: 'var(--ludo-muted)' }}
+                    >
+                      Connecting to live match
+                    </span>
+                  </div>
+                )}
               </main>
 
               {/* SpectatorHUD — positioned on the right */}
