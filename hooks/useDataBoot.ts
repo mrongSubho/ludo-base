@@ -214,6 +214,41 @@ export const useDataBoot = (address: string | undefined) => {
         }
     }, [address]);
 
+    /**
+     * Re-pull the private message section without re-running the whole boot.
+     * Same endpoint, same decrypt, same visibility filter as the boot path —
+     * a live nudge must not invent a second message shape.
+     */
+    const refreshMessages = useCallback(async (
+        decryptStoredContent: (content: string, otherId: string) => Promise<string>,
+    ) => {
+        if (!address) return;
+        const lowerAddr = address.toLowerCase();
+        const sessionId = peekAppSession();
+        if (!sessionId) return;
+        try {
+            const res = await fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.conversations) setRawConversations(data.conversations);
+            if (!data.messages) return;
+
+            const decrypted = await Promise.all((data.messages as MessageData[]).map(async (m) => {
+                const otherId = m.sender_id.toLowerCase() === lowerAddr ? m.receiver_id : m.sender_id;
+                return { ...m, content: await decryptStoredContent(m.content, otherId) };
+            }));
+
+            const visible = decrypted.reverse().filter((msg) => {
+                if (msg.sender_id.toLowerCase() === lowerAddr && msg.deleted_by_sender) return false;
+                if (msg.receiver_id.toLowerCase() === lowerAddr && msg.deleted_by_receiver) return false;
+                return true;
+            });
+            setMessages(visible);
+        } catch (err) {
+            console.warn('[GameData] message refresh failed:', err);
+        }
+    }, [address, peekAppSession]);
+
     return {
         isBooting,
         isBootComplete,
@@ -230,6 +265,7 @@ export const useDataBoot = (address: string | undefined) => {
         setMessages,
         setRawConversations,
         setProfilesMap,
-        bootSequence
+        bootSequence,
+        refreshMessages
     };
 };

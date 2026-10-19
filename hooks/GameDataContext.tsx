@@ -80,6 +80,8 @@ interface GameDataContextType {
     // Actions
     updateMyProfileOptimistic: (updates: Partial<UserProfile>) => void;
     sendMessage: (receiverId: string, content: string) => Promise<void>;
+    /** Re-pull the message section (used by the DM live nudge). */
+    refreshMessages: () => Promise<void>;
     markChatAsRead: (senderId: string) => Promise<void>;
     deleteMessageLocal: (msg: MessageData) => Promise<void>;
     ensureEcdhPublished: () => Promise<void>;
@@ -123,7 +125,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         setMessages,
         setRawConversations,
         setProfilesMap,
-        bootSequence
+        bootSequence,
+        refreshMessages: refreshMessagesBoot
     } = useDataBoot(address);
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -274,6 +277,16 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         if (address) bootSequence(decryptStoredContent);
     }, [address, bootSequence, decryptStoredContent]);
 
+    /**
+     * Pull the message section again without re-booting the whole payload.
+     * Used by the DM live nudge (`useConversationLive`) so an incoming
+     * message lands immediately instead of waiting for the next user action.
+     */
+    const refreshMessages = useCallback(
+        () => refreshMessagesBoot(decryptStoredContent),
+        [refreshMessagesBoot, decryptStoredContent],
+    );
+
     // 2. Realtime Sync Hook
     useDataSync({
         address,
@@ -404,6 +417,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         unreadThreadCount,
         updateMyProfileOptimistic,
         sendMessage,
+        refreshMessages,
         markChatAsRead,
         deleteMessageLocal,
         ensureEcdhPublished
@@ -422,6 +436,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         unreadThreadCount,
         updateMyProfileOptimistic,
         sendMessage,
+        refreshMessages,
         markChatAsRead,
         deleteMessageLocal,
         ensureEcdhPublished,

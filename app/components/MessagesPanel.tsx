@@ -16,6 +16,8 @@ import { ChatContent, EmojiPickerPopover } from './EmojiPicker';
 import { RichChatField } from './RichChatField';
 import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 import { useToast } from './Toast';
+import { ThinkingOrb } from './ThinkingOrb';
+import { useConversationLive } from '@/hooks/useConversationLive';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -109,7 +111,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const { guard } = useGuestWall();
     const toast = useToast();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, } = useGameData();
+    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, refreshMessages, } = useGameData();
     const markAsRead = markChatAsRead;
     const [inputValue, setInputValue] = useState('');
     const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
@@ -226,6 +228,14 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         ? contactProfile.username
         : activeChat?.name;
     const threadAvatar = contactProfile?.avatar_url || activeChat?.avatar;
+
+    // Live DM thread: presence carries "composing", broadcast carries a
+    // content-free delivery nudge (the thread has no stream of its own).
+    const { peerTyping, setTyping, notifyMessage, nudge } = useConversationLive(selectedChatId, address);
+
+    useEffect(() => {
+        if (nudge > 0) void refreshMessages();
+    }, [nudge, refreshMessages]);
 
     // Cooldown Timer
     useEffect(() => {
@@ -362,6 +372,10 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         localStorage.setItem(`chat_cooldown_end_${address.toLowerCase()}`, (Date.now() + newCooldown * 1000).toString());
 
         await sendMessage(selectedChatId, textToSent);
+        // Content-free nudge: tells the peer to refetch now rather than wait
+        // for their next user action. Safe to fire even if it is missed.
+        setTyping(false);
+        notifyMessage();
     };
 
     // Tap a failed bubble to retry: drop the dead local copy and send fresh.
@@ -467,9 +481,22 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-white font-black text-base truncate leading-tight">{threadName}</span>
                                             <span className="flex items-center gap-1.5">
-                                                <span className={`text-ludo-xs font-black uppercase tracking-widest ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
-                                                    {activeChat.status}
-                                                </span>
+                                                {peerTyping ? (
+                                                    /* The orb replaces the presence line rather than
+                                                       sitting beside it: "typing…" is a more specific
+                                                       fact than "Online", and two statuses would
+                                                       compete for the same 12px of height. */
+                                                    <span className="flex items-center gap-1.5">
+                                                        <ThinkingOrb state="composing" size={20} />
+                                                        <span className="text-ludo-xs font-black uppercase tracking-widest text-cyan-300">
+                                                            typing…
+                                                        </span>
+                                                    </span>
+                                                ) : (
+                                                    <span className={`text-ludo-xs font-black uppercase tracking-widest ${activeChat.status === 'Online' ? 'text-green-400' : activeChat.status === 'In Match' ? 'text-orange-400' : 'text-white/40'}`}>
+                                                        {activeChat.status}
+                                                    </span>
+                                                )}
                                                 {isP2PActive && activeChat.status === 'Online' && (
                                                     <span className="flex items-center gap-1 bg-cyan-500/15 px-1.5 py-px rounded-full border border-cyan-500/30">
                                                         <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
@@ -808,6 +835,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                 onChange={(next) => {
                                                     setInputValue(next);
                                                     setInputEmotes((items) => retainChatDraftEmotes(next, items));
+                                                    // Throttled inside the hook; only the
+                                                    // non-empty -> empty edge matters.
+                                                    setTyping(next.trim().length > 0);
                                                 }}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                                                 disabled={cooldownTime > 0}
