@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { ThinkingOrb } from './ThinkingOrb';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -406,7 +407,7 @@ export const QuickMatchPanel = ({
         startSearch(fee, fee);
     };
 
-    const _isSearching = status === 'searching' || status === 'expanding';
+    const isSearching = status === 'searching' || status === 'expanding';
 
     return (
         <>
@@ -587,17 +588,24 @@ export const QuickMatchPanel = ({
 
                                             {/* 6. Dynamic Status Display Below Radar */}
                                             <div className="absolute top-[90%] left-1/2 -translate-x-1/2 flex flex-col items-center min-w-[300px]">
-                                                <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl">
-                                                    <div className="flex gap-1">
-                                                        {[0, 1, 2].map((dot) => (
-                                                            <motion.div
-                                                                key={dot}
-                                                                animate={{ opacity: [0.3, 1, 0.3] }}
-                                                                transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
-                                                                className={`w-1.5 h-1.5 rounded-full ${status === 'error' || status === 'timeout' ? 'bg-red-500' : 'bg-cyan-400'}`}
-                                                            />
-                                                        ))}
-                                                    </div>
+                                                <div className="flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl">
+                                                    {isSearching ? (
+                                                        /* The visible label below names the state, so the orb is
+                                                           decorative here — no second announcement. `theme="dark"`
+                                                           because this sheet is dark-glass in both app themes. */
+                                                        <ThinkingOrb state="searching" size={20} theme="dark" />
+                                                    ) : (
+                                                        <div className="flex gap-1">
+                                                            {[0, 1, 2].map((dot) => (
+                                                                <motion.div
+                                                                    key={dot}
+                                                                    animate={{ opacity: [0.3, 1, 0.3] }}
+                                                                    transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
+                                                                    className={`w-1.5 h-1.5 rounded-full ${status === 'error' || status === 'timeout' ? 'bg-red-500' : 'bg-cyan-400'}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                     <span className={`text-ludo-sm uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
                                                         {status === 'error' ? 'FAULT DETECTED' :
                                                          status === 'timeout' ? 'LINK TIMEOUT' :
