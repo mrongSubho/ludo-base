@@ -69,6 +69,7 @@ closes it.
   signer UI instead.
 - `useWalletMode()` is the source of truth for this boundary: `ingame` means
   CDP guards may apply; `external` means native wallet guards apply.
+- Authoritative reference: see `docs/architecture/WALLET_SIGNING_POLICY.md` for the full surface matrix, prompt cadences, storm prevention rules, and biometric step-up behavior.
 
 ## Conventions & gotchas
 
