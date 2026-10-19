@@ -118,7 +118,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         "inline-flex items-center font-sans select-none",
         "transition-[background-color,color,opacity,transform] duration-[var(--motion-control)] ease-[var(--ease-standard)]",
         "active:scale-[0.98]",
-        "disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100",
+        "disabled:cursor-not-allowed disabled:active:scale-100",
+        /* A busy button is not an unavailable button. Dimming it to 45% fights
+           the very indicator that says work is happening — and opacity on the
+           parent cannot be undone by a child, so the fix has to be here. Dim
+           only when disabled AND idle. */
+        loading ? "" : "disabled:opacity-45",
         SIZE[size],
         brandFill,
         fullWidth ? "w-full justify-center" : "",
