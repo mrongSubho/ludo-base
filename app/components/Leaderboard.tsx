@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { PanelTabs, PanelChildTabs } from './PanelTabs';
+import { ThinkingOrb } from './ThinkingOrb';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the lobby RankingsPanel (which covers the lobby side — this is the
@@ -229,7 +230,7 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center h-full gap-4">
-                                    <div className="w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                                    <ThinkingOrb state="working" size={32} />
                                     <p className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Syncing Throne...</p>
                                 </div>
                             ) : leaders.length === 0 ? (

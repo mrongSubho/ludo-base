@@ -8,6 +8,7 @@ import { PanelTabs, TabCount } from './PanelTabs';
 import { ChatIcon } from './icons';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useAppSession } from '@/hooks/useAppSession';
+import { ThinkingOrb } from './ThinkingOrb';
 import { EmptyState } from './EmptyState';
 import { Button } from './Button';
 import { Chip } from './Chip';
@@ -516,7 +517,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                         tone={hasIncomingPoke ? 'poke-back' : 'poke'}
                                     >
                                         {isPoking ? (
-                                            <div className="w-4 h-4 border-2 border-current opacity-40 border-t-current rounded-full animate-spin" />
+                                            <ThinkingOrb state="working" size={20} />
                                         ) : (
                                             <PokeIcon />
                                         )}

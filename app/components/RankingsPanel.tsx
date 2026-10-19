@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
+import { ThinkingOrb } from './ThinkingOrb';
 import { useAppSession } from '@/hooks/useAppSession';
 import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
@@ -334,7 +335,7 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                     </div>
                                     {isBooting || (activeFilter === 'friends' && friendsLoading) ? (
                                         <div className="h-full flex flex-col items-center justify-center gap-4 py-16">
-                                            <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+                                            <ThinkingOrb state="working" size={32} />
                                             <span className="text-ludo-xs font-black text-white/20 uppercase tracking-[0.3em]">Synching Tiers</span>
                                         </div>
                                     ) : filteredPlayers.length === 0 ? (
