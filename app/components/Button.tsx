@@ -55,6 +55,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size;
   fullWidth?: boolean;
   loading?: boolean;
+  /**
+   * Replaces the spinner while `loading`. Rendered in the icon slot, so it
+   * inherits the button's flex alignment but NOT the fixed icon box — pass a
+   * glyph that already carries its own size (e.g. the 20px `ThinkingOrb`).
+   * Omit for the default spinner.
+   */
+  loadingIcon?: ReactNode;
   /** Base-branded fill (#0052FF). Documented exception — prefer `primary`. */
   brand?: boolean;
   leftIcon?: ReactNode;
@@ -86,6 +93,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     size = "md",
     fullWidth = false,
     loading = false,
+    loadingIcon,
     brand = false,
     leftIcon,
     rightIcon,
@@ -121,7 +129,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...rest}
     >
       {loading ? (
-        <Spinner className={ICON_SIZE[size]} />
+        loadingIcon ?? <Spinner className={ICON_SIZE[size]} />
       ) : (
         leftIcon && <span className={ICON_SIZE[size]}>{leftIcon}</span>
       )}

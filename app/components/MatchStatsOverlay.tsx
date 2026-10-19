@@ -10,6 +10,7 @@ import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { getDisplayNameHelper } from './PlayerInfoRow';
 import Chip from './Chip';
+import { ThinkingOrb } from './ThinkingOrb';
 import { buildMatchReceipt, renderReceiptMarkdown, type MatchReceipt } from '@/lib/receipt/buildMatchReceipt';
 import { usePoolSummary } from '@/hooks/useChipsPool';
 
@@ -464,9 +465,12 @@ export function MatchStatsOverlay({
                                                       : 'Set NEXT_PUBLIC_MATCH_POOL_ADDRESS + poolId'
                                         }
                                     >
-                                        {claimBusy
-                                            ? 'Claiming…'
-                                            : secondsLeft > 0
+                                        {claimBusy ? (
+                                            <>
+                                                <ThinkingOrb state="solving" size={20} />
+                                                Claiming…
+                                            </>
+                                        ) : secondsLeft > 0
                                               ? `Claim in ${mmss}`
                                               : claimReady
                                                 ? 'Claim CHIPS'

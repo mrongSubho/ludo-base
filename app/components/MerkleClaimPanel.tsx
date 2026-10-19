@@ -2,6 +2,7 @@
 
 import { useLegacyClaim, useSeasonClaim } from "@/hooks/useMerkleClaim";
 import { shortHex } from "@/lib/chips";
+import { ThinkingOrb } from "./ThinkingOrb";
 
 /**
  * Legacy coins → CHIPS and season merkle claims (pull-only).
@@ -39,9 +40,13 @@ export default function MerkleClaimPanel({ epoch = "1" }: { epoch?: string }) {
                     }}
                     disabled={!legacy.canClaim || legacy.claiming}
                 >
-                    {legacy.claiming
-                        ? "Claiming…"
-                        : legacy.claimed
+                    {legacy.claiming ? (
+                        <>
+                            {/* .match-stats-cta is already inline-flex/centered. */}
+                            <ThinkingOrb state="solving" size={20} />
+                            Claiming…
+                        </>
+                    ) : legacy.claimed
                             ? "Claimed"
                             : legacy.canClaim
                                 ? "Claim Legacy CHIPS"
@@ -74,9 +79,12 @@ export default function MerkleClaimPanel({ epoch = "1" }: { epoch?: string }) {
                     }}
                     disabled={!season.canClaim || season.claiming}
                 >
-                    {season.claiming
-                        ? "Claiming…"
-                        : season.claimed
+                    {season.claiming ? (
+                        <>
+                            <ThinkingOrb state="solving" size={20} />
+                            Claiming…
+                        </>
+                    ) : season.claimed
                             ? "Claimed"
                             : season.canClaim
                                 ? "Claim Season CHIPS"

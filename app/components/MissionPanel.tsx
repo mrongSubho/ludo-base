@@ -11,6 +11,7 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelChildTabs, TabCount } from './PanelTabs';
 import { OnboardingPanel } from './OnboardingPanel';
+import { ThinkingOrb } from './ThinkingOrb';
 import { LuX, LuShieldCheck, LuListChecks, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget } from 'react-icons/lu';
 import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
@@ -491,6 +492,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                 variant="secondary"
                                                                                 size="sm"
                                                                                 loading={claimingId === mission.id}
+                                                                                loadingIcon={<ThinkingOrb state="solving" size={20} />}
                                                                                 disabled={isPaid}
                                                                                 onClick={
                                                                                     isPaid

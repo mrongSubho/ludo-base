@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
 import { useClaimAll } from "@/hooks/useChipsPool";
 import { chipsAddress, shortHex } from "@/lib/chips";
+import { ThinkingOrb } from "./ThinkingOrb";
 
 interface ChipsWalletPanelProps {
     isOpen: boolean;
@@ -336,11 +337,15 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                 onClick={() => void onClaimAll()}
                                 c={c}
                                 icon={
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 3v12" />
-                                        <path d="m7 10 5 5 5-5" />
-                                        <path d="M5 21h14" />
-                                    </svg>
+                                    claiming ? (
+                                        <ThinkingOrb state="solving" size={20} />
+                                    ) : (
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 3v12" />
+                                            <path d="m7 10 5 5 5-5" />
+                                            <path d="M5 21h14" />
+                                        </svg>
+                                    )
                                 }
                             />
                             <ActionButton
