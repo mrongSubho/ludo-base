@@ -591,9 +591,10 @@ export const QuickMatchPanel = ({
                                                 <div className="flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl">
                                                     {isSearching ? (
                                                         /* The visible label below names the state, so the orb is
-                                                           decorative here — no second announcement. `theme="dark"`
-                                                           because this sheet is dark-glass in both app themes. */
-                                                        <ThinkingOrb state="searching" size={20} theme="dark" />
+                                                           decorative here — no second announcement. Theme follows
+                                                           the app: this sheet uses `--panel-bg`, which Daybreak
+                                                           overrides to white, so it is NOT dark-only. */
+                                                        <ThinkingOrb state="searching" size={20} />
                                                     ) : (
                                                         <div className="flex gap-1">
                                                             {[0, 1, 2].map((dot) => (

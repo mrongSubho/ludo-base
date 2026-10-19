@@ -41,12 +41,15 @@ export interface ThinkingOrbProps {
     className?: string;
     /**
      * Which substrate the orb sits on.
-     * - `app` (default) follows the active app theme — correct for ordinary
-     *   surfaces, which do flip with `theme-daybreak`.
-     * - `dark` / `light` pin the ink for surfaces whose background does NOT
-     *   follow the app theme. The matchmaking sheet is one: it is the shared
-     *   dark-glass sandwich shell in both themes (`--panel-bg` has no Daybreak
-     *   override), so it must pass `dark` or the ink goes dark-on-dark.
+     * - `app` (default) follows the active app theme — correct for every
+     *   surface driven by the `--panel-bg` token family, including the
+     *   matchmaking sheet (Daybreak overrides `--panel-bg` to
+     *   `rgba(255,255,255,0.88)`, so that sheet is white in light mode).
+     * - `dark` / `light` pin the ink, for surfaces that hardcode a background
+     *   instead of reading the theme tokens. Verify with
+     *   `getComputedStyle(document.body).getPropertyValue('--panel-bg')`
+     *   before reaching for these — a wrong pin renders ink-on-ink and is
+     *   invisible rather than merely ugly.
      */
     theme?: 'app' | 'dark' | 'light';
     /** Accessible name. Omit when a visible label already names the state. */
