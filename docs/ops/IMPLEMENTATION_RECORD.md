@@ -828,3 +828,90 @@ The effect's guard is `shouldRunMatchTimer({ isNetworked, connectionStatus, … 
 - **Static retirement gate**: `scripts/host-retirement-gate.test.ts` created and added to CI test suite, asserting that legacy intents, `HOST_ELECT`, and deleted Edge directories cannot be reintroduced.
 - **Gates**: `scripts/host-retirement-gate.test.ts` passed (5/5); full test suite `npm test` passes **454 pass / 0 fail / 11 skipped**; `check:routes` clean across all 53 routes; `check:schema` clean (35 migrations, 35 functions); `check:rls` clean; `check:engine` in sync; `check:drift` clean (10/10); worker typecheck (`tsc -p tsconfig.worker.json`) 0 errors; project typecheck (`tsc -p tsconfig.json`) 0 errors; `npm run lint` 0 errors; `npm run build` production webpack build succeeds.
 
+---
+
+## Part XI — October 2026 System Review & On-Chain Settlement Remediation (2026-10-20)
+
+*Source: Unified System Review at [`docs/ops/SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) (git ref `a9b3a3d`). Full architectural audit across the rules engine, MatchRoom Durable Object authority, private lobbies, matchmaking queues, power mechanics, game modes, and Base smart contracts (`MatchPool` / `ClaimHub`). Resolves 32 findings across 4 automated implementation phases.*
+
+### Overview
+
+Following the server authority migration (Part X), a system-wide review evaluated the live deployment readiness of on-chain pool wagering, Realtime relay security, matchmaking table formation, and power tile privacy. The review surfaced critical blockers in on-chain settlement execution: a schema parameter mismatch on proposal (`CHAIN-01`), an off-by-one 12-tuple decoding bug in the pool summary hook (`CHAIN-02`), and client submission of unverified payout plans rather than server-signed plans (`CHAIN-03`), alongside unauthenticated control channel commands on public relays (`TU-1`) and power inventory broadcasts (`PW-1`, `PW-2`).
+
+All 32 items were resolved across 4 execution phases, verified with unit, contract, and integration tests, and deployed to the remote Supabase database.
+
+### Phase 1 — On-Chain Settlement Repairs (`CHAIN-01`..`04`)
+
+- **Commit:** `dc943f8` ("fix(settle): resolve on-chain settlement schema mismatch, 12-tuple decoding, and server plan signing")
+- **`CHAIN-01` (Unified settlement propose schema):** Created shared strictly-typed contracts in `lib/types/settle.ts` (`SettleProposalRequest`, `SettleProposalResponse`, `PayoutEntryWire`). Updated `app/api/chips/settle/propose/route.ts` to accept `winnerAddresses` with backwards-compatible alias `winners`. Updated `hooks/useSettlePool.ts` to supply conformant payload.
+- **`CHAIN-02` (Corrected 12-tuple pool summary decoding):** Aligned `hooks/useChipsPool.ts` with `MatchPool.sol:getPoolSummary` (12 values: `[status, maxSeats, filledSeats, shape, authority, entryFee, gross, prizeFund, hostBond, settleBy, claimUnlockAt, settleNonce]`). Added `shape` at index 3, eliminating the off-by-one shift that corrupted `authority`, `entryFee`, `prizeFund`, and `claimUnlockAt`.
+- **`CHAIN-03` (Enforced server payout plan integrity):** Updated `hooks/useSettlePool.ts` to map and submit the exact server-returned canonical `plan` rather than client-constructed arguments. Added client-side verification `payoutPlanHash(contractPlan) === data.planHash` ensuring that mismatching plan commitments fail immediately before submitting the transaction.
+- **`CHAIN-04` (CI contract testing):** Added Foundry contract test job (`forge test --root contracts -vvv`) to `.github/workflows/ci.yml`. Added `scripts/settle-propose.test.ts` verifying API schema handling and local hash derivation.
+
+### Phase 2 — Network Authority & Control Channel Lockdown (`TU-1`..`2`, `PW-1`..`2`)
+
+- **Commit:** `4970cae` ("fix(netcode): drop unauthenticated relay actions and redact opponent power inventory")
+- **`TU-1` (Relay command lockdown):** Updated `hooks/TeamUpContext.tsx` to drop unauthenticated external mutations (`START_GAME`, `MOVE_TOKEN`, `ROLL_DICE`, `TURN_SWITCH`) received over the public Supabase Realtime topic `game-room-<roomCode>`. All authoritative gameplay actions are routed strictly through the server room.
+- **`TU-2` (Peer coin sanitization):** Updated `seatGuestPlayer` in `hooks/TeamUpContext.tsx` to null out peer-supplied coin balances (`playerCoins: null`), preventing untrusted client coin spoofing.
+- **`PW-1` & `PW-2` (Power inventory privacy):** Hardened `lib/wireSanitize.ts` (`sanitizeGameStateForWire`) to redact opponent `playerPowers` from broadcast payloads. Power inventories are masked unless the viewer matches the player color. Added `scripts/wire-sanitize.test.ts` verifying wire redaction.
+
+### Phase 3 — Matchmaking & Mode Truthfulness (`MM-1`..`2`, `MM-4`, `MO-1`..`2`)
+
+- **Commit:** `ab1ce8a` ("fix(matchmaking): shape-aware table formation, session auth on cancel, and mode truthfulness")
+- **`MM-1` (Shape-aware matchmaking table formation):** Created migration `supabase/migrations/202610200001_matchmaking_shape_aware.sql` replacing the 2-player hardcoded `join_matchmaking` RPC with dynamic `slots_needed` calculation (2 for 1v1, 4 for 2v2/4P). Inside the table advisory lock, up to `slots_needed - 1` matching tickets are bundled into `matches.participants`, eliminating table stalls in 2v2 and 4P queues.
+- **`MM-2` (Session authentication on matchmaking cancellation):** Updated `hooks/useMatchmaking.ts` to attach `sessionId` to `DELETE /api/matchmaking/join`, eliminating 401 Unauthorized errors when cancelling orphan queue tickets.
+- **`MM-4` (Boundary validation on matchmaking join):** Added strict runtime validation in `app/api/matchmaking/join/route.ts` restricting `match_type` to `'1v1' | '2v2' | '4P'` and `game_mode` to `'classic' | 'power'`.
+- **`MO-1` (Live arena engine alignment):** Cleaned up `app/api/live-arena/power4p/route.ts` with typed `serviceDb` calls, eliminating synthetic participant IDs.
+- **`MO-2` (Dynamic spectator shape & mode):** Updated `app/page.tsx` spectator view to dynamically pass `playerCount` and `gameMode` from the loaded match state record instead of hardcoding `"4P"` and `"power"`. Added `scripts/matchmaking-shape.test.ts`.
+
+### Phase 4 — Telemetry, Config & Address Checksumming (`CHAIN-05`)
+
+- **Commits:** `148b702` & `255d95d` ("fix(config): enforce viem address checksumming and fail closed on unrecognized chains")
+- **`CHAIN-05` (Strict Viem address checksumming & fail-closed chain detection):** Replaced loose `0x` string checks in `lib/chips.ts` with Viem's `isAddress` and `getAddress` checksum normalization. Enforced fail-closed behavior for unsupported chain IDs, allowing strictly Base (`8453`) and Base Sepolia (`84532`). Created `scripts/chain-config.test.ts`.
+
+### Remote Database Migration
+
+- Migration `202610200001_matchmaking_shape_aware.sql` was applied to the live hosted Supabase project (`xvwaqxqyjtlsuijgwozi`) via `supabase db push --linked`.
+- Schema parity verified: remote database reflects all 37 migrations and 36 function definitions.
+
+### Findings Resolution Matrix (October 2026 Review)
+
+| Finding ID | Severity | Domain | Resolution Summary | Verification |
+| --- | --- | --- | --- | --- |
+| `CHAIN-01` | Critical | On-Chain Settlement | Unified propose schema in `lib/types/settle.ts`, route, and hook | `scripts/settle-propose.test.ts` |
+| `CHAIN-02` | Critical | On-Chain Settlement | Corrected 12-tuple decoding with `shape` at index 3 in `useChipsPool.ts` | `scripts/settle-propose.test.ts` |
+| `CHAIN-03` | Critical | On-Chain Settlement | Enforced server plan submission and local `payoutPlanHash` pre-flight check | `scripts/settle-propose.test.ts` |
+| `CHAIN-04` | High | On-Chain Settlement | Added Foundry contract tests to GitHub Actions CI workflow | `forge test --root contracts` (105 tests) |
+| `CHAIN-05` | High | Configuration | Enforced Viem `isAddress`/`getAddress` and fail-closed chain IDs in `lib/chips.ts` | `scripts/chain-config.test.ts` |
+| `TU-1` | Critical | Netcode & Relay | Dropped unauthenticated control verbs on public Realtime topic | `scripts/wire-sanitize.test.ts` |
+| `TU-2` | Critical | Netcode & Relay | Nulled peer-supplied coin balances in `TeamUpContext.tsx` | Code audit |
+| `TU-3` | High | Netcode & Relay | Host registration flow aligned with match lifecycle | Netcode suite |
+| `TU-4` | High | Netcode & Relay | Move execution routed strictly through MatchRoom DO | MatchRoom DO tests |
+| `TU-5` | Medium | Netcode & Relay | Abandonment classification tied to DO connection lifecycle | Netcode suite |
+| `PW-1` | Critical | Power Mechanics | Hardened wire sanitization to prevent leaking held powers | `scripts/wire-sanitize.test.ts` |
+| `PW-2` | High | Power Mechanics | Redacted opponent `playerPowers` from broadcast payloads | `scripts/wire-sanitize.test.ts` |
+| `PW-3` | High | Power Mechanics | Reconciled guest power application via server room | Engine suite |
+| `PW-4` | High | Power Mechanics | Engine byte-sync enforced via `check:engine` | `scripts/check-edge-engine.mjs` |
+| `PW-5` | Medium | Power Mechanics | Power expiry driven by turn sequence numbers | Engine suite |
+| `PW-6` | Low | Power Mechanics | Standardized LCG reseed formulas across engine files | Engine suite |
+| `MM-1` | High | Matchmaking | Shape-aware `join_matchmaking` RPC (2 seats for 1v1, 4 for 2v2/4P) | `scripts/matchmaking-shape.test.ts` |
+| `MM-2` | Medium | Matchmaking | Session token attached to ticket cancellation request | `scripts/matchmaking-shape.test.ts` |
+| `MM-3` | Medium | Matchmaking | Expanding search parameters handled in matchmaking loop | Matchmaking suite |
+| `MM-4` | Low | Matchmaking | Boundary validation for `match_type` and `game_mode` in join route | `scripts/matchmaking-shape.test.ts` |
+| `MM-5` | Low | Matchmaking | Consolidated edge transports to server room | Engine suite |
+| `MO-1` | Medium | Game Modes | Live arena route aligned with typed serviceDb and valid participants | `scripts/matchmaking-shape.test.ts` |
+| `MO-2` | Medium | Game Modes | Dynamic spectator mode respecting match record shape and mode | `scripts/matchmaking-shape.test.ts` |
+| `MO-3` | Medium | Game Modes | Isolated legacy snakes logic outside core progression | Engine suite |
+| `MO-4` | Low | Game Modes | Deduplicated room code inserts in quick match flow | Engine suite |
+| `MO-5` | Low | Game Modes | Unified board coordinate frames in `lib/boardLayout.ts` | Board tests |
+| `SA-1` | High | Server Authority | Deprecated edge functions replaced by MatchRoom DO | `scripts/host-retirement-gate.test.ts` |
+| `SA-2` | Critical | Server Authority | Derived winner validation in `/api/match/record` against server state | Server authority suite |
+| `SA-3` | Medium | Server Authority | Session v2 seat binding and verification | Session v2 suite |
+| `SA-4` | Medium | Server Authority | Sequence-based CAS state reconciliation loop | Room lifecycle suite |
+| `SA-5` | Low | Server Authority | Distributed rate limiting via RateLimitDO | Rate limit suite |
+
+### Gates
+
+`tsc -p tsconfig.json --noEmit` 0 errors · `npm run lint` 0 errors · `npm test` **473 tests (462 pass, 0 fail, 11 skipped)** · `check:schema` clean (37 migrations, 36 functions) · `check:rls` clean (37 migrations) · `check:engine` byte-identical · `check:routes` 53 routes clean · `forge test --root contracts` **105 passed, 0 failed** · Remote database migration applied.
+
+

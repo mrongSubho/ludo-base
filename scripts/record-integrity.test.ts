@@ -100,3 +100,23 @@ test('the sign-off table records every phase gate', () => {
         assert.ok(record.includes(gate), `sign-off has no ${gate} row`);
     }
 });
+
+test('the October 2026 review findings are recorded in the implementation record', () => {
+    const oct20Findings = [
+        'CHAIN-01', 'CHAIN-02', 'CHAIN-03', 'CHAIN-04', 'CHAIN-05',
+        'TU-1', 'TU-2', 'TU-3', 'TU-4', 'TU-5',
+        'PW-1', 'PW-2', 'PW-3', 'PW-4', 'PW-5', 'PW-6',
+        'MM-1', 'MM-2', 'MM-3', 'MM-4', 'MM-5',
+        'MO-1', 'MO-2', 'MO-3', 'MO-4', 'MO-5',
+        'SA-1', 'SA-2', 'SA-3', 'SA-4', 'SA-5',
+    ];
+    for (const id of oct20Findings) {
+        assert.ok(record.includes(id), `missing October 2026 finding in record: ${id}`);
+    }
+});
+
+test('SYSTEM_REVIEW_2026-10-20 is a redirect stub to the unified review', () => {
+    const stub = read('docs/ops/SYSTEM_REVIEW_2026-10-20.md');
+    assert.ok(stub.includes('docs/ops/SYSTEM_REVIEW.md'), 'must redirect to unified review');
+});
+

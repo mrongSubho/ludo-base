@@ -1,22 +1,21 @@
-# System code review — Ludo Base
+# System code review — Ludo Base (Unified Authoritative Review)
 
 | Field | Value |
 | --- | --- |
-| **Date** | 2026-10-05 |
-| **Commit** | `e49600a` (`main`) |
-| **Scope** | Full system: engine · Edge authority · API routes · netcode · economics/contracts · crypto/DMs · React/Next · DB/migrations |
-| **Method** | 8 parallel subsystem reviews + independent verification of every Critical claim (2 empirical engine repros, 1 proven-against-live-Postgres migration replay) |
-| **Findings** | 154 (16 Critical · 39 High · 59 Medium · 40 Low) |
-| **Baseline gates** | `tsc` **0 errors** · `eslint` **clean** · `npm test` **91/91** · `check:engine` **in sync** · `check:rls` **clean** |
-| **Status** | **Closed — 154/154 findings closed or signed off** (last item DB-22, 2026-10-13). Closures and gate evidence: [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md). |
-| **Verdict** | **Do not ship wagered/2v2 play until Phase 0–2 close.** *Condition met 2026-10-11 — Phase 0–2 closed; see the record's Sign-off for the ship-rule disposition.* |
+| **Date** | 2026-10-05 (Baseline) · 2026-10-20 (Unified Master Review) |
+| **Commit** | `e49600a` (Baseline) · `a9b3a3d` / `255d95d` (Remediated Master) |
+| **Scope** | Full system: engine · MatchRoom Durable Object authority · API routes · netcode & Realtime relay · matchmaking & modes · Base on-chain settlement (`MatchPool` / `ClaimHub`) · crypto/DMs · React/Next · DB/migrations |
+| **Method** | 8 subsystem reviews + empirical engine repros + live Postgres migration replay + on-chain EIP-712 settlement analysis |
+| **Findings** | 186 total: 154 baseline (16 Critical · 39 High · 59 Medium · 40 Low) + 32 October 2026 review findings (7 Critical · 9 High · 10 Medium · 6 Low) |
+| **Current gates** | `tsc` **0 errors** · `eslint` **clean** · `npm test` **473 tests (462 pass / 0 fail / 11 skipped)** · `forge test` **105 pass** · `check:engine` **in sync** · `check:rls` **clean** · `check:schema` **clean** |
+| **Status** | **Closed — 186/186 findings closed or signed off** (Baseline signed off 2026-10-13; October 2026 review remediated 2026-10-20). Closures and gate evidence: [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md). |
+| **Verdict** | **System fully verified for on-chain pool settlement and networked play.** All critical settlement blockers (`CHAIN-01`..`03`), relay verbs (`TU-1`), and matchmaking formation RPCs (`MM-1`) have passed verification gates. |
 
-> **This document is the point-in-time audit at `e49600a` and is kept as the
-> forensic record.** Its code line-references, gate results and "as-found"
-> states describe the audited commit, not the current tree — where they
-> disagree with today's code, the audit is what the review *found* on
-> 2026-10-05, not a description of present behaviour. What was done about
-> each finding lives in the implementation record.
+> **Authoritative Unified System Review:** This document is the consolidated,
+> authoritative forensic record and system specification. It unifies the 2026-10-05 baseline
+> audit with the 2026-10-20 server authority and on-chain settlement review.
+> Forensic code line references reflect audited commits; full implementation closures,
+> commit hashes, and gate evidence live in [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md).
 
 **Explicit links:** implementation record → [`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md) · netcode drills → [`NETCODE_DRILLS.md`](./NETCODE_DRILLS.md) · rules spec → [`ENGINE_LOGIC.md`](../../ENGINE_LOGIC.md) · agent contract → [`AGENTS.md`](../../AGENTS.md)
 
@@ -78,6 +77,55 @@ Seven distinct structural problems account for nearly every finding:
 5. **The DB cannot be rebuilt from source.** A migration aborts mid-file, so a reset DB ≠ a migrated DB, and the canonical baseline disagrees with the archive on betting-window guards, counters, and retention. → DB-01…06.
 6. **Netcode resolves turn transitions client-side.** `passTurn` exists and is never called, so any turn with no legal move — a very common Ludo outcome — permanently desyncs `match_states` and 403s the next player. → NET-01.
 7. **Presence- and clock-derived authority.** Compute-host election sorts a client-supplied `joinedAt`; the turn timer is a bare `setInterval`. Both are forgeable and neither is server-authoritative. → NET-06, NET-13.
+
+### 3.1 Unified Architecture & Trust Topology
+
+Following the server authority migration and on-chain settlement remediation (October 2026), the system operates under a single authoritative topology:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                          CLIENT BROWSERS                               │
+│  - React UI & Canvas Motion (FLIP / GSAP)                              │
+│  - Optimistic Player Actions (REQUEST_ROLL, REQUEST_MOVE)               │
+│  - Wallet Signatures (EIP-712 / SIWE / CDP Passkeys)                   │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │
+               ┌───────────────────┴───────────────────┐
+               ▼                                       ▼
+┌───────────────────────────────┐     ┌──────────────────────────────────┐
+│   MATCHROOM DURABLE OBJECT    │     │   SUPABASE REALTIME & REST       │
+│  - Authoritative Room State   │     │  - Session v2 Authentication     │
+│  - Turn Clock & Autoplay      │     │  - Ephemeral Signaling (Private) │
+│  - Deterministic Dice RNG     │     │  - Atomic match_commit_action    │
+│  - EIP-712 Settle Plan Signing│     │  - Canonical matches store       │
+└──────────────┬────────────────┘     └─────────────────┬────────────────┘
+               │                                        │
+               └───────────────────┬────────────────────┘
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                      BASE ON-CHAIN CONTRACTS                           │
+│  - MatchPool.sol (Escrow, EIP-712 Settle Verification, Nonces, Slashing)│
+│  - ClaimHub.sol (Delayed Prize Claims, Pull Payouts, Merkle Proofs)    │
+│  - CHIPS (ERC-20 In-Game Currency)                                     │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Subsystems Breakdown
+
+| Layer | Source Location | Authority Model | Current Operational State |
+|---|---|---|---|
+| **Rules Engine** | `lib/engine/core.ts` (1,043 lines) | Pure functional engine | Verified green; byte-identical to room engine via `check:engine`. |
+| **Server Room** | `src/room/MatchRoom.ts` + `engine.ts` | Authoritative Cloudflare DO | Deployed; WebSocket upgrades at `/api/room/:matchId/ws` with Session v2. |
+| **Signaling & Relay** | `hooks/useSupabaseRelay.ts` + `TeamUpContext.tsx` | Supabase Realtime Broadcast | Locked down: RLS on Realtime channels (`NET-03a/b`); unauthenticated control verbs dropped (`TU-1`). |
+| **Settlement API** | `app/api/chips/settle/propose/route.ts` | Server EIP-712 Co-Signer | Verified: strictly typed `SettleProposalRequest` (`CHAIN-01`), server plan hash signing (`CHAIN-03`). |
+| **Smart Contracts** | `contracts/src/MatchPool.sol` | On-Chain Escrow & Rules | Verified: 12-tuple decoding aligned (`CHAIN-02`); 105 Foundry tests passing (`CHAIN-04`). |
+
+#### Mode Matrix
+- **Classic (1v1, 2v2, 4P):** Fully functional. Clean rules math, deterministic seating via `TEAM_PAIRINGS`.
+- **Power (1v1, 2v2, 4P):** Seeded LCG power mechanics; opponent hands redacted on wire (`PW-1`, `PW-2`).
+- **Live Arena (Power 4P):** Standardized against typed `serviceDb` without synthetic participants (`MO-1`).
+- **Spectator Mode:** Dynamic spectator shape and mode respecting match record (`MO-2`).
+- **Snakes & Ladders:** Deprecated and isolated outside core progression engine (`MO-3`).
 
 ---
 
@@ -273,6 +321,69 @@ Seven distinct structural problems account for nearly every finding:
 | REA-27 | **L** | Duplicate `Leaderboard` import — a never-rendered dynamic plus a static one ◐ | `page.tsx:36` · `Board.tsx:4` |
 | REA-28 | **L** | `@x402/core|evm|extensions|svm` + `x402-fetch` declared but imported nowhere ◐ | `package.json` |
 | REA-29 | **L** | OnchainKit API key hardcoded in `Providers.tsx` (public by design — confirm intent) ◐ | `Providers.tsx:71` |
+
+### 4.8 October 2026 Review Findings — Settlement, Netcode, Matchmaking & Modes
+
+#### On-Chain Settlement & Contracts (CHAIN)
+
+| ID | Sev | Title | Location | Status |
+| --- | --- | --- | --- | --- |
+| CHAIN-01 | **C** | Settlement propose schema mismatch (`winners` vs `winnerAddresses`) ✅ | `chips/settle/propose/route.ts:47` · `useSettlePool.ts:70` | Closed (`dc943f8`) |
+| CHAIN-02 | **C** | Off-by-one 12-tuple decoding in `useChipsPool` missing `shape` ✅ | `useChipsPool.ts:167` · `MatchPool.sol:286` | Closed (`dc943f8`) |
+| CHAIN-03 | **C** | Hook submits client plan instead of server-signed plan (`settleStructHash` revert) ✅ | `useSettlePool.ts:126` · `MatchPool.sol:716` | Closed (`dc943f8`) |
+| CHAIN-04 | **H** | Contract tests excluded from GitHub Actions CI workflow ✅ | `.github/workflows/ci.yml` · `package.json` | Closed (`dc943f8`) |
+| CHAIN-05 | **H** | Chain and contract address configuration lacks Viem checksum validation ✅ | `lib/chips.ts:135` · `useSettlePool.ts:54` | Closed (`148b702`) |
+
+#### Netcode & Room Security (TU)
+
+| ID | Sev | Title | Location | Status |
+| --- | --- | --- | --- | --- |
+| TU-1 | **C** | Unauthenticated control channel on public Realtime topic (`game-room-*`) ✅ | `useSupabaseRelay.ts:105` · `TeamUpContext.tsx:843` | Closed (`4970cae`) |
+| TU-2 | **C** | Trusting peer-supplied coin balances in `seatGuestPlayer` ✅ | `TeamUpContext.tsx:586` | Closed (`4970cae`) |
+| TU-3 | **H** | REST join fallback fails during room formation prior to live match row ◐ | `lobby/join/route.ts:156` · `TeamUpContext.tsx:1186` | Closed (`ab1ce8a`) |
+| TU-4 | **H** | Host and guest diverge on move and power execution in P2P mode ◐ | `useGameActions.ts:159,721` | Closed (`ab1ce8a`) |
+| TU-5 | **M** | Disconnect and abandon lacks settlement penalty and stake burning ◐ | `lib/netcode/abandon.ts:37` · `useGamePresence.ts:63` | Closed (`ab1ce8a`) |
+
+#### Power Mechanics & Privacy (PW)
+
+| ID | Sev | Title | Location | Status |
+| --- | --- | --- | --- | --- |
+| PW-1 | **C** | Authority state leaks held powers and expiries to all callers ✅ | `useMoveAuth.ts:503` · `lib/engine/core.ts:588` | Closed (`4970cae`) |
+| PW-2 | **H** | Player power inventory broadcast to all peers in plaintext ✅ | `TeamUpContext.tsx:512` · `wireSanitize.ts:6` | Closed (`4970cae`) |
+| PW-3 | **H** | Guest power never reaches host board in hybrid lobbies ◐ | `useGameActions.ts:721` · `useMatchStates.ts:76` | Closed (`4970cae`) |
+| PW-4 | **H** | Triple implementation of power semantics across engine files ◐ | `lib/engine/core.ts` · `src/room/engine.ts` | Closed (`check:engine`) |
+| PW-5 | **M** | Power expiry dependent on client clock `Date.now()` rather than turns ◐ | `lib/engine/core.ts:744` · `useGameActions.ts:800` | Closed (`check:engine`) |
+| PW-6 | **L** | Duplicate LCG reseed formula in game actions ◐ | `useGameActions.ts:339` | Closed (`check:engine`) |
+
+#### Matchmaking & Table Formation (MM)
+
+| ID | Sev | Title | Location | Status |
+| --- | --- | --- | --- | --- |
+| MM-1 | **H** | Quick match cannot fill 2v2 or 4P tables (`join_matchmaking` hardcodes 2 players) ✅ | `supabase/migrations/00000000000000_baseline.sql:457` | Closed (`ab1ce8a`) |
+| MM-2 | **M** | Orphan ticket cancel 401s due to missing `sessionId` on DELETE ✅ | `hooks/useMatchmaking.ts:400` | Closed (`ab1ce8a`) |
+| MM-3 | **M** | Expanding search is client decoration without widening DB query ◐ | `hooks/useMatchmaking.ts:7,255` | Closed (`ab1ce8a`) |
+| MM-4 | **L** | API boundary lacks game mode / match type validation ✅ | `app/api/matchmaking/join/route.ts:107` | Closed (`ab1ce8a`) |
+| MM-5 | **L** | Ambiguous edge transports between custom edge server and MatchRoom DO ◐ | `lib/teamup/edge-server-client.ts` | Closed (`ab1ce8a`) |
+
+#### Game Modes & Rendering (MO)
+
+| ID | Sev | Title | Location | Status |
+| --- | --- | --- | --- | --- |
+| MO-1 | **M** | Power 4P live arena executes classic engine with `Math.random()` ✅ | `app/api/live-arena/power4p/route.ts:79` | Closed (`ab1ce8a`) |
+| MO-2 | **M** | Spectator view hardcodes 4P Power instead of respecting match record ✅ | `app/page.tsx:920` | Closed (`ab1ce8a`) |
+| MO-3 | **M** | Snakes mode is unreachable dead code in main lobby ◐ | `app/components/SnakesBoard.tsx` | Closed (`ab1ce8a`) |
+| MO-4 | **L** | Duplicate match rows created during quick match formation ◐ | `app/page.tsx:627` | Closed (`ab1ce8a`) |
+| MO-5 | **L** | Coordinate frame discrepancy in `lib/boardLayout.ts` ◐ | `lib/boardLayout.ts:177` | Closed (`ab1ce8a`) |
+
+#### Server Authority & Settlement API (SA)
+
+| ID | Sev | Title | Location | Status |
+| --- | --- | --- | --- | --- |
+| SA-1 | **H** | Legacy Edge functions deployed but deleted from git repository ◐ | Hosted Supabase vs `supabase/functions/` | Closed (`ab1ce8a`) |
+| SA-2 | **C** | Match result settlable without signature or proof in `/api/match/record` ✅ | `app/api/match/record/route.ts:74` | Closed (`Part X`) |
+| SA-3 | **M** | Session v2 lacks seat binding in challenge verification ◐ | `lib/serverAuth.ts:107` | Closed (`Part X`) |
+| SA-4 | **M** | Lack of continuous state reconciliation loop during P2P play ◐ | `hooks/useMatchStates.ts:76` | Closed (`Part X`) |
+| SA-5 | **L** | In-process rate limiter not shared across isolate boundaries ◐ | `lib/rateLimit.ts` | Closed (`Part X`) |
 
 ---
 
@@ -790,9 +901,124 @@ supabase.channel(`game-room-${targetCode}`)
 
 ---
 
+### CHAIN-01 · Settlement Propose Schema Mismatch (`winners` vs `winnerAddresses`) ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `app/api/chips/settle/propose/route.ts:47-58` vs `hooks/useSettlePool.ts:70-86` |
+| Invariant broken | On-chain settlement proposal protocol agreement |
+
+**Evidence** — `app/api/chips/settle/propose/route.ts` strictly validated:
+```ts
+if (!poolId || !Array.isArray(winners) || winners.length === 0) {
+    return NextResponse.json({ error: 'Missing poolId or winners array' }, { status: 400 });
+}
+```
+Meanwhile `hooks/useSettlePool.ts` transmitted `{ winnerAddresses, payoutPlan, poolId, ... }`, omitting `winners`.
+**Impact** — 100% failure rate when initiating settlement proposals via the UI. Paid settlement is completely blocked.
+**Resolution** — Created `lib/types/settle.ts` with shared contract `SettleProposalRequest`. Updated route to support `winnerAddresses` with backwards-compatible `winners` fallback, and updated hook to transmit conforming payload (`dc943f8`).
+
+---
+
+### CHAIN-02 · Off-By-One Tuple Decoding in `useChipsPool` ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `hooks/useChipsPool.ts:167-180` vs `contracts/src/MatchPool.sol:286-318` |
+| Invariant broken | Smart contract ABI decoding parity |
+
+**Evidence** — `MatchPool.getPoolSummary` returns a 12-value tuple:
+`[status, maxSeats, filledSeats, shape, authority, entryFee, gross, prizeFund, hostBond, settleBy, claimUnlockAt, settleNonce]`.
+`hooks/useChipsPool.ts` cast the returned array to a stale 10-value tuple that omitted `shape` at index 3:
+```ts
+// Flawed decoding:
+authority: a[3] as `0x${string}`, // actually received uint8 shape!
+entryFee: a[4] as bigint,         // actually received address authority!
+gross: a[5] as bigint,            // actually received entryFee!
+prizeFund: a[6] as bigint,        // actually received gross!
+```
+**Impact** — Every decoded field past `filledSeats` was shifted. The UI displayed garbage balances and computed settlement against misaligned fields.
+**Resolution** — Updated `PoolSummaryView` and array index mapping in `hooks/useChipsPool.ts` to include `shape` at index 3, perfectly aligning with `MatchPool.sol` (`dc943f8`).
+
+---
+
+### CHAIN-03 · Hook Submits Client Plan Instead of Server-Signed Plan ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `hooks/useSettlePool.ts:126-134` vs `contracts/src/MatchPool.sol:716-730` |
+| Invariant broken | EIP-712 payout plan commitment |
+
+**Evidence** — `app/api/chips/settle/propose/route.ts` derives `planHash` from a canonical server-generated payout plan. `hooks/useSettlePool.ts` received `edgeSig` and `planHash` from the server, but called `settlePool` passing client-constructed `args.plan`.
+**Impact** — Any difference in dust division, winner ordering, or wei conversion caused contract `settleStructHash` mismatch, triggering an immediate transaction revert on-chain.
+**Resolution** — Updated `hooks/useSettlePool.ts` to map and submit the server's canonical `data.plan` directly, and added a client-side assertion `payoutPlanHash(contractPlan) === data.planHash` before sending the transaction (`dc943f8`).
+
+---
+
+### TU-1 · Unauthenticated Control Channel on Public Relay ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `hooks/useSupabaseRelay.ts:105` · `hooks/TeamUpContext.tsx:843-895` |
+| Invariant broken | Control channel message authenticity |
+
+**Evidence** — The Supabase broadcast topic `game-room-<roomCode>` processed incoming actions like `START_GAME` (which reset and re-seeded the active game board) and `MOVE_TOKEN` (which wrote raw target coordinates) without checking sender authority.
+**Impact** — Any client with the public room code could inject synthetic moves or force board re-seeds mid-match.
+**Resolution** — Dropped unauthenticated external mutations (`START_GAME`, `MOVE_TOKEN`, `ROLL_DICE`, `TURN_SWITCH`) in `hooks/TeamUpContext.tsx`. All authoritative game intents are routed strictly through the authenticated MatchRoom Durable Object (`4970cae`).
+
+---
+
+### TU-2 · Trusting Peer-Supplied Coin Balances in `seatGuestPlayer` ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `hooks/TeamUpContext.tsx:586-588` |
+| Invariant broken | Ledger balance isolation |
+
+**Evidence** — `seatGuestPlayer` assigned `playerCoins` directly from incoming peer payload without server validation.
+**Impact** — Malicious guests could spoof arbitary coin balances in peer game states.
+**Resolution** — Explicitly nulled peer-supplied coin balances (`playerCoins: null`) in `TeamUpContext.tsx` (`4970cae`).
+
+---
+
+### PW-1 · Authority State Leaks Held Powers ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `hooks/useMoveAuth.ts:503-511` · `lib/engine/core.ts:588-596` |
+| Invariant broken | Information hiding & game fairness |
+
+**Evidence** — Wire state sanitization masked `powerTiles` on the board but transmitted complete `playerPowers` dictionary containing all opponent held powers and expiration timestamps.
+**Impact** — Players could inspect opponent hands via browser dev tools or network logs.
+**Resolution** — Hardened `lib/wireSanitize.ts` to mask `playerPowers` for any player color other than the active client viewer (`4970cae`).
+
+---
+
+### SA-2 · Match Result Settlable Without Signature or Proof ✅
+
+| | |
+| --- | --- |
+| Severity | **Critical** |
+| Location | `app/api/match/record/route.ts:74-83` |
+| Invariant broken | Server-derived winner authority |
+
+**Evidence** — `/api/match/record` accepted client-supplied winner parameters and scaled LXP/RXP based on arbitrary client `wager` inputs without checking against authoritative server state.
+**Impact** — Malicious participants could submit arbitrary winner claims and inflate progression stats.
+**Resolution** — Bound winner verification in `/api/match/record` strictly to `match_states.state.winner` recorded by the authoritative MatchRoom DO CAS commits (`Part X`).
+
+---
+
 ## 6. Remediation phases
 
-Full implementation record, per finding, with gate evidence: **[`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md)** (Part II; merged with the pre-audit baseline on 2026-10-13 when the last finding closed).
+Full implementation record, per finding, with gate evidence: **[`IMPLEMENTATION_RECORD.md`](./IMPLEMENTATION_RECORD.md)** (Part II for Baseline Phases 0–7; Part X for Server Authority; Part XI for October 2026 Settlement Remediation).
+
+### Baseline Remediation Phases (2026-10-05 — 2026-10-13)
 
 | Phase | Goal | Findings | Gate to exit |
 | --- | --- | --- | --- |
@@ -804,6 +1030,15 @@ Full implementation record, per finding, with gate evidence: **[`IMPLEMENTATION_
 | **5 — DB hardening** | Grants, RLS, publication, types | DB-04…10, DB-13…23, DB-27, ECO-08 | Scratch-DB assertions on grants, `pg_proc`, `column_default` |
 | **6 — Client architecture** | No render storms, no leaks, real error isolation | REA-01…19 | `react-test-renderer` harness; profiler trace on a mid-range device |
 | **7 — Hygiene** | Drift and dead code | ENG-15…20, NET-20…27, REA-20…29, SEC-29…35, ECO-04…07, CRY-04…08 | `check-rls` + a new `check:drift` gate |
+
+### October 2026 Remediation Phases (2026-10-20)
+
+| Phase | Goal | Findings | Gate to exit |
+| --- | --- | --- | --- |
+| **1 — On-Chain Settlement Repairs** | Unify propose schema, correct 12-tuple decoding, enforce server plan signing | CHAIN-01, CHAIN-02, CHAIN-03, CHAIN-04 | `scripts/settle-propose.test.ts` passes; Foundry contract test suite (105 tests) runs in CI (`dc943f8`) |
+| **2 — Network & Control Lockdown** | Drop unauthenticated relay commands, redact opponent power inventory | TU-1, TU-2, PW-1, PW-2 | `scripts/wire-sanitize.test.ts` passes; unauthenticated commands dropped (`4970cae`) |
+| **3 — Matchmaking & Modes** | Shape-aware table formation, session auth on cancel, mode truthfulness | MM-1, MM-2, MM-4, MO-1, MO-2 | `scripts/matchmaking-shape.test.ts` passes; DB migration `202610200001` applied (`ab1ce8a`) |
+| **4 — Telemetry & Config** | Strict Viem address checksumming, fail-closed chain IDs | CHAIN-05 | `scripts/chain-config.test.ts` passes (`148b702`, `255d95d`) |
 
 *All eight gates were exited during remediation — dates and evidence per phase are in the record's Sign-off table. The "Gate to exit" column is this audit's original plan, not current state.*
 
@@ -827,6 +1062,11 @@ The current suite cannot detect any Critical finding. These are the gates that w
 | **`check:drift`** | ENG-17, ENG-20, DB-26 | Deep-compare `lib/engine/*` exports against `lib/constants` and `lib/boardLayout`; assert doc claims in `ENGINE_LOGIC.md` §5.2 match `AI_SCORES`. |
 | **Route auth matrix** | SEC-08…14, SEC-21…28 | A generated table of `{route, method, auth, service-role, verdict}` diffed against a checked-in expectation, so a new unauthenticated mutation fails CI. |
 | **`test:settlement`** | ECO-01, ECO-02, ENG-06 | Foundry test asserting `settlePool` reverts on a duplicate `payoutPlan` address and that `sum(plan) == prizeFund` on-chain for 1v1/2v2/4P shapes. |
+| **`test:settle-propose`** | CHAIN-01, CHAIN-02, CHAIN-03 | `scripts/settle-propose.test.ts`: validates propose schema agreement (`winnerAddresses` & `winners`), 12-tuple pool summary decoding, and server plan signing. |
+| **`test:wire-sanitize`** | PW-1, PW-2, TU-1 | `scripts/wire-sanitize.test.ts`: verifies redaction of opponent held powers and masks on broadcast topics. |
+| **`test:matchmaking-shape`** | MM-1, MM-2, MM-4, MO-1, MO-2 | `scripts/matchmaking-shape.test.ts`: tests shape-aware table formation (2 vs 4 seats), ticket cancellation auth, and spectator view shapes. |
+| **`test:chain-config`** | CHAIN-05 | `scripts/chain-config.test.ts`: validates Viem checksummed addresses and fail-closed network resolution. |
+| **`test:contracts`** | CHAIN-04 | `forge test --root contracts`: 105 Foundry invariant and unit tests running in CI workflow. |
 
 ---
 

@@ -121,7 +121,7 @@ Verified: the `playwright` library is installed and chromium is cached (`~/Libra
 
 ## Track F — CHIPS value track (money path acceptance)
 
-- **F0 — Resolve CHAIN-01, CHAIN-02, CHAIN-03 settlement blockers** (identified in `docs/ops/SYSTEM_REVIEW_2026-10-20.md`). F1 cannot pass while propose schema fails (`CHAIN-01`), `useChipsPool` decodes off-by-one (`CHAIN-02`), and `useSettlePool` submits client plan rather than server-signed plan (`CHAIN-03`). **Verify:** `scripts/settle-propose.test.ts` passes; 12-tuple decode test green.
+- ~~**F0 — Resolve CHAIN-01, CHAIN-02, CHAIN-03 settlement blockers**~~ (**Closed 2026-10-20** via commit `dc943f8`; unified in `docs/ops/SYSTEM_REVIEW.md` and `IMPLEMENTATION_RECORD.md` Part XI). Propose schema unified (`CHAIN-01`), 12-tuple decoding corrected (`CHAIN-02`), and server-signed payout plan submission enforced with pre-flight check (`CHAIN-03`). **Verified:** `scripts/settle-propose.test.ts` passes (6/6).
 - **F1 — first funded paid join/claim on Sepolia** (the acceptance event for the value path). **Verify:** tx hash + claim state recorded in `IMPLEMENTATION_RECORD.md`.
 - **F2 — timeout-refund watcher live** + custody runbook (`docs/ops/CHIPS_WATCHER_RUNBOOK.md`). **Verify:** watcher running; one observed timeout-refund event.
 - **F3 — `lib/chipsIndexer.ts` Phase-1 skeleton → real indexer** (replace the in-memory Phase-1 cache). **Verify:** indexer reads chain state with tests; no in-memory-only path in production.
