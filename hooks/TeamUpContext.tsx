@@ -230,10 +230,29 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 const type = localTypes.get(`${t.r},${t.c}`);
                 return type === undefined ? t : { ...t, type };
             });
+
+            // PW-2 fix: The wire strips opponent power types so opponent hands are masked on broadcast.
+            // On a broadcast without viewerColor, state.playerPowers arrives with type: undefined.
+            // Re-attach local power types from prev.playerPowers so the player's own hand is preserved.
+            const playerPowers = { ...(state.playerPowers || prev.playerPowers) } as Record<PlayerColor, any[]>;
+            if (prev.playerPowers) {
+                for (const [color, items] of Object.entries(prev.playerPowers) as [PlayerColor, any[]][]) {
+                    const serverItems = playerPowers[color];
+                    if (!serverItems || !items) continue;
+                    playerPowers[color] = serverItems.map((sItem: any, idx: number) => {
+                        if (sItem.type !== undefined && sItem.type !== 'masked') return sItem;
+                        const localMatch = items.find((l: any) => l.expiresAt === sItem.expiresAt && l.type !== undefined && l.type !== 'masked')
+                            || (items[idx]?.type !== undefined && items[idx]?.type !== 'masked' ? items[idx] : undefined);
+                        return localMatch ? { ...sItem, type: localMatch.type } : sItem;
+                    });
+                }
+            }
+
             return {
                 ...prev,
                 ...state,
                 powerTiles: powerTiles as GameState['powerTiles'],
+                playerPowers: playerPowers as GameState['playerPowers'],
                 lastUpdate: Date.now(),
             };
         });

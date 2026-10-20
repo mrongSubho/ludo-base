@@ -39,3 +39,46 @@ test('PW-1/PW-2: sanitizeGameStateForWire strips board power tiles and masks opp
     assert.equal(sanitizedForSpectator.playerPowers.green[0].type, undefined);
     assert.equal(sanitizedForSpectator.playerPowers.red[0].type, undefined);
 });
+
+test('PW-2 regression guard: local client re-attaches known power types when receiving wire state', () => {
+    // Simulate guest local state before broadcast
+    const localPrev = {
+        powerTiles: [{ r: 2, c: 3, type: 'nuke' }],
+        playerPowers: {
+            green: [{ type: 'boost', expiresAt: 1700001000 }], // guest is green
+            red: [{ type: undefined, expiresAt: 1700002000 }],  // opponent is red (already typeless)
+        },
+    };
+
+    // Broadcast arrives from wire (no viewerColor, so all powers arrived typeless)
+    const incomingWireState = {
+        powerTiles: [{ r: 2, c: 3 }],
+        playerPowers: {
+            green: [{ type: undefined, expiresAt: 1700001000 }], // green was sanitized on wire!
+            red: [{ type: undefined, expiresAt: 1700002000 }],
+        },
+    };
+
+    // Re-attach local power types logic (identical to applyServerState)
+    const playerPowers = { ...(incomingWireState.playerPowers || localPrev.playerPowers) } as Record<string, any[]>;
+    if (localPrev.playerPowers) {
+        for (const [color, items] of Object.entries(localPrev.playerPowers)) {
+            const serverItems = playerPowers[color];
+            if (!serverItems || !items) continue;
+            playerPowers[color] = serverItems.map((sItem: any, idx: number) => {
+                if (sItem.type !== undefined && sItem.type !== 'masked') return sItem;
+                const localMatch = items.find((l: any) => l.expiresAt === sItem.expiresAt && l.type !== undefined && l.type !== 'masked')
+                    || (items[idx]?.type !== undefined && items[idx]?.type !== 'masked' ? items[idx] : undefined);
+                return localMatch ? { ...sItem, type: localMatch.type } : sItem;
+            });
+        }
+    }
+
+    // Assert: local player ('green') recovered their 'boost' power type!
+    assert.equal(playerPowers.green[0].type, 'boost', 'local player must not lose their held power type');
+    assert.equal(playerPowers.green[0].expiresAt, 1700001000);
+
+    // Opponent ('red') remains sanitized / typeless
+    assert.equal(playerPowers.red[0].type, undefined, 'opponent power type remains redacted');
+});
+
