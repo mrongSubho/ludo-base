@@ -2,7 +2,7 @@
  * MatchPool / ClaimHub / CHIPS ABIs + addresses for app join/claim (Phase 1).
  * Addresses live in env (NEXT_PUBLIC_*); fill TOKEN_PARAMS.md at deploy.
  */
-import { encodeAbiParameters, keccak256, parseAbiParameters, toBytes, toHex } from "viem";
+import { encodeAbiParameters, getAddress, isAddress, keccak256, parseAbiParameters, toBytes, toHex } from "viem";
 
 export const MATCH_POOL_ABI = [
     {
@@ -135,12 +135,14 @@ export const CHIPS_ERC20_ABI = [
 
 export function matchPoolAddress(): `0x${string}` | undefined {
     const a = process.env.NEXT_PUBLIC_MATCH_POOL_ADDRESS;
-    return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
+    if (!a || !isAddress(a)) return undefined;
+    return getAddress(a);
 }
 
 export function chipsAddress(): `0x${string}` | undefined {
     const a = process.env.NEXT_PUBLIC_CHIPS_ADDRESS;
-    return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
+    if (!a || !isAddress(a)) return undefined;
+    return getAddress(a);
 }
 
 /** Pool status enum from MatchPool. */
@@ -199,7 +201,8 @@ export { toHex };
 
 export function claimHubAddress(): `0x${string}` | undefined {
     const a = process.env.NEXT_PUBLIC_CLAIM_HUB_ADDRESS;
-    return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
+    if (!a || !isAddress(a)) return undefined;
+    return getAddress(a);
 }
 
 export const CLAIM_HUB_ABI = [
