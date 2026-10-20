@@ -917,8 +917,8 @@ export default function Page() {
 
               <main className="board-main has-top-back" style={{ position: 'relative', paddingRight: spectatorGameState ? '296px' : undefined }}>
                 <Board
-                  playerCount="4P"
-                  gameMode="power"
+                  playerCount={spectatorGameState?.playerCount || "4P"}
+                  gameMode={(spectatorGameState?.powerTiles?.length ?? 0) > 0 ? "power" : "classic"}
                   isBotMatch={true}
                   spectatorMode={true}
                   externalGameState={spectatorGameState ?? undefined}

@@ -400,11 +400,16 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             if (!edgeMatch || isMatched()) {
                 // Lost the race to Supabase: kill our orphan ticket so it can't ghost-match later
                 if (edgeMatch && ticketIdRef.current) {
-                    fetch('/api/matchmaking/cancel', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ticketId: ticketIdRef.current, playerId: null })
-                    }).catch(() => {});
+                    const tid = ticketIdRef.current;
+                    void ensureAppSession()
+                        .catch(() => null)
+                        .then((sId) => {
+                            fetch('/api/matchmaking/cancel', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ticketId: tid, playerId: null, sessionId: sId || undefined })
+                            }).catch(() => {});
+                        });
                 }
                 return;
             }

@@ -75,6 +75,11 @@ export async function POST(request: Request) {
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+        const ALLOWED_MODES = new Set(['classic', 'power', 'snakes']);
+        const ALLOWED_TYPES = new Set(['1v1', '2v2', '4P']);
+        if (!ALLOWED_MODES.has(gameMode) || !ALLOWED_TYPES.has(matchType)) {
+            return NextResponse.json({ error: 'Invalid gameMode or matchType' }, { status: 400 });
+        }
         const wallet = await requireAppSession(playerId, sessionId);
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         playerId = wallet;

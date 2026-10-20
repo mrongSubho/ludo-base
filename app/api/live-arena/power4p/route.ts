@@ -1,21 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { INITIAL_GAME_STATE, getLegalTokenIndices, processMove } from '@/lib/gameLogic';
 import { assignCornersFFA } from '@/lib/boardLayout';
 import { getBestMove } from '@/lib/aiEngine';
-import { requireAppSession, requireSessionWallet } from '@/lib/serverAuth';
+import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
-import type { GameState, PlayerColor } from '@/lib/types';
+import type { GameState, PlayerColor, ColorCorner } from '@/lib/types';
+import type { Json } from '@/types/database.types';
 
 const ARENA_KEY = 'power4p-ai';
 const ROOM_CODE = 'ARENA-POWER-4P';
 const COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
 
 function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase service role is not configured');
-  return createClient(url, key);
+  return serviceDb();
 }
 
 /**
@@ -100,9 +97,9 @@ export async function POST(request: Request) {
       room_code: ROOM_CODE,
       host_address: wallet,
       seq: 0,
-      state: { ...state, matchId },
-      color_corner: cc,
-      player_seats: Object.fromEntries(COLORS.map(color => [color, { kind: 'bot' }])),
+      state: { ...state, matchId } as unknown as NonNullable<Json>,
+      color_corner: cc as unknown as NonNullable<Json>,
+      player_seats: Object.fromEntries(COLORS.map(color => [color, { kind: 'bot' }])) as unknown as NonNullable<Json>,
     });
     if (stateError) throw stateError;
     const { error: liveError } = await sb.from('live_matches').insert({
@@ -180,15 +177,16 @@ export async function PATCH(request: Request) {
     if (!claim.data) return NextResponse.json({ claimed: false });
     const row = await sb.from('match_states').select('seq, state, color_corner').eq('match_id', matchId).single();
     if (row.error || !row.data) return NextResponse.json({ claimed: true });
-    const state = row.data.state as GameState;
+    const state = row.data.state as unknown as GameState;
     if (state.winner) return NextResponse.json({ claimed: true, ended: true });
     const color = state.currentPlayer as PlayerColor;
     const roll = Math.floor(Math.random() * 6) + 1;
-    const legal = getLegalTokenIndices(state.positions, color, roll, row.data.color_corner);
+    const cc = row.data.color_corner as unknown as ColorCorner;
+    const legal = getLegalTokenIndices(state.positions, color, roll, cc);
     const next = legal.length
-      ? processMove({ ...state, diceValue: roll, gamePhase: 'moving' }, color, getBestMove(state.positions, color, roll, row.data.color_corner, '4P', state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0], roll, '4P', row.data.color_corner).newState
+      ? processMove({ ...state, diceValue: roll, gamePhase: 'moving' }, color, getBestMove(state.positions, color, roll, cc, '4P', state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0], roll, '4P', cc).newState
       : { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
-    const updated = await sb.from('match_states').update({ state: next, seq: Number(row.data.seq) + 1, updated_at: now })
+    const updated = await sb.from('match_states').update({ state: next as unknown as NonNullable<Json>, seq: Number(row.data.seq) + 1, updated_at: now })
       .eq('match_id', matchId).eq('seq', row.data.seq).select('seq').maybeSingle();
     return NextResponse.json({ claimed: true, advanced: !!updated.data });
   } catch (err) {
