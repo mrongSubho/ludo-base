@@ -15,14 +15,14 @@
 A1 P0 DO spike ──┬──> A3 P3 room/transport ──> A4 P4 relocation/clock
                  └──> NET-03a/b channel decision ──> H2 mainnet (owner call)
 B  UI sweep ──── (independent; in flight) ────> UI design docs + enforcement
-F1 funded Sepolia acceptance ──> H2 mainnet (owner call)
+F0/F1 funded Sepolia acceptance (F0 blocks F1 per SYSTEM_REVIEW_2026-10-20) ──> H2 mainnet (owner call)
 C  CSS plan ──── unblocked now (visual harness + playwright confirmed working)
 D  device/live evidence ── needs hardware or a live session (schedule externally)
 E  quality residuals ── independent, cheap
 G/I owner decisions & later product ── external
 ```
 
-**Priority queue:** ① A1 → ② B (UI sweep) → ③ F1 → ④ C1–C4 → ⑤ E1/E2/E4 → ⑥ D (schedule hardware) → ⑦ G/H/I (owner/external).
+**Priority queue:** ① A1 / DO operational proof → ② F0 (CHAIN-01..03 blockers) → ③ B (UI sweep) → ④ F1 (Sepolia funded acceptance) → ⑤ C1–C4 → ⑥ E1/E2/E4 → ⑦ D (schedule hardware) → ⑧ G/H/I (owner/external).
 
 ---
 
@@ -121,6 +121,7 @@ Verified: the `playwright` library is installed and chromium is cached (`~/Libra
 
 ## Track F — CHIPS value track (money path acceptance)
 
+- **F0 — Resolve CHAIN-01, CHAIN-02, CHAIN-03 settlement blockers** (identified in `docs/ops/SYSTEM_REVIEW_2026-10-20.md`). F1 cannot pass while propose schema fails (`CHAIN-01`), `useChipsPool` decodes off-by-one (`CHAIN-02`), and `useSettlePool` submits client plan rather than server-signed plan (`CHAIN-03`). **Verify:** `scripts/settle-propose.test.ts` passes; 12-tuple decode test green.
 - **F1 — first funded paid join/claim on Sepolia** (the acceptance event for the value path). **Verify:** tx hash + claim state recorded in `IMPLEMENTATION_RECORD.md`.
 - **F2 — timeout-refund watcher live** + custody runbook (`docs/ops/CHIPS_WATCHER_RUNBOOK.md`). **Verify:** watcher running; one observed timeout-refund event.
 - **F3 — `lib/chipsIndexer.ts` Phase-1 skeleton → real indexer** (replace the in-memory Phase-1 cache). **Verify:** indexer reads chain state with tests; no in-memory-only path in production.

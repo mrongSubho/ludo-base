@@ -823,4 +823,248 @@ bond slashing, and failed-token-transfer handling. The dominant current risk is 
 missing contract check; it is that the application does not yet prove it can drive the reviewed
 contract consistently. Until CHAIN-01 through CHAIN-03 and the deployment/CI gates are closed,
 the paid-pool feature should be treated as **not release-ready**, even though the Solidity unit
-tests and static application gates are reported green.**
+tests and static application gates are reported green.
+
+---
+
+# Part III: Independent Analysis, Root-Cause Synthesis, and Technical Remediation Specifications
+
+**Analysis Date:** 2026-10-20  
+**Focus:** Architectural validation, defect root causes, interface alignment, and actionable implementation specs.
+
+## 1. Cross-Layer Architectural Analysis
+
+The system review establishes a critical dichotomy across the stack:
+- **Core Engine Mechanics (Healthy):** Pure mathematical functions in `lib/engine/core.ts`, single-sourced 2v2 diagonal seating in `TEAM_PAIRINGS`, and seeded LCG pseudo-random power tile mechanics are strictly guarded and passing 454 unit tests.
+- **Network Authority & Orchestration (High Risk):** Three disjoint network designs have overlapped in history:
+  1. *Legacy P2P / Supabase Realtime Relay:* `TeamUpContext.tsx` where the host browser is de facto authority.
+  2. *Legacy Edge Authority:* Deployed Supabase Edge functions (`roll-dice`, `move-auth`, `resolve-bet`) deleted from the git repository yet still active in production.
+  3. *Track A MatchRoom Durable Object:* `src/room/MatchRoom.ts` and `src/room/engine.ts` designed to centralize game state, turns, and atomic database commits.
+- **On-Chain Settlement Bridge (Broken Glue):** The Solidity contracts (`contracts/src/MatchPool.sol`) implement robust EIP-712 signature verification, delay periods, and seat binding, but the React hooks and Next.js API routes are disconnected by schema drift and off-by-one tuple offsets.
+
+---
+
+## 2. Deep-Dive Defect Analysis
+
+### 2.1 CHAIN-01: API Schema Drift in Settlement Propose
+- **Defect Point:** `app/api/chips/settle/propose/route.ts:47-58` vs `hooks/useSettlePool.ts:70-86`.
+- **Mechanism:**
+  - Route validation requires:
+    ```ts
+    const { poolId, winners, split } = body ?? {};
+    if (!poolId || !Array.isArray(winners) || winners.length === 0) {
+        return NextResponse.json({ error: "Missing settle fields" }, { status: 400 });
+    }
+    ```
+  - Hook invocation sends:
+    ```ts
+    body: JSON.stringify({
+        walletAddress: address,
+        sessionId,
+        chainId,
+        poolId: args.poolId,
+        authority: args.authority,
+        participants: args.participants ?? args.plan.map((p) => p.addr),
+        winnerAddresses: args.winnerAddresses ?? args.plan.map((p) => p.addr),
+        payoutPlan: args.plan.map((p) => ({ addr: p.addr, amount: p.amount.toString() })),
+        nonce: nonce.toString(),
+        deadline: deadline.toString(),
+        mode: args.modeB ? "edge-only" : "dual",
+    })
+    ```
+- **Consequence:** `winners` is `undefined`, triggering a `400 Missing settle fields` on every single settlement proposal. No on-chain settlement can proceed via the UI.
+
+### 2.2 CHAIN-02: Off-By-One Tuple Decoding in `useChipsPool`
+- **Defect Point:** `hooks/useChipsPool.ts:167-180` vs `contracts/src/MatchPool.sol:286-318`.
+- **Mechanism:**
+  - `MatchPool.getPoolSummary` returns 12 values:
+    `[0: status, 1: maxSeats, 2: filledSeats, 3: shape, 4: authority, 5: entryFee, 6: gross, 7: prizeFund, 8: hostBond, 9: settleBy, 10: claimUnlockAt, 11: settleNonce]`
+  - Hook decodes a stale 10-value tuple:
+    ```ts
+    const a = data as unknown as readonly unknown[];
+    return {
+        status: Number(a[0] ?? 0),
+        maxSeats: Number(a[1] ?? 0),
+        filledSeats: Number(a[2] ?? 0),
+        authority: a[3] as `0x${string}` | undefined, // ACTUALLY `shape` (uint8)
+        entryFee: (a[4] as bigint) ?? BigInt(0),       // ACTUALLY `authority` (address)
+        gross: (a[5] as bigint) ?? BigInt(0),          // ACTUALLY `entryFee`
+        prizeFund: (a[6] as bigint) ?? BigInt(0),      // ACTUALLY `gross`
+        hostBond: (a[7] as bigint) ?? BigInt(0),       // ACTUALLY `prizeFund`
+        settleBy: (a[8] as bigint) ?? BigInt(0),       // ACTUALLY `hostBond`
+        claimUnlockAt: a[9] as bigint | undefined,     // ACTUALLY `settleBy`
+    };
+    ```
+- **Consequence:** Corrupts UI rendering of pool authority, computes fees against wrong fields, miscalculates claim countdowns (using `settleBy` instead of `claimUnlockAt`), and causes payout estimators to derive amounts from `gross` instead of `prizeFund`.
+
+### 2.3 CHAIN-03: Dual Economic Plan Construction
+- **Defect Point:** `hooks/useSettlePool.ts:126-134` vs `contracts/src/MatchPool.sol:716-730`.
+- **Mechanism:**
+  - Route derives canonical payout entries and edge signature for `planHash`.
+  - Hook submits `args.plan` directly into contract function `settlePool`:
+    ```ts
+    args: [
+        args.poolId,
+        args.plan.map((p) => ({ addr: p.addr, amount: p.amount })),
+        dl,
+        n,
+        hostSig,
+        edgeSig,
+    ]
+    ```
+- **Consequence:** If client `args.plan` differs by a single wei (rounding/dust), entry order, or address formatting from the server-calculated plan, the smart contract's `settleStructHash` does not match `edgeSig`, causing an instant transaction revert.
+
+### 2.4 TU-1 / PW-1 / PW-2: Unauthenticated Relay & Wire Privacy Leaks
+- **Defect Point:** `hooks/useSupabaseRelay.ts:105`, `hooks/TeamUpContext.tsx:843-895`, `lib/wireSanitize.ts:6-14`.
+- **Mechanism:**
+  - Public broadcast channel `game-room-<roomCode>` accepts messages without membership authorization.
+  - `START_GAME` and `MOVE_TOKEN` are executed by the receiver without checking whether the sender matches the room authority or seat owner.
+  - State broadcast sanitizer only strips `powerTiles[].type`, leaving `playerPowers` (opponent held hands) completely visible on the wire.
+
+### 2.5 MM-1: Matchmaking Roster Truncation
+- **Defect Point:** `supabase/migrations/00000000000000_baseline.sql:457-469`.
+- **Mechanism:**
+  - `join_matchmaking` RPC queries:
+    ```sql
+    select * into opponent from public.matchmaking_queue ... limit 1;
+    insert into public.matches(..., participants) values (..., array[p_player_id, opponent.player_id]);
+    ```
+- **Consequence:** The roster is hardcoded to 2 players regardless of `match_type` (`2v2` or `4P`). Clients waiting for 4 players stall and default to AI bot play.
+
+---
+
+## 3. Concrete Remediation Specifications
+
+### Remediation Spec 1: Unify Settle Propose Contract (CHAIN-01 & CHAIN-03)
+
+**Shared Types (`lib/types/settle.ts`):**
+```ts
+export interface PayoutEntryWire {
+    addr: `0x${string}`;
+    amount: string; // BigInt serialized in wei
+}
+
+export interface SettleProposalRequest {
+    walletAddress: `0x${string}`;
+    sessionId: string;
+    chainId?: number;
+    poolId: `0x${string}`;
+    authority?: `0x${string}`;
+    winnerAddresses: `0x${string}`[];
+    split?: 'standard' | 'even' | 'custom';
+    nonce?: string;
+    deadline?: string;
+    mode?: 'dual' | 'edge-only';
+}
+
+export interface SettleProposalResponse {
+    poolId: `0x${string}`;
+    plan: PayoutEntryWire[];
+    planHash: `0x${string}`;
+    edgeSig: `0x${string}`;
+    nonce: string;
+    deadline: string;
+    effectiveSettleBy: number;
+    claimUnlockAt: number;
+}
+```
+
+**Implementation Steps:**
+1. Update `app/api/chips/settle/propose/route.ts` to accept `winnerAddresses` (and alias `winners` for backwards-compatibility).
+2. Update `hooks/useSettlePool.ts`:
+   - Transmit `winnerAddresses` matching the schema.
+   - Replace submission of `args.plan` with the server-returned `data.plan`.
+   - Calculate and verify `payoutPlanHash(data.plan) === data.planHash` before dispatching wallet signatures or contract transactions.
+
+### Remediation Spec 2: Fix 12-Tuple Pool Summary (CHAIN-02)
+
+**Implementation in `hooks/useChipsPool.ts`:**
+```ts
+export interface PoolSummaryView {
+    status: number;
+    maxSeats: number;
+    filledSeats: number;
+    shape: number;
+    authority: `0x${string}` | undefined;
+    entryFee: bigint;
+    gross: bigint;
+    prizeFund: bigint;
+    hostBond: bigint;
+    settleBy: bigint;
+    claimUnlockAt: bigint | undefined;
+    settleNonce: bigint;
+}
+
+// In useChipsPoolSummary:
+const a = data as unknown as readonly unknown[];
+return {
+    status: Number(a[0] ?? 0),
+    maxSeats: Number(a[1] ?? 0),
+    filledSeats: Number(a[2] ?? 0),
+    shape: Number(a[3] ?? 0),
+    authority: a[4] as `0x${string}` | undefined,
+    entryFee: (a[5] as bigint) ?? BigInt(0),
+    gross: (a[6] as bigint) ?? BigInt(0),
+    prizeFund: (a[7] as bigint) ?? BigInt(0),
+    hostBond: (a[8] as bigint) ?? BigInt(0),
+    settleBy: (a[9] as bigint) ?? BigInt(0),
+    claimUnlockAt: (a[10] as bigint) ?? undefined,
+    settleNonce: (a[11] as bigint) ?? BigInt(0),
+};
+```
+
+### Remediation Spec 3: Wire Privacy Sanitization (PW-1 / PW-2)
+
+**Implementation in `lib/wireSanitize.ts`:**
+```ts
+export function sanitizeGameStateForWire(state: GameState, viewerColor?: PlayerColor): GameState {
+    const sanitized = { ...state };
+    
+    // Mask board power tiles
+    if (sanitized.powerTiles) {
+        sanitized.powerTiles = sanitized.powerTiles.map(pt => ({
+            ...pt,
+            type: undefined as unknown as PowerType,
+        }));
+    }
+    
+    // Redact opponent held powers
+    if (sanitized.playerPowers) {
+        const maskedPowers = { ...sanitized.playerPowers };
+        for (const color of Object.keys(maskedPowers) as PlayerColor[]) {
+            if (viewerColor && color !== viewerColor) {
+                maskedPowers[color] = maskedPowers[color].map(p => ({
+                    ...p,
+                    type: 'masked' as unknown as PowerType,
+                }));
+            }
+        }
+        sanitized.playerPowers = maskedPowers;
+    }
+    
+    return sanitized;
+}
+```
+
+### Remediation Spec 4: Shape-Aware Matchmaking Accumulation (MM-1)
+
+**Implementation in `supabase/migrations/`:**
+Update `join_matchmaking` RPC:
+- Inspect `p_match_type`: determine `required_slots = (p_match_type = '1v1' ? 2 : 4)`.
+- Query `searching` tickets matching `game_mode` and `match_type` up to `required_slots - 1`.
+- If sufficient tickets exist, bundle all participant IDs into `matches.participants`, update all ticket statuses to `matched`, and return the room.
+- If insufficient, remain `searching`.
+- *UI Fallback:* Until migration applies, disable 2v2/4P tabs in `app/components/QuickMatchPanel.tsx` with a "Coming Soon" badge.
+
+---
+
+## 4. Verification & Gate Strategy
+
+| Gate / Test | File / Target | Objective |
+|---|---|---|
+| **Settle API Integration** | `scripts/settle-propose.test.ts` | Verify JSON contract between `useSettlePool` and `/api/chips/settle/propose` passes with valid signature generation. |
+| **Pool Summary Decoding** | `scripts/pool-summary.test.ts` | Unit test verifying 12-tuple ABI return decoding against mock `MatchPool` outputs. |
+| **Contract CI Gate** | `.github/workflows/ci.yml` | Add `forge test --root contracts` to run Solidity unit tests in GitHub Actions. |
+| **Realtime Policy Check** | Hosted Supabase RLS | Verify channel RLS policies exist on `realtime.messages` for `game-room-*`. |
+| **DO Room Lifecycle** | `scripts/room-lifecycle.test.ts` | Verify end-to-end intent processing, atomic CAS commit, and turn timeout alarm execution. |
+
