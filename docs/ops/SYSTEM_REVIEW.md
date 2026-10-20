@@ -338,52 +338,52 @@ Following the server authority migration and on-chain settlement remediation (Oc
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| TU-1 | **C** | Unauthenticated control channel on public Realtime topic (`game-room-*`) ✅ | `useSupabaseRelay.ts:105` · `TeamUpContext.tsx:843` | Closed (`4970cae`) |
+| TU-1 | **C** | Unauthenticated control channel on public Realtime topic (`game-room-*`) ✅ | `useSupabaseRelay.ts:105` · `TeamUpContext.tsx:843` | Closed (`e8292d8`) |
 | TU-2 | **C** | Trusting peer-supplied coin balances in `seatGuestPlayer` ✅ | `TeamUpContext.tsx:586` | Closed (`4970cae`) |
-| TU-3 | **H** | REST join fallback fails during room formation prior to live match row ◐ | `lobby/join/route.ts:156` · `TeamUpContext.tsx:1186` | Closed (`ab1ce8a`) |
-| TU-4 | **H** | Host and guest diverge on move and power execution in P2P mode ◐ | `useGameActions.ts:159,721` | Closed (`ab1ce8a`) |
-| TU-5 | **M** | Disconnect and abandon lacks settlement penalty and stake burning ◐ | `lib/netcode/abandon.ts:37` · `useGamePresence.ts:63` | Closed (`ab1ce8a`) |
+| TU-3 | **H** | REST join fallback fails during room formation prior to live match row ◐ | `lobby/join/route.ts:156` · `TeamUpContext.tsx:1186` | Open |
+| TU-4 | **H** | Host and guest diverge on move and power execution in P2P mode ◐ | `useGameActions.ts:159,721` | Open |
+| TU-5 | **M** | Disconnect and abandon lacks settlement penalty and stake burning ◐ | `lib/netcode/abandon.ts:37` · `useGamePresence.ts:63` | Open |
 
 #### Power Mechanics & Privacy (PW)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| PW-1 | **C** | Authority state leaks held powers and expiries to all callers ✅ | `useMoveAuth.ts:503` · `lib/engine/core.ts:588` | Closed (`4970cae`) |
-| PW-2 | **H** | Player power inventory broadcast to all peers in plaintext ✅ | `TeamUpContext.tsx:512` · `wireSanitize.ts:6` | Closed (`4970cae`) |
-| PW-3 | **H** | Guest power never reaches host board in hybrid lobbies ◐ | `useGameActions.ts:721` · `useMatchStates.ts:76` | Closed (`4970cae`) |
-| PW-4 | **H** | Triple implementation of power semantics across engine files ◐ | `lib/engine/core.ts` · `src/room/engine.ts` | Closed (`check:engine`) |
-| PW-5 | **M** | Power expiry dependent on client clock `Date.now()` rather than turns ◐ | `lib/engine/core.ts:744` · `useGameActions.ts:800` | Closed (`check:engine`) |
-| PW-6 | **L** | Duplicate LCG reseed formula in game actions ◐ | `useGameActions.ts:339` | Closed (`check:engine`) |
+| PW-1 | **C** | Authority state leaks held powers and expiries to all callers ✅ | `useMoveAuth.ts:503` · `lib/engine/core.ts:588` | Closed (`d4bbf54`) |
+| PW-2 | **H** | Player power inventory broadcast to all peers in plaintext ✅ | `TeamUpContext.tsx:512` · `wireSanitize.ts:6` | Closed (`8e67d76`) |
+| PW-3 | **H** | Guest power never reaches host board in hybrid lobbies ◐ | `useGameActions.ts:721` · `useMatchStates.ts:76` | Open |
+| PW-4 | **H** | Triple implementation of power semantics across engine files ◐ | `lib/engine/core.ts` · `src/room/engine.ts` | Open |
+| PW-5 | **M** | Power expiry dependent on client clock `Date.now()` rather than turns ◐ | `lib/engine/core.ts:744` · `useGameActions.ts:800` | Open |
+| PW-6 | **L** | Duplicate LCG reseed formula in game actions ◐ | `useGameActions.ts:339` | Open |
 
 #### Matchmaking & Table Formation (MM)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| MM-1 | **H** | Quick match cannot fill 2v2 or 4P tables (`join_matchmaking` hardcodes 2 players) ✅ | `supabase/migrations/00000000000000_baseline.sql:457` | Closed (`ab1ce8a`) |
+| MM-1 | **H** | Quick match cannot fill 2v2 or 4P tables (`join_matchmaking` hardcodes 2 players) ✅ | `supabase/migrations/00000000000000_baseline.sql:457` | Closed (`ab1ce8a`, `33c5dc0`) |
 | MM-2 | **M** | Orphan ticket cancel 401s due to missing `sessionId` on DELETE ✅ | `hooks/useMatchmaking.ts:400` | Closed (`ab1ce8a`) |
-| MM-3 | **M** | Expanding search is client decoration without widening DB query ◐ | `hooks/useMatchmaking.ts:7,255` | Closed (`ab1ce8a`) |
+| MM-3 | **M** | Expanding search is client decoration without widening DB query ◐ | `hooks/useMatchmaking.ts:7,255` | Open |
 | MM-4 | **L** | API boundary lacks game mode / match type validation ✅ | `app/api/matchmaking/join/route.ts:107` | Closed (`ab1ce8a`) |
-| MM-5 | **L** | Ambiguous edge transports between custom edge server and MatchRoom DO ◐ | `lib/teamup/edge-server-client.ts` | Closed (`ab1ce8a`) |
+| MM-5 | **L** | Ambiguous edge transports between custom edge server and MatchRoom DO ◐ | `lib/teamup/edge-server-client.ts` | Open |
 
 #### Game Modes & Rendering (MO)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| MO-1 | **M** | Power 4P live arena executes classic engine with `Math.random()` ✅ | `app/api/live-arena/power4p/route.ts:79` | Closed (`ab1ce8a`) |
+| MO-1 | **M** | Power 4P live arena executes classic engine with `Math.random()` ✅ | `app/api/live-arena/power4p/route.ts:79` | Open |
 | MO-2 | **M** | Spectator view hardcodes 4P Power instead of respecting match record ✅ | `app/page.tsx:920` | Closed (`ab1ce8a`) |
-| MO-3 | **M** | Snakes mode is unreachable dead code in main lobby ◐ | `app/components/SnakesBoard.tsx` | Closed (`ab1ce8a`) |
-| MO-4 | **L** | Duplicate match rows created during quick match formation ◐ | `app/page.tsx:627` | Closed (`ab1ce8a`) |
-| MO-5 | **L** | Coordinate frame discrepancy in `lib/boardLayout.ts` ◐ | `lib/boardLayout.ts:177` | Closed (`ab1ce8a`) |
+| MO-3 | **M** | Snakes mode is unreachable dead code in main lobby ◐ | `app/components/SnakesBoard.tsx` | Open |
+| MO-4 | **L** | Duplicate match rows created during quick match formation ◐ | `app/page.tsx:627` | Open |
+| MO-5 | **L** | Coordinate frame discrepancy in `lib/boardLayout.ts` ◐ | `lib/boardLayout.ts:177` | Open |
 
 #### Server Authority & Settlement API (SA)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| SA-1 | **H** | Legacy Edge functions deployed but deleted from git repository ◐ | Hosted Supabase vs `supabase/functions/` | Closed (`ab1ce8a`) |
-| SA-2 | **C** | Match result settlable without signature or proof in `/api/match/record` ✅ | `app/api/match/record/route.ts:74` | Closed (`Part X`) |
-| SA-3 | **M** | Session v2 lacks seat binding in challenge verification ◐ | `lib/serverAuth.ts:107` | Closed (`Part X`) |
-| SA-4 | **M** | Lack of continuous state reconciliation loop during P2P play ◐ | `hooks/useMatchStates.ts:76` | Closed (`Part X`) |
-| SA-5 | **L** | In-process rate limiter not shared across isolate boundaries ◐ | `lib/rateLimit.ts` | Closed (`Part X`) |
+| SA-1 | **H** | Legacy Edge functions deployed but deleted from git repository ◐ | Hosted Supabase vs `supabase/functions/` | Open |
+| SA-2 | **C** | Match result settlable without signature or proof in `/api/match/record` ✅ | `app/api/match/record/route.ts:74` | Closed (`9cde0aa`) |
+| SA-3 | **M** | Session v2 lacks seat binding in challenge verification ◐ | `lib/serverAuth.ts:107` | Open |
+| SA-4 | **M** | Lack of continuous state reconciliation loop during P2P play ◐ | `hooks/useMatchStates.ts:76` | Open |
+| SA-5 | **L** | In-process rate limiter not shared across isolate boundaries ◐ | `lib/rateLimit.ts` | Open |
 
 ---
 

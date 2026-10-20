@@ -59,15 +59,16 @@ test('PW-2 regression guard: local client re-attaches known power types when rec
         },
     };
 
+    type PowerSlot = { type?: string; expiresAt?: number };
     // Re-attach local power types logic (identical to applyServerState)
-    const playerPowers = { ...(incomingWireState.playerPowers || localPrev.playerPowers) } as Record<string, any[]>;
+    const playerPowers = { ...(incomingWireState.playerPowers || localPrev.playerPowers) } as Record<string, PowerSlot[]>;
     if (localPrev.playerPowers) {
         for (const [color, items] of Object.entries(localPrev.playerPowers)) {
             const serverItems = playerPowers[color];
             if (!serverItems || !items) continue;
-            playerPowers[color] = serverItems.map((sItem: any, idx: number) => {
+            playerPowers[color] = serverItems.map((sItem: PowerSlot, idx: number) => {
                 if (sItem.type !== undefined && sItem.type !== 'masked') return sItem;
-                const localMatch = items.find((l: any) => l.expiresAt === sItem.expiresAt && l.type !== undefined && l.type !== 'masked')
+                const localMatch = items.find((l: PowerSlot) => l.expiresAt === sItem.expiresAt && l.type !== undefined && l.type !== 'masked')
                     || (items[idx]?.type !== undefined && items[idx]?.type !== 'masked' ? items[idx] : undefined);
                 return localMatch ? { ...sItem, type: localMatch.type } : sItem;
             });

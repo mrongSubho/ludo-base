@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { serviceDb, requireSession } from '@/lib/serverAuth';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
-import type { GameState } from '@/lib/types';
+import type { GameState, PlayerColor } from '@/lib/types';
 
 /**
  * GET /api/match/state?matchId=…
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             seq: data.seq,
             color_corner: data.color_corner,
-            state: sanitizeGameStateForWire(data.state as unknown as GameState, viewerColor as any),
+            state: sanitizeGameStateForWire(data.state as unknown as GameState, viewerColor as PlayerColor),
         });
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });

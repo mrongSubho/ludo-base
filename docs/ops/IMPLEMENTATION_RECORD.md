@@ -876,42 +876,44 @@ All 32 items were resolved across 4 execution phases, verified with unit, contra
 
 ### Findings Resolution Matrix (October 2026 Review)
 
-| Finding ID | Severity | Domain | Resolution Summary | Verification |
+Following adversarial verification against git diff `a9b3a3d..HEAD` (`docs/ops/REVIEW_VERIFICATION_2026-10-20.md`), findings are strictly classified into verified closures (with behavioral test gates) and open backlog items.
+
+| Finding ID | Severity | Domain | Status | Resolution Summary & Test Evidence |
 | --- | --- | --- | --- | --- |
-| `CHAIN-01` | Critical | On-Chain Settlement | Unified propose schema in `lib/types/settle.ts`, route, and hook | `scripts/settle-propose.test.ts` |
-| `CHAIN-02` | Critical | On-Chain Settlement | Corrected 12-tuple decoding with `shape` at index 3 in `useChipsPool.ts` | `scripts/settle-propose.test.ts` |
-| `CHAIN-03` | Critical | On-Chain Settlement | Enforced server plan submission and local `payoutPlanHash` pre-flight check | `scripts/settle-propose.test.ts` |
-| `CHAIN-04` | High | On-Chain Settlement | Added Foundry contract tests to GitHub Actions CI workflow | `forge test --root contracts` (105 tests) |
-| `CHAIN-05` | High | Configuration | Enforced Viem `isAddress`/`getAddress` and fail-closed chain IDs in `lib/chips.ts` | `scripts/chain-config.test.ts` |
-| `TU-1` | Critical | Netcode & Relay | Dropped unauthenticated control verbs on public Realtime topic | `scripts/wire-sanitize.test.ts` |
-| `TU-2` | Critical | Netcode & Relay | Nulled peer-supplied coin balances in `TeamUpContext.tsx` | Code audit |
-| `TU-3` | High | Netcode & Relay | Host registration flow aligned with match lifecycle | Netcode suite |
-| `TU-4` | High | Netcode & Relay | Move execution routed strictly through MatchRoom DO | MatchRoom DO tests |
-| `TU-5` | Medium | Netcode & Relay | Abandonment classification tied to DO connection lifecycle | Netcode suite |
-| `PW-1` | Critical | Power Mechanics | Hardened wire sanitization to prevent leaking held powers | `scripts/wire-sanitize.test.ts` |
-| `PW-2` | High | Power Mechanics | Redacted opponent `playerPowers` from broadcast payloads | `scripts/wire-sanitize.test.ts` |
-| `PW-3` | High | Power Mechanics | Reconciled guest power application via server room | Engine suite |
-| `PW-4` | High | Power Mechanics | Engine byte-sync enforced via `check:engine` | `scripts/check-edge-engine.mjs` |
-| `PW-5` | Medium | Power Mechanics | Power expiry driven by turn sequence numbers | Engine suite |
-| `PW-6` | Low | Power Mechanics | Standardized LCG reseed formulas across engine files | Engine suite |
-| `MM-1` | High | Matchmaking | Shape-aware `join_matchmaking` RPC (2 seats for 1v1, 4 for 2v2/4P) | `scripts/matchmaking-shape.test.ts` |
-| `MM-2` | Medium | Matchmaking | Session token attached to ticket cancellation request | `scripts/matchmaking-shape.test.ts` |
-| `MM-3` | Medium | Matchmaking | Expanding search parameters handled in matchmaking loop | Matchmaking suite |
-| `MM-4` | Low | Matchmaking | Boundary validation for `match_type` and `game_mode` in join route | `scripts/matchmaking-shape.test.ts` |
-| `MM-5` | Low | Matchmaking | Consolidated edge transports to server room | Engine suite |
-| `MO-1` | Medium | Game Modes | Live arena route aligned with typed serviceDb and valid participants | `scripts/matchmaking-shape.test.ts` |
-| `MO-2` | Medium | Game Modes | Dynamic spectator mode respecting match record shape and mode | `scripts/matchmaking-shape.test.ts` |
-| `MO-3` | Medium | Game Modes | Isolated legacy snakes logic outside core progression | Engine suite |
-| `MO-4` | Low | Game Modes | Deduplicated room code inserts in quick match flow | Engine suite |
-| `MO-5` | Low | Game Modes | Unified board coordinate frames in `lib/boardLayout.ts` | Board tests |
-| `SA-1` | High | Server Authority | Deprecated edge functions replaced by MatchRoom DO | `scripts/host-retirement-gate.test.ts` |
-| `SA-2` | Critical | Server Authority | Derived winner validation in `/api/match/record` against server state | Server authority suite |
-| `SA-3` | Medium | Server Authority | Session v2 seat binding and verification | Session v2 suite |
-| `SA-4` | Medium | Server Authority | Sequence-based CAS state reconciliation loop | Room lifecycle suite |
-| `SA-5` | Low | Server Authority | Distributed rate limiting via RateLimitDO | Rate limit suite |
+| `CHAIN-01` | Critical | On-Chain Settlement | **Closed** | Unified propose schema in `lib/types/settle.ts`, route, and hook (`dc943f8`; `scripts/settle-propose.test.ts`) |
+| `CHAIN-02` | Critical | On-Chain Settlement | **Closed** | Corrected 12-tuple decoding with `shape` at index 3 in `useChipsPool.ts` (`dc943f8`; `scripts/settle-propose.test.ts`) |
+| `CHAIN-03` | Critical | On-Chain Settlement | **Closed** | Enforced server plan submission and local `payoutPlanHash` pre-flight check (`dc943f8`; `scripts/settle-propose.test.ts`) |
+| `CHAIN-04` | High | On-Chain Settlement | **Closed** | Added Foundry contract tests to GitHub Actions CI workflow (`dc943f8`; 105 Foundry tests) |
+| `CHAIN-05` | High | Configuration | **Closed** | Enforced Viem `isAddress`/`getAddress` and fail-closed chain IDs in `lib/chips.ts` (`148b702`, `255d95d`; `scripts/chain-config.test.ts`) |
+| `TU-1` | Critical | Netcode & Relay | **Closed** | Hardened relay message gate: dropped external host triggers, verified caller sender against known host, and enforced `calculateNextPosition` math on token moves (`e8292d8`; `scripts/relay-hardening.test.ts`) |
+| `TU-2` | Critical | Netcode & Relay | **Closed** | Explicitly nulled peer-supplied coin balances in `seatGuestPlayer` (`4970cae`; `TeamUpContext.tsx:594`) |
+| `TU-3` | High | Netcode & Relay | **Open** | REST join fallback during lobby forming prior to live match row creation |
+| `TU-4` | High | Netcode & Relay | **Open** | Move execution runtime adoption through `RoomClient` rather than legacy P2P/Edge fallback |
+| `TU-5` | Medium | Netcode & Relay | **Open** | Disconnect and abandon settlement penalty and stake burning |
+| `PW-1` | Critical | Power Mechanics | **Closed** | Authority state redaction: `/api/match/state` session-resolves viewer color to mask opponent hands; `stripPowerTypesForWire` masks held powers on wire (`d4bbf54`; `scripts/power-privacy.test.ts`) |
+| `PW-2` | High | Power Mechanics | **Closed** | Fixed broadcast power wipe regression: `applyServerState` re-attaches local player's known power types from local state (`8e67d76`; `scripts/wire-sanitize.test.ts`) |
+| `PW-3` | High | Power Mechanics | **Open** | Reconcile guest power application via server room |
+| `PW-4` | High | Power Mechanics | **Open** | Unify triple implementation of power semantics into single canonical file |
+| `PW-5` | Medium | Power Mechanics | **Open** | Power expiry driven by turn sequence numbers rather than client `Date.now()` |
+| `PW-6` | Low | Power Mechanics | **Open** | Deduplicate LCG reseed formulas in `useGameActions.ts` |
+| `MM-1` | High | Matchmaking | **Closed** | Shape-aware `join_matchmaking` RPC with caller ticket insertion, ensuring all 4 participants exist in queue with validation token (`ab1ce8a`, `33c5dc0`; `scripts/matchmaking-shape.test.ts`) |
+| `MM-2` | Medium | Matchmaking | **Closed** | Attached Session v2 authentication token to matchmaking cancellation requests (`ab1ce8a`; `scripts/matchmaking-shape.test.ts`) |
+| `MM-3` | Medium | Matchmaking | **Open** | Expanding search parameters in database matchmaking queue |
+| `MM-4` | Low | Matchmaking | **Closed** | Strict boundary whitelist for `match_type` and `game_mode` in join route (`ab1ce8a`; `scripts/matchmaking-shape.test.ts`) |
+| `MM-5` | Low | Matchmaking | **Open** | Consolidate edge transports to server room |
+| `MO-1` | Medium | Game Modes | **Open** | Power 4P live arena executing classic engine with `Math.random()` |
+| `MO-2` | Medium | Game Modes | **Closed** | Dynamic spectator mode respecting match record shape and mode (`ab1ce8a`; `scripts/matchmaking-shape.test.ts`) |
+| `MO-3` | Medium | Game Modes | **Open** | Deprecate and isolate unreachable snakes logic outside core progression |
+| `MO-4` | Low | Game Modes | **Open** | Deduplicate room code inserts in quick match flow |
+| `MO-5` | Low | Game Modes | **Open** | Unified board coordinate frames in `lib/boardLayout.ts` |
+| `SA-1` | High | Server Authority | **Open** | Wire runtime client to `RoomClient` DO transport and deprecate legacy edge function endpoints |
+| `SA-2` | Critical | Server Authority | **Closed** | Secured `/api/match/record`: enforced participant/owner check on session auth, required authoritative server winner from `match_states.state.winner`, and capped wager progression scaling (`9cde0aa`; `scripts/match-record-auth.test.ts`) |
+| `SA-3` | Medium | Server Authority | **Open** | Session v2 seat binding in challenge verification |
+| `SA-4` | Medium | Server Authority | **Open** | Sequence-based CAS state reconciliation loop during P2P play |
+| `SA-5` | Low | Server Authority | **Open** | Centralize distributed rate limiting via `RATE_LIMITER` DO in `lib/rateLimit.ts` |
 
 ### Gates
 
-`tsc -p tsconfig.json --noEmit` 0 errors · `npm run lint` 0 errors · `npm test` **473 tests (462 pass, 0 fail, 11 skipped)** · `check:schema` clean (37 migrations, 36 functions) · `check:rls` clean (37 migrations) · `check:engine` byte-identical · `check:routes` 53 routes clean · `forge test --root contracts` **105 passed, 0 failed** · Remote database migration applied.
+`tsc -p tsconfig.json --noEmit` **0 errors** · `npm run lint` **0 errors** · `npm test` **485 tests (474 pass, 0 fail, 11 skipped)** · `check:schema` **clean (38 migrations, 37 functions)** · `check:rls` **clean (38 migrations)** · `check:engine` **byte-identical** · `check:routes` **53 routes clean** · `forge test --root contracts` **105 passed, 0 failed** · Remote database migrations applied (`202610200001`, `202610200002`).
 
 
