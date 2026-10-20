@@ -325,10 +325,11 @@ export const QuickMatchPanel = ({
         let cancelled = false;
         void (async () => {
             console.log('🏁 [QuickMatch] Triggering search initialization...');
-            if (!preAuthStartedRef.current) {
+            // Hybrid fill (TeamUp party Hunt) uses the existing room session — no separate search grant needed
+            if (!isHybrid && !preAuthStartedRef.current) {
                 preAuthStartedRef.current = true;
                 const key = `search:${normalizedAddress}:${gameMode}:${matchType}`;
-                const result = await createProvisionalSession(key);
+                const result = await createProvisionalSession(key, undefined, { context: 'quick-match' });
                 if (!result.ok) {
                     preAuthStartedRef.current = false;
                     console.warn('🔑 [QuickMatch] pre-match authorization failed:', result.error);
