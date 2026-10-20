@@ -584,7 +584,7 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 **Quality residuals**
 
 - **OPEN (optional) — remove the remaining file-level eslint disables in legacy modules** (`no-explicit-any` quarantine). Never a gate; burn-down as those files are touched.
-- **OPEN — Full Foundry suite in CI (`forge test`) + gas snapshot gate.** Foundry is installed in CI *only* because the deploy-guardrail tests execute the deploy scripts; `contracts/test/` (incl. `SuffixAttributionTest.t.sol`, the M11 assertion) is not a CI step.
+- **CLOSED (CHAIN-04) — Full Foundry suite in CI (`forge test`) + gas snapshot gate.** Added Foundry test step (`forge test --root contracts -vvv`) to `.github/workflows/ci.yml` in commit `dc943f8`. Gas snapshot gate remains open.
 - **PARTIAL — M11 B20 + ERC-8021 trailing-suffix assertion.** The test exists; the missing half is the CI wiring above.
 - **OPEN — `isActivated(ASSET)` recorded in TOKEN_PARAMS** after the Sepolia deploy sequence; not verified in this pass.
 
@@ -618,6 +618,7 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 | Phase 4 exit | — | 2026-10-11 | **PASS** — netcode + protocol + end-to-end termination drills green; NET-03a/b deferred on credentials |
 | Phase 5 exit | — | 2026-10-11 | **PASS (one dated deferral)** — Android device trace deferred as measurement, not code |
 | Phase 6 exit | — | 2026-10-13 | **PASS** — DB-22 closed; 154/154 findings closed or signed off |
+| October 2026 review | — | 2026-10-21 | **PASS** — 14 findings closed with behavioral gates; 16 backlog items tracked; DB migrated; 485 tests green |
 | **Wagered + 2v2 play** | owner | 2026-10-11 | **Ship-rule condition met** — Phase 0–2 closed on 2026-10-11, which is what the rule required; whether wagered play is enabled is an owner call (the arming pair is deployed and verified on Sepolia) |
 
 **Ship rule.** Wagered pools and 2v2 mode stayed disabled until Phase 0–2 closed; that condition was met on 2026-10-11. Non-wagered 4P offline play was blocked on ENG-01 only (one engine must be authoritative), which closed with the engine-diff harness and golden corpus above.
@@ -830,17 +831,26 @@ The effect's guard is `shouldRunMatchTimer({ isNetworked, connectionStatus, … 
 
 ---
 
-## Part XI — October 2026 System Review & On-Chain Settlement Remediation (2026-10-20)
+## Part XI — October 2026 System Review & On-Chain Settlement Remediation (2026-10-20 — 2026-10-21)
 
-*Source: Unified System Review at [`docs/ops/SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) (git ref `a9b3a3d`). Full architectural audit across the rules engine, MatchRoom Durable Object authority, private lobbies, matchmaking queues, power mechanics, game modes, and Base smart contracts (`MatchPool` / `ClaimHub`). Resolves 32 findings across 4 automated implementation phases.*
+*Source: Unified System Review at [`docs/ops/SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) and Adversarial Verification at [`docs/ops/REVIEW_VERIFICATION_2026-10-20.md`](./REVIEW_VERIFICATION_2026-10-20.md). Full architectural audit across the rules engine, MatchRoom Durable Object authority, private lobbies, matchmaking queues, power mechanics, game modes, and Base smart contracts (`MatchPool` / `ClaimHub`). Resolves 14 critical/high/medium security and settlement findings across initial repair batches and adversarial remediation phases, with 16 architectural backlog items tracked for future execution.*
 
 ### Overview
 
 Following the server authority migration (Part X), a system-wide review evaluated the live deployment readiness of on-chain pool wagering, Realtime relay security, matchmaking table formation, and power tile privacy. The review surfaced critical blockers in on-chain settlement execution: a schema parameter mismatch on proposal (`CHAIN-01`), an off-by-one 12-tuple decoding bug in the pool summary hook (`CHAIN-02`), and client submission of unverified payout plans rather than server-signed plans (`CHAIN-03`), alongside unauthenticated control channel commands on public relays (`TU-1`) and power inventory broadcasts (`PW-1`, `PW-2`).
 
-All 32 items were resolved across 4 execution phases, verified with unit, contract, and integration tests, and deployed to the remote Supabase database.
+All initial repair batches were implemented, after which a rigorous adversarial review (`docs/ops/REVIEW_VERIFICATION_2026-10-20.md`) verified the changes against the codebase and identified 5 specific regressions and residuals:
+1. `PW-2` regression: Wire state synchronization in `applyServerState` stripped local player held power types, breaking power card UI activation.
+2. `SA-2` security hole: `/api/match/record` permitted arbitrary progression minting and wager scaling without participant authentication or authoritative server winner verification.
+3. `PW-1` privacy gap: `/api/match/state` returned complete power inventories without caller viewer scoping.
+4. `MM-1` residual defect: Instant 4P table formation omitted caller ticket insertion into `matchmaking_queue`.
+5. `TU-1` relay gate: Relays remained open to sender spoofing, mid-match `START_GAME` re-seeding, and illegal token leaps.
 
-### Phase 1 — On-Chain Settlement Repairs (`CHAIN-01`..`04`)
+These 5 defects were remediated across 6 sequential phases, backed by dedicated behavioral tests, and deployed to production.
+
+### Initial Remediation Batches
+
+#### Batch 1 — On-Chain Settlement Repairs (`CHAIN-01`..`04`)
 
 - **Commit:** `dc943f8` ("fix(settle): resolve on-chain settlement schema mismatch, 12-tuple decoding, and server plan signing")
 - **`CHAIN-01` (Unified settlement propose schema):** Created shared strictly-typed contracts in `lib/types/settle.ts` (`SettleProposalRequest`, `SettleProposalResponse`, `PayoutEntryWire`). Updated `app/api/chips/settle/propose/route.ts` to accept `winnerAddresses` with backwards-compatible alias `winners`. Updated `hooks/useSettlePool.ts` to supply conformant payload.
@@ -848,14 +858,14 @@ All 32 items were resolved across 4 execution phases, verified with unit, contra
 - **`CHAIN-03` (Enforced server payout plan integrity):** Updated `hooks/useSettlePool.ts` to map and submit the exact server-returned canonical `plan` rather than client-constructed arguments. Added client-side verification `payoutPlanHash(contractPlan) === data.planHash` ensuring that mismatching plan commitments fail immediately before submitting the transaction.
 - **`CHAIN-04` (CI contract testing):** Added Foundry contract test job (`forge test --root contracts -vvv`) to `.github/workflows/ci.yml`. Added `scripts/settle-propose.test.ts` verifying API schema handling and local hash derivation.
 
-### Phase 2 — Network Authority & Control Channel Lockdown (`TU-1`..`2`, `PW-1`..`2`)
+#### Batch 2 — Network Authority & Control Channel Lockdown (`TU-1`..`2`, `PW-1`..`2`)
 
 - **Commit:** `4970cae` ("fix(netcode): drop unauthenticated relay actions and redact opponent power inventory")
 - **`TU-1` (Relay command lockdown):** Updated `hooks/TeamUpContext.tsx` to drop unauthenticated external mutations (`START_GAME`, `MOVE_TOKEN`, `ROLL_DICE`, `TURN_SWITCH`) received over the public Supabase Realtime topic `game-room-<roomCode>`. All authoritative gameplay actions are routed strictly through the server room.
 - **`TU-2` (Peer coin sanitization):** Updated `seatGuestPlayer` in `hooks/TeamUpContext.tsx` to null out peer-supplied coin balances (`playerCoins: null`), preventing untrusted client coin spoofing.
 - **`PW-1` & `PW-2` (Power inventory privacy):** Hardened `lib/wireSanitize.ts` (`sanitizeGameStateForWire`) to redact opponent `playerPowers` from broadcast payloads. Power inventories are masked unless the viewer matches the player color. Added `scripts/wire-sanitize.test.ts` verifying wire redaction.
 
-### Phase 3 — Matchmaking & Mode Truthfulness (`MM-1`..`2`, `MM-4`, `MO-1`..`2`)
+#### Batch 3 — Matchmaking & Mode Truthfulness (`MM-1`..`2`, `MM-4`, `MO-1`..`2`)
 
 - **Commit:** `ab1ce8a` ("fix(matchmaking): shape-aware table formation, session auth on cancel, and mode truthfulness")
 - **`MM-1` (Shape-aware matchmaking table formation):** Created migration `supabase/migrations/202610200001_matchmaking_shape_aware.sql` replacing the 2-player hardcoded `join_matchmaking` RPC with dynamic `slots_needed` calculation (2 for 1v1, 4 for 2v2/4P). Inside the table advisory lock, up to `slots_needed - 1` matching tickets are bundled into `matches.participants`, eliminating table stalls in 2v2 and 4P queues.
@@ -864,15 +874,71 @@ All 32 items were resolved across 4 execution phases, verified with unit, contra
 - **`MO-1` (Live arena engine alignment):** Cleaned up `app/api/live-arena/power4p/route.ts` with typed `serviceDb` calls, eliminating synthetic participant IDs.
 - **`MO-2` (Dynamic spectator shape & mode):** Updated `app/page.tsx` spectator view to dynamically pass `playerCount` and `gameMode` from the loaded match state record instead of hardcoding `"4P"` and `"power"`. Added `scripts/matchmaking-shape.test.ts`.
 
-### Phase 4 — Telemetry, Config & Address Checksumming (`CHAIN-05`)
+#### Batch 4 — Telemetry, Config & Address Checksumming (`CHAIN-05`)
 
 - **Commits:** `148b702` & `255d95d` ("fix(config): enforce viem address checksumming and fail closed on unrecognized chains")
 - **`CHAIN-05` (Strict Viem address checksumming & fail-closed chain detection):** Replaced loose `0x` string checks in `lib/chips.ts` with Viem's `isAddress` and `getAddress` checksum normalization. Enforced fail-closed behavior for unsupported chain IDs, allowing strictly Base (`8453`) and Base Sepolia (`84532`). Created `scripts/chain-config.test.ts`.
 
-### Remote Database Migration
+### Adversarial Verification & Hardening Phases (2026-10-20 — 2026-10-21)
 
-- Migration `202610200001_matchmaking_shape_aware.sql` was applied to the live hosted Supabase project (`xvwaqxqyjtlsuijgwozi`) via `supabase db push --linked`.
-- Schema parity verified: remote database reflects all 37 migrations and 36 function definitions.
+*Source: [`docs/ops/REVIEW_VERIFICATION_2026-10-20.md`](./REVIEW_VERIFICATION_2026-10-20.md). Six automated remediation phases addressing verified gaps, behavioral defects, and gate integrity.*
+
+#### Verification Phase 1 — `PW-2` Guest Power Hand Typeless Wipe Fix
+
+- **Commit:** `8e67d76` ("fix(power): re-attach local player power types in applyServerState to fix PW-2 regression")
+- **Problem:** When `sanitizeGameStateForWire` stripped power types to preserve fog-of-war, incoming server broadcasts received in `applyServerState` replaced the guest's local state with typeless slots (`{ type: undefined }`). This caused guest power cards to render as inactive/empty slots.
+- **Solution:** Updated `applyServerState` in `hooks/TeamUpContext.tsx` to preserve and re-attach the local player's known power types from `prev.playerPowers` when receiving wire broadcasts matching the expiration timestamp or slot index.
+- **Gate:** Added PW-2 regression test to `scripts/wire-sanitize.test.ts` verifying that local power items retain type identity across wire sync.
+
+#### Verification Phase 2 — `SA-2` Progression Minting & Wager Escalation Lockdown
+
+- **Commit:** `9cde0aa` ("fix(sec): secure match/record against SA-2 unauthorized result declaration and progression wager inflation")
+- **Problem:** `/api/match/record` accepted client-declared winners without server verification when callers lacked cryptographic signed proofs. Unauthenticated parties or spectators could award arbitrary wins and scale progression rewards with astronomical `wager` values.
+- **Solution:** Hardened `app/api/match/record/route.ts`:
+  1. Enforced session authentication (`requireSession`) requiring the caller to be a verified participant or room owner (`NOT_PARTICIPANT`).
+  2. For session-based matches without crypto proofs, mandated that the declared winner must match the authoritative winner recorded in `match_states.state.winner` (`SERVER_WINNER_REQUIRED` / `WINNER_MISMATCH`).
+  3. Capped progression wager scaling with `MAX_PROGRESSION_WAGER = 10_000`, preventing LXP/streak inflation.
+- **Gate:** Created `scripts/match-record-auth.test.ts` verifying participant validation, server winner verification, and wager caps.
+
+#### Verification Phase 3 — `PW-1` Power State Privacy & Wire Redaction
+
+- **Commit:** `d4bbf54` ("fix(sec): redact opponent power inventory in state endpoint and wire engine (PW-1)")
+- **Problem:** `/api/match/state` returned the full `match_states` JSON blob without resolving the requesting viewer, leaking all players' held powers. Furthermore, pure wire engines lacked consistent held power masking.
+- **Solution:**
+  1. Updated `app/api/match/state/route.ts` to inspect Session v2 authentication cookies/headers and resolve the caller's `viewerColor`. Opponent power inventories are masked with `type: undefined`.
+  2. Updated `stripPowerTypesForWire` in both `lib/engine/core.ts` and `src/room/engine.ts` to redact `playerPowers` from wire states, maintaining byte-for-byte engine synchronization.
+- **Gate:** Created `scripts/power-privacy.test.ts` and verified room engine sync via `npm run check:engine`.
+
+#### Verification Phase 4 — `MM-1` Matchmaking Instant Form Caller Ticket Fix
+
+- **Commit:** `33c5dc0` ("fix(matchmaking): insert caller ticket upon instant match formation to resolve MM-1 residual defect and upgrade test")
+- **Problem:** When `join_matchmaking` formed an immediate 4P match from 3 queued tickets plus the calling player, the caller's ticket was omitted from `public.matchmaking_queue`. Clients polling for match completion failed to locate the caller's queue record.
+- **Solution:** Created migration `supabase/migrations/202610200002_matchmaking_caller_ticket.sql` updating `join_matchmaking` to insert the caller's ticket with `status = 'matched'`, `match_id = m`, and `room_code = room`, returning `ticket_id: q`. Upgraded `scripts/matchmaking-shape.test.ts` to parse and assert the actual SQL AST and hook sources.
+- **Deployment:** Applied migration to remote Supabase via `supabase db push --linked`.
+
+#### Verification Phase 5 — `TU-1` Relay Message Gate Lockdown
+
+- **Commit:** `e8292d8` ("fix(netcode): secure relay message gate against TU-1 sender spoofing and illegal move leaps")
+- **Problem:** Public Supabase Realtime topic `game-room-<roomCode>` was susceptible to sender spoofing and state manipulation: guests could broadcast `START_GAME` to overwrite board seeds mid-match, and arbitrary `MOVE_TOKEN` packets could teleport tokens without move verification.
+- **Solution:** Hardened relay message gate in `hooks/TeamUpContext.tsx`:
+  1. The host unconditionally drops external gameplay actions (`START_GAME`, `ROLL_DICE`, `MOVE_TOKEN`, `TURN_SWITCH`).
+  2. Guests reject `START_GAME` messages if game is already active or if `sender` does not match the known host.
+  3. Guests validate incoming `MOVE_TOKEN` target positions against `calculateNextPosition(currentPos, diceValue, color, colorCorner)`, rejecting illegal position leap injection.
+- **Gate:** Created `scripts/relay-hardening.test.ts` asserting host drop rules, guest sender checks, and move math validation.
+
+#### Verification Phase 6 — Audit Status Reconciliation & Final Verification
+
+- **Commit:** `d5816cb` ("docs: reconcile truthful finding statuses and finalize Phase 6 audit gates")
+- **Status Reconciliation:** Reconciled `docs/ops/SYSTEM_REVIEW.md` and `docs/ops/IMPLEMENTATION_RECORD.md` to accurately differentiate the 14 verified closed findings (`CHAIN-01`..`05`, `TU-1`..`2`, `PW-1`..`2`, `MM-1`..`2`, `MM-4`, `MO-2`, `SA-2`) from the 16 architectural backlog items (`TU-3`..`5`, `PW-3`..`6`, `MM-3`, `MM-5`, `MO-1`, `MO-3`..`5`, `SA-1`, `SA-3`..`5`).
+- **Gate:** Verified 0 type errors (`tsc`), 0 lint errors (`eslint`), clean static checks (`check:schema`, `check:rls`, `check:engine`), and 485 tests passing in `npm test`.
+
+### Remote Database Migrations
+
+Two canonical migrations were deployed to the live hosted Supabase project (`xvwaqxqyjtlsuijgwozi`) via `supabase db push --linked`:
+1. `202610200001_matchmaking_shape_aware.sql`: Dynamic 1v1 vs 2v2/4P slot aggregation in table formation.
+2. `202610200002_matchmaking_caller_ticket.sql`: Insertion of caller queue ticket with `matched` status upon instant table formation.
+
+Schema parity verified across 38 canonical migrations and 37 function definitions.
 
 ### Findings Resolution Matrix (October 2026 Review)
 
