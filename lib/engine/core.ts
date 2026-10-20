@@ -618,9 +618,27 @@ export function pickPersistedState(state: unknown): Record<string, unknown> {
 }
 
 /** Sanitize state before putting it on the wire / into match_states for guests. */
-export function stripPowerTypesForWire<T extends { powerTiles?: { r: number; c: number; type?: unknown }[] }>(state: T): T {
-    if (!state?.powerTiles?.length) return state;
-    return { ...state, powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })) };
+export function stripPowerTypesForWire<T extends {
+    powerTiles?: { r: number; c: number; type?: unknown }[];
+    playerPowers?: Partial<Record<string, { type?: unknown; expiresAt?: number }[]>>;
+}>(state: T, viewerColor?: string): T {
+    if (!state) return state;
+    let res = state;
+    if (state.powerTiles?.length) {
+        res = { ...res, powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })) };
+    }
+    if (state.playerPowers) {
+        const maskedPowers: Record<string, { type?: unknown; expiresAt?: number }[]> = {};
+        for (const [color, items] of Object.entries(state.playerPowers)) {
+            if (viewerColor && color === viewerColor) {
+                maskedPowers[color] = items || [];
+            } else {
+                maskedPowers[color] = (items || []).map(p => ({ ...p, type: undefined }));
+            }
+        }
+        res = { ...res, playerPowers: maskedPowers };
+    }
+    return res;
 }
 
 // ─── Powers (P3) ────────────────────────────────────────────────────────────
