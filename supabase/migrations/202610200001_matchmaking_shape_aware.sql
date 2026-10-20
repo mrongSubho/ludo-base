@@ -53,17 +53,23 @@ begin
       values (room, p_game_mode, p_match_type, matched_player_ids)
       returning id into m;
 
+    -- Update matched opponents to 'matched'
     update public.matchmaking_queue
       set status = 'matched', match_id = m, room_code = room
-      where id = any(matched_ticket_ids)
-         or (player_id = p_player_id and status = 'searching');
+      where id = any(matched_ticket_ids);
+
+    -- Insert caller's ticket with 'matched' status so all participants exist in matchmaking_queue
+    insert into public.matchmaking_queue(player_id, game_mode, match_type, wager, wager_min, wager_max, status, match_id, room_code)
+      values (p_player_id, p_game_mode, p_match_type, p_wager, p_wager_min, p_wager_max, 'matched', m, room)
+      returning id into q;
 
     return jsonb_build_object(
       'status', 'matched',
       'match_id', m,
       'room_code', room,
       'match_shape', p_match_type,
-      'participants', matched_player_ids
+      'participants', matched_player_ids,
+      'ticket_id', q
     );
   end if;
 
