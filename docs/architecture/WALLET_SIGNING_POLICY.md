@@ -39,7 +39,7 @@ Ludo Base strictly bifurcates wallet authentication based on signer type. The si
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **App Boot** | App launch / mount | Prompted via WebAuthn if `bootLock` is ON and passkey enrolled | Skipped completely (native wallet manages lock) | 5 failed attempts locks user out temporarily | [`app/components/BootLock.tsx`](../../app/components/BootLock.tsx) |
 | **App Session (SIWE)** | Explicit user action needing off-chain state (Matchmaking, Chat, Profile, Settings) | If `autoSign: true`: Silent background sign.<br>If `autoSign: false`: Prompts device biometric before signing | Native wallet signature popup (`personal_sign`) | Guarded by [`appSessionGuard`](../../lib/appSessionGuard.ts) (60s cooldown on reject, 3-fail terminal stop) | [`hooks/useAppSession.ts`](../../hooks/useAppSession.ts) |
-| **Matchmaking & Lobby** | Host game or join matchmaking queue (Quick Match / Team Up) | Pre-auth signing gate ([`SignWaitModal`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/SignWaitModal.tsx)) awaits SIWE + provisional session before search radar starts | Pre-auth signing gate ([`SignWaitModal`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/SignWaitModal.tsx)) awaits SIWE + provisional session before search radar starts | Rejection or failure cancels flow, toasts error, and returns player safely to lobby without starting search | [`app/components/GameLobby.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/GameLobby.tsx) |
+| **Matchmaking & Lobby** | Host game or join matchmaking queue (Quick Match / Team Up) | Pre-auth signing gate ([`SignWaitModal`](../../app/components/SignWaitModal.tsx)) awaits SIWE + provisional session before search radar starts | Pre-auth signing gate ([`SignWaitModal`](../../app/components/SignWaitModal.tsx)) awaits SIWE + provisional session before search radar starts | Rejection or failure cancels flow, toasts error, and returns player safely to lobby without starting search | [`app/components/GameLobby.tsx`](../../app/components/GameLobby.tsx) |
 | **In-Game Moves & Dice** | Every turn, roll, and power activation | **ZERO Signatures.** Uses Session v2 bearer token over WebSocket to MatchRoom DO | **ZERO Signatures.** Uses Session v2 bearer token over WebSocket to MatchRoom DO | MatchRoom validates session token; invalid intents are dropped | [`src/room/MatchRoom.ts`](../../src/room/MatchRoom.ts) |
 | **Match Outcome** | Game over (once per match) | Attesting human player signs canonical match summary payload | Attesting human player signs canonical match summary payload | Result rejected if signer is not a registered seat or winner mismatch | [`app/api/match/record/route.ts`](../../app/api/match/record/route.ts) |
 | **Direct Messaging (DMs)** | 1st time messaging a user | Signs/publishes ECDH P-256 public key via SIWE session | Signs/publishes ECDH P-256 public key via SIWE session | **Fails closed** if peer has no key; no plaintext fallback | [`lib/encryption.ts`](../../lib/encryption.ts) |
@@ -99,3 +99,54 @@ Networked multiplayer operates under server authority ([`src/room/MatchRoom.ts`]
 - **Intent Transport:** Clients send JSON WebSocket intents (`REQUEST_ROLL`, `REQUEST_MOVE`) authenticated with a Session v2 bearer token.
 - **Deduplication:** Dual-path transports (Supabase Broadcast + PeerJS) use `actionId` and `intentId` tracking to guarantee idempotent execution.
 - **RNG & Clocks:** Dice generation and turn countdowns are strictly managed by the Durable Object on the server.
+
+---
+
+## 7. System-Wide Signature Loading Modal (`SignWaitModal`)
+
+Whenever a wallet signature (SIWE app session or EIP-712 match session grant) is requested, the system displays a unified loading modal ([`SignWaitModal`](../../app/components/SignWaitModal.tsx)) until the signature is confirmed or cancelled.
+
+### UI / UX Invariants
+1. **Never Interrupt Active Radar/Countdown:** In Quick Match and Team-Up, the search radar, matching timers, and websocket queue subscriptions **must not start** while waiting for a signature. Both the SIWE app session and the provisional match grant must be established before engaging matchmaking.
+2. **Deterministic Cancel / Abort:** The modal includes a **"Return to Lobby"** button. If clicked by the user, the signature flow is aborted, cleaning up modal state and safely returning the player to the lobby without initiating orphan search states or unintended joins.
+3. **Dual Theme Loyalty:** The modal (`.ludo-authwait-scope`) renders native design tokens across both themes:
+   - **Retro-Futurism (`theme-retro-futurism`)**: Deep cosmic glass, pulsing cyan beacon (`#00E5FF`), violet perimeter glow (`rgba(124, 58, 237, 0.35)`).
+   - **Daybreak (`theme-daybreak`)**: Cream porcelain card, dark slate typography (`#171717`), deep teal accents (`#0d6d87`), amber pulse highlights.
+
+### Architecture & Call Flow
+```
+Component Gesture (Play / DM / Claim / Bet)
+         │
+         ▼
+  ensureAppSession({ context }) / createProvisionalSession(key, id, { context })
+         │
+         ├─── If Session Cached (sessionStorage / localStorage) ─────────────► Fast Path (0ms, No Modal)
+         │
+         └─── If Signature Required:
+                   │
+                   ▼
+         showAuthPrompt({ context, onCancel })  <─── Singleton store in hooks/useAuthPrompt.ts
+                   │
+                   ▼
+         <GlobalSignWaitModal /> (Mounted at root in app/Providers.tsx)
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+   User Approves       User Cancels ("Return to Lobby" / Rejection)
+         │                   │
+         ▼                   ▼
+   Execute Action      Abort flow, display toast, stay in lobby
+```
+
+### Contextual Copy Matrix
+
+| Context | Title | Badge | Description |
+| :--- | :--- | :--- | :--- |
+| `quick-match` | **MATCHMAKING SIGN-IN** | Awaiting Signature | Please approve the sign-in request in your wallet to search for online opponents. |
+| `teamup` | **TEAM UP SIGN-IN** | Awaiting Signature | Please approve the sign-in request in your wallet to host or join multiplayer parties. |
+| `messaging` | **MESSAGING SIGN-IN** | Awaiting Signature | Please approve the sign-in request in your wallet to decrypt and send end-to-end encrypted messages. |
+| `social` | **SOCIAL ACTION SIGN-IN** | Awaiting Signature | Please approve the sign-in request in your wallet to update friends or send pokes. |
+| `marketplace` | **CUSTOMIZATION SIGN-IN** | Awaiting Signature | Please approve sign-in in your wallet to save your equipped board style and token skins. |
+| `missions` | **CLAIM REWARD SIGN-IN** | Awaiting Signature | Please approve sign-in in your wallet to generate and verify your mission claim voucher. |
+| `betting` | **SPECTATOR BETTING SIGN-IN** | Awaiting Signature | Please approve sign-in in your wallet to register your live match prediction. |
+| `general` | **WALLET SIGN-IN REQUIRED** | Awaiting Signature | Please approve the sign-in request in your wallet to proceed. No gas fee required. |
