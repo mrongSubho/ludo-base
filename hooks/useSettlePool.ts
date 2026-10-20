@@ -32,10 +32,11 @@ export function useSettlePool() {
     const settle = useCallback(
         async (args: {
             poolId: Hex;
-            plan: PayoutEntry[];
+            plan?: PayoutEntry[];
             authority: Address;
             participants?: Address[];
             winnerAddresses?: Address[];
+            winners?: Address[];
             nonce?: bigint;
             deadline?: bigint;
             matchId?: string;
@@ -64,6 +65,8 @@ export function useSettlePool() {
                 const deadline =
                     args.deadline ?? BigInt(Math.floor(Date.now() / 1000) + 3600);
 
+                const winnersResolved = args.winnerAddresses ?? args.winners ?? args.plan?.map((p) => p.addr) ?? [];
+
                 const res = await fetch("/api/chips/settle/propose", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -73,9 +76,10 @@ export function useSettlePool() {
                         chainId,
                         poolId: args.poolId,
                         authority: args.authority,
-                        participants: args.participants ?? args.plan.map((p) => p.addr),
-                        winnerAddresses: args.winnerAddresses ?? args.plan.map((p) => p.addr),
-                        payoutPlan: args.plan.map((p) => ({
+                        participants: args.participants ?? args.plan?.map((p) => p.addr),
+                        winnerAddresses: winnersResolved,
+                        winners: winnersResolved,
+                        payoutPlan: args.plan?.map((p) => ({
                             addr: p.addr,
                             amount: p.amount.toString(),
                         })),
@@ -89,8 +93,22 @@ export function useSettlePool() {
                     throw new Error(data?.error || "settle propose failed");
                 }
 
+                // CHAIN-03: Use canonical server plan that was signed by edgeSig
+                const serverPlan: PayoutEntry[] = Array.isArray(data.plan) && data.plan.length > 0
+                    ? data.plan.map((p: { addr: Address; amount: string | bigint }) => ({
+                        addr: p.addr,
+                        amount: BigInt(p.amount),
+                    }))
+                    : (args.plan ?? []);
+
+                const localPlanHash = payoutPlanHash(serverPlan);
+                const planHash = (data.planHash ?? localPlanHash) as Hex;
+
+                if (data.planHash && localPlanHash.toLowerCase() !== String(data.planHash).toLowerCase()) {
+                    throw new Error("Plan integrity check failed: local hash does not match server signature");
+                }
+
                 const edgeSig = data.edgeSig as Hex;
-                const planHash = (data.planHash ?? payoutPlanHash(args.plan)) as Hex;
                 const n = BigInt(data.nonce ?? nonce);
                 const dl = BigInt(data.deadline ?? deadline);
                 const authority = (data.authority ?? args.authority) as Address;
@@ -125,7 +143,7 @@ export function useSettlePool() {
                     functionName: "settlePool",
                     args: [
                         args.poolId,
-                        args.plan.map((p) => ({ addr: p.addr, amount: p.amount })),
+                        serverPlan.map((p) => ({ addr: p.addr, amount: p.amount })),
                         dl,
                         n,
                         hostSig,

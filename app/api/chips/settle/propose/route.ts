@@ -49,9 +49,14 @@ export async function POST(request: Request) {
             sessionId,
             chainId: chainRaw,
             poolId,
-            winners,
+            winners: winnersRaw,
+            winnerAddresses,
             split,
         } = body ?? {};
+
+        const winners = (Array.isArray(winnerAddresses) && winnerAddresses.length > 0)
+            ? winnerAddresses
+            : (Array.isArray(winnersRaw) ? winnersRaw : []);
 
         if (!poolId || !Array.isArray(winners) || winners.length === 0) {
             return NextResponse.json({ error: "Missing settle fields" }, { status: 400 });
@@ -102,6 +107,11 @@ export async function POST(request: Request) {
         const digest = settleDigest(params, pool, chainId);
         const edgeSig = await edgeSign(digest);
 
+        const wirePlan = plan.map((p) => ({
+            addr: p.addr,
+            amount: p.amount.toString(),
+        }));
+
         return NextResponse.json({
             poolId: params.poolId,
             planHash: payoutPlanHash(plan),
@@ -114,7 +124,7 @@ export async function POST(request: Request) {
             hostSignsDigest: digest,
             chainId,
             matchPool: pool,
-            plan,
+            plan: wirePlan,
             // Informational only: Mode B is derived from block.timestamp by the
             // contract, not chosen by the caller.
             modeB: false,

@@ -142,6 +142,7 @@ export interface PoolSummaryView {
     status: number;
     maxSeats: number;
     filledSeats: number;
+    shape: number;
     authority: `0x${string}` | undefined;
     entryFee: bigint;
     gross: bigint;
@@ -150,6 +151,7 @@ export interface PoolSummaryView {
     hostBond: bigint;
     settleBy: bigint;
     claimUnlockAt: bigint | undefined;
+    settleNonce: bigint;
 }
 
 export function usePoolSummary(poolId: `0x${string}` | null | undefined) {
@@ -164,19 +166,21 @@ export function usePoolSummary(poolId: `0x${string}` | null | undefined) {
 
     return useMemo<PoolSummaryView | null>(() => {
         if (!data) return null;
-        // getPoolSummary: [status,maxSeats,filled,auth,entry,gross,prize,bond,settleBy,claimUnlockAt]
+        // getPoolSummary: [status,maxSeats,filled,shape,auth,entry,gross,prize,bond,settleBy,claimUnlockAt,settleNonce]
         const a = data as unknown as readonly unknown[];
         return {
             status: Number(a[0] ?? 0),
             maxSeats: Number(a[1] ?? 0),
             filledSeats: Number(a[2] ?? 0),
-            authority: a[3] as `0x${string}` | undefined,
-            entryFee: (a[4] as bigint) ?? BigInt(0),
-            gross: (a[5] as bigint) ?? BigInt(0),
-            prizeFund: (a[6] as bigint) ?? BigInt(0),
-            hostBond: (a[7] as bigint) ?? BigInt(0),
-            settleBy: (a[8] as bigint) ?? BigInt(0),
-            claimUnlockAt: a[9] as bigint | undefined,
+            shape: Number(a[3] ?? 0),
+            authority: a[4] as `0x${string}` | undefined,
+            entryFee: (a[5] as bigint) ?? BigInt(0),
+            gross: (a[6] as bigint) ?? BigInt(0),
+            prizeFund: (a[7] as bigint) ?? BigInt(0),
+            hostBond: (a[8] as bigint) ?? BigInt(0),
+            settleBy: (a[9] as bigint) ?? BigInt(0),
+            claimUnlockAt: (a[10] as bigint) ?? undefined,
+            settleNonce: (a[11] as bigint) ?? BigInt(0),
         };
     }, [data]);
 }
@@ -212,9 +216,9 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
 
     const claimUnlockAt = useMemo(() => {
         if (!summary) return undefined;
-        // getPoolSummary: [status,maxSeats,filled,auth,entry,gross,prize,bond,settleBy,claimUnlockAt]
+        // getPoolSummary: [status,maxSeats,filled,shape,auth,entry,gross,prize,bond,settleBy,claimUnlockAt,settleNonce]
         const arr = summary as unknown as readonly unknown[];
-        return arr[9] as bigint | undefined;
+        return arr[10] as bigint | undefined;
     }, [summary]);
 
     const { secondsLeft, ready, mmss } = useClaimClock(claimUnlockAt);

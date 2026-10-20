@@ -43,6 +43,8 @@ jobs:
       # error and CI reported failures that did not reproduce locally.
       - name: Install foundry
         uses: foundry-rs/foundry-toolchain@v1
+      - name: Foundry contract test suite
+        run: forge test --root contracts
       - name: Engine unit tests
         run: npm test
       - name: Golden replay corpus (≥50 deterministic matches)
