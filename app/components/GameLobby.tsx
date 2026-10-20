@@ -16,6 +16,9 @@ import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
+import { useToast } from './Toast';
+import { SignWaitModal } from './SignWaitModal';
 import { PaidPoolJoinButton } from './PaidPoolJoinButton';
 import SecurityLadderChip from './SecurityLadderChip';
 import ThemeNudge from './ThemeNudge';
@@ -95,6 +98,8 @@ export default function GameLobby({
     const coins = profile?.coins ?? 0;
     // Guests can only enter offline/bot matches — online entry shows the wall.
     const { guard } = useGuestWall();
+    const { ensureAppSession, peekAppSession } = useAppSession();
+    const toast = useToast();
 
     // Configuration State
     const { playSelect, playCoin } = useSoundEffects();
@@ -145,6 +150,28 @@ export default function GameLobby({
     }, []);
     const [searchId, setSearchId] = useState(0);
 
+    // Pre-match / pre-teamup signing gate
+    const [authModalState, setAuthModalState] = useState<{
+        isOpen: boolean;
+        action: 'quick-match' | 'teamup' | null;
+        title: string;
+        badgeText: string;
+        statusText: string;
+    }>({
+        isOpen: false,
+        action: null,
+        title: '',
+        badgeText: '',
+        statusText: '',
+    });
+    const cancelAuthRef = useRef(false);
+
+    const handleCancelAuth = useCallback(() => {
+        cancelAuthRef.current = true;
+        setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+        toast('Sign-in cancelled. Returning to lobby.', 'info');
+    }, [toast]);
+
     // Party join feedback: every join tap (feed, chat, link) funnels here.
     // 20s window (mobile data + free signaling is slow); the message is
     // staged — transport up but unseated means full/started, never-contacted
@@ -184,10 +211,32 @@ export default function GameLobby({
     }, [address]);
 
     const startPartyJoin = useCallback(async (code: string, seat?: number, secret?: string | null) => {
-        guard('online-play', () => {
+        guard('online-play', async () => {
             setJoinError(null);
             joinedCodeRef.current = code;
             lastJoinRef.current = { code, seat, secret };
+
+            // Ensure SIWE session before joining party
+            const hasSiwe = !!peekAppSession();
+            if (!hasSiwe) {
+                cancelAuthRef.current = false;
+                setAuthModalState({
+                    isOpen: true,
+                    action: 'teamup',
+                    title: 'PARTY SIGN-IN REQUIRED',
+                    badgeText: 'Awaiting Signature',
+                    statusText: 'Please approve the sign-in request in your wallet to join this party.',
+                });
+                const session = await ensureAppSession();
+                if (cancelAuthRef.current) return;
+                if (!session) {
+                    setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                    toast('Sign-in cancelled. Could not join party.', 'error');
+                    return;
+                }
+                setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+            }
+
             setPendingJoin({ code, since: Date.now() });
             void createProvisionalSession(`room:${code}`, code).then(result => {
                 if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
@@ -205,7 +254,7 @@ export default function GameLobby({
                 setJoinError("Couldn’t reach the host. They may be offline, or the room is full or already started.");
             }, JOIN_TIMEOUT_MS);
         });
-    }, [guard, joinGame, isSeatedIn, createProvisionalSession]);
+    }, [guard, joinGame, isSeatedIn, createProvisionalSession, peekAppSession, ensureAppSession, toast]);
 
     // Fast path: the instant our seat lands, open the room (no 20s wait).
     // Keyed on the joined code, not the pending flag — a seat landing just
@@ -272,7 +321,7 @@ export default function GameLobby({
                 setMatchType(pool.matchType);
                 // Trigger search on next tick to ensure state sync
                 setTimeout(() => {
-                    handleStartQuickMatch();
+                    handleStartQuickMatch(pool.mode, pool.matchType);
                 }, 100);
             }
         };
@@ -295,12 +344,109 @@ export default function GameLobby({
         };
     }, [setWager, setGameMode, setMatchType, guard, joinGame]);
 
-    const handleStartQuickMatch = () => {
-        guard('online-play', () => {
-            setSearchId(prev => prev + 1);
-            setIsQuickMatchActive(true);
+    const handleStartQuickMatch = useCallback((overrideMode?: 'classic' | 'power', overrideMatchType?: '1v1' | '2v2' | '4P') => {
+        guard('online-play', async () => {
+            const targetMode = overrideMode || gameMode;
+            const targetType = overrideMatchType || matchType;
+            const myAddr = address?.toLowerCase();
+            if (!myAddr) return;
+
+            // Fast path: if both SIWE and provisional session already exist, skip modal and launch immediately
+            const hasSiwe = !!peekAppSession();
+            const provKey = `search:${myAddr}:${targetMode}:${targetType}`;
+            const hasProv = typeof window !== 'undefined' && !!sessionStorage.getItem(`ludo-provisional:${provKey}`);
+
+            if (hasSiwe && hasProv) {
+                setSearchId(prev => prev + 1);
+                setIsQuickMatchActive(true);
+                return;
+            }
+
+            // Wallet signature required: hold the search and open the waiting modal
+            cancelAuthRef.current = false;
+            setAuthModalState({
+                isOpen: true,
+                action: 'quick-match',
+                title: 'MATCHMAKING SIGN-IN',
+                badgeText: 'Awaiting Signature',
+                statusText: 'Connecting to matchmaking network... Please approve the sign-in request in your wallet.',
+            });
+
+            try {
+                // Step 1: Ensure SIWE App Session
+                if (!hasSiwe) {
+                    setAuthModalState(prev => ({ ...prev, statusText: 'Please approve the sign-in request in your wallet...' }));
+                    const session = await ensureAppSession();
+                    if (cancelAuthRef.current) return;
+                    if (!session) {
+                        setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                        toast('Sign-in cancelled. Please approve the wallet request to search for matches.', 'error');
+                        return;
+                    }
+                }
+
+                // Step 2: Ensure Provisional Session
+                if (!hasProv) {
+                    setAuthModalState(prev => ({ ...prev, statusText: 'Authorizing matchmaking session in your wallet...' }));
+                    const provResult = await createProvisionalSession(provKey);
+                    if (cancelAuthRef.current) return;
+                    if (!provResult.ok) {
+                        setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                        toast(provResult.error || 'Matchmaking session authorization rejected. Returning to lobby.', 'error');
+                        return;
+                    }
+                }
+
+                if (cancelAuthRef.current) return;
+
+                // Success! Close modal and launch search party
+                setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                setSearchId(prev => prev + 1);
+                setIsQuickMatchActive(true);
+            } catch (err) {
+                console.error('Quick match pre-auth failed:', err);
+                setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                toast('Sign-in failed. Returning to lobby.', 'error');
+            }
         });
-    };
+    }, [guard, gameMode, matchType, address, peekAppSession, ensureAppSession, createProvisionalSession, toast]);
+
+    const handleStartTeamUp = useCallback(() => {
+        guard('teamup', async () => {
+            const hasSiwe = !!peekAppSession();
+            if (hasSiwe) {
+                setShowTeamUpOptions(true);
+                return;
+            }
+
+            cancelAuthRef.current = false;
+            setAuthModalState({
+                isOpen: true,
+                action: 'teamup',
+                title: 'TEAM UP SIGN-IN',
+                badgeText: 'Awaiting Signature',
+                statusText: 'Please approve the sign-in request in your wallet to host or join multiplayer parties.',
+            });
+
+            try {
+                const session = await ensureAppSession();
+                if (cancelAuthRef.current) return;
+                if (!session) {
+                    setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                    toast('Sign-in cancelled. You must approve the request to access Team Up.', 'error');
+                    return;
+                }
+
+                // Success!
+                setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                setShowTeamUpOptions(true);
+            } catch (err) {
+                console.error('Team up pre-auth failed:', err);
+                setAuthModalState({ isOpen: false, action: null, title: '', badgeText: '', statusText: '' });
+                toast('Sign-in failed. Returning to lobby.', 'error');
+            }
+        });
+    }, [guard, peekAppSession, ensureAppSession, toast]);
 
     const handleCancelQuickMatch = useCallback(() => {
         clearHuntTimers();
@@ -534,8 +680,8 @@ export default function GameLobby({
                         the free space between entry fee and the card */}
                     <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
                         <ActionDice 
-                            onSelectQuickMatch={handleStartQuickMatch}
-                            onSelectTeamUp={() => guard('teamup', () => setShowTeamUpOptions(true))}
+                            onSelectQuickMatch={() => handleStartQuickMatch()}
+                            onSelectTeamUp={handleStartTeamUp}
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}
                         />
                     </div>
@@ -609,6 +755,15 @@ export default function GameLobby({
                     </div>
                 </div>
             )}
+            {/* Modal waiting for wallet signature before starting quick match or opening team up */}
+            <SignWaitModal
+                isOpen={authModalState.isOpen}
+                title={authModalState.title}
+                badgeText={authModalState.badgeText}
+                statusText={authModalState.statusText}
+                onCancel={handleCancelAuth}
+            />
+
             {/* Hide Team Up while a join is in flight so the Joining overlay is visible */}
             {showTeamUpOptions && !pendingJoin && (
                 <PanelErrorBoundary

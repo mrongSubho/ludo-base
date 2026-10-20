@@ -332,6 +332,7 @@ export const QuickMatchPanel = ({
                 if (!result.ok) {
                     preAuthStartedRef.current = false;
                     console.warn('🔑 [QuickMatch] pre-match authorization failed:', result.error);
+                    handleBackToLobby();
                     return;
                 }
             }

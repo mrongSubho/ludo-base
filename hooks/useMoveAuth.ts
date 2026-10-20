@@ -112,6 +112,10 @@ export function useMoveAuth(opts: {
         roomCode?: string;
     }): Promise<{ ok: boolean; provisionalId?: string; error?: string }> => {
         if (!myAddress) return { ok: false, error: 'no wallet' };
+        if (typeof window !== 'undefined') {
+            const cached = sessionStorage.getItem(`ludo-provisional:${params.authorizationKey}`);
+            if (cached) return { ok: true, provisionalId: cached };
+        }
         const payload = buildMatchSessionPayload({
             wallet: myAddress,
             matchId: params.authorizationKey,

@@ -103,7 +103,7 @@ body.theme-retro-futurism .boot-dot { display: block; opacity: 0.1; }
 /* ─── Retro Night signature: violet edge-light on panel shells ───
    Matches the terminal system (--panel-border). Dark themes keep their
    depth; the violet rim is Retro's identity marker. */
-body.theme-retro-futurism :is(.ludo-market-scope.border-white\/10, .ludo-settings-scope.border-white\/10, .ludo-rankings-scope.border-white\/10, .ludo-friends-scope.border-white\/10, .ludo-messages-scope.border-white\/10, .ludo-arena-scope.border-white\/10, .ludo-profile-scope.border-white\/10, .ludo-offline-scope.border-white\/10, .ludo-migrate-scope.border-white\/10, .ludo-teamup-scope.border-white\/10, .ludo-quick-scope.border-white\/10, .ludo-pubprofile-scope.border-white\/10, .ludo-livearena-scope.border-white\/10, .ludo-leaderboard-scope.border-white\/10, .ludo-invite-scope.border-white\/10, .ludo-wallet-scope, .ludo-burn-scope.border-white\/10, .ludo-wall-scope.border-white\/10, .ludo-quit-scope.border-white\/10, .ludo-broadcast-scope.border-white\/10) { border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 0 24px rgba(124, 58, 237, 0.18), 0 24px 60px rgba(0, 0, 0, 0.55); }
+body.theme-retro-futurism :is(.ludo-market-scope.border-white\/10, .ludo-settings-scope.border-white\/10, .ludo-rankings-scope.border-white\/10, .ludo-friends-scope.border-white\/10, .ludo-messages-scope.border-white\/10, .ludo-arena-scope.border-white\/10, .ludo-profile-scope.border-white\/10, .ludo-offline-scope.border-white\/10, .ludo-migrate-scope.border-white\/10, .ludo-teamup-scope.border-white\/10, .ludo-quick-scope.border-white\/10, .ludo-pubprofile-scope.border-white\/10, .ludo-livearena-scope.border-white\/10, .ludo-leaderboard-scope.border-white\/10, .ludo-invite-scope.border-white\/10, .ludo-wallet-scope, .ludo-burn-scope.border-white\/10, .ludo-wall-scope.border-white\/10, .ludo-authwait-scope.border-white\/10, .ludo-quit-scope.border-white\/10, .ludo-broadcast-scope.border-white\/10) { border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 0 24px rgba(124, 58, 237, 0.18), 0 24px 60px rgba(0, 0, 0, 0.55); }
 
 /* Retro-Futurism Scanline Overlay */
 body.theme-retro-futurism::before {
@@ -2485,6 +2485,7 @@ body.keyboard-open :is(
   .ludo-invite-scope,
   .ludo-wallet-scope, .ludo-burn-scope,
   .ludo-wall-scope,
+  .ludo-authwait-scope,
   .ludo-quit-scope,
   .ludo-splash-scope,
   .ludo-guestpill-scope,
