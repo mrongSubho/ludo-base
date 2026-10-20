@@ -70,14 +70,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid wager' }, { status: 400 });
         }
 
-        // P6: Signature requirement removed for room-managed matches / session-authenticated callers
+        // P6 & SA-2: Signature proof OR session-authenticated participant
         const hasSignatureProof = Boolean(message && signature && issuedAt);
+        let authenticatedWallet: string | null = null;
         if (!hasSignatureProof) {
             const session = (await requireSession(request, { scope: 'match', matchId: String(matchId) })) ||
                             (await requireSession(request, { scope: 'app' }));
             if (!session) {
                 return NextResponse.json({ error: 'Missing session or signature proof' }, { status: 401 });
             }
+            authenticatedWallet = session.wallet.toLowerCase();
         } else if (!isFreshIssuedAt(issuedAt)) {
             return NextResponse.json({ error: 'Proof expired' }, { status: 401 });
         }
@@ -163,9 +165,16 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Match payload does not match canonical match' }, { status: 403 });
             }
             const canonicalHost = String(existing.participants?.[0] || '').toLowerCase();
-            const roomOwner = (existing as { room_owner?: string }).room_owner;
-            if (hasSignatureProof && (!canonicalHost || recovered !== canonicalHost)) {
-                return NextResponse.json({ error: 'Only the canonical match host may record the result' }, { status: 403 });
+            const roomOwner = (existing as { room_owner?: string }).room_owner?.toLowerCase();
+            if (hasSignatureProof) {
+                if (!canonicalHost || recovered !== canonicalHost) {
+                    return NextResponse.json({ error: 'Only the canonical match host may record the result' }, { status: 403 });
+                }
+            } else {
+                // SA-2: When recording without signature proof, caller must be room owner or a match participant
+                if (!authenticatedWallet || (!lowerParts.includes(authenticatedWallet) && roomOwner !== authenticatedWallet)) {
+                    return NextResponse.json({ error: 'Caller is not an authorized participant of this match' }, { status: 403 });
+                }
             }
             if (!(existing as { host_proven?: boolean }).host_proven && !roomOwner) {
                 return NextResponse.json(
@@ -181,7 +190,7 @@ export async function POST(request: Request) {
             }
         }
 
-        // P1: Derive the authoritative winner from match_states.state.winner and reject mismatch
+        // P1 & SA-2: Derive the authoritative winner from match_states.state.winner and reject mismatch
         let authoritativeWinnerAddress: string | null = null;
         {
             const { data: stateRow, error: stateErr } = await supabase
@@ -229,6 +238,30 @@ export async function POST(request: Request) {
                     );
                 }
             }
+
+            // SA-2: Session-based settlement requires authoritative server winner recorded in match_states
+            if (!hasSignatureProof) {
+                if (!authoritativeWinnerAddress) {
+                    return NextResponse.json(
+                        {
+                            error: 'Match has no server-recorded winner; cannot record progression without host signature',
+                            code: 'SERVER_WINNER_REQUIRED',
+                        },
+                        { status: 403 },
+                    );
+                }
+                if (!winnerAddress || winnerAddress.toLowerCase() !== authoritativeWinnerAddress) {
+                    return NextResponse.json(
+                        {
+                            error: 'Claimed winner does not match authoritative server state',
+                            code: 'WINNER_MISMATCH',
+                            serverWinner: authoritativeWinnerAddress,
+                            claimedWinner: winnerAddress,
+                        },
+                        { status: 403 },
+                    );
+                }
+            }
         }
 
         console.log('📝 [API] Recording signed match result...', { winnerAddress, roomCode, gameMode, participants, matchId, signer: recovered });
@@ -265,7 +298,10 @@ export async function POST(request: Request) {
         // 2. Update winner stats, XP, RP, and COINS
         // Coin pot is intentionally NOT paid from this path — wager settlement
         // is a separate, server-owned flow. This route awards progression only.
-        const winLxpGain = 150 + Math.floor(wager * 0.1);
+        // SA-2: Cap wager scaling to prevent progression inflation exploits
+        const MAX_PROGRESSION_WAGER = 10_000;
+        const effectiveWager = Math.min(Math.max(0, wager), MAX_PROGRESSION_WAGER);
+        const winLxpGain = 150 + Math.floor(effectiveWager * 0.1);
         const winRxpGain = 30;
 
         const { data: player, error: fetchError } = winnerAddress ? await supabase
